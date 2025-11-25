@@ -10,6 +10,7 @@ import { authController } from "./modules/auth/auth.controller";
 import { requireAuth } from "./modules/auth/auth.middleware";
 import { driverController } from "./modules/driver/driver.controller";
 import { startup } from "./modules/lifecycle/startup";
+import { migrateToShortIds } from "./modules/lifecycle/migration";
 import { repositoriesController } from "./modules/repositories/repositories.controller";
 import { systemController } from "./modules/system/system.controller";
 import { volumeController } from "./modules/volumes/volume.controller";
@@ -19,7 +20,8 @@ import { notificationsController } from "./modules/notifications/notifications.c
 import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { shutdown } from "./modules/lifecycle/shutdown";
-import { SOCKET_PATH } from "./core/constants";
+import { REQUIRED_MIGRATIONS, SOCKET_PATH } from "./core/constants";
+import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -67,6 +69,11 @@ app.onError((err, c) => {
 });
 
 runDbMigrations();
+
+await migrateToShortIds();
+await validateRequiredMigrations(REQUIRED_MIGRATIONS);
+
+await validateRequiredMigrations(["v0.14.0"]);
 
 const { docker } = await getCapabilities();
 

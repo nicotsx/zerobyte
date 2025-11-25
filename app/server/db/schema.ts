@@ -9,6 +9,7 @@ import type { NotificationType, notificationConfigSchema } from "~/schemas/notif
  */
 export const volumesTable = sqliteTable("volumes_table", {
 	id: int().primaryKey({ autoIncrement: true }),
+	shortId: text("short_id").notNull().unique(),
 	name: text().notNull().unique(),
 	type: text().$type<BackendType>().notNull(),
 	status: text().$type<BackendStatus>().notNull().default("unmounted"),
@@ -48,6 +49,7 @@ export type Session = typeof sessionsTable.$inferSelect;
  */
 export const repositoriesTable = sqliteTable("repositories_table", {
 	id: text().primaryKey(),
+	shortId: text("short_id").notNull().unique(),
 	name: text().notNull().unique(),
 	type: text().$type<RepositoryBackend>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof repositoryConfigSchema.inferOut>().notNull(),
@@ -151,3 +153,15 @@ export const backupScheduleNotificationRelations = relations(backupScheduleNotif
 	}),
 }));
 export type BackupScheduleNotification = typeof backupScheduleNotificationsTable.$inferSelect;
+
+/**
+ * App Metadata Table
+ * Used for storing key-value pairs like migration checkpoints
+ */
+export const appMetadataTable = sqliteTable("app_metadata", {
+	key: text().primaryKey(),
+	value: text().notNull(),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+});
+export type AppMetadata = typeof appMetadataTable.$inferSelect;

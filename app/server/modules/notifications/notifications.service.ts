@@ -1,4 +1,4 @@
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
 import { db } from "../../db/db";
@@ -164,10 +164,10 @@ const updateDestination = async (
 		const slug = slugify(updates.name, { lower: true, strict: true });
 
 		const conflict = await db.query.notificationDestinationsTable.findFirst({
-			where: and(eq(notificationDestinationsTable.name, slug), eq(notificationDestinationsTable.id, id)),
+			where: and(eq(notificationDestinationsTable.name, slug), ne(notificationDestinationsTable.id, id)),
 		});
 
-		if (conflict && conflict.id !== id) {
+		if (conflict) {
 			throw new ConflictError("Notification destination with this name already exists");
 		}
 		updateData.name = slug;

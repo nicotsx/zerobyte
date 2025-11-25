@@ -4,6 +4,7 @@ import { BACKEND_STATUS, BACKEND_TYPES, volumeConfigSchema } from "~/schemas/vol
 
 export const volumeSchema = type({
 	id: "number",
+	shortId: "string",
 	name: "string",
 	type: type.valueOf(BACKEND_TYPES),
 	status: type.valueOf(BACKEND_STATUS),
@@ -128,6 +129,7 @@ export const getVolumeDto = describeRoute({
  * Update a volume
  */
 export const updateVolumeBody = type({
+	name: "string?",
 	autoRemount: "boolean?",
 	config: volumeConfigSchema.optional(),
 });

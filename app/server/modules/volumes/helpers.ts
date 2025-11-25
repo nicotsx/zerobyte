@@ -6,5 +6,5 @@ export const getVolumePath = (volume: Volume) => {
 		return volume.config.path;
 	}
 
-	return `${VOLUME_MOUNT_BASE}/${volume.name}/_data`;
+	return `${VOLUME_MOUNT_BASE}/${volume.shortId}/_data`;
 };

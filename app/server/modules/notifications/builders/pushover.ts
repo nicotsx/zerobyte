@@ -1,8 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildPushoverShoutrrrUrl(
-	config: Extract<NotificationConfig, { type: "pushover" }>,
-): string {
+export function buildPushoverShoutrrrUrl(config: Extract<NotificationConfig, { type: "pushover" }>): string {
 	const params = new URLSearchParams();
 
 	if (config.devices) {

@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 import { volumeService } from "../volumes/volume.service";
 import { getVolumePath } from "../volumes/helpers";
+import { eq } from "drizzle-orm";
+import { db } from "../../db/db";
+import { volumesTable } from "../../db/schema";
 
 export const driverController = new Hono()
 	.post("/VolumeDriver.Capabilities", (c) => {
@@ -30,10 +33,18 @@ export const driverController = new Hono()
 			return c.json({ Err: "Volume name is required" }, 400);
 		}
 
-		const volumeName = body.Name.replace(/^zb-/, "");
+		const shortId = body.Name.replace(/^zb-/, "");
+
+		const volume = await db.query.volumesTable.findFirst({
+			where: eq(volumesTable.shortId, shortId),
+		});
+
+		if (!volume) {
+			return c.json({ Err: `Volume with shortId ${shortId} not found` }, 404);
+		}
 
 		return c.json({
-			Mountpoint: getVolumePath(volumeName),
+			Mountpoint: getVolumePath(volume),
 		});
 	})
 	.post("/VolumeDriver.Unmount", (c) => {
@@ -48,7 +59,15 @@ export const driverController = new Hono()
 			return c.json({ Err: "Volume name is required" }, 400);
 		}
 
-		const { volume } = await volumeService.getVolume(body.Name.replace(/^zb-/, ""));
+		const shortId = body.Name.replace(/^zb-/, "");
+
+		const volume = await db.query.volumesTable.findFirst({
+			where: eq(volumesTable.shortId, shortId),
+		});
+
+		if (!volume) {
+			return c.json({ Err: `Volume with shortId ${shortId} not found` }, 404);
+		}
 
 		return c.json({
 			Mountpoint: getVolumePath(volume),
@@ -61,11 +80,19 @@ export const driverController = new Hono()
 			return c.json({ Err: "Volume name is required" }, 400);
 		}
 
-		const { volume } = await volumeService.getVolume(body.Name.replace(/^zb-/, ""));
+		const shortId = body.Name.replace(/^zb-/, "");
+
+		const volume = await db.query.volumesTable.findFirst({
+			where: eq(volumesTable.shortId, shortId),
+		});
+
+		if (!volume) {
+			return c.json({ Err: `Volume with shortId ${shortId} not found` }, 404);
+		}
 
 		return c.json({
 			Volume: {
-				Name: `zb-${volume.name}`,
+				Name: `zb-${volume.shortId}`,
 				Mountpoint: getVolumePath(volume),
 				Status: {},
 			},
@@ -76,7 +103,7 @@ export const driverController = new Hono()
 		const volumes = await volumeService.listVolumes();
 
 		const res = volumes.map((volume) => ({
-			Name: `zb-${volume.name}`,
+			Name: `zb-${volume.shortId}`,
 			Mountpoint: getVolumePath(volume),
 			Status: {},
 		}));

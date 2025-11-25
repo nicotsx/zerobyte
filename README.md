@@ -265,7 +265,7 @@ docker compose up -d
 Your Zerobyte volumes will now be available as Docker volumes that you can mount into other containers using the `--volume` flag:
 
 ```bash
-docker run -v im-nfs:/path/in/container nginx:latest
+docker run -v zb-abc12:/path/in/container nginx:latest
 ```
 
 Or using Docker Compose:
@@ -275,13 +275,13 @@ services:
   myservice:
     image: nginx:latest
     volumes:
-      - im-nfs:/path/in/container
+      - zb-abc12:/path/in/container
 volumes:
-  im-nfs:
+  zb-abc12:
     external: true
 ```
 
-The volume name format is `im-<volume-name>` where `<volume-name>` is the name you assigned to the volume in Zerobyte. You can verify that the volume is available by running:
+The volume name format is `zb-<short-id>` where `<short-id>` is the unique identifier shown on the volume's Docker tab in Zerobyte. This short ID remains stable even if you rename the volume. You can verify that the volume is available by running:
 
 ```bash
 docker volume ls

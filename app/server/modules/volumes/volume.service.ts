@@ -2,13 +2,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import Docker from "dockerode";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
 import { getCapabilities } from "../../core/capabilities";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
+import { generateShortId } from "../../utils/id";
 import { getStatFs, type StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
 import { createVolumeBackend } from "../backends/backend";
@@ -35,9 +36,12 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		throw new ConflictError("Volume already exists");
 	}
 
+	const shortId = generateShortId();
+
 	const [created] = await db
 		.insert(volumesTable)
 		.values({
+			shortId,
 			name: slug,
 			config: backendConfig,
 			type: backendConfig.backend,
@@ -147,6 +151,21 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		throw new NotFoundError("Volume not found");
 	}
 
+	let newName = existing.name;
+	if (volumeData.name !== undefined && volumeData.name !== existing.name) {
+		const newSlug = slugify(volumeData.name, { lower: true, strict: true });
+
+		const conflict = await db.query.volumesTable.findFirst({
+			where: and(eq(volumesTable.name, newSlug), ne(volumesTable.id, existing.id)),
+		});
+
+		if (conflict) {
+			throw new ConflictError("A volume with this name already exists");
+		}
+
+		newName = newSlug;
+	}
+
 	const configChanged =
 		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;
 
@@ -159,12 +178,13 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
+			name: newName,
 			config: volumeData.config,
 			type: volumeData.config?.backend,
 			autoRemount: volumeData.autoRemount,
 			updatedAt: Date.now(),
 		})
-		.where(eq(volumesTable.name, name))
+		.where(eq(volumesTable.id, existing.id))
 		.returning();
 
 	if (!updated) {
@@ -177,9 +197,9 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		await db
 			.update(volumesTable)
 			.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
-			.where(eq(volumesTable.name, name));
+			.where(eq(volumesTable.id, existing.id));
 
-		serverEvents.emit("volume:updated", { volumeName: name });
+		serverEvents.emit("volume:updated", { volumeName: updated.name });
 	}
 
 	return { volume: updated };
@@ -190,6 +210,7 @@ const testConnection = async (backendConfig: BackendConfig) => {
 
 	const mockVolume = {
 		id: 0,
+		shortId: "test",
 		name: "test-connection",
 		path: tempDir,
 		config: backendConfig,
@@ -264,7 +285,7 @@ const getContainersUsingVolume = async (name: string) => {
 			const container = docker.getContainer(info.Id);
 			const inspect = await container.inspect();
 			const mounts = inspect.Mounts || [];
-			const usesVolume = mounts.some((mount) => mount.Type === "volume" && mount.Name === `im-${volume.name}`);
+			const usesVolume = mounts.some((mount) => mount.Type === "volume" && mount.Name === `zb-${volume.shortId}`);
 			if (usesVolume) {
 				usingContainers.push({
 					id: inspect.Id,

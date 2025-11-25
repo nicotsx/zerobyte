@@ -16,6 +16,8 @@ import {
 	listSnapshotsFilters,
 	restoreSnapshotBody,
 	restoreSnapshotDto,
+	updateRepositoryBody,
+	updateRepositoryDto,
 	type DeleteRepositoryDto,
 	type DeleteSnapshotDto,
 	type DoctorRepositoryDto,
@@ -25,6 +27,7 @@ import {
 	type ListSnapshotFilesDto,
 	type ListSnapshotsDto,
 	type RestoreSnapshotDto,
+	type UpdateRepositoryDto,
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
@@ -152,4 +155,12 @@ export const repositoriesController = new Hono()
 		await repositoriesService.deleteSnapshot(name, snapshotId);
 
 		return c.json<DeleteSnapshotDto>({ message: "Snapshot deleted" }, 200);
+	})
+	.patch("/:name", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
+		const { name } = c.req.param();
+		const body = c.req.valid("json");
+
+		const res = await repositoriesService.updateRepository(name, body);
+
+		return c.json<UpdateRepositoryDto>(res.repository, 200);
 	});

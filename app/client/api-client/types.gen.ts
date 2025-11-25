@@ -189,6 +189,7 @@ export type ListVolumesResponses = {
         lastError: string | null;
         lastHealthCheck: number;
         name: string;
+        shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
         type: 'directory' | 'nfs' | 'smb' | 'webdav';
         updatedAt: number;
@@ -279,6 +280,7 @@ export type CreateVolumeResponses = {
         lastError: string | null;
         lastHealthCheck: number;
         name: string;
+        shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
         type: 'directory' | 'nfs' | 'smb' | 'webdav';
         updatedAt: number;
@@ -422,6 +424,7 @@ export type GetVolumeResponses = {
             lastError: string | null;
             lastHealthCheck: number;
             name: string;
+            shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
             type: 'directory' | 'nfs' | 'smb' | 'webdav';
             updatedAt: number;
@@ -465,6 +468,7 @@ export type UpdateVolumeData = {
             ssl?: boolean;
             username?: string;
         };
+        name?: string;
     };
     path: {
         name: string;
@@ -522,6 +526,7 @@ export type UpdateVolumeResponses = {
         lastError: string | null;
         lastHealthCheck: number;
         name: string;
+        shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
         type: 'directory' | 'nfs' | 'smb' | 'webdav';
         updatedAt: number;
@@ -771,6 +776,7 @@ export type ListRepositoriesResponses = {
         lastChecked: number | null;
         lastError: string | null;
         name: string;
+        shortId: string;
         status: 'error' | 'healthy' | 'unknown' | null;
         type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
         updatedAt: number;
@@ -985,6 +991,7 @@ export type GetRepositoryResponses = {
         lastChecked: number | null;
         lastError: string | null;
         name: string;
+        shortId: string;
         status: 'error' | 'healthy' | 'unknown' | null;
         type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
         updatedAt: number;
@@ -992,6 +999,110 @@ export type GetRepositoryResponses = {
 };
 
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
+
+export type UpdateRepositoryData = {
+    body?: {
+        compressionMode?: 'auto' | 'better' | 'fastest' | 'max' | 'off';
+        name?: string;
+    };
+    path: {
+        name: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{name}';
+};
+
+export type UpdateRepositoryErrors = {
+    /**
+     * Repository not found
+     */
+    404: unknown;
+    /**
+     * Repository with this name already exists
+     */
+    409: unknown;
+};
+
+export type UpdateRepositoryResponses = {
+    /**
+     * Repository updated successfully
+     */
+    200: {
+        compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+        config: {
+            accessKeyId: string;
+            backend: 'r2';
+            bucket: string;
+            endpoint: string;
+            secretAccessKey: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+        } | {
+            accessKeyId: string;
+            backend: 's3';
+            bucket: string;
+            endpoint: string;
+            secretAccessKey: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+        } | {
+            accountKey: string;
+            accountName: string;
+            backend: 'azure';
+            container: string;
+            customPassword?: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            credentialsJson: string;
+            projectId: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+        } | {
+            backend: 'local';
+            name: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+            path?: string;
+        } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+        } | {
+            backend: 'rest';
+            url: string;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+            password?: string;
+            path?: string;
+            username?: string;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            privateKey: string;
+            user: string;
+            port?: number;
+            customPassword?: string;
+            isExistingRepository?: boolean;
+        };
+        createdAt: number;
+        id: string;
+        lastChecked: number | null;
+        lastError: string | null;
+        name: string;
+        shortId: string;
+        status: 'error' | 'healthy' | 'unknown' | null;
+        type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+        updatedAt: number;
+    };
+};
+
+export type UpdateRepositoryResponse = UpdateRepositoryResponses[keyof UpdateRepositoryResponses];
 
 export type ListSnapshotsData = {
     body?: never;
@@ -1251,6 +1362,7 @@ export type ListBackupSchedulesResponses = {
             lastChecked: number | null;
             lastError: string | null;
             name: string;
+            shortId: string;
             status: 'error' | 'healthy' | 'unknown' | null;
             type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
             updatedAt: number;
@@ -1304,6 +1416,7 @@ export type ListBackupSchedulesResponses = {
             lastError: string | null;
             lastHealthCheck: number;
             name: string;
+            shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
             type: 'directory' | 'nfs' | 'smb' | 'webdav';
             updatedAt: number;
@@ -1482,6 +1595,7 @@ export type GetBackupScheduleResponses = {
             lastChecked: number | null;
             lastError: string | null;
             name: string;
+            shortId: string;
             status: 'error' | 'healthy' | 'unknown' | null;
             type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
             updatedAt: number;
@@ -1535,6 +1649,7 @@ export type GetBackupScheduleResponses = {
             lastError: string | null;
             lastHealthCheck: number;
             name: string;
+            shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
             type: 'directory' | 'nfs' | 'smb' | 'webdav';
             updatedAt: number;
@@ -1694,6 +1809,7 @@ export type GetBackupScheduleForVolumeResponses = {
             lastChecked: number | null;
             lastError: string | null;
             name: string;
+            shortId: string;
             status: 'error' | 'healthy' | 'unknown' | null;
             type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
             updatedAt: number;
@@ -1747,6 +1863,7 @@ export type GetBackupScheduleForVolumeResponses = {
             lastError: string | null;
             lastHealthCheck: number;
             name: string;
+            shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
             type: 'directory' | 'nfs' | 'smb' | 'webdav';
             updatedAt: number;

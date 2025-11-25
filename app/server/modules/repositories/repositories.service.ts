@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
+import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
@@ -61,13 +62,20 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	}
 
 	const id = crypto.randomUUID();
+	const shortId = generateShortId();
 
-	const encryptedConfig = await encryptConfig(config);
+	let processedConfig = config;
+	if (config.backend === "local") {
+		processedConfig = { ...config, name: shortId };
+	}
+
+	const encryptedConfig = await encryptConfig(processedConfig);
 
 	const [created] = await db
 		.insert(repositoriesTable)
 		.values({
 			id,
+			shortId,
 			name: slug,
 			type: config.backend,
 			config: encryptedConfig,
@@ -350,11 +358,53 @@ const deleteSnapshot = async (name: string, snapshotId: string) => {
 	await restic.deleteSnapshot(repository.config, snapshotId);
 };
 
+const updateRepository = async (name: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
+	const existing = await db.query.repositoriesTable.findFirst({
+		where: eq(repositoriesTable.name, name),
+	});
+
+	if (!existing) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	let newName = existing.name;
+	if (updates.name !== undefined && updates.name !== existing.name) {
+		const newSlug = slugify(updates.name, { lower: true, strict: true });
+
+		const conflict = await db.query.repositoriesTable.findFirst({
+			where: and(eq(repositoriesTable.name, newSlug), ne(repositoriesTable.id, existing.id)),
+		});
+
+		if (conflict) {
+			throw new ConflictError("A repository with this name already exists");
+		}
+
+		newName = newSlug;
+	}
+
+	const [updated] = await db
+		.update(repositoriesTable)
+		.set({
+			name: newName,
+			compressionMode: updates.compressionMode ?? existing.compressionMode,
+			updatedAt: Math.floor(Date.now() / 1000),
+		})
+		.where(eq(repositoriesTable.id, existing.id))
+		.returning();
+
+	if (!updated) {
+		throw new InternalServerError("Failed to update repository");
+	}
+
+	return { repository: updated };
+};
+
 export const repositoriesService = {
 	listRepositories,
 	createRepository,
 	getRepository,
 	deleteRepository,
+	updateRepository,
 	listSnapshots,
 	listSnapshotFiles,
 	restoreSnapshot,

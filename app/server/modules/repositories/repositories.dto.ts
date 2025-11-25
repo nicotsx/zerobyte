@@ -4,6 +4,7 @@ import { COMPRESSION_MODES, REPOSITORY_BACKENDS, REPOSITORY_STATUS, repositoryCo
 
 export const repositorySchema = type({
 	id: "string",
+	shortId: "string",
 	name: "string",
 	type: type.valueOf(REPOSITORY_BACKENDS),
 	config: repositoryConfigSchema,
@@ -119,6 +120,41 @@ export const deleteRepositoryDto = describeRoute({
 					schema: resolver(deleteRepositoryResponse),
 				},
 			},
+		},
+	},
+});
+
+/**
+ * Update a repository
+ */
+export const updateRepositoryBody = type({
+	name: "string?",
+	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+});
+
+export type UpdateRepositoryBody = typeof updateRepositoryBody.infer;
+
+export const updateRepositoryResponse = repositorySchema;
+export type UpdateRepositoryDto = typeof updateRepositoryResponse.infer;
+
+export const updateRepositoryDto = describeRoute({
+	description: "Update a repository's name or settings",
+	tags: ["Repositories"],
+	operationId: "updateRepository",
+	responses: {
+		200: {
+			description: "Repository updated successfully",
+			content: {
+				"application/json": {
+					schema: resolver(updateRepositoryResponse),
+				},
+			},
+		},
+		404: {
+			description: "Repository not found",
+		},
+		409: {
+			description: "Repository with this name already exists",
 		},
 	},
 });

@@ -16,17 +16,17 @@ export const DockerTabContent = ({ volume }: Props) => {
 		services: {
 			nginx: {
 				image: "nginx:latest",
-				volumes: [`im-${volume.name}:/path/in/container`],
+				volumes: [`zb-${volume.shortId}:/path/in/container`],
 			},
 		},
 		volumes: {
-			[`im-${volume.name}`]: {
+			[`zb-${volume.shortId}`]: {
 				external: true,
 			},
 		},
 	});
 
-	const dockerRunCommand = `docker run -v im-${volume.name}:/path/in/container nginx:latest`;
+	const dockerRunCommand = `docker run -v zb-${volume.shortId}:/path/in/container nginx:latest`;
 
 	const {
 		data: containersData,
