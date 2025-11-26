@@ -44,4 +44,4 @@ UPDATE `backup_schedule_notifications_table` SET `created_at` = `created_at` * 1
 
 UPDATE `app_metadata` SET `created_at` = `created_at` * 1000 WHERE `created_at` < 4102444800;
 --> statement-breakpoint
-UPDATE `app_metadata` SET `updated_at` = `updated_at` * 1000 WHERE `updated_at` < 4102444800;-
+UPDATE `app_metadata` SET `updated_at` = `updated_at` * 1000 WHERE `updated_at` < 4102444800;
