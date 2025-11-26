@@ -269,12 +269,17 @@ export const listSnapshotFilesDto = describeRoute({
 /**
  * Restore a snapshot
  */
+export const overwriteModeSchema = type("'always' | 'if-changed' | 'if-newer' | 'never'");
+export type OverwriteMode = typeof overwriteModeSchema.infer;
+
 export const restoreSnapshotBody = type({
 	snapshotId: "string",
 	include: "string[]?",
 	exclude: "string[]?",
 	excludeXattr: "string[]?",
 	delete: "boolean?",
+	targetPath: "string?",
+	overwrite: overwriteModeSchema.optional(),
 });
 
 export type RestoreSnapshotBody = typeof restoreSnapshotBody.infer;

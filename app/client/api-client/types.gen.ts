@@ -1224,6 +1224,8 @@ export type RestoreSnapshotData = {
         exclude?: Array<string>;
         excludeXattr?: Array<string>;
         include?: Array<string>;
+        overwrite?: 'always' | 'if-changed' | 'if-newer' | 'never';
+        targetPath?: string;
     };
     path: {
         name: string;
