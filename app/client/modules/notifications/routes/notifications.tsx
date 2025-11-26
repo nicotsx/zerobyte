@@ -158,7 +158,10 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 									<TableCell className="font-medium text-strong-accent">{notification.name}</TableCell>
 									<TableCell className="capitalize">{notification.type}</TableCell>
 									<TableCell className="text-center">
-										<StatusDot variant={notification.enabled ? "success" : "neutral"} label={notification.enabled ? "Enabled" : "Disabled"} />
+										<StatusDot
+											variant={notification.enabled ? "success" : "neutral"}
+											label={notification.enabled ? "Enabled" : "Disabled"}
+										/>
 									</TableCell>
 								</TableRow>
 							))

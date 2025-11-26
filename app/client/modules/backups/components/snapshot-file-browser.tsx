@@ -67,7 +67,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 
 	const addBasePath = useCallback(
 		(displayPath: string): string => {
-			let vbp = volumeBasePath === "/" ? "" : volumeBasePath;
+			const vbp = volumeBasePath === "/" ? "" : volumeBasePath;
 
 			if (!vbp) return displayPath;
 			if (displayPath === "/") return vbp;

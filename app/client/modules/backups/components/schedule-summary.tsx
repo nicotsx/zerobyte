@@ -148,13 +148,13 @@ export const ScheduleSummary = (props: Props) => {
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Last backup</p>
 						<p className="font-medium">
-							{schedule.lastBackupAt ? new Date(schedule.lastBackupAt * 1000).toLocaleString() : "Never"}
+							{schedule.lastBackupAt ? new Date(schedule.lastBackupAt).toLocaleString() : "Never"}
 						</p>
 					</div>
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Next backup</p>
 						<p className="font-medium">
-							{schedule.nextBackupAt ? new Date(schedule.nextBackupAt * 1000).toLocaleString() : "Never"}
+							{schedule.nextBackupAt ? new Date(schedule.nextBackupAt).toLocaleString() : "Never"}
 						</p>
 					</div>
 

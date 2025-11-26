@@ -97,13 +97,13 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 									<div className="flex items-center justify-between text-sm">
 										<span className="text-muted-foreground">Last backup</span>
 										<span className="font-medium">
-											{schedule.lastBackupAt ? new Date(schedule.lastBackupAt * 1000).toLocaleDateString() : "Never"}
+											{schedule.lastBackupAt ? new Date(schedule.lastBackupAt).toLocaleDateString() : "Never"}
 										</span>
 									</div>
 									<div className="flex items-center justify-between text-sm">
 										<span className="text-muted-foreground">Next backup</span>
 										<span className="font-medium">
-											{schedule.nextBackupAt ? new Date(schedule.nextBackupAt * 1000).toLocaleDateString() : "N/A"}
+											{schedule.nextBackupAt ? new Date(schedule.nextBackupAt).toLocaleDateString() : "N/A"}
 										</span>
 									</div>
 								</div>

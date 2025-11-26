@@ -67,7 +67,7 @@ export const authController = new Hono()
 
 			setCookie(c, COOKIE_NAME, sessionId, {
 				...COOKIE_OPTIONS,
-				expires: new Date(expiresAt * 1000),
+				expires: new Date(expiresAt),
 			});
 
 			return c.json<LoginDto>({

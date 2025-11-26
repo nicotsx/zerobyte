@@ -8,7 +8,7 @@ const MIGRATION_KEY_PREFIX = "migration:";
 
 export const recordMigrationCheckpoint = async (version: string): Promise<void> => {
 	const key = `${MIGRATION_KEY_PREFIX}${version}`;
-	const now = Math.floor(Date.now() / 1000);
+	const now = Date.now();
 
 	await db
 		.insert(appMetadataTable)

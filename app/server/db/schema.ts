@@ -14,9 +14,9 @@ export const volumesTable = sqliteTable("volumes_table", {
 	type: text().$type<BackendType>().notNull(),
 	status: text().$type<BackendStatus>().notNull().default("unmounted"),
 	lastError: text("last_error"),
-	lastHealthCheck: integer("last_health_check", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	createdAt: integer("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: integer("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	lastHealthCheck: integer("last_health_check", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: integer("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: integer("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
 	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 });
@@ -30,8 +30,8 @@ export const usersTable = sqliteTable("users_table", {
 	username: text().notNull().unique(),
 	passwordHash: text("password_hash").notNull(),
 	hasDownloadedResticPassword: int("has_downloaded_restic_password", { mode: "boolean" }).notNull().default(false),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type User = typeof usersTable.$inferSelect;
 export const sessionsTable = sqliteTable("sessions_table", {
@@ -40,7 +40,7 @@ export const sessionsTable = sqliteTable("sessions_table", {
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
 	expiresAt: int("expires_at", { mode: "number" }).notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type Session = typeof sessionsTable.$inferSelect;
 
@@ -57,8 +57,8 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	status: text().$type<RepositoryStatus>().default("unknown"),
 	lastChecked: int("last_checked", { mode: "number" }),
 	lastError: text("last_error"),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type Repository = typeof repositoriesTable.$inferSelect;
 
@@ -90,8 +90,8 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),
 	lastBackupError: text("last_backup_error"),
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
 	volume: one(volumesTable, {
@@ -115,8 +115,8 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
 	type: text().$type<NotificationType>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof notificationConfigSchema.inferOut>().notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
 	schedules: many(backupScheduleNotificationsTable),
@@ -138,7 +138,7 @@ export const backupScheduleNotificationsTable = sqliteTable(
 		notifyOnStart: int("notify_on_start", { mode: "boolean" }).notNull().default(false),
 		notifyOnSuccess: int("notify_on_success", { mode: "boolean" }).notNull().default(false),
 		notifyOnFailure: int("notify_on_failure", { mode: "boolean" }).notNull().default(true),
-		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	},
 	(table) => [primaryKey({ columns: [table.scheduleId, table.destinationId] })],
 );
@@ -161,7 +161,7 @@ export type BackupScheduleNotification = typeof backupScheduleNotificationsTable
 export const appMetadataTable = sqliteTable("app_metadata", {
 	key: text().primaryKey(),
 	value: text().notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch())`),
+	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type AppMetadata = typeof appMetadataTable.$inferSelect;

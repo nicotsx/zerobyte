@@ -157,7 +157,7 @@ const updateDestination = async (
 	}
 
 	const updateData: Partial<NotificationDestination> = {
-		updatedAt: Math.floor(Date.now() / 1000),
+		updatedAt: Date.now(),
 	};
 
 	if (updates.name !== undefined) {

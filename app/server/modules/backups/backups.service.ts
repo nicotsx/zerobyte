@@ -21,12 +21,12 @@ const calculateNextRun = (cronExpression: string): number => {
 			tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
 		});
 
-		return Math.floor(interval.next().getTime() / 1000);
+		return interval.next().getTime();
 	} catch (error) {
 		logger.error(`Failed to parse cron expression "${cronExpression}": ${error}`);
 		const fallback = new Date();
 		fallback.setMinutes(fallback.getMinutes() + 1);
-		return Math.floor(fallback.getTime() / 1000);
+		return fallback.getTime();
 	}
 };
 
@@ -126,7 +126,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	const [updated] = await db
 		.update(backupSchedulesTable)
-		.set({ ...data, nextBackupAt, updatedAt: Math.floor(Date.now() / 1000) })
+		.set({ ...data, nextBackupAt, updatedAt: Date.now() })
 		.where(eq(backupSchedulesTable.id, scheduleId))
 		.returning();
 
@@ -209,7 +209,12 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 	await db
 		.update(backupSchedulesTable)
-		.set({ lastBackupStatus: "in_progress", updatedAt: Math.floor(Date.now() / 1000), lastBackupError: null, nextBackupAt })
+		.set({
+			lastBackupStatus: "in_progress",
+			updatedAt: Date.now(),
+			lastBackupError: null,
+			nextBackupAt,
+		})
 		.where(eq(backupSchedulesTable.id, scheduleId));
 
 	const abortController = new AbortController();
@@ -257,11 +262,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		await db
 			.update(backupSchedulesTable)
 			.set({
-				lastBackupAt: Math.floor(Date.now() / 1000),
+				lastBackupAt: Date.now(),
 				lastBackupStatus: exitCode === 0 ? "success" : "warning",
 				lastBackupError: null,
 				nextBackupAt: nextBackupAt,
-				updatedAt: Math.floor(Date.now() / 1000),
+				updatedAt: Date.now(),
 			})
 			.where(eq(backupSchedulesTable.id, scheduleId));
 
@@ -292,10 +297,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		await db
 			.update(backupSchedulesTable)
 			.set({
-				lastBackupAt: Math.floor(Date.now() / 1000),
+				lastBackupAt: Date.now(),
 				lastBackupStatus: "error",
 				lastBackupError: toMessage(error),
-				updatedAt: Math.floor(Date.now() / 1000),
+				updatedAt: Date.now(),
 			})
 			.where(eq(backupSchedulesTable.id, scheduleId));
 
@@ -323,7 +328,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 };
 
 const getSchedulesToExecute = async () => {
-	const now = Math.floor(Date.now() / 1000);
+	const now = Date.now();
 	const schedules = await db.query.backupSchedulesTable.findMany({
 		where: eq(backupSchedulesTable.enabled, true),
 	});
@@ -362,7 +367,7 @@ const stopBackup = async (scheduleId: number) => {
 		.set({
 			lastBackupStatus: "error",
 			lastBackupError: "Backup was stopped by user",
-			updatedAt: Math.floor(Date.now() / 1000),
+			updatedAt: Date.now(),
 		})
 		.where(eq(backupSchedulesTable.id, scheduleId));
 

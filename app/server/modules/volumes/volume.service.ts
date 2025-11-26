@@ -57,7 +57,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 
 	await db
 		.update(volumesTable)
-		.set({ status, lastError: error ?? null, lastHealthCheck: Math.floor(Date.now() / 1000) })
+		.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
 		.where(eq(volumesTable.name, slug));
 
 	return { volume: created, status: 201 };
@@ -91,7 +91,7 @@ const mountVolume = async (name: string) => {
 
 	await db
 		.update(volumesTable)
-		.set({ status, lastError: error ?? null, lastHealthCheck: Math.floor(Date.now() / 1000) })
+		.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
 		.where(eq(volumesTable.name, name));
 
 	if (status === "mounted") {
@@ -196,7 +196,7 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		const { error, status } = await backend.mount();
 		await db
 			.update(volumesTable)
-			.set({ status, lastError: error ?? null, lastHealthCheck: Math.floor(Date.now() / 1000) })
+			.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
 			.where(eq(volumesTable.id, existing.id));
 
 		serverEvents.emit("volume:updated", { volumeName: updated.name });
@@ -255,7 +255,7 @@ const checkHealth = async (name: string) => {
 
 	await db
 		.update(volumesTable)
-		.set({ lastHealthCheck: Math.floor(Date.now() / 1000), status, lastError: error ?? null })
+		.set({ lastHealthCheck: Date.now(), status, lastError: error ?? null })
 		.where(eq(volumesTable.name, volume.name));
 
 	return { status, error };

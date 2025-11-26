@@ -105,7 +105,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	if (!error) {
 		await db
 			.update(repositoriesTable)
-			.set({ status: "healthy", lastChecked: Math.floor(Date.now() / 1000), lastError: null })
+			.set({ status: "healthy", lastChecked: Date.now(), lastError: null })
 			.where(eq(repositoriesTable.id, id));
 
 		return { repository: created, status: 201 };
@@ -258,7 +258,7 @@ const checkHealth = async (repositoryId: string) => {
 		.update(repositoriesTable)
 		.set({
 			status,
-			lastChecked: Math.floor(Date.now() / 1000),
+			lastChecked: Date.now(),
 			lastError: error,
 		})
 		.where(eq(repositoriesTable.id, repository.id));
@@ -335,7 +335,7 @@ const doctorRepository = async (name: string) => {
 		.update(repositoriesTable)
 		.set({
 			status: allSuccessful ? "healthy" : "error",
-			lastChecked: Math.floor(Date.now() / 1000),
+			lastChecked: Date.now(),
 			lastError: allSuccessful ? null : steps.find((s) => !s.success)?.error,
 		})
 		.where(eq(repositoriesTable.id, repository.id));
@@ -396,7 +396,7 @@ const updateRepository = async (name: string, updates: { name?: string; compress
 		.set({
 			name: newName,
 			compressionMode: updates.compressionMode ?? existing.compressionMode,
-			updatedAt: Math.floor(Date.now() / 1000),
+			updatedAt: Date.now(),
 		})
 		.where(eq(repositoriesTable.id, existing.id))
 		.returning();

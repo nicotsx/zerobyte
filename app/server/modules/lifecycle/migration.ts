@@ -129,7 +129,7 @@ const migrateRepositoryFolders = async (): Promise<MigrationResult> => {
 					.update(repositoriesTable)
 					.set({
 						config: updatedConfig,
-						updatedAt: Math.floor(Date.now() / 1000),
+						updatedAt: Date.now(),
 					})
 					.where(eq(repositoriesTable.id, repo.id));
 
@@ -155,7 +155,7 @@ const migrateRepositoryFolders = async (): Promise<MigrationResult> => {
 					.update(repositoriesTable)
 					.set({
 						config: updatedConfig,
-						updatedAt: Math.floor(Date.now() / 1000),
+						updatedAt: Date.now(),
 					})
 					.where(eq(repositoriesTable.id, repo.id));
 			} catch (error) {
@@ -175,7 +175,7 @@ const migrateRepositoryFolders = async (): Promise<MigrationResult> => {
 					.update(repositoriesTable)
 					.set({
 						config: updatedConfig,
-						updatedAt: Math.floor(Date.now() / 1000),
+						updatedAt: Date.now(),
 					})
 					.where(eq(repositoriesTable.id, repo.id));
 			} catch (error) {
