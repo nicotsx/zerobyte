@@ -236,7 +236,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			backupOptions.include = schedule.includePatterns;
 		}
 
-		await restic.backup(repository.config, volumePath, {
+		const { exitCode } = await restic.backup(repository.config, volumePath, {
 			...backupOptions,
 			compressionMode: repository.compressionMode ?? "auto",
 			onProgress: (progress) => {
@@ -258,24 +258,28 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.update(backupSchedulesTable)
 			.set({
 				lastBackupAt: Date.now(),
-				lastBackupStatus: "success",
+				lastBackupStatus: exitCode === 0 ? "success" : "warning",
 				lastBackupError: null,
 				nextBackupAt: nextBackupAt,
 				updatedAt: Date.now(),
 			})
 			.where(eq(backupSchedulesTable.id, scheduleId));
 
-		logger.info(`Backup completed successfully for volume ${volume.name} to repository ${repository.name}`);
+		if (exitCode !== 0) {
+			logger.warn(`Backup completed with warnings for volume ${volume.name} to repository ${repository.name}`);
+		} else {
+			logger.info(`Backup completed successfully for volume ${volume.name} to repository ${repository.name}`);
+		}
 
 		serverEvents.emit("backup:completed", {
 			scheduleId,
 			volumeName: volume.name,
 			repositoryName: repository.name,
-			status: "success",
+			status: exitCode === 0 ? "success" : "warning",
 		});
 
 		notificationsService
-			.sendBackupNotification(scheduleId, "success", {
+			.sendBackupNotification(scheduleId, exitCode === 0 ? "success" : "warning", {
 				volumeName: volume.name,
 				repositoryName: repository.name,
 			})

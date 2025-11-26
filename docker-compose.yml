@@ -20,9 +20,8 @@ services:
 
       - ./app:/app/app
       - ~/.config/rclone:/root/.config/rclone
-      - /var/lib/zerobyte:/var/lib/zerobyte:rshared
-      - /run/docker/plugins:/run/docker/plugins
-      - /var/run/docker.sock:/var/run/docker.sock
+      # - /run/docker/plugins:/run/docker/plugins
+      # - /var/run/docker.sock:/var/run/docker.sock
 
   zerobyte-prod:
     build:

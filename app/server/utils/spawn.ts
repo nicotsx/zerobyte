@@ -41,9 +41,8 @@ export const safeSpawn = (params: Params) => {
 		child.stderr.on("data", (data) => {
 			if (callbacks.onStderr) {
 				callbacks.onStderr(data.toString());
-			} else {
-				stderrData += data.toString();
 			}
+			stderrData += data.toString();
 		});
 
 		child.on("error", async (error) => {

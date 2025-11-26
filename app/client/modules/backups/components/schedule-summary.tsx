@@ -164,9 +164,19 @@ export const ScheduleSummary = (props: Props) => {
 							{schedule.lastBackupStatus === "success" && "✓ Success"}
 							{schedule.lastBackupStatus === "error" && "✗ Error"}
 							{schedule.lastBackupStatus === "in_progress" && "⟳  in progress..."}
+							{schedule.lastBackupStatus === "warning" && "! Warning"}
 							{!schedule.lastBackupStatus && "—"}
 						</p>
 					</div>
+
+					{schedule.lastBackupStatus === "warning" && (
+						<div className="md:col-span-2 lg:col-span-4">
+							<p className="text-xs uppercase text-muted-foreground">Warning Details</p>
+							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap break-all">
+								Last backup completed with warnings. Check your container logs for more details.
+							</p>
+						</div>
+					)}
 
 					{schedule.lastBackupError && (
 						<div className="md:col-span-2 lg:col-span-4">

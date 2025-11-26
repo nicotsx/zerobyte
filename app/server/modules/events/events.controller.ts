@@ -41,7 +41,7 @@ export const eventsController = new Hono().get("/", (c) => {
 			scheduleId: number;
 			volumeName: string;
 			repositoryName: string;
-			status: "success" | "error" | "stopped";
+			status: "success" | "error" | "stopped" | "warning";
 		}) => {
 			stream.writeSSE({
 				data: JSON.stringify(data),

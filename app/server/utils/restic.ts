@@ -10,6 +10,8 @@ import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "~/schemas/restic";
+import { ResticError } from "./errors";
 
 const backupOutputSchema = type({
 	message_type: "'summary'",
@@ -313,34 +315,41 @@ const backup = async (
 				streamProgress(data);
 			}
 		},
-		onStderr: (error) => {
-			logger.error(error.trim());
-		},
 		finally: async () => {
 			includeFile && (await fs.unlink(includeFile).catch(() => {}));
 			await cleanupTemporaryKeys(config, env);
 		},
 	});
 
-	if (res.exitCode !== 0) {
-		logger.error(`Restic backup failed: ${res.stderr}`);
+	if (res.exitCode === 3) {
+		logger.error(`Restic backup encountered read errors: ${res.stderr.toString()}`);
+	}
+
+	if (res.exitCode !== 0 && res.exitCode !== 3) {
+		logger.error(`Restic backup failed: ${res.stderr.toString()}`);
 		logger.error(`Command executed: restic ${args.join(" ")}`);
 
-		throw new Error(`Restic backup failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	const lastLine = stdout.trim();
-	const resSummary = JSON.parse(lastLine ?? "{}");
+	let summaryLine = "";
+	try {
+		const resSummary = JSON.parse(lastLine ?? "{}");
+		summaryLine = resSummary;
+	} catch (_) {
+		logger.warn("Failed to parse restic backup output JSON summary.", lastLine);
+		summaryLine = "{}";
+	}
 
-	const result = backupOutputSchema(resSummary);
+	const result = backupOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
 		logger.error(`Restic backup output validation failed: ${result}`);
-
-		throw new Error(`Restic backup output validation failed: ${result}`);
+		return { result: null, exitCode: res.exitCode };
 	}
 
-	return result;
+	return { result, exitCode: res.exitCode };
 };
 
 const restoreOutputSchema = type({
@@ -404,7 +413,7 @@ const restore = async (
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic restore failed: ${res.stderr}`);
-		throw new Error(`Restic restore failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	const stdout = res.text();
@@ -517,7 +526,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic forget failed: ${res.stderr}`);
-		throw new Error(`Restic forget failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	return { success: true };
@@ -535,7 +544,7 @@ const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic snapshot deletion failed: ${res.stderr}`);
-		throw new Error(`Failed to delete snapshot: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	return { success: true };
@@ -585,7 +594,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic ls failed: ${res.stderr}`);
-		throw new Error(`Restic ls failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	// The output is a stream of JSON objects, first is snapshot info, rest are file/dir nodes
@@ -636,7 +645,7 @@ const unlock = async (config: RepositoryConfig) => {
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic unlock failed: ${res.stderr}`);
-		throw new Error(`Restic unlock failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
 	logger.info(`Restic unlock succeeded for repository: ${repoUrl}`);
@@ -697,7 +706,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic repair index failed: ${stderr}`);
-		throw new Error(`Restic repair index failed: ${stderr}`);
+		throw new ResticError(res.exitCode, stderr);
 	}
 
 	logger.info(`Restic repair index completed for repository: ${repoUrl}`);

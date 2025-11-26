@@ -291,6 +291,7 @@ const sendBackupNotification = async (
 				case "success":
 					return assignment.notifyOnSuccess;
 				case "failure":
+				case "warning":
 					return assignment.notifyOnFailure;
 				default:
 					return false;
@@ -367,7 +368,7 @@ function buildNotificationMessage(
 
 		case "success":
 			return {
-				title: "✅ Backup Completed Successfully",
+				title: "✅ Backup Completed successfully",
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
@@ -381,9 +382,26 @@ function buildNotificationMessage(
 					.join("\n"),
 			};
 
+		case "warning":
+			return {
+				title: "! Backup completed with warnings",
+				body: [
+					`Volume: ${context.volumeName}`,
+					`Repository: ${context.repositoryName}`,
+					context.duration ? `Duration: ${Math.round(context.duration / 1000)}s` : null,
+					context.filesProcessed !== undefined ? `Files: ${context.filesProcessed}` : null,
+					context.bytesProcessed ? `Size: ${context.bytesProcessed}` : null,
+					context.snapshotId ? `Snapshot: ${context.snapshotId}` : null,
+					context.error ? `Warning: ${context.error}` : null,
+					`Time: ${date} - ${time}`,
+				]
+					.filter(Boolean)
+					.join("\n"),
+			};
+
 		case "failure":
 			return {
-				title: "❌ Backup Failed",
+				title: "❌ Backup failed",
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,

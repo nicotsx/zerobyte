@@ -22,7 +22,7 @@ interface ServerEvents {
 		scheduleId: number;
 		volumeName: string;
 		repositoryName: string;
-		status: "success" | "error" | "stopped";
+		status: "success" | "error" | "stopped" | "warning";
 	}) => void;
 	"volume:mounted": (data: { volumeName: string }) => void;
 	"volume:unmounted": (data: { volumeName: string }) => void;

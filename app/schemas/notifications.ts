@@ -83,6 +83,7 @@ export const NOTIFICATION_EVENTS = {
 	start: "start",
 	success: "success",
 	failure: "failure",
+	warning: "warning",
 } as const;
 
 export type NotificationEvent = keyof typeof NOTIFICATION_EVENTS;

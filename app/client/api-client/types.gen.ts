@@ -1181,7 +1181,7 @@ export type ListBackupSchedulesResponses = {
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | null;
+        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
@@ -1351,7 +1351,7 @@ export type CreateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | null;
+        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1412,7 +1412,7 @@ export type GetBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | null;
+        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
@@ -1583,7 +1583,7 @@ export type UpdateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | null;
+        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1624,7 +1624,7 @@ export type GetBackupScheduleForVolumeResponses = {
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | null;
+        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
