@@ -237,8 +237,7 @@ export const CreateRepositoryForm = ({
 								</SelectContent>
 							</Select>
 							<FormDescription>
-								Choose whether to use Zerobyte's master password or enter a custom password for the existing
-								repository.
+								Choose whether to use Zerobyte's master password or enter a custom password for the existing repository.
 							</FormDescription>
 						</FormItem>
 

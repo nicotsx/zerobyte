@@ -32,12 +32,12 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 							<div className="text-sm font-medium text-muted-foreground">Created At</div>
 							<p className="mt-1 text-sm">{new Date(repository.createdAt * 1000).toLocaleString()}</p>
 						</div>
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
-								<p className="mt-1 text-sm">
-									{repository.lastChecked ? new Date(repository.lastChecked * 1000).toLocaleString() : "Never"}
-								</p>
-							</div>
+						<div>
+							<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
+							<p className="mt-1 text-sm">
+								{repository.lastChecked ? new Date(repository.lastChecked * 1000).toLocaleString() : "Never"}
+							</p>
+						</div>
 					</div>
 				</div>
 				{repository.lastError && (

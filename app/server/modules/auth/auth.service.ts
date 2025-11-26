@@ -134,7 +134,10 @@ export class AuthService {
 	 * Clean up expired sessions
 	 */
 	async cleanupExpiredSessions() {
-		const result = await db.delete(sessionsTable).where(lt(sessionsTable.expiresAt, Math.floor(Date.now() / 1000))).returning();
+		const result = await db
+			.delete(sessionsTable)
+			.where(lt(sessionsTable.expiresAt, Math.floor(Date.now() / 1000)))
+			.returning();
 		if (result.length > 0) {
 			logger.info(`Cleaned up ${result.length} expired sessions`);
 		}

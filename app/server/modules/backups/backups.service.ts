@@ -209,7 +209,12 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 	await db
 		.update(backupSchedulesTable)
-		.set({ lastBackupStatus: "in_progress", updatedAt: Math.floor(Date.now() / 1000), lastBackupError: null, nextBackupAt })
+		.set({
+			lastBackupStatus: "in_progress",
+			updatedAt: Math.floor(Date.now() / 1000),
+			lastBackupError: null,
+			nextBackupAt,
+		})
 		.where(eq(backupSchedulesTable.id, scheduleId));
 
 	const abortController = new AbortController();

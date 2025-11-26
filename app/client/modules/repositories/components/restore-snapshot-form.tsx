@@ -107,10 +107,7 @@ export const RestoreSnapshotForm = ({ formId, onSubmit, className }: Props) => {
 							className="h-auto p-0 text-sm font-normal"
 						>
 							Advanced
-							<ChevronDown
-								size={16}
-								className={`ml-1 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
-							/>
+							<ChevronDown size={16} className={`ml-1 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
 						</Button>
 
 						{showAdvanced && (
