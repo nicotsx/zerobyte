@@ -3,7 +3,7 @@ import { db } from "../../db/db";
 import { sessionsTable, usersTable } from "../../db/schema";
 import { logger } from "../../utils/logger";
 
-const SESSION_DURATION = 1000 * 60 * 60 * 24 * 30; // 30 days
+const SESSION_DURATION = 60 * 60 * 24 * 30; // 30 days in seconds
 
 export class AuthService {
 	/**
@@ -30,7 +30,7 @@ export class AuthService {
 
 		logger.info(`User registered: ${username}`);
 		const sessionId = crypto.randomUUID();
-		const expiresAt = new Date(Date.now() + SESSION_DURATION).getTime();
+		const expiresAt = Math.floor(Date.now() / 1000) + SESSION_DURATION;
 
 		await db.insert(sessionsTable).values({
 			id: sessionId,
@@ -66,7 +66,7 @@ export class AuthService {
 		}
 
 		const sessionId = crypto.randomUUID();
-		const expiresAt = new Date(Date.now() + SESSION_DURATION).getTime();
+		const expiresAt = Math.floor(Date.now() / 1000) + SESSION_DURATION;
 
 		await db.insert(sessionsTable).values({
 			id: sessionId,
@@ -112,7 +112,7 @@ export class AuthService {
 			return null;
 		}
 
-		if (session.session.expiresAt < Date.now()) {
+		if (session.session.expiresAt < Math.floor(Date.now() / 1000)) {
 			await db.delete(sessionsTable).where(eq(sessionsTable.id, sessionId));
 			return null;
 		}
@@ -134,7 +134,7 @@ export class AuthService {
 	 * Clean up expired sessions
 	 */
 	async cleanupExpiredSessions() {
-		const result = await db.delete(sessionsTable).where(lt(sessionsTable.expiresAt, Date.now())).returning();
+		const result = await db.delete(sessionsTable).where(lt(sessionsTable.expiresAt, Math.floor(Date.now() / 1000))).returning();
 		if (result.length > 0) {
 			logger.info(`Cleaned up ${result.length} expired sessions`);
 		}

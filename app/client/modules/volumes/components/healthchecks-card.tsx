@@ -13,7 +13,7 @@ type Props = {
 };
 
 export const HealthchecksCard = ({ volume }: Props) => {
-	const timeAgo = formatDistanceToNow(volume.lastHealthCheck, {
+	const timeAgo = formatDistanceToNow(volume.lastHealthCheck * 1000, {
 		addSuffix: true,
 	});
 

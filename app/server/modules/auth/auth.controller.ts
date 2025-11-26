@@ -21,6 +21,7 @@ import {
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { toMessage } from "../../utils/errors";
+import { logger } from "~/server/utils/logger";
 
 const COOKIE_NAME = "session_id";
 const COOKIE_OPTIONS = {
@@ -66,7 +67,7 @@ export const authController = new Hono()
 
 			setCookie(c, COOKIE_NAME, sessionId, {
 				...COOKIE_OPTIONS,
-				expires: new Date(expiresAt),
+				expires: new Date(expiresAt * 1000),
 			});
 
 			return c.json<LoginDto>({
