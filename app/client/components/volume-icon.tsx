@@ -3,7 +3,6 @@ import type { BackendType } from "~/schemas/volumes";
 
 type VolumeIconProps = {
 	backend: BackendType;
-	size?: number;
 };
 
 const getIconAndColor = (backend: BackendType) => {

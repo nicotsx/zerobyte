@@ -142,7 +142,7 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 						&nbsp;
 						{volume.status[0].toUpperCase() + volume.status.slice(1)}
 					</span>
-					<VolumeIcon size={14} backend={volume?.config.backend} />
+					<VolumeIcon backend={volume?.config.backend} />
 				</div>
 				<div className="flex gap-4">
 					<Button
