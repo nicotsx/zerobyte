@@ -10,7 +10,6 @@ import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
-import type { RepositoryConfig } from "~/schemas/restic";
 import { ResticError } from "./errors";
 
 const backupOutputSchema = type({
