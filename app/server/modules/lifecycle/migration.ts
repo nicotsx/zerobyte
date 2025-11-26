@@ -10,6 +10,24 @@ import type { RepositoryConfig } from "~/schemas/restic";
 
 const MIGRATION_VERSION = "v0.14.0";
 
+interface MigrationResult {
+	success: boolean;
+	errors: Array<{ name: string; error: string }>;
+}
+
+export class MigrationError extends Error {
+	version: string;
+	failedItems: Array<{ name: string; error: string }>;
+
+	constructor(version: string, failedItems: Array<{ name: string; error: string }>) {
+		const itemNames = failedItems.map((e) => e.name).join(", ");
+		super(`Migration ${version} failed for: ${itemNames}`);
+		this.version = version;
+		this.failedItems = failedItems;
+		this.name = "MigrationError";
+	}
+}
+
 export const migrateToShortIds = async () => {
 	const alreadyMigrated = await hasMigrationCheckpoint(MIGRATION_VERSION);
 	if (alreadyMigrated) {
@@ -19,15 +37,25 @@ export const migrateToShortIds = async () => {
 
 	logger.info(`Starting short ID migration (${MIGRATION_VERSION})...`);
 
-	await migrateVolumeFolders();
-	await migrateRepositoryFolders();
+	const volumeResult = await migrateVolumeFolders();
+	const repoResult = await migrateRepositoryFolders();
+
+	const allErrors = [...volumeResult.errors, ...repoResult.errors];
+
+	if (allErrors.length > 0) {
+		for (const err of allErrors) {
+			logger.error(`Migration failure - ${err.name}: ${err.error}`);
+		}
+		throw new MigrationError(MIGRATION_VERSION, allErrors);
+	}
 
 	await recordMigrationCheckpoint(MIGRATION_VERSION);
 
 	logger.info(`Short ID migration (${MIGRATION_VERSION}) complete.`);
 };
 
-const migrateVolumeFolders = async () => {
+const migrateVolumeFolders = async (): Promise<MigrationResult> => {
+	const errors: Array<{ name: string; error: string }> = [];
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
@@ -47,7 +75,8 @@ const migrateVolumeFolders = async () => {
 				await fs.rename(oldPath, newPath);
 				logger.info(`Successfully migrated volume folder for "${volume.name}"`);
 			} catch (error) {
-				logger.error(`Failed to migrate volume folder for "${volume.name}": ${error}`);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				errors.push({ name: `volume:${volume.name}`, error: errorMessage });
 			}
 		} else if (oldExists && newExists) {
 			logger.warn(
@@ -55,9 +84,12 @@ const migrateVolumeFolders = async () => {
 			);
 		}
 	}
+
+	return { success: errors.length === 0, errors };
 };
 
-const migrateRepositoryFolders = async () => {
+const migrateRepositoryFolders = async (): Promise<MigrationResult> => {
+	const errors: Array<{ name: string; error: string }> = [];
 	const repositories = await db.query.repositoriesTable.findMany({});
 
 	for (const repo of repositories) {
@@ -98,44 +130,57 @@ const migrateRepositoryFolders = async () => {
 
 				logger.info(`Successfully migrated repository folder and config for "${repo.name}"`);
 			} catch (error) {
-				logger.error(`Failed to migrate repository folder for "${repo.name}": ${error}`);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				errors.push({ name: `repository:${repo.name}`, error: errorMessage });
 			}
 		} else if (oldExists && newExists) {
 			logger.warn(
 				`Both old (${oldPath}) and new (${newPath}) paths exist for repository "${repo.name}". Manual intervention may be required.`,
 			);
 		} else if (!oldExists && !newExists) {
-			logger.info(`Updating config.name for repository "${repo.name}" (no folder exists yet)`);
+			try {
+				logger.info(`Updating config.name for repository "${repo.name}" (no folder exists yet)`);
 
-			const updatedConfig: RepositoryConfig = {
-				...config,
-				name: repo.shortId,
-			};
+				const updatedConfig: RepositoryConfig = {
+					...config,
+					name: repo.shortId,
+				};
 
-			await db
-				.update(repositoriesTable)
-				.set({
-					config: updatedConfig,
-					updatedAt: Math.floor(Date.now() / 1000),
-				})
-				.where(eq(repositoriesTable.id, repo.id));
+				await db
+					.update(repositoriesTable)
+					.set({
+						config: updatedConfig,
+						updatedAt: Math.floor(Date.now() / 1000),
+					})
+					.where(eq(repositoriesTable.id, repo.id));
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				errors.push({ name: `repository:${repo.name}`, error: errorMessage });
+			}
 		} else if (newExists && !oldExists && config.name !== repo.shortId) {
-			logger.info(`Folder already at new path, updating config.name for repository "${repo.name}"`);
+			try {
+				logger.info(`Folder already at new path, updating config.name for repository "${repo.name}"`);
 
-			const updatedConfig: RepositoryConfig = {
-				...config,
-				name: repo.shortId,
-			};
+				const updatedConfig: RepositoryConfig = {
+					...config,
+					name: repo.shortId,
+				};
 
-			await db
-				.update(repositoriesTable)
-				.set({
-					config: updatedConfig,
-					updatedAt: Math.floor(Date.now() / 1000),
-				})
-				.where(eq(repositoriesTable.id, repo.id));
+				await db
+					.update(repositoriesTable)
+					.set({
+						config: updatedConfig,
+						updatedAt: Math.floor(Date.now() / 1000),
+					})
+					.where(eq(repositoriesTable.id, repo.id));
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				errors.push({ name: `repository:${repo.name}`, error: errorMessage });
+			}
 		}
 	}
+
+	return { success: errors.length === 0, errors };
 };
 
 const pathExists = async (p: string): Promise<boolean> => {

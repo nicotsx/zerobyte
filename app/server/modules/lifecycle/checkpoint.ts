@@ -44,12 +44,12 @@ export const validateRequiredMigrations = async (requiredVersions: string[]): Pr
 	if (isFreshInstall) {
 		logger.info("Fresh installation detected, skipping migration checkpoint validation.");
 
-		REQUIRED_MIGRATIONS.forEach(async (version) => {
+		for (const version of requiredVersions) {
 			const hasCheckpoint = await hasMigrationCheckpoint(version);
 			if (!hasCheckpoint) {
 				await recordMigrationCheckpoint(version);
 			}
-		});
+		}
 
 		return;
 	}

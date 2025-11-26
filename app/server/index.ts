@@ -73,8 +73,6 @@ runDbMigrations();
 await migrateToShortIds();
 await validateRequiredMigrations(REQUIRED_MIGRATIONS);
 
-await validateRequiredMigrations(["v0.14.0"]);
-
 const { docker } = await getCapabilities();
 
 if (docker) {
