@@ -93,8 +93,6 @@ export type RepositoryConfig = typeof repositoryConfigSchema.infer;
 export const COMPRESSION_MODES = {
 	off: "off",
 	auto: "auto",
-	fastest: "fastest",
-	better: "better",
 	max: "max",
 } as const;
 

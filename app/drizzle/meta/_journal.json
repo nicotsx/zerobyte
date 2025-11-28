@@ -120,6 +120,13 @@
       "when": 1764194697035,
       "tag": "0016_fix-timestamps-to-ms",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1764357897219,
+      "tag": "0017_fix-compression-modes",
+      "breakpoints": true
     }
   ]
 }

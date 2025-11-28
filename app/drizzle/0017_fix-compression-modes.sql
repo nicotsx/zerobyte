@@ -1,0 +1,1 @@
+UPDATE `repositories_table` SET `compression_mode` = 'auto' WHERE `compression_mode` IN ('fastest', 'better');

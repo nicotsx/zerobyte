@@ -709,7 +709,7 @@ export type ListRepositoriesResponses = {
      * List of repositories
      */
     200: Array<{
-        compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+        compressionMode: 'auto' | 'max' | 'off' | null;
         config: {
             accessKeyId: string;
             backend: 'r2';
@@ -849,7 +849,7 @@ export type CreateRepositoryData = {
             isExistingRepository?: boolean;
         };
         name: string;
-        compressionMode?: 'auto' | 'better' | 'fastest' | 'max' | 'off';
+        compressionMode?: 'auto' | 'max' | 'off';
     };
     path?: never;
     query?: never;
@@ -924,7 +924,7 @@ export type GetRepositoryResponses = {
      * Repository details
      */
     200: {
-        compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+        compressionMode: 'auto' | 'max' | 'off' | null;
         config: {
             accessKeyId: string;
             backend: 'r2';
@@ -1002,7 +1002,7 @@ export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryRe
 
 export type UpdateRepositoryData = {
     body?: {
-        compressionMode?: 'auto' | 'better' | 'fastest' | 'max' | 'off';
+        compressionMode?: 'auto' | 'max' | 'off';
         name?: string;
     };
     path: {
@@ -1028,7 +1028,7 @@ export type UpdateRepositoryResponses = {
      * Repository updated successfully
      */
     200: {
-        compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+        compressionMode: 'auto' | 'max' | 'off' | null;
         config: {
             accessKeyId: string;
             backend: 'r2';
@@ -1295,7 +1295,7 @@ export type ListBackupSchedulesResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
-            compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+            compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
                 accessKeyId: string;
                 backend: 'r2';
@@ -1528,7 +1528,7 @@ export type GetBackupScheduleResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
-            compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+            compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
                 accessKeyId: string;
                 backend: 'r2';
@@ -1742,7 +1742,7 @@ export type GetBackupScheduleForVolumeResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         nextBackupAt: number | null;
         repository: {
-            compressionMode: 'auto' | 'better' | 'fastest' | 'max' | 'off' | null;
+            compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
                 accessKeyId: string;
                 backend: 'r2';

@@ -176,10 +176,8 @@ export const CreateRepositoryForm = ({
 								</FormControl>
 								<SelectContent>
 									<SelectItem value="off">Off</SelectItem>
-									<SelectItem value="auto">Auto</SelectItem>
-									<SelectItem value="fastest">Fastest</SelectItem>
-									<SelectItem value="better">Better</SelectItem>
-									<SelectItem value="max">Max</SelectItem>
+									<SelectItem value="auto">Auto (fast)</SelectItem>
+									<SelectItem value="max">Max (slower, better compression)</SelectItem>
 								</SelectContent>
 							</Select>
 							<FormDescription>Compression mode for backups stored in this repository.</FormDescription>
