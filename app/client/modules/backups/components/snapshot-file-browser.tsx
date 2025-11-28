@@ -18,6 +18,7 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
+import { PathSelector } from "~/client/components/path-selector";
 import type { Snapshot, Volume } from "~/client/lib/types";
 import { toast } from "sonner";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -42,6 +43,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 	const [deleteExtraFiles, setDeleteExtraFiles] = useState(false);
 	const [showAdvanced, setShowAdvanced] = useState(false);
 	const [excludeXattr, setExcludeXattr] = useState("");
+	const [targetPath, setTargetPath] = useState("/");
 
 	const volumeBasePath = snapshot.paths[0]?.match(/^(.*?_data)(\/|$)/)?.[1] || "/";
 
@@ -131,6 +133,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			path: { name: repositoryName },
 			body: {
 				snapshotId: snapshot.short_id,
+				target: targetPath || undefined,
 				include: includePaths,
 				delete: deleteExtraFiles,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
@@ -138,7 +141,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 		});
 
 		setShowRestoreDialog(false);
-	}, [selectedPaths, addBasePath, repositoryName, snapshot.short_id, restoreSnapshot, deleteExtraFiles, excludeXattr]);
+	}, [selectedPaths, addBasePath, repositoryName, snapshot.short_id, restoreSnapshot, deleteExtraFiles, excludeXattr, targetPath]);
 
 	return (
 		<div className="space-y-4">
@@ -232,6 +235,17 @@ export const SnapshotFileBrowser = (props: Props) => {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="space-y-4">
+						<div className="space-y-2">
+							<Label className="text-sm">Target Directory</Label>
+							<PathSelector
+								value={targetPath}
+								onChange={setTargetPath}
+								label="Restore to:"
+							/>
+							<p className="text-xs text-muted-foreground">
+								Files will be restored to this location. Default "/" restores to original paths.
+							</p>
+						</div>
 						<div>
 							<Button
 								type="button"

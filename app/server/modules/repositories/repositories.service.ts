@@ -201,7 +201,7 @@ const listSnapshotFiles = async (name: string, snapshotId: string, path?: string
 const restoreSnapshot = async (
 	name: string,
 	snapshotId: string,
-	options?: { include?: string[]; exclude?: string[]; excludeXattr?: string[]; delete?: boolean },
+	options?: { target?: string; include?: string[]; exclude?: string[]; excludeXattr?: string[]; delete?: boolean },
 ) => {
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: eq(repositoriesTable.name, name),
@@ -211,7 +211,8 @@ const restoreSnapshot = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	const result = await restic.restore(repository.config, snapshotId, "/", options);
+	const target = options?.target || "/";
+	const result = await restic.restore(repository.config, snapshotId, target, options);
 
 	return {
 		success: true,
