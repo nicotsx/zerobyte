@@ -40,6 +40,7 @@ const snapshotInfoSchema = type({
 	time: "string",
 	uid: "number?",
 	username: "string",
+	tags: "string[]?",
 	summary: type({
 		backup_end: "string",
 		backup_start: "string",
@@ -716,6 +717,79 @@ const repairIndex = async (config: RepositoryConfig) => {
 	};
 };
 
+const copy = async (
+	sourceConfig: RepositoryConfig,
+	destConfig: RepositoryConfig,
+	options: {
+		tag?: string;
+		snapshotId?: string;
+	},
+) => {
+	const sourceRepoUrl = buildRepoUrl(sourceConfig);
+	const destRepoUrl = buildRepoUrl(destConfig);
+
+	const destEnv = await buildEnv(destConfig);
+	const sourceEnv = await buildEnv(sourceConfig);
+
+	const env: Record<string, string> = {
+		...destEnv,
+		RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE,
+	};
+
+	for (const [key, value] of Object.entries(sourceEnv)) {
+		if (
+			key.startsWith("AWS_") ||
+			key.startsWith("GOOGLE_") ||
+			key.startsWith("AZURE_") ||
+			key.startsWith("RESTIC_REST_") ||
+			key.startsWith("_SFTP_")
+		) {
+			// Prefix source credentials to avoid conflicts with dest credentials
+			env[`FROM_${key}`] = value;
+		}
+	}
+
+	const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
+
+	if (options.tag) {
+		args.push("--tag", options.tag);
+	}
+
+	if (options.snapshotId) {
+		args.push(options.snapshotId);
+	} else {
+		args.push("latest");
+	}
+
+	addRepoSpecificArgs(args, destConfig, destEnv);
+
+	if (sourceConfig.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
+		args.push("-o", `sftp.args=${sourceEnv._SFTP_SSH_ARGS}`);
+	}
+
+	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
+	logger.debug(`Executing: restic ${args.join(" ")}`);
+
+	const res = await $`restic ${args}`.env(env).nothrow();
+
+	await cleanupTemporaryKeys(sourceConfig, sourceEnv);
+	await cleanupTemporaryKeys(destConfig, destEnv);
+
+	const stdout = res.text();
+	const stderr = res.stderr.toString();
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic copy failed: ${stderr}`);
+		throw new ResticError(res.exitCode, stderr);
+	}
+
+	logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
+	return {
+		success: true,
+		output: stdout,
+	};
+};
+
 const addRepoSpecificArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
 	if (config.backend === "sftp" && env._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
@@ -744,4 +818,5 @@ export const restic = {
 	ls,
 	check,
 	repairIndex,
+	copy,
 };

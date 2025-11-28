@@ -70,12 +70,34 @@ export const eventsController = new Hono().get("/", (c) => {
 			});
 		};
 
+		const onMirrorStarted = (data: { scheduleId: number; repositoryId: string; repositoryName: string }) => {
+			stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "mirror:started",
+			});
+		};
+
+		const onMirrorCompleted = (data: {
+			scheduleId: number;
+			repositoryId: string;
+			repositoryName: string;
+			status: "success" | "error";
+			error?: string;
+		}) => {
+			stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "mirror:completed",
+			});
+		};
+
 		serverEvents.on("backup:started", onBackupStarted);
 		serverEvents.on("backup:progress", onBackupProgress);
 		serverEvents.on("backup:completed", onBackupCompleted);
 		serverEvents.on("volume:mounted", onVolumeMounted);
 		serverEvents.on("volume:unmounted", onVolumeUnmounted);
 		serverEvents.on("volume:updated", onVolumeUpdated);
+		serverEvents.on("mirror:started", onMirrorStarted);
+		serverEvents.on("mirror:completed", onMirrorCompleted);
 
 		let keepAlive = true;
 
@@ -88,6 +110,8 @@ export const eventsController = new Hono().get("/", (c) => {
 			serverEvents.off("volume:mounted", onVolumeMounted);
 			serverEvents.off("volume:unmounted", onVolumeUnmounted);
 			serverEvents.off("volume:updated", onVolumeUpdated);
+			serverEvents.off("mirror:started", onMirrorStarted);
+			serverEvents.off("mirror:completed", onMirrorCompleted);
 		});
 
 		while (keepAlive) {

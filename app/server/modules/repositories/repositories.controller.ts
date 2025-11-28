@@ -90,6 +90,7 @@ export const repositoriesController = new Hono()
 				short_id: snapshot.short_id,
 				duration,
 				paths: snapshot.paths,
+				tags: snapshot.tags ?? [],
 				size: summary?.total_bytes_processed || 0,
 				time: new Date(snapshot.time).getTime(),
 			};
@@ -113,6 +114,7 @@ export const repositoriesController = new Hono()
 			time: new Date(snapshot.time).getTime(),
 			paths: snapshot.paths,
 			size: snapshot.summary?.total_bytes_processed || 0,
+			tags: snapshot.tags ?? [],
 			summary: snapshot.summary,
 		};
 

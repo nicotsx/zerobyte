@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, Database, FolderTree, HardDrive, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
@@ -18,18 +18,17 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import { formatDuration } from "~/utils/utils";
-import type { ListSnapshotsResponse } from "../api-client";
 import { deleteSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
-
-type Snapshot = ListSnapshotsResponse[number];
+import type { BackupSchedule, Snapshot } from "../lib/types";
 
 type Props = {
 	snapshots: Snapshot[];
+	backups: BackupSchedule[];
 	repositoryName: string;
 };
 
-export const SnapshotsTable = ({ snapshots, repositoryName }: Props) => {
+export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -76,6 +75,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName }: Props) => {
 					<TableHeader className="bg-card-header">
 						<TableRow>
 							<TableHead className="uppercase">Snapshot ID</TableHead>
+							<TableHead className="uppercase">Schedule</TableHead>
 							<TableHead className="uppercase">Date & Time</TableHead>
 							<TableHead className="uppercase">Size</TableHead>
 							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
@@ -84,71 +84,91 @@ export const SnapshotsTable = ({ snapshots, repositoryName }: Props) => {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{snapshots.map((snapshot) => (
-							<TableRow
-								key={snapshot.short_id}
-								className="hover:bg-accent/50 cursor-pointer"
-								onClick={() => handleRowClick(snapshot.short_id)}
-							>
-								<TableCell className="font-mono text-sm">
-									<div className="flex items-center gap-2">
-										<HardDrive className="h-4 w-4 text-muted-foreground" />
-										<span className="text-strong-accent">{snapshot.short_id}</span>
-									</div>
-								</TableCell>
-								<TableCell>
-									<div className="flex items-center gap-2">
-										<Calendar className="h-4 w-4 text-muted-foreground" />
-										<span className="text-sm">{new Date(snapshot.time).toLocaleString()}</span>
-									</div>
-								</TableCell>
-								<TableCell>
-									<div className="flex items-center gap-2">
-										<Database className="h-4 w-4 text-muted-foreground" />
-										<span className="font-medium">
-											<ByteSize bytes={snapshot.size} base={1024} />
-										</span>
-									</div>
-								</TableCell>
-								<TableCell className="hidden md:table-cell">
-									<div className="flex items-center justify-end gap-2">
-										<Clock className="h-4 w-4 text-muted-foreground" />
-										<span className="text-sm text-muted-foreground">{formatDuration(snapshot.duration / 1000)}</span>
-									</div>
-								</TableCell>
-								<TableCell className="hidden lg:table-cell">
-									<div className="flex items-center justify-end gap-2">
-										<FolderTree className="h-4 w-4 text-muted-foreground" />
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<span className="text-xs bg-primary/10 text-primary rounded-md px-2 py-1 cursor-help">
-													{snapshot.paths.length} {snapshot.paths.length === 1 ? "path" : "paths"}
-												</span>
-											</TooltipTrigger>
-											<TooltipContent side="top" className="max-w-md">
-												<div className="flex flex-col gap-1">
-													{snapshot.paths.map((path) => (
-														<div key={`${snapshot.short_id}-${path}`} className="text-xs font-mono">
-															{path}
-														</div>
-													))}
-												</div>
-											</TooltipContent>
-										</Tooltip>
-									</div>
-								</TableCell>
-								<TableCell className="text-right">
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={(e) => handleDeleteClick(e, snapshot.short_id)}
-										disabled={deleteSnapshot.isPending}
-									>
-										<Trash2 className="h-4 w-4 text-destructive" />
-									</Button>
-								</TableCell>
-							</TableRow>
-						))}
+						{snapshots.map((snapshot) => {
+							const backupIds = snapshot.tags.map(Number).filter((tag) => !Number.isNaN(tag));
+							const backup = backups.find((b) => backupIds.includes(b.id));
+
+							return (
+								<TableRow
+									key={snapshot.short_id}
+									className="hover:bg-accent/50 cursor-pointer"
+									onClick={() => handleRowClick(snapshot.short_id)}
+								>
+									<TableCell className="font-mono text-sm">
+										<div className="flex items-center gap-2">
+											<HardDrive className="h-4 w-4 text-muted-foreground" />
+											<span className="text-strong-accent">{snapshot.short_id}</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<Link
+												hidden={!backup}
+												to={backup ? `/backups/${backup.id}` : "#"}
+												onClick={(e) => e.stopPropagation()}
+												className="hover:underline"
+											>
+												<span className="text-sm">{backup ? backup.id : "-"}</span>
+											</Link>
+											<span hidden={!!backup} className="text-sm text-muted-foreground">
+												-
+											</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<Calendar className="h-4 w-4 text-muted-foreground" />
+											<span className="text-sm">{new Date(snapshot.time).toLocaleString()}</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<Database className="h-4 w-4 text-muted-foreground" />
+											<span className="font-medium">
+												<ByteSize bytes={snapshot.size} base={1024} />
+											</span>
+										</div>
+									</TableCell>
+									<TableCell className="hidden md:table-cell">
+										<div className="flex items-center justify-end gap-2">
+											<Clock className="h-4 w-4 text-muted-foreground" />
+											<span className="text-sm text-muted-foreground">{formatDuration(snapshot.duration / 1000)}</span>
+										</div>
+									</TableCell>
+									<TableCell className="hidden lg:table-cell">
+										<div className="flex items-center justify-end gap-2">
+											<FolderTree className="h-4 w-4 text-muted-foreground" />
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<span className="text-xs bg-primary/10 text-primary rounded-md px-2 py-1 cursor-help">
+														{snapshot.paths.length} {snapshot.paths.length === 1 ? "path" : "paths"}
+													</span>
+												</TooltipTrigger>
+												<TooltipContent side="top" className="max-w-md">
+													<div className="flex flex-col gap-1">
+														{snapshot.paths.map((path) => (
+															<div key={`${snapshot.short_id}-${path}`} className="text-xs font-mono">
+																{path}
+															</div>
+														))}
+													</div>
+												</TooltipContent>
+											</Tooltip>
+										</div>
+									</TableCell>
+									<TableCell className="text-right">
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={(e) => handleDeleteClick(e, snapshot.short_id)}
+											disabled={deleteSnapshot.isPending}
+										>
+											<Trash2 className="h-4 w-4 text-destructive" />
+										</Button>
+									</TableCell>
+								</TableRow>
+							);
+						})}
 					</TableBody>
 				</Table>
 			</div>

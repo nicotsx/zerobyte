@@ -9,7 +9,9 @@ type ServerEventType =
 	| "backup:completed"
 	| "volume:mounted"
 	| "volume:unmounted"
-	| "volume:updated";
+	| "volume:updated"
+	| "mirror:started"
+	| "mirror:completed";
 
 export interface BackupEvent {
 	scheduleId: number;
@@ -33,6 +35,14 @@ export interface BackupProgressEvent {
 
 export interface VolumeEvent {
 	volumeName: string;
+}
+
+export interface MirrorEvent {
+	scheduleId: number;
+	repositoryId: string;
+	repositoryName: string;
+	status?: "success" | "error";
+	error?: string;
 }
 
 type EventHandler = (data: unknown) => void;
@@ -121,6 +131,27 @@ export function useServerEvents() {
 			queryClient.invalidateQueries();
 
 			handlersRef.current.get("volume:updated")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("mirror:started", (e) => {
+			const data = JSON.parse(e.data) as MirrorEvent;
+			console.log("[SSE] Mirror copy started:", data);
+
+			handlersRef.current.get("mirror:started")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("mirror:completed", (e) => {
+			const data = JSON.parse(e.data) as MirrorEvent;
+			console.log("[SSE] Mirror copy completed:", data);
+
+			// Invalidate queries to refresh mirror status in the UI
+			queryClient.invalidateQueries();
+
+			handlersRef.current.get("mirror:completed")?.forEach((handler) => {
 				handler(data);
 			});
 		});

@@ -12,6 +12,10 @@ import {
 	stopBackupDto,
 	updateBackupScheduleDto,
 	updateBackupScheduleBody,
+	getScheduleMirrorsDto,
+	updateScheduleMirrorsDto,
+	updateScheduleMirrorsBody,
+	getMirrorCompatibilityDto,
 	type CreateBackupScheduleDto,
 	type DeleteBackupScheduleDto,
 	type GetBackupScheduleDto,
@@ -21,6 +25,9 @@ import {
 	type RunForgetDto,
 	type StopBackupDto,
 	type UpdateBackupScheduleDto,
+	type GetScheduleMirrorsDto,
+	type UpdateScheduleMirrorsDto,
+	type GetMirrorCompatibilityDto,
 } from "./backups.dto";
 import { backupsService } from "./backups.service";
 import {
@@ -113,4 +120,23 @@ export const backupScheduleController = new Hono()
 
 			return c.json<UpdateScheduleNotificationsDto>(assignments, 200);
 		},
-	);
+	)
+	.get("/:scheduleId/mirrors", getScheduleMirrorsDto, async (c) => {
+		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
+		const mirrors = await backupsService.getMirrors(scheduleId);
+
+		return c.json<GetScheduleMirrorsDto>(mirrors, 200);
+	})
+	.put("/:scheduleId/mirrors", updateScheduleMirrorsDto, validator("json", updateScheduleMirrorsBody), async (c) => {
+		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
+		const body = c.req.valid("json");
+		const mirrors = await backupsService.updateMirrors(scheduleId, body);
+
+		return c.json<UpdateScheduleMirrorsDto>(mirrors, 200);
+	})
+	.get("/:scheduleId/mirrors/compatibility", getMirrorCompatibilityDto, async (c) => {
+		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
+		const compatibility = await backupsService.getMirrorCompatibility(scheduleId);
+
+		return c.json<GetMirrorCompatibilityDto>(compatibility, 200);
+	});
