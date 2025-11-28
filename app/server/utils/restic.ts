@@ -40,6 +40,7 @@ const snapshotInfoSchema = type({
 	time: "string",
 	uid: "number?",
 	username: "string",
+	tags: "string[]?",
 	summary: type({
 		backup_end: "string",
 		backup_start: "string",
@@ -713,12 +714,65 @@ const repairIndex = async (config: RepositoryConfig) => {
 	};
 };
 
-const addCommonArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
-	args.push("--retry-lock", "1m", "--json");
+const copy = async (
+	sourceConfig: RepositoryConfig,
+	destConfig: RepositoryConfig,
+	options: {
+		tag?: string;
+		snapshotId?: string;
+	},
+) => {
+	const sourceRepoUrl = buildRepoUrl(sourceConfig);
+	const destRepoUrl = buildRepoUrl(destConfig);
 
-	if (config.backend === "sftp" && env._SFTP_SSH_ARGS) {
-		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
+	const sourceEnv = await buildEnv(sourceConfig);
+	const destEnv = await buildEnv(destConfig);
+
+	const env: Record<string, string> = {
+		...sourceEnv,
+		...destEnv,
+		RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE,
+	};
+
+	const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
+
+	if (options.tag) {
+		args.push("--tag", options.tag);
 	}
+
+	if (options.snapshotId) {
+		args.push(options.snapshotId);
+	} else {
+		args.push("latest");
+	}
+
+	addCommonArgs(args, destConfig, destEnv);
+
+	if (sourceConfig.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
+		args.push("-o", `sftp.args=${sourceEnv._SFTP_SSH_ARGS}`);
+	}
+
+	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
+	logger.debug(`Executing: restic ${args.join(" ")}`);
+
+	const res = await $`restic ${args}`.env(env).nothrow();
+
+	await cleanupTemporaryKeys(sourceConfig, sourceEnv);
+	await cleanupTemporaryKeys(destConfig, destEnv);
+
+	const stdout = res.text();
+	const stderr = res.stderr.toString();
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic copy failed: ${stderr}`);
+		throw new ResticError(res.exitCode, stderr);
+	}
+
+	logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
+	return {
+		success: true,
+		output: stdout,
+	};
 };
 
 const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string, string>) => {
@@ -728,6 +782,13 @@ const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	} else if (config.backend === "gcs" && env.GOOGLE_APPLICATION_CREDENTIALS) {
 		await fs.unlink(env.GOOGLE_APPLICATION_CREDENTIALS).catch(() => {});
+	}
+};
+
+const addCommonArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
+	args.push("--retry-lock", "1m", "--json");
+	if (config.backend === "sftp" && env._SFTP_SSH_ARGS) {
+		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}
 };
 
@@ -743,4 +804,5 @@ export const restic = {
 	ls,
 	check,
 	repairIndex,
+	copy,
 };

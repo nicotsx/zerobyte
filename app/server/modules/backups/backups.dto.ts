@@ -37,6 +37,19 @@ const backupScheduleSchema = type({
 	}),
 );
 
+const scheduleMirrorSchema = type({
+	scheduleId: "number",
+	repositoryId: "string",
+	enabled: "boolean",
+	lastCopyAt: "number | null",
+	lastCopyStatus: "'success' | 'error' | null",
+	lastCopyError: "string | null",
+	createdAt: "number",
+	repository: repositorySchema,
+});
+
+export type ScheduleMirrorDto = typeof scheduleMirrorSchema.infer;
+
 /**
  * List all backup schedules
  */
@@ -271,6 +284,78 @@ export const runForgetDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(runForgetResponse),
+				},
+			},
+		},
+	},
+});
+
+export const getScheduleMirrorsResponse = scheduleMirrorSchema.array();
+export type GetScheduleMirrorsDto = typeof getScheduleMirrorsResponse.infer;
+
+export const getScheduleMirrorsDto = describeRoute({
+	description: "Get mirror repository assignments for a backup schedule",
+	operationId: "getScheduleMirrors",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "List of mirror repository assignments for the schedule",
+			content: {
+				"application/json": {
+					schema: resolver(getScheduleMirrorsResponse),
+				},
+			},
+		},
+	},
+});
+
+export const updateScheduleMirrorsBody = type({
+	mirrors: type({
+		repositoryId: "string",
+		enabled: "boolean",
+	}).array(),
+});
+
+export type UpdateScheduleMirrorsBody = typeof updateScheduleMirrorsBody.infer;
+
+export const updateScheduleMirrorsResponse = scheduleMirrorSchema.array();
+export type UpdateScheduleMirrorsDto = typeof updateScheduleMirrorsResponse.infer;
+
+export const updateScheduleMirrorsDto = describeRoute({
+	description: "Update mirror repository assignments for a backup schedule",
+	operationId: "updateScheduleMirrors",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Mirror assignments updated successfully",
+			content: {
+				"application/json": {
+					schema: resolver(updateScheduleMirrorsResponse),
+				},
+			},
+		},
+	},
+});
+
+const mirrorCompatibilitySchema = type({
+	repositoryId: "string",
+	compatible: "boolean",
+	reason: "string | null",
+});
+
+export const getMirrorCompatibilityResponse = mirrorCompatibilitySchema.array();
+export type GetMirrorCompatibilityDto = typeof getMirrorCompatibilityResponse.infer;
+
+export const getMirrorCompatibilityDto = describeRoute({
+	description: "Get mirror compatibility info for all repositories relative to a backup schedule's primary repository",
+	operationId: "getMirrorCompatibility",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "List of repositories with their mirror compatibility status",
+			content: {
+				"application/json": {
+					schema: resolver(getMirrorCompatibilityResponse),
 				},
 			},
 		},

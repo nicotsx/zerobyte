@@ -24,6 +24,14 @@ interface ServerEvents {
 		repositoryName: string;
 		status: "success" | "error" | "stopped" | "warning";
 	}) => void;
+	"mirror:started": (data: { scheduleId: number; repositoryId: string; repositoryName: string }) => void;
+	"mirror:completed": (data: {
+		scheduleId: number;
+		repositoryId: string;
+		repositoryName: string;
+		status: "success" | "error";
+		error?: string;
+	}) => void;
 	"volume:mounted": (data: { volumeName: string }) => void;
 	"volume:unmounted": (data: { volumeName: string }) => void;
 	"volume:updated": (data: { volumeName: string }) => void;
