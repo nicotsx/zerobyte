@@ -19,6 +19,7 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
+import { PathSelector } from "~/client/components/path-selector";
 import type { Snapshot, Volume } from "~/client/lib/types";
 import { toast } from "sonner";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -141,6 +142,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			path: { name: repositoryName },
 			body: {
 				snapshotId: snapshot.short_id,
+				target: targetPath || undefined,
 				include: includePaths,
 				delete: deleteExtraFiles,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,

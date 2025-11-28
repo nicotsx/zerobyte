@@ -17,6 +17,7 @@ import { Button } from "~/client/components/ui/button";
 
 const restoreSnapshotFormSchema = type({
 	path: "string?",
+	target: "string?",
 	include: "string?",
 	exclude: "string?",
 	excludeXattr: "string?",
@@ -37,6 +38,7 @@ export const RestoreSnapshotForm = ({ formId, onSubmit, className }: Props) => {
 		resolver: arktypeResolver(restoreSnapshotFormSchema),
 		defaultValues: {
 			path: "",
+			target: "",
 			include: "",
 			exclude: "",
 			excludeXattr: "",
@@ -62,6 +64,23 @@ export const RestoreSnapshotForm = ({ formId, onSubmit, className }: Props) => {
 								</FormControl>
 								<FormDescription>
 									Restore only a specific path from the snapshot (leave empty to restore all)
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+
+					<FormField
+						control={form.control}
+						name="target"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Target Directory (Optional)</FormLabel>
+								<FormControl>
+									<Input placeholder="/" {...field} />
+								</FormControl>
+								<FormDescription>
+									Restore to a custom location instead of the original path (defaults to /)
 								</FormDescription>
 								<FormMessage />
 							</FormItem>
