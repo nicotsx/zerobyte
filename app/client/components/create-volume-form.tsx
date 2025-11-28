@@ -104,8 +104,6 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 									onChange={(e) => field.onChange(slugify(e.target.value))}
 									max={32}
 									min={1}
-									disabled={mode === "update"}
-									className={mode === "update" ? "bg-gray-50" : ""}
 								/>
 							</FormControl>
 							<FormDescription>Unique identifier for the volume.</FormDescription>

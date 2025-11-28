@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { CreateVolumeForm, type FormValues } from "~/client/components/create-volume-form";
 import {
@@ -17,6 +18,7 @@ import type { StatFs, Volume } from "~/client/lib/types";
 import { HealthchecksCard } from "../components/healthchecks-card";
 import { StorageChart } from "../components/storage-chart";
 import { updateVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import type { UpdateVolumeResponse } from "~/client/api-client/types.gen";
 
 type Props = {
 	volume: Volume;
@@ -24,12 +26,18 @@ type Props = {
 };
 
 export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
+	const navigate = useNavigate();
+
 	const updateMutation = useMutation({
 		...updateVolumeMutation(),
-		onSuccess: (_) => {
+		onSuccess: (data: UpdateVolumeResponse) => {
 			toast.success("Volume updated successfully");
 			setOpen(false);
 			setPendingValues(null);
+
+			if (data.name !== volume.name) {
+				navigate(`/volumes/${data.name}`);
+			}
 		},
 		onError: (error) => {
 			toast.error("Failed to update volume", { description: error.message });
@@ -50,7 +58,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 		if (pendingValues) {
 			updateMutation.mutate({
 				path: { name: volume.name },
-				body: { config: pendingValues },
+				body: { name: pendingValues.name, config: pendingValues },
 			});
 		}
 	};

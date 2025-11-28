@@ -115,8 +115,6 @@ export const CreateRepositoryForm = ({
 									onChange={(e) => field.onChange(slugify(e.target.value))}
 									max={32}
 									min={2}
-									disabled={mode === "update"}
-									className={mode === "update" ? "bg-gray-50" : ""}
 								/>
 							</FormControl>
 							<FormDescription>Unique identifier for the repository.</FormDescription>
