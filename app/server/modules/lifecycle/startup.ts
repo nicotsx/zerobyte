@@ -34,7 +34,7 @@ export const startup = async () => {
 
 	Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
 	Scheduler.build(VolumeHealthCheckJob).schedule("*/30 * * * *");
-	Scheduler.build(RepositoryHealthCheckJob).schedule("0 * * * *");
+	Scheduler.build(RepositoryHealthCheckJob).schedule("0 12 * * *");
 	Scheduler.build(BackupExecutionJob).schedule("* * * * *");
 	Scheduler.build(CleanupSessionsJob).schedule("0 0 * * *");
 };
