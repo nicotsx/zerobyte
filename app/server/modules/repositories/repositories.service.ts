@@ -250,7 +250,7 @@ const checkHealth = async (repositoryId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const { hasErrors, error } = await restic.check(repository.config, { readData: true });
+	const { hasErrors, error } = await restic.check(repository.config);
 
 	await db
 		.update(repositoriesTable)
