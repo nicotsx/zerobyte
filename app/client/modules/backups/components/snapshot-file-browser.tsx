@@ -142,7 +142,6 @@ export const SnapshotFileBrowser = (props: Props) => {
 			path: { name: repositoryName },
 			body: {
 				snapshotId: snapshot.short_id,
-				target: targetPath || undefined,
 				include: includePaths,
 				delete: deleteExtraFiles,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
@@ -282,11 +281,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 							</div>
 							{restoreLocation === "custom" && (
 								<div className="space-y-2">
-									<Input
-										placeholder="/path/to/restore"
-										value={customTargetPath}
-										onChange={(e) => setCustomTargetPath(e.target.value)}
-									/>
+									<PathSelector value={customTargetPath || "/"} onChange={setCustomTargetPath} />
 									<p className="text-xs text-muted-foreground">Files will be restored directly to this path</p>
 								</div>
 							)}
