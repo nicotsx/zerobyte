@@ -1,8 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { redirect, useParams } from "react-router";
-import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { toast } from "sonner";
+import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { RestoreSnapshotDialog } from "../components/restore-snapshot-dialog";
+import {
+	RestoreSnapshotDialog,
+	type RestoreSnapshotOptions,
+} from "~/client/components/restore-snapshot-dialog";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
 import { getSnapshotDetails } from "~/client/api-client";
 import type { Route } from "./+types/snapshot-details";
@@ -48,6 +53,34 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 		enabled: !!name && !!snapshotId,
 	});
 
+	const { mutate: restoreSnapshot, isPending: isRestoring } = useMutation({
+		...restoreSnapshotMutation(),
+		onSuccess: (data) => {
+			toast.success("Restore completed", {
+				description: `Successfully restored ${data.filesRestored} file(s). ${data.filesSkipped} file(s) skipped.`,
+			});
+		},
+		onError: (error) => {
+			toast.error("Restore failed", { description: error.message || "Failed to restore snapshot" });
+		},
+	});
+
+	const handleRestore = (options: RestoreSnapshotOptions) => {
+		if (!name || !snapshotId) return;
+
+		restoreSnapshot({
+			path: { name },
+			body: {
+				snapshotId,
+				include: options.include,
+				delete: options.delete,
+				excludeXattr: options.excludeXattr,
+				targetPath: options.targetPath,
+				overwrite: options.overwrite,
+			},
+		});
+	};
+
 	if (!name || !snapshotId) {
 		return (
 			<div className="flex items-center justify-center h-full">
@@ -63,7 +96,14 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 					<h1 className="text-2xl font-bold">{name}</h1>
 					<p className="text-sm text-muted-foreground">Snapshot: {snapshotId}</p>
 				</div>
-				<RestoreSnapshotDialog name={name} snapshotId={snapshotId} />
+				<RestoreSnapshotDialog
+					onConfirm={handleRestore}
+					trigger={
+						<Button variant="primary" disabled={isRestoring}>
+							{isRestoring ? "Restoring..." : "Restore Snapshot"}
+						</Button>
+					}
+				/>
 			</div>
 
 			<SnapshotFileBrowser repositoryName={name} snapshot={loaderData} />
