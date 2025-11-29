@@ -28,7 +28,6 @@ export const PathSelector = ({ value, onChange }: Props) => {
 		);
 	}
 
-	console.log("Rendering PathSelector with value:", value);
 	return (
 		<div className="flex items-center gap-2">
 			<div className="flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border">{value}</div>
