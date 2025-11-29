@@ -21,8 +21,7 @@ import type { Repository } from "~/client/lib/types";
 import { slugify } from "~/client/lib/utils";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { UpdateRepositoryResponse } from "~/client/api-client/types.gen";
-
-type CompressionMode = "off" | "auto" | "fastest" | "better" | "max";
+import type { CompressionMode } from "~/schemas/restic";
 
 type Props = {
 	repository: Repository;

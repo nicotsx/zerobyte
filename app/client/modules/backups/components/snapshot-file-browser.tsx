@@ -23,9 +23,9 @@ import type { Snapshot, Volume } from "~/client/lib/types";
 import { toast } from "sonner";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
+import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
 
 type RestoreLocation = "original" | "custom";
-type OverwriteMode = "always" | "if-changed" | "if-newer" | "never";
 
 interface Props {
 	snapshot: Snapshot;
@@ -297,19 +297,21 @@ export const SnapshotFileBrowser = (props: Props) => {
 									<SelectValue placeholder="Select overwrite behavior" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="always">Always overwrite</SelectItem>
-									<SelectItem value="if-changed">Only if content changed</SelectItem>
-									<SelectItem value="if-newer">Only if snapshot is newer</SelectItem>
-									<SelectItem value="never">Never overwrite</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.always}>Always overwrite</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.ifChanged}>Only if content changed</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.ifNewer}>Only if snapshot is newer</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.never}>Never overwrite</SelectItem>
 								</SelectContent>
 							</Select>
 							<p className="text-xs text-muted-foreground">
-								{overwriteMode === "always" && "Existing files will always be replaced with the snapshot version."}
-								{overwriteMode === "if-changed" &&
+								{overwriteMode === OVERWRITE_MODES.always &&
+									"Existing files will always be replaced with the snapshot version."}
+								{overwriteMode === OVERWRITE_MODES.ifChanged &&
 									"Files are only replaced if their content differs from the snapshot."}
-								{overwriteMode === "if-newer" &&
+								{overwriteMode === OVERWRITE_MODES.ifNewer &&
 									"Files are only replaced if the snapshot version has a newer modification time."}
-								{overwriteMode === "never" && "Existing files will never be replaced, only missing files are restored."}
+								{overwriteMode === OVERWRITE_MODES.never &&
+									"Existing files will never be replaced, only missing files are restored."}
 							</p>
 						</div>
 

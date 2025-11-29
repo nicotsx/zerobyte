@@ -9,7 +9,7 @@ import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
-import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig, OverwriteMode } from "~/schemas/restic";
 import { ResticError } from "./errors";
 
 const backupOutputSchema = type({
@@ -360,8 +360,6 @@ const restoreOutputSchema = type({
 	bytes_restored: "number?",
 	bytes_skipped: "number",
 });
-
-type OverwriteMode = "always" | "if-changed" | "if-newer" | "never";
 
 const restore = async (
 	config: RepositoryConfig,

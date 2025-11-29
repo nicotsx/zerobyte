@@ -1,6 +1,12 @@
 import { type } from "arktype";
 import { describeRoute, resolver } from "hono-openapi";
-import { COMPRESSION_MODES, REPOSITORY_BACKENDS, REPOSITORY_STATUS, repositoryConfigSchema } from "~/schemas/restic";
+import {
+	COMPRESSION_MODES,
+	OVERWRITE_MODES,
+	REPOSITORY_BACKENDS,
+	REPOSITORY_STATUS,
+	repositoryConfigSchema,
+} from "~/schemas/restic";
 
 export const repositorySchema = type({
 	id: "string",
@@ -269,8 +275,7 @@ export const listSnapshotFilesDto = describeRoute({
 /**
  * Restore a snapshot
  */
-export const overwriteModeSchema = type("'always' | 'if-changed' | 'if-newer' | 'never'");
-export type OverwriteMode = typeof overwriteModeSchema.infer;
+export const overwriteModeSchema = type.valueOf(OVERWRITE_MODES);
 
 export const restoreSnapshotBody = type({
 	snapshotId: "string",

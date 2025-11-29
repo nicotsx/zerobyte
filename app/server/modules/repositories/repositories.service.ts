@@ -8,7 +8,7 @@ import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
-import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 
 const listRepositories = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
@@ -207,7 +207,7 @@ const restoreSnapshot = async (
 		excludeXattr?: string[];
 		delete?: boolean;
 		targetPath?: string;
-		overwrite?: "always" | "if-changed" | "if-newer" | "never";
+		overwrite?: OverwriteMode;
 	},
 ) => {
 	const repository = await db.query.repositoriesTable.findFirst({

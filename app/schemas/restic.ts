@@ -105,3 +105,12 @@ export const REPOSITORY_STATUS = {
 } as const;
 
 export type RepositoryStatus = keyof typeof REPOSITORY_STATUS;
+
+export const OVERWRITE_MODES = {
+	always: "always",
+	ifChanged: "if-changed",
+	ifNewer: "if-newer",
+	never: "never",
+} as const;
+
+export type OverwriteMode = (typeof OVERWRITE_MODES)[keyof typeof OVERWRITE_MODES];
