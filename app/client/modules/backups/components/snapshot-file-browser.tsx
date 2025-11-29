@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, FileIcon } from "lucide-react";
+import { ChevronDown, FileIcon, FolderOpen, RotateCcw } from "lucide-react";
 import { FileTree } from "~/client/components/file-tree";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import { Label } from "~/client/components/ui/label";
 import { Input } from "~/client/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -23,6 +24,9 @@ import type { Snapshot, Volume } from "~/client/lib/types";
 import { toast } from "sonner";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
+import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
+
+type RestoreLocation = "original" | "custom";
 
 interface Props {
 	snapshot: Snapshot;
@@ -43,7 +47,9 @@ export const SnapshotFileBrowser = (props: Props) => {
 	const [deleteExtraFiles, setDeleteExtraFiles] = useState(false);
 	const [showAdvanced, setShowAdvanced] = useState(false);
 	const [excludeXattr, setExcludeXattr] = useState("");
-	const [targetPath, setTargetPath] = useState("/");
+	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>("original");
+	const [customTargetPath, setCustomTargetPath] = useState("");
+	const [overwriteMode, setOverwriteMode] = useState<OverwriteMode>("always");
 
 	const volumeBasePath = snapshot.paths[0]?.match(/^(.*?_data)(\/|$)/)?.[1] || "/";
 
@@ -129,6 +135,9 @@ export const SnapshotFileBrowser = (props: Props) => {
 			.map((s) => s.trim())
 			.filter(Boolean);
 
+		const isCustomLocation = restoreLocation === "custom";
+		const targetPath = isCustomLocation && customTargetPath.trim() ? customTargetPath.trim() : undefined;
+
 		restoreSnapshot({
 			path: { name: repositoryName },
 			body: {
@@ -137,11 +146,24 @@ export const SnapshotFileBrowser = (props: Props) => {
 				include: includePaths,
 				delete: deleteExtraFiles,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
+				targetPath,
+				overwrite: overwriteMode,
 			},
 		});
 
 		setShowRestoreDialog(false);
-	}, [selectedPaths, addBasePath, repositoryName, snapshot.short_id, restoreSnapshot, deleteExtraFiles, excludeXattr, targetPath]);
+	}, [
+		selectedPaths,
+		addBasePath,
+		repositoryName,
+		snapshot.short_id,
+		restoreSnapshot,
+		deleteExtraFiles,
+		excludeXattr,
+		restoreLocation,
+		customTargetPath,
+		overwriteMode,
+	]);
 
 	return (
 		<div className="space-y-4">
@@ -224,28 +246,77 @@ export const SnapshotFileBrowser = (props: Props) => {
 			</Card>
 
 			<AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
-				<AlertDialogContent>
+				<AlertDialogContent className="max-w-lg">
 					<AlertDialogHeader>
 						<AlertDialogTitle>Confirm Restore</AlertDialogTitle>
 						<AlertDialogDescription>
 							{selectedPaths.size > 0
 								? `This will restore ${selectedPaths.size} selected ${selectedPaths.size === 1 ? "item" : "items"} from the snapshot.`
-								: "This will restore everything from the snapshot."}{" "}
-							Existing files will be overwritten by what's in the snapshot. This action cannot be undone.
+								: "This will restore everything from the snapshot."}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="space-y-4">
+						<div className="space-y-3">
+							<Label className="text-sm font-medium">Restore Location</Label>
+							<div className="grid grid-cols-2 gap-2">
+								<Button
+									type="button"
+									variant={restoreLocation === "original" ? "secondary" : "outline"}
+									size="sm"
+									className="flex justify-start gap-2"
+									onClick={() => setRestoreLocation("original")}
+								>
+									<RotateCcw size={16} className="mr-1" />
+									Original location
+								</Button>
+								<Button
+									type="button"
+									variant={restoreLocation === "custom" ? "secondary" : "outline"}
+									size="sm"
+									className="justify-start gap-2"
+									onClick={() => setRestoreLocation("custom")}
+								>
+									<FolderOpen size={16} className="mr-1" />
+									Custom location
+								</Button>
+							</div>
+							{restoreLocation === "custom" && (
+								<div className="space-y-2">
+									<Input
+										placeholder="/path/to/restore"
+										value={customTargetPath}
+										onChange={(e) => setCustomTargetPath(e.target.value)}
+									/>
+									<p className="text-xs text-muted-foreground">Files will be restored directly to this path</p>
+								</div>
+							)}
+						</div>
+
 						<div className="space-y-2">
-							<Label className="text-sm">Target Directory</Label>
-							<PathSelector
-								value={targetPath}
-								onChange={setTargetPath}
-								label="Restore to:"
-							/>
+							<Label className="text-sm font-medium">Overwrite Mode</Label>
+							<Select value={overwriteMode} onValueChange={(value) => setOverwriteMode(value as OverwriteMode)}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select overwrite behavior" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value={OVERWRITE_MODES.always}>Always overwrite</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.ifChanged}>Only if content changed</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.ifNewer}>Only if snapshot is newer</SelectItem>
+									<SelectItem value={OVERWRITE_MODES.never}>Never overwrite</SelectItem>
+								</SelectContent>
+							</Select>
 							<p className="text-xs text-muted-foreground">
-								Files will be restored to this location. Default "/" restores to original paths.
+								{overwriteMode === OVERWRITE_MODES.always &&
+									"Existing files will always be replaced with the snapshot version."}
+								{overwriteMode === OVERWRITE_MODES.ifChanged &&
+									"Files are only replaced if their content differs from the snapshot."}
+								{overwriteMode === OVERWRITE_MODES.ifNewer &&
+									"Files are only replaced if the snapshot version has a newer modification time."}
+								{overwriteMode === OVERWRITE_MODES.never &&
+									"Existing files will never be replaced, only missing files are restored."}
 							</p>
 						</div>
+
 						<div>
 							<Button
 								type="button"
@@ -254,32 +325,34 @@ export const SnapshotFileBrowser = (props: Props) => {
 								onClick={() => setShowAdvanced(!showAdvanced)}
 								className="h-auto p-0 text-sm font-normal"
 							>
-								Advanced
+								Advanced Options
 								<ChevronDown size={16} className={`ml-1 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
 							</Button>
 
 							{showAdvanced && (
-								<div className="mt-4 space-y-2">
-									<Label htmlFor="exclude-xattr" className="text-sm">
-										Exclude Extended Attributes (Optional)
-									</Label>
-									<Input
-										id="exclude-xattr"
-										placeholder="com.apple.metadata,user.*,nfs4.*"
-										value={excludeXattr}
-										onChange={(e) => setExcludeXattr(e.target.value)}
-									/>
-									<p className="text-xs text-muted-foreground">
-										Exclude specific extended attributes during restore (comma-separated)
-									</p>
-									<div className="flex items-center space-x-2 mt-2">
+								<div className="mt-4 space-y-3">
+									<div className="space-y-2">
+										<Label htmlFor="exclude-xattr" className="text-sm">
+											Exclude Extended Attributes
+										</Label>
+										<Input
+											id="exclude-xattr"
+											placeholder="com.apple.metadata,user.*,nfs4.*"
+											value={excludeXattr}
+											onChange={(e) => setExcludeXattr(e.target.value)}
+										/>
+										<p className="text-xs text-muted-foreground">
+											Exclude specific extended attributes during restore (comma-separated)
+										</p>
+									</div>
+									<div className="flex items-center space-x-2">
 										<Checkbox
 											id="delete-extra"
 											checked={deleteExtraFiles}
 											onCheckedChange={(checked) => setDeleteExtraFiles(checked === true)}
 										/>
 										<Label htmlFor="delete-extra" className="text-sm font-normal cursor-pointer">
-											Delete files not present in the snapshot?
+											Delete files not present in the snapshot
 										</Label>
 									</div>
 								</div>
@@ -288,7 +361,12 @@ export const SnapshotFileBrowser = (props: Props) => {
 					</div>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmRestore}>Confirm</AlertDialogAction>
+						<AlertDialogAction
+							onClick={handleConfirmRestore}
+							disabled={restoreLocation === "custom" && !customTargetPath.trim()}
+						>
+							Confirm Restore
+						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

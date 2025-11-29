@@ -9,7 +9,7 @@ import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
-import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig, OverwriteMode } from "~/schemas/restic";
 import { ResticError } from "./errors";
 
 const backupOutputSchema = type({
@@ -353,7 +353,7 @@ const backup = async (
 
 const restoreOutputSchema = type({
 	message_type: "'summary'",
-	total_files: "number",
+	total_files: "number?",
 	files_restored: "number",
 	files_skipped: "number",
 	total_bytes: "number?",
@@ -369,8 +369,8 @@ const restore = async (
 		include?: string[];
 		exclude?: string[];
 		excludeXattr?: string[];
-		path?: string;
 		delete?: boolean;
+		overwrite?: OverwriteMode;
 	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
@@ -378,8 +378,8 @@ const restore = async (
 
 	const args: string[] = ["--repo", repoUrl, "restore", snapshotId, "--target", target];
 
-	if (options?.path) {
-		args[args.length - 4] = `${snapshotId}:${options.path}`;
+	if (options?.overwrite) {
+		args.push("--overwrite", options.overwrite);
 	}
 
 	if (options?.delete) {
@@ -407,6 +407,7 @@ const restore = async (
 	addRepoSpecificArgs(args, config, env);
 	args.push("--json");
 
+	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
 

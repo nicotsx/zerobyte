@@ -8,7 +8,7 @@ import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
-import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 
 const listRepositories = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
@@ -201,7 +201,14 @@ const listSnapshotFiles = async (name: string, snapshotId: string, path?: string
 const restoreSnapshot = async (
 	name: string,
 	snapshotId: string,
-	options?: { target?: string; include?: string[]; exclude?: string[]; excludeXattr?: string[]; delete?: boolean },
+	options?: {
+		include?: string[];
+		exclude?: string[];
+		excludeXattr?: string[];
+		delete?: boolean;
+		targetPath?: string;
+		overwrite?: OverwriteMode;
+	},
 ) => {
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: eq(repositoriesTable.name, name),
@@ -211,7 +218,8 @@ const restoreSnapshot = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	const target = options?.target || "/";
+	const target = options?.targetPath || "/";
+
 	const result = await restic.restore(repository.config, snapshotId, target, options);
 
 	return {
