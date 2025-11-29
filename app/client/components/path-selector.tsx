@@ -8,12 +8,7 @@ type Props = {
 	label?: string;
 };
 
-/**
- * A reusable path selector component that shows the selected path
- * with a "Change" button, and expands to a DirectoryBrowser when clicked.
- * Matches the pattern used in the volume creation form.
- */
-export const PathSelector = ({ value, onChange, label = "Selected path:" }: Props) => {
+export const PathSelector = ({ value, onChange }: Props) => {
 	const [showBrowser, setShowBrowser] = useState(false);
 
 	if (showBrowser) {
@@ -26,25 +21,18 @@ export const PathSelector = ({ value, onChange, label = "Selected path:" }: Prop
 					}}
 					selectedPath={value}
 				/>
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					onClick={() => setShowBrowser(false)}
-				>
+				<Button type="button" variant="ghost" size="sm" onClick={() => setShowBrowser(false)}>
 					Cancel
 				</Button>
 			</div>
 		);
 	}
 
+	console.log("Rendering PathSelector with value:", value);
 	return (
 		<div className="flex items-center gap-2">
-			<div className="flex-1 border rounded-md p-3 bg-muted/50">
-				<div className="text-xs font-medium text-muted-foreground mb-1">{label}</div>
-				<div className="text-sm font-mono break-all">{value}</div>
-			</div>
-			<Button type="button" variant="outline" size="sm" onClick={() => setShowBrowser(true)}>
+			<div className="flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border">{value}</div>
+			<Button type="button" variant="outline" onClick={() => setShowBrowser(true)} size="sm">
 				Change
 			</Button>
 		</div>
