@@ -30,7 +30,6 @@ type Props = {
 	mode?: "create" | "update";
 	initialValues?: Partial<NotificationFormValues>;
 	formId?: string;
-	loading?: boolean;
 	className?: string;
 };
 

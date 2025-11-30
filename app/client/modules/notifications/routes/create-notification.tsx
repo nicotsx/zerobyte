@@ -62,12 +62,7 @@ export default function CreateNotification() {
 							</AlertDescription>
 						</Alert>
 					)}
-					<CreateNotificationForm
-						mode="create"
-						formId={formId}
-						onSubmit={handleSubmit}
-						loading={createNotification.isPending}
-					/>
+					<CreateNotificationForm mode="create" formId={formId} onSubmit={handleSubmit} />
 					<div className="flex justify-end gap-2 pt-4 border-t">
 						<Button type="button" variant="secondary" onClick={() => navigate("/notifications")}>
 							Cancel
