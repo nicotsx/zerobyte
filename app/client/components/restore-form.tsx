@@ -22,7 +22,6 @@ interface RestoreFormProps {
 	snapshot: Snapshot;
 	repositoryName: string;
 	snapshotId: string;
-	/** Path to navigate to after cancel or successful restore */
 	returnPath: string;
 }
 

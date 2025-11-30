@@ -12,7 +12,6 @@ import { useFileBrowser } from "~/client/hooks/use-file-browser";
 interface Props {
 	snapshot: Snapshot;
 	repositoryName: string;
-	/** If provided, restore link will use /backups/:backupId/:snapshotId/restore route */
 	backupId?: string;
 	onDeleteSnapshot?: (snapshotId: string) => void;
 	isDeletingSnapshot?: boolean;

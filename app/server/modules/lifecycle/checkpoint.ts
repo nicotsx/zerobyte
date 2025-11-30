@@ -2,7 +2,6 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/db";
 import { appMetadataTable, usersTable } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { REQUIRED_MIGRATIONS } from "~/server/core/constants";
 
 const MIGRATION_KEY_PREFIX = "migration:";
 

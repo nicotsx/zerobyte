@@ -21,7 +21,6 @@ import {
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { toMessage } from "../../utils/errors";
-import { logger } from "~/server/utils/logger";
 
 const COOKIE_NAME = "session_id";
 const COOKIE_OPTIONS = {

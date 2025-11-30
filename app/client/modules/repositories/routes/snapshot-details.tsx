@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, redirect, useParams } from "react-router";
+import { redirect, useParams } from "react-router";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import { buttonVariants } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
 import { getSnapshotDetails } from "~/client/api-client";
