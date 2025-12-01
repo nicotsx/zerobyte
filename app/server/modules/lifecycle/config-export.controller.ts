@@ -318,7 +318,7 @@ export const configExportController = new Hono()
 			return c.json({ repositories: await exportEntities(result.data, params) });
 		} catch (err) {
 			logger.error(`Repositories export failed: ${err instanceof Error ? err.message : String(err)}`);
-			return c.json({ error: "Failed to export repositories" }, 500);
+			return c.json({ error: `Failed to export repositories: ${err instanceof Error ? err.message : String(err)}` }, 500);
 		}
 	})
 	.get("/export/notification-destinations", async (c) => {
