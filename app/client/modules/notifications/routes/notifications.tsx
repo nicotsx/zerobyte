@@ -49,8 +49,6 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 	const { data } = useQuery({
 		...listNotificationDestinationsOptions(),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	const filteredNotifications =

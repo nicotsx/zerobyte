@@ -64,8 +64,6 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 	const { data } = useQuery({
 		...getRepositoryOptions({ path: { name: loaderData.name } }),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	useEffect(() => {

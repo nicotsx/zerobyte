@@ -11,6 +11,7 @@ import type { CreateBackupScheduleBody, UpdateBackupScheduleBody } from "./backu
 import { toMessage } from "../../utils/errors";
 import { serverEvents } from "../../core/events";
 import { notificationsService } from "../notifications/notifications.service";
+import { repoMutex } from "../../core/repository-mutex";
 
 const runningBackups = new Map<number, AbortController>();
 
@@ -241,21 +242,33 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			backupOptions.include = schedule.includePatterns;
 		}
 
-		const { exitCode } = await restic.backup(repository.config, volumePath, {
-			...backupOptions,
-			compressionMode: repository.compressionMode ?? "auto",
-			onProgress: (progress) => {
-				serverEvents.emit("backup:progress", {
-					scheduleId,
-					volumeName: volume.name,
-					repositoryName: repository.name,
-					...progress,
-				});
-			},
-		});
+		const releaseBackupLock = await repoMutex.acquireShared(repository.id, `backup:${volume.name}`);
+		let exitCode: number;
+		try {
+			const result = await restic.backup(repository.config, volumePath, {
+				...backupOptions,
+				compressionMode: repository.compressionMode ?? "auto",
+				onProgress: (progress) => {
+					serverEvents.emit("backup:progress", {
+						scheduleId,
+						volumeName: volume.name,
+						repositoryName: repository.name,
+						...progress,
+					});
+				},
+			});
+			exitCode = result.exitCode;
+		} finally {
+			releaseBackupLock();
+		}
 
 		if (schedule.retentionPolicy) {
-			await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
+			const releaseForgetLock = await repoMutex.acquireExclusive(repository.id, `forget:${volume.name}`);
+			try {
+				await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
+			} finally {
+				releaseForgetLock();
+			}
 		}
 
 		const nextBackupAt = calculateNextRun(schedule.cronExpression);
@@ -403,7 +416,13 @@ const runForget = async (scheduleId: number) => {
 	}
 
 	logger.info(`Manually running retention policy (forget) for schedule ${scheduleId}`);
-	await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:manual:${scheduleId}`);
+	try {
+		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
+	} finally {
+		releaseLock();
+	}
+
 	logger.info(`Retention policy applied successfully for schedule ${scheduleId}`);
 };
 

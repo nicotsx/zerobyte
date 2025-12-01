@@ -18,8 +18,6 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 
 	const { data, isFetching, failureReason } = useQuery({
 		...listSnapshotsOptions({ path: { name: repository.name } }),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 		initialData: [],
 	});
 

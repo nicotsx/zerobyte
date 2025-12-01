@@ -200,8 +200,8 @@ const init = async (config: RepositoryConfig) => {
 
 	const env = await buildEnv(config);
 
-	const args = ["init", "--repo", repoUrl, "--json"];
-	addRepoSpecificArgs(args, config, env);
+	const args = ["init", "--repo", repoUrl];
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -277,8 +277,7 @@ const backup = async (
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, config, env);
 
 	const logData = throttle((data: string) => {
 		logger.info(data.trim());
@@ -404,8 +403,7 @@ const restore = async (
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, config, env);
 
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await $`restic ${args}`.env(env).nothrow();
@@ -468,8 +466,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow().quiet();
 	await cleanupTemporaryKeys(config, env);
@@ -518,8 +515,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	}
 
 	args.push("--prune");
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -537,7 +533,7 @@ const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
 	const env = await buildEnv(config);
 
 	const args: string[] = ["--repo", repoUrl, "forget", snapshotId, "--prune"];
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -581,13 +577,13 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--json", "--long"];
+	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--long"];
 
 	if (path) {
 		args.push(path);
 	}
 
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, config, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -637,8 +633,8 @@ const unlock = async (config: RepositoryConfig) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args = ["unlock", "--repo", repoUrl, "--remove-all", "--json"];
-	addRepoSpecificArgs(args, config, env);
+	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -662,7 +658,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 		args.push("--read-data");
 	}
 
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -696,7 +692,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 	const env = await buildEnv(config);
 
 	const args = ["repair", "index", "--repo", repoUrl];
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, config, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -717,7 +713,9 @@ const repairIndex = async (config: RepositoryConfig) => {
 	};
 };
 
-const addRepoSpecificArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
+const addCommonArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
+	args.push("--retry-lock", "1m", "--json");
+
 	if (config.backend === "sftp" && env._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}

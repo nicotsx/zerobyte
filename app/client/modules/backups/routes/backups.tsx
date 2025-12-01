@@ -33,8 +33,6 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 	const { data: schedules, isLoading } = useQuery({
 		...listBackupSchedulesOptions(),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	if (isLoading) {

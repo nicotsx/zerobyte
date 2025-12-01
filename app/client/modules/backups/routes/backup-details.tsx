@@ -70,8 +70,6 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 	const { data: schedule } = useQuery({
 		...getBackupScheduleOptions({ path: { scheduleId: params.id } }),
 		initialData: loaderData.schedule,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	const {
