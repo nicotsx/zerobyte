@@ -255,14 +255,19 @@ const getSnapshotDetails = async (name: string, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const snapshots = await restic.snapshots(repository.config);
-	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);
+	try {
+		const snapshots = await restic.snapshots(repository.config);
+		const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
 
-	if (!snapshot) {
-		throw new NotFoundError("Snapshot not found");
+		if (!snapshot) {
+			throw new NotFoundError("Snapshot not found");
+		}
+
+		return snapshot;
+	} finally {
+		releaseLock();
 	}
-
-	return snapshot;
 };
 
 const checkHealth = async (repositoryId: string) => {
