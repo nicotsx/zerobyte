@@ -60,7 +60,7 @@ const decrypt = async (encryptedData: string) => {
 };
 
 export const cryptoUtils = {
-	isEncrypted,
 	encrypt,
 	decrypt,
+	isEncrypted,
 };
