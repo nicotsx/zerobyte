@@ -244,8 +244,10 @@ export function ExportDialog({
 			}
 			// Password verified, proceed with export
 			await performExport();
-		} catch {
-			toast.error("Incorrect password");
+		} catch (err) {
+			toast.error("Verification failed", {
+				description: err instanceof Error ? err.message : "Unable to verify password. Please check your connection and try again.",
+			});
 		} finally {
 			setIsVerifying(false);
 		}
