@@ -98,7 +98,8 @@ async function processSecrets(
 			} else if (secretsMode === "cleartext") {
 				try {
 					result[key] = await cryptoUtils.decrypt(value);
-				} catch {
+				} catch (err) {
+					logger.warn(`Failed to decrypt field "${key}": ${err instanceof Error ? err.message : String(err)}`);
 					delete result[key];
 				}
 			}
