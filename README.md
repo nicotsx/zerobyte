@@ -336,7 +336,7 @@ Secrets/credentials in the config file can reference environment variables using
 
 ##### Admin Setup (Automated)
 
-- **Example:**
+- **Example (new instance):**
   ```json
   {
     "admin": {
@@ -346,10 +346,25 @@ Secrets/credentials in the config file can reference environment variables using
     }
   }
   ```
+
+- **Example (migration from another instance):**
+  ```json
+  {
+    "admin": {
+      "username": "admin",
+      "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$...",
+      "recoveryKey": "${RECOVERY_KEY}"
+    }
+  }
+  ```
+
 - **Fields:**
   - `username`: Admin username to create on first startup
-  - `password`: Admin password (can use `${ENV_VAR}`)
+  - `password`: Admin password for new instances (can use `${ENV_VAR}`)
+  - `passwordHash`: Pre-hashed password for migration (exported from another instance)
   - `recoveryKey`: Optional recovery key (can use `${ENV_VAR}`) - if provided, the UI prompt to download recovery key will be skipped
+
+> **Note:** Use either `password` OR `passwordHash`, not both. The `passwordHash` option is useful when migrating from another Zerobyte instance using an exported config with `includePasswordHash=true`.
 
 **On first startup, Zerobyte will automatically create the admin user from the config file.**
 

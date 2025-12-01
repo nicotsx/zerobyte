@@ -176,17 +176,30 @@ export const startup = async () => {
 		
 		try {
 			const { authService } = await import("../auth/auth.service");
-			if (configFileAdmin && configFileAdmin.username && configFileAdmin.password) {
+			if (configFileAdmin && configFileAdmin.username && (configFileAdmin.password || configFileAdmin.passwordHash)) {
 				const hasUsers = await authService.hasUsers();
 				if (!hasUsers) {
-					const { user } = await authService.register(configFileAdmin.username, configFileAdmin.password);
-					logger.info(`Admin user '${configFileAdmin.username}' created from config.`);
+					let userId: number;
+					if (configFileAdmin.passwordHash) {
+						// Import with existing password hash (migration from another instance)
+						const [user] = await db.insert(usersTable).values({
+							username: configFileAdmin.username,
+							passwordHash: configFileAdmin.passwordHash,
+						}).returning();
+						userId = user.id;
+						logger.info(`Admin user '${configFileAdmin.username}' imported with password hash from config.`);
+					} else {
+						// Create new user with plaintext password
+						const { user } = await authService.register(configFileAdmin.username, configFileAdmin.password);
+						userId = user.id;
+						logger.info(`Admin user '${configFileAdmin.username}' created from config.`);
+					}
 					if (configFileAdmin.recoveryKey) {
-						await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, user.id));
+						await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
 					}
 				}
 			} else {
-				logger.warn("Admin config missing required fields (username, password). Skipping automated admin setup.");
+				logger.warn("Admin config missing required fields (username, password or passwordHash). Skipping automated admin setup.");
 			}
 		} catch (err) {
 			const e = err instanceof Error ? err : new Error(String(err));
