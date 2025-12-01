@@ -174,6 +174,19 @@ export class AuthService {
 
 		logger.info(`Password changed for user: ${user.username}`);
 	}
+
+	/**
+	 * Verify password for a user (for re-authentication purposes)
+	 */
+	async verifyPassword(userId: number, password: string): Promise<boolean> {
+		const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
+
+		if (!user) {
+			return false;
+		}
+
+		return Bun.password.verify(password, user.passwordHash);
+	}
 }
 
 export const authService = new AuthService();

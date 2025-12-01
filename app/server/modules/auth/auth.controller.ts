@@ -12,12 +12,15 @@ import {
 	logoutDto,
 	registerBodySchema,
 	registerDto,
+	verifyPasswordBodySchema,
+	verifyPasswordDto,
 	type ChangePasswordDto,
 	type GetMeDto,
 	type GetStatusDto,
 	type LoginDto,
 	type LogoutDto,
 	type RegisterDto,
+	type VerifyPasswordDto,
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { toMessage } from "../../utils/errors";
@@ -138,4 +141,27 @@ export const authController = new Hono()
 		} catch (error) {
 			return c.json<ChangePasswordDto>({ success: false, message: toMessage(error) }, 400);
 		}
+	})
+	.post("/verify-password", verifyPasswordDto, validator("json", verifyPasswordBodySchema), async (c) => {
+		const sessionId = getCookie(c, COOKIE_NAME);
+
+		if (!sessionId) {
+			return c.json<VerifyPasswordDto>({ success: false, message: "Not authenticated" }, 401);
+		}
+
+		const session = await authService.verifySession(sessionId);
+
+		if (!session) {
+			deleteCookie(c, COOKIE_NAME, COOKIE_OPTIONS);
+			return c.json<VerifyPasswordDto>({ success: false, message: "Not authenticated" }, 401);
+		}
+
+		const body = c.req.valid("json");
+		const isValid = await authService.verifyPassword(session.user.id, body.password);
+
+		if (!isValid) {
+			return c.json<VerifyPasswordDto>({ success: false, message: "Incorrect password" }, 401);
+		}
+
+		return c.json<VerifyPasswordDto>({ success: true, message: "Password verified" });
 	});

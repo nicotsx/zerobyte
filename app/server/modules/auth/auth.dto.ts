@@ -148,6 +148,34 @@ export const changePasswordDto = describeRoute({
 
 export type ChangePasswordDto = typeof changePasswordResponseSchema.infer;
 
+export const verifyPasswordBodySchema = type({
+	password: "string>0",
+});
+
+const verifyPasswordResponseSchema = type({
+	success: "boolean",
+	message: "string",
+});
+
+export const verifyPasswordDto = describeRoute({
+	description: "Verify current user password for re-authentication",
+	operationId: "verifyPassword",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Password verification result",
+			content: {
+				"application/json": {
+					schema: resolver(verifyPasswordResponseSchema),
+				},
+			},
+		},
+	},
+});
+
+export type VerifyPasswordDto = typeof verifyPasswordResponseSchema.infer;
+
 export type LoginBody = typeof loginBodySchema.infer;
 export type RegisterBody = typeof registerBodySchema.infer;
 export type ChangePasswordBody = typeof changePasswordBodySchema.infer;
+export type VerifyPasswordBody = typeof verifyPasswordBodySchema.infer;

@@ -12,6 +12,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "~/client/components/ui/dialog";
+import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import {
 	Select,
@@ -20,6 +21,15 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "~/client/components/ui/select";
+
+async function verifyPassword(password: string): Promise<boolean> {
+	const response = await fetch("/api/v1/auth/verify-password", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ password }),
+	});
+	return response.ok;
+}
 
 export type SecretsMode = "exclude" | "encrypted" | "cleartext";
 
@@ -158,6 +168,9 @@ export function ExportDialog({
 	const [includePasswordHash, setIncludePasswordHash] = useState(false);
 	const [secretsMode, setSecretsMode] = useState<SecretsMode>("exclude");
 	const [isExporting, setIsExporting] = useState(false);
+	const [showPasswordStep, setShowPasswordStep] = useState(false);
+	const [password, setPassword] = useState("");
+	const [isVerifying, setIsVerifying] = useState(false);
 
 	const config = exportConfigs[entityType];
 	const isSingleItem = !!(name || id);
@@ -165,8 +178,9 @@ export function ExportDialog({
 	// TODO: Volumes will have encrypted secrets (e.g., SMB/NFS credentials) in a future PR
 	const hasSecrets = entityType !== "backups" && entityType !== "volumes";
 	const entityLabel = isSingleItem ? config.label : config.labelPlural;
+	const requiresPassword = includeRecoveryKey || secretsMode === "cleartext";
 
-	const handleExport = async () => {
+	const performExport = async () => {
 		setIsExporting(true);
 		try {
 			await exportConfig(entityType, {
@@ -181,12 +195,53 @@ export function ExportDialog({
 			});
 			toast.success(`${entityLabel} exported successfully`);
 			setOpen(false);
+			setShowPasswordStep(false);
+			setPassword("");
 		} catch (err) {
 			toast.error("Export failed", {
 				description: err instanceof Error ? err.message : String(err),
 			});
 		} finally {
 			setIsExporting(false);
+		}
+	};
+
+	const handleExport = () => {
+		if (requiresPassword) {
+			setShowPasswordStep(true);
+		} else {
+			performExport();
+		}
+	};
+
+	const handlePasswordSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		if (!password) {
+			toast.error("Password is required");
+			return;
+		}
+
+		setIsVerifying(true);
+		try {
+			const isValid = await verifyPassword(password);
+			if (!isValid) {
+				toast.error("Incorrect password");
+				return;
+			}
+			// Password verified, proceed with export
+			await performExport();
+		} catch {
+			toast.error("Incorrect password");
+		} finally {
+			setIsVerifying(false);
+		}
+	};
+
+	const handleDialogChange = (isOpen: boolean) => {
+		setOpen(isOpen);
+		if (!isOpen) {
+			setShowPasswordStep(false);
+			setPassword("");
 		}
 	};
 
@@ -206,19 +261,65 @@ export function ExportDialog({
 		);
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
+		<Dialog open={open} onOpenChange={handleDialogChange}>
 			<DialogTrigger asChild>{trigger ?? defaultTrigger}</DialogTrigger>
 			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Export {entityLabel}</DialogTitle>
-					<DialogDescription>
-						{isSingleItem
-							? `Export the configuration for this ${config.label.toLowerCase()}.`
-							: `Export all ${config.labelPlural.toLowerCase()} configurations.`}
-					</DialogDescription>
-				</DialogHeader>
+				{showPasswordStep ? (
+					<form onSubmit={handlePasswordSubmit}>
+						<DialogHeader>
+							<DialogTitle>Confirm Export</DialogTitle>
+							<DialogDescription>
+								For security reasons, please enter your password to export
+								{includeRecoveryKey && secretsMode === "cleartext"
+									? " the recovery key and decrypted secrets."
+									: includeRecoveryKey
+										? " the recovery key."
+										: " decrypted secrets."}
+							</DialogDescription>
+						</DialogHeader>
+						<div className="space-y-4 py-4">
+							<div className="space-y-2">
+								<Label htmlFor="export-password">Your Password</Label>
+								<Input
+									id="export-password"
+									type="password"
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									placeholder="Enter your password"
+									required
+									autoFocus
+								/>
+							</div>
+						</div>
+						<DialogFooter>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => {
+									setShowPasswordStep(false);
+									setPassword("");
+								}}
+							>
+								Back
+							</Button>
+							<Button type="submit" loading={isVerifying || isExporting}>
+								<Download className="h-4 w-4 mr-2" />
+								Export
+							</Button>
+						</DialogFooter>
+					</form>
+				) : (
+					<>
+						<DialogHeader>
+							<DialogTitle>Export {entityLabel}</DialogTitle>
+							<DialogDescription>
+								{isSingleItem
+									? `Export the configuration for this ${config.label.toLowerCase()}.`
+									: `Export all ${config.labelPlural.toLowerCase()} configurations.`}
+							</DialogDescription>
+						</DialogHeader>
 
-				<div className="space-y-4 py-4">
+						<div className="space-y-4 py-4">
 					<div className="flex items-center space-x-3">
 						<Checkbox
 							id="includeIds"
@@ -321,15 +422,17 @@ export function ExportDialog({
 					)}
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={() => setOpen(false)}>
-						Cancel
-					</Button>
-					<Button onClick={handleExport} loading={isExporting}>
-						<Download className="h-4 w-4 mr-2" />
-						Export
-					</Button>
-				</DialogFooter>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleExport} loading={isExporting}>
+								<Download className="h-4 w-4 mr-2" />
+								Export
+							</Button>
+						</DialogFooter>
+					</>
+				)}
 			</DialogContent>
 		</Dialog>
 	);
