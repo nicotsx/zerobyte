@@ -158,7 +158,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 							"Run Doctor"
 						)}
 					</Button>
-					<ExportDialog entityType="repositories" name={data.name} triggerLabel="Export config" />
+					<ExportDialog entityType="repositories" id={data.id} name={data.name} triggerLabel="Export config" />
 					<Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteRepo.isPending}>
 						Delete
 					</Button>

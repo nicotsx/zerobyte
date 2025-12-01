@@ -143,7 +143,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 						<TestTube2 className="h-4 w-4 mr-2" />
 						Test
 					</Button>
-					<ExportDialog entityType="notification-destinations" name={data.name} triggerLabel="Export config" />
+					<ExportDialog entityType="notification-destinations" id={data.id} name={data.name} triggerLabel="Export config" />
 					<Button
 						onClick={() => setShowDeleteConfirm(true)}
 						variant="destructive"
