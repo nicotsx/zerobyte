@@ -247,12 +247,15 @@ export function ExportDialog({
 
 	const defaultTrigger =
 		variant === "card" ? (
-			<div className="flex flex-col items-center justify-center gap-2 cursor-pointer h-full w-full">
+			<button 
+				type="button"
+				className="flex flex-col items-center justify-center gap-2 cursor-pointer h-full w-full border-0 bg-transparent p-0 hover:opacity-80 transition-opacity"
+			>
 				<Download className="h-8 w-8 text-muted-foreground" />
 				<span className="text-sm font-medium text-muted-foreground">
 					{triggerLabel ?? `Export ${isSingleItem ? "config" : "configs"}`}
 				</span>
-			</div>
+			</button>
 		) : (
 			<Button variant={variant} size={size}>
 				{showIcon && <Download className="h-4 w-4 mr-2" />}
