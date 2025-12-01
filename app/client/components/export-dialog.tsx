@@ -341,107 +341,107 @@ export function ExportDialog({
 						</DialogHeader>
 
 						<div className="space-y-4 py-4">
-					<div className="flex items-center space-x-3">
-						<Checkbox
-							id="includeIds"
-							checked={includeIds}
-							onCheckedChange={(checked) => setIncludeIds(checked === true)}
-						/>
-						<Label htmlFor="includeIds" className="cursor-pointer">
-							Include database IDs
-						</Label>
-					</div>
-					<p className="text-xs text-muted-foreground ml-7">
-						Include internal database identifiers in the export. Useful for debugging or when IDs are needed for reference.
-					</p>
-
-					<div className="flex items-center space-x-3">
-						<Checkbox
-							id="includeTimestamps"
-							checked={includeTimestamps}
-							onCheckedChange={(checked) => setIncludeTimestamps(checked === true)}
-						/>
-						<Label htmlFor="includeTimestamps" className="cursor-pointer">
-							Include timestamps
-						</Label>
-					</div>
-					<p className="text-xs text-muted-foreground ml-7">
-						Include createdAt and updatedAt timestamps. Disable for cleaner exports when timestamps aren't needed.
-					</p>
-
-					<div className="flex items-center space-x-3">
-						<Checkbox
-							id="includeRuntimeState"
-							checked={includeRuntimeState}
-							onCheckedChange={(checked) => setIncludeRuntimeState(checked === true)}
-						/>
-						<Label htmlFor="includeRuntimeState" className="cursor-pointer">
-							Include runtime state
-						</Label>
-					</div>
-					<p className="text-xs text-muted-foreground ml-7">
-						Include current status, health checks, and last backup information. Usually not needed for migration.
-					</p>
-
-					{hasSecrets && (
-						<>
-							<div className="flex items-center justify-between pt-2 border-t">
-								<Label className="cursor-pointer">Secrets handling</Label>
-								<Select value={secretsMode} onValueChange={(v) => setSecretsMode(v as SecretsMode)}>
-									<SelectTrigger className="w-40">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="exclude">Exclude</SelectItem>
-										<SelectItem value="encrypted">Keep encrypted</SelectItem>
-										<SelectItem value="cleartext">Decrypt</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<p className="text-xs text-muted-foreground">
-								{secretsMode === "exclude" && "Sensitive fields (passwords, API keys, webhooks) will be removed from the export."}
-								{secretsMode === "encrypted" && "Secrets will be exported in encrypted form. Requires the same recovery key to decrypt on import."}
-								{secretsMode === "cleartext" && (
-									<span className="text-yellow-600">
-										⚠️ Secrets will be decrypted and exported as plaintext. Keep this export secure!
-									</span>
-								)}
-							</p>
-						</>
-					)}
-
-					{isFullExport && (
-						<>
-							<div className="flex items-center space-x-3 pt-2 border-t">
+							<div className="flex items-center space-x-3">
 								<Checkbox
-									id="includeRecoveryKey"
-									checked={includeRecoveryKey}
-									onCheckedChange={(checked) => setIncludeRecoveryKey(checked === true)}
+									id="includeIds"
+									checked={includeIds}
+									onCheckedChange={(checked) => setIncludeIds(checked === true)}
 								/>
-								<Label htmlFor="includeRecoveryKey" className="cursor-pointer">
-									Include recovery key
+								<Label htmlFor="includeIds" className="cursor-pointer">
+									Include database IDs
 								</Label>
 							</div>
 							<p className="text-xs text-muted-foreground ml-7">
-								<span className="text-yellow-600 font-medium">⚠️ Security sensitive:</span> The recovery key is the master encryption key for all repositories. Keep this export secure and never share it.
+								Include internal database identifiers in the export. Useful for debugging or when IDs are needed for reference.
 							</p>
 
 							<div className="flex items-center space-x-3">
 								<Checkbox
-									id="includePasswordHash"
-									checked={includePasswordHash}
-									onCheckedChange={(checked) => setIncludePasswordHash(checked === true)}
+									id="includeTimestamps"
+									checked={includeTimestamps}
+									onCheckedChange={(checked) => setIncludeTimestamps(checked === true)}
 								/>
-								<Label htmlFor="includePasswordHash" className="cursor-pointer">
-									Include password hash
+								<Label htmlFor="includeTimestamps" className="cursor-pointer">
+									Include timestamps
 								</Label>
 							</div>
 							<p className="text-xs text-muted-foreground ml-7">
-								Include the hashed admin password for seamless migration. The password is already securely hashed (argon2).
+								Include createdAt and updatedAt timestamps. Disable for cleaner exports when timestamps aren't needed.
 							</p>
-						</>
-					)}
-				</div>
+
+							<div className="flex items-center space-x-3">
+								<Checkbox
+									id="includeRuntimeState"
+									checked={includeRuntimeState}
+									onCheckedChange={(checked) => setIncludeRuntimeState(checked === true)}
+								/>
+								<Label htmlFor="includeRuntimeState" className="cursor-pointer">
+									Include runtime state
+								</Label>
+							</div>
+							<p className="text-xs text-muted-foreground ml-7">
+								Include current status, health checks, and last backup information. Usually not needed for migration.
+							</p>
+
+							{hasSecrets && (
+								<>
+									<div className="flex items-center justify-between pt-2 border-t">
+										<Label className="cursor-pointer">Secrets handling</Label>
+										<Select value={secretsMode} onValueChange={(v) => setSecretsMode(v as SecretsMode)}>
+											<SelectTrigger className="w-40">
+												<SelectValue />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="exclude">Exclude</SelectItem>
+												<SelectItem value="encrypted">Keep encrypted</SelectItem>
+												<SelectItem value="cleartext">Decrypt</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										{secretsMode === "exclude" && "Sensitive fields (passwords, API keys, webhooks) will be removed from the export."}
+										{secretsMode === "encrypted" && "Secrets will be exported in encrypted form. Requires the same recovery key to decrypt on import."}
+										{secretsMode === "cleartext" && (
+											<span className="text-yellow-600">
+												⚠️ Secrets will be decrypted and exported as plaintext. Keep this export secure!
+											</span>
+										)}
+									</p>
+								</>
+							)}
+
+							{isFullExport && (
+								<>
+									<div className="flex items-center space-x-3 pt-2 border-t">
+										<Checkbox
+											id="includeRecoveryKey"
+											checked={includeRecoveryKey}
+											onCheckedChange={(checked) => setIncludeRecoveryKey(checked === true)}
+										/>
+										<Label htmlFor="includeRecoveryKey" className="cursor-pointer">
+											Include recovery key
+										</Label>
+									</div>
+									<p className="text-xs text-muted-foreground ml-7">
+										<span className="text-yellow-600 font-medium">⚠️ Security sensitive:</span> The recovery key is the master encryption key for all repositories. Keep this export secure and never share it.
+									</p>
+
+									<div className="flex items-center space-x-3">
+										<Checkbox
+											id="includePasswordHash"
+											checked={includePasswordHash}
+											onCheckedChange={(checked) => setIncludePasswordHash(checked === true)}
+										/>
+										<Label htmlFor="includePasswordHash" className="cursor-pointer">
+											Include password hash
+										</Label>
+									</div>
+									<p className="text-xs text-muted-foreground ml-7">
+										Include the hashed admin password for seamless migration. The password is already securely hashed (argon2).
+									</p>
+								</>
+							)}
+						</div>
 
 						<DialogFooter>
 							<Button variant="outline" onClick={() => setOpen(false)}>
