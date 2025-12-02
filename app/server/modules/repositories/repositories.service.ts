@@ -73,7 +73,20 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	const id = crypto.randomUUID();
 
-	const shortId = (config.backend === "local" && config.name) ? config.name : generateShortId();
+	// Determine shortId: use provided config.name for local repo migrations, otherwise generate
+	let shortId: string;
+	if (config.backend === "local" && config.name?.length) {
+		// User provided a name (migration scenario) - check for conflicts
+		shortId = config.name;
+		const existingByShortId = await db.query.repositoriesTable.findFirst({
+			where: eq(repositoriesTable.shortId, shortId),
+		});
+		if (existingByShortId) {
+			throw new ConflictError(`A repository with shortId '${shortId}' already exists. The shortId is used as the subdirectory name for local repositories.`);
+		}
+	} else {
+		shortId = generateShortId();
+	}
 
 	let processedConfig = config;
 	if (config.backend === "local") {

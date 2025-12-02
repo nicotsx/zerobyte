@@ -151,7 +151,21 @@ Secrets/credentials in the config file can reference environment variables using
     "compressionMode": "auto"
   }
   ```
-  > **Note for importing existing local repositories:** If you're importing an existing repository (e.g., from a backup or migration), include the `name` field in `config` with the original subfolder name. The actual restic repo is stored at `{path}/{name}`. You can find this value in an exported config under `repositories[].config.name`.
+  > **Note for importing existing local repositories:** If you're migrating an existing repository (e.g., from a backup or another Zerobyte instance), include the `name` field in `config` with the original subfolder name, and set `isExistingRepository: true`. The actual restic repo is stored at `{path}/{name}`.
+  >
+  > **Example (migration):**
+  > ```json
+  > {
+  >   "name": "my-local-repo",
+  >   "config": {
+  >     "backend": "local",
+  >     "path": "/var/lib/zerobyte/repositories",
+  >     "name": "abc123",
+  >     "isExistingRepository": true
+  >   }
+  > }
+  > ```
+  > You can find the `config.name` value in an exported config under `repositories[].config.name`. This value must be unique across all repositories.
 
 - **S3-Compatible**
   ```json
