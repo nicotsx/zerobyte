@@ -37,12 +37,29 @@ services:
     ports:
       - "4096:4096"
     environment:
+      # Cloud storage credentials
       - ACCESS_KEY_ID=your-access-key-id
       - SECRET_ACCESS_KEY=your-secret-access-key
-      - SMB_PASSWORD=your-smb-password
-      - WEBDAV_PASSWORD=your-webdav-password
       - GCS_CREDENTIALS=your-gcs-credentials-json
       - AZURE_KEY=your-azure-key
+      # Volume credentials
+      - SMB_PASSWORD=your-smb-password
+      - WEBDAV_PASSWORD=your-webdav-password
+      # SFTP credentials (for repositories)
+      - SFTP_PRIVATE_KEY=your-sftp-private-key
+      # Notification credentials
+      - SLACK_WEBHOOK_URL=your-slack-webhook-url
+      - EMAIL_PASSWORD=your-email-password
+      - DISCORD_WEBHOOK_URL=your-discord-webhook-url
+      - GOTIFY_TOKEN=your-gotify-token
+      - NTFY_PASSWORD=your-ntfy-password
+      - PUSHOVER_USER_KEY=your-pushover-user-key
+      - PUSHOVER_API_TOKEN=your-pushover-api-token
+      - TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+      - SHOUTRRR_URL=your-shoutrrr-url
+      # Admin credentials
+      - ADMIN_PASSWORD=your-admin-password
+      - RECOVERY_KEY=your-64-char-hex-recovery-key
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte:rshared
