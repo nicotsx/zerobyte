@@ -12,39 +12,45 @@ import { BackupExecutionJob } from "../../jobs/backup-execution";
 import { CleanupSessionsJob } from "../../jobs/cleanup-sessions";
 
 export const startup = async () => {
-		let configFileVolumes = [];
-		let configFileRepositories = [];
-		let configFileBackupSchedules = [];
-		let configFileNotificationDestinations = [];
-	    let configFileAdmin = null;
-		try {
-			const configPath = process.env.ZEROBYTE_CONFIG_PATH || "zerobyte.config.json";
-			const fs = await import("node:fs/promises");
-			const path = await import("node:path");
-			const configFullPath = path.resolve(process.cwd(), configPath);
-			if (await fs.stat(configFullPath).then(() => true, () => false)) {
-				const raw = await fs.readFile(configFullPath, "utf-8");
-				const config = JSON.parse(raw);
+	let configFileVolumes = [];
+	let configFileRepositories = [];
+	let configFileBackupSchedules = [];
+	let configFileNotificationDestinations = [];
+	let configFileAdmin = null;
+	try {
+		const configPath = process.env.ZEROBYTE_CONFIG_PATH || "zerobyte.config.json";
+		const fs = await import("node:fs/promises");
+		const path = await import("node:path");
+		const configFullPath = path.resolve(process.cwd(), configPath);
+		if (await fs.stat(configFullPath).then(() => true, () => false)) {
+			const raw = await fs.readFile(configFullPath, "utf-8");
+			const config = JSON.parse(raw);
 
-				function interpolate(obj) {
-					if (typeof obj === "string") {
-						return obj.replace(/\$\{([^}]+)\}/g, (_, v) => process.env[v] || "");
-					} else if (Array.isArray(obj)) {
-						return obj.map(interpolate);
-					} else if (obj && typeof obj === "object") {
-						return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, interpolate(v)]));
-					}
-					return obj;
+			function interpolate(obj) {
+				if (typeof obj === "string") {
+					return obj.replace(/\$\{([^}]+)\}/g, (_, v) => {
+						if (process.env[v] === undefined) {
+							logger.warn(`Environment variable '${v}' is not defined. Replacing with empty string.`);
+							return "";
+						}
+						return process.env[v];
+					});
+				} else if (Array.isArray(obj)) {
+					return obj.map(interpolate);
+				} else if (obj && typeof obj === "object") {
+					return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, interpolate(v)]));
 				}
-				configFileVolumes = interpolate(config.volumes || []);
-				configFileRepositories = interpolate(config.repositories || []);
-				configFileBackupSchedules = interpolate(config.backupSchedules || []);
-				configFileNotificationDestinations = interpolate(config.notificationDestinations || []);
-	            configFileAdmin = interpolate(config.admin || null);
+				return obj;
 			}
-		} catch (e) {
-			logger.warn(`No config file loaded or error parsing config: ${e.message}`);
+			configFileVolumes = interpolate(config.volumes || []);
+			configFileRepositories = interpolate(config.repositories || []);
+			configFileBackupSchedules = interpolate(config.backupSchedules || []);
+			configFileNotificationDestinations = interpolate(config.notificationDestinations || []);
+			configFileAdmin = interpolate(config.admin || null);
 		}
+	} catch (e) {
+		logger.warn(`No config file loaded or error parsing config: ${e.message}`);
+	}
 
 	await Scheduler.start();
 	await Scheduler.clear();
@@ -53,7 +59,15 @@ export const startup = async () => {
 		const fs = await import("node:fs/promises");
 		const { RESTIC_PASS_FILE } = await import("../../core/constants.js");
 		if (configFileAdmin && configFileAdmin.recoveryKey) {
-			await fs.writeFile(RESTIC_PASS_FILE, configFileAdmin.recoveryKey, { mode: 0o600 });
+			const recoveryKey = configFileAdmin.recoveryKey;
+			if (
+				typeof recoveryKey !== "string" ||
+				recoveryKey.length !== 64 ||
+				!/^[a-fA-F0-9]{64}$/.test(recoveryKey)
+			) {
+				throw new Error("Recovery key must be a 64-character hex string");
+			}
+			await fs.writeFile(RESTIC_PASS_FILE, recoveryKey, { mode: 0o600 });
 			logger.info(`Recovery key written from config to ${RESTIC_PASS_FILE}`);
 		}
 	} catch (err) {
@@ -177,6 +191,10 @@ export const startup = async () => {
 		try {
 			const { authService } = await import("../auth/auth.service");
 			if (configFileAdmin && configFileAdmin.username && (configFileAdmin.password || configFileAdmin.passwordHash)) {
+				if (configFileAdmin.password && configFileAdmin.passwordHash) {
+					logger.error("Config error: Both 'password' and 'passwordHash' provided for admin user. Use only one.");
+					throw new Error("Invalid admin configuration");
+				}
 				const hasUsers = await authService.hasUsers();
 				if (!hasUsers) {
 					let userId: number;
@@ -198,7 +216,7 @@ export const startup = async () => {
 						await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
 					}
 				}
-			} else {
+			} else if (configFileAdmin) {
 				logger.warn("Admin config missing required fields (username, password or passwordHash). Skipping automated admin setup.");
 			}
 		} catch (err) {
