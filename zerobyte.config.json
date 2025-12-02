@@ -45,19 +45,6 @@
         "readOnly": false,
         "ssl": true
       }
-    },
-    {
-      "name": "sftp-volume",
-      "config": {
-        "backend": "sftp",
-        "host": "sftp.example.com",
-        "port": 22,
-        "username": "user",
-        "password": "${SFTP_PASSWORD}",
-        "privateKey": "${SFTP_PRIVATE_KEY}",
-        "path": "/data",
-        "readOnly": false
-      }
     }
   ],
   "repositories": [
@@ -123,8 +110,7 @@
         "backend": "sftp",
         "host": "sftp.example.com",
         "port": 22,
-        "username": "user",
-        "password": "${SFTP_PASSWORD}",
+        "user": "sftpuser",
         "privateKey": "${SFTP_PRIVATE_KEY}",
         "path": "/backups"
       }
@@ -139,14 +125,14 @@
       "includePatterns": ["important-folder"],
       "excludePatterns": ["*.tmp", "*.log"],
       "enabled": true,
-      "notifications": ["slack-alerts", "email-admin", "discord-backups", "gotify-notify", "ntfy-notify", "pushover-notify", "telegram-notify", "custom-shoutrrr"]
+      "notifications": ["slack-alerts"]
     }
   ],
   "notificationDestinations": [
     {
       "name": "slack-alerts",
-      "type": "slack",
       "config": {
+        "type": "slack",
         "webhookUrl": "${SLACK_WEBHOOK_URL}",
         "channel": "#backups",
         "username": "zerobyte",
@@ -155,8 +141,8 @@
     },
     {
       "name": "email-admin",
-      "type": "email",
       "config": {
+        "type": "email",
         "smtpHost": "smtp.example.com",
         "smtpPort": 587,
         "username": "admin@example.com",
@@ -168,8 +154,8 @@
     },
     {
       "name": "discord-backups",
-      "type": "discord",
       "config": {
+        "type": "discord",
         "webhookUrl": "${DISCORD_WEBHOOK_URL}",
         "username": "zerobyte",
         "avatarUrl": "https://example.com/avatar.png",
@@ -178,8 +164,8 @@
     },
     {
       "name": "gotify-notify",
-      "type": "gotify",
       "config": {
+        "type": "gotify",
         "serverUrl": "https://gotify.example.com",
         "token": "${GOTIFY_TOKEN}",
         "path": "/message",
@@ -188,8 +174,8 @@
     },
     {
       "name": "ntfy-notify",
-      "type": "ntfy",
       "config": {
+        "type": "ntfy",
         "serverUrl": "https://ntfy.example.com",
         "topic": "zerobyte-backups",
         "priority": "high",
@@ -199,8 +185,8 @@
     },
     {
       "name": "pushover-notify",
-      "type": "pushover",
       "config": {
+        "type": "pushover",
         "userKey": "${PUSHOVER_USER_KEY}",
         "apiToken": "${PUSHOVER_API_TOKEN}",
         "devices": "phone,tablet",
@@ -209,16 +195,16 @@
     },
     {
       "name": "telegram-notify",
-      "type": "telegram",
       "config": {
+        "type": "telegram",
         "botToken": "${TELEGRAM_BOT_TOKEN}",
         "chatId": "123456789"
       }
     },
     {
       "name": "custom-shoutrrr",
-      "type": "custom",
       "config": {
+        "type": "custom",
         "shoutrrrUrl": "${SHOUTRRR_URL}"
       }
     }

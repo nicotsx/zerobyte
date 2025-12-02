@@ -229,8 +229,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "slack-alerts",
-      "type": "slack",
       "config": {
+        "type": "slack",
         "webhookUrl": "${SLACK_WEBHOOK_URL}",
         "channel": "#backups",
         "username": "zerobyte",
@@ -242,8 +242,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "email-admin",
-      "type": "email",
       "config": {
+        "type": "email",
         "smtpHost": "smtp.example.com",
         "smtpPort": 587,
         "username": "admin@example.com",
@@ -258,8 +258,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "discord-backups",
-      "type": "discord",
       "config": {
+        "type": "discord",
         "webhookUrl": "${DISCORD_WEBHOOK_URL}",
         "username": "zerobyte",
         "avatarUrl": "https://example.com/avatar.png",
@@ -271,8 +271,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "gotify-notify",
-      "type": "gotify",
       "config": {
+        "type": "gotify",
         "serverUrl": "https://gotify.example.com",
         "token": "${GOTIFY_TOKEN}",
         "path": "/message",
@@ -284,8 +284,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "ntfy-notify",
-      "type": "ntfy",
       "config": {
+        "type": "ntfy",
         "serverUrl": "https://ntfy.example.com",
         "topic": "zerobyte-backups",
         "priority": "high",
@@ -298,8 +298,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "pushover-notify",
-      "type": "pushover",
       "config": {
+        "type": "pushover",
         "userKey": "${PUSHOVER_USER_KEY}",
         "apiToken": "${PUSHOVER_API_TOKEN}",
         "devices": "phone,tablet",
@@ -311,8 +311,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "telegram-notify",
-      "type": "telegram",
       "config": {
+        "type": "telegram",
         "botToken": "${TELEGRAM_BOT_TOKEN}",
         "chatId": "123456789"
       }
@@ -322,8 +322,8 @@ Secrets/credentials in the config file can reference environment variables using
     ```json
     {
       "name": "custom-shoutrrr",
-      "type": "custom",
       "config": {
+        "type": "custom",
         "shoutrrrUrl": "${SHOUTRRR_URL}"
       }
     }
@@ -331,8 +331,8 @@ Secrets/credentials in the config file can reference environment variables using
 
 - **Fields:**
   - `name`: Unique name for the notification config
-  - `type`: Notification type (email, slack, discord, gotify, ntfy, pushover, telegram, custom)
-  - `config`: Type-specific config, secrets via `${ENV_VAR}`
+  - `config.type`: Notification type (email, slack, discord, gotify, ntfy, pushover, telegram, custom)
+  - `config`: Type-specific config with `type` field, secrets via `${ENV_VAR}`
 
 ##### Admin Setup (Automated)
 
