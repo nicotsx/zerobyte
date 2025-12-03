@@ -1,4 +1,5 @@
 import { Eraser, Pencil, Play, Square, Trash2 } from "lucide-react";
+import { ExportDialog } from "~/client/components/export-dialog";
 import { useMemo, useState } from "react";
 import { OnOff } from "~/client/components/onoff";
 import { Button } from "~/client/components/ui/button";
@@ -125,6 +126,7 @@ export const ScheduleSummary = (props: Props) => {
 							<Pencil className="h-4 w-4 mr-2" />
 							<span className="sm:inline">Edit schedule</span>
 						</Button>
+						<ExportDialog entityType="backup-schedules" id={schedule.id} size="sm" triggerLabel="Export config" />
 						<Button
 							variant="outline"
 							size="sm"

@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Download, KeyRound, User } from "lucide-react";
+import { ExportDialog } from "~/client/components/export-dialog";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -143,6 +144,9 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				<CardDescription className="mt-1.5">Your account details</CardDescription>
 			</div>
 			<CardContent className="p-6 space-y-4">
+				<div className="flex justify-end">
+					<ExportDialog entityType="full" triggerLabel="Export All Config (JSON)" />
+				</div>
 				<div className="space-y-2">
 					<Label>Username</Label>
 					<Input value={loaderData.user?.username || ""} disabled className="max-w-md" />

@@ -2615,3 +2615,275 @@ export type DownloadResticPasswordResponses = {
 };
 
 export type DownloadResticPasswordResponse = DownloadResticPasswordResponses[keyof DownloadResticPasswordResponses];
+
+export type ExportFullConfigData = {
+    body?: {
+        password: string;
+        includeIds?: boolean;
+        includePasswordHash?: boolean;
+        includeRecoveryKey?: boolean;
+        includeRuntimeState?: boolean;
+        includeTimestamps?: boolean;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export';
+};
+
+export type ExportFullConfigErrors = {
+    /**
+     * Password required for sensitive export options
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportFullConfigError = ExportFullConfigErrors[keyof ExportFullConfigErrors];
+
+export type ExportFullConfigResponses = {
+    /**
+     * Full configuration export
+     */
+    200: {
+        admin?: {
+            username: string;
+            passwordHash?: string;
+            recoveryKey?: string;
+        } | null;
+        backupSchedules?: Array<unknown>;
+        exportedAt?: string;
+        notificationDestinations?: Array<unknown>;
+        repositories?: Array<unknown>;
+        version?: number;
+        volumes?: Array<unknown>;
+    };
+};
+
+export type ExportFullConfigResponse = ExportFullConfigResponses[keyof ExportFullConfigResponses];
+
+export type ExportVolumesData = {
+    body?: {
+        password: string;
+        id?: number | string;
+        includeIds?: boolean;
+        includeRuntimeState?: boolean;
+        includeTimestamps?: boolean;
+        name?: string;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export/volumes';
+};
+
+export type ExportVolumesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+    };
+    /**
+     * Password required for export
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Volume not found
+     */
+    404: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportVolumesError = ExportVolumesErrors[keyof ExportVolumesErrors];
+
+export type ExportVolumesResponses = {
+    /**
+     * Volumes configuration export
+     */
+    200: {
+        volumes: Array<unknown>;
+    };
+};
+
+export type ExportVolumesResponse = ExportVolumesResponses[keyof ExportVolumesResponses];
+
+export type ExportRepositoriesData = {
+    body?: {
+        password: string;
+        id?: number | string;
+        includeIds?: boolean;
+        includeRuntimeState?: boolean;
+        includeTimestamps?: boolean;
+        name?: string;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export/repositories';
+};
+
+export type ExportRepositoriesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+    };
+    /**
+     * Password required for sensitive export options
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Repository not found
+     */
+    404: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportRepositoriesError = ExportRepositoriesErrors[keyof ExportRepositoriesErrors];
+
+export type ExportRepositoriesResponses = {
+    /**
+     * Repositories configuration export
+     */
+    200: {
+        repositories: Array<unknown>;
+    };
+};
+
+export type ExportRepositoriesResponse = ExportRepositoriesResponses[keyof ExportRepositoriesResponses];
+
+export type ExportNotificationDestinationsData = {
+    body?: {
+        password: string;
+        id?: number | string;
+        includeIds?: boolean;
+        includeRuntimeState?: boolean;
+        includeTimestamps?: boolean;
+        name?: string;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export/notification-destinations';
+};
+
+export type ExportNotificationDestinationsErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+    };
+    /**
+     * Password required for sensitive export options
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Notification destination not found
+     */
+    404: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportNotificationDestinationsError = ExportNotificationDestinationsErrors[keyof ExportNotificationDestinationsErrors];
+
+export type ExportNotificationDestinationsResponses = {
+    /**
+     * Notification destinations configuration export
+     */
+    200: {
+        notificationDestinations: Array<unknown>;
+    };
+};
+
+export type ExportNotificationDestinationsResponse = ExportNotificationDestinationsResponses[keyof ExportNotificationDestinationsResponses];
+
+export type ExportBackupSchedulesData = {
+    body?: {
+        password: string;
+        id?: number;
+        includeIds?: boolean;
+        includeRuntimeState?: boolean;
+        includeTimestamps?: boolean;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export/backup-schedules';
+};
+
+export type ExportBackupSchedulesErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+    };
+    /**
+     * Password required for export
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Backup schedule not found
+     */
+    404: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportBackupSchedulesError = ExportBackupSchedulesErrors[keyof ExportBackupSchedulesErrors];
+
+export type ExportBackupSchedulesResponses = {
+    /**
+     * Backup schedules configuration export
+     */
+    200: {
+        backupSchedules: Array<unknown>;
+    };
+};
+
+export type ExportBackupSchedulesResponse = ExportBackupSchedulesResponses[keyof ExportBackupSchedulesResponses];

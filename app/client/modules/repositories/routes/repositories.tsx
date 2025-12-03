@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Database, Plus, RotateCcw } from "lucide-react";
+import { ExportDialog } from "~/client/components/export-dialog";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { listRepositories } from "~/client/api-client/sdk.gen";
@@ -117,10 +118,13 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 						</Button>
 					)}
 				</span>
-				<Button onClick={() => navigate("/repositories/create")}>
-					<Plus size={16} className="mr-2" />
-					Create Repository
-				</Button>
+				<div className="flex gap-2">
+					<ExportDialog entityType="repositories" />
+					<Button onClick={() => navigate("/repositories/create")}>
+						<Plus size={16} className="mr-2" />
+						Create Repository
+					</Button>
+				</div>
 			</div>
 			<div className="overflow-x-auto">
 				<Table className="border-t">

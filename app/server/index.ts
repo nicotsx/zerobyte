@@ -22,6 +22,7 @@ import { logger } from "./utils/logger";
 import { shutdown } from "./modules/lifecycle/shutdown";
 import { REQUIRED_MIGRATIONS, SOCKET_PATH } from "./core/constants";
 import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
+import { configExportController } from "./modules/lifecycle/config-export.controller";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -51,7 +52,8 @@ const app = new Hono()
 	.route("/api/v1/backups", backupScheduleController.use(requireAuth))
 	.route("/api/v1/notifications", notificationsController.use(requireAuth))
 	.route("/api/v1/system", systemController.use(requireAuth))
-	.route("/api/v1/events", eventsController.use(requireAuth));
+	.route("/api/v1/events", eventsController.use(requireAuth))
+	.route("/api/v1/config", configExportController.use(requireAuth));
 
 app.get("/api/v1/openapi.json", generalDescriptor(app));
 app.get("/api/v1/docs", scalarDescriptor);

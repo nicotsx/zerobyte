@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { HardDrive, Plus, RotateCcw } from "lucide-react";
+import { ExportDialog } from "~/client/components/export-dialog";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { EmptyState } from "~/client/components/empty-state";
@@ -127,10 +128,13 @@ export default function Volumes({ loaderData }: Route.ComponentProps) {
 						</Button>
 					)}
 				</span>
-				<Button onClick={() => navigate("/volumes/create")}>
-					<Plus size={16} className="mr-2" />
-					Create Volume
-				</Button>
+				<div className="flex gap-2">
+					<ExportDialog entityType="volumes" />
+					<Button onClick={() => navigate("/volumes/create")}>
+						<Plus size={16} className="mr-2" />
+						Create Volume
+					</Button>
+				</div>
 			</div>
 			<div className="overflow-x-auto">
 				<Table className="border-t">

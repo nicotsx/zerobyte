@@ -5,6 +5,10 @@ const algorithm = "aes-256-gcm" as const;
 const keyLength = 32;
 const encryptionPrefix = "encv1";
 
+const isEncrypted = (val?: string): boolean => {
+	return typeof val === "string" && val.startsWith(encryptionPrefix);
+};
+
 /**
  * Given a string, encrypts it using a randomly generated salt
  */
@@ -58,4 +62,5 @@ const decrypt = async (encryptedData: string) => {
 export const cryptoUtils = {
 	encrypt,
 	decrypt,
+	isEncrypted,
 };
