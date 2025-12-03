@@ -2692,6 +2692,12 @@ export type ExportVolumesErrors = {
         error: string;
     };
     /**
+     * Password required for export
+     */
+    401: {
+        error: string;
+    };
+    /**
      * Volume not found
      */
     404: {
@@ -2847,6 +2853,12 @@ export type ExportBackupSchedulesErrors = {
      * Invalid request
      */
     400: {
+        error: string;
+    };
+    /**
+     * Password required for export
+     */
+    401: {
         error: string;
     };
     /**

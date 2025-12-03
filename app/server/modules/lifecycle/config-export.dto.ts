@@ -133,6 +133,14 @@ export const volumesExportDto = describeRoute({
 				},
 			},
 		},
+		401: {
+			description: "Password required for export",
+			content: {
+				"application/json": {
+					schema: resolver(errorResponseSchema),
+				},
+			},
+		},
 		404: {
 			description: "Volume not found",
 			content: {
@@ -263,6 +271,14 @@ export const backupSchedulesExportDto = describeRoute({
 		},
 		400: {
 			description: "Invalid request",
+			content: {
+				"application/json": {
+					schema: resolver(errorResponseSchema),
+				},
+			},
+		},
+		401: {
+			description: "Password required for export",
 			content: {
 				"application/json": {
 					schema: resolver(errorResponseSchema),
