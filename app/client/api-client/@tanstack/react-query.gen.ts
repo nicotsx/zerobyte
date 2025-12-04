@@ -87,12 +87,10 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
     if (options?.query) {
         params.query = options.query;
     }
-    return [
-        params
-    ];
+    return [params];
 };
 
-export const getMeQueryKey = (options?: Options<GetMeData>) => createQueryKey("getMe", options);
+export const getMeQueryKey = (options?: Options<GetMeData>) => createQueryKey('getMe', options);
 
 /**
  * Get current authenticated user
@@ -110,7 +108,7 @@ export const getMeOptions = (options?: Options<GetMeData>) => queryOptions<GetMe
     queryKey: getMeQueryKey(options)
 });
 
-export const getStatusQueryKey = (options?: Options<GetStatusData>) => createQueryKey("getStatus", options);
+export const getStatusQueryKey = (options?: Options<GetStatusData>) => createQueryKey('getStatus', options);
 
 /**
  * Get authentication system status
@@ -145,7 +143,7 @@ export const changePasswordMutation = (options?: Partial<Options<ChangePasswordD
     return mutationOptions;
 };
 
-export const listVolumesQueryKey = (options?: Options<ListVolumesData>) => createQueryKey("listVolumes", options);
+export const listVolumesQueryKey = (options?: Options<ListVolumesData>) => createQueryKey('listVolumes', options);
 
 /**
  * List all volumes
@@ -214,7 +212,7 @@ export const deleteVolumeMutation = (options?: Partial<Options<DeleteVolumeData>
     return mutationOptions;
 };
 
-export const getVolumeQueryKey = (options: Options<GetVolumeData>) => createQueryKey("getVolume", options);
+export const getVolumeQueryKey = (options: Options<GetVolumeData>) => createQueryKey('getVolume', options);
 
 /**
  * Get a volume by name
@@ -249,7 +247,7 @@ export const updateVolumeMutation = (options?: Partial<Options<UpdateVolumeData>
     return mutationOptions;
 };
 
-export const getContainersUsingVolumeQueryKey = (options: Options<GetContainersUsingVolumeData>) => createQueryKey("getContainersUsingVolume", options);
+export const getContainersUsingVolumeQueryKey = (options: Options<GetContainersUsingVolumeData>) => createQueryKey('getContainersUsingVolume', options);
 
 /**
  * Get containers using a volume by name
@@ -318,7 +316,7 @@ export const healthCheckVolumeMutation = (options?: Partial<Options<HealthCheckV
     return mutationOptions;
 };
 
-export const listFilesQueryKey = (options: Options<ListFilesData>) => createQueryKey("listFiles", options);
+export const listFilesQueryKey = (options: Options<ListFilesData>) => createQueryKey('listFiles', options);
 
 /**
  * List files in a volume directory
@@ -336,7 +334,7 @@ export const listFilesOptions = (options: Options<ListFilesData>) => queryOption
     queryKey: listFilesQueryKey(options)
 });
 
-export const browseFilesystemQueryKey = (options?: Options<BrowseFilesystemData>) => createQueryKey("browseFilesystem", options);
+export const browseFilesystemQueryKey = (options?: Options<BrowseFilesystemData>) => createQueryKey('browseFilesystem', options);
 
 /**
  * Browse directories on the host filesystem
@@ -354,7 +352,7 @@ export const browseFilesystemOptions = (options?: Options<BrowseFilesystemData>)
     queryKey: browseFilesystemQueryKey(options)
 });
 
-export const listRepositoriesQueryKey = (options?: Options<ListRepositoriesData>) => createQueryKey("listRepositories", options);
+export const listRepositoriesQueryKey = (options?: Options<ListRepositoriesData>) => createQueryKey('listRepositories', options);
 
 /**
  * List all repositories
@@ -389,7 +387,7 @@ export const createRepositoryMutation = (options?: Partial<Options<CreateReposit
     return mutationOptions;
 };
 
-export const listRcloneRemotesQueryKey = (options?: Options<ListRcloneRemotesData>) => createQueryKey("listRcloneRemotes", options);
+export const listRcloneRemotesQueryKey = (options?: Options<ListRcloneRemotesData>) => createQueryKey('listRcloneRemotes', options);
 
 /**
  * List all configured rclone remotes on the host system
@@ -424,7 +422,7 @@ export const deleteRepositoryMutation = (options?: Partial<Options<DeleteReposit
     return mutationOptions;
 };
 
-export const getRepositoryQueryKey = (options: Options<GetRepositoryData>) => createQueryKey("getRepository", options);
+export const getRepositoryQueryKey = (options: Options<GetRepositoryData>) => createQueryKey('getRepository', options);
 
 /**
  * Get a single repository by name
@@ -459,7 +457,7 @@ export const updateRepositoryMutation = (options?: Partial<Options<UpdateReposit
     return mutationOptions;
 };
 
-export const listSnapshotsQueryKey = (options: Options<ListSnapshotsData>) => createQueryKey("listSnapshots", options);
+export const listSnapshotsQueryKey = (options: Options<ListSnapshotsData>) => createQueryKey('listSnapshots', options);
 
 /**
  * List all snapshots in a repository
@@ -494,7 +492,7 @@ export const deleteSnapshotMutation = (options?: Partial<Options<DeleteSnapshotD
     return mutationOptions;
 };
 
-export const getSnapshotDetailsQueryKey = (options: Options<GetSnapshotDetailsData>) => createQueryKey("getSnapshotDetails", options);
+export const getSnapshotDetailsQueryKey = (options: Options<GetSnapshotDetailsData>) => createQueryKey('getSnapshotDetails', options);
 
 /**
  * Get details of a specific snapshot
@@ -512,7 +510,7 @@ export const getSnapshotDetailsOptions = (options: Options<GetSnapshotDetailsDat
     queryKey: getSnapshotDetailsQueryKey(options)
 });
 
-export const listSnapshotFilesQueryKey = (options: Options<ListSnapshotFilesData>) => createQueryKey("listSnapshotFiles", options);
+export const listSnapshotFilesQueryKey = (options: Options<ListSnapshotFilesData>) => createQueryKey('listSnapshotFiles', options);
 
 /**
  * List files and directories in a snapshot
@@ -564,7 +562,7 @@ export const doctorRepositoryMutation = (options?: Partial<Options<DoctorReposit
     return mutationOptions;
 };
 
-export const listBackupSchedulesQueryKey = (options?: Options<ListBackupSchedulesData>) => createQueryKey("listBackupSchedules", options);
+export const listBackupSchedulesQueryKey = (options?: Options<ListBackupSchedulesData>) => createQueryKey('listBackupSchedules', options);
 
 /**
  * List all backup schedules
@@ -616,7 +614,7 @@ export const deleteBackupScheduleMutation = (options?: Partial<Options<DeleteBac
     return mutationOptions;
 };
 
-export const getBackupScheduleQueryKey = (options: Options<GetBackupScheduleData>) => createQueryKey("getBackupSchedule", options);
+export const getBackupScheduleQueryKey = (options: Options<GetBackupScheduleData>) => createQueryKey('getBackupSchedule', options);
 
 /**
  * Get a backup schedule by ID
@@ -651,7 +649,7 @@ export const updateBackupScheduleMutation = (options?: Partial<Options<UpdateBac
     return mutationOptions;
 };
 
-export const getBackupScheduleForVolumeQueryKey = (options: Options<GetBackupScheduleForVolumeData>) => createQueryKey("getBackupScheduleForVolume", options);
+export const getBackupScheduleForVolumeQueryKey = (options: Options<GetBackupScheduleForVolumeData>) => createQueryKey('getBackupScheduleForVolume', options);
 
 /**
  * Get a backup schedule for a specific volume
@@ -720,7 +718,7 @@ export const runForgetMutation = (options?: Partial<Options<RunForgetData>>): Us
     return mutationOptions;
 };
 
-export const getScheduleNotificationsQueryKey = (options: Options<GetScheduleNotificationsData>) => createQueryKey("getScheduleNotifications", options);
+export const getScheduleNotificationsQueryKey = (options: Options<GetScheduleNotificationsData>) => createQueryKey('getScheduleNotifications', options);
 
 /**
  * Get notification assignments for a backup schedule
@@ -755,7 +753,7 @@ export const updateScheduleNotificationsMutation = (options?: Partial<Options<Up
     return mutationOptions;
 };
 
-export const getScheduleMirrorsQueryKey = (options: Options<GetScheduleMirrorsData>) => createQueryKey("getScheduleMirrors", options);
+export const getScheduleMirrorsQueryKey = (options: Options<GetScheduleMirrorsData>) => createQueryKey('getScheduleMirrors', options);
 
 /**
  * Get mirror repository assignments for a backup schedule
@@ -790,7 +788,7 @@ export const updateScheduleMirrorsMutation = (options?: Partial<Options<UpdateSc
     return mutationOptions;
 };
 
-export const getMirrorCompatibilityQueryKey = (options: Options<GetMirrorCompatibilityData>) => createQueryKey("getMirrorCompatibility", options);
+export const getMirrorCompatibilityQueryKey = (options: Options<GetMirrorCompatibilityData>) => createQueryKey('getMirrorCompatibility', options);
 
 /**
  * Get mirror compatibility info for all repositories relative to a backup schedule's primary repository
@@ -808,7 +806,7 @@ export const getMirrorCompatibilityOptions = (options: Options<GetMirrorCompatib
     queryKey: getMirrorCompatibilityQueryKey(options)
 });
 
-export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) => createQueryKey("listNotificationDestinations", options);
+export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) => createQueryKey('listNotificationDestinations', options);
 
 /**
  * List all notification destinations
@@ -860,7 +858,7 @@ export const deleteNotificationDestinationMutation = (options?: Partial<Options<
     return mutationOptions;
 };
 
-export const getNotificationDestinationQueryKey = (options: Options<GetNotificationDestinationData>) => createQueryKey("getNotificationDestination", options);
+export const getNotificationDestinationQueryKey = (options: Options<GetNotificationDestinationData>) => createQueryKey('getNotificationDestination', options);
 
 /**
  * Get a notification destination by ID
@@ -912,7 +910,7 @@ export const testNotificationDestinationMutation = (options?: Partial<Options<Te
     return mutationOptions;
 };
 
-export const getSystemInfoQueryKey = (options?: Options<GetSystemInfoData>) => createQueryKey("getSystemInfo", options);
+export const getSystemInfoQueryKey = (options?: Options<GetSystemInfoData>) => createQueryKey('getSystemInfo', options);
 
 /**
  * Get system information including available capabilities

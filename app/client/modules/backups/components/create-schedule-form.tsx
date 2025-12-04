@@ -23,6 +23,7 @@ import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { deepClean } from "~/utils/object";
 
 const internalFormSchema = type({
+	name: "1 <= string <= 32",
 	repositoryId: "string",
 	excludePatternsText: "string?",
 	includePatterns: "string[]?",
@@ -80,6 +81,7 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 	const weeklyDay = frequency === "weekly" ? dayOfWeekPart : undefined;
 
 	return {
+		name: schedule.name,
 		repositoryId: schedule.repositoryId,
 		frequency,
 		dailyTime,
@@ -148,6 +150,21 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="grid gap-6 md:grid-cols-2">
+							<FormField
+								control={form.control}
+								name="name"
+								render={({ field }) => (
+									<FormItem className="md:col-span-2">
+										<FormLabel>Backup name</FormLabel>
+										<FormControl>
+											<Input placeholder="My backup" {...field} />
+										</FormControl>
+										<FormDescription>A unique name to identify this backup schedule.</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
 							<FormField
 								control={form.control}
 								name="repositoryId"

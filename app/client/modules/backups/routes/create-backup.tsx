@@ -83,6 +83,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 
 		createSchedule.mutate({
 			body: {
+				name: formValues.name,
 				volumeId: selectedVolumeId,
 				repositoryId: formValues.repositoryId,
 				enabled: true,

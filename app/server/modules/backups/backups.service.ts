@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import cron from "node-cron";
 import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
@@ -63,6 +63,14 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 		throw new BadRequestError("Invalid cron expression");
 	}
 
+	const existingName = await db.query.backupSchedulesTable.findFirst({
+		where: eq(backupSchedulesTable.name, data.name),
+	});
+
+	if (existingName) {
+		throw new ConflictError("A backup schedule with this name already exists");
+	}
+
 	const volume = await db.query.volumesTable.findFirst({
 		where: eq(volumesTable.id, data.volumeId),
 	});
@@ -84,6 +92,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const [newSchedule] = await db
 		.insert(backupSchedulesTable)
 		.values({
+			name: data.name,
 			volumeId: data.volumeId,
 			repositoryId: data.repositoryId,
 			enabled: data.enabled,
@@ -113,6 +122,16 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	if (data.cronExpression && !cron.validate(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
+	}
+
+	if (data.name) {
+		const existingName = await db.query.backupSchedulesTable.findFirst({
+			where: and(eq(backupSchedulesTable.name, data.name), ne(backupSchedulesTable.id, scheduleId)),
+		});
+
+		if (existingName) {
+			throw new ConflictError("A backup schedule with this name already exists");
+		}
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({

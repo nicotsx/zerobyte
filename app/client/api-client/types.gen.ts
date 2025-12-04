@@ -1297,6 +1297,7 @@ export type ListBackupSchedulesResponses = {
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
@@ -1435,6 +1436,7 @@ export type CreateBackupScheduleData = {
     body?: {
         cronExpression: string;
         enabled: boolean;
+        name: string;
         repositoryId: string;
         volumeId: number;
         excludePatterns?: Array<string>;
@@ -1469,6 +1471,7 @@ export type CreateBackupScheduleResponses = {
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1530,6 +1533,7 @@ export type GetBackupScheduleResponses = {
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
@@ -1671,6 +1675,7 @@ export type UpdateBackupScheduleData = {
         enabled?: boolean;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
+        name?: string;
         retentionPolicy?: {
             keepDaily?: number;
             keepHourly?: number;
@@ -1703,6 +1708,7 @@ export type UpdateBackupScheduleResponses = {
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1744,6 +1750,7 @@ export type GetBackupScheduleForVolumeResponses = {
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;

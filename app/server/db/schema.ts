@@ -67,6 +67,7 @@ export type Repository = typeof repositoriesTable.$inferSelect;
  */
 export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	id: int().primaryKey({ autoIncrement: true }),
+	name: text().notNull().unique(),
 	volumeId: int("volume_id")
 		.notNull()
 		.references(() => volumesTable.id, { onDelete: "cascade" }),

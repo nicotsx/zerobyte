@@ -35,10 +35,10 @@ import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
 import { cn } from "~/client/lib/utils";
 
 export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => [
-		{ label: "Backups", href: "/backups" },
-		{ label: `Schedule #${match.params.id}` },
-	],
+	breadcrumb: (match: Route.MetaArgs) => {
+		const data = match.loaderData;
+		return [{ label: "Backups", href: "/backups" }, { label: data.schedule.name }];
+	},
 };
 
 export function meta(_: Route.MetaArgs) {
@@ -153,6 +153,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		updateSchedule.mutate({
 			path: { scheduleId: schedule.id.toString() },
 			body: {
+				name: formValues.name,
 				repositoryId: formValues.repositoryId,
 				enabled: schedule.enabled,
 				cronExpression,

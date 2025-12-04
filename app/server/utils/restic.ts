@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
 import { $ } from "bun";
@@ -261,8 +262,9 @@ const backup = async (
 
 	let includeFile: string | null = null;
 	if (options?.include && options.include.length > 0) {
-		const tmp = await fs.mkdtemp("restic-include");
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 		includeFile = path.join(tmp, `include.txt`);
+
 		const includePaths = options.include.map((p) => path.join(source, p));
 
 		await fs.writeFile(includeFile, includePaths.join("\n"), "utf-8");
