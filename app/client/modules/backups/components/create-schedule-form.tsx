@@ -26,6 +26,7 @@ const internalFormSchema = type({
 	name: "1 <= string <= 32",
 	repositoryId: "string",
 	excludePatternsText: "string?",
+	includePatternsText: "string?",
 	includePatterns: "string[]?",
 	frequency: "string",
 	dailyTime: "string?",
@@ -51,7 +52,7 @@ export const weeklyDays = [
 
 type InternalFormValues = typeof internalFormSchema.infer;
 
-export type BackupScheduleFormValues = Omit<InternalFormValues, "excludePatternsText"> & {
+export type BackupScheduleFormValues = Omit<InternalFormValues, "excludePatternsText" | "includePatternsText"> & {
 	excludePatterns?: string[];
 };
 
@@ -80,13 +81,19 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 
 	const weeklyDay = frequency === "weekly" ? dayOfWeekPart : undefined;
 
+	const patterns = schedule.includePatterns || [];
+	const isGlobPattern = (p: string) => /[*?[\]]/.test(p);
+	const fileBrowserPaths = patterns.filter((p) => !isGlobPattern(p));
+	const textPatterns = patterns.filter(isGlobPattern);
+
 	return {
 		name: schedule.name,
 		repositoryId: schedule.repositoryId,
 		frequency,
 		dailyTime,
 		weeklyDay,
-		includePatterns: schedule.includePatterns || undefined,
+		includePatterns: fileBrowserPaths.length > 0 ? fileBrowserPaths : undefined,
+		includePatternsText: textPatterns.length > 0 ? textPatterns.join("\n") : undefined,
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
 		...schedule.retentionPolicy,
 	};
@@ -100,8 +107,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 
 	const handleSubmit = useCallback(
 		(data: InternalFormValues) => {
-			// Convert excludePatternsText string to excludePatterns array
-			const { excludePatternsText, ...rest } = data;
+			const { excludePatternsText, includePatternsText, includePatterns: fileBrowserPatterns, ...rest } = data;
 			const excludePatterns = excludePatternsText
 				? excludePatternsText
 						.split("\n")
@@ -109,8 +115,17 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						.filter(Boolean)
 				: undefined;
 
+			const textPatterns = includePatternsText
+				? includePatternsText
+						.split("\n")
+						.map((p) => p.trim())
+						.filter(Boolean)
+				: [];
+			const includePatterns = [...(fileBrowserPatterns || []), ...textPatterns];
+
 			onSubmit({
 				...rest,
+				includePatterns: includePatterns.length > 0 ? includePatterns : undefined,
 				excludePatterns,
 			});
 		},
@@ -296,6 +311,27 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									</div>
 								</div>
 							)}
+							<FormField
+								control={form.control}
+								name="includePatternsText"
+								render={({ field }) => (
+									<FormItem className="mt-6">
+										<FormLabel>Additional include patterns</FormLabel>
+										<FormControl>
+											<Textarea
+												{...field}
+												placeholder="/data/**&#10;/config/*.json&#10;*.db"
+												className="font-mono text-sm min-h-[100px]"
+											/>
+										</FormControl>
+										<FormDescription>
+											Optionally add custom include patterns using glob syntax. Enter one pattern per line. These will
+											be combined with the paths selected above.
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 						</CardContent>
 					</Card>
 
@@ -499,18 +535,27 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									{repositoriesData?.find((r) => r.id === formValues.repositoryId)?.name || "—"}
 								</p>
 							</div>
-							{formValues.includePatterns && formValues.includePatterns.length > 0 && (
+							{(formValues.includePatterns && formValues.includePatterns.length > 0) ||
+							formValues.includePatternsText ? (
 								<div>
-									<p className="text-xs uppercase text-muted-foreground">Include paths</p>
+									<p className="text-xs uppercase text-muted-foreground">Include paths/patterns</p>
 									<div className="flex flex-col gap-1">
-										{formValues.includePatterns.map((path) => (
+										{formValues.includePatterns?.map((path) => (
 											<span key={path} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
 												{path}
 											</span>
 										))}
+										{formValues.includePatternsText
+											?.split("\n")
+											.filter(Boolean)
+											.map((pattern) => (
+												<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
+													{pattern.trim()}
+												</span>
+											))}
 									</div>
 								</div>
-							)}
+							) : null}
 							{formValues.excludePatternsText && (
 								<div>
 									<p className="text-xs uppercase text-muted-foreground">Exclude patterns</p>
