@@ -25,14 +25,14 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	switch (config.backend) {
 		case "s3":
 		case "r2":
-				encryptedConfig.accessKeyId = await cryptoUtils.encrypt(config.accessKeyId);
-				encryptedConfig.secretAccessKey = await cryptoUtils.encrypt(config.secretAccessKey);
+			encryptedConfig.accessKeyId = await cryptoUtils.encrypt(config.accessKeyId);
+			encryptedConfig.secretAccessKey = await cryptoUtils.encrypt(config.secretAccessKey);
 			break;
 		case "gcs":
-				encryptedConfig.credentialsJson = await cryptoUtils.encrypt(config.credentialsJson);
+			encryptedConfig.credentialsJson = await cryptoUtils.encrypt(config.credentialsJson);
 			break;
 		case "azure":
-				encryptedConfig.accountKey = await cryptoUtils.encrypt(config.accountKey);
+			encryptedConfig.accountKey = await cryptoUtils.encrypt(config.accountKey);
 			break;
 		case "rest":
 			if (config.username) {
@@ -43,7 +43,7 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 			}
 			break;
 		case "sftp":
-				encryptedConfig.privateKey = await cryptoUtils.encrypt(config.privateKey);
+			encryptedConfig.privateKey = await cryptoUtils.encrypt(config.privateKey);
 			break;
 	}
 
@@ -85,6 +85,24 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	const encryptedConfig = await encryptConfig(processedConfig);
 
+	const repoExists = await restic
+		.snapshots(encryptedConfig)
+		.then(() => true)
+		.catch(() => false);
+
+	if (repoExists && !config.isExistingRepository) {
+		throw new ConflictError(
+			`A restic repository already exists at this location. ` +
+			`If you want to use the existing repository, set "isExistingRepository": true in the config.`
+		);
+	}
+
+	if (!repoExists && config.isExistingRepository) {
+		throw new InternalServerError(
+			`Cannot access existing repository. Verify the path/credentials are correct and the repository exists.`
+		);
+	}
+
 	const [created] = await db
 		.insert(repositoriesTable)
 		.values({
@@ -104,27 +122,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let error: string | null = null;
 
-	if (config.isExistingRepository) {
-		const result = await restic
-			.snapshots(encryptedConfig)
-			.then(() => ({ error: null }))
-			.catch((err) => ({ error: err }));
-
-		error = result.error;
-	} else {
+	if (!repoExists) {
 		const initResult = await restic.init(encryptedConfig);
 		error = initResult.error;
-
-		if (error) {
-			const errorStr = typeof error === "string" ? error : (error as Error)?.message || "";
-			if (errorStr.includes("config file already exists")) {
-				const verifyResult = await restic
-					.snapshots(encryptedConfig)
-					.then(() => ({ error: null }))
-					.catch((err) => ({ error: err }));
-				error = verifyResult.error;
-			}
-		}
 	}
 
 	if (!error) {
