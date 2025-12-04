@@ -141,6 +141,13 @@
       "when": 1764839917446,
       "tag": "0019_secret_nomad",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1764847918249,
+      "tag": "0020_even_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

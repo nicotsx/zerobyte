@@ -86,6 +86,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 		keepWithinDuration?: string;
 	}>(),
 	excludePatterns: text("exclude_patterns", { mode: "json" }).$type<string[]>().default([]),
+	excludeIfPresent: text("exclude_if_present", { mode: "json" }).$type<string[]>().default([]),
 	includePatterns: text("include_patterns", { mode: "json" }).$type<string[]>().default([]),
 	lastBackupAt: int("last_backup_at", { mode: "number" }),
 	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),

@@ -99,6 +99,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			cronExpression: data.cronExpression,
 			retentionPolicy: data.retentionPolicy ?? null,
 			excludePatterns: data.excludePatterns ?? [],
+			excludeIfPresent: data.excludeIfPresent ?? [],
 			includePatterns: data.includePatterns ?? [],
 			nextBackupAt: nextBackupAt,
 		})
@@ -246,6 +247,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 		const backupOptions: {
 			exclude?: string[];
+			excludeIfPresent?: string[];
 			include?: string[];
 			tags?: string[];
 			signal?: AbortSignal;
@@ -256,6 +258,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 		if (schedule.excludePatterns && schedule.excludePatterns.length > 0) {
 			backupOptions.exclude = schedule.excludePatterns;
+		}
+
+		if (schedule.excludeIfPresent && schedule.excludeIfPresent.length > 0) {
+			backupOptions.excludeIfPresent = schedule.excludeIfPresent;
 		}
 
 		if (schedule.includePatterns && schedule.includePatterns.length > 0) {

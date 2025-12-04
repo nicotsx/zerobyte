@@ -160,6 +160,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
+				excludeIfPresent: formValues.excludeIfPresent,
 			},
 		});
 	};
@@ -172,8 +173,9 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				enabled,
 				cronExpression: schedule.cronExpression,
 				retentionPolicy: schedule.retentionPolicy || undefined,
-				includePatterns: schedule.includePatterns || undefined,
-				excludePatterns: schedule.excludePatterns || undefined,
+				includePatterns: schedule.includePatterns || [],
+				excludePatterns: schedule.excludePatterns || [],
+				excludeIfPresent: schedule.excludeIfPresent || [],
 			},
 		});
 	};

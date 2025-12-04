@@ -1,0 +1,1 @@
+ALTER TABLE `backup_schedules_table` ADD `exclude_if_present` text DEFAULT '[]';

@@ -1291,6 +1291,7 @@ export type ListBackupSchedulesResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
@@ -1439,6 +1440,7 @@ export type CreateBackupScheduleData = {
         name: string;
         repositoryId: string;
         volumeId: number;
+        excludeIfPresent?: Array<string>;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
         retentionPolicy?: {
@@ -1465,6 +1467,7 @@ export type CreateBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
@@ -1527,6 +1530,7 @@ export type GetBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
@@ -1673,6 +1677,7 @@ export type UpdateBackupScheduleData = {
         cronExpression: string;
         repositoryId: string;
         enabled?: boolean;
+        excludeIfPresent?: Array<string>;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
         name?: string;
@@ -1702,6 +1707,7 @@ export type UpdateBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
@@ -1744,6 +1750,7 @@ export type GetBackupScheduleForVolumeResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;

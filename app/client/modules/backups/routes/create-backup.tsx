@@ -91,6 +91,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
+				excludeIfPresent: formValues.excludeIfPresent,
 			},
 		});
 	};

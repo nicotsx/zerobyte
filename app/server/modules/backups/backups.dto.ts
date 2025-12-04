@@ -24,6 +24,7 @@ const backupScheduleSchema = type({
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.or("null"),
 	excludePatterns: "string[] | null",
+	excludeIfPresent: "string[] | null",
 	includePatterns: "string[] | null",
 	lastBackupAt: "number | null",
 	lastBackupStatus: "'success' | 'error' | 'in_progress' | 'warning' | null",
@@ -128,6 +129,7 @@ export const createBackupScheduleBody = type({
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.optional(),
 	excludePatterns: "string[]?",
+	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
 	tags: "string[]?",
 });
@@ -164,6 +166,7 @@ export const updateBackupScheduleBody = type({
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.optional(),
 	excludePatterns: "string[]?",
+	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
 	tags: "string[]?",
 });

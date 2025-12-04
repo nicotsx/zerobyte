@@ -235,6 +235,7 @@ const backup = async (
 	source: string,
 	options?: {
 		exclude?: string[];
+		excludeIfPresent?: string[];
 		include?: string[];
 		tags?: string[];
 		compressionMode?: CompressionMode;
@@ -277,6 +278,12 @@ const backup = async (
 	if (options?.exclude && options.exclude.length > 0) {
 		for (const pattern of options.exclude) {
 			args.push("--exclude", pattern);
+		}
+	}
+
+	if (options?.excludeIfPresent && options.excludeIfPresent.length > 0) {
+		for (const filename of options.excludeIfPresent) {
+			args.push("--exclude-if-present", filename);
 		}
 	}
 
