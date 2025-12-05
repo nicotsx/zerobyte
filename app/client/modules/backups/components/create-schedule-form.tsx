@@ -23,8 +23,11 @@ import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { deepClean } from "~/utils/object";
 
 const internalFormSchema = type({
+	name: "1 <= string <= 32",
 	repositoryId: "string",
 	excludePatternsText: "string?",
+	excludeIfPresentText: "string?",
+	includePatternsText: "string?",
 	includePatterns: "string[]?",
 	frequency: "string",
 	dailyTime: "string?",
@@ -50,8 +53,12 @@ export const weeklyDays = [
 
 type InternalFormValues = typeof internalFormSchema.infer;
 
-export type BackupScheduleFormValues = Omit<InternalFormValues, "excludePatternsText"> & {
+export type BackupScheduleFormValues = Omit<
+	InternalFormValues,
+	"excludePatternsText" | "excludeIfPresentText" | "includePatternsText"
+> & {
 	excludePatterns?: string[];
+	excludeIfPresent?: string[];
 };
 
 type Props = {
@@ -79,13 +86,21 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 
 	const weeklyDay = frequency === "weekly" ? dayOfWeekPart : undefined;
 
+	const patterns = schedule.includePatterns || [];
+	const isGlobPattern = (p: string) => /[*?[\]]/.test(p);
+	const fileBrowserPaths = patterns.filter((p) => !isGlobPattern(p));
+	const textPatterns = patterns.filter(isGlobPattern);
+
 	return {
+		name: schedule.name,
 		repositoryId: schedule.repositoryId,
 		frequency,
 		dailyTime,
 		weeklyDay,
-		includePatterns: schedule.includePatterns || undefined,
+		includePatterns: fileBrowserPaths.length > 0 ? fileBrowserPaths : undefined,
+		includePatternsText: textPatterns.length > 0 ? textPatterns.join("\n") : undefined,
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
+		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		...schedule.retentionPolicy,
 	};
 };
@@ -98,18 +113,40 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 
 	const handleSubmit = useCallback(
 		(data: InternalFormValues) => {
-			// Convert excludePatternsText string to excludePatterns array
-			const { excludePatternsText, ...rest } = data;
+			const {
+				excludePatternsText,
+				excludeIfPresentText,
+				includePatternsText,
+				includePatterns: fileBrowserPatterns,
+				...rest
+			} = data;
 			const excludePatterns = excludePatternsText
 				? excludePatternsText
 						.split("\n")
 						.map((p) => p.trim())
 						.filter(Boolean)
-				: undefined;
+				: [];
+
+			const excludeIfPresent = excludeIfPresentText
+				? excludeIfPresentText
+						.split("\n")
+						.map((p) => p.trim())
+						.filter(Boolean)
+				: [];
+
+			const textPatterns = includePatternsText
+				? includePatternsText
+						.split("\n")
+						.map((p) => p.trim())
+						.filter(Boolean)
+				: [];
+			const includePatterns = [...(fileBrowserPatterns || []), ...textPatterns];
 
 			onSubmit({
 				...rest,
+				includePatterns: includePatterns.length > 0 ? includePatterns : [],
 				excludePatterns,
+				excludeIfPresent,
 			});
 		},
 		[onSubmit],
@@ -148,6 +185,21 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="grid gap-6 md:grid-cols-2">
+							<FormField
+								control={form.control}
+								name="name"
+								render={({ field }) => (
+									<FormItem className="md:col-span-2">
+										<FormLabel>Backup name</FormLabel>
+										<FormControl>
+											<Input placeholder="My backup" {...field} />
+										</FormControl>
+										<FormDescription>A unique name to identify this backup schedule.</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
 							<FormField
 								control={form.control}
 								name="repositoryId"
@@ -260,6 +312,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						</CardHeader>
 						<CardContent>
 							<VolumeFileBrowser
+								key={volume.id}
 								volumeName={volume.name}
 								selectedPaths={selectedPaths}
 								onSelectionChange={handleSelectionChange}
@@ -279,6 +332,27 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									</div>
 								</div>
 							)}
+							<FormField
+								control={form.control}
+								name="includePatternsText"
+								render={({ field }) => (
+									<FormItem className="mt-6">
+										<FormLabel>Additional include patterns</FormLabel>
+										<FormControl>
+											<Textarea
+												{...field}
+												placeholder="/data/**&#10;/config/*.json&#10;*.db"
+												className="font-mono text-sm min-h-[100px]"
+											/>
+										</FormControl>
+										<FormDescription>
+											Optionally add custom include patterns using glob syntax. Enter one pattern per line. These will
+											be combined with the paths selected above.
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
 						</CardContent>
 					</Card>
 
@@ -315,6 +389,28 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 												Restic documentation
 											</a>
 											&nbsp;for more details.
+										</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="excludeIfPresentText"
+								render={({ field }) => (
+									<FormItem className="mt-6">
+										<FormLabel>Exclude if file present</FormLabel>
+										<FormControl>
+											<Textarea
+												{...field}
+												placeholder=".nobackup&#10;.exclude-from-backup&#10;CACHEDIR.TAG"
+												className="font-mono text-sm min-h-20"
+											/>
+										</FormControl>
+										<FormDescription>
+											Exclude folders containing a file with the specified name. Enter one filename per line. For
+											example, use <code className="bg-muted px-1 rounded">.nobackup</code> to skip any folder
+											containing a <code className="bg-muted px-1 rounded">.nobackup</code> file.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -482,18 +578,27 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									{repositoriesData?.find((r) => r.id === formValues.repositoryId)?.name || "—"}
 								</p>
 							</div>
-							{formValues.includePatterns && formValues.includePatterns.length > 0 && (
+							{(formValues.includePatterns && formValues.includePatterns.length > 0) ||
+							formValues.includePatternsText ? (
 								<div>
-									<p className="text-xs uppercase text-muted-foreground">Include paths</p>
+									<p className="text-xs uppercase text-muted-foreground">Include paths/patterns</p>
 									<div className="flex flex-col gap-1">
-										{formValues.includePatterns.map((path) => (
+										{formValues.includePatterns?.map((path) => (
 											<span key={path} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
 												{path}
 											</span>
 										))}
+										{formValues.includePatternsText
+											?.split("\n")
+											.filter(Boolean)
+											.map((pattern) => (
+												<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
+													{pattern.trim()}
+												</span>
+											))}
 									</div>
 								</div>
-							)}
+							) : null}
 							{formValues.excludePatternsText && (
 								<div>
 									<p className="text-xs uppercase text-muted-foreground">Exclude patterns</p>
@@ -504,6 +609,21 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 											.map((pattern) => (
 												<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
 													{pattern.trim()}
+												</span>
+											))}
+									</div>
+								</div>
+							)}
+							{formValues.excludeIfPresentText && (
+								<div>
+									<p className="text-xs uppercase text-muted-foreground">Exclude if present</p>
+									<div className="flex flex-col gap-1">
+										{formValues.excludeIfPresentText
+											.split("\n")
+											.filter(Boolean)
+											.map((filename) => (
+												<span key={filename} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
+													{filename.trim()}
 												</span>
 											))}
 									</div>

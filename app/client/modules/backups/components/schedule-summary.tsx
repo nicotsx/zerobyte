@@ -1,4 +1,4 @@
-import { Eraser, Pencil, Play, Square, Trash2 } from "lucide-react";
+import { Database, Eraser, HardDrive, Pencil, Play, Square, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { OnOff } from "~/client/components/onoff";
 import { Button } from "~/client/components/ui/button";
@@ -18,6 +18,7 @@ import { runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseError } from "~/client/lib/errors";
+import { Link } from "react-router";
 
 type Props = {
 	schedule: BackupSchedule;
@@ -82,10 +83,17 @@ export const ScheduleSummary = (props: Props) => {
 				<CardHeader className="space-y-4">
 					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 						<div>
-							<CardTitle>Backup schedule</CardTitle>
-							<CardDescription>
-								Automated backup configuration for volume&nbsp;
-								<strong className="text-strong-accent">{schedule.volume.name}</strong>
+							<CardTitle>{schedule.name}</CardTitle>
+							<CardDescription className="mt-1">
+								<Link to={`/volumes/${schedule.volume.name}`} className="hover:underline">
+									<HardDrive className="inline h-4 w-4 mr-2" />
+									<span>{schedule.volume.name}</span>
+								</Link>
+								<span className="mx-2">→</span>
+								<Link to={`/repositories/${schedule.repository.name}`} className="hover:underline">
+									<Database className="inline h-4 w-4 mr-2 text-strong-accent" />
+									<span className="text-strong-accent">{schedule.repository.name}</span>
+								</Link>
 							</CardDescription>
 						</div>
 						<div className="flex items-center gap-2 justify-between sm:justify-start">

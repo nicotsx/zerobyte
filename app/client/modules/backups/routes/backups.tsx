@@ -33,8 +33,6 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 	const { data: schedules, isLoading } = useQuery({
 		...listBackupSchedulesOptions(),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	if (isLoading) {
@@ -69,13 +67,11 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 				{schedules.map((schedule) => (
 					<Link key={schedule.id} to={`/backups/${schedule.id}`}>
 						<Card key={schedule.id} className="flex flex-col h-full">
-							<CardHeader className="pb-3">
-								<div className="flex items-start justify-between gap-2">
-									<div className="flex items-center gap-2 flex-1 min-w-0">
-										<HardDrive className="h-5 w-5 text-muted-foreground shrink-0" />
-										<CardTitle className="text-lg truncate">
-											Volume <span className="text-strong-accent">{schedule.volume.name}</span>
-										</CardTitle>
+							<CardHeader className="pb-3 overflow-hidden">
+								<div className="flex items-center justify-between gap-2 w-full">
+									<div className="flex items-center gap-2 flex-1 min-w-0 w-0">
+										<CalendarClock className="h-5 w-5 text-muted-foreground shrink-0" />
+										<CardTitle className="text-lg truncate">{schedule.name}</CardTitle>
 									</div>
 									<BackupStatusDot
 										enabled={schedule.enabled}
@@ -83,9 +79,12 @@ export default function Backups({ loaderData }: Route.ComponentProps) {
 										isInProgress={schedule.lastBackupStatus === "in_progress"}
 									/>
 								</div>
-								<CardDescription className="flex items-center gap-2 mt-2">
-									<Database className="h-4 w-4" />
-									<span className="truncate">{schedule.repository.name}</span>
+								<CardDescription className="ml-0.5 flex items-center gap-2 text-xs">
+									<HardDrive className="h-3.5 w-3.5" />
+									<span className="truncate">{schedule.volume.name}</span>
+									<span className="text-muted-foreground">→</span>
+									<Database className="h-3.5 w-3.5 text-strong-accent" />
+									<span className="truncate text-strong-accent">{schedule.repository.name}</span>
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="flex-1 space-y-4">

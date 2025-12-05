@@ -33,6 +33,18 @@ async function detectCapabilities(): Promise<SystemCapabilities> {
 	};
 }
 
+export const parseDockerHost = (dockerHost?: string) => {
+	const match = dockerHost?.match(/^(ssh|http|https):\/\/([^:]+)(?::(\d+))?$/);
+	if (match) {
+		const protocol = match[1] as "ssh" | "http" | "https";
+		const host = match[2];
+		const port = match[3] ? parseInt(match[3], 10) : undefined;
+		return { protocol, host, port };
+	}
+
+	return {};
+};
+
 /**
  * Checks if Docker is available by:
  * 1. Checking if /var/run/docker.sock exists and is accessible
@@ -40,9 +52,7 @@ async function detectCapabilities(): Promise<SystemCapabilities> {
  */
 async function detectDocker(): Promise<boolean> {
 	try {
-		await fs.access("/var/run/docker.sock");
-
-		const docker = new Docker();
+		const docker = new Docker(parseDockerHost(process.env.DOCKER_HOST));
 		await docker.ping();
 
 		logger.info("Docker capability: enabled");

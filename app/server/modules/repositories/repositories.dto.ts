@@ -174,6 +174,7 @@ export const snapshotSchema = type({
 	paths: "string[]",
 	size: "number",
 	duration: "number",
+	tags: "string[]",
 });
 
 const listSnapshotsResponse = snapshotSchema.array();

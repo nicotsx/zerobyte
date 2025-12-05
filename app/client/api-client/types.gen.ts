@@ -1124,6 +1124,7 @@ export type ListSnapshotsResponses = {
         paths: Array<string>;
         short_id: string;
         size: number;
+        tags: Array<string>;
         time: number;
     }>;
 };
@@ -1170,6 +1171,7 @@ export type GetSnapshotDetailsResponses = {
         paths: Array<string>;
         short_id: string;
         size: number;
+        tags: Array<string>;
         time: number;
     };
 };
@@ -1289,12 +1291,14 @@ export type ListBackupSchedulesResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
@@ -1433,8 +1437,10 @@ export type CreateBackupScheduleData = {
     body?: {
         cronExpression: string;
         enabled: boolean;
+        name: string;
         repositoryId: string;
         volumeId: number;
+        excludeIfPresent?: Array<string>;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
         retentionPolicy?: {
@@ -1461,12 +1467,14 @@ export type CreateBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1522,12 +1530,14 @@ export type GetBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
@@ -1667,8 +1677,10 @@ export type UpdateBackupScheduleData = {
         cronExpression: string;
         repositoryId: string;
         enabled?: boolean;
+        excludeIfPresent?: Array<string>;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
+        name?: string;
         retentionPolicy?: {
             keepDaily?: number;
             keepHourly?: number;
@@ -1695,12 +1707,14 @@ export type UpdateBackupScheduleResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repositoryId: string;
         retentionPolicy: {
@@ -1736,12 +1750,14 @@ export type GetBackupScheduleForVolumeResponses = {
         createdAt: number;
         cronExpression: string;
         enabled: boolean;
+        excludeIfPresent: Array<string> | null;
         excludePatterns: Array<string> | null;
         id: number;
         includePatterns: Array<string> | null;
         lastBackupAt: number | null;
         lastBackupError: string | null;
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
+        name: string;
         nextBackupAt: number | null;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
@@ -2111,6 +2127,231 @@ export type UpdateScheduleNotificationsResponses = {
 };
 
 export type UpdateScheduleNotificationsResponse = UpdateScheduleNotificationsResponses[keyof UpdateScheduleNotificationsResponses];
+
+export type GetScheduleMirrorsData = {
+    body?: never;
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{scheduleId}/mirrors';
+};
+
+export type GetScheduleMirrorsResponses = {
+    /**
+     * List of mirror repository assignments for the schedule
+     */
+    200: Array<{
+        createdAt: number;
+        enabled: boolean;
+        lastCopyAt: number | null;
+        lastCopyError: string | null;
+        lastCopyStatus: 'error' | 'success' | null;
+        repository: {
+            compressionMode: 'auto' | 'max' | 'off' | null;
+            config: {
+                accessKeyId: string;
+                backend: 'r2';
+                bucket: string;
+                endpoint: string;
+                secretAccessKey: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                accessKeyId: string;
+                backend: 's3';
+                bucket: string;
+                endpoint: string;
+                secretAccessKey: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                accountKey: string;
+                accountName: string;
+                backend: 'azure';
+                container: string;
+                customPassword?: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                credentialsJson: string;
+                projectId: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'local';
+                name: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+                path?: string;
+            } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'rest';
+                url: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+                password?: string;
+                path?: string;
+                username?: string;
+            } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                privateKey: string;
+                user: string;
+                port?: number;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            };
+            createdAt: number;
+            id: string;
+            lastChecked: number | null;
+            lastError: string | null;
+            name: string;
+            shortId: string;
+            status: 'error' | 'healthy' | 'unknown' | null;
+            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+            updatedAt: number;
+        };
+        repositoryId: string;
+        scheduleId: number;
+    }>;
+};
+
+export type GetScheduleMirrorsResponse = GetScheduleMirrorsResponses[keyof GetScheduleMirrorsResponses];
+
+export type UpdateScheduleMirrorsData = {
+    body?: {
+        mirrors: Array<{
+            enabled: boolean;
+            repositoryId: string;
+        }>;
+    };
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{scheduleId}/mirrors';
+};
+
+export type UpdateScheduleMirrorsResponses = {
+    /**
+     * Mirror assignments updated successfully
+     */
+    200: Array<{
+        createdAt: number;
+        enabled: boolean;
+        lastCopyAt: number | null;
+        lastCopyError: string | null;
+        lastCopyStatus: 'error' | 'success' | null;
+        repository: {
+            compressionMode: 'auto' | 'max' | 'off' | null;
+            config: {
+                accessKeyId: string;
+                backend: 'r2';
+                bucket: string;
+                endpoint: string;
+                secretAccessKey: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                accessKeyId: string;
+                backend: 's3';
+                bucket: string;
+                endpoint: string;
+                secretAccessKey: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                accountKey: string;
+                accountName: string;
+                backend: 'azure';
+                container: string;
+                customPassword?: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                credentialsJson: string;
+                projectId: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'local';
+                name: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+                path?: string;
+            } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            } | {
+                backend: 'rest';
+                url: string;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+                password?: string;
+                path?: string;
+                username?: string;
+            } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                privateKey: string;
+                user: string;
+                port?: number;
+                customPassword?: string;
+                isExistingRepository?: boolean;
+            };
+            createdAt: number;
+            id: string;
+            lastChecked: number | null;
+            lastError: string | null;
+            name: string;
+            shortId: string;
+            status: 'error' | 'healthy' | 'unknown' | null;
+            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+            updatedAt: number;
+        };
+        repositoryId: string;
+        scheduleId: number;
+    }>;
+};
+
+export type UpdateScheduleMirrorsResponse = UpdateScheduleMirrorsResponses[keyof UpdateScheduleMirrorsResponses];
+
+export type GetMirrorCompatibilityData = {
+    body?: never;
+    path: {
+        scheduleId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{scheduleId}/mirrors/compatibility';
+};
+
+export type GetMirrorCompatibilityResponses = {
+    /**
+     * List of repositories with their mirror compatibility status
+     */
+    200: Array<{
+        compatible: boolean;
+        reason: string | null;
+        repositoryId: string;
+    }>;
+};
+
+export type GetMirrorCompatibilityResponse = GetMirrorCompatibilityResponses[keyof GetMirrorCompatibilityResponses];
 
 export type ListNotificationDestinationsData = {
     body?: never;

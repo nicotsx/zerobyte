@@ -2,12 +2,10 @@ import { type } from "arktype";
 import "dotenv/config";
 
 const envSchema = type({
-	NODE_ENV: type.enumerated("development", "production", "test").default("development"),
-	SESSION_SECRET: "string?",
+	NODE_ENV: type.enumerated("development", "production", "test").default("production"),
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
-	sessionSecret: s.SESSION_SECRET || "change-me-in-production-please",
 }));
 
 const parseConfig = (env: unknown) => {

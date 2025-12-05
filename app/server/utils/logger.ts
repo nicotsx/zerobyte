@@ -1,15 +1,17 @@
 import { createLogger, format, transports } from "winston";
 import { sanitizeSensitiveData } from "./sanitize";
+import { config } from "../core/config";
 
 const { printf, combine, colorize } = format;
 
 const printConsole = printf((info) => `${info.level} > ${info.message}`);
 const consoleFormat = combine(colorize(), printConsole);
 
+const defaultLevel = config.__prod__ ? "info" : "debug";
 const winstonLogger = createLogger({
-	level: "debug",
+	level: process.env.LOG_LEVEL || defaultLevel,
 	format: format.json(),
-	transports: [new transports.Console({ level: "debug", format: consoleFormat })],
+	transports: [new transports.Console({ level: process.env.LOG_LEVEL || defaultLevel, format: consoleFormat })],
 });
 
 const log = (level: "info" | "warn" | "error" | "debug", messages: unknown[]) => {

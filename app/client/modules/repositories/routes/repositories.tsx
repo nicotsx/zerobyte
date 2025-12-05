@@ -50,8 +50,6 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 	const { data } = useQuery({
 		...listRepositoriesOptions(),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	const filteredRepositories =

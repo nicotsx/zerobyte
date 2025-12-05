@@ -71,8 +71,6 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 	const { data } = useQuery({
 		...getVolumeOptions({ path: { name: name ?? "" } }),
 		initialData: loaderData,
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true,
 	});
 
 	const { capabilities } = useSystemInfo();

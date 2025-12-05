@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
 import { $ } from "bun";
@@ -40,6 +41,7 @@ const snapshotInfoSchema = type({
 	time: "string",
 	uid: "number?",
 	username: "string",
+	tags: "string[]?",
 	summary: type({
 		backup_end: "string",
 		backup_start: "string",
@@ -200,8 +202,8 @@ const init = async (config: RepositoryConfig) => {
 
 	const env = await buildEnv(config);
 
-	const args = ["init", "--repo", repoUrl, "--json"];
-	addRepoSpecificArgs(args, config, env);
+	const args = ["init", "--repo", repoUrl];
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -233,6 +235,7 @@ const backup = async (
 	source: string,
 	options?: {
 		exclude?: string[];
+		excludeIfPresent?: string[];
 		include?: string[];
 		tags?: string[];
 		compressionMode?: CompressionMode;
@@ -260,8 +263,9 @@ const backup = async (
 
 	let includeFile: string | null = null;
 	if (options?.include && options.include.length > 0) {
-		const tmp = await fs.mkdtemp("restic-include");
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 		includeFile = path.join(tmp, `include.txt`);
+
 		const includePaths = options.include.map((p) => path.join(source, p));
 
 		await fs.writeFile(includeFile, includePaths.join("\n"), "utf-8");
@@ -277,8 +281,13 @@ const backup = async (
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	if (options?.excludeIfPresent && options.excludeIfPresent.length > 0) {
+		for (const filename of options.excludeIfPresent) {
+			args.push("--exclude-if-present", filename);
+		}
+	}
+
+	addCommonArgs(args, env);
 
 	const logData = throttle((data: string) => {
 		logger.info(data.trim());
@@ -404,8 +413,7 @@ const restore = async (
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, env);
 
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await $`restic ${args}`.env(env).nothrow();
@@ -468,8 +476,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 		}
 	}
 
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow().quiet();
 	await cleanupTemporaryKeys(config, env);
@@ -518,8 +525,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	}
 
 	args.push("--prune");
-	addRepoSpecificArgs(args, config, env);
-	args.push("--json");
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -537,7 +543,7 @@ const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
 	const env = await buildEnv(config);
 
 	const args: string[] = ["--repo", repoUrl, "forget", snapshotId, "--prune"];
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -581,13 +587,13 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--json", "--long"];
+	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--long"];
 
 	if (path) {
 		args.push(path);
 	}
 
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -637,8 +643,8 @@ const unlock = async (config: RepositoryConfig) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args = ["unlock", "--repo", repoUrl, "--remove-all", "--json"];
-	addRepoSpecificArgs(args, config, env);
+	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -662,7 +668,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 		args.push("--read-data");
 	}
 
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -696,7 +702,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 	const env = await buildEnv(config);
 
 	const args = ["repair", "index", "--repo", repoUrl];
-	addRepoSpecificArgs(args, config, env);
+	addCommonArgs(args, env);
 
 	const res = await $`restic ${args}`.env(env).nothrow();
 	await cleanupTemporaryKeys(config, env);
@@ -717,10 +723,65 @@ const repairIndex = async (config: RepositoryConfig) => {
 	};
 };
 
-const addRepoSpecificArgs = (args: string[], config: RepositoryConfig, env: Record<string, string>) => {
-	if (config.backend === "sftp" && env._SFTP_SSH_ARGS) {
-		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
+const copy = async (
+	sourceConfig: RepositoryConfig,
+	destConfig: RepositoryConfig,
+	options: {
+		tag?: string;
+		snapshotId?: string;
+	},
+) => {
+	const sourceRepoUrl = buildRepoUrl(sourceConfig);
+	const destRepoUrl = buildRepoUrl(destConfig);
+
+	const sourceEnv = await buildEnv(sourceConfig);
+	const destEnv = await buildEnv(destConfig);
+
+	const env: Record<string, string> = {
+		...sourceEnv,
+		...destEnv,
+		RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE,
+	};
+
+	const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
+
+	if (options.tag) {
+		args.push("--tag", options.tag);
 	}
+
+	if (options.snapshotId) {
+		args.push(options.snapshotId);
+	} else {
+		args.push("latest");
+	}
+
+	addCommonArgs(args, env);
+
+	if (sourceConfig.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
+		args.push("-o", `sftp.args=${sourceEnv._SFTP_SSH_ARGS}`);
+	}
+
+	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
+	logger.debug(`Executing: restic ${args.join(" ")}`);
+
+	const res = await $`restic ${args}`.env(env).nothrow();
+
+	await cleanupTemporaryKeys(sourceConfig, sourceEnv);
+	await cleanupTemporaryKeys(destConfig, destEnv);
+
+	const stdout = res.text();
+	const stderr = res.stderr.toString();
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic copy failed: ${stderr}`);
+		throw new ResticError(res.exitCode, stderr);
+	}
+
+	logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
+	return {
+		success: true,
+		output: stdout,
+	};
 };
 
 const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string, string>) => {
@@ -730,6 +791,14 @@ const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	} else if (config.backend === "gcs" && env.GOOGLE_APPLICATION_CREDENTIALS) {
 		await fs.unlink(env.GOOGLE_APPLICATION_CREDENTIALS).catch(() => {});
+	}
+};
+
+const addCommonArgs = (args: string[], env: Record<string, string>) => {
+	args.push("--retry-lock", "1m", "--json");
+
+	if (env._SFTP_SSH_ARGS) {
+		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}
 };
 
@@ -745,4 +814,5 @@ export const restic = {
 	ls,
 	check,
 	repairIndex,
+	copy,
 };

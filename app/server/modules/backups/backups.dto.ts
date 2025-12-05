@@ -17,12 +17,14 @@ export type RetentionPolicy = typeof retentionPolicySchema.infer;
 
 const backupScheduleSchema = type({
 	id: "number",
+	name: "string",
 	volumeId: "number",
 	repositoryId: "string",
 	enabled: "boolean",
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.or("null"),
 	excludePatterns: "string[] | null",
+	excludeIfPresent: "string[] | null",
 	includePatterns: "string[] | null",
 	lastBackupAt: "number | null",
 	lastBackupStatus: "'success' | 'error' | 'in_progress' | 'warning' | null",
@@ -36,6 +38,19 @@ const backupScheduleSchema = type({
 		repository: repositorySchema,
 	}),
 );
+
+const scheduleMirrorSchema = type({
+	scheduleId: "number",
+	repositoryId: "string",
+	enabled: "boolean",
+	lastCopyAt: "number | null",
+	lastCopyStatus: "'success' | 'error' | null",
+	lastCopyError: "string | null",
+	createdAt: "number",
+	repository: repositorySchema,
+});
+
+export type ScheduleMirrorDto = typeof scheduleMirrorSchema.infer;
 
 /**
  * List all backup schedules
@@ -107,12 +122,14 @@ export const getBackupScheduleForVolumeDto = describeRoute({
  * Create a new backup schedule
  */
 export const createBackupScheduleBody = type({
+	name: "1 <= string <= 32",
 	volumeId: "number",
 	repositoryId: "string",
 	enabled: "boolean",
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.optional(),
 	excludePatterns: "string[]?",
+	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
 	tags: "string[]?",
 });
@@ -143,11 +160,13 @@ export const createBackupScheduleDto = describeRoute({
  * Update a backup schedule
  */
 export const updateBackupScheduleBody = type({
+	name: "(1 <= string <= 32)?",
 	repositoryId: "string",
 	enabled: "boolean?",
 	cronExpression: "string",
 	retentionPolicy: retentionPolicySchema.optional(),
 	excludePatterns: "string[]?",
+	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
 	tags: "string[]?",
 });
@@ -271,6 +290,78 @@ export const runForgetDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(runForgetResponse),
+				},
+			},
+		},
+	},
+});
+
+export const getScheduleMirrorsResponse = scheduleMirrorSchema.array();
+export type GetScheduleMirrorsDto = typeof getScheduleMirrorsResponse.infer;
+
+export const getScheduleMirrorsDto = describeRoute({
+	description: "Get mirror repository assignments for a backup schedule",
+	operationId: "getScheduleMirrors",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "List of mirror repository assignments for the schedule",
+			content: {
+				"application/json": {
+					schema: resolver(getScheduleMirrorsResponse),
+				},
+			},
+		},
+	},
+});
+
+export const updateScheduleMirrorsBody = type({
+	mirrors: type({
+		repositoryId: "string",
+		enabled: "boolean",
+	}).array(),
+});
+
+export type UpdateScheduleMirrorsBody = typeof updateScheduleMirrorsBody.infer;
+
+export const updateScheduleMirrorsResponse = scheduleMirrorSchema.array();
+export type UpdateScheduleMirrorsDto = typeof updateScheduleMirrorsResponse.infer;
+
+export const updateScheduleMirrorsDto = describeRoute({
+	description: "Update mirror repository assignments for a backup schedule",
+	operationId: "updateScheduleMirrors",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Mirror assignments updated successfully",
+			content: {
+				"application/json": {
+					schema: resolver(updateScheduleMirrorsResponse),
+				},
+			},
+		},
+	},
+});
+
+const mirrorCompatibilitySchema = type({
+	repositoryId: "string",
+	compatible: "boolean",
+	reason: "string | null",
+});
+
+export const getMirrorCompatibilityResponse = mirrorCompatibilitySchema.array();
+export type GetMirrorCompatibilityDto = typeof getMirrorCompatibilityResponse.infer;
+
+export const getMirrorCompatibilityDto = describeRoute({
+	description: "Get mirror compatibility info for all repositories relative to a backup schedule's primary repository",
+	operationId: "getMirrorCompatibility",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "List of repositories with their mirror compatibility status",
+			content: {
+				"application/json": {
+					schema: resolver(getMirrorCompatibilityResponse),
 				},
 			},
 		},

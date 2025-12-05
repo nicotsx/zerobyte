@@ -83,6 +83,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 
 		createSchedule.mutate({
 			body: {
+				name: formValues.name,
 				volumeId: selectedVolumeId,
 				repositoryId: formValues.repositoryId,
 				enabled: true,
@@ -90,6 +91,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
+				excludeIfPresent: formValues.excludeIfPresent,
 			},
 		});
 	};

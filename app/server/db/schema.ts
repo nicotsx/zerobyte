@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { int, integer, sqliteTable, text, primaryKey } from "drizzle-orm/sqlite-core";
+import { int, integer, sqliteTable, text, primaryKey, unique } from "drizzle-orm/sqlite-core";
 import type { CompressionMode, RepositoryBackend, repositoryConfigSchema, RepositoryStatus } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
@@ -67,6 +67,7 @@ export type Repository = typeof repositoriesTable.$inferSelect;
  */
 export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	id: int().primaryKey({ autoIncrement: true }),
+	name: text().notNull().unique(),
 	volumeId: int("volume_id")
 		.notNull()
 		.references(() => volumesTable.id, { onDelete: "cascade" }),
@@ -85,6 +86,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 		keepWithinDuration?: string;
 	}>(),
 	excludePatterns: text("exclude_patterns", { mode: "json" }).$type<string[]>().default([]),
+	excludeIfPresent: text("exclude_if_present", { mode: "json" }).$type<string[]>().default([]),
 	includePatterns: text("include_patterns", { mode: "json" }).$type<string[]>().default([]),
 	lastBackupAt: int("last_backup_at", { mode: "number" }),
 	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),
@@ -93,6 +95,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
+
 export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
 	volume: one(volumesTable, {
 		fields: [backupSchedulesTable.volumeId],
@@ -103,6 +106,7 @@ export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, m
 		references: [repositoriesTable.id],
 	}),
 	notifications: many(backupScheduleNotificationsTable),
+	mirrors: many(backupScheduleMirrorsTable),
 }));
 export type BackupSchedule = typeof backupSchedulesTable.$inferSelect;
 
@@ -153,6 +157,41 @@ export const backupScheduleNotificationRelations = relations(backupScheduleNotif
 	}),
 }));
 export type BackupScheduleNotification = typeof backupScheduleNotificationsTable.$inferSelect;
+
+/**
+ * Backup Schedule Mirrors Junction Table (Many-to-Many)
+ * Allows copying snapshots to secondary repositories after backup completes
+ */
+export const backupScheduleMirrorsTable = sqliteTable(
+	"backup_schedule_mirrors_table",
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		scheduleId: int("schedule_id")
+			.notNull()
+			.references(() => backupSchedulesTable.id, { onDelete: "cascade" }),
+		repositoryId: text("repository_id")
+			.notNull()
+			.references(() => repositoriesTable.id, { onDelete: "cascade" }),
+		enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
+		lastCopyAt: int("last_copy_at", { mode: "number" }),
+		lastCopyStatus: text("last_copy_status").$type<"success" | "error">(),
+		lastCopyError: text("last_copy_error"),
+		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [unique().on(table.scheduleId, table.repositoryId)],
+);
+
+export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
+	schedule: one(backupSchedulesTable, {
+		fields: [backupScheduleMirrorsTable.scheduleId],
+		references: [backupSchedulesTable.id],
+	}),
+	repository: one(repositoriesTable, {
+		fields: [backupScheduleMirrorsTable.repositoryId],
+		references: [repositoriesTable.id],
+	}),
+}));
+export type BackupScheduleMirror = typeof backupScheduleMirrorsTable.$inferSelect;
 
 /**
  * App Metadata Table

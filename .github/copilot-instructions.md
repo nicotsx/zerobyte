@@ -1,0 +1,1 @@
+- This project uses the AGENTS.md file to give detailed information about the repository structure and development commands. Make sure to read this file before starting development.

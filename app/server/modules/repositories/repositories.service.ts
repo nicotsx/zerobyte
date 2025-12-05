@@ -8,6 +8,7 @@ import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
+import { repoMutex } from "../../core/repository-mutex";
 import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 
 const listRepositories = async () => {
@@ -185,15 +186,20 @@ const listSnapshots = async (name: string, backupId?: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	let snapshots = [];
+	const releaseLock = await repoMutex.acquireShared(repository.id, "snapshots");
+	try {
+		let snapshots = [];
 
-	if (backupId) {
-		snapshots = await restic.snapshots(repository.config, { tags: [backupId.toString()] });
-	} else {
-		snapshots = await restic.snapshots(repository.config);
+		if (backupId) {
+			snapshots = await restic.snapshots(repository.config, { tags: [backupId.toString()] });
+		} else {
+			snapshots = await restic.snapshots(repository.config);
+		}
+
+		return snapshots;
+	} finally {
+		releaseLock();
 	}
-
-	return snapshots;
 };
 
 const listSnapshotFiles = async (name: string, snapshotId: string, path?: string) => {
@@ -205,22 +211,27 @@ const listSnapshotFiles = async (name: string, snapshotId: string, path?: string
 		throw new NotFoundError("Repository not found");
 	}
 
-	const result = await restic.ls(repository.config, snapshotId, path);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
+	try {
+		const result = await restic.ls(repository.config, snapshotId, path);
 
-	if (!result.snapshot) {
-		throw new NotFoundError("Snapshot not found or empty");
+		if (!result.snapshot) {
+			throw new NotFoundError("Snapshot not found or empty");
+		}
+
+		return {
+			snapshot: {
+				id: result.snapshot.id,
+				short_id: result.snapshot.short_id,
+				time: result.snapshot.time,
+				hostname: result.snapshot.hostname,
+				paths: result.snapshot.paths,
+			},
+			files: result.nodes,
+		};
+	} finally {
+		releaseLock();
 	}
-
-	return {
-		snapshot: {
-			id: result.snapshot.id,
-			short_id: result.snapshot.short_id,
-			time: result.snapshot.time,
-			hostname: result.snapshot.hostname,
-			paths: result.snapshot.paths,
-		},
-		files: result.nodes,
-	};
 };
 
 const restoreSnapshot = async (
@@ -245,14 +256,19 @@ const restoreSnapshot = async (
 
 	const target = options?.targetPath || "/";
 
-	const result = await restic.restore(repository.config, snapshotId, target, options);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
+	try {
+		const result = await restic.restore(repository.config, snapshotId, target, options);
 
-	return {
-		success: true,
-		message: "Snapshot restored successfully",
-		filesRestored: result.files_restored,
-		filesSkipped: result.files_skipped,
-	};
+		return {
+			success: true,
+			message: "Snapshot restored successfully",
+			filesRestored: result.files_restored,
+			filesSkipped: result.files_skipped,
+		};
+	} finally {
+		releaseLock();
+	}
 };
 
 const getSnapshotDetails = async (name: string, snapshotId: string) => {
@@ -264,14 +280,19 @@ const getSnapshotDetails = async (name: string, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const snapshots = await restic.snapshots(repository.config);
-	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);
+	try {
+		const snapshots = await restic.snapshots(repository.config);
+		const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
 
-	if (!snapshot) {
-		throw new NotFoundError("Snapshot not found");
+		if (!snapshot) {
+			throw new NotFoundError("Snapshot not found");
+		}
+
+		return snapshot;
+	} finally {
+		releaseLock();
 	}
-
-	return snapshot;
 };
 
 const checkHealth = async (repositoryId: string) => {
@@ -283,18 +304,23 @@ const checkHealth = async (repositoryId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const { hasErrors, error } = await restic.check(repository.config);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, "check");
+	try {
+		const { hasErrors, error } = await restic.check(repository.config);
 
-	await db
-		.update(repositoriesTable)
-		.set({
-			status: hasErrors ? "error" : "healthy",
-			lastChecked: Date.now(),
-			lastError: error,
-		})
-		.where(eq(repositoriesTable.id, repository.id));
+		await db
+			.update(repositoriesTable)
+			.set({
+				status: hasErrors ? "error" : "healthy",
+				lastChecked: Date.now(),
+				lastError: error,
+			})
+			.where(eq(repositoriesTable.id, repository.id));
 
-	return { lastError: error };
+		return { lastError: error };
+	} finally {
+		releaseLock();
+	}
 };
 
 const doctorRepository = async (name: string) => {
@@ -320,47 +346,50 @@ const doctorRepository = async (name: string) => {
 		error: unlockResult.error,
 	});
 
-	const checkResult = await restic.check(repository.config, { readData: false }).then(
-		(result) => result,
-		(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
-	);
-
-	steps.push({
-		step: "check",
-		success: checkResult.success,
-		output: checkResult.output,
-		error: checkResult.error,
-	});
-
-	if (checkResult.hasErrors) {
-		const repairResult = await restic.repairIndex(repository.config).then(
-			(result) => ({ success: true, output: result.output, error: null }),
-			(error) => ({ success: false, output: null, error: toMessage(error) }),
-		);
-
-		steps.push({
-			step: "repair_index",
-			success: repairResult.success,
-			output: repairResult.output,
-			error: repairResult.error,
-		});
-
-		const recheckResult = await restic.check(repository.config, { readData: false }).then(
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, "doctor");
+	try {
+		const checkResult = await restic.check(repository.config, { readData: false }).then(
 			(result) => result,
 			(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
 		);
 
 		steps.push({
-			step: "recheck",
-			success: recheckResult.success,
-			output: recheckResult.output,
-			error: recheckResult.error,
+			step: "check",
+			success: checkResult.success,
+			output: checkResult.output,
+			error: checkResult.error,
 		});
+
+		if (checkResult.hasErrors) {
+			const repairResult = await restic.repairIndex(repository.config).then(
+				(result) => ({ success: true, output: result.output, error: null }),
+				(error) => ({ success: false, output: null, error: toMessage(error) }),
+			);
+
+			steps.push({
+				step: "repair_index",
+				success: repairResult.success,
+				output: repairResult.output,
+				error: repairResult.error,
+			});
+
+			const recheckResult = await restic.check(repository.config, { readData: false }).then(
+				(result) => result,
+				(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
+			);
+
+			steps.push({
+				step: "recheck",
+				success: recheckResult.success,
+				output: recheckResult.output,
+				error: recheckResult.error,
+			});
+		}
+	} finally {
+		releaseLock();
 	}
 
 	const allSuccessful = steps.every((s) => s.success);
-
-	console.log("Doctor steps:", steps);
 
 	await db
 		.update(repositoriesTable)
@@ -386,7 +415,12 @@ const deleteSnapshot = async (name: string, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	await restic.deleteSnapshot(repository.config, snapshotId);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
+	try {
+		await restic.deleteSnapshot(repository.config, snapshotId);
+	} finally {
+		releaseLock();
+	}
 };
 
 const updateRepository = async (name: string, updates: { name?: string; compressionMode?: CompressionMode }) => {

@@ -67,3 +67,4 @@ services:
       - ./mydata:/mydata:ro
       - /run/docker/plugins:/run/docker/plugins
       - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.config/rclone:/root/.config/rclone

@@ -5,7 +5,7 @@ import Docker from "dockerode";
 import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
-import { getCapabilities } from "../../core/capabilities";
+import { getCapabilities, parseDockerHost } from "../../core/capabilities";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -277,7 +277,8 @@ const getContainersUsingVolume = async (name: string) => {
 	}
 
 	try {
-		const docker = new Docker();
+		const docker = new Docker(parseDockerHost(process.env.DOCKER_HOST));
+
 		const containers = await docker.listContainers({ all: true });
 
 		const usingContainers = [];
