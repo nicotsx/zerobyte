@@ -7,7 +7,7 @@ import { type } from "arktype";
 import { $ } from "bun";
 import { REPOSITORY_BASE, RESTIC_PASS_FILE } from "../core/constants";
 import { logger } from "./logger";
-import { cryptoUtils } from "./crypto";
+import { resolveSecret } from "../secrets";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
 import type { CompressionMode, RepositoryConfig, OverwriteMode } from "~/schemas/restic";
@@ -106,7 +106,8 @@ const buildEnv = async (config: RepositoryConfig) => {
 	};
 
 	if (config.isExistingRepository && config.customPassword) {
-		const decryptedPassword = await cryptoUtils.decrypt(config.customPassword);
+		// Resolve password from encrypted DB value OR secret provider reference
+		const decryptedPassword = await resolveSecret(config.customPassword);
 		const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
 
 		await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
@@ -117,17 +118,17 @@ const buildEnv = async (config: RepositoryConfig) => {
 
 	switch (config.backend) {
 		case "s3":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.decrypt(config.accessKeyId);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.decrypt(config.secretAccessKey);
+			env.AWS_ACCESS_KEY_ID = await resolveSecret(config.accessKeyId);
+			env.AWS_SECRET_ACCESS_KEY = await resolveSecret(config.secretAccessKey);
 			break;
 		case "r2":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.decrypt(config.accessKeyId);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.decrypt(config.secretAccessKey);
+			env.AWS_ACCESS_KEY_ID = await resolveSecret(config.accessKeyId);
+			env.AWS_SECRET_ACCESS_KEY = await resolveSecret(config.secretAccessKey);
 			env.AWS_REGION = "auto";
 			env.AWS_S3_FORCE_PATH_STYLE = "true";
 			break;
 		case "gcs": {
-			const decryptedCredentials = await cryptoUtils.decrypt(config.credentialsJson);
+			const decryptedCredentials = await resolveSecret(config.credentialsJson);
 			const credentialsPath = path.join("/tmp", `zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`);
 			await fs.writeFile(credentialsPath, decryptedCredentials, { mode: 0o600 });
 			env.GOOGLE_PROJECT_ID = config.projectId;
@@ -136,7 +137,7 @@ const buildEnv = async (config: RepositoryConfig) => {
 		}
 		case "azure": {
 			env.AZURE_ACCOUNT_NAME = config.accountName;
-			env.AZURE_ACCOUNT_KEY = await cryptoUtils.decrypt(config.accountKey);
+			env.AZURE_ACCOUNT_KEY = await resolveSecret(config.accountKey);
 			if (config.endpointSuffix) {
 				env.AZURE_ENDPOINT_SUFFIX = config.endpointSuffix;
 			}
@@ -144,15 +145,15 @@ const buildEnv = async (config: RepositoryConfig) => {
 		}
 		case "rest": {
 			if (config.username) {
-				env.RESTIC_REST_USERNAME = await cryptoUtils.decrypt(config.username);
+				env.RESTIC_REST_USERNAME = await resolveSecret(config.username);
 			}
 			if (config.password) {
-				env.RESTIC_REST_PASSWORD = await cryptoUtils.decrypt(config.password);
+				env.RESTIC_REST_PASSWORD = await resolveSecret(config.password);
 			}
 			break;
 		}
 		case "sftp": {
-			const decryptedKey = await cryptoUtils.decrypt(config.privateKey);
+			const decryptedKey = await resolveSecret(config.privateKey);
 			const keyPath = path.join("/tmp", `ironmount-ssh-${crypto.randomBytes(8).toString("hex")}`);
 
 			let normalizedKey = decryptedKey.replace(/\r\n/g, "\n");
