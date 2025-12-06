@@ -1,5 +1,5 @@
 import type { SecretProvider, SecretResolutionResult } from "./types";
-import { isEncryptedSecret, isSecretRef, getSecretScheme, needsResolution, maskSecretRef } from "./utils";
+import { isEncryptedSecret, isSecretRef, getSecretScheme, maskSecretRef } from "./utils";
 import { createProviders, checkProvidersHealth } from "./providers";
 import { cryptoUtils } from "../utils/crypto";
 import { logger } from "../utils/logger";
