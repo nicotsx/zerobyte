@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { int, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { SECRET_PROVIDER_TYPES, SECRET_PROVIDER_METADATA, type SecretProviderType } from "~/schemas/secrets";
+import { SECRET_PROVIDER_METADATA, type SecretProviderType } from "~/schemas/secrets";
 
 /**
  * Secret Providers Table
