@@ -196,6 +196,46 @@ Zerobyte allows you to easily restore your data from backups. To restore data, n
 
 ![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
 
+## Secret Providers
+
+Zerobyte supports external secret providers for secure credential management. Instead of storing sensitive credentials (like S3 access keys or SMB passwords) directly, you can reference secrets from external providers.
+
+### Supported Providers
+
+| Provider | URI Format | Description |
+|----------|------------|-------------|
+| Environment Variables | `env://VAR_NAME` | Reads `ENV_VAR_NAME` from container environment |
+| Docker Secrets | `file://name` | Reads from `/run/secrets/name` |
+| 1Password Connect | `op://vault/item/field` | Fetches from self-hosted 1Password Connect server |
+| HashiCorp Vault | `vault://path/to/secret:key` | Fetches from HashiCorp Vault KV v2 engine |
+
+### Usage
+
+When configuring volumes, repositories, or notifications, you can use secret references instead of plain values:
+
+```text
+# Instead of storing the actual password:
+password: my-secret-password
+
+# Reference an environment variable:
+password: env://SMB_PASSWORD
+
+# Reference a Docker secret:
+password: file://smb-password
+
+# Reference from 1Password:
+password: op://Infrastructure/NAS Credentials/password
+
+# Reference from HashiCorp Vault:
+password: vault://secret/data/nas:password
+```
+
+### Setting Up External Providers
+
+To use 1Password Connect or HashiCorp Vault, navigate to **Settings → Secret Providers** and configure your provider with the server URL and authentication token.
+
+Provider tokens themselves can use `env://` or `file://` references for bootstrapping, so you never need to store sensitive tokens in the database.
+
 ## Propagating mounts to host
 
 Zerobyte is capable of propagating mounted volumes from within the container to the host system. This is particularly useful when you want to access the mounted data directly from the host to use it with other applications or services.

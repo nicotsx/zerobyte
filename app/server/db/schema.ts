@@ -204,3 +204,16 @@ export const appMetadataTable = sqliteTable("app_metadata", {
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type AppMetadata = typeof appMetadataTable.$inferSelect;
+
+// Re-export secret providers schema
+export {
+	secretProvidersTable,
+	SECRET_PROVIDER_TYPES,
+	DEFAULT_PROVIDER_PREFIXES,
+	type SecretProvider,
+	type NewSecretProvider,
+	type SecretProviderType,
+	type SecretProviderDbConfig,
+	type OnePasswordConnectDbConfig,
+	type HashiCorpVaultDbConfig,
+} from "./schema-secret-providers";
