@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
-import { Check, Save, X } from "lucide-react";
+import { Check, Save } from "lucide-react";
 import { Card } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
@@ -157,16 +157,13 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 			<AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Update Repository</AlertDialogTitle>
+						<AlertDialogTitle>Update repository</AlertDialogTitle>
 						<AlertDialogDescription>Are you sure you want to update the repository settings?</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction onClick={confirmUpdate}>
-							<Check className="h-4 w-4 mr-2" />
+							<Check className="h-4 w-4" />
 							Update
 						</AlertDialogAction>
 					</AlertDialogFooter>

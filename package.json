@@ -9,7 +9,7 @@
 		"start": "bun ./dist/server/index.js",
 		"tsc": "react-router typegen && tsc",
 		"lint": "biome check .",
-		"lint:ci": "biome check . --ci",
+		"lint:ci": "biome ci . --changed --error-on-warnings --no-errors-on-unmatched",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
 		"gen:api-client": "openapi-ts",

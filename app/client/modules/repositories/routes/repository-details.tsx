@@ -149,12 +149,12 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 						{doctorMutation.isPending ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								Running Doctor...
+								Running doctor...
 							</>
 						) : (
 							<>
 								<Stethoscope className="h-4 w-4 mr-2" />
-								Run Doctor
+								Run doctor
 							</>
 						)}
 					</Button>
@@ -206,7 +206,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 			<AlertDialog open={showDoctorResults} onOpenChange={setShowDoctorResults}>
 				<AlertDialogContent className="max-w-2xl">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Doctor Results</AlertDialogTitle>
+						<AlertDialogTitle>Doctor results</AlertDialogTitle>
 						<AlertDialogDescription>Repository doctor operation completed</AlertDialogDescription>
 					</AlertDialogHeader>
 
@@ -238,10 +238,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 					)}
 
 					<div className="flex justify-end">
-						<Button onClick={() => setShowDoctorResults(false)}>
-							<X className="h-4 w-4 mr-2" />
-							Close
-						</Button>
+						<Button onClick={() => setShowDoctorResults(false)}>Close</Button>
 					</div>
 				</AlertDialogContent>
 			</AlertDialog>

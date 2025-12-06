@@ -98,7 +98,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 								}
 								className={buttonVariants({ variant: "primary", size: "sm" })}
 							>
-								<RotateCcw className="h-4 w-4 mr-2" />
+								<RotateCcw className="h-4 w-4" />
 								Restore
 							</Link>
 							{onDeleteSnapshot && (

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bell, Plus, Save, Trash2, X } from "lucide-react";
+import { Bell, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
@@ -174,7 +174,6 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 							</SelectContent>
 						</Select>
 						<Button variant="ghost" size="sm" onClick={() => setIsAddingNew(false)}>
-							<X className="h-4 w-4 mr-2" />
 							Cancel
 						</Button>
 					</div>
@@ -255,11 +254,9 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 				{hasChanges && (
 					<div className="flex gap-2 justify-end mt-4 pt-4">
 						<Button variant="outline" size="sm" onClick={handleReset}>
-							<X className="h-4 w-4 mr-2" />
 							Cancel
 						</Button>
 						<Button variant="default" size="sm" onClick={handleSave} loading={updateNotifications.isPending}>
-							<Save className="h-4 w-4 mr-2" />
 							Save changes
 						</Button>
 					</div>

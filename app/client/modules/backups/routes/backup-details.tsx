@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { redirect, useNavigate } from "react-router";
 import { toast } from "sonner";
-import { Save, Trash2, X } from "lucide-react";
+import { Save, X } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import {
 	AlertDialog,
@@ -269,16 +269,12 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
 							disabled={deleteSnapshot.isPending}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							<Trash2 className="h-4 w-4 mr-2" />
 							Delete snapshot
 						</AlertDialogAction>
 					</AlertDialogFooter>

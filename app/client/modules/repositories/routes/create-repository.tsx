@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Database, Plus, X } from "lucide-react";
+import { Database, Plus } from "lucide-react";
 import { useId } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -76,12 +76,11 @@ export default function CreateRepository() {
 					/>
 					<div className="flex justify-end gap-2 pt-4 border-t">
 						<Button type="button" variant="secondary" onClick={() => navigate("/repositories")}>
-							<X className="h-4 w-4 mr-2" />
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={createRepository.isPending}>
 							<Plus className="h-4 w-4 mr-2" />
-							Create Repository
+							Create repository
 						</Button>
 					</div>
 				</CardContent>

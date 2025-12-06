@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { ChevronDown, FileIcon, FolderOpen, RotateCcw, X } from "lucide-react";
+import { ChevronDown, FileIcon, FolderOpen, RotateCcw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Checkbox } from "~/client/components/ui/checkbox";
@@ -161,7 +161,6 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" onClick={() => navigate(returnPath)}>
-						<X className="h-4 w-4 mr-2" />
 						Cancel
 					</Button>
 					<Button variant="primary" onClick={handleRestore} disabled={isRestoring || !canRestore}>

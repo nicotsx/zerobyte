@@ -207,15 +207,11 @@ export const ScheduleSummary = (props: Props) => {
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-3 justify-end">
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							<Trash2 className="h-4 w-4 mr-2" />
 							Delete schedule
 						</AlertDialogAction>
 					</div>

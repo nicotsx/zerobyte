@@ -280,7 +280,7 @@ export const CreateRepositoryForm = ({
 								<AlertDialogHeader>
 									<AlertDialogTitle className="flex items-center gap-2">
 										<AlertTriangle className="h-5 w-5 text-yellow-500" />
-										Important: Host Mount Required
+										Important: Host mount required
 									</AlertDialogTitle>
 									<AlertDialogDescription className="space-y-3">
 										<p>When selecting a custom path, ensure it is mounted from the host machine into the container.</p>
@@ -294,17 +294,13 @@ export const CreateRepositoryForm = ({
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 								<AlertDialogFooter>
-									<AlertDialogCancel>
-										<X className="h-4 w-4 mr-2" />
-										Cancel
-									</AlertDialogCancel>
+									<AlertDialogCancel>Cancel</AlertDialogCancel>
 									<AlertDialogAction
 										onClick={() => {
 											setShowPathBrowser(true);
 											setShowPathWarning(false);
 										}}
 									>
-										<Check className="h-4 w-4 mr-2" />
 										I Understand, Continue
 									</AlertDialogAction>
 								</AlertDialogFooter>

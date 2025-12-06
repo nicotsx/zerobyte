@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, FolderTree, HardDrive, Trash2, X } from "lucide-react";
+import { Calendar, Clock, Database, FolderTree, HardDrive, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -183,16 +183,12 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
 							disabled={deleteSnapshot.isPending}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							<Trash2 className="h-4 w-4 mr-2" />
 							Delete snapshot
 						</AlertDialogAction>
 					</AlertDialogFooter>
