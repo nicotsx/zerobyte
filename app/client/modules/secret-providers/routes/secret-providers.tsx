@@ -168,7 +168,11 @@ export default function SecretProviders({ loaderData }: SecretProvidersProps) {
 										<SelectValue placeholder="All types" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="op-connect">1Password Connect</SelectItem>
+										{Object.entries(SECRET_PROVIDER_METADATA).map(([type, meta]) => (
+											<SelectItem key={type} value={type}>
+												{meta.label}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 								<Select value={statusFilter} onValueChange={setStatusFilter}>
