@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponses, ChangePasswordData, ChangePasswordResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteVolumeData, DeleteVolumeResponses, DoctorRepositoryData, DoctorRepositoryResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetContainersUsingVolumeData, GetContainersUsingVolumeErrors, GetContainersUsingVolumeResponses, GetMeData, GetMeResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetRepositoryData, GetRepositoryResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, MountVolumeData, MountVolumeResponses, RegisterData, RegisterResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponses, ChangePasswordData, ChangePasswordResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteApiV1SecretProvidersIdData, DeleteApiV1SecretProvidersIdErrors, DeleteApiV1SecretProvidersIdResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteVolumeData, DeleteVolumeResponses, DoctorRepositoryData, DoctorRepositoryResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, GetApiV1SecretProvidersData, GetApiV1SecretProvidersIdBrowseData, GetApiV1SecretProvidersIdBrowseErrors, GetApiV1SecretProvidersIdBrowseResponses, GetApiV1SecretProvidersIdData, GetApiV1SecretProvidersIdErrors, GetApiV1SecretProvidersIdResponses, GetApiV1SecretProvidersResponses, GetApiV1SecretProvidersTypesData, GetApiV1SecretProvidersTypesResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetContainersUsingVolumeData, GetContainersUsingVolumeErrors, GetContainersUsingVolumeResponses, GetMeData, GetMeResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetRepositoryData, GetRepositoryResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, MountVolumeData, MountVolumeResponses, PatchApiV1SecretProvidersIdData, PatchApiV1SecretProvidersIdErrors, PatchApiV1SecretProvidersIdResponses, PostApiV1SecretProvidersData, PostApiV1SecretProvidersErrors, PostApiV1SecretProvidersIdTestData, PostApiV1SecretProvidersIdTestErrors, PostApiV1SecretProvidersIdTestResponses, PostApiV1SecretProvidersResponses, PostApiV1SecretProvidersTestConfigData, PostApiV1SecretProvidersTestConfigResponses, RegisterData, RegisterResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -372,6 +372,76 @@ export const updateNotificationDestination = <ThrowOnError extends boolean = fal
  * Test a notification destination by sending a test message
  */
 export const testNotificationDestination = <ThrowOnError extends boolean = false>(options: Options<TestNotificationDestinationData, ThrowOnError>) => (options.client ?? client).post<TestNotificationDestinationResponses, TestNotificationDestinationErrors, ThrowOnError>({ url: '/api/v1/notifications/destinations/{id}/test', ...options });
+
+/**
+ * Get available secret provider types
+ */
+export const getApiV1SecretProvidersTypes = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SecretProvidersTypesData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1SecretProvidersTypesResponses, unknown, ThrowOnError>({ url: '/api/v1/secret-providers/types', ...options });
+
+/**
+ * Test a provider configuration before creating
+ *
+ * Tests if the provided configuration can connect successfully without saving it
+ */
+export const postApiV1SecretProvidersTestConfig = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SecretProvidersTestConfigData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1SecretProvidersTestConfigResponses, unknown, ThrowOnError>({
+    url: '/api/v1/secret-providers/test-config',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * List all secret providers
+ */
+export const getApiV1SecretProviders = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1SecretProvidersData, ThrowOnError>) => (options?.client ?? client).get<GetApiV1SecretProvidersResponses, unknown, ThrowOnError>({ url: '/api/v1/secret-providers', ...options });
+
+/**
+ * Create a new secret provider
+ */
+export const postApiV1SecretProviders = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SecretProvidersData, ThrowOnError>) => (options?.client ?? client).post<PostApiV1SecretProvidersResponses, PostApiV1SecretProvidersErrors, ThrowOnError>({
+    url: '/api/v1/secret-providers',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
+
+/**
+ * Browse available secrets from a provider
+ *
+ * Lists available secrets from a provider. For 1Password, this lists vaults, items, and fields. Path param can be used to navigate: empty = list vaults, 'vault' = list items, 'vault/item' = list fields. Use 'env' or 'file' as id for built-in providers.
+ */
+export const getApiV1SecretProvidersIdBrowse = <ThrowOnError extends boolean = false>(options: Options<GetApiV1SecretProvidersIdBrowseData, ThrowOnError>) => (options.client ?? client).get<GetApiV1SecretProvidersIdBrowseResponses, GetApiV1SecretProvidersIdBrowseErrors, ThrowOnError>({ url: '/api/v1/secret-providers/{id}/browse', ...options });
+
+/**
+ * Delete a secret provider
+ */
+export const deleteApiV1SecretProvidersId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1SecretProvidersIdData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiV1SecretProvidersIdResponses, DeleteApiV1SecretProvidersIdErrors, ThrowOnError>({ url: '/api/v1/secret-providers/{id}', ...options });
+
+/**
+ * Get a secret provider by ID
+ */
+export const getApiV1SecretProvidersId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1SecretProvidersIdData, ThrowOnError>) => (options.client ?? client).get<GetApiV1SecretProvidersIdResponses, GetApiV1SecretProvidersIdErrors, ThrowOnError>({ url: '/api/v1/secret-providers/{id}', ...options });
+
+/**
+ * Update a secret provider
+ */
+export const patchApiV1SecretProvidersId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1SecretProvidersIdData, ThrowOnError>) => (options.client ?? client).patch<PatchApiV1SecretProvidersIdResponses, PatchApiV1SecretProvidersIdErrors, ThrowOnError>({
+    url: '/api/v1/secret-providers/{id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Test a secret provider's connectivity
+ */
+export const postApiV1SecretProvidersIdTest = <ThrowOnError extends boolean = false>(options: Options<PostApiV1SecretProvidersIdTestData, ThrowOnError>) => (options.client ?? client).post<PostApiV1SecretProvidersIdTestResponses, PostApiV1SecretProvidersIdTestErrors, ThrowOnError>({ url: '/api/v1/secret-providers/{id}/test', ...options });
 
 /**
  * Get system information including available capabilities

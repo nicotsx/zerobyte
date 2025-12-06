@@ -14,6 +14,7 @@ import {
 	FormMessage,
 } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
+import { SecretInput } from "~/client/components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import { notificationConfigSchema } from "~/schemas/notifications";
@@ -213,7 +214,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>Password</FormLabel>
 									<FormControl>
-										<Input {...field} type="password" placeholder="••••••••" />
+										<SecretInput {...field} placeholder="Password or secret URI" />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -278,12 +279,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>Webhook URL</FormLabel>
 									<FormControl>
-										<Input
-											{...field}
-											placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
-										/>
+										<SecretInput {...field} placeholder="https://hooks.slack.com/... or secret URI" />
 									</FormControl>
-									<FormDescription>Get this from your Slack app's Incoming Webhooks settings.</FormDescription>
+									<FormDescription>Slack Incoming Webhook URL. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -340,9 +338,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>Webhook URL</FormLabel>
 									<FormControl>
-										<Input {...field} placeholder="https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN" />
+										<SecretInput {...field} placeholder="https://discord.com/api/... or secret URI" />
 									</FormControl>
-									<FormDescription>Get this from your Discord server's Integrations settings.</FormDescription>
+									<FormDescription>Discord Webhook URL. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -415,9 +413,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>App Token</FormLabel>
 									<FormControl>
-										<Input {...field} type="password" placeholder="••••••••" />
+										<SecretInput {...field} placeholder="Token or secret URI" />
 									</FormControl>
-									<FormDescription>Application token from Gotify.</FormDescription>
+									<FormDescription>Application token from Gotify. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -510,9 +508,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>Password (Optional)</FormLabel>
 									<FormControl>
-										<Input {...field} type="password" placeholder="••••••••" />
+										<SecretInput {...field} placeholder="Password or secret URI" />
 									</FormControl>
-									<FormDescription>Password for server authentication, if required.</FormDescription>
+									<FormDescription>Password for server authentication. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -567,9 +565,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>API Token</FormLabel>
 									<FormControl>
-										<Input {...field} type="password" placeholder="••••••••" />
+										<SecretInput {...field} placeholder="API token or secret URI" />
 									</FormControl>
-									<FormDescription>Application API token from your Pushover application.</FormDescription>
+									<FormDescription>Application API token. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -627,11 +625,9 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<FormItem>
 									<FormLabel>Bot Token</FormLabel>
 									<FormControl>
-										<Input {...field} type="password" placeholder="123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
+										<SecretInput {...field} placeholder="Bot token or secret URI" />
 									</FormControl>
-									<FormDescription>
-										Telegram bot token. Get this from BotFather when you create your bot.
-									</FormDescription>
+									<FormDescription>Telegram bot token. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}

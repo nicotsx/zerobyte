@@ -7,6 +7,7 @@ import { deepClean } from "~/utils/object";
 import { Button } from "./ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { Input } from "./ui/input";
+import { SecretInput, SecretTextarea } from "./ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, AlertDescription } from "./ui/alert";
@@ -27,7 +28,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "./ui/alert-dialog";
-import { Textarea } from "./ui/textarea";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -245,10 +245,10 @@ export const CreateRepositoryForm = ({
 									<FormItem>
 										<FormLabel>Repository Password</FormLabel>
 										<FormControl>
-											<Input type="password" placeholder="Enter repository password" {...field} />
+											<SecretInput placeholder="Password or secret URI" {...field} />
 										</FormControl>
 										<FormDescription>
-											The password used to encrypt this repository. It will be stored securely.
+											The password used to encrypt this repository. Supports secret URIs.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -379,9 +379,9 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>Secret Access Key</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="••••••••" {...field} />
+										<SecretInput placeholder="Secret access key or secret URI" {...field} />
 									</FormControl>
-									<FormDescription>S3 secret access key for authentication.</FormDescription>
+									<FormDescription>S3 secret access key. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -442,9 +442,9 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>Secret Access Key</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="••••••••" {...field} />
+										<SecretInput placeholder="Secret access key or secret URI" {...field} />
 									</FormControl>
-									<FormDescription>R2 API token Secret Access Key (shown once when creating token).</FormDescription>
+									<FormDescription>R2 secret access key. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -489,9 +489,9 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>Service Account JSON</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="Paste service account JSON key..." {...field} />
+										<SecretInput placeholder="Paste JSON or secret URI" {...field} />
 									</FormControl>
-									<FormDescription>Service account JSON credentials for authentication.</FormDescription>
+									<FormDescription>Service account JSON credentials. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -536,9 +536,9 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>Account Key</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="••••••••" {...field} />
+										<SecretInput placeholder="Account key or secret URI" {...field} />
 									</FormControl>
-									<FormDescription>Azure Storage account key for authentication.</FormDescription>
+									<FormDescription>Azure Storage account key. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -680,9 +680,9 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>Password (Optional)</FormLabel>
 									<FormControl>
-										<Input type="password" placeholder="••••••••" {...field} />
+										<SecretInput placeholder="Password or secret URI" {...field} />
 									</FormControl>
-									<FormDescription>Password for REST server authentication.</FormDescription>
+									<FormDescription>Password for REST server authentication. Supports secret URIs.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -760,12 +760,13 @@ export const CreateRepositoryForm = ({
 								<FormItem>
 									<FormLabel>SSH Private Key</FormLabel>
 									<FormControl>
-										<Textarea
+										<SecretTextarea
 											{...field}
-											placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+											placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----&#10;&#10;Or use a secret URI (e.g., op://vault/item/private_key)"
+											className="min-h-32 font-mono text-xs"
 										/>
 									</FormControl>
-									<FormDescription>Paste the contents of your SSH private key.</FormDescription>
+									<FormDescription>Paste the contents of your SSH private key or use a secret URI.</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}

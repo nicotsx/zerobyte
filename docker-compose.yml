@@ -12,6 +12,15 @@ services:
       - SYS_ADMIN
     environment:
       - NODE_ENV=development
+      # Test environment variables for secret provider env:// (must be prefixed with ENV_)
+      - ENV_MY_SECRET=my-secret-value-from-env
+      - ENV_DATABASE_PASSWORD=super-secret-db-password
+      - ENV_API_KEY=sk-1234567890abcdef
+    # # Secret files used by secret provider file://
+    # secrets:
+    #   - db_password
+    #   - api_token
+    #   - encryption_key
     ports:
       - "4096:4096"
     volumes:
@@ -42,3 +51,12 @@ services:
       - /run/docker/plugins:/run/docker/plugins
       - /var/run/docker.sock:/var/run/docker.sock
       - ~/.config/rclone:/root/.config/rclone
+
+# # Docker secrets - these get mounted to /run/secrets/<secret_name>
+# secrets:
+#   db_password:
+#     file: ./dev-secrets/db_password
+#   api_token:
+#     file: ./dev-secrets/api_token
+#   encryption_key:
+#     file: ./dev-secrets/encryption_key

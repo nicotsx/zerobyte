@@ -17,11 +17,14 @@ import { volumeController } from "./modules/volumes/volume.controller";
 import { backupScheduleController } from "./modules/backups/backups.controller";
 import { eventsController } from "./modules/events/events.controller";
 import { notificationsController } from "./modules/notifications/notifications.controller";
+import { secretProvidersController } from "./modules/secret-providers";
 import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { shutdown } from "./modules/lifecycle/shutdown";
 import { REQUIRED_MIGRATIONS, SOCKET_PATH } from "./core/constants";
 import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
+import { initializeSecretResolver } from "./secrets";
+import { secretProvidersService } from "./modules/secret-providers";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -50,6 +53,7 @@ const app = new Hono()
 	.route("/api/v1/repositories", repositoriesController.use(requireAuth))
 	.route("/api/v1/backups", backupScheduleController.use(requireAuth))
 	.route("/api/v1/notifications", notificationsController.use(requireAuth))
+	.route("/api/v1/secret-providers", secretProvidersController.use(requireAuth))
 	.route("/api/v1/system", systemController.use(requireAuth))
 	.route("/api/v1/events", eventsController.use(requireAuth));
 
@@ -69,6 +73,11 @@ app.onError((err, c) => {
 });
 
 runDbMigrations();
+
+// Initialize secret resolver with built-in providers (env, file)
+// External providers are loaded from database
+initializeSecretResolver();
+await secretProvidersService.loadProvidersFromDb();
 
 await migrateToShortIds();
 await validateRequiredMigrations(REQUIRED_MIGRATIONS);

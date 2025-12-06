@@ -22,5 +22,8 @@ export default [
 		route("notifications/create", "./client/modules/notifications/routes/create-notification.tsx"),
 		route("notifications/:id", "./client/modules/notifications/routes/notification-details.tsx"),
 		route("settings", "./client/modules/settings/routes/settings.tsx"),
+		route("settings/secret-providers", "./client/modules/secret-providers/routes/secret-providers.tsx"),
+		route("settings/secret-providers/create", "./client/modules/secret-providers/routes/create-secret-provider.tsx"),
+		route("settings/secret-providers/:id", "./client/modules/secret-providers/routes/secret-provider-details.tsx"),
 	]),
 ] satisfies RouteConfig;

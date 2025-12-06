@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download, KeyRound, User } from "lucide-react";
+import { ChevronRight, Download, KeyRound, Lock, User } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
@@ -261,6 +261,27 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						</form>
 					</DialogContent>
 				</Dialog>
+			</CardContent>
+
+			<div className="border-t border-border/50 bg-card-header p-6">
+				<CardTitle className="flex items-center gap-2">
+					<Lock className="size-5" />
+					Secret Providers
+				</CardTitle>
+				<CardDescription className="mt-1.5">Manage external secret providers</CardDescription>
+			</div>
+			<CardContent className="p-6 space-y-4">
+				<p className="text-sm text-muted-foreground max-w-2xl">
+					Connect external secret providers to securely manage credentials for your volumes and repositories. Secrets
+					can be referenced using URIs like{" "}
+					<code className="bg-muted px-1 rounded text-xs">provider://path/to/secret</code>.
+				</p>
+				<Link to="/settings/secret-providers">
+					<Button variant="outline">
+						Manage Secret Providers
+						<ChevronRight size={16} className="ml-2" />
+					</Button>
+				</Link>
 			</CardContent>
 		</Card>
 	);

@@ -9,6 +9,7 @@ import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
+import { getSecretResolver } from "../../secrets";
 import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 
 const listRepositories = async () => {
@@ -16,35 +17,47 @@ const listRepositories = async () => {
 	return repositories;
 };
 
+/**
+ * Encrypt a value only if it's not already a secret reference
+ * Secret references (env://, file://, op://, encv1:) are stored as-is
+ */
+async function maybeEncrypt(value: string): Promise<string> {
+	const resolver = getSecretResolver();
+	if (resolver.needsResolution(value)) {
+		return value;
+	}
+	return cryptoUtils.encrypt(value);
+}
+
 const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
 	const encryptedConfig: Record<string, string | boolean | number> = { ...config };
 
 	if (config.customPassword) {
-		encryptedConfig.customPassword = await cryptoUtils.encrypt(config.customPassword);
+		encryptedConfig.customPassword = await maybeEncrypt(config.customPassword);
 	}
 
 	switch (config.backend) {
 		case "s3":
 		case "r2":
-			encryptedConfig.accessKeyId = await cryptoUtils.encrypt(config.accessKeyId);
-			encryptedConfig.secretAccessKey = await cryptoUtils.encrypt(config.secretAccessKey);
+			encryptedConfig.accessKeyId = await maybeEncrypt(config.accessKeyId);
+			encryptedConfig.secretAccessKey = await maybeEncrypt(config.secretAccessKey);
 			break;
 		case "gcs":
-			encryptedConfig.credentialsJson = await cryptoUtils.encrypt(config.credentialsJson);
+			encryptedConfig.credentialsJson = await maybeEncrypt(config.credentialsJson);
 			break;
 		case "azure":
-			encryptedConfig.accountKey = await cryptoUtils.encrypt(config.accountKey);
+			encryptedConfig.accountKey = await maybeEncrypt(config.accountKey);
 			break;
 		case "rest":
 			if (config.username) {
-				encryptedConfig.username = await cryptoUtils.encrypt(config.username);
+				encryptedConfig.username = await maybeEncrypt(config.username);
 			}
 			if (config.password) {
-				encryptedConfig.password = await cryptoUtils.encrypt(config.password);
+				encryptedConfig.password = await maybeEncrypt(config.password);
 			}
 			break;
 		case "sftp":
-			encryptedConfig.privateKey = await cryptoUtils.encrypt(config.privateKey);
+			encryptedConfig.privateKey = await maybeEncrypt(config.privateKey);
 			break;
 	}
 

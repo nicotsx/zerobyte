@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, changePassword, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteVolume, doctorRepository, downloadResticPassword, getBackupSchedule, getBackupScheduleForVolume, getContainersUsingVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, register, restoreSnapshot, runBackupNow, runForget, stopBackup, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, ChangePasswordData, ChangePasswordResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteVolumeData, DeleteVolumeResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetContainersUsingVolumeData, GetContainersUsingVolumeResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, RegisterData, RegisterResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, StopBackupData, StopBackupResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
+import { browseFilesystem, changePassword, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteApiV1SecretProvidersId, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteVolume, doctorRepository, downloadResticPassword, getApiV1SecretProviders, getApiV1SecretProvidersId, getApiV1SecretProvidersIdBrowse, getApiV1SecretProvidersTypes, getBackupSchedule, getBackupScheduleForVolume, getContainersUsingVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, patchApiV1SecretProvidersId, postApiV1SecretProviders, postApiV1SecretProvidersIdTest, postApiV1SecretProvidersTestConfig, register, restoreSnapshot, runBackupNow, runForget, stopBackup, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, ChangePasswordData, ChangePasswordResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteApiV1SecretProvidersIdData, DeleteApiV1SecretProvidersIdResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteVolumeData, DeleteVolumeResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, GetApiV1SecretProvidersData, GetApiV1SecretProvidersIdBrowseData, GetApiV1SecretProvidersIdBrowseResponse, GetApiV1SecretProvidersIdData, GetApiV1SecretProvidersResponse, GetApiV1SecretProvidersTypesData, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetContainersUsingVolumeData, GetContainersUsingVolumeResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, PatchApiV1SecretProvidersIdData, PostApiV1SecretProvidersData, PostApiV1SecretProvidersIdTestData, PostApiV1SecretProvidersTestConfigData, RegisterData, RegisterResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, StopBackupData, StopBackupResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
 
 /**
  * Register a new user
@@ -900,6 +900,167 @@ export const testNotificationDestinationMutation = (options?: Partial<Options<Te
     const mutationOptions: UseMutationOptions<TestNotificationDestinationResponse, DefaultError, Options<TestNotificationDestinationData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await testNotificationDestination({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiV1SecretProvidersTypesQueryKey = (options?: Options<GetApiV1SecretProvidersTypesData>) => createQueryKey('getApiV1SecretProvidersTypes', options);
+
+/**
+ * Get available secret provider types
+ */
+export const getApiV1SecretProvidersTypesOptions = (options?: Options<GetApiV1SecretProvidersTypesData>) => queryOptions<unknown, DefaultError, unknown, ReturnType<typeof getApiV1SecretProvidersTypesQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1SecretProvidersTypes({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1SecretProvidersTypesQueryKey(options)
+});
+
+/**
+ * Test a provider configuration before creating
+ *
+ * Tests if the provided configuration can connect successfully without saving it
+ */
+export const postApiV1SecretProvidersTestConfigMutation = (options?: Partial<Options<PostApiV1SecretProvidersTestConfigData>>): UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersTestConfigData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersTestConfigData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1SecretProvidersTestConfig({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiV1SecretProvidersQueryKey = (options?: Options<GetApiV1SecretProvidersData>) => createQueryKey('getApiV1SecretProviders', options);
+
+/**
+ * List all secret providers
+ */
+export const getApiV1SecretProvidersOptions = (options?: Options<GetApiV1SecretProvidersData>) => queryOptions<GetApiV1SecretProvidersResponse, DefaultError, GetApiV1SecretProvidersResponse, ReturnType<typeof getApiV1SecretProvidersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1SecretProviders({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1SecretProvidersQueryKey(options)
+});
+
+/**
+ * Create a new secret provider
+ */
+export const postApiV1SecretProvidersMutation = (options?: Partial<Options<PostApiV1SecretProvidersData>>): UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1SecretProviders({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiV1SecretProvidersIdBrowseQueryKey = (options: Options<GetApiV1SecretProvidersIdBrowseData>) => createQueryKey('getApiV1SecretProvidersIdBrowse', options);
+
+/**
+ * Browse available secrets from a provider
+ *
+ * Lists available secrets from a provider. For 1Password, this lists vaults, items, and fields. Path param can be used to navigate: empty = list vaults, 'vault' = list items, 'vault/item' = list fields. Use 'env' or 'file' as id for built-in providers.
+ */
+export const getApiV1SecretProvidersIdBrowseOptions = (options: Options<GetApiV1SecretProvidersIdBrowseData>) => queryOptions<GetApiV1SecretProvidersIdBrowseResponse, DefaultError, GetApiV1SecretProvidersIdBrowseResponse, ReturnType<typeof getApiV1SecretProvidersIdBrowseQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1SecretProvidersIdBrowse({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1SecretProvidersIdBrowseQueryKey(options)
+});
+
+/**
+ * Delete a secret provider
+ */
+export const deleteApiV1SecretProvidersIdMutation = (options?: Partial<Options<DeleteApiV1SecretProvidersIdData>>): UseMutationOptions<DeleteApiV1SecretProvidersIdResponse, DefaultError, Options<DeleteApiV1SecretProvidersIdData>> => {
+    const mutationOptions: UseMutationOptions<DeleteApiV1SecretProvidersIdResponse, DefaultError, Options<DeleteApiV1SecretProvidersIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteApiV1SecretProvidersId({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiV1SecretProvidersIdQueryKey = (options: Options<GetApiV1SecretProvidersIdData>) => createQueryKey('getApiV1SecretProvidersId', options);
+
+/**
+ * Get a secret provider by ID
+ */
+export const getApiV1SecretProvidersIdOptions = (options: Options<GetApiV1SecretProvidersIdData>) => queryOptions<unknown, DefaultError, unknown, ReturnType<typeof getApiV1SecretProvidersIdQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1SecretProvidersId({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1SecretProvidersIdQueryKey(options)
+});
+
+/**
+ * Update a secret provider
+ */
+export const patchApiV1SecretProvidersIdMutation = (options?: Partial<Options<PatchApiV1SecretProvidersIdData>>): UseMutationOptions<unknown, DefaultError, Options<PatchApiV1SecretProvidersIdData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PatchApiV1SecretProvidersIdData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await patchApiV1SecretProvidersId({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Test a secret provider's connectivity
+ */
+export const postApiV1SecretProvidersIdTestMutation = (options?: Partial<Options<PostApiV1SecretProvidersIdTestData>>): UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersIdTestData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostApiV1SecretProvidersIdTestData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1SecretProvidersIdTest({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

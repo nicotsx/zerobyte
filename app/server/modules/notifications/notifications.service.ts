@@ -8,6 +8,7 @@ import {
 	type NotificationDestination,
 } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
+import { resolveSecret, getSecretResolver } from "../../secrets";
 import { logger } from "../../utils/logger";
 import { sendNotification } from "../../utils/shoutrrr";
 import { buildShoutrrrUrl } from "./builders";
@@ -33,94 +34,110 @@ const getDestination = async (id: number) => {
 	return destination;
 };
 
+/**
+ * Encrypt a value only if it's not already a secret reference
+ * Secret references (env://, file://, op://, encv1:) are stored as-is
+ */
+async function maybeEncrypt(value: string): Promise<string> {
+	const resolver = getSecretResolver();
+	if (resolver.needsResolution(value)) {
+		return value;
+	}
+	return cryptoUtils.encrypt(value);
+}
+
 async function encryptSensitiveFields(config: NotificationConfig): Promise<NotificationConfig> {
 	switch (config.type) {
 		case "email":
 			return {
 				...config,
-				password: await cryptoUtils.encrypt(config.password),
+				password: await maybeEncrypt(config.password),
 			};
 		case "slack":
 			return {
 				...config,
-				webhookUrl: await cryptoUtils.encrypt(config.webhookUrl),
+				webhookUrl: await maybeEncrypt(config.webhookUrl),
 			};
 		case "discord":
 			return {
 				...config,
-				webhookUrl: await cryptoUtils.encrypt(config.webhookUrl),
+				webhookUrl: await maybeEncrypt(config.webhookUrl),
 			};
 		case "gotify":
 			return {
 				...config,
-				token: await cryptoUtils.encrypt(config.token),
+				token: await maybeEncrypt(config.token),
 			};
 		case "ntfy":
 			return {
 				...config,
-				password: config.password ? await cryptoUtils.encrypt(config.password) : undefined,
+				password: config.password ? await maybeEncrypt(config.password) : undefined,
 			};
 		case "pushover":
 			return {
 				...config,
-				apiToken: await cryptoUtils.encrypt(config.apiToken),
+				apiToken: await maybeEncrypt(config.apiToken),
 			};
 		case "telegram":
 			return {
 				...config,
-				botToken: await cryptoUtils.encrypt(config.botToken),
+				botToken: await maybeEncrypt(config.botToken),
 			};
 		case "custom":
 			return {
 				...config,
-				shoutrrrUrl: await cryptoUtils.encrypt(config.shoutrrrUrl),
+				shoutrrrUrl: await maybeEncrypt(config.shoutrrrUrl),
 			};
 		default:
 			return config;
 	}
 }
 
+/**
+ * Decrypt/resolve sensitive fields from notification config.
+ * Supports both legacy encrypted secrets (encv1:...) and secret provider references (op://, etc.)
+ */
 async function decryptSensitiveFields(config: NotificationConfig): Promise<NotificationConfig> {
 	switch (config.type) {
 		case "email":
 			return {
 				...config,
-				password: await cryptoUtils.decrypt(config.password),
+				password: await resolveSecret(config.password),
 			};
 		case "slack":
 			return {
 				...config,
-				webhookUrl: await cryptoUtils.decrypt(config.webhookUrl),
+				webhookUrl: await resolveSecret(config.webhookUrl),
 			};
 		case "discord":
 			return {
 				...config,
-				webhookUrl: await cryptoUtils.decrypt(config.webhookUrl),
+				webhookUrl: await resolveSecret(config.webhookUrl),
 			};
 		case "gotify":
 			return {
 				...config,
-				token: await cryptoUtils.decrypt(config.token),
+				token: await resolveSecret(config.token),
 			};
 		case "ntfy":
 			return {
 				...config,
-				password: config.password ? await cryptoUtils.decrypt(config.password) : undefined,
+				password: config.password ? await resolveSecret(config.password) : undefined,
 			};
 		case "pushover":
 			return {
 				...config,
-				apiToken: await cryptoUtils.decrypt(config.apiToken),
+				apiToken: await resolveSecret(config.apiToken),
 			};
 		case "telegram":
 			return {
 				...config,
-				botToken: await cryptoUtils.decrypt(config.botToken),
+				botToken: await resolveSecret(config.botToken),
 			};
 		case "custom":
 			return {
 				...config,
-				shoutrrrUrl: await cryptoUtils.decrypt(config.shoutrrrUrl),
+				shoutrrrUrl: await resolveSecret(config.shoutrrrUrl),
 			};
 		default:
 			return config;
