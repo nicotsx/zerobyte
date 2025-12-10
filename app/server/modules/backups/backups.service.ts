@@ -502,15 +502,32 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		}
 	}
 
+	const existingMirrors = await db.query.backupScheduleMirrorsTable.findMany({
+		where: eq(backupScheduleMirrorsTable.scheduleId, scheduleId),
+	});
+
+	const existingMirrorsMap = new Map(
+		existingMirrors.map((m) => [
+			m.repositoryId,
+			{ lastCopyAt: m.lastCopyAt, lastCopyStatus: m.lastCopyStatus, lastCopyError: m.lastCopyError },
+		]),
+	);
+
 	await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, scheduleId));
 
 	if (data.mirrors.length > 0) {
 		await db.insert(backupScheduleMirrorsTable).values(
-			data.mirrors.map((mirror) => ({
-				scheduleId,
-				repositoryId: mirror.repositoryId,
-				enabled: mirror.enabled,
-			})),
+			data.mirrors.map((mirror) => {
+				const existing = existingMirrorsMap.get(mirror.repositoryId);
+				return {
+					scheduleId,
+					repositoryId: mirror.repositoryId,
+					enabled: mirror.enabled,
+					lastCopyAt: existing?.lastCopyAt ?? null,
+					lastCopyStatus: existing?.lastCopyStatus ?? null,
+					lastCopyError: existing?.lastCopyError ?? null,
+				};
+			}),
 		);
 	}
 
