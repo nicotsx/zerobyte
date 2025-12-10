@@ -4,7 +4,10 @@ import { useId } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { CreateRepositoryForm, type RepositoryFormValues } from "~/client/components/create-repository-form";
+import {
+	CreateRepositoryForm,
+	type RepositoryFormValues,
+} from "~/client/modules/repositories/components/create-repository-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
