@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
-import { CreateVolumeForm, type FormValues } from "~/client/components/create-volume-form";
+import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
 import {
 	AlertDialog,
 	AlertDialogAction,
