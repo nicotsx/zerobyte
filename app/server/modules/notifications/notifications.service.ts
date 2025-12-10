@@ -253,6 +253,7 @@ const updateScheduleNotifications = async (
 		destinationId: number;
 		notifyOnStart: boolean;
 		notifyOnSuccess: boolean;
+		notifyOnWarning: boolean;
 		notifyOnFailure: boolean;
 	}>,
 ) => {
@@ -300,8 +301,9 @@ const sendBackupNotification = async (
 					return assignment.notifyOnStart;
 				case "success":
 					return assignment.notifyOnSuccess;
-				case "failure":
 				case "warning":
+					return assignment.notifyOnWarning;
+				case "failure":
 					return assignment.notifyOnFailure;
 				default:
 					return false;

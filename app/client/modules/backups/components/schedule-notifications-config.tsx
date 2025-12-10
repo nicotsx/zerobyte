@@ -24,6 +24,7 @@ type NotificationAssignment = {
 	destinationId: number;
 	notifyOnStart: boolean;
 	notifyOnSuccess: boolean;
+	notifyOnWarning: boolean;
 	notifyOnFailure: boolean;
 };
 
@@ -57,6 +58,7 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 					destinationId: assignment.destinationId,
 					notifyOnStart: assignment.notifyOnStart,
 					notifyOnSuccess: assignment.notifyOnSuccess,
+					notifyOnWarning: assignment.notifyOnWarning,
 					notifyOnFailure: assignment.notifyOnFailure,
 				});
 			}
@@ -72,6 +74,7 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 			destinationId: id,
 			notifyOnStart: false,
 			notifyOnSuccess: false,
+			notifyOnWarning: true,
 			notifyOnFailure: true,
 		});
 
@@ -87,7 +90,10 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 		setHasChanges(true);
 	};
 
-	const toggleEvent = (destinationId: number, event: "notifyOnStart" | "notifyOnSuccess" | "notifyOnFailure") => {
+	const toggleEvent = (
+		destinationId: number,
+		event: "notifyOnStart" | "notifyOnSuccess" | "notifyOnWarning" | "notifyOnFailure",
+	) => {
 		const assignment = assignments.get(destinationId);
 		if (!assignment) return;
 
@@ -119,6 +125,7 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 					destinationId: assignment.destinationId,
 					notifyOnStart: assignment.notifyOnStart,
 					notifyOnSuccess: assignment.notifyOnSuccess,
+					notifyOnWarning: assignment.notifyOnWarning,
 					notifyOnFailure: assignment.notifyOnFailure,
 				});
 			}
@@ -193,7 +200,8 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 									<TableHead>Destination</TableHead>
 									<TableHead className="text-center w-[100px]">Start</TableHead>
 									<TableHead className="text-center w-[100px]">Success</TableHead>
-									<TableHead className="text-center w-[100px]">Failure</TableHead>
+									<TableHead className="text-center w-[100px]">Warnings</TableHead>
+									<TableHead className="text-center w-[100px]">Failures</TableHead>
 									<TableHead className="w-[50px]"></TableHead>
 								</TableRow>
 							</TableHeader>
@@ -224,6 +232,13 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 													className="align-middle"
 													checked={assignment.notifyOnSuccess}
 													onCheckedChange={() => toggleEvent(destination.id, "notifyOnSuccess")}
+												/>
+											</TableCell>
+											<TableCell className="text-center">
+												<Switch
+													className="align-middle"
+													checked={assignment.notifyOnWarning}
+													onCheckedChange={() => toggleEvent(destination.id, "notifyOnWarning")}
 												/>
 											</TableCell>
 											<TableCell className="text-center">

@@ -2034,6 +2034,7 @@ export type GetScheduleNotificationsResponses = {
         notifyOnFailure: boolean;
         notifyOnStart: boolean;
         notifyOnSuccess: boolean;
+        notifyOnWarning: boolean;
         scheduleId: number;
     }>;
 };
@@ -2047,6 +2048,7 @@ export type UpdateScheduleNotificationsData = {
             notifyOnFailure: boolean;
             notifyOnStart: boolean;
             notifyOnSuccess: boolean;
+            notifyOnWarning: boolean;
         }>;
     };
     path: {
@@ -2122,6 +2124,7 @@ export type UpdateScheduleNotificationsResponses = {
         notifyOnFailure: boolean;
         notifyOnStart: boolean;
         notifyOnSuccess: boolean;
+        notifyOnWarning: boolean;
         scheduleId: number;
     }>;
 };

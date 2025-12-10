@@ -141,6 +141,7 @@ export const backupScheduleNotificationsTable = sqliteTable(
 			.references(() => notificationDestinationsTable.id, { onDelete: "cascade" }),
 		notifyOnStart: int("notify_on_start", { mode: "boolean" }).notNull().default(false),
 		notifyOnSuccess: int("notify_on_success", { mode: "boolean" }).notNull().default(false),
+		notifyOnWarning: int("notify_on_warning", { mode: "boolean" }).notNull().default(true),
 		notifyOnFailure: int("notify_on_failure", { mode: "boolean" }).notNull().default(true),
 		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	},

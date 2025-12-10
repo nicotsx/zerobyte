@@ -1,0 +1,1 @@
+ALTER TABLE `backup_schedule_notifications_table` ADD `notify_on_warning` integer DEFAULT true NOT NULL;
