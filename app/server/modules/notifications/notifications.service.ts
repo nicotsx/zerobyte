@@ -38,7 +38,7 @@ async function encryptSensitiveFields(config: NotificationConfig): Promise<Notif
 		case "email":
 			return {
 				...config,
-				password: await cryptoUtils.encrypt(config.password),
+				password: config.password ? await cryptoUtils.encrypt(config.password) : undefined,
 			};
 		case "slack":
 			return {
@@ -85,7 +85,7 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 		case "email":
 			return {
 				...config,
-				password: await cryptoUtils.decrypt(config.password),
+				password: config.password ? await cryptoUtils.decrypt(config.password) : undefined,
 			};
 		case "slack":
 			return {

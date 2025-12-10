@@ -165,6 +165,11 @@ export type ListVolumesResponses = {
             port?: number;
             readOnly?: boolean;
         } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -191,7 +196,7 @@ export type ListVolumesResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
         updatedAt: number;
     }>;
 };
@@ -210,6 +215,11 @@ export type CreateVolumeData = {
             server: string;
             version: '3' | '4' | '4.1';
             port?: number;
+            readOnly?: boolean;
+        } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -256,6 +266,11 @@ export type CreateVolumeResponses = {
             port?: number;
             readOnly?: boolean;
         } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -282,7 +297,7 @@ export type CreateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -301,6 +316,11 @@ export type TestConnectionData = {
             server: string;
             version: '3' | '4' | '4.1';
             port?: number;
+            readOnly?: boolean;
+        } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -400,6 +420,11 @@ export type GetVolumeResponses = {
                 port?: number;
                 readOnly?: boolean;
             } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -426,7 +451,7 @@ export type GetVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
             updatedAt: number;
         };
     };
@@ -447,6 +472,11 @@ export type UpdateVolumeData = {
             server: string;
             version: '3' | '4' | '4.1';
             port?: number;
+            readOnly?: boolean;
+        } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -502,6 +532,11 @@ export type UpdateVolumeResponses = {
             port?: number;
             readOnly?: boolean;
         } | {
+            backend: 'rclone';
+            path: string;
+            remote: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -528,7 +563,7 @@ export type UpdateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -1398,6 +1433,11 @@ export type ListBackupSchedulesResponses = {
                 port?: number;
                 readOnly?: boolean;
             } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1424,7 +1464,7 @@ export type ListBackupSchedulesResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1637,6 +1677,11 @@ export type GetBackupScheduleResponses = {
                 port?: number;
                 readOnly?: boolean;
             } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1663,7 +1708,7 @@ export type GetBackupScheduleResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1857,6 +1902,11 @@ export type GetBackupScheduleForVolumeResponses = {
                 port?: number;
                 readOnly?: boolean;
             } | {
+                backend: 'rclone';
+                path: string;
+                remote: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1883,7 +1933,7 @@ export type GetBackupScheduleForVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1987,13 +2037,13 @@ export type GetScheduleNotificationsResponses = {
                 type: 'telegram';
             } | {
                 from: string;
-                password: string;
                 smtpHost: string;
                 smtpPort: number;
                 to: Array<string>;
                 type: 'email';
                 useTLS: boolean;
-                username: string;
+                password?: string;
+                username?: string;
             } | {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
@@ -2077,13 +2127,13 @@ export type UpdateScheduleNotificationsResponses = {
                 type: 'telegram';
             } | {
                 from: string;
-                password: string;
                 smtpHost: string;
                 smtpPort: number;
                 to: Array<string>;
                 type: 'email';
                 useTLS: boolean;
-                username: string;
+                password?: string;
+                username?: string;
             } | {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
@@ -2380,13 +2430,13 @@ export type ListNotificationDestinationsResponses = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2441,13 +2491,13 @@ export type CreateNotificationDestinationData = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2501,13 +2551,13 @@ export type CreateNotificationDestinationResponses = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2608,13 +2658,13 @@ export type GetNotificationDestinationResponses = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2669,13 +2719,13 @@ export type UpdateNotificationDestinationData = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2739,13 +2789,13 @@ export type UpdateNotificationDestinationResponses = {
             type: 'telegram';
         } | {
             from: string;
-            password: string;
             smtpHost: string;
             smtpPort: number;
             to: Array<string>;
             type: 'email';
             useTLS: boolean;
-            username: string;
+            password?: string;
+            username?: string;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;

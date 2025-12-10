@@ -198,7 +198,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 							name="username"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Username</FormLabel>
+									<FormLabel>Username (Optional)</FormLabel>
 									<FormControl>
 										<Input {...field} placeholder="user@example.com" />
 									</FormControl>
@@ -211,7 +211,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 							name="password"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Password</FormLabel>
+									<FormLabel>Password (Optional)</FormLabel>
 									<FormControl>
 										<Input {...field} type="password" placeholder="••••••••" />
 									</FormControl>
