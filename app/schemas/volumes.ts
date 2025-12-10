@@ -5,6 +5,7 @@ export const BACKEND_TYPES = {
 	smb: "smb",
 	directory: "directory",
 	webdav: "webdav",
+	rclone: "rclone",
 } as const;
 
 export type BackendType = keyof typeof BACKEND_TYPES;
@@ -47,7 +48,14 @@ export const webdavConfigSchema = type({
 	ssl: "boolean?",
 });
 
-export const volumeConfigSchema = nfsConfigSchema.or(smbConfigSchema).or(webdavConfigSchema).or(directoryConfigSchema);
+export const rcloneConfigSchema = type({
+	backend: "'rclone'",
+	remote: "string",
+	path: "string",
+	readOnly: "boolean?",
+});
+
+export const volumeConfigSchema = nfsConfigSchema.or(smbConfigSchema).or(webdavConfigSchema).or(directoryConfigSchema).or(rcloneConfigSchema);
 
 export type BackendConfig = typeof volumeConfigSchema.infer;
 

@@ -3,6 +3,7 @@ import type { Volume } from "../../db/schema";
 import { getVolumePath } from "../volumes/helpers";
 import { makeDirectoryBackend } from "./directory/directory-backend";
 import { makeNfsBackend } from "./nfs/nfs-backend";
+import { makeRcloneBackend } from "./rclone/rclone-backend";
 import { makeSmbBackend } from "./smb/smb-backend";
 import { makeWebdavBackend } from "./webdav/webdav-backend";
 
@@ -32,6 +33,9 @@ export const createVolumeBackend = (volume: Volume): VolumeBackend => {
 		}
 		case "webdav": {
 			return makeWebdavBackend(volume.config, path);
+		}
+		case "rclone": {
+			return makeRcloneBackend(volume.config, path);
 		}
 	}
 };

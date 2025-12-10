@@ -1,7 +1,7 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { type } from "arktype";
-import { CheckCircle, Loader2, Pencil, Plug, Save, XCircle } from "lucide-react";
+import { CheckCircle, ExternalLink, Loader2, Pencil, Plug, Save, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn, slugify } from "~/client/lib/utils";
@@ -12,7 +12,10 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { volumeConfigSchema } from "~/schemas/volumes";
-import { testConnectionMutation } from "../api-client/@tanstack/react-query.gen";
+import { listRcloneRemotesOptions, testConnectionMutation } from "../api-client/@tanstack/react-query.gen";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { useSystemInfo } from "~/client/hooks/use-system-info";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -35,6 +38,7 @@ const defaultValuesForType = {
 	nfs: { backend: "nfs" as const, port: 2049, version: "4.1" as const },
 	smb: { backend: "smb" as const, port: 445, vers: "3.0" as const },
 	webdav: { backend: "webdav" as const, port: 80, ssl: false },
+	rclone: { backend: "rclone" as const, remote: "", path: "" },
 };
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
@@ -48,6 +52,13 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 	});
 
 	const { watch, getValues } = form;
+
+	const { capabilities } = useSystemInfo();
+
+	const { data: rcloneRemotes, isLoading: isLoadingRemotes } = useQuery({
+		...listRcloneRemotesOptions(),
+		enabled: capabilities.rclone,
+	});
 
 	const watchedBackend = watch("backend");
 
@@ -122,14 +133,24 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 									<SelectTrigger>
 										<SelectValue placeholder="Select a backend" />
 									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem value="directory">Directory</SelectItem>
-									<SelectItem value="nfs">NFS</SelectItem>
-									<SelectItem value="smb">SMB</SelectItem>
-									<SelectItem value="webdav">WebDAV</SelectItem>
-								</SelectContent>
-							</Select>
+						</FormControl>
+						<SelectContent>
+							<SelectItem value="directory">Directory</SelectItem>
+							<SelectItem value="nfs">NFS</SelectItem>
+							<SelectItem value="smb">SMB</SelectItem>
+							<SelectItem value="webdav">WebDAV</SelectItem>
+							<Tooltip>
+								<TooltipTrigger>
+									<SelectItem disabled={!capabilities.rclone} value="rclone">
+										rclone (40+ cloud providers)
+									</SelectItem>
+								</TooltipTrigger>
+								<TooltipContent className={cn({ hidden: capabilities.rclone })}>
+									<p>Setup rclone to use this backend</p>
+								</TooltipContent>
+							</Tooltip>
+						</SelectContent>
+						</Select>
 							<FormDescription>Choose the storage backend for this volume.</FormDescription>
 							<FormMessage />
 						</FormItem>
@@ -545,7 +566,99 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 					</>
 				)}
 
-				{watchedBackend && watchedBackend !== "directory" && (
+		{watchedBackend === "rclone" &&
+			(!rcloneRemotes || rcloneRemotes.length === 0 ? (
+				<Alert>
+					<AlertDescription className="space-y-2">
+						<p className="font-medium">No rclone remotes configured</p>
+						<p className="text-sm text-muted-foreground">
+							To use rclone, you need to configure remotes on your host system
+						</p>
+						<a
+							href="https://rclone.org/docs/"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-sm text-strong-accent inline-flex items-center gap-1"
+						>
+							View rclone documentation
+							<ExternalLink className="w-3 h-3" />
+						</a>
+					</AlertDescription>
+				</Alert>
+			) : (
+				<>
+					<FormField
+						control={form.control}
+						name="remote"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Remote</FormLabel>
+								<Select onValueChange={(v) => field.onChange(v)} defaultValue={field.value} value={field.value}>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Select an rclone remote" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{isLoadingRemotes ? (
+											<SelectItem value="loading" disabled>
+												Loading remotes...
+											</SelectItem>
+										) : (
+											rcloneRemotes.map((remote: { name: string; type: string }) => (
+												<SelectItem key={remote.name} value={remote.name}>
+													{remote.name} ({remote.type})
+												</SelectItem>
+											))
+										)}
+									</SelectContent>
+								</Select>
+								<FormDescription>Select the rclone remote configured on your host system.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="path"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Path</FormLabel>
+								<FormControl>
+									<Input placeholder="/" {...field} />
+								</FormControl>
+								<FormDescription>Path on the remote to mount. Use "/" for the root.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="readOnly"
+						defaultValue={false}
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Read-only Mode</FormLabel>
+								<FormControl>
+									<div className="flex items-center space-x-2">
+										<input
+											type="checkbox"
+											checked={field.value ?? false}
+											onChange={(e) => field.onChange(e.target.checked)}
+											className="rounded border-gray-300"
+										/>
+										<span className="text-sm">Mount volume as read-only</span>
+									</div>
+								</FormControl>
+								<FormDescription>
+									Prevent any modifications to the volume. Recommended for backup sources and sensitive data.
+								</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				</>
+			))}				{watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
 					<div className="space-y-3">
 						<div className="flex items-center gap-2">
 							<Button
