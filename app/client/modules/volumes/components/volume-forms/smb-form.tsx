@@ -81,7 +81,7 @@ export const SMBForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>SMB Version</FormLabel>
-						<Select onValueChange={field.onChange} defaultValue={field.value || "3.0"}>
+						<Select onValueChange={field.onChange} value={field.value}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select SMB version" />
@@ -125,7 +125,6 @@ export const SMBForm = ({ form }: Props) => {
 								type="number"
 								placeholder="445"
 								value={field.value}
-								defaultValue={445}
 								onChange={(e) => field.onChange(parseInt(e.target.value, 10) || undefined)}
 							/>
 						</FormControl>

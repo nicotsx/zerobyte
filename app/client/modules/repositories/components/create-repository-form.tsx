@@ -109,8 +109,8 @@ export const CreateRepositoryForm = ({
 									{...field}
 									placeholder="Repository name"
 									onChange={(e) => field.onChange(slugify(e.target.value))}
-									max={32}
-									min={2}
+									maxLength={32}
+									minLength={2}
 								/>
 							</FormControl>
 							<FormDescription>Unique identifier for the repository.</FormDescription>

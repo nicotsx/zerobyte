@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { Textarea } from "../../../../components/ui/textarea";
 import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
@@ -52,7 +53,7 @@ export const GCSRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Service Account JSON</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="Paste service account JSON key..." {...field} />
+							<Textarea placeholder="Paste service account JSON key..." {...field} />
 						</FormControl>
 						<FormDescription>Service account JSON credentials for authentication.</FormDescription>
 						<FormMessage />

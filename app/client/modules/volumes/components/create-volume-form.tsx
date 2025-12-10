@@ -51,7 +51,10 @@ const defaultValuesForType = {
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
 	const form = useForm<FormValues>({
 		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
-		defaultValues: initialValues,
+		defaultValues: initialValues || {
+			name: "",
+			backend: "directory",
+		},
 		resetOptions: {
 			keepDefaultValues: true,
 			keepDirtyValues: false,
@@ -115,8 +118,8 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 									{...field}
 									placeholder="Volume name"
 									onChange={(e) => field.onChange(slugify(e.target.value))}
-									max={32}
-									min={1}
+									maxLength={32}
+									minLength={2}
 								/>
 							</FormControl>
 							<FormDescription>Unique identifier for the volume.</FormDescription>
@@ -127,10 +130,11 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 				<FormField
 					control={form.control}
 					name="backend"
+					defaultValue="directory"
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Backend</FormLabel>
-							<Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+							<Select onValueChange={field.onChange} value={field.value}>
 								<FormControl>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a backend" />
