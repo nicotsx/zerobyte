@@ -87,7 +87,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<p className="text-sm text-muted-foreground">Unique identifier for the repository.</p>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="compressionMode">Compression Mode</Label>
+								<Label htmlFor="compressionMode">Compression mode</Label>
 								<Select value={compressionMode} onValueChange={(val) => setCompressionMode(val as CompressionMode)}>
 									<SelectTrigger id="compressionMode">
 										<SelectValue placeholder="Select compression mode" />
@@ -115,11 +115,11 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<p className="mt-1 text-sm">{repository.status || "unknown"}</p>
 							</div>
 							<div>
-								<div className="text-sm font-medium text-muted-foreground">Created At</div>
-								<p className="mt-1 text-sm">{new Date(repository.createdAt * 1000).toLocaleString()}</p>
+								<div className="text-sm font-medium text-muted-foreground">Created at</div>
+								<p className="mt-1 text-sm">{new Date(repository.createdAt).toLocaleString()}</p>
 							</div>
 							<div>
-								<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
+								<div className="text-sm font-medium text-muted-foreground">Last checked</div>
 								<p className="mt-1 text-sm">
 									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
 								</p>

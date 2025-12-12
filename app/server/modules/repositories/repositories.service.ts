@@ -360,23 +360,31 @@ const doctorRepository = async (name: string) => {
 				error: recheckResult.error,
 			});
 		}
+	} catch (error) {
+		steps.push({
+			step: "unexpected_error",
+			success: false,
+			output: null,
+			error: toMessage(error),
+		});
 	} finally {
 		releaseLock();
 	}
 
-	const allSuccessful = steps.every((s) => s.success);
+	const doctorSucceeded = steps.every((step) => step.success);
+	const doctorError = steps.find((step) => step.error)?.error ?? null;
 
 	await db
 		.update(repositoriesTable)
 		.set({
-			status: allSuccessful ? "healthy" : "error",
+			status: doctorSucceeded ? "healthy" : "error",
 			lastChecked: Date.now(),
-			lastError: allSuccessful ? null : steps.find((s) => !s.success)?.error,
+			lastError: doctorError,
 		})
 		.where(eq(repositoriesTable.id, repository.id));
 
 	return {
-		success: allSuccessful,
+		success: doctorSucceeded,
 		steps,
 	};
 };
