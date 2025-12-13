@@ -17,11 +17,9 @@ export class BackupExecutionJob extends Job {
 		logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute`);
 
 		for (const scheduleId of scheduleIds) {
-			try {
-				await backupsService.executeBackup(scheduleId);
-			} catch (error) {
+			backupsService.executeBackup(scheduleId).catch((error) => {
 				logger.error(`Failed to execute backup for schedule ${scheduleId}: ${toMessage(error)}`);
-			}
+			});
 		}
 
 		return { done: true, timestamp: new Date(), executed: scheduleIds.length };

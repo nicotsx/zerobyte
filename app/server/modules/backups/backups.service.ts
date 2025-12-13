@@ -370,7 +370,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 const getSchedulesToExecute = async () => {
 	const now = Date.now();
 	const schedules = await db.query.backupSchedulesTable.findMany({
-		where: eq(backupSchedulesTable.enabled, true),
+		where: and(eq(backupSchedulesTable.enabled, true), ne(backupSchedulesTable.lastBackupStatus, "in_progress")),
 	});
 
 	const schedulesToRun: number[] = [];
