@@ -3,6 +3,7 @@ import { describeRoute, resolver } from "hono-openapi";
 
 export const capabilitiesSchema = type({
 	rclone: "boolean",
+	sysAdmin: "boolean",
 });
 
 export const systemInfoResponse = type({

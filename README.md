@@ -67,6 +67,34 @@ docker compose up -d
 
 Once the container is running, you can access the web interface at `http://<your-server-ip>:4096`.
 
+### Simplified setup (No remote mounts)
+
+If you only need to back up locally mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
+
+```yaml
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:v0.18
+    container_name: zerobyte
+    restart: unless-stopped
+    ports:
+      - "4096:4096"
+    environment:
+      - TZ=Europe/Paris  # Set your timezone here
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+      - /path/to/your/directory:/mydata
+```
+
+**Trade-offs:**
+- ✅ Improved security by reducing container capabilities
+- ✅ Support for local directories
+- ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)
+- ❌ Cannot mount NFS, SMB, or WebDAV shares directly from Zerobyte
+
+If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
+
 ## Adding your first volume
 
 Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, and local directories. A volume represents the source data you want to back up and monitor.

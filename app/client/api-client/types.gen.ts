@@ -2855,6 +2855,7 @@ export type GetSystemInfoResponses = {
     200: {
         capabilities: {
             rclone: boolean;
+            sysAdmin: boolean;
         };
     };
 };
