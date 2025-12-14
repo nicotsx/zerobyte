@@ -188,7 +188,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
 											<p>Remote mounts require SYS_ADMIN capability</p>
 										</TooltipContent>
-										<TooltipContent className={cn({ hidden: capabilities.rclone && !capabilities.sysAdmin })}>
+										<TooltipContent className={cn({ hidden: !capabilities.sysAdmin || capabilities.rclone })}>
 											<p>Setup rclone to use this backend</p>
 										</TooltipContent>
 									</Tooltip>
