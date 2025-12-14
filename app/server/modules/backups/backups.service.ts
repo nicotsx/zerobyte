@@ -289,10 +289,12 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		}
 
 		if (schedule.retentionPolicy) {
-			void runForget(schedule.id);
+			void runForget(schedule.id).catch((error) => {
+				logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
+			});
 		}
 
-		copyToMirrors(scheduleId, repository, schedule.retentionPolicy).catch((error) => {
+		void copyToMirrors(scheduleId, repository, schedule.retentionPolicy).catch((error) => {
 			logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
 		});
 
@@ -421,7 +423,7 @@ const stopBackup = async (scheduleId: number) => {
 	abortController.abort();
 };
 
-const runForget = async (scheduleId: number) => {
+const runForget = async (scheduleId: number, repositoryId?: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: eq(backupSchedulesTable.id, scheduleId),
 	});
@@ -435,7 +437,7 @@ const runForget = async (scheduleId: number) => {
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, schedule.repositoryId),
+		where: eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId),
 	});
 
 	if (!repository) {
@@ -443,7 +445,7 @@ const runForget = async (scheduleId: number) => {
 	}
 
 	logger.info(`running retention policy (forget) for schedule ${scheduleId}`);
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:manual:${scheduleId}`);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 	try {
 		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
 	} finally {
@@ -575,14 +577,11 @@ const copyToMirrors = async (
 			}
 
 			if (retentionPolicy) {
-				const releaseForget = await repoMutex.acquireExclusive(mirror.repository.id, `forget:mirror:${scheduleId}`);
-
-				try {
-					logger.info(`[Background] Applying retention policy to mirror repository: ${mirror.repository.name}`);
-					await restic.forget(mirror.repository.config, retentionPolicy, { tag: scheduleId.toString() });
-				} finally {
-					releaseForget();
-				}
+				void runForget(scheduleId, mirror.repository.id).catch((error) => {
+					logger.error(
+						`Failed to run retention policy for mirror repository ${mirror.repository.name}: ${toMessage(error)}`,
+					);
+				});
 			}
 
 			await db
