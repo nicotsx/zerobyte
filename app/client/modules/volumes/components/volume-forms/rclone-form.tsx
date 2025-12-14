@@ -23,12 +23,12 @@ type Props = {
 export const RcloneForm = ({ form }: Props) => {
 	const { capabilities } = useSystemInfo();
 
-	const { data: rcloneRemotes, isLoading: isLoadingRemotes } = useQuery({
+	const { data: rcloneRemotes, isPending } = useQuery({
 		...listRcloneRemotesOptions(),
 		enabled: capabilities.rclone,
 	});
 
-	if (!isLoadingRemotes && (!rcloneRemotes || rcloneRemotes.length === 0)) {
+	if (!isPending && !rcloneRemotes?.length) {
 		return (
 			<Alert>
 				<AlertDescription className="space-y-2">
@@ -65,7 +65,7 @@ export const RcloneForm = ({ form }: Props) => {
 								</SelectTrigger>
 							</FormControl>
 							<SelectContent>
-								{isLoadingRemotes ? (
+								{isPending ? (
 									<SelectItem value="loading" disabled>
 										Loading remotes...
 									</SelectItem>

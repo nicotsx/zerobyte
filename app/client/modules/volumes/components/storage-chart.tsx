@@ -100,7 +100,7 @@ export function StorageChart({ statfs }: Props) {
 							<div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
 								<div className="flex items-center gap-3">
 									<HardDrive className="h-4 w-4 text-muted-foreground" />
-									<span className="font-medium">Total Capacity</span>
+									<span className="font-medium">Total capacity</span>
 								</div>
 								<ByteSize bytes={statfs.total} className="font-mono text-sm" />
 							</div>
@@ -108,7 +108,7 @@ export function StorageChart({ statfs }: Props) {
 							<div className="flex items-center justify-between p-3 rounded-lg bg-strong-accent/10">
 								<div className="flex items-center gap-3">
 									<div className="h-4 w-4 rounded-full bg-strong-accent" />
-									<span className="font-medium">Used Space</span>
+									<span className="font-medium">Used space</span>
 								</div>
 								<div className="text-right">
 									<ByteSize bytes={statfs.used} className="font-mono text-sm" />
@@ -118,7 +118,7 @@ export function StorageChart({ statfs }: Props) {
 							<div className="flex items-center justify-between p-3 rounded-lg bg-primary/10">
 								<div className="flex items-center gap-3">
 									<div className="h-4 w-4 rounded-full bg-primary" />
-									<span className="font-medium">Free Space</span>
+									<span className="font-medium">Free space</span>
 								</div>
 								<div className="text-right">
 									<ByteSize bytes={statfs.free} className="font-mono text-sm" />
