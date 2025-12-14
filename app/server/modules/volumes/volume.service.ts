@@ -1,11 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import Docker from "dockerode";
 import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
-import { getCapabilities, parseDockerHost } from "../../core/capabilities";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
@@ -282,49 +280,6 @@ const checkHealth = async (name: string) => {
 	return { status, error };
 };
 
-const getContainersUsingVolume = async (name: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
-	});
-
-	if (!volume) {
-		throw new NotFoundError("Volume not found");
-	}
-
-	const { docker } = await getCapabilities();
-	if (!docker) {
-		logger.debug("Docker capability not available, returning empty containers list");
-		return { containers: [] };
-	}
-
-	try {
-		const docker = new Docker(parseDockerHost(process.env.DOCKER_HOST));
-
-		const containers = await docker.listContainers({ all: true });
-
-		const usingContainers = [];
-		for (const info of containers) {
-			const container = docker.getContainer(info.Id);
-			const inspect = await container.inspect();
-			const mounts = inspect.Mounts || [];
-			const usesVolume = mounts.some((mount) => mount.Type === "volume" && mount.Name === `zb-${volume.shortId}`);
-			if (usesVolume) {
-				usingContainers.push({
-					id: inspect.Id,
-					name: inspect.Name,
-					state: inspect.State.Status,
-					image: inspect.Config.Image,
-				});
-			}
-		}
-
-		return { containers: usingContainers };
-	} catch (error) {
-		logger.error(`Failed to get containers using volume: ${toMessage(error)}`);
-		return { containers: [] };
-	}
-};
-
 const listFiles = async (name: string, subPath?: string) => {
 	const volume = await db.query.volumesTable.findFirst({
 		where: eq(volumesTable.name, name),
@@ -443,7 +398,6 @@ export const volumeService = {
 	testConnection,
 	unmountVolume,
 	checkHealth,
-	getContainersUsingVolume,
 	listFiles,
 	browseFilesystem,
 };

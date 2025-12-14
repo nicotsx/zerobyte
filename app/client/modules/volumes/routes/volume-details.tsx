@@ -21,9 +21,6 @@ import { cn } from "~/client/lib/utils";
 import type { Route } from "./+types/volume-details";
 import { VolumeInfoTabContent } from "../tabs/info";
 import { FilesTabContent } from "../tabs/files";
-import { DockerTabContent } from "../tabs/docker";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
-import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { getVolume } from "~/client/api-client";
 import type { VolumeStatus } from "~/client/lib/types";
 import {
@@ -73,8 +70,6 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 		...getVolumeOptions({ path: { name: name ?? "" } }),
 		initialData: loaderData,
 	});
-
-	const { capabilities } = useSystemInfo();
 
 	const deleteVol = useMutation({
 		...deleteVolumeMutation(),
@@ -127,7 +122,6 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 	}
 
 	const { volume, statfs } = data;
-	const dockerAvailable = capabilities.docker;
 
 	return (
 		<>
@@ -170,16 +164,6 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 				<TabsList className="mb-2">
 					<TabsTrigger value="info">Configuration</TabsTrigger>
 					<TabsTrigger value="files">Files</TabsTrigger>
-					<Tooltip>
-						<TooltipTrigger>
-							<TabsTrigger disabled={!dockerAvailable} value="docker">
-								Docker
-							</TabsTrigger>
-						</TooltipTrigger>
-						<TooltipContent className={cn({ hidden: dockerAvailable })}>
-							<p>Enable Docker support to access this tab.</p>
-						</TooltipContent>
-					</Tooltip>
 				</TabsList>
 				<TabsContent value="info">
 					<VolumeInfoTabContent volume={volume} statfs={statfs} />
@@ -187,11 +171,6 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 				<TabsContent value="files">
 					<FilesTabContent volume={volume} />
 				</TabsContent>
-				{dockerAvailable && (
-					<TabsContent value="docker">
-						<DockerTabContent volume={volume} />
-					</TabsContent>
-				)}
 			</Tabs>
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

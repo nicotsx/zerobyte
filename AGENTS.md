@@ -19,7 +19,6 @@ Zerobyte is a backup automation tool built on top of Restic that provides a web 
 - **Styling**: Tailwind CSS v4 + Radix UI components
 - **Architecture**: Unified application structure (not a monorepo)
 - **Code Quality**: Biome (formatter & linter)
-- **Containerization**: Docker with multi-stage builds
 
 ## Repository Structure
 
@@ -84,9 +83,7 @@ The server follows a modular service-oriented architecture:
 
 **Entry Point**: `app/server/index.ts`
 
-- Initializes servers using `react-router-hono-server`:
-  1. Main API server on port 4096 (REST API + serves static frontend)
-  2. Docker volume plugin server on Unix socket `/run/docker/plugins/zerobyte.sock` (optional, if Docker is available)
+- Initializes main API server on port 4096 (REST API + serves static frontend)
 
 **Modules** (`app/server/modules/`):
 Each module follows a controller � service � database pattern:
@@ -116,7 +113,7 @@ Cron-based background jobs managed by the Scheduler:
 **Core** (`app/server/core/`):
 
 - `scheduler.ts` - Job scheduling system using node-cron
-- `capabilities.ts` - Detects available system features (Docker support, etc.)
+- `capabilities.ts` - Detects available system features
 - `constants.ts` - Application-wide constants
 
 **Utils** (`app/server/utils/`):
@@ -188,17 +185,6 @@ Zerobyte is a wrapper around Restic for backup operations. Key integration point
 - Dynamically generates rclone config and passes via environment variables
 - Supports backends like Dropbox, Google Drive, OneDrive, Backblaze B2, etc.
 
-## Docker Volume Plugin
-
-When Docker socket is available (`/var/run/docker.sock`), Zerobyte registers as a Docker volume plugin:
-
-**Plugin Location**: `/run/docker/plugins/zerobyte.sock`
-**Implementation**: `app/server/modules/driver/driver.controller.ts`
-
-This allows other containers to mount Zerobyte volumes using Docker.
-
-The plugin implements the Docker Volume Plugin API v1.
-
 ## Environment & Configuration
 
 **Runtime Environment Variables**:
@@ -212,7 +198,7 @@ The plugin implements the Docker Volume Plugin API v1.
 **Capabilities Detection**:
 On startup, the server detects available capabilities (see `core/capabilities.ts`):
 
-- **Docker**: Requires `/var/run/docker.sock` access
+- **rclone**: Requires `/root/.config/rclone` directory access
 - System will gracefully degrade if capabilities are unavailable
 
 ## Common Workflows
@@ -252,16 +238,3 @@ On startup, the server detects available capabilities (see `core/capabilities.ts
 - **Security**: Restic password file has 0600 permissions - never expose it
 - **Mounting**: Requires privileged container or CAP_SYS_ADMIN for FUSE mounts
 - **API Documentation**: OpenAPI spec auto-generated at `/api/v1/openapi.json`, docs at `/api/v1/docs`
-
-## Docker Development Setup
-
-The `docker-compose.yml` defines two services:
-
-- `zerobyte-dev` - Development with hot reload (uses `development` stage)
-- `zerobyte-prod` - Production build (uses `production` stage)
-
-Both mount:
-
-- `/var/lib/zerobyte` for persistent data
-- `/dev/fuse` device for FUSE mounting
-- Optionally `/var/run/docker.sock` for Docker plugin functionality

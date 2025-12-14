@@ -4,7 +4,6 @@ import {
 	createVolumeBody,
 	createVolumeDto,
 	deleteVolumeDto,
-	getContainersDto,
 	getVolumeDto,
 	healthCheckDto,
 	type ListVolumesDto,
@@ -18,7 +17,6 @@ import {
 	updateVolumeDto,
 	type CreateVolumeDto,
 	type GetVolumeDto,
-	type ListContainersDto,
 	type UpdateVolumeDto,
 	type ListFilesDto,
 	browseFilesystemDto,
@@ -73,12 +71,6 @@ export const volumeController = new Hono()
 		};
 
 		return c.json<GetVolumeDto>(response, 200);
-	})
-	.get("/:name/containers", getContainersDto, async (c) => {
-		const { name } = c.req.param();
-		const { containers } = await volumeService.getContainersUsingVolume(name);
-
-		return c.json<ListContainersDto>(containers, 200);
 	})
 	.put("/:name", updateVolumeDto, validator("json", updateVolumeBody), async (c) => {
 		const { name } = c.req.param();
