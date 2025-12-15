@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
@@ -68,7 +69,12 @@ export const R2RepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Secret Access Key</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="••••••••" {...field} />
+							<SecretInput
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+								isDirty={form.getFieldState("secretAccessKey", form.formState).isDirty}
+							/>
 						</FormControl>
 						<FormDescription>R2 API token Secret Access Key (shown once when creating token).</FormDescription>
 						<FormMessage />

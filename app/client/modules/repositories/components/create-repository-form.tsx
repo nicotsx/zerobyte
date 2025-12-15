@@ -16,6 +16,7 @@ import {
 	FormMessage,
 } from "../../../components/ui/form";
 import { Input } from "../../../components/ui/input";
+import { SecretInput } from "../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
@@ -241,7 +242,12 @@ export const CreateRepositoryForm = ({
 									<FormItem>
 										<FormLabel>Repository Password</FormLabel>
 										<FormControl>
-											<Input type="password" placeholder="Enter repository password" {...field} />
+											<SecretInput
+												placeholder="Enter repository password"
+												value={field.value ?? ""}
+												onChange={field.onChange}
+												isDirty={form.getFieldState("customPassword", form.formState).isDirty}
+											/>
 										</FormControl>
 										<FormDescription>
 											The password used to encrypt this repository. It will be stored securely.

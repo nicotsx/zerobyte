@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
@@ -66,7 +67,12 @@ export const RestRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="••••••••" {...field} />
+							<SecretInput
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+								isDirty={form.getFieldState("password", form.formState).isDirty}
+							/>
 						</FormControl>
 						<FormDescription>Password for REST server authentication.</FormDescription>
 						<FormMessage />
