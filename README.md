@@ -131,14 +131,12 @@ If you enter a normal value (not starting with `env://` or `file://`), Zerobyte 
 
 Examples:
 
-```yaml
-# SMB volume password from an env var
-password: env://SMB_PASSWORD
+In the web UI, enter the following values in the corresponding fields:
 
-# S3 secret access key from a Docker secret
-secretAccessKey: file://s3-secret-access-key
-```
-
+| Field             | Value to enter                | Description                                 |
+|-------------------|------------------------------|---------------------------------------------|
+| password          | `env://SMB_PASSWORD`         | SMB volume password from an environment variable |
+| secretAccessKey   | `file://s3-secret-access-key`| S3 secret access key from a Docker secret   |
 ### Using rclone for cloud storage
 
 Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage providers including Google Drive, Dropbox, OneDrive, Box, pCloud, Mega, and many more. This gives you the flexibility to store your backups on virtually any cloud storage service.
