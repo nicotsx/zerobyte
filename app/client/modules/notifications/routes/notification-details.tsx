@@ -26,7 +26,7 @@ import { cn } from "~/client/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Bell, Save, TestTube2, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
-import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
+import { CreateNotificationForm, type NotificationFormValues, toNotificationConfig } from "../components/create-notification-form";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -109,7 +109,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 			path: { id: String(data.id) },
 			body: {
 				name: values.name,
-				config: values,
+				config: toNotificationConfig(values),
 			},
 		});
 	};
@@ -172,7 +172,12 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 							</AlertDescription>
 						</Alert>
 					)}
-					<CreateNotificationForm mode="update" formId={formId} onSubmit={handleSubmit} initialValues={data.config} />
+					<CreateNotificationForm
+						mode="update"
+						formId={formId}
+						onSubmit={handleSubmit}
+						initialValues={{ name: data.name, ...data.config }}
+					/>
 					<div className="flex justify-end gap-2 pt-4 border-t">
 						<Button type="submit" form={formId} loading={updateDestination.isPending}>
 							<Save className="h-4 w-4 mr-2" />

@@ -7,6 +7,7 @@ import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-qu
 import {
 	CreateRepositoryForm,
 	type RepositoryFormValues,
+	toRepositoryConfig,
 } from "~/client/modules/repositories/components/create-repository-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -43,7 +44,7 @@ export default function CreateRepository() {
 	const handleSubmit = (values: RepositoryFormValues) => {
 		createRepository.mutate({
 			body: {
-				config: values,
+				config: toRepositoryConfig(values),
 				name: values.name,
 				compressionMode: values.compressionMode,
 			},

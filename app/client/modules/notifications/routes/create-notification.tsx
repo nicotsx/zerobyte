@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui
 import { parseError } from "~/client/lib/errors";
 import type { Route } from "./+types/create-notification";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
-import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
+import { CreateNotificationForm, type NotificationFormValues, toNotificationConfig } from "../components/create-notification-form";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Notifications", href: "/notifications" }, { label: "Create" }],
@@ -38,7 +38,7 @@ export default function CreateNotification() {
 	});
 
 	const handleSubmit = (values: NotificationFormValues) => {
-		createNotification.mutate({ body: { name: values.name, config: values } });
+		createNotification.mutate({ body: { name: values.name, config: toNotificationConfig(values) } });
 	};
 
 	return (

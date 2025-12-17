@@ -9,7 +9,11 @@ import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
-import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
+import { REPOSITORY_CONFIG_SHAPES, type CompressionMode, type OverwriteMode, type RepositoryConfig } from "~/schemas/restic";
+import { stripDiscriminatedUnion } from "~/utils/object";
+
+const stripToRepositoryConfig = (config: RepositoryConfig): RepositoryConfig =>
+	stripDiscriminatedUnion(config, "backend", REPOSITORY_CONFIG_SHAPES) as unknown as RepositoryConfig;
 
 const listRepositories = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
@@ -65,9 +69,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 
-	let processedConfig = config;
-	if (config.backend === "local") {
-		processedConfig = { ...config, name: shortId };
+	let processedConfig = stripToRepositoryConfig(config);
+	if (processedConfig.backend === "local") {
+		processedConfig = { ...processedConfig, name: shortId };
 	}
 
 	const encryptedConfig = await encryptConfig(processedConfig);
@@ -78,7 +82,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 			id,
 			shortId,
 			name: slug,
-			type: config.backend,
+			type: processedConfig.backend,
 			config: encryptedConfig,
 			compressionMode: compressionMode ?? "auto",
 			status: "unknown",
@@ -91,7 +95,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let error: string | null = null;
 
-	if (config.isExistingRepository) {
+	if (processedConfig.isExistingRepository) {
 		const result = await restic
 			.snapshots(encryptedConfig)
 			.then(() => ({ error: null }))

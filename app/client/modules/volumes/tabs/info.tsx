@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
-import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
+import { CreateVolumeForm, type FormValues, toBackendConfig } from "~/client/modules/volumes/components/create-volume-form";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -59,7 +59,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 		if (pendingValues) {
 			updateMutation.mutate({
 				path: { name: volume.name },
-				body: { name: pendingValues.name, config: pendingValues },
+				body: { name: pendingValues.name, config: toBackendConfig(pendingValues) },
 			});
 		}
 	};
@@ -69,7 +69,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 			<div className="grid gap-4 xl:grid-cols-[minmax(0,2.3fr)_minmax(320px,1fr)]">
 				<Card className="p-6">
 					<CreateVolumeForm
-						initialValues={{ ...volume, ...volume.config }}
+						initialValues={{ name: volume.name, ...volume.config }}
 						onSubmit={handleSubmit}
 						mode="update"
 						loading={updateMutation.isPending}

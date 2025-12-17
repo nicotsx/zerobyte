@@ -16,7 +16,11 @@ import type { UpdateVolumeBody } from "./volume.dto";
 import { getVolumePath } from "./helpers";
 import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
-import type { BackendConfig } from "~/schemas/volumes";
+import { VOLUME_CONFIG_SHAPES, type BackendConfig } from "~/schemas/volumes";
+import { stripDiscriminatedUnion } from "~/utils/object";
+
+const stripToBackendConfig = (config: BackendConfig): BackendConfig =>
+	stripDiscriminatedUnion(config, "backend", VOLUME_CONFIG_SHAPES) as unknown as BackendConfig;
 
 async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
 	switch (config.backend) {
@@ -53,7 +57,8 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	}
 
 	const shortId = generateShortId();
-	const encryptedConfig = await encryptSensitiveFields(backendConfig);
+	const processedConfig = stripToBackendConfig(backendConfig);
+	const encryptedConfig = await encryptSensitiveFields(processedConfig);
 
 	const [created] = await db
 		.insert(volumesTable)
@@ -61,7 +66,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 			shortId,
 			name: slug,
 			config: encryptedConfig,
-			type: backendConfig.backend,
+			type: processedConfig.backend,
 		})
 		.returning();
 
@@ -192,14 +197,15 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		await backend.unmount();
 	}
 
-	const encryptedConfig = volumeData.config ? await encryptSensitiveFields(volumeData.config) : undefined;
+	const processedConfig = volumeData.config ? stripToBackendConfig(volumeData.config) : undefined;
+	const encryptedConfig = processedConfig ? await encryptSensitiveFields(processedConfig) : undefined;
 
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
 			name: newName,
 			config: encryptedConfig,
-			type: volumeData.config?.backend,
+			type: processedConfig?.backend,
 			autoRemount: volumeData.autoRemount,
 			updatedAt: Date.now(),
 		})
@@ -226,17 +232,18 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 
 const testConnection = async (backendConfig: BackendConfig) => {
 	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-test-"));
+	const sanitizedConfig = stripToBackendConfig(backendConfig);
 
 	const mockVolume = {
 		id: 0,
 		shortId: "test",
 		name: "test-connection",
 		path: tempDir,
-		config: backendConfig,
+		config: sanitizedConfig,
 		createdAt: Date.now(),
 		updatedAt: Date.now(),
 		lastHealthCheck: Date.now(),
-		type: backendConfig.backend,
+		type: sanitizedConfig.backend,
 		status: "unmounted" as const,
 		lastError: null,
 		autoRemount: true,

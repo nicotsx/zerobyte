@@ -14,70 +14,88 @@ export const REPOSITORY_BACKENDS = {
 export type RepositoryBackend = keyof typeof REPOSITORY_BACKENDS;
 
 // Common fields for all repository configs
-const baseRepositoryConfigSchema = type({
+export const baseRepositoryConfigShape = {
 	isExistingRepository: "boolean?",
 	customPassword: "string?",
-});
+} as const;
 
-export const s3RepositoryConfigSchema = type({
+const baseRepositoryConfigSchema = type(baseRepositoryConfigShape);
+
+export const s3RepositoryConfigShape = {
 	backend: "'s3'",
 	endpoint: "string",
 	bucket: "string",
 	accessKeyId: "string",
 	secretAccessKey: "string",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const r2RepositoryConfigSchema = type({
+export const s3RepositoryConfigSchema = type(s3RepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const r2RepositoryConfigShape = {
 	backend: "'r2'",
 	endpoint: "string",
 	bucket: "string",
 	accessKeyId: "string",
 	secretAccessKey: "string",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const localRepositoryConfigSchema = type({
+export const r2RepositoryConfigSchema = type(r2RepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const localRepositoryConfigShape = {
 	backend: "'local'",
 	name: "string",
 	path: "string?",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const gcsRepositoryConfigSchema = type({
+export const localRepositoryConfigSchema = type(localRepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const gcsRepositoryConfigShape = {
 	backend: "'gcs'",
 	bucket: "string",
 	projectId: "string",
 	credentialsJson: "string",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const azureRepositoryConfigSchema = type({
+export const gcsRepositoryConfigSchema = type(gcsRepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const azureRepositoryConfigShape = {
 	backend: "'azure'",
 	container: "string",
 	accountName: "string",
 	accountKey: "string",
 	endpointSuffix: "string?",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const rcloneRepositoryConfigSchema = type({
+export const azureRepositoryConfigSchema = type(azureRepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const rcloneRepositoryConfigShape = {
 	backend: "'rclone'",
 	remote: "string",
 	path: "string",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const restRepositoryConfigSchema = type({
+export const rcloneRepositoryConfigSchema = type(rcloneRepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const restRepositoryConfigShape = {
 	backend: "'rest'",
 	url: "string",
 	username: "string?",
 	password: "string?",
 	path: "string?",
-}).and(baseRepositoryConfigSchema);
+} as const;
 
-export const sftpRepositoryConfigSchema = type({
+export const restRepositoryConfigSchema = type(restRepositoryConfigShape).and(baseRepositoryConfigSchema);
+
+export const sftpRepositoryConfigShape = {
 	backend: "'sftp'",
 	host: "string",
 	port: type("string.integer").or(type("number")).to("1 <= number <= 65535").default(22),
 	user: "string",
 	path: "string",
 	privateKey: "string",
-}).and(baseRepositoryConfigSchema);
+} as const;
+
+export const sftpRepositoryConfigSchema = type(sftpRepositoryConfigShape).and(baseRepositoryConfigSchema);
 
 export const repositoryConfigSchema = s3RepositoryConfigSchema
 	.or(r2RepositoryConfigSchema)
@@ -89,6 +107,17 @@ export const repositoryConfigSchema = s3RepositoryConfigSchema
 	.or(sftpRepositoryConfigSchema);
 
 export type RepositoryConfig = typeof repositoryConfigSchema.infer;
+
+export const REPOSITORY_CONFIG_SHAPES = {
+	local: { ...baseRepositoryConfigShape, ...localRepositoryConfigShape },
+	s3: { ...baseRepositoryConfigShape, ...s3RepositoryConfigShape },
+	r2: { ...baseRepositoryConfigShape, ...r2RepositoryConfigShape },
+	gcs: { ...baseRepositoryConfigShape, ...gcsRepositoryConfigShape },
+	azure: { ...baseRepositoryConfigShape, ...azureRepositoryConfigShape },
+	rclone: { ...baseRepositoryConfigShape, ...rcloneRepositoryConfigShape },
+	rest: { ...baseRepositoryConfigShape, ...restRepositoryConfigShape },
+	sftp: { ...baseRepositoryConfigShape, ...sftpRepositoryConfigShape },
+} as const;
 
 export const COMPRESSION_MODES = {
 	off: "off",

@@ -13,7 +13,7 @@ export const NOTIFICATION_TYPES = {
 
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
-export const emailNotificationConfigSchema = type({
+export const emailNotificationConfigShape = {
 	type: "'email'",
 	smtpHost: "string",
 	smtpPort: "1 <= number <= 65535",
@@ -22,59 +22,75 @@ export const emailNotificationConfigSchema = type({
 	from: "string",
 	to: "string[]",
 	useTLS: "boolean",
-});
+} as const;
 
-export const slackNotificationConfigSchema = type({
+export const emailNotificationConfigSchema = type(emailNotificationConfigShape);
+
+export const slackNotificationConfigShape = {
 	type: "'slack'",
 	webhookUrl: "string",
 	channel: "string?",
 	username: "string?",
 	iconEmoji: "string?",
-});
+} as const;
 
-export const discordNotificationConfigSchema = type({
+export const slackNotificationConfigSchema = type(slackNotificationConfigShape);
+
+export const discordNotificationConfigShape = {
 	type: "'discord'",
 	webhookUrl: "string",
 	username: "string?",
 	avatarUrl: "string?",
 	threadId: "string?",
-});
+} as const;
 
-export const gotifyNotificationConfigSchema = type({
+export const discordNotificationConfigSchema = type(discordNotificationConfigShape);
+
+export const gotifyNotificationConfigShape = {
 	type: "'gotify'",
 	serverUrl: "string",
 	token: "string",
 	path: "string?",
 	priority: "0 <= number <= 10",
-});
+} as const;
 
-export const ntfyNotificationConfigSchema = type({
+export const gotifyNotificationConfigSchema = type(gotifyNotificationConfigShape);
+
+export const ntfyNotificationConfigShape = {
 	type: "'ntfy'",
 	serverUrl: "string?",
 	topic: "string",
 	priority: "'max' | 'high' | 'default' | 'low' | 'min'",
 	username: "string?",
 	password: "string?",
-});
+} as const;
 
-export const pushoverNotificationConfigSchema = type({
+export const ntfyNotificationConfigSchema = type(ntfyNotificationConfigShape);
+
+export const pushoverNotificationConfigShape = {
 	type: "'pushover'",
 	userKey: "string",
 	apiToken: "string",
 	devices: "string?",
 	priority: "-1 | 0 | 1",
-});
+} as const;
 
-export const telegramNotificationConfigSchema = type({
+export const pushoverNotificationConfigSchema = type(pushoverNotificationConfigShape);
+
+export const telegramNotificationConfigShape = {
 	type: "'telegram'",
 	botToken: "string",
 	chatId: "string",
-});
+} as const;
 
-export const customNotificationConfigSchema = type({
+export const telegramNotificationConfigSchema = type(telegramNotificationConfigShape);
+
+export const customNotificationConfigShape = {
 	type: "'custom'",
 	shoutrrrUrl: "string",
-});
+} as const;
+
+export const customNotificationConfigSchema = type(customNotificationConfigShape);
 
 export const notificationConfigSchema = emailNotificationConfigSchema
 	.or(slackNotificationConfigSchema)
@@ -86,6 +102,17 @@ export const notificationConfigSchema = emailNotificationConfigSchema
 	.or(customNotificationConfigSchema);
 
 export type NotificationConfig = typeof notificationConfigSchema.infer;
+
+export const NOTIFICATION_CONFIG_SHAPES = {
+	email: emailNotificationConfigShape,
+	slack: slackNotificationConfigShape,
+	discord: discordNotificationConfigShape,
+	gotify: gotifyNotificationConfigShape,
+	ntfy: ntfyNotificationConfigShape,
+	pushover: pushoverNotificationConfigShape,
+	telegram: telegramNotificationConfigShape,
+	custom: customNotificationConfigShape,
+} as const;
 
 export const NOTIFICATION_EVENTS = {
 	start: "start",

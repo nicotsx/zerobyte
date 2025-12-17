@@ -11,8 +11,12 @@ import { cryptoUtils } from "../../utils/crypto";
 import { logger } from "../../utils/logger";
 import { sendNotification } from "../../utils/shoutrrr";
 import { buildShoutrrrUrl } from "./builders";
-import type { NotificationConfig, NotificationEvent } from "~/schemas/notifications";
+import { NOTIFICATION_CONFIG_SHAPES, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import { toMessage } from "../../utils/errors";
+import { stripDiscriminatedUnion } from "~/utils/object";
+
+const stripToNotificationConfig = (config: NotificationConfig): NotificationConfig =>
+	stripDiscriminatedUnion(config, "type", NOTIFICATION_CONFIG_SHAPES) as unknown as NotificationConfig;
 
 const listDestinations = async () => {
 	const destinations = await db.query.notificationDestinationsTable.findMany({
@@ -138,13 +142,14 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 		throw new ConflictError("Notification destination with this name already exists");
 	}
 
-	const encryptedConfig = await encryptSensitiveFields(config);
+	const processedConfig = stripToNotificationConfig(config);
+	const encryptedConfig = await encryptSensitiveFields(processedConfig);
 
 	const [created] = await db
 		.insert(notificationDestinationsTable)
 		.values({
 			name: slug,
-			type: config.type,
+			type: processedConfig.type,
 			config: encryptedConfig,
 		})
 		.returning();
@@ -188,9 +193,10 @@ const updateDestination = async (
 	}
 
 	if (updates.config !== undefined) {
-		const encryptedConfig = await encryptSensitiveFields(updates.config);
+		const processedConfig = stripToNotificationConfig(updates.config);
+		const encryptedConfig = await encryptSensitiveFields(processedConfig);
 		updateData.config = encryptedConfig;
-		updateData.type = updates.config.type;
+		updateData.type = processedConfig.type;
 	}
 
 	const [updated] = await db

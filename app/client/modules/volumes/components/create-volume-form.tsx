@@ -23,6 +23,8 @@ import { testConnectionMutation } from "../../../api-client/@tanstack/react-quer
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm } from "./volume-forms";
+import { VOLUME_CONFIG_SHAPES, type BackendConfig } from "~/schemas/volumes";
+import { stripDiscriminatedUnion } from "~/utils/object";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -30,6 +32,9 @@ export const formSchema = type({
 const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
 
 export type FormValues = typeof formSchema.inferIn;
+
+export const toBackendConfig = (values: FormValues): BackendConfig =>
+	stripDiscriminatedUnion(values, "backend", VOLUME_CONFIG_SHAPES) as unknown as BackendConfig;
 
 type Props = {
 	onSubmit: (values: FormValues) => void;
@@ -98,7 +103,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 
 		if (formValues.backend === "nfs" || formValues.backend === "smb" || formValues.backend === "webdav") {
 			testBackendConnection.mutate({
-				body: { config: formValues },
+				body: { config: toBackendConfig(formValues) },
 			});
 		}
 	};

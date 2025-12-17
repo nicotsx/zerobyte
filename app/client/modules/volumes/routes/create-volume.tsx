@@ -4,7 +4,7 @@ import { useId } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
+import { CreateVolumeForm, type FormValues, toBackendConfig } from "~/client/modules/volumes/components/create-volume-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
@@ -40,7 +40,7 @@ export default function CreateVolume() {
 	const handleSubmit = (values: FormValues) => {
 		createVolume.mutate({
 			body: {
-				config: values,
+				config: toBackendConfig(values),
 				name: values.name,
 			},
 		});

@@ -17,7 +17,8 @@ import { Input } from "~/client/components/ui/input";
 import { SecretInput } from "~/client/components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Checkbox } from "~/client/components/ui/checkbox";
-import { notificationConfigSchema } from "~/schemas/notifications";
+import { NOTIFICATION_CONFIG_SHAPES, notificationConfigSchema, type NotificationConfig } from "~/schemas/notifications";
+import { stripDiscriminatedUnion } from "~/utils/object";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -25,6 +26,9 @@ export const formSchema = type({
 const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
 
 export type NotificationFormValues = typeof formSchema.inferIn;
+
+export const toNotificationConfig = (values: NotificationFormValues): NotificationConfig =>
+	stripDiscriminatedUnion(values, "type", NOTIFICATION_CONFIG_SHAPES) as unknown as NotificationConfig;
 
 type Props = {
 	onSubmit: (values: NotificationFormValues) => void;

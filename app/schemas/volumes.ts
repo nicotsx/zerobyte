@@ -10,16 +10,18 @@ export const BACKEND_TYPES = {
 
 export type BackendType = keyof typeof BACKEND_TYPES;
 
-export const nfsConfigSchema = type({
+export const nfsConfigShape = {
 	backend: "'nfs'",
 	server: "string",
 	exportPath: "string",
 	port: type("string.integer").or(type("number")).to("1 <= number <= 65536").default(2049),
 	version: "'3' | '4' | '4.1'",
 	readOnly: "boolean?",
-});
+} as const;
 
-export const smbConfigSchema = type({
+export const nfsConfigSchema = type(nfsConfigShape);
+
+export const smbConfigShape = {
 	backend: "'smb'",
 	server: "string",
 	share: "string",
@@ -29,15 +31,19 @@ export const smbConfigSchema = type({
 	domain: "string?",
 	port: type("string.integer").or(type("number")).to("1 <= number <= 65535").default(445),
 	readOnly: "boolean?",
-});
+} as const;
 
-export const directoryConfigSchema = type({
+export const smbConfigSchema = type(smbConfigShape);
+
+export const directoryConfigShape = {
 	backend: "'directory'",
 	path: "string",
 	readOnly: "false?",
-});
+} as const;
 
-export const webdavConfigSchema = type({
+export const directoryConfigSchema = type(directoryConfigShape);
+
+export const webdavConfigShape = {
 	backend: "'webdav'",
 	server: "string",
 	path: "string",
@@ -46,18 +52,30 @@ export const webdavConfigSchema = type({
 	port: type("string.integer").or(type("number")).to("1 <= number <= 65536").default(80),
 	readOnly: "boolean?",
 	ssl: "boolean?",
-});
+} as const;
 
-export const rcloneConfigSchema = type({
+export const webdavConfigSchema = type(webdavConfigShape);
+
+export const rcloneConfigShape = {
 	backend: "'rclone'",
 	remote: "string",
 	path: "string",
 	readOnly: "boolean?",
-});
+} as const;
+
+export const rcloneConfigSchema = type(rcloneConfigShape);
 
 export const volumeConfigSchema = nfsConfigSchema.or(smbConfigSchema).or(webdavConfigSchema).or(directoryConfigSchema).or(rcloneConfigSchema);
 
 export type BackendConfig = typeof volumeConfigSchema.infer;
+
+export const VOLUME_CONFIG_SHAPES = {
+	nfs: nfsConfigShape,
+	smb: smbConfigShape,
+	webdav: webdavConfigShape,
+	directory: directoryConfigShape,
+	rclone: rcloneConfigShape,
+} as const;
 
 export const BACKEND_STATUS = {
 	mounted: "mounted",

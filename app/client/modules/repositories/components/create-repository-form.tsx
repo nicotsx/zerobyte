@@ -20,8 +20,9 @@ import { SecretInput } from "../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
-import { COMPRESSION_MODES, repositoryConfigSchema } from "~/schemas/restic";
+import { COMPRESSION_MODES, REPOSITORY_CONFIG_SHAPES, repositoryConfigSchema, type RepositoryConfig } from "~/schemas/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
+import { stripDiscriminatedUnion } from "~/utils/object";
 import {
 	LocalRepositoryForm,
 	S3RepositoryForm,
@@ -40,6 +41,9 @@ export const formSchema = type({
 const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
 
 export type RepositoryFormValues = typeof formSchema.inferIn;
+
+export const toRepositoryConfig = (values: RepositoryFormValues): RepositoryConfig =>
+	stripDiscriminatedUnion(values, "backend", REPOSITORY_CONFIG_SHAPES) as unknown as RepositoryConfig;
 
 type Props = {
 	onSubmit: (values: RepositoryFormValues) => void;
