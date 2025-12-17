@@ -34,7 +34,7 @@ const mount = async (config: BackendConfig, path: string) => {
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true });
 
-		const password = await cryptoUtils.decrypt(config.password);
+		const password = await cryptoUtils.resolveSecret(config.password);
 
 		const source = `//${config.server}/${config.share}`;
 		const options = [

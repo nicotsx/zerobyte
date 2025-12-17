@@ -17,6 +17,9 @@
 		"studio": "drizzle-kit studio"
 	},
 	"dependencies": {
+		"@dnd-kit/core": "^6.3.1",
+		"@dnd-kit/sortable": "^10.0.0",
+		"@dnd-kit/utilities": "^3.2.2",
 		"@hono/standard-validator": "^0.2.0",
 		"@hookform/resolvers": "^5.2.2",
 		"@radix-ui/react-alert-dialog": "^1.1.15",

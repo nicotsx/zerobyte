@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
@@ -52,7 +53,7 @@ export const AzureRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Account Key</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="••••••••" {...field} />
+							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
 						</FormControl>
 						<FormDescription>Azure Storage account key for authentication.</FormDescription>
 						<FormMessage />

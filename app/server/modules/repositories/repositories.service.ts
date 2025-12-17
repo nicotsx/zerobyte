@@ -20,31 +20,31 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	const encryptedConfig: Record<string, string | boolean | number> = { ...config };
 
 	if (config.customPassword) {
-		encryptedConfig.customPassword = await cryptoUtils.encrypt(config.customPassword);
+		encryptedConfig.customPassword = await cryptoUtils.sealSecret(config.customPassword);
 	}
 
 	switch (config.backend) {
 		case "s3":
 		case "r2":
-			encryptedConfig.accessKeyId = await cryptoUtils.encrypt(config.accessKeyId);
-			encryptedConfig.secretAccessKey = await cryptoUtils.encrypt(config.secretAccessKey);
+			encryptedConfig.accessKeyId = await cryptoUtils.sealSecret(config.accessKeyId);
+			encryptedConfig.secretAccessKey = await cryptoUtils.sealSecret(config.secretAccessKey);
 			break;
 		case "gcs":
-			encryptedConfig.credentialsJson = await cryptoUtils.encrypt(config.credentialsJson);
+			encryptedConfig.credentialsJson = await cryptoUtils.sealSecret(config.credentialsJson);
 			break;
 		case "azure":
-			encryptedConfig.accountKey = await cryptoUtils.encrypt(config.accountKey);
+			encryptedConfig.accountKey = await cryptoUtils.sealSecret(config.accountKey);
 			break;
 		case "rest":
 			if (config.username) {
-				encryptedConfig.username = await cryptoUtils.encrypt(config.username);
+				encryptedConfig.username = await cryptoUtils.sealSecret(config.username);
 			}
 			if (config.password) {
-				encryptedConfig.password = await cryptoUtils.encrypt(config.password);
+				encryptedConfig.password = await cryptoUtils.sealSecret(config.password);
 			}
 			break;
 		case "sftp":
-			encryptedConfig.privateKey = await cryptoUtils.encrypt(config.privateKey);
+			encryptedConfig.privateKey = await cryptoUtils.sealSecret(config.privateKey);
 			break;
 	}
 

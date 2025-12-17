@@ -92,6 +92,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),
 	lastBackupError: text("last_backup_error"),
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
+	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
 	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });

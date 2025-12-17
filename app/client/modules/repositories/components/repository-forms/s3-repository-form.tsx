@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
@@ -66,7 +67,7 @@ export const S3RepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Secret Access Key</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="••••••••" {...field} />
+							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
 						</FormControl>
 						<FormDescription>S3 secret access key for authentication.</FormDescription>
 						<FormMessage />

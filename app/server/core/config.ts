@@ -3,9 +3,11 @@ import "dotenv/config";
 
 const envSchema = type({
 	NODE_ENV: type.enumerated("development", "production", "test").default("production"),
+	SERVER_IP: 'string = "localhost"',
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
+	serverIp: s.SERVER_IP,
 }));
 
 const parseConfig = (env: unknown) => {

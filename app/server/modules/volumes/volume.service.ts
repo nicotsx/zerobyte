@@ -23,12 +23,12 @@ async function encryptSensitiveFields(config: BackendConfig): Promise<BackendCon
 		case "smb":
 			return {
 				...config,
-				password: await cryptoUtils.encrypt(config.password),
+				password: await cryptoUtils.sealSecret(config.password),
 			};
 		case "webdav":
 			return {
 				...config,
-				password: config.password ? await cryptoUtils.encrypt(config.password) : undefined,
+				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
 			};
 		default:
 			return config;

@@ -9,6 +9,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
 
 type Props = {
@@ -67,7 +68,7 @@ export const SMBForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password</FormLabel>
 						<FormControl>
-							<Input type="password" placeholder="••••••••" value={field.value} onChange={field.onChange} />
+							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
 						</FormControl>
 						<FormDescription>Password for SMB authentication.</FormDescription>
 						<FormMessage />

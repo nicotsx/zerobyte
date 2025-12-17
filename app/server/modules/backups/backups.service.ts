@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import cron from "node-cron";
 import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
@@ -38,6 +38,7 @@ const listSchedules = async () => {
 			volume: true,
 			repository: true,
 		},
+		orderBy: [asc(backupSchedulesTable.sortOrder), asc(backupSchedulesTable.id)],
 	});
 	return schedules;
 };
@@ -637,6 +638,36 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 	return compatibility;
 };
 
+const reorderSchedules = async (scheduleIds: number[]) => {
+	const uniqueIds = new Set(scheduleIds);
+	if (uniqueIds.size !== scheduleIds.length) {
+		throw new BadRequestError("Duplicate schedule IDs in reorder request");
+	}
+
+	const existingSchedules = await db.query.backupSchedulesTable.findMany({
+		columns: { id: true },
+	});
+	const existingIds = new Set(existingSchedules.map((s) => s.id));
+
+	for (const id of scheduleIds) {
+		if (!existingIds.has(id)) {
+			throw new NotFoundError(`Backup schedule with ID ${id} not found`);
+		}
+	}
+
+	await db.transaction(async (tx) => {
+		const now = Date.now();
+		await Promise.all(
+			scheduleIds.map((scheduleId, index) =>
+				tx
+					.update(backupSchedulesTable)
+					.set({ sortOrder: index, updatedAt: now })
+					.where(eq(backupSchedulesTable.id, scheduleId)),
+			),
+		);
+	});
+};
+
 export const backupsService = {
 	listSchedules,
 	getSchedule,
@@ -651,4 +682,5 @@ export const backupsService = {
 	getMirrors,
 	updateMirrors,
 	getMirrorCompatibility,
+	reorderSchedules,
 };
