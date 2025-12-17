@@ -41,11 +41,11 @@ export const hasCompatibleCredentials = async (
 				(config1.backend === "s3" || config1.backend === "r2") &&
 				(config2.backend === "s3" || config2.backend === "r2")
 			) {
-				const accessKey1 = await cryptoUtils.decrypt(config1.accessKeyId);
-				const secretKey1 = await cryptoUtils.decrypt(config1.secretAccessKey);
+				const accessKey1 = await cryptoUtils.resolveSecret(config1.accessKeyId);
+				const secretKey1 = await cryptoUtils.resolveSecret(config1.secretAccessKey);
 
-				const accessKey2 = await cryptoUtils.decrypt(config2.accessKeyId);
-				const secretKey2 = await cryptoUtils.decrypt(config2.secretAccessKey);
+				const accessKey2 = await cryptoUtils.resolveSecret(config2.accessKeyId);
+				const secretKey2 = await cryptoUtils.resolveSecret(config2.secretAccessKey);
 
 				return accessKey1 === accessKey2 && secretKey1 === secretKey2;
 			}
@@ -53,8 +53,8 @@ export const hasCompatibleCredentials = async (
 		}
 		case "gcs": {
 			if (config1.backend === "gcs" && config2.backend === "gcs") {
-				const credentials1 = await cryptoUtils.decrypt(config1.credentialsJson);
-				const credentials2 = await cryptoUtils.decrypt(config2.credentialsJson);
+				const credentials1 = await cryptoUtils.resolveSecret(config1.credentialsJson);
+				const credentials2 = await cryptoUtils.resolveSecret(config2.credentialsJson);
 
 				return credentials1 === credentials2 && config1.projectId === config2.projectId;
 			}
@@ -62,8 +62,8 @@ export const hasCompatibleCredentials = async (
 		}
 		case "azure": {
 			if (config1.backend === "azure" && config2.backend === "azure") {
-				const config1Accountkey = await cryptoUtils.decrypt(config1.accountKey);
-				const config2Accountkey = await cryptoUtils.decrypt(config2.accountKey);
+				const config1Accountkey = await cryptoUtils.resolveSecret(config1.accountKey);
+				const config2Accountkey = await cryptoUtils.resolveSecret(config2.accountKey);
 
 				return config1.accountName === config2.accountName && config1Accountkey === config2Accountkey;
 			}
@@ -75,10 +75,10 @@ export const hasCompatibleCredentials = async (
 					return true;
 				}
 
-				const config1Username = await cryptoUtils.decrypt(config1.username || "");
-				const config1Password = await cryptoUtils.decrypt(config1.password || "");
-				const config2Username = await cryptoUtils.decrypt(config2.username || "");
-				const config2Password = await cryptoUtils.decrypt(config2.password || "");
+				const config1Username = await cryptoUtils.resolveSecret(config1.username || "");
+				const config1Password = await cryptoUtils.resolveSecret(config1.password || "");
+				const config2Username = await cryptoUtils.resolveSecret(config2.username || "");
+				const config2Password = await cryptoUtils.resolveSecret(config2.password || "");
 
 				return config1Username === config2Username && config1Password === config2Password;
 			}

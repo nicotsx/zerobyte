@@ -1,4 +1,4 @@
-import { and, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import cron from "node-cron";
 import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
@@ -38,6 +38,7 @@ const listSchedules = async () => {
 			volume: true,
 			repository: true,
 		},
+		orderBy: [asc(backupSchedulesTable.sortOrder), asc(backupSchedulesTable.id)],
 	});
 	return schedules;
 };
@@ -300,10 +301,12 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		}
 
 		if (schedule.retentionPolicy) {
-			void runForget(schedule.id);
+			void runForget(schedule.id).catch((error) => {
+				logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
+			});
 		}
 
-		copyToMirrors(scheduleId, repository, schedule.retentionPolicy).catch((error) => {
+		void copyToMirrors(scheduleId, repository, schedule.retentionPolicy).catch((error) => {
 			logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
 		});
 
@@ -381,7 +384,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 const getSchedulesToExecute = async () => {
 	const now = Date.now();
 	const schedules = await db.query.backupSchedulesTable.findMany({
-		where: eq(backupSchedulesTable.enabled, true),
+		where: and(eq(backupSchedulesTable.enabled, true), ne(backupSchedulesTable.lastBackupStatus, "in_progress")),
 	});
 
 	const schedulesToRun: number[] = [];
@@ -432,7 +435,7 @@ const stopBackup = async (scheduleId: number) => {
 	abortController.abort();
 };
 
-const runForget = async (scheduleId: number) => {
+const runForget = async (scheduleId: number, repositoryId?: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: eq(backupSchedulesTable.id, scheduleId),
 	});
@@ -446,7 +449,7 @@ const runForget = async (scheduleId: number) => {
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, schedule.repositoryId),
+		where: eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId),
 	});
 
 	if (!repository) {
@@ -454,7 +457,7 @@ const runForget = async (scheduleId: number) => {
 	}
 
 	logger.info(`running retention policy (forget) for schedule ${scheduleId}`);
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:manual:${scheduleId}`);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 	try {
 		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
 	} finally {
@@ -513,15 +516,32 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		}
 	}
 
+	const existingMirrors = await db.query.backupScheduleMirrorsTable.findMany({
+		where: eq(backupScheduleMirrorsTable.scheduleId, scheduleId),
+	});
+
+	const existingMirrorsMap = new Map(
+		existingMirrors.map((m) => [
+			m.repositoryId,
+			{ lastCopyAt: m.lastCopyAt, lastCopyStatus: m.lastCopyStatus, lastCopyError: m.lastCopyError },
+		]),
+	);
+
 	await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, scheduleId));
 
 	if (data.mirrors.length > 0) {
 		await db.insert(backupScheduleMirrorsTable).values(
-			data.mirrors.map((mirror) => ({
-				scheduleId,
-				repositoryId: mirror.repositoryId,
-				enabled: mirror.enabled,
-			})),
+			data.mirrors.map((mirror) => {
+				const existing = existingMirrorsMap.get(mirror.repositoryId);
+				return {
+					scheduleId,
+					repositoryId: mirror.repositoryId,
+					enabled: mirror.enabled,
+					lastCopyAt: existing?.lastCopyAt ?? null,
+					lastCopyStatus: existing?.lastCopyStatus ?? null,
+					lastCopyError: existing?.lastCopyError ?? null,
+				};
+			}),
 		);
 	}
 
@@ -569,14 +589,11 @@ const copyToMirrors = async (
 			}
 
 			if (retentionPolicy) {
-				const releaseForget = await repoMutex.acquireExclusive(mirror.repository.id, `forget:mirror:${scheduleId}`);
-
-				try {
-					logger.info(`[Background] Applying retention policy to mirror repository: ${mirror.repository.name}`);
-					await restic.forget(mirror.repository.config, retentionPolicy, { tag: scheduleId.toString() });
-				} finally {
-					releaseForget();
-				}
+				void runForget(scheduleId, mirror.repository.id).catch((error) => {
+					logger.error(
+						`Failed to run retention policy for mirror repository ${mirror.repository.name}: ${toMessage(error)}`,
+					);
+				});
 			}
 
 			await db
@@ -632,6 +649,36 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 	return compatibility;
 };
 
+const reorderSchedules = async (scheduleIds: number[]) => {
+	const uniqueIds = new Set(scheduleIds);
+	if (uniqueIds.size !== scheduleIds.length) {
+		throw new BadRequestError("Duplicate schedule IDs in reorder request");
+	}
+
+	const existingSchedules = await db.query.backupSchedulesTable.findMany({
+		columns: { id: true },
+	});
+	const existingIds = new Set(existingSchedules.map((s) => s.id));
+
+	for (const id of scheduleIds) {
+		if (!existingIds.has(id)) {
+			throw new NotFoundError(`Backup schedule with ID ${id} not found`);
+		}
+	}
+
+	await db.transaction(async (tx) => {
+		const now = Date.now();
+		await Promise.all(
+			scheduleIds.map((scheduleId, index) =>
+				tx
+					.update(backupSchedulesTable)
+					.set({ sortOrder: index, updatedAt: now })
+					.where(eq(backupSchedulesTable.id, scheduleId)),
+			),
+		);
+	});
+};
+
 export const backupsService = {
 	listSchedules,
 	getSchedule,
@@ -646,4 +693,5 @@ export const backupsService = {
 	getMirrors,
 	updateMirrors,
 	getMirrorCompatibility,
+	reorderSchedules,
 };

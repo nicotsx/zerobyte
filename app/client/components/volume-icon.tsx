@@ -31,6 +31,12 @@ const getIconAndColor = (backend: BackendType) => {
 				color: "text-green-600 dark:text-green-400",
 				label: "WebDAV",
 			};
+		case "rclone":
+			return {
+				icon: Cloud,
+				color: "text-cyan-600 dark:text-cyan-400",
+				label: "Rclone",
+			};
 		default:
 			return {
 				icon: Folder,

@@ -164,6 +164,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 						Cancel
 					</Button>
 					<Button variant="primary" onClick={handleRestore} disabled={isRestoring || !canRestore}>
+						<RotateCcw className="h-4 w-4 mr-2" />
 						{isRestoring
 							? "Restoring..."
 							: selectedPaths.size > 0

@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { redirect, useNavigate } from "react-router";
 import { toast } from "sonner";
+import { Save, X } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import {
 	AlertDialog,
@@ -206,9 +207,11 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				<CreateScheduleForm volume={schedule.volume} initialValues={schedule} onSubmit={handleSubmit} formId={formId} />
 				<div className="flex justify-end mt-4 gap-2">
 					<Button type="submit" className="ml-auto" variant="primary" form={formId} loading={updateSchedule.isPending}>
+						<Save className="h-4 w-4 mr-2" />
 						Update schedule
 					</Button>
 					<Button variant="outline" onClick={() => setIsEditMode(false)}>
+						<X className="h-4 w-4 mr-2" />
 						Cancel
 					</Button>
 				</div>

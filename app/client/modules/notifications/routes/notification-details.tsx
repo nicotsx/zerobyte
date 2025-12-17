@@ -24,7 +24,7 @@ import { getNotificationDestination } from "~/client/api-client/sdk.gen";
 import type { Route } from "./+types/notification-details";
 import { cn } from "~/client/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { Bell, TestTube2 } from "lucide-react";
+import { Bell, Save, TestTube2, Trash2, X } from "lucide-react";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
 
@@ -147,6 +147,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 						variant="destructive"
 						loading={deleteDestination.isPending}
 					>
+						<Trash2 className="h-4 w-4 mr-2" />
 						Delete
 					</Button>
 				</div>
@@ -174,6 +175,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 					<CreateNotificationForm mode="update" formId={formId} onSubmit={handleSubmit} initialValues={data.config} />
 					<div className="flex justify-end gap-2 pt-4 border-t">
 						<Button type="submit" form={formId} loading={updateDestination.isPending}>
+							<Save className="h-4 w-4 mr-2" />
 							Save Changes
 						</Button>
 					</div>
@@ -190,8 +192,14 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmDelete}>Delete</AlertDialogAction>
+						<AlertDialogCancel>
+							<X className="h-4 w-4 mr-2" />
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction onClick={handleConfirmDelete}>
+							<Trash2 className="h-4 w-4 mr-2" />
+							Delete
+						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

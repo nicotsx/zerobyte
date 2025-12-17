@@ -263,38 +263,6 @@ export const healthCheckDto = describeRoute({
 });
 
 /**
- * Get containers using a volume
- */
-const containerSchema = type({
-	id: "string",
-	name: "string",
-	state: "string",
-	image: "string",
-});
-
-export const listContainersResponse = containerSchema.array();
-export type ListContainersDto = typeof listContainersResponse.infer;
-
-export const getContainersDto = describeRoute({
-	description: "Get containers using a volume by name",
-	operationId: "getContainersUsingVolume",
-	tags: ["Volumes"],
-	responses: {
-		200: {
-			description: "List of containers using the volume",
-			content: {
-				"application/json": {
-					schema: resolver(listContainersResponse),
-				},
-			},
-		},
-		404: {
-			description: "Volume not found",
-		},
-	},
-});
-
-/**
  * List files in a volume
  */
 const fileEntrySchema = type({

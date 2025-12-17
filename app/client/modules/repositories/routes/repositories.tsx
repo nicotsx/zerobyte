@@ -72,7 +72,7 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 				button={
 					<Button onClick={() => navigate("/repositories/create")}>
 						<Plus size={16} className="mr-2" />
-						Create Repository
+						Create repository
 					</Button>
 				}
 			/>

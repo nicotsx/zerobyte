@@ -367,3 +367,34 @@ export const getMirrorCompatibilityDto = describeRoute({
 		},
 	},
 });
+
+/**
+ * Reorder backup schedules
+ */
+export const reorderBackupSchedulesBody = type({
+	scheduleIds: "number[]",
+});
+
+export type ReorderBackupSchedulesBody = typeof reorderBackupSchedulesBody.infer;
+
+export const reorderBackupSchedulesResponse = type({
+	success: "boolean",
+});
+
+export type ReorderBackupSchedulesDto = typeof reorderBackupSchedulesResponse.infer;
+
+export const reorderBackupSchedulesDto = describeRoute({
+	description: "Reorder backup schedules by providing an array of schedule IDs in the desired order",
+	operationId: "reorderBackupSchedules",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Backup schedules reordered successfully",
+			content: {
+				"application/json": {
+					schema: resolver(reorderBackupSchedulesResponse),
+				},
+			},
+		},
+	},
+});

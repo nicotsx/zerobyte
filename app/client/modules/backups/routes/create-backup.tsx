@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Database, HardDrive } from "lucide-react";
+import { Database, HardDrive, Plus } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
@@ -162,6 +162,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 					<CreateScheduleForm volume={selectedVolume} onSubmit={handleSubmit} formId={formId} />
 					<div className="flex justify-end mt-4 gap-2">
 						<Button type="submit" variant="primary" form={formId} loading={createSchedule.isPending}>
+							<Plus className="h-4 w-4 mr-2" />
 							Create
 						</Button>
 					</div>

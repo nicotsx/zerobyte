@@ -62,8 +62,6 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}.{{patch}},prefix=v,enable=${{ needs.determine-release-type.outputs.release_type == 'release' }}
           flavor: |
             latest=${{ needs.determine-release-type.outputs.release_type == 'release' }}
-          cache-from: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache
-          cache-to: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache,mode=max
 
       - name: Build and push images
         uses: docker/build-push-action@v6
@@ -76,6 +74,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
+          cache-from: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache
+          cache-to: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache,mode=max
 
   publish-release:
     runs-on: ubuntu-latest

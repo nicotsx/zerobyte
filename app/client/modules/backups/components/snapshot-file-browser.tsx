@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileIcon } from "lucide-react";
+import { FileIcon, RotateCcw, Trash2 } from "lucide-react";
 import { Link } from "react-router";
 import { FileTree } from "~/client/components/file-tree";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -98,6 +98,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 								}
 								className={buttonVariants({ variant: "primary", size: "sm" })}
 							>
+								<RotateCcw className="h-4 w-4" />
 								Restore
 							</Link>
 							{onDeleteSnapshot && (
@@ -108,6 +109,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 									disabled={isDeletingSnapshot}
 									loading={isDeletingSnapshot}
 								>
+									<Trash2 className="h-4 w-4 mr-2" />
 									{isDeletingSnapshot ? "Deleting..." : "Delete Snapshot"}
 								</Button>
 							)}

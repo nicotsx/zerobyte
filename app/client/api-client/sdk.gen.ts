@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponses, ChangePasswordData, ChangePasswordResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteVolumeData, DeleteVolumeResponses, DoctorRepositoryData, DoctorRepositoryResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetContainersUsingVolumeData, GetContainersUsingVolumeErrors, GetContainersUsingVolumeResponses, GetMeData, GetMeResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetRepositoryData, GetRepositoryResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, MountVolumeData, MountVolumeResponses, RegisterData, RegisterResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponses, ChangePasswordData, ChangePasswordResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteVolumeData, DeleteVolumeResponses, DoctorRepositoryData, DoctorRepositoryResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetMeData, GetMeResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetRepositoryData, GetRepositoryResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, LoginData, LoginResponses, LogoutData, LogoutResponses, MountVolumeData, MountVolumeResponses, RegisterData, RegisterResponses, ReorderBackupSchedulesData, ReorderBackupSchedulesResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -119,11 +119,6 @@ export const updateVolume = <ThrowOnError extends boolean = false>(options: Opti
         ...options.headers
     }
 });
-
-/**
- * Get containers using a volume by name
- */
-export const getContainersUsingVolume = <ThrowOnError extends boolean = false>(options: Options<GetContainersUsingVolumeData, ThrowOnError>) => (options.client ?? client).get<GetContainersUsingVolumeResponses, GetContainersUsingVolumeErrors, ThrowOnError>({ url: '/api/v1/volumes/{name}/containers', ...options });
 
 /**
  * Mount a volume
@@ -328,6 +323,18 @@ export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(opti
  * Get mirror compatibility info for all repositories relative to a backup schedule's primary repository
  */
 export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(options: Options<GetMirrorCompatibilityData, ThrowOnError>) => (options.client ?? client).get<GetMirrorCompatibilityResponses, unknown, ThrowOnError>({ url: '/api/v1/backups/{scheduleId}/mirrors/compatibility', ...options });
+
+/**
+ * Reorder backup schedules by providing an array of schedule IDs in the desired order
+ */
+export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(options?: Options<ReorderBackupSchedulesData, ThrowOnError>) => (options?.client ?? client).post<ReorderBackupSchedulesResponses, unknown, ThrowOnError>({
+    url: '/api/v1/backups/reorder',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * List all notification destinations

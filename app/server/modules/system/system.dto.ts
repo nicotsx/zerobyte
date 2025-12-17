@@ -2,8 +2,8 @@ import { type } from "arktype";
 import { describeRoute, resolver } from "hono-openapi";
 
 export const capabilitiesSchema = type({
-	docker: "boolean",
 	rclone: "boolean",
+	sysAdmin: "boolean",
 });
 
 export const systemInfoResponse = type({

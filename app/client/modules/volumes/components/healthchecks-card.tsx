@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { HeartIcon } from "lucide-react";
+import { Activity, HeartIcon } from "lucide-react";
 import { toast } from "sonner";
 import { healthCheckVolumeMutation, updateVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { OnOff } from "~/client/components/onoff";
@@ -80,6 +80,7 @@ export const HealthchecksCard = ({ volume }: Props) => {
 							loading={healthcheck.isPending}
 							onClick={() => healthcheck.mutate({ path: { name: volume.name } })}
 						>
+							<Activity className="h-4 w-4 mr-2" />
 							Run Health Check
 						</Button>
 					</div>

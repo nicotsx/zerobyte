@@ -25,7 +25,7 @@ import { cn } from "~/client/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
-import { Loader2 } from "lucide-react";
+import { Loader2, Stethoscope, Trash2, X } from "lucide-react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -149,13 +149,17 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 						{doctorMutation.isPending ? (
 							<>
 								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								Running Doctor...
+								Running doctor...
 							</>
 						) : (
-							"Run Doctor"
+							<>
+								<Stethoscope className="h-4 w-4 mr-2" />
+								Run doctor
+							</>
 						)}
 					</Button>
 					<Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteRepo.isPending}>
+						<Trash2 className="h-4 w-4 mr-2" />
 						Delete
 					</Button>
 				</div>
@@ -184,11 +188,15 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-3 justify-end">
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogCancel>
+							<X className="h-4 w-4 mr-2" />
+							Cancel
+						</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
+							<Trash2 className="h-4 w-4 mr-2" />
 							Delete repository
 						</AlertDialogAction>
 					</div>
@@ -198,7 +206,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 			<AlertDialog open={showDoctorResults} onOpenChange={setShowDoctorResults}>
 				<AlertDialogContent className="max-w-2xl">
 					<AlertDialogHeader>
-						<AlertDialogTitle>Doctor Results</AlertDialogTitle>
+						<AlertDialogTitle>Doctor results</AlertDialogTitle>
 						<AlertDialogDescription>Repository doctor operation completed</AlertDialogDescription>
 					</AlertDialogHeader>
 

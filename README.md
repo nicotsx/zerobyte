@@ -413,7 +413,7 @@ Secrets/credentials in the config file can reference environment variables using
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.15
+    image: ghcr.io/nicotsx/zerobyte:v0.19
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -441,6 +441,34 @@ docker compose up -d
 
 Once the container is running, you can access the web interface at `http://<your-server-ip>:4096`.
 
+### Simplified setup (No remote mounts)
+
+If you only need to back up locally mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
+
+```yaml
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:v0.19
+    container_name: zerobyte
+    restart: unless-stopped
+    ports:
+      - "4096:4096"
+    environment:
+      - TZ=Europe/Paris  # Set your timezone here
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+      - /path/to/your/directory:/mydata
+```
+
+**Trade-offs:**
+- ✅ Improved security by reducing container capabilities
+- ✅ Support for local directories
+- ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)
+- ❌ Cannot mount NFS, SMB, or WebDAV shares directly from Zerobyte
+
+If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
+
 ## Adding your first volume
 
 Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, and local directories. A volume represents the source data you want to back up and monitor.
@@ -452,7 +480,7 @@ If you want to track a local directory on the same server where Zerobyte is runn
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.15
+    image: ghcr.io/nicotsx/zerobyte:v0.19
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -520,7 +548,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```diff
    services:
      zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.15
+       image: ghcr.io/nicotsx/zerobyte:v0.19
        container_name: zerobyte
        restart: unless-stopped
        cap_add:
@@ -569,97 +597,6 @@ You can monitor the progress and status of your backup jobs in the "Backups" sec
 Zerobyte allows you to easily restore your data from backups. To restore data, navigate to the "Backups" section and select the backup job from which you want to restore data. You can then choose a specific backup snapshot and select the files or directories you wish to restore. The data you select will be restored to their original location.
 
 ![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
-
-## Propagating mounts to host
-
-Zerobyte is capable of propagating mounted volumes from within the container to the host system. This is particularly useful when you want to access the mounted data directly from the host to use it with other applications or services.
-
-In order to enable this feature, you need to change your bind mount `/var/lib/zerobyte` to use the `:rshared` flag. Here is an example of how to set this up in your `docker-compose.yml` file:
-
-```diff
-services:
-  zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.15
-    container_name: zerobyte
-    restart: unless-stopped
-    ports:
-      - "4096:4096"
-    devices:
-      - /dev/fuse:/dev/fuse
-    environment:
-      - TZ=Europe/Paris
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
--     - /var/lib/zerobyte:/var/lib/zerobyte
-+     - /var/lib/zerobyte:/var/lib/zerobyte:rshared
-```
-
-Restart the Zerobyte container to apply the changes:
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-## Docker plugin
-
-Zerobyte can also be used as a Docker volume plugin, allowing you to mount your volumes directly into other Docker containers. This enables seamless integration with your containerized applications.
-
-In order to enable this feature, you need to run Zerobyte with several items shared from the host. Here is an example of how to set this up in your `docker-compose.yml` file:
-
-```diff
-services:
-  zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.15
-    container_name: zerobyte
-    restart: unless-stopped
-    cap_add:
-      - SYS_ADMIN
-    ports:
-      - "4096:4096"
-    devices:
-      - /dev/fuse:/dev/fuse
-    environment:
-      - TZ=Europe/Paris
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
--     - /var/lib/zerobyte:/var/lib/zerobyte
-+     - /var/lib/zerobyte:/var/lib/zerobyte:rshared
-+     - /run/docker/plugins:/run/docker/plugins
-+     - /var/run/docker.sock:/var/run/docker.sock
-```
-
-Restart the Zerobyte container to apply the changes:
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-Your Zerobyte volumes will now be available as Docker volumes that you can mount into other containers using the `--volume` flag:
-
-```bash
-docker run -v zb-abc12:/path/in/container nginx:latest
-```
-
-Or using Docker Compose:
-
-```yaml
-services:
-  myservice:
-    image: nginx:latest
-    volumes:
-      - zb-abc12:/path/in/container
-volumes:
-  zb-abc12:
-    external: true
-```
-
-The volume name format is `zb-<short-id>` where `<short-id>` is the unique identifier shown on the volume's Docker tab in Zerobyte. This short ID remains stable even if you rename the volume. You can verify that the volume is available by running:
-
-```bash
-docker volume ls
-```
 
 ## Third-Party Software
 

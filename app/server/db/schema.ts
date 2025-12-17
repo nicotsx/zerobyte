@@ -92,6 +92,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),
 	lastBackupError: text("last_backup_error"),
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
+	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
 	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
@@ -141,6 +142,7 @@ export const backupScheduleNotificationsTable = sqliteTable(
 			.references(() => notificationDestinationsTable.id, { onDelete: "cascade" }),
 		notifyOnStart: int("notify_on_start", { mode: "boolean" }).notNull().default(false),
 		notifyOnSuccess: int("notify_on_success", { mode: "boolean" }).notNull().default(false),
+		notifyOnWarning: int("notify_on_warning", { mode: "boolean" }).notNull().default(true),
 		notifyOnFailure: int("notify_on_failure", { mode: "boolean" }).notNull().default(true),
 		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	},

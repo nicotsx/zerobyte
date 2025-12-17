@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, changePassword, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteVolume, doctorRepository, downloadResticPassword, getBackupSchedule, getBackupScheduleForVolume, getContainersUsingVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, register, restoreSnapshot, runBackupNow, runForget, stopBackup, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, ChangePasswordData, ChangePasswordResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteVolumeData, DeleteVolumeResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetContainersUsingVolumeData, GetContainersUsingVolumeResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, RegisterData, RegisterResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, StopBackupData, StopBackupResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
+import { browseFilesystem, changePassword, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteVolume, doctorRepository, downloadResticPassword, getBackupSchedule, getBackupScheduleForVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, register, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, stopBackup, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, ChangePasswordData, ChangePasswordResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteVolumeData, DeleteVolumeResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, RegisterData, RegisterResponse, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, StopBackupData, StopBackupResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
 
 /**
  * Register a new user
@@ -246,24 +246,6 @@ export const updateVolumeMutation = (options?: Partial<Options<UpdateVolumeData>
     };
     return mutationOptions;
 };
-
-export const getContainersUsingVolumeQueryKey = (options: Options<GetContainersUsingVolumeData>) => createQueryKey('getContainersUsingVolume', options);
-
-/**
- * Get containers using a volume by name
- */
-export const getContainersUsingVolumeOptions = (options: Options<GetContainersUsingVolumeData>) => queryOptions<GetContainersUsingVolumeResponse, DefaultError, GetContainersUsingVolumeResponse, ReturnType<typeof getContainersUsingVolumeQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getContainersUsingVolume({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getContainersUsingVolumeQueryKey(options)
-});
 
 /**
  * Mount a volume
@@ -805,6 +787,23 @@ export const getMirrorCompatibilityOptions = (options: Options<GetMirrorCompatib
     },
     queryKey: getMirrorCompatibilityQueryKey(options)
 });
+
+/**
+ * Reorder backup schedules by providing an array of schedule IDs in the desired order
+ */
+export const reorderBackupSchedulesMutation = (options?: Partial<Options<ReorderBackupSchedulesData>>): UseMutationOptions<ReorderBackupSchedulesResponse, DefaultError, Options<ReorderBackupSchedulesData>> => {
+    const mutationOptions: UseMutationOptions<ReorderBackupSchedulesResponse, DefaultError, Options<ReorderBackupSchedulesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await reorderBackupSchedules({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) => createQueryKey('listNotificationDestinations', options);
 

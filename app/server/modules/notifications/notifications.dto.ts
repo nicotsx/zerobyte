@@ -190,6 +190,7 @@ export const scheduleNotificationAssignmentSchema = type({
 	destinationId: "number",
 	notifyOnStart: "boolean",
 	notifyOnSuccess: "boolean",
+	notifyOnWarning: "boolean",
 	notifyOnFailure: "boolean",
 	createdAt: "number",
 	destination: notificationDestinationSchema,
@@ -227,6 +228,7 @@ export const updateScheduleNotificationsBody = type({
 		destinationId: "number",
 		notifyOnStart: "boolean",
 		notifyOnSuccess: "boolean",
+		notifyOnWarning: "boolean",
 		notifyOnFailure: "boolean",
 	}).array(),
 });

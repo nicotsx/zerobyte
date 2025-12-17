@@ -1,10 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
-import { HardDrive } from "lucide-react";
+import { HardDrive, Plus } from "lucide-react";
 import { useId } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { CreateVolumeForm, type FormValues } from "~/client/components/create-volume-form";
+import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
@@ -73,6 +73,7 @@ export default function CreateVolume() {
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={createVolume.isPending}>
+							<Plus className="h-4 w-4 mr-2" />
 							Create Volume
 						</Button>
 					</div>

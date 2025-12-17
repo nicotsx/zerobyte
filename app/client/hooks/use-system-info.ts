@@ -10,7 +10,7 @@ export function useSystemInfo() {
 	});
 
 	return {
-		capabilities: data?.capabilities ?? { docker: false, rclone: false },
+		capabilities: data?.capabilities ?? { rclone: false, sysAdmin: false },
 		isLoading,
 		error,
 		systemInfo: data,

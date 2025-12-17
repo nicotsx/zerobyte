@@ -1,10 +1,9 @@
 import * as fs from "node:fs/promises";
-import Docker from "dockerode";
 import { logger } from "../utils/logger";
 
 export type SystemCapabilities = {
-	docker: boolean;
 	rclone: boolean;
+	sysAdmin: boolean;
 };
 
 let capabilitiesPromise: Promise<SystemCapabilities> | null = null;
@@ -28,42 +27,9 @@ export async function getCapabilities(): Promise<SystemCapabilities> {
  */
 async function detectCapabilities(): Promise<SystemCapabilities> {
 	return {
-		docker: await detectDocker(),
 		rclone: await detectRclone(),
+		sysAdmin: await detectSysAdmin(),
 	};
-}
-
-export const parseDockerHost = (dockerHost?: string) => {
-	const match = dockerHost?.match(/^(ssh|http|https):\/\/([^:]+)(?::(\d+))?$/);
-	if (match) {
-		const protocol = match[1] as "ssh" | "http" | "https";
-		const host = match[2];
-		const port = match[3] ? parseInt(match[3], 10) : undefined;
-		return { protocol, host, port };
-	}
-
-	return {};
-};
-
-/**
- * Checks if Docker is available by:
- * 1. Checking if /var/run/docker.sock exists and is accessible
- * 2. Attempting to ping the Docker daemon
- */
-async function detectDocker(): Promise<boolean> {
-	try {
-		const docker = new Docker(parseDockerHost(process.env.DOCKER_HOST));
-		await docker.ping();
-
-		logger.info("Docker capability: enabled");
-		return true;
-	} catch (_) {
-		logger.warn(
-			"Docker capability: disabled. " +
-				"To enable: mount /var/run/docker.sock and /run/docker/plugins in docker-compose.yml",
-		);
-		return false;
-	}
 }
 
 /**
@@ -74,10 +40,51 @@ async function detectRclone(): Promise<boolean> {
 	try {
 		await fs.access("/root/.config/rclone");
 
+		// Make sure the folder is not empty
+		const files = await fs.readdir("/root/.config/rclone");
+		if (files.length === 0) {
+			throw new Error("rclone config directory is empty");
+		}
+
 		logger.info("rclone capability: enabled");
 		return true;
 	} catch (_) {
 		logger.warn("rclone capability: disabled. " + "To enable: mount /root/.config/rclone in docker-compose.yml");
+		return false;
+	}
+}
+
+async function detectSysAdmin(): Promise<boolean> {
+	try {
+		const procStatus = await fs.readFile("/proc/self/status", "utf-8");
+
+		const capEffLine = procStatus.split("\n").find((line) => line.startsWith("CapEff:"));
+
+		if (!capEffLine) {
+			logger.warn("sysAdmin capability: disabled. Could not read CapEff from /proc/self/status");
+			return false;
+		}
+
+		// Extract the hex value (e.g., "00000000a80425fb")
+		const capEffHex = capEffLine.split(/\s+/)[1];
+
+		if (!capEffHex) {
+			logger.warn("sysAdmin capability: disabled. Could not parse CapEff value");
+			return false;
+		}
+
+		// Check if bit 21 (CAP_SYS_ADMIN) is set
+		const capValue = parseInt(capEffHex, 16) & (1 << 21);
+
+		if (capValue !== 0) {
+			logger.info("sysAdmin capability: enabled (CAP_SYS_ADMIN detected)");
+			return true;
+		}
+
+		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in docker-compose.yml");
+		return false;
+	} catch (_error) {
+		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in docker-compose.yml");
 		return false;
 	}
 }

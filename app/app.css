@@ -173,3 +173,9 @@ body {
 		--chart-5: oklch(0.645 0.246 16.439);
 	}
 }
+
+/* Hide built-in password reveal/clear controls (notably in Edge on Windows) */
+[data-secret-input] input[type="password"]::-ms-reveal,
+[data-secret-input] input[type="password"]::-ms-clear {
+	display: none;
+}

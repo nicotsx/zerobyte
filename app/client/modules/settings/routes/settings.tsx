@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download, KeyRound, User } from "lucide-react";
+import { Download, KeyRound, User, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -195,6 +195,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						/>
 					</div>
 					<Button type="submit" loading={changePassword.isPending} className="mt-4">
+						<KeyRound className="h-4 w-4 mr-2" />
 						Change Password
 					</Button>
 				</form>
@@ -252,9 +253,11 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 										setDownloadPassword("");
 									}}
 								>
+									<X className="h-4 w-4 mr-2" />
 									Cancel
 								</Button>
 								<Button type="submit" loading={downloadResticPassword.isPending}>
+									<Download className="h-4 w-4 mr-2" />
 									Download
 								</Button>
 							</DialogFooter>

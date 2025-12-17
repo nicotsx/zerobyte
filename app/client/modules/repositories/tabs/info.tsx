@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { Check, Save } from "lucide-react";
 import { Card } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
@@ -86,7 +87,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<p className="text-sm text-muted-foreground">Unique identifier for the repository.</p>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="compressionMode">Compression Mode</Label>
+								<Label htmlFor="compressionMode">Compression mode</Label>
 								<Select value={compressionMode} onValueChange={(val) => setCompressionMode(val as CompressionMode)}>
 									<SelectTrigger id="compressionMode">
 										<SelectValue placeholder="Select compression mode" />
@@ -114,11 +115,11 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<p className="mt-1 text-sm">{repository.status || "unknown"}</p>
 							</div>
 							<div>
-								<div className="text-sm font-medium text-muted-foreground">Created At</div>
-								<p className="mt-1 text-sm">{new Date(repository.createdAt * 1000).toLocaleString()}</p>
+								<div className="text-sm font-medium text-muted-foreground">Created at</div>
+								<p className="mt-1 text-sm">{new Date(repository.createdAt).toLocaleString()}</p>
 							</div>
 							<div>
-								<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
+								<div className="text-sm font-medium text-muted-foreground">Last checked</div>
 								<p className="mt-1 text-sm">
 									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
 								</p>
@@ -146,6 +147,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 					<div className="flex justify-end pt-4 border-t">
 						<Button type="submit" disabled={!hasChanges || updateMutation.isPending} loading={updateMutation.isPending}>
+							<Save className="h-4 w-4 mr-2" />
 							Save Changes
 						</Button>
 					</div>
@@ -155,12 +157,15 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 			<AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Update Repository</AlertDialogTitle>
+						<AlertDialogTitle>Update repository</AlertDialogTitle>
 						<AlertDialogDescription>Are you sure you want to update the repository settings?</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={confirmUpdate}>Update</AlertDialogAction>
+						<AlertDialogAction onClick={confirmUpdate}>
+							<Check className="h-4 w-4" />
+							Update
+						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

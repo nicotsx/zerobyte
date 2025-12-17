@@ -16,6 +16,8 @@ import {
 	updateScheduleMirrorsDto,
 	updateScheduleMirrorsBody,
 	getMirrorCompatibilityDto,
+	reorderBackupSchedulesDto,
+	reorderBackupSchedulesBody,
 	type CreateBackupScheduleDto,
 	type DeleteBackupScheduleDto,
 	type GetBackupScheduleDto,
@@ -28,6 +30,7 @@ import {
 	type GetScheduleMirrorsDto,
 	type UpdateScheduleMirrorsDto,
 	type GetMirrorCompatibilityDto,
+	type ReorderBackupSchedulesDto,
 } from "./backups.dto";
 import { backupsService } from "./backups.service";
 import {
@@ -139,4 +142,11 @@ export const backupScheduleController = new Hono()
 		const compatibility = await backupsService.getMirrorCompatibility(scheduleId);
 
 		return c.json<GetMirrorCompatibilityDto>(compatibility, 200);
+	})
+	.post("/reorder", reorderBackupSchedulesDto, validator("json", reorderBackupSchedulesBody), async (c) => {
+		const body = c.req.valid("json");
+
+		await backupsService.reorderSchedules(body.scheduleIds);
+
+		return c.json<ReorderBackupSchedulesDto>({ success: true }, 200);
 	});

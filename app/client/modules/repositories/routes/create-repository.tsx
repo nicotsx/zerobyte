@@ -1,10 +1,13 @@
 import { useMutation } from "@tanstack/react-query";
-import { Database } from "lucide-react";
+import { Database, Plus } from "lucide-react";
 import { useId } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { CreateRepositoryForm, type RepositoryFormValues } from "~/client/components/create-repository-form";
+import {
+	CreateRepositoryForm,
+	type RepositoryFormValues,
+} from "~/client/modules/repositories/components/create-repository-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
@@ -79,7 +82,8 @@ export default function CreateRepository() {
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={createRepository.isPending}>
-							Create Repository
+							<Plus className="h-4 w-4 mr-2" />
+							Create repository
 						</Button>
 					</div>
 				</CardContent>
