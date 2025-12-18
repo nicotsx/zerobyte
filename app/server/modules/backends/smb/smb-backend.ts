@@ -28,8 +28,10 @@ const mount = async (config: BackendConfig, path: string) => {
 		return { status: BACKEND_STATUS.mounted };
 	}
 
-	logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
-	await unmount(path);
+	if (status === "error") {
+		logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
+		await unmount(path);
+	}
 
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true });
@@ -80,16 +82,15 @@ const unmount = async (path: string) => {
 	}
 
 	const run = async () => {
-		try {
-			await fs.access(path);
-		} catch {
-			logger.warn(`Path ${path} does not exist. Skipping unmount.`);
+		const mount = await getMountForPath(path);
+		if (!mount || mount.mountPoint !== path) {
+			logger.debug(`Path ${path} is not a mount point. Skipping unmount.`);
 			return { status: BACKEND_STATUS.unmounted };
 		}
 
 		await executeUnmount(path);
 
-		await fs.rmdir(path);
+		await fs.rmdir(path).catch(() => {});
 
 		logger.info(`SMB volume at ${path} unmounted successfully.`);
 		return { status: BACKEND_STATUS.unmounted };
@@ -105,13 +106,20 @@ const unmount = async (path: string) => {
 
 const checkHealth = async (path: string) => {
 	const run = async () => {
-		logger.debug(`Checking health of SMB volume at ${path}...`);
-		await fs.access(path);
+		try {
+			await fs.access(path);
+		} catch {
+			throw new Error("Volume is not mounted");
+		}
 
 		const mount = await getMountForPath(path);
 
-		if (!mount || mount.fstype !== "cifs") {
-			throw new Error(`Path ${path} is not mounted as CIFS/SMB.`);
+		if (!mount || mount.mountPoint !== path) {
+			throw new Error("Volume is not mounted");
+		}
+
+		if (mount.fstype !== "cifs") {
+			throw new Error(`Path ${path} is not mounted as CIFS/SMB (found ${mount.fstype}).`);
 		}
 
 		logger.debug(`SMB volume at ${path} is healthy and mounted.`);
@@ -121,8 +129,11 @@ const checkHealth = async (path: string) => {
 	try {
 		return await withTimeout(run(), OPERATION_TIMEOUT, "SMB health check");
 	} catch (error) {
-		logger.error("SMB volume health check failed:", toMessage(error));
-		return { status: BACKEND_STATUS.error, error: toMessage(error) };
+		const message = toMessage(error);
+		if (message !== "Volume is not mounted") {
+			logger.error("SMB volume health check failed:", message);
+		}
+		return { status: BACKEND_STATUS.error, error: message };
 	}
 };
 

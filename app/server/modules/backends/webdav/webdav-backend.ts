@@ -1,7 +1,5 @@
-import { execFile as execFileCb } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { promisify } from "node:util";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
 import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
@@ -11,8 +9,6 @@ import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";
 import { executeMount, executeUnmount } from "../utils/backend-utils";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
-
-const execFile = promisify(execFileCb);
 
 const mount = async (config: BackendConfig, path: string) => {
 	logger.debug(`Mounting WebDAV volume ${path}...`);
@@ -32,8 +28,10 @@ const mount = async (config: BackendConfig, path: string) => {
 		return { status: BACKEND_STATUS.mounted };
 	}
 
-	logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
-	await unmount(path);
+	if (status === "error") {
+		logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
+		await unmount(path);
+	}
 
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true }).catch((err) => {
@@ -58,17 +56,8 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		logger.debug(`Mounting WebDAV volume ${path}...`);
 
-		const args = ["-t", "davfs", source, path];
+		const args = ["-t", "davfs", "-o", options.join(","), source, path];
 		await executeMount(args);
-
-		const { stderr } = await execFile("mount", ["-t", "davfs", "-o", options.join(","), source, path], {
-			timeout: OPERATION_TIMEOUT,
-			maxBuffer: 1024 * 1024,
-		});
-
-		if (stderr?.trim()) {
-			logger.warn(stderr.trim());
-		}
 
 		logger.info(`WebDAV volume at ${path} mounted successfully.`);
 		return { status: BACKEND_STATUS.mounted };
@@ -113,16 +102,15 @@ const unmount = async (path: string) => {
 	}
 
 	const run = async () => {
-		try {
-			await fs.access(path);
-		} catch (e) {
-			logger.warn(`Path ${path} does not exist. Skipping unmount.`, e);
+		const mount = await getMountForPath(path);
+		if (!mount || mount.mountPoint !== path) {
+			logger.debug(`Path ${path} is not a mount point. Skipping unmount.`);
 			return { status: BACKEND_STATUS.unmounted };
 		}
 
 		await executeUnmount(path);
 
-		await fs.rmdir(path);
+		await fs.rmdir(path).catch(() => {});
 
 		logger.info(`WebDAV volume at ${path} unmounted successfully.`);
 		return { status: BACKEND_STATUS.unmounted };
@@ -138,13 +126,20 @@ const unmount = async (path: string) => {
 
 const checkHealth = async (path: string) => {
 	const run = async () => {
-		logger.debug(`Checking health of WebDAV volume at ${path}...`);
-		await fs.access(path);
+		try {
+			await fs.access(path);
+		} catch {
+			throw new Error("Volume is not mounted");
+		}
 
 		const mount = await getMountForPath(path);
 
-		if (!mount || mount.fstype !== "fuse") {
-			throw new Error(`Path ${path} is not mounted as WebDAV.`);
+		if (!mount || mount.mountPoint !== path) {
+			throw new Error("Volume is not mounted");
+		}
+
+		if (mount.fstype !== "fuse" && mount.fstype !== "davfs") {
+			throw new Error(`Path ${path} is not mounted as WebDAV (found ${mount.fstype}).`);
 		}
 
 		logger.debug(`WebDAV volume at ${path} is healthy and mounted.`);
@@ -154,8 +149,11 @@ const checkHealth = async (path: string) => {
 	try {
 		return await withTimeout(run(), OPERATION_TIMEOUT, "WebDAV health check");
 	} catch (error) {
-		logger.error("WebDAV volume health check failed:", toMessage(error));
-		return { status: BACKEND_STATUS.error, error: toMessage(error) };
+		const message = toMessage(error);
+		if (message !== "Volume is not mounted") {
+			logger.error("WebDAV volume health check failed:", message);
+		}
+		return { status: BACKEND_STATUS.error, error: message };
 	}
 };
 
