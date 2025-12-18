@@ -40,7 +40,9 @@ In order to run Zerobyte, you need to have Docker and Docker Compose installed o
 ### Configure Zerobyte via Config File
 
 
-You can pre-configure backup sources (volumes), destinations (repositories), backup schedules, notification destinations and admin user using a config file (`zerobyte.config.json` by default (mounted in /app dir), or set `ZEROBYTE_CONFIG_PATH`).
+You can pre-configure backup sources (volumes), destinations (repositories), backup schedules, notification destinations and initial users using a config file (`zerobyte.config.json` by default (mounted in /app dir), or set `ZEROBYTE_CONFIG_PATH`).
+
+Config import is opt-in. Enable it by setting `ZEROBYTE_CONFIG_IMPORT=true`.
 
 Secrets/credentials in the config file can reference environment variables using `${VAR_NAME}` syntax for secure injection.
 
@@ -58,6 +60,7 @@ Secrets/credentials in the config file can reference environment variables using
 
 ```json
 {
+  "recoveryKey": "${RECOVERY_KEY}",
   "volumes": [
     // Array of volume objects. Each must have a unique "name" and a "config" matching one of the types below.
   ],
@@ -70,6 +73,10 @@ Secrets/credentials in the config file can reference environment variables using
   ],
   "notificationDestinations": [
     // Array of notification destination objects as described below.
+  ],
+  "users": [
+    // Array of user objects. Each must have a unique "username".
+    // Note: Zerobyte currently supports a single user; only the first entry is applied.
   ]
 }
 ```
@@ -215,6 +222,7 @@ Secrets/credentials in the config file can reference environment variables using
 - **Example:**
   ```json
   {
+    "name": "local-volume-local-repo",
     "volume": "local-volume",
     "repository": "local-repo",
     "cronExpression": "0 2 * * *",
@@ -226,6 +234,7 @@ Secrets/credentials in the config file can reference environment variables using
   }
   ```
 - **Fields:**
+  - `name`: Unique name of the schedule
   - `volume`: Name of the source volume
   - `repository`: Name of the destination repository
   - `cronExpression`: Cron string for schedule
@@ -234,7 +243,7 @@ Secrets/credentials in the config file can reference environment variables using
   - `enabled`: Boolean
   - `notifications`: Array of notification destination names (strings) or detailed objects:
     - Simple: `["slack-alerts", "email-admin"]`
-    - Detailed: `[{"name": "slack-alerts", "notifyOnStart": false, "notifyOnSuccess": true, "notifyOnFailure": true}]`
+    - Detailed: `[{"name": "slack-alerts", "notifyOnStart": false, "notifyOnSuccess": true, "notifyOnWarning": true, "notifyOnFailure": true}]`
 
 ##### Notification Destinations
 
@@ -348,39 +357,47 @@ Secrets/credentials in the config file can reference environment variables using
   - `config.type`: Notification type (email, slack, discord, gotify, ntfy, pushover, telegram, custom)
   - `config`: Type-specific config with `type` field, secrets via `${ENV_VAR}`
 
-##### Admin Setup (Automated)
+##### User Setup (Automated)
+
+Zerobyte currently supports a **single user**. If multiple entries are provided in `users[]`, only the first one will be applied.
 
 - **Example (new instance):**
   ```json
   {
-    "admin": {
-      "username": "admin",
-      "password": "${ADMIN_PASSWORD}",
-      "recoveryKey": "${RECOVERY_KEY}"
-    }
+    "recoveryKey": "${RECOVERY_KEY}",
+    "users": [
+      {
+        "username": "my-user",
+        "password": "${ADMIN_PASSWORD}"
+      }
+    ]
   }
   ```
 
 - **Example (migration from another instance):**
   ```json
   {
-    "admin": {
-      "username": "admin",
-      "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$...",
-      "recoveryKey": "${RECOVERY_KEY}"
-    }
+    "recoveryKey": "${RECOVERY_KEY}",
+    "users": [
+      {
+        "username": "my-user",
+        "passwordHash": "$argon2id$v=19$m=19456,t=2,p=1$..."
+      }
+    ]
   }
   ```
 
 - **Fields:**
-  - `username`: Admin username to create on first startup
-  - `password`: Admin password for new instances (can use `${ENV_VAR}`)
-  - `passwordHash`: Pre-hashed password for migration (exported from another instance)
   - `recoveryKey`: Optional recovery key (can use `${ENV_VAR}`) - if provided, the UI prompt to download recovery key will be skipped
+  - `users[]`: List of users to create on first startup (create-only). Only the first user is applied.
+  - `users[].username`: Username
+  - `users[].password`: Plaintext password for new instances (can use `${ENV_VAR}`)
+  - `users[].passwordHash`: Pre-hashed password for migration (exported from another instance)
+  - `users[].hasDownloadedResticPassword`: Optional boolean; defaults to `true` when `recoveryKey` is provided
 
 > **Note:** Use either `password` OR `passwordHash`, not both. The `passwordHash` option is useful when migrating from another Zerobyte instance using an exported config with `includePasswordHash=true`.
 
-**On first startup, Zerobyte will automatically create the admin user from the config file.**
+**On first startup, Zerobyte will automatically create users from the config file.**
 
 > **⚠️ About the Recovery Key**
 >

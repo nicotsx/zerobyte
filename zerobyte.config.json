@@ -118,6 +118,7 @@
   ],
   "backupSchedules": [
     {
+      "name": "local-volume-local-repo",
       "volume": "local-volume",
       "repository": "local-repo",
       "cronExpression": "0 2 * * *",
@@ -209,9 +210,11 @@
       }
     }
   ],
-  "admin": {
-    "username": "admin",
-    "password": "${ADMIN_PASSWORD}",
-    "recoveryKey": "${RECOVERY_KEY}"
-  }
+  "recoveryKey": "${RECOVERY_KEY}",
+  "users": [
+    {
+      "username": "admin",
+      "password": "${ADMIN_PASSWORD}"
+    }
+  ]
 }

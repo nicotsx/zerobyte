@@ -20,7 +20,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
-      
+
       - ./app:/app/app
       - ~/.config/rclone:/root/.config/rclone
       # - /run/docker/plugins:/run/docker/plugins
