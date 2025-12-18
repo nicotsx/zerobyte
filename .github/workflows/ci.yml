@@ -25,7 +25,7 @@ jobs:
 
       - name: Scan current project
         id: scan
-        uses: anchore/scan-action@v6
+        uses: anchore/scan-action@v7
         with:
           path: "."
 

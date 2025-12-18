@@ -67,7 +67,7 @@ jobs:
         with:
           context: .
           target: production
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: false
           load: true
           tags: local/zerobyte:ci
@@ -75,7 +75,7 @@ jobs:
             APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
 
       - name: Scan new image for vulnerabilities
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         id: scan
         with:
           image: local/zerobyte:ci
