@@ -17,7 +17,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
-		volumeService.updateVolume(volume.name, volume).catch((err) => {
+		await volumeService.updateVolume(volume.name, volume).catch((err) => {
 			logger.error(`Failed to update volume ${volume.name}: ${err}`);
 		});
 	}
@@ -25,7 +25,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
 
 	for (const repo of repositories) {
-		repositoriesService.updateRepository(repo.name, {}).catch((err) => {
+		await repositoriesService.updateRepository(repo.name, {}).catch((err) => {
 			logger.error(`Failed to update repository ${repo.name}: ${err}`);
 		});
 	}
@@ -33,7 +33,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const notifications = await db.query.notificationDestinationsTable.findMany({});
 
 	for (const notification of notifications) {
-		notificationsService.updateDestination(notification.id, notification).catch((err) => {
+		await notificationsService.updateDestination(notification.id, notification).catch((err) => {
 			logger.error(`Failed to update notification destination ${notification.id}: ${err}`);
 		});
 	}
