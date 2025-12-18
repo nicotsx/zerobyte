@@ -38,8 +38,8 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		const source = `//${config.server}/${config.share}`;
 		const options = [
-			`user=${config.username}`,
-			`pass=${password}`,
+			`username=${config.username}`,
+			`password=${password}`,
 			`vers=${config.vers}`,
 			`port=${config.port}`,
 			"uid=1000",
