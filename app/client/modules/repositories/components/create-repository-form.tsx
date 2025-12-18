@@ -20,7 +20,7 @@ import { SecretInput } from "../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
-import { COMPRESSION_MODES, repositoryConfigSchema } from "~/schemas/restic";
+import { COMPRESSION_MODES, repositoryConfigSchemaBase } from "~/schemas/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
 import {
 	LocalRepositoryForm,
@@ -36,7 +36,7 @@ import {
 export const formSchema = type({
 	name: "2<=string<=32",
 	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
-}).and(repositoryConfigSchema);
+}).and(repositoryConfigSchemaBase);
 const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
 
 export type RepositoryFormValues = typeof formSchema.inferIn;

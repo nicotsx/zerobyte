@@ -79,7 +79,7 @@ export const sftpRepositoryConfigSchema = type({
 	privateKey: "string",
 }).and(baseRepositoryConfigSchema);
 
-export const repositoryConfigSchema = s3RepositoryConfigSchema
+export const repositoryConfigSchemaBase = s3RepositoryConfigSchema
 	.or(r2RepositoryConfigSchema)
 	.or(localRepositoryConfigSchema)
 	.or(gcsRepositoryConfigSchema)
@@ -87,6 +87,8 @@ export const repositoryConfigSchema = s3RepositoryConfigSchema
 	.or(rcloneRepositoryConfigSchema)
 	.or(restRepositoryConfigSchema)
 	.or(sftpRepositoryConfigSchema);
+
+export const repositoryConfigSchema = repositoryConfigSchemaBase.onUndeclaredKey("delete");
 
 export type RepositoryConfig = typeof repositoryConfigSchema.infer;
 

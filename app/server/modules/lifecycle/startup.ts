@@ -10,6 +10,34 @@ import { VolumeHealthCheckJob } from "../../jobs/healthchecks";
 import { RepositoryHealthCheckJob } from "../../jobs/repository-healthchecks";
 import { BackupExecutionJob } from "../../jobs/backup-execution";
 import { CleanupSessionsJob } from "../../jobs/cleanup-sessions";
+import { repositoriesService } from "../repositories/repositories.service";
+import { notificationsService } from "../notifications/notifications.service";
+
+const ensureLatestConfigurationSchema = async () => {
+	const volumes = await db.query.volumesTable.findMany({});
+
+	for (const volume of volumes) {
+		volumeService.updateVolume(volume.name, volume).catch((err) => {
+			logger.error(`Failed to update volume ${volume.name}: ${err}`);
+		});
+	}
+
+	const repositories = await db.query.repositoriesTable.findMany({});
+
+	for (const repo of repositories) {
+		repositoriesService.updateRepository(repo.name, {}).catch((err) => {
+			logger.error(`Failed to update repository ${repo.name}: ${err}`);
+		});
+	}
+
+	const notifications = await db.query.notificationDestinationsTable.findMany({});
+
+	for (const notification of notifications) {
+		notificationsService.updateDestination(notification.id, notification).catch((err) => {
+			logger.error(`Failed to update notification destination ${notification.id}: ${err}`);
+		});
+	}
+};
 
 export const startup = async () => {
 	await Scheduler.start();
@@ -18,6 +46,8 @@ export const startup = async () => {
 	await restic.ensurePassfile().catch((err) => {
 		logger.error(`Error ensuring restic passfile exists: ${err.message}`);
 	});
+
+	await ensureLatestConfigurationSchema();
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: or(
