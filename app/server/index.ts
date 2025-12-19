@@ -2,6 +2,8 @@ import { createHonoServer } from "react-router-hono-server/bun";
 import { Scalar } from "@scalar/hono-api-reference";
 import { Hono } from "hono";
 import { logger as honoLogger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
+import { rateLimiter } from "hono-rate-limiter";
 import { openAPIRouteHandler } from "hono-openapi";
 import { runDbMigrations } from "./db/db";
 import { authController } from "./modules/auth/auth.controller";
@@ -41,8 +43,19 @@ export const scalarDescriptor = Scalar({
 
 const app = new Hono()
 	.use(honoLogger())
+	.use(secureHeaders())
+	.use(
+		rateLimiter({
+			windowMs: 60 * 5 * 1000,
+			limit: 1000,
+			keyGenerator: (c) => c.req.header("x-forwarded-for") ?? "",
+			skip: () => {
+				return config.__prod__ === false;
+			},
+		}),
+	)
 	.get("healthcheck", (c) => c.json({ status: "ok" }))
-	.route("/api/v1/auth", authController.basePath("/api/v1"))
+	.route("/api/v1/auth", authController)
 	.use("/api/v1/volumes/*", requireAuth)
 	.use("/api/v1/repositories/*", requireAuth)
 	.use("/api/v1/backups/*", requireAuth)
@@ -56,8 +69,9 @@ const app = new Hono()
 	.route("/api/v1/system", systemController)
 	.route("/api/v1/events", eventsController);
 
-app.get("/api/v1/openapi.json", generalDescriptor(app));
-app.get("/api/v1/docs", scalarDescriptor);
+// API documentation endpoints require authentication
+app.get("/api/v1/openapi.json", requireAuth, generalDescriptor(app));
+app.get("/api/v1/docs", requireAuth, scalarDescriptor);
 
 app.onError((err, c) => {
 	logger.error(`${c.req.url}: ${err.message}`);

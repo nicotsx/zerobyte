@@ -18,7 +18,7 @@ import {
 } from "../../../components/ui/form";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { volumeConfigSchema } from "~/schemas/volumes";
+import { volumeConfigSchemaBase } from "~/schemas/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
@@ -26,7 +26,7 @@ import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm } from "./volum
 
 export const formSchema = type({
 	name: "2<=string<=32",
-}).and(volumeConfigSchema);
+}).and(volumeConfigSchemaBase);
 const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
 
 export type FormValues = typeof formSchema.inferIn;

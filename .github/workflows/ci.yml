@@ -1,0 +1,35 @@
+name: Checks
+
+permissions:
+  contents: read
+  security-events: write
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  ci:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Scan current project
+        id: scan
+        uses: anchore/scan-action@v7
+        with:
+          path: "."
+
+      - name: upload Anchore scan SARIF report
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}

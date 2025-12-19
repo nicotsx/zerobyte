@@ -8,7 +8,7 @@ export default defineConfig({
 	plugins: [reactRouterHonoServer({ runtime: "bun" }), reactRouter(), tailwindcss(), tsconfigPaths()],
 	build: {
 		outDir: "dist",
-		sourcemap: true,
+		sourcemap: false,
 		rollupOptions: {
 			external: ["bun"],
 		},

@@ -76,7 +76,7 @@ export const customNotificationConfigSchema = type({
 	shoutrrrUrl: "string",
 });
 
-export const notificationConfigSchema = emailNotificationConfigSchema
+export const notificationConfigSchemaBase = emailNotificationConfigSchema
 	.or(slackNotificationConfigSchema)
 	.or(discordNotificationConfigSchema)
 	.or(gotifyNotificationConfigSchema)
@@ -84,6 +84,8 @@ export const notificationConfigSchema = emailNotificationConfigSchema
 	.or(pushoverNotificationConfigSchema)
 	.or(telegramNotificationConfigSchema)
 	.or(customNotificationConfigSchema);
+
+export const notificationConfigSchema = notificationConfigSchemaBase.onUndeclaredKey("delete");
 
 export type NotificationConfig = typeof notificationConfigSchema.infer;
 

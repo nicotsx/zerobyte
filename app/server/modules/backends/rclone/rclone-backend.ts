@@ -28,8 +28,10 @@ const mount = async (config: BackendConfig, path: string) => {
 		return { status: BACKEND_STATUS.mounted };
 	}
 
-	logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
-	await unmount(path);
+	if (status === "error") {
+		logger.debug(`Trying to unmount any existing mounts at ${path} before mounting...`);
+		await unmount(path);
+	}
 
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true });
@@ -76,15 +78,14 @@ const unmount = async (path: string) => {
 	}
 
 	const run = async () => {
-		try {
-			await fs.access(path);
-		} catch (e) {
-			logger.warn(`Path ${path} does not exist. Skipping unmount.`, e);
+		const mount = await getMountForPath(path);
+		if (!mount || mount.mountPoint !== path) {
+			logger.debug(`Path ${path} is not a mount point. Skipping unmount.`);
 			return { status: BACKEND_STATUS.unmounted };
 		}
 
 		await executeUnmount(path);
-		await fs.rmdir(path);
+		await fs.rmdir(path).catch(() => {});
 
 		logger.info(`Rclone volume at ${path} unmounted successfully.`);
 		return { status: BACKEND_STATUS.unmounted };
@@ -100,13 +101,20 @@ const unmount = async (path: string) => {
 
 const checkHealth = async (path: string) => {
 	const run = async () => {
-		logger.debug(`Checking health of rclone volume at ${path}...`);
-		await fs.access(path);
+		try {
+			await fs.access(path);
+		} catch {
+			throw new Error("Volume is not mounted");
+		}
 
 		const mount = await getMountForPath(path);
 
-		if (!mount || mount.fstype !== "fuse.rclone") {
-			throw new Error(`Path ${path} is not mounted as rclone.`);
+		if (!mount || mount.mountPoint !== path) {
+			throw new Error("Volume is not mounted");
+		}
+
+		if (!mount.fstype.includes("rclone")) {
+			throw new Error(`Path ${path} is not mounted as rclone (found ${mount.fstype}).`);
 		}
 
 		logger.debug(`Rclone volume at ${path} is healthy and mounted.`);
@@ -116,8 +124,11 @@ const checkHealth = async (path: string) => {
 	try {
 		return await withTimeout(run(), OPERATION_TIMEOUT, "Rclone health check");
 	} catch (error) {
-		logger.error("Rclone volume health check failed:", toMessage(error));
-		return { status: BACKEND_STATUS.error, error: toMessage(error) };
+		const message = toMessage(error);
+		if (message !== "Volume is not mounted") {
+			logger.error("Rclone volume health check failed:", message);
+		}
+		return { status: BACKEND_STATUS.error, error: message };
 	}
 };
 

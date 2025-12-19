@@ -11,8 +11,9 @@ import { cryptoUtils } from "../../utils/crypto";
 import { logger } from "../../utils/logger";
 import { sendNotification } from "../../utils/shoutrrr";
 import { buildShoutrrrUrl } from "./builders";
-import type { NotificationConfig, NotificationEvent } from "~/schemas/notifications";
+import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import { toMessage } from "../../utils/errors";
+import { type } from "arktype";
 
 const listDestinations = async () => {
 	const destinations = await db.query.notificationDestinationsTable.findMany({
@@ -187,11 +188,14 @@ const updateDestination = async (
 		updateData.enabled = updates.enabled;
 	}
 
-	if (updates.config !== undefined) {
-		const encryptedConfig = await encryptSensitiveFields(updates.config);
-		updateData.config = encryptedConfig;
-		updateData.type = updates.config.type;
+	const newConfig = notificationConfigSchema(updates.config || existing.config);
+	if (newConfig instanceof type.errors) {
+		throw new InternalServerError("Invalid notification configuration");
 	}
+
+	const encryptedConfig = await encryptSensitiveFields(newConfig);
+	updateData.config = encryptedConfig;
+	updateData.type = newConfig.type;
 
 	const [updated] = await db
 		.update(notificationDestinationsTable)

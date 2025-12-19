@@ -12,6 +12,7 @@ services:
       - SYS_ADMIN
     environment:
       - NODE_ENV=development
+      - ZEROBYTE_CONFIG_IMPORT=true
       # - SMB_PASSWORD=secret
     ports:
       - "4096:4096"
@@ -21,10 +22,11 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
 
+      - ./mydata:/mydata:ro
+      - ./zerobyte.config.json:/app/zerobyte.config.json:ro
+
       - ./app:/app/app
       - ~/.config/rclone:/root/.config/rclone
-      # - /run/docker/plugins:/run/docker/plugins
-      # - /var/run/docker.sock:/var/run/docker.sock
 
   zerobyte-prod:
     build:
@@ -65,11 +67,9 @@ services:
       - RECOVERY_KEY=your-64-char-hex-recovery-key
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /var/lib/zerobyte:/var/lib/zerobyte:rshared
+      - /var/lib/zerobyte:/var/lib/zerobyte
       - ./zerobyte.config.json:/app/zerobyte.config.json:ro
       - ./mydata:/mydata:ro
-      - /run/docker/plugins:/run/docker/plugins
-      - /var/run/docker.sock:/var/run/docker.sock
       - ~/.config/rclone:/root/.config/rclone
 
 # secrets:

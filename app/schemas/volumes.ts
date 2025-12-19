@@ -55,7 +55,13 @@ export const rcloneConfigSchema = type({
 	readOnly: "boolean?",
 });
 
-export const volumeConfigSchema = nfsConfigSchema.or(smbConfigSchema).or(webdavConfigSchema).or(directoryConfigSchema).or(rcloneConfigSchema);
+export const volumeConfigSchemaBase = nfsConfigSchema
+	.or(smbConfigSchema)
+	.or(webdavConfigSchema)
+	.or(directoryConfigSchema)
+	.or(rcloneConfigSchema);
+
+export const volumeConfigSchema = volumeConfigSchemaBase.onUndeclaredKey("delete");
 
 export type BackendConfig = typeof volumeConfigSchema.infer;
 

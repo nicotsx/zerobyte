@@ -9,7 +9,13 @@ import { generateShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
-import type { CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
+import {
+	repositoryConfigSchema,
+	type CompressionMode,
+	type OverwriteMode,
+	type RepositoryConfig,
+} from "~/schemas/restic";
+import { type } from "arktype";
 
 const listRepositories = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
@@ -449,6 +455,13 @@ const updateRepository = async (name: string, updates: { name?: string; compress
 		throw new ConflictError("Cannot rename an imported local repository");
 	}
 
+	const newConfig = repositoryConfigSchema(existing.config);
+	if (newConfig instanceof type.errors) {
+		throw new InternalServerError("Invalid repository configuration");
+	}
+
+	const encryptedConfig = await encryptConfig(newConfig);
+
 	let newName = existing.name;
 	if (updates.name !== undefined && updates.name !== existing.name) {
 		const newSlug = slugify(updates.name, { lower: true, strict: true });
@@ -470,6 +483,7 @@ const updateRepository = async (name: string, updates: { name?: string; compress
 			name: newName,
 			compressionMode: updates.compressionMode ?? existing.compressionMode,
 			updatedAt: Date.now(),
+			config: encryptedConfig,
 		})
 		.where(eq(repositoriesTable.id, existing.id))
 		.returning();

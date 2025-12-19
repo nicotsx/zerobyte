@@ -1,5 +1,5 @@
 import { validator } from "hono-openapi";
-
+import { rateLimiter } from "hono-rate-limiter";
 import { Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import {
@@ -21,6 +21,7 @@ import {
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { toMessage } from "../../utils/errors";
+import { config } from "~/server/core/config";
 
 const COOKIE_NAME = "session_id";
 const COOKIE_OPTIONS = {
@@ -30,8 +31,17 @@ const COOKIE_OPTIONS = {
 	path: "/",
 };
 
+const authRateLimiter = rateLimiter({
+	windowMs: 15 * 60 * 1000,
+	limit: 20,
+	keyGenerator: (c) => c.req.header("x-forwarded-for") ?? "",
+	skip: () => {
+		return config.__prod__ === false;
+	},
+});
+
 export const authController = new Hono()
-	.post("/register", registerDto, validator("json", registerBodySchema), async (c) => {
+	.post("/register", authRateLimiter, registerDto, validator("json", registerBodySchema), async (c) => {
 		const body = c.req.valid("json");
 
 		try {
@@ -58,7 +68,7 @@ export const authController = new Hono()
 			return c.json<RegisterDto>({ success: false, message: toMessage(error) }, 400);
 		}
 	})
-	.post("/login", loginDto, validator("json", loginBodySchema), async (c) => {
+	.post("/login", authRateLimiter, loginDto, validator("json", loginBodySchema), async (c) => {
 		const body = c.req.valid("json");
 
 		try {
@@ -82,7 +92,7 @@ export const authController = new Hono()
 			return c.json<LoginDto>({ success: false, message: toMessage(error) }, 401);
 		}
 	})
-	.post("/logout", logoutDto, async (c) => {
+	.post("/logout", authRateLimiter, logoutDto, async (c) => {
 		const sessionId = getCookie(c, COOKIE_NAME);
 
 		if (sessionId) {
@@ -116,26 +126,32 @@ export const authController = new Hono()
 		const hasUsers = await authService.hasUsers();
 		return c.json<GetStatusDto>({ hasUsers });
 	})
-	.post("/change-password", changePasswordDto, validator("json", changePasswordBodySchema), async (c) => {
-		const sessionId = getCookie(c, COOKIE_NAME);
+	.post(
+		"/change-password",
+		authRateLimiter,
+		changePasswordDto,
+		validator("json", changePasswordBodySchema),
+		async (c) => {
+			const sessionId = getCookie(c, COOKIE_NAME);
 
-		if (!sessionId) {
-			return c.json<ChangePasswordDto>({ success: false, message: "Not authenticated" }, 401);
-		}
+			if (!sessionId) {
+				return c.json<ChangePasswordDto>({ success: false, message: "Not authenticated" }, 401);
+			}
 
-		const session = await authService.verifySession(sessionId);
+			const session = await authService.verifySession(sessionId);
 
-		if (!session) {
-			deleteCookie(c, COOKIE_NAME, COOKIE_OPTIONS);
-			return c.json<ChangePasswordDto>({ success: false, message: "Not authenticated" }, 401);
-		}
+			if (!session) {
+				deleteCookie(c, COOKIE_NAME, COOKIE_OPTIONS);
+				return c.json<ChangePasswordDto>({ success: false, message: "Not authenticated" }, 401);
+			}
 
-		const body = c.req.valid("json");
+			const body = c.req.valid("json");
 
-		try {
-			await authService.changePassword(session.user.id, body.currentPassword, body.newPassword);
-			return c.json<ChangePasswordDto>({ success: true, message: "Password changed successfully" });
-		} catch (error) {
-			return c.json<ChangePasswordDto>({ success: false, message: toMessage(error) }, 400);
-		}
-	});
+			try {
+				await authService.changePassword(session.user.id, body.currentPassword, body.newPassword);
+				return c.json<ChangePasswordDto>({ success: true, message: "Password changed successfully" });
+			} catch (error) {
+				return c.json<ChangePasswordDto>({ success: false, message: toMessage(error) }, 400);
+			}
+		},
+	);

@@ -5,7 +5,7 @@ import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
 import { $ } from "bun";
-import { REPOSITORY_BASE, RESTIC_PASS_FILE } from "../core/constants";
+import { REPOSITORY_BASE, RESTIC_PASS_FILE, DEFAULT_EXCLUDES } from "../core/constants";
 import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
@@ -273,6 +273,10 @@ const backup = async (
 		args.push("--files-from", includeFile);
 	} else {
 		args.push(source);
+	}
+
+	for (const exclude of DEFAULT_EXCLUDES) {
+		args.push("--exclude", exclude);
 	}
 
 	if (options?.exclude && options.exclude.length > 0) {

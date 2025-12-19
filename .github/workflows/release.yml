@@ -7,6 +7,11 @@ on:
       - "v*.*.*-beta.*"
       - "v*.*.*-alpha.*"
 
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
 jobs:
   determine-release-type:
     runs-on: ubuntu-latest
@@ -37,11 +42,18 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        with:
+          driver: cloud
+          endpoint: "meienberger/runtipi-builder"
+          install: true
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -49,6 +61,31 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: local/zerobyte:ci
+          build-args: |
+            APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
+
+      - name: Scan new image for vulnerabilities
+        uses: anchore/scan-action@v7
+        id: scan
+        with:
+          image: local/zerobyte:ci
+          fail-build: true
+          severity-cutoff: critical
+
+      - name: upload Anchore scan report
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
 
       - name: Docker meta
         id: meta
@@ -63,7 +100,7 @@ jobs:
           flavor: |
             latest=${{ needs.determine-release-type.outputs.release_type == 'release' }}
 
-      - name: Build and push images
+      - name: Push images to GitHub Container Registry
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -74,8 +111,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
-          cache-from: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache
-          cache-to: type=registry,ref=ghcr.io/nicotsx/zerobyte:buildcache,mode=max
 
   publish-release:
     runs-on: ubuntu-latest

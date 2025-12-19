@@ -16,7 +16,8 @@ import type { UpdateVolumeBody } from "./volume.dto";
 import { getVolumePath } from "./helpers";
 import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
-import type { BackendConfig } from "~/schemas/volumes";
+import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
+import { type } from "arktype";
 
 async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
 	switch (config.backend) {
@@ -192,7 +193,12 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		await backend.unmount();
 	}
 
-	const encryptedConfig = volumeData.config ? await encryptSensitiveFields(volumeData.config) : undefined;
+	const newConfig = volumeConfigSchema(volumeData.config || existing.config);
+	if (newConfig instanceof type.errors) {
+		throw new InternalServerError("Invalid volume configuration");
+	}
+
+	const encryptedConfig = await encryptSensitiveFields(newConfig);
 
 	const [updated] = await db
 		.update(volumesTable)

@@ -4,7 +4,6 @@ import { logger } from "../utils/logger";
 import { db } from "../db/db";
 import { eq, or } from "drizzle-orm";
 import { repositoriesTable } from "../db/schema";
-import { repoMutex } from "../core/repository-mutex";
 
 export class RepositoryHealthCheckJob extends Job {
 	async run() {
@@ -15,11 +14,6 @@ export class RepositoryHealthCheckJob extends Job {
 		});
 
 		for (const repository of repositories) {
-			if (repoMutex.isLocked(repository.id)) {
-				logger.debug(`Skipping health check for repository ${repository.name}: currently locked`);
-				continue;
-			}
-
 			try {
 				await repositoriesService.checkHealth(repository.id);
 			} catch (error) {
