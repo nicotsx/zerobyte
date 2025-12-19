@@ -4,16 +4,16 @@ import { createTestSession } from "~/test/helpers/auth";
 
 const app = createApp();
 
-describe("backups security", () => {
+describe("notifications security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
-		const res = await app.request("/api/v1/backups");
+		const res = await app.request("/api/v1/notifications/destinations");
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body.message).toBe("Authentication required");
 	});
 
 	test("should return 401 if session is invalid", async () => {
-		const res = await app.request("/api/v1/backups", {
+		const res = await app.request("/api/v1/notifications/destinations", {
 			headers: {
 				Cookie: "session_id=invalid-session",
 			},
@@ -28,7 +28,7 @@ describe("backups security", () => {
 	test("should return 200 if session is valid", async () => {
 		const { sessionId } = await createTestSession();
 
-		const res = await app.request("/api/v1/backups", {
+		const res = await app.request("/api/v1/notifications/destinations", {
 			headers: {
 				Cookie: `session_id=${sessionId}`,
 			},
@@ -39,21 +39,12 @@ describe("backups security", () => {
 
 	describe("unauthenticated access", () => {
 		const endpoints: { method: string; path: string }[] = [
-			{ method: "GET", path: "/api/v1/backups" },
-			{ method: "GET", path: "/api/v1/backups/1" },
-			{ method: "GET", path: "/api/v1/backups/volume/1" },
-			{ method: "POST", path: "/api/v1/backups" },
-			{ method: "PATCH", path: "/api/v1/backups/1" },
-			{ method: "DELETE", path: "/api/v1/backups/1" },
-			{ method: "POST", path: "/api/v1/backups/1/run" },
-			{ method: "POST", path: "/api/v1/backups/1/stop" },
-			{ method: "POST", path: "/api/v1/backups/1/forget" },
-			{ method: "GET", path: "/api/v1/backups/1/notifications" },
-			{ method: "PUT", path: "/api/v1/backups/1/notifications" },
-			{ method: "GET", path: "/api/v1/backups/1/mirrors" },
-			{ method: "PUT", path: "/api/v1/backups/1/mirrors" },
-			{ method: "GET", path: "/api/v1/backups/1/mirrors/compatibility" },
-			{ method: "POST", path: "/api/v1/backups/reorder" },
+			{ method: "GET", path: "/api/v1/notifications/destinations" },
+			{ method: "POST", path: "/api/v1/notifications/destinations" },
+			{ method: "GET", path: "/api/v1/notifications/destinations/1" },
+			{ method: "PATCH", path: "/api/v1/notifications/destinations/1" },
+			{ method: "DELETE", path: "/api/v1/notifications/destinations/1" },
+			{ method: "POST", path: "/api/v1/notifications/destinations/1/test" },
 		];
 
 		for (const { method, path } of endpoints) {
@@ -67,15 +58,8 @@ describe("backups security", () => {
 	});
 
 	describe("information disclosure", () => {
-		test("should not disclose if a schedule exists when unauthenticated", async () => {
-			const res = await app.request("/api/v1/backups/999999");
-			expect(res.status).toBe(401);
-			const body = await res.json();
-			expect(body.message).toBe("Authentication required");
-		});
-
-		test("should not disclose if a volume exists when unauthenticated", async () => {
-			const res = await app.request("/api/v1/backups/volume/999999");
+		test("should not disclose if a destination exists when unauthenticated", async () => {
+			const res = await app.request("/api/v1/notifications/destinations/999999");
 			expect(res.status).toBe(401);
 			const body = await res.json();
 			expect(body.message).toBe("Authentication required");
@@ -83,9 +67,9 @@ describe("backups security", () => {
 	});
 
 	describe("input validation", () => {
-		test("should return 404 for malformed schedule ID", async () => {
+		test("should return 404 for malformed destination ID", async () => {
 			const { sessionId } = await createTestSession();
-			const res = await app.request("/api/v1/backups/not-a-number", {
+			const res = await app.request("/api/v1/notifications/destinations/not-a-number", {
 				headers: {
 					Cookie: `session_id=${sessionId}`,
 				},
@@ -94,9 +78,9 @@ describe("backups security", () => {
 			expect(res.status).toBe(404);
 		});
 
-		test("should return 404 for non-existent schedule ID", async () => {
+		test("should return 404 for non-existent destination ID", async () => {
 			const { sessionId } = await createTestSession();
-			const res = await app.request("/api/v1/backups/999999", {
+			const res = await app.request("/api/v1/notifications/destinations/999999", {
 				headers: {
 					Cookie: `session_id=${sessionId}`,
 				},
@@ -104,12 +88,12 @@ describe("backups security", () => {
 
 			expect(res.status).toBe(404);
 			const body = await res.json();
-			expect(body.message).toBe("Backup schedule not found");
+			expect(body.message).toBe("Notification destination not found");
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
 			const { sessionId } = await createTestSession();
-			const res = await app.request("/api/v1/backups", {
+			const res = await app.request("/api/v1/notifications/destinations", {
 				method: "POST",
 				headers: {
 					Cookie: `session_id=${sessionId}`,
