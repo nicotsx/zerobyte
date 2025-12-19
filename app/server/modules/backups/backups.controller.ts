@@ -86,7 +86,9 @@ export const backupScheduleController = new Hono()
 	.post("/:scheduleId/run", runBackupNowDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		backupsService.executeBackup(Number(scheduleId), true);
+		backupsService.executeBackup(Number(scheduleId), true).catch((err) => {
+			console.error(`Error executing manual backup for schedule ${scheduleId}:`, err);
+		});
 
 		return c.json<RunBackupNowDto>({ success: true }, 200);
 	})
