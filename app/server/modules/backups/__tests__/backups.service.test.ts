@@ -1,19 +1,20 @@
-import { test, describe, mock, expect } from "bun:test";
+import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
-import { beforeEach } from "bun:test";
+import * as spawnModule from "~/server/utils/spawn";
 
-const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0 }));
-
-mock.module("~/server/utils/spawn", () => ({
-	safeSpawn: resticBackupMock,
-}));
+const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }));
 
 beforeEach(() => {
 	resticBackupMock.mockClear();
+	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
+});
+
+afterEach(() => {
+	mock.restore();
 });
 
 describe("execute backup", () => {

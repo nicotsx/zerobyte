@@ -1,23 +1,23 @@
-import { test, describe, mock, expect, beforeEach } from "bun:test";
+import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { getVolumePath } from "../../volumes/helpers";
+import { restic } from "~/server/utils/restic";
 import path from "node:path";
 
-const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: generateBackupOutput() }));
-
-mock.module("~/server/utils/restic", () => ({
-	restic: {
-		backup: backupMock,
-		forget: mock(() => Promise.resolve()),
-	},
-}));
+const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: JSON.parse(generateBackupOutput()) }));
 
 beforeEach(() => {
 	backupMock.mockClear();
+	spyOn(restic, "backup").mockImplementation(backupMock);
+	spyOn(restic, "forget").mockImplementation(mock(() => Promise.resolve({ success: true })));
+});
+
+afterEach(() => {
+	mock.restore();
 });
 
 describe("executeBackup - include / exclude patterns", () => {
