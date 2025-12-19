@@ -68,6 +68,8 @@ export const restRepositoryConfigSchema = type({
 	username: "string?",
 	password: "string?",
 	path: "string?",
+	cacert: "string?",
+	insecureTls: "boolean?",
 }).and(baseRepositoryConfigSchema);
 
 export const sftpRepositoryConfigSchema = type({
