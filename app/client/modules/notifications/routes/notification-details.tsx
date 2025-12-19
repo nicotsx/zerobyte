@@ -172,7 +172,15 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 							</AlertDescription>
 						</Alert>
 					)}
-					<CreateNotificationForm mode="update" formId={formId} onSubmit={handleSubmit} initialValues={data.config} />
+					<CreateNotificationForm
+						mode="update"
+						formId={formId}
+						onSubmit={handleSubmit}
+						initialValues={{
+							...data.config,
+							name: data.name,
+						}}
+					/>
 					<div className="flex justify-end gap-2 pt-4 border-t">
 						<Button type="submit" form={formId} loading={updateDestination.isPending}>
 							<Save className="h-4 w-4 mr-2" />
