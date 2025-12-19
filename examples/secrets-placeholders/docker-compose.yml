@@ -1,0 +1,26 @@
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:latest
+    container_name: zerobyte
+    restart: unless-stopped
+    # Required for mounting remote volumes (SMB/NFS/WebDAV) from inside the container
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    ports:
+      - "4096:4096"
+    environment:
+      - TZ=${TZ:-UTC}
+      # Example env-backed secret (refer to it in Zerobyte as env://ZEROBYTE_SMB_PASSWORD)
+      - ZEROBYTE_SMB_PASSWORD=${ZEROBYTE_SMB_PASSWORD:-}
+    secrets:
+      # Example file-backed secret (refer to it in Zerobyte as file://smb_password)
+      - smb_password
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+
+secrets:
+  smb_password:
+    file: ./smb-password.txt

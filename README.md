@@ -67,33 +67,9 @@ docker compose up -d
 
 Once the container is running, you can access the web interface at `http://<your-server-ip>:4096`.
 
-### Simplified setup (No remote mounts)
+## Examples
 
-If you only need to back up locally mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
-
-```yaml
-services:
-  zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.19
-    container_name: zerobyte
-    restart: unless-stopped
-    ports:
-      - "4096:4096"
-    environment:
-      - TZ=Europe/Paris  # Set your timezone here
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/lib/zerobyte:/var/lib/zerobyte
-      - /path/to/your/directory:/mydata
-```
-
-**Trade-offs:**
-- ✅ Improved security by reducing container capabilities
-- ✅ Support for local directories
-- ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)
-- ❌ Cannot mount NFS, SMB, or WebDAV shares directly from Zerobyte
-
-If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
+See [examples/README.md](examples/README.md) for runnable, copy/paste-friendly examples.
 
 ## Adding your first volume
 
@@ -101,36 +77,7 @@ Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, and local
 
 To add your first volume, navigate to the "Volumes" section in the web interface and click on "Create volume". Fill in the required details such as volume name, type, and connection settings.
 
-If you want to track a local directory on the same server where Zerobyte is running, you'll first need to mount that directory into the Zerobyte container. You can do this by adding a volume mapping in your `docker-compose.yml` file. For example, to mount `/path/to/your/directory` from the host to `/mydata` in the container, you would add the following line under the `volumes` section:
-
-```diff
-services:
-  zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.19
-    container_name: zerobyte
-    restart: unless-stopped
-    cap_add:
-      - SYS_ADMIN
-    ports:
-      - "4096:4096"
-    devices:
-      - /dev/fuse:/dev/fuse
-    environment:
-      - TZ=Europe/Paris
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /var/lib/zerobyte:/var/lib/zerobyte
-+     - /path/to/your/directory:/mydata
-```
-
-After updating the `docker-compose.yml` file, restart the Zerobyte container to apply the changes:
-
-```bash
-docker compose down
-docker compose up -d
-```
-
-Now, when adding a new volume in the Zerobyte web interface, you can select "Directory" as the volume type and search for your mounted path (e.g., `/mydata`) as the source path.
+If you want to back up a host directory, see the bind-mount example: [examples/directory-bind-mount/README.md](examples/directory-bind-mount/README.md).
 
 ![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/add-volume.png?raw=true)
 
@@ -155,49 +102,28 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
 **Setup instructions:**
 
 1. **Install rclone on your host system** (if not already installed):
+
    ```bash
    curl https://rclone.org/install.sh | sudo bash
    ```
 
 2. **Configure your cloud storage remote** using rclone's interactive config:
+
    ```bash
    rclone config
    ```
+
    Follow the prompts to set up your cloud storage provider. For OAuth providers (Google Drive, Dropbox, etc.), rclone will guide you through the authentication flow.
 
 3. **Verify your remote is configured**:
+
    ```bash
    rclone listremotes
    ```
 
-4. **Mount the rclone config into the Zerobyte container** by updating your `docker-compose.yml`:
-   ```diff
-   services:
-     zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.19
-       container_name: zerobyte
-       restart: unless-stopped
-       cap_add:
-         - SYS_ADMIN
-       ports:
-         - "4096:4096"
-       devices:
-         - /dev/fuse:/dev/fuse
-       environment:
-         - TZ=Europe/Paris
-       volumes:
-         - /etc/localtime:/etc/localtime:ro
-         - /var/lib/zerobyte:/var/lib/zerobyte
-   +     - ~/.config/rclone:/root/.config/rclone
-   ```
+4. **Mount the rclone config into the Zerobyte container** using the example: [examples/rclone-config-mount/README.md](examples/rclone-config-mount/README.md)
 
-5. **Restart the Zerobyte container**:
-   ```bash
-   docker compose down
-   docker compose up -d
-   ```
-
-6. **Create a repository** in Zerobyte:
+5. **Create a repository** in Zerobyte:
    - Select "rclone" as the repository type
    - Choose your configured remote from the dropdown
    - Specify the path within your remote (e.g., `backups/zerobyte`)
@@ -209,6 +135,7 @@ For a complete list of supported providers, see the [rclone documentation](https
 Once you have added a volume and created a repository, you can create your first backup job. A backup job defines the schedule and parameters for backing up a specific volume to a designated repository.
 
 When creating a backup job, you can specify the following settings:
+
 - **Schedule**: Define how often the backup should run (e.g., daily, weekly)
 - **Retention Policy**: Set rules for how long backups should be retained (e.g., keep daily backups for 7 days, weekly backups for 4 weeks)
 - **Paths**: Specify which files or directories to include in the backup

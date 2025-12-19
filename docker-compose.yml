@@ -12,19 +12,13 @@ services:
       - SYS_ADMIN
     environment:
       - NODE_ENV=development
-      # - SMB_PASSWORD=secret
     ports:
       - "4096:4096"
-    # secrets:
-    #   - smb-password
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
-
       - ./app:/app/app
       - ~/.config/rclone:/root/.config/rclone
-      # - /run/docker/plugins:/run/docker/plugins
-      # - /var/run/docker.sock:/var/run/docker.sock
 
   zerobyte-prod:
     build:
@@ -42,10 +36,4 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte:rshared
-      - /run/docker/plugins:/run/docker/plugins
-      - /var/run/docker.sock:/var/run/docker.sock
       - ~/.config/rclone:/root/.config/rclone
-
-# secrets:
-#   smb-password:
-#     file: ./smb-password.txt
