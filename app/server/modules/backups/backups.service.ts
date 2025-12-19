@@ -363,8 +363,6 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.catch((notifError) => {
 				logger.error(`Failed to send backup failure notification: ${toMessage(notifError)}`);
 			});
-
-		throw error;
 	} finally {
 		runningBackups.delete(scheduleId);
 	}

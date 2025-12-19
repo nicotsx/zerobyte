@@ -1,6 +1,5 @@
 import { Job } from "../core/scheduler";
 import { backupsService } from "../modules/backups/backups.service";
-import { toMessage } from "../utils/errors";
 import { logger } from "../utils/logger";
 
 export class BackupExecutionJob extends Job {
@@ -17,8 +16,8 @@ export class BackupExecutionJob extends Job {
 		logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute`);
 
 		for (const scheduleId of scheduleIds) {
-			backupsService.executeBackup(scheduleId).catch((error) => {
-				logger.error(`Failed to execute backup for schedule ${scheduleId}: ${toMessage(error)}`);
+			backupsService.executeBackup(scheduleId).catch((err) => {
+				logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
 			});
 		}
 

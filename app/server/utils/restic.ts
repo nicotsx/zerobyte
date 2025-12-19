@@ -29,6 +29,7 @@ const backupOutputSchema = type({
 	total_duration: "number",
 	snapshot_id: "string",
 });
+export type BackupOutput = typeof backupOutputSchema.infer;
 
 const snapshotInfoSchema = type({
 	gid: "number?",
@@ -344,7 +345,7 @@ const backup = async (
 		throw new ResticError(res.exitCode, res.stderr.toString());
 	}
 
-	const lastLine = stdout.trim();
+	const lastLine = (stdout || res.stdout).trim();
 	let summaryLine = "";
 	try {
 		const resSummary = JSON.parse(lastLine ?? "{}");

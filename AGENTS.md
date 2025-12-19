@@ -36,6 +36,16 @@ This is a unified application with the following structure:
 bun run tsc
 ```
 
+### Testing
+
+```bash
+# Run all tests
+bun run test
+
+# Run a specific test file
+bunx dotenv-cli -e .env.test -- bun test --preload ./app/test/setup.ts path/to/test.ts
+```
+
 ### Building
 
 ```bash
