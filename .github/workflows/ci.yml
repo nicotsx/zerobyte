@@ -21,15 +21,18 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
 
-      - name: Scan current project
-        id: scan
-        uses: anchore/scan-action@v7
-        with:
-          path: "."
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
 
-      - name: upload Anchore scan SARIF report
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
+      - name: Run type checks
+        shell: bash
+        run: bun run tsc
+
+      - name: Run tests
+        shell: bash
+        run: bun run test --ci --coverage
+
+      - name: Build project
+        shell: bash
+        run: bun run build
