@@ -13,6 +13,7 @@ import { serverEvents } from "../../core/events";
 import { notificationsService } from "../notifications/notifications.service";
 import { repoMutex } from "../../core/repository-mutex";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
+import path from "node:path";
 
 const runningBackups = new Map<number, AbortController>();
 
@@ -258,7 +259,16 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		};
 
 		if (schedule.excludePatterns && schedule.excludePatterns.length > 0) {
-			backupOptions.exclude = schedule.excludePatterns;
+			const excludePatterns = [];
+			for (const pattern of schedule.excludePatterns) {
+				if (!pattern.startsWith(volumePath)) {
+					excludePatterns.push(path.join(volumePath, pattern));
+				} else {
+					excludePatterns.push(pattern);
+				}
+			}
+
+			backupOptions.exclude = excludePatterns;
 		}
 
 		if (schedule.excludeIfPresent && schedule.excludeIfPresent.length > 0) {
@@ -266,7 +276,16 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		}
 
 		if (schedule.includePatterns && schedule.includePatterns.length > 0) {
-			backupOptions.include = schedule.includePatterns;
+			const includePatterns = [];
+			for (const pattern of schedule.includePatterns) {
+				if (!pattern.startsWith(volumePath)) {
+					includePatterns.push(path.join(volumePath, pattern));
+				} else {
+					includePatterns.push(pattern);
+				}
+			}
+
+			backupOptions.include = includePatterns;
 		}
 
 		const releaseBackupLock = await repoMutex.acquireShared(repository.id, `backup:${volume.name}`);

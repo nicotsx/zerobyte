@@ -267,9 +267,7 @@ const backup = async (
 		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 		includeFile = path.join(tmp, `include.txt`);
 
-		const includePaths = options.include.map((p) => path.join(source, p));
-
-		await fs.writeFile(includeFile, includePaths.join("\n"), "utf-8");
+		await fs.writeFile(includeFile, options.include.join("\n"), "utf-8");
 
 		args.push("--files-from", includeFile);
 	} else {
@@ -280,10 +278,14 @@ const backup = async (
 		args.push("--exclude", exclude);
 	}
 
+	let excludeFile: string | null = null;
 	if (options?.exclude && options.exclude.length > 0) {
-		for (const pattern of options.exclude) {
-			args.push("--exclude", pattern);
-		}
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-exclude-"));
+		excludeFile = path.join(tmp, `exclude.txt`);
+
+		await fs.writeFile(excludeFile, options.exclude.join("\n"), "utf-8");
+
+		args.push("--exclude-file", excludeFile);
 	}
 
 	if (options?.excludeIfPresent && options.excludeIfPresent.length > 0) {
@@ -330,6 +332,7 @@ const backup = async (
 		},
 		finally: async () => {
 			includeFile && (await fs.unlink(includeFile).catch(() => {}));
+			excludeFile && (await fs.unlink(excludeFile).catch(() => {}));
 			await cleanupTemporaryKeys(config, env);
 		},
 	});

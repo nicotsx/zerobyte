@@ -318,7 +318,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								onSelectionChange={handleSelectionChange}
 								withCheckboxes={true}
 								foldersOnly={false}
-								className="flex-1 border rounded-md bg-card p-2 min-h-[300px] max-h-[400px] overflow-auto"
+								className="flex-1 border rounded-md bg-card p-2 min-h-75 max-h-100 overflow-auto"
 							/>
 							{selectedPaths.size > 0 && (
 								<div className="mt-4">
@@ -342,7 +342,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 											<Textarea
 												{...field}
 												placeholder="/data/**&#10;/config/*.json&#10;*.db"
-												className="font-mono text-sm min-h-[100px]"
+												className="font-mono text-sm min-h-25"
 											/>
 										</FormControl>
 										<FormDescription>
@@ -375,7 +375,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 											<Textarea
 												{...field}
 												placeholder="*.tmp&#10;node_modules/**&#10;.cache/&#10;*.log"
-												className="font-mono text-sm min-h-[120px]"
+												className="font-mono text-sm min-h-30"
 											/>
 										</FormControl>
 										<FormDescription>

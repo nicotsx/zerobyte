@@ -7,6 +7,7 @@ import { $ } from "bun";
 export const executeMount = async (args: string[]): Promise<void> => {
 	let stderr: string | undefined;
 
+	logger.debug(`Executing mount ${args.join(" ")}`);
 	const result = await $`mount ${args}`.nothrow();
 	stderr = result.stderr.toString();
 
@@ -22,7 +23,8 @@ export const executeMount = async (args: string[]): Promise<void> => {
 export const executeUnmount = async (path: string): Promise<void> => {
 	let stderr: string | undefined;
 
-	const result = await $`umount -l -f ${path}`.nothrow();
+	logger.debug(`Executing umount -l ${path}`);
+	const result = await $`umount -l ${path}`.nothrow();
 	stderr = result.stderr.toString();
 
 	if (stderr?.trim()) {
