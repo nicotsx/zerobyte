@@ -21,6 +21,7 @@ export const volumesTable = sqliteTable("volumes_table", {
 	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 });
 export type Volume = typeof volumesTable.$inferSelect;
+export type VolumeInsert = typeof volumesTable.$inferInsert;
 
 /**
  * Users Table
@@ -61,6 +62,7 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
 export type Repository = typeof repositoriesTable.$inferSelect;
+export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
 
 /**
  * Backup Schedules Table
@@ -96,6 +98,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
 });
+export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
 export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
 	volume: one(volumesTable, {

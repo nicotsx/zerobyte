@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-interface Params {
+export interface SafeSpawnParams {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;
@@ -18,7 +18,7 @@ type SpawnResult = {
 	stderr: string;
 };
 
-export const safeSpawn = (params: Params) => {
+export const safeSpawn = (params: SafeSpawnParams) => {
 	const { command, args, env = {}, signal, ...callbacks } = params;
 
 	return new Promise<SpawnResult>((resolve) => {

@@ -14,7 +14,8 @@
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
 		"gen:api-client": "openapi-ts",
 		"gen:migrations": "drizzle-kit generate",
-		"studio": "drizzle-kit studio"
+		"studio": "drizzle-kit studio",
+		"test": "dotenv -e .env.test -- bun test --preload ./app/test/setup.ts"
 	},
 	"overrides": {
 		"esbuild": "^0.27.2"
@@ -73,6 +74,7 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.8",
+		"@faker-js/faker": "^10.1.0",
 		"@hey-api/openapi-ts": "^0.88.0",
 		"@react-router/dev": "^7.10.0",
 		"@tailwindcss/vite": "^4.1.17",
@@ -81,6 +83,7 @@
 		"@types/node": "^24.10.1",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"dotenv-cli": "^11.0.0",
 		"drizzle-kit": "^0.31.7",
 		"lightningcss": "^1.30.2",
 		"tailwindcss": "^4.1.17",
