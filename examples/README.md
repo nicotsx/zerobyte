@@ -15,9 +15,3 @@ This folder contains runnable, copy/paste-friendly examples for running Zerobyte
 ### Advanced setups
 
 - [Tailscale sidecar](tailscale-sidecar/README.md) — run Zerobyte behind a Tailscale sidecar using shared networking.
-
-## Conventions
-
-- Each example should be runnable on its own (ideally via Docker Compose).
-- Each example should include a README with prerequisites, troubleshooting, etc.
-- If configuration is needed, include a `.env.example`.
