@@ -62,13 +62,53 @@ export const rcloneRepositoryConfigSchema = type({
 	path: "string",
 }).and(baseRepositoryConfigSchema);
 
+const pemCertificateType = type("string").narrow((value, ctx) => {
+	if (!value || value.trim() === "") {
+		return true;
+	}
+
+	const trimmed = value.trim();
+
+	// Check for BEGIN and END markers
+	if (!trimmed.includes("-----BEGIN CERTIFICATE-----") || !trimmed.includes("-----END CERTIFICATE-----")) {
+		return ctx.error("Certificate must be in PEM format with BEGIN and END markers");
+	}
+
+	// Extract content between markers
+	const beginMarker = "-----BEGIN CERTIFICATE-----";
+	const endMarker = "-----END CERTIFICATE-----";
+	const beginIndex = trimmed.indexOf(beginMarker);
+	const endIndex = trimmed.indexOf(endMarker);
+
+	if (beginIndex === -1 || endIndex === -1 || endIndex <= beginIndex) {
+		return ctx.error("Invalid PEM certificate structure");
+	}
+
+	// Extract base64 content
+	const base64Content = trimmed.substring(beginIndex + beginMarker.length, endIndex).replace(/\s/g, "");
+
+	// Validate base64 format
+	const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+	if (!base64Regex.test(base64Content)) {
+		return ctx.error("Certificate contains invalid base64 characters");
+	}
+
+	if (base64Content.length === 0) {
+		return ctx.error("Certificate content is empty");
+	}
+
+	return true;
+});
+
+const optionalPemCertificate = pemCertificateType.optional();
+
 export const restRepositoryConfigSchema = type({
 	backend: "'rest'",
 	url: "string",
 	username: "string?",
 	password: "string?",
 	path: "string?",
-	cacert: "string?",
+	cacert: optionalPemCertificate as any,
 	insecureTls: "boolean?",
 }).and(baseRepositoryConfigSchema);
 
