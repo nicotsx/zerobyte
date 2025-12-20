@@ -49,7 +49,9 @@ class RepositoryMutex {
 	async acquireShared(repositoryId: string, operation: string): Promise<() => void> {
 		const state = this.getOrCreateState(repositoryId);
 
-		if (!state.exclusiveHolder) {
+		const hasExclusiveInQueue = state.waitQueue.some((item) => item.type === "exclusive");
+
+		if (!state.exclusiveHolder && !hasExclusiveInQueue) {
 			const lockId = this.generateLockId();
 			state.sharedHolders.set(lockId, {
 				id: lockId,
@@ -60,7 +62,7 @@ class RepositoryMutex {
 		}
 
 		logger.debug(
-			`[Mutex] Waiting for shared lock on repo ${repositoryId}: ${operation} (exclusive held by: ${state.exclusiveHolder.operation})`,
+			`[Mutex] Waiting for shared lock on repo ${repositoryId}: ${operation} (exclusive held by: ${state.exclusiveHolder?.operation ?? "none"}, queue: ${state.waitQueue.length})`,
 		);
 		const lockId = await new Promise<string>((resolve) => {
 			state.waitQueue.push({ type: "shared", operation, resolve });
