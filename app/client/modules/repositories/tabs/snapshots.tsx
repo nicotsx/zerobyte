@@ -17,7 +17,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const { data, isFetching, failureReason } = useQuery({
-		...listSnapshotsOptions({ path: { name: repository.name } }),
+		...listSnapshotsOptions({ path: { id: repository.id } }),
 		initialData: [],
 	});
 
@@ -137,7 +137,11 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 					</TableBody>
 				</Table>
 			) : (
-				<SnapshotsTable snapshots={filteredSnapshots} repositoryName={repository.name} backups={schedules.data ?? []} />
+				<SnapshotsTable
+					snapshots={filteredSnapshots}
+					repositoryId={repository.shortId}
+					backups={schedules.data ?? []}
+				/>
 			)}
 			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-between border-t">
 				<span>

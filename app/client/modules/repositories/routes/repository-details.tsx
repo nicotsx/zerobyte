@@ -30,13 +30,13 @@ import { Loader2, Stethoscope, Trash2, X } from "lucide-react";
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
 		{ label: "Repositories", href: "/repositories" },
-		{ label: match.params.name },
+		{ label: match.loaderData?.name || match.params.id },
 	],
 };
 
-export function meta({ params }: Route.MetaArgs) {
+export function meta({ params, loaderData }: Route.MetaArgs) {
 	return [
-		{ title: `Zerobyte - ${params.name}` },
+		{ title: `Zerobyte - ${loaderData?.name || params.id}` },
 		{
 			name: "description",
 			content: "View repository configuration, status, and snapshots.",
@@ -45,7 +45,7 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const repository = await getRepository({ path: { name: params.name ?? "" } });
+	const repository = await getRepository({ path: { id: params.id ?? "" } });
 	if (repository.data) return repository.data;
 
 	return redirect("/repositories");
@@ -62,13 +62,13 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 	const activeTab = searchParams.get("tab") || "info";
 
 	const { data } = useQuery({
-		...getRepositoryOptions({ path: { name: loaderData.name } }),
+		...getRepositoryOptions({ path: { id: loaderData.id } }),
 		initialData: loaderData,
 	});
 
 	useEffect(() => {
-		queryClient.prefetchQuery(listSnapshotsOptions({ path: { name: data.name } }));
-	}, [queryClient, data.name]);
+		queryClient.prefetchQuery(listSnapshotsOptions({ path: { id: data.id } }));
+	}, [queryClient, data.id]);
 
 	const deleteRepo = useMutation({
 		...deleteRepositoryMutation(),
@@ -108,7 +108,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);
-		deleteRepo.mutate({ path: { name: data.name } });
+		deleteRepo.mutate({ path: { id: data.id } });
 	};
 
 	const getStepLabel = (step: string) => {
@@ -142,7 +142,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 				</div>
 				<div className="flex gap-4">
 					<Button
-						onClick={() => doctorMutation.mutate({ path: { name: data.name } })}
+						onClick={() => doctorMutation.mutate({ path: { id: data.id } })}
 						disabled={doctorMutation.isPending}
 						variant={"outline"}
 					>

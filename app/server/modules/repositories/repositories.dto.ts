@@ -61,6 +61,7 @@ export const createRepositoryResponse = type({
 	message: "string",
 	repository: type({
 		id: "string",
+		shortId: "string",
 		name: "string",
 	}),
 });
@@ -90,7 +91,7 @@ export const getRepositoryResponse = repositorySchema;
 export type GetRepositoryDto = typeof getRepositoryResponse.infer;
 
 export const getRepositoryDto = describeRoute({
-	description: "Get a single repository by name",
+	description: "Get a single repository by ID",
 	tags: ["Repositories"],
 	operationId: "getRepository",
 	responses: {

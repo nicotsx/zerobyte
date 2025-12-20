@@ -26,7 +26,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
 
 	for (const repo of repositories) {
-		await repositoriesService.updateRepository(repo.name, {}).catch((err) => {
+		await repositoriesService.updateRepository(repo.id, {}).catch((err) => {
 			logger.error(`Failed to update repository ${repo.name}: ${err}`);
 		});
 	}

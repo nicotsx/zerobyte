@@ -51,7 +51,7 @@ export type Session = typeof sessionsTable.$inferSelect;
 export const repositoriesTable = sqliteTable("repositories_table", {
 	id: text().primaryKey(),
 	shortId: text("short_id").notNull().unique(),
-	name: text().notNull().unique(),
+	name: text().notNull(),
 	type: text().$type<RepositoryBackend>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof repositoryConfigSchema.inferOut>().notNull(),
 	compressionMode: text("compression_mode").$type<CompressionMode>().default("auto"),

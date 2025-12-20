@@ -285,7 +285,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 											<TableCell>
 												<div className="flex items-center gap-2">
 													<Link
-														to={`/repositories/${repository.name}`}
+														to={`/repositories/${repository.shortId}`}
 														className="hover:underline flex items-center gap-2"
 													>
 														<RepositoryIcon backend={repository.type} className="h-4 w-4" />

@@ -25,10 +25,10 @@ import type { BackupSchedule, Snapshot } from "../lib/types";
 type Props = {
 	snapshots: Snapshot[];
 	backups: BackupSchedule[];
-	repositoryName: string;
+	repositoryId: string;
 };
 
-export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) => {
+export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -53,7 +53,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 		if (snapshotToDelete) {
 			toast.promise(
 				deleteSnapshot.mutateAsync({
-					path: { name: repositoryName, snapshotId: snapshotToDelete },
+					path: { id: repositoryId, snapshotId: snapshotToDelete },
 				}),
 				{
 					loading: "Deleting snapshot...",
@@ -65,7 +65,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 	};
 
 	const handleRowClick = (snapshotId: string) => {
-		navigate(`/repositories/${repositoryName}/${snapshotId}`);
+		navigate(`/repositories/${repositoryId}/${snapshotId}`);
 	};
 
 	return (

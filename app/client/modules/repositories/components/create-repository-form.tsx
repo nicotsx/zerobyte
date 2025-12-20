@@ -3,7 +3,7 @@ import { type } from "arktype";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Save } from "lucide-react";
-import { cn, slugify } from "~/client/lib/utils";
+import { cn } from "~/client/lib/utils";
 import { deepClean } from "~/utils/object";
 import { Button } from "../../../components/ui/button";
 import {
@@ -109,7 +109,7 @@ export const CreateRepositoryForm = ({
 								<Input
 									{...field}
 									placeholder="Repository name"
-									onChange={(e) => field.onChange(slugify(e.target.value))}
+									onChange={(e) => field.onChange(e.target.value)}
 									maxLength={32}
 									minLength={2}
 								/>

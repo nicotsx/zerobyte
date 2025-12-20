@@ -90,7 +90,7 @@ export const ScheduleSummary = (props: Props) => {
 									<span>{schedule.volume.name}</span>
 								</Link>
 								<span className="mx-2">→</span>
-								<Link to={`/repositories/${schedule.repository.name}`} className="hover:underline">
+								<Link to={`/repositories/${schedule.repository.shortId}`} className="hover:underline">
 									<Database className="inline h-4 w-4 mr-2 text-strong-accent" />
 									<span className="text-strong-accent">{schedule.repository.name}</span>
 								</Link>

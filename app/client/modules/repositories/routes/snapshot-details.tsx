@@ -3,13 +3,13 @@ import { redirect, useParams } from "react-router";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
-import { getSnapshotDetails } from "~/client/api-client";
+import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import type { Route } from "./+types/snapshot-details";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
 		{ label: "Repositories", href: "/repositories" },
-		{ label: match.params.name, href: `/repositories/${match.params.name}` },
+		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
 		{ label: match.params.snapshotId },
 	],
 };
@@ -26,28 +26,31 @@ export function meta({ params }: Route.MetaArgs) {
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 	const snapshot = await getSnapshotDetails({
-		path: { name: params.name, snapshotId: params.snapshotId },
+		path: { id: params.id, snapshotId: params.snapshotId },
 	});
-	if (snapshot.data) return snapshot.data;
+	if (!snapshot.data) return redirect("/repositories");
 
-	return redirect("/repositories");
+	const repository = await getRepository({ path: { id: params.id } });
+	if (!repository.data) return redirect("/repositories");
+
+	return { snapshot: snapshot.data, repository: repository.data };
 };
 
 export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps) {
-	const { name, snapshotId } = useParams<{
-		name: string;
+	const { id, snapshotId } = useParams<{
+		id: string;
 		snapshotId: string;
 	}>();
 
 	const { data } = useQuery({
 		...listSnapshotFilesOptions({
-			path: { name: name ?? "", snapshotId: snapshotId ?? "" },
+			path: { id: id ?? "", snapshotId: snapshotId ?? "" },
 			query: { path: "/" },
 		}),
-		enabled: !!name && !!snapshotId,
+		enabled: !!id && !!snapshotId,
 	});
 
-	if (!name || !snapshotId) {
+	if (!id || !snapshotId) {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<p className="text-destructive">Invalid snapshot reference</p>
@@ -59,12 +62,12 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">{name}</h1>
+					<h1 className="text-2xl font-bold">{loaderData.repository.name}</h1>
 					<p className="text-sm text-muted-foreground">Snapshot: {snapshotId}</p>
 				</div>
 			</div>
 
-			<SnapshotFileBrowser repositoryName={name} snapshot={loaderData} />
+			<SnapshotFileBrowser repositoryId={id} snapshot={loaderData.snapshot} />
 
 			{data?.snapshot && (
 				<Card>

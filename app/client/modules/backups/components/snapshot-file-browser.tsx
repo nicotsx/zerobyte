@@ -11,14 +11,14 @@ import { useFileBrowser } from "~/client/hooks/use-file-browser";
 
 interface Props {
 	snapshot: Snapshot;
-	repositoryName: string;
+	repositoryId: string;
 	backupId?: string;
 	onDeleteSnapshot?: (snapshotId: string) => void;
 	isDeletingSnapshot?: boolean;
 }
 
 export const SnapshotFileBrowser = (props: Props) => {
-	const { snapshot, repositoryName, backupId, onDeleteSnapshot, isDeletingSnapshot } = props;
+	const { snapshot, repositoryId, backupId, onDeleteSnapshot, isDeletingSnapshot } = props;
 
 	const queryClient = useQueryClient();
 
@@ -26,7 +26,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 
 	const { data: filesData, isLoading: filesLoading } = useQuery({
 		...listSnapshotFilesOptions({
-			path: { name: repositoryName, snapshotId: snapshot.short_id },
+			path: { id: repositoryId, snapshotId: snapshot.short_id },
 			query: { path: volumeBasePath },
 		}),
 	});
@@ -61,7 +61,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 		fetchFolder: async (path) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
-					path: { name: repositoryName, snapshotId: snapshot.short_id },
+					path: { id: repositoryId, snapshotId: snapshot.short_id },
 					query: { path },
 				}),
 			);
@@ -69,7 +69,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 		prefetchFolder: (path) => {
 			queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
-					path: { name: repositoryName, snapshotId: snapshot.short_id },
+					path: { id: repositoryId, snapshotId: snapshot.short_id },
 					query: { path },
 				}),
 			);
@@ -82,7 +82,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 
 	return (
 		<div className="space-y-4">
-			<Card className="h-[600px] flex flex-col">
+			<Card className="h-150 flex flex-col">
 				<CardHeader>
 					<div className="flex items-start justify-between">
 						<div>
@@ -94,7 +94,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 								to={
 									backupId
 										? `/backups/${backupId}/${snapshot.short_id}/restore`
-										: `/repositories/${repositoryName}/${snapshot.short_id}/restore`
+										: `/repositories/${repositoryId}/${snapshot.short_id}/restore`
 								}
 								className={buttonVariants({ variant: "primary", size: "sm" })}
 							>

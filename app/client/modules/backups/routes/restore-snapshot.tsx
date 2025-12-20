@@ -1,5 +1,5 @@
 import { redirect } from "react-router";
-import { getBackupSchedule, getSnapshotDetails } from "~/client/api-client";
+import { getBackupSchedule, getRepository, getSnapshotDetails } from "~/client/api-client";
 import { RestoreForm } from "~/client/components/restore-form";
 import type { Route } from "./+types/restore-snapshot";
 
@@ -26,27 +26,30 @@ export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 	const schedule = await getBackupSchedule({ path: { scheduleId: params.id } });
 	if (!schedule.data) return redirect("/backups");
 
-	const repositoryName = schedule.data.repository.name;
+	const repositoryId = schedule.data.repository.id;
 	const snapshot = await getSnapshotDetails({
-		path: { name: repositoryName, snapshotId: params.snapshotId },
+		path: { id: repositoryId, snapshotId: params.snapshotId },
 	});
 	if (!snapshot.data) return redirect(`/backups/${params.id}`);
 
+	const repository = await getRepository({ path: { id: repositoryId } });
+	if (!repository.data) return redirect(`/backups/${params.id}`);
+
 	return {
 		snapshot: snapshot.data,
-		repositoryName,
+		repository: repository.data,
 		snapshotId: params.snapshotId,
 		backupId: params.id,
 	};
 };
 
 export default function RestoreSnapshotFromBackupPage({ loaderData }: Route.ComponentProps) {
-	const { snapshot, repositoryName, snapshotId, backupId } = loaderData;
+	const { snapshot, repository, snapshotId, backupId } = loaderData;
 
 	return (
 		<RestoreForm
 			snapshot={snapshot}
-			repositoryName={repositoryName}
+			repository={repository}
 			snapshotId={snapshotId}
 			returnPath={`/backups/${backupId}`}
 		/>

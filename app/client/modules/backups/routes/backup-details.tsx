@@ -80,7 +80,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		isLoading,
 		failureReason,
 	} = useQuery({
-		...listSnapshotsOptions({ path: { name: schedule.repository.name }, query: { backupId: schedule.id.toString() } }),
+		...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.id.toString() } }),
 	});
 
 	const updateSchedule = useMutation({
@@ -198,7 +198,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		if (snapshotToDelete) {
 			toast.promise(
 				deleteSnapshot.mutateAsync({
-					path: { name: schedule.repository.name, snapshotId: snapshotToDelete },
+					path: { id: schedule.repository.shortId, snapshotId: snapshotToDelete },
 				}),
 				{
 					loading: "Deleting snapshot...",
@@ -260,7 +260,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				<SnapshotFileBrowser
 					key={selectedSnapshot?.short_id}
 					snapshot={selectedSnapshot}
-					repositoryName={schedule.repository.name}
+					repositoryId={schedule.repository.shortId}
 					backupId={schedule.id.toString()}
 					onDeleteSnapshot={handleDeleteSnapshot}
 					isDeletingSnapshot={deleteSnapshot.isPending}
