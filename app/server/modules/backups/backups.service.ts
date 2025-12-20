@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, isNull, ne, or } from "drizzle-orm";
 import cron from "node-cron";
 import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
@@ -393,7 +393,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 const getSchedulesToExecute = async () => {
 	const now = Date.now();
 	const schedules = await db.query.backupSchedulesTable.findMany({
-		where: and(eq(backupSchedulesTable.enabled, true), ne(backupSchedulesTable.lastBackupStatus, "in_progress")),
+		where: and(
+			eq(backupSchedulesTable.enabled, true),
+			or(ne(backupSchedulesTable.lastBackupStatus, "in_progress"), isNull(backupSchedulesTable.lastBackupStatus)),
+		),
 	});
 
 	const schedulesToRun: number[] = [];

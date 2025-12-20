@@ -4,6 +4,7 @@ import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
+import { faker } from "@faker-js/faker";
 import * as spawnModule from "~/server/utils/spawn";
 
 const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }));
@@ -148,5 +149,28 @@ describe("execute backup", () => {
 		// assert
 		const updatedSchedule = await backupsService.getSchedule(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
+	});
+});
+
+describe("getSchedulesToExecute", () => {
+	test("should return schedules with NULL lastBackupStatus", async () => {
+		// arrange
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			enabled: true,
+			cronExpression: "* * * * *",
+			lastBackupStatus: null,
+			nextBackupAt: faker.date.past().getTime(),
+		});
+
+		// act
+		const schedulesToExecute = await backupsService.getSchedulesToExecute();
+
+		// assert
+		expect(schedulesToExecute).toContain(schedule.id);
 	});
 });
