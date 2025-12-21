@@ -22,6 +22,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Button } from "~/client/components/ui/button";
 import { Textarea } from "~/client/components/ui/textarea";
 import { VolumeFileBrowser } from "~/client/components/volume-file-browser";
+import { CronInput } from "~/client/components/cron-input";
+import { cronToFormValues } from "../lib/cron-utils";
 import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { deepClean } from "~/utils/object";
 
@@ -36,6 +38,7 @@ const internalFormSchema = type({
 	dailyTime: "string?",
 	weeklyDay: "string?",
 	monthlyDays: "string[]?",
+	cronExpression: "string?",
 	keepLast: "number?",
 	keepHourly: "number?",
 	keepDaily: "number?",
@@ -80,17 +83,7 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 		return undefined;
 	}
 
-	const parts = schedule.cronExpression.split(" ");
-	const [minutePart, hourPart, dayOfMonthPart, , dayOfWeekPart] = parts;
-
-	const isHourly = hourPart === "*";
-	const isMonthly = !isHourly && dayOfMonthPart !== "*" && dayOfWeekPart === "*";
-	const isDaily = !isHourly && dayOfMonthPart === "*" && dayOfWeekPart === "*";
-
-	const frequency = isHourly ? "hourly" : isMonthly ? "monthly" : isDaily ? "daily" : "weekly";
-	const dailyTime = isHourly ? undefined : `${hourPart.padStart(2, "0")}:${minutePart.padStart(2, "0")}`;
-	const weeklyDay = frequency === "weekly" ? dayOfWeekPart : undefined;
-	const monthlyDays = isMonthly ? dayOfMonthPart.split(",") : undefined;
+	const cronValues = cronToFormValues(schedule.cronExpression);
 
 	const patterns = schedule.includePatterns || [];
 	const isGlobPattern = (p: string) => /[*?[\]]/.test(p);
@@ -100,15 +93,12 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 	return {
 		name: schedule.name,
 		repositoryId: schedule.repositoryId,
-		frequency,
-		monthlyDays,
-		dailyTime,
-		weeklyDay,
 		includePatterns: fileBrowserPaths.length > 0 ? fileBrowserPaths : undefined,
 		includePatternsText: textPatterns.length > 0 ? textPatterns.join("\n") : undefined,
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
+		...cronValues,
 		...schedule.retentionPolicy,
 	};
 };
@@ -126,6 +116,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludeIfPresentText,
 				includePatternsText,
 				includePatterns: fileBrowserPatterns,
+				cronExpression,
 				...rest
 			} = data;
 			const excludePatterns = excludePatternsText
@@ -152,6 +143,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 
 			onSubmit({
 				...rest,
+				cronExpression,
 				includePatterns: includePatterns.length > 0 ? includePatterns : [],
 				excludePatterns,
 				excludeIfPresent,
@@ -255,6 +247,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 													<SelectItem value="daily">Daily</SelectItem>
 													<SelectItem value="weekly">Weekly</SelectItem>
 													<SelectItem value="monthly">Specific days</SelectItem>
+													<SelectItem value="cron">Custom (Cron)</SelectItem>
 												</SelectContent>
 											</Select>
 										</FormControl>
@@ -264,7 +257,17 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								)}
 							/>
 
-							{frequency !== "hourly" && (
+							{frequency === "cron" && (
+								<FormField
+									control={form.control}
+									name="cronExpression"
+									render={({ field, fieldState }) => (
+										<CronInput value={field.value || ""} onChange={field.onChange} error={fieldState.error?.message} />
+									)}
+								/>
+							)}
+
+							{frequency !== "hourly" && frequency !== "cron" && (
 								<FormField
 									control={form.control}
 									name="dailyTime"

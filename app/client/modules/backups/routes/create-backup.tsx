@@ -76,6 +76,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 			formValues.dailyTime,
 			formValues.weeklyDay,
 			formValues.monthlyDays,
+			formValues.cronExpression,
 		);
 
 		const retentionPolicy: Record<string, number> = {};

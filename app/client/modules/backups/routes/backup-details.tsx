@@ -146,6 +146,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 			formValues.dailyTime,
 			formValues.weeklyDay,
 			formValues.monthlyDays,
+			formValues.cronExpression,
 		);
 
 		const retentionPolicy: Record<string, number> = {};
