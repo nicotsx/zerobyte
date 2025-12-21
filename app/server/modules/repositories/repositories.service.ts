@@ -76,10 +76,15 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	if (config.backend === "local") {
 		if (config.isExistingRepository && config.path) {
 			const normalizedPath = path.normalize(config.path);
+			const repositoryName = path.basename(normalizedPath);
+
+			if (!repositoryName || repositoryName.trim().length === 0) {
+				throw new ConflictError("Local repository path must include a folder name.");
+			}
 			processedConfig = {
 				...config,
 				path: path.dirname(normalizedPath),
-				name: path.basename(normalizedPath),
+				name: repositoryName,
 			};
 		} else {
 			processedConfig = { ...config, name: shortId };
