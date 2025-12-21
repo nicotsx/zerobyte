@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
@@ -73,7 +74,16 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let processedConfig = config;
 	if (config.backend === "local") {
-		processedConfig = { ...config, name: shortId };
+		if (config.isExistingRepository && config.path) {
+			const normalizedPath = path.normalize(config.path);
+			processedConfig = {
+				...config,
+				path: path.dirname(normalizedPath),
+				name: path.basename(normalizedPath),
+			};
+		} else {
+			processedConfig = { ...config, name: shortId };
+		}
 	}
 
 	const encryptedConfig = await encryptConfig(processedConfig);
