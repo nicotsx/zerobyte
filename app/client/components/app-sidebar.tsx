@@ -46,10 +46,15 @@ const items = [
 
 export function AppSidebar() {
 	const { state } = useSidebar();
+	const displayVersion = APP_VERSION.startsWith("v") || APP_VERSION === "dev" ? APP_VERSION : `v${APP_VERSION}`;
+	const releaseUrl =
+		APP_VERSION === "dev"
+			? "https://github.com/nicotsx/zerobyte"
+			: `https://github.com/nicotsx/zerobyte/releases/tag/${displayVersion}`;
 
 	return (
 		<Sidebar variant="inset" collapsible="icon" className="p-0">
-			<SidebarHeader className="bg-card-header border-b border-border/50 hidden md:flex h-[65px] flex-row items-center p-4">
+			<SidebarHeader className="bg-card-header border-b border-border/50 hidden md:flex h-16.25 flex-row items-center p-4">
 				<Link to="/volumes" className="flex items-center gap-3 font-semibold pl-2">
 					<img src="/images/zerobyte.png" alt="Zerobyte Logo" className={cn("h-8 w-8 shrink-0 object-contain -ml-2")} />
 					<span
@@ -93,13 +98,16 @@ export function AppSidebar() {
 				</SidebarGroup>
 			</SidebarContent>
 			<SidebarFooter className="p-4 border-r border-t border-border/50">
-				<div
-					className={cn("text-xs text-muted-foreground transition-all duration-200", {
+				<a
+					href={releaseUrl}
+					target="_blank"
+					rel="noreferrer"
+					className={cn("text-xs text-muted-foreground transition-all duration-200 hover:text-foreground", {
 						"opacity-0 w-0 overflow-hidden": state === "collapsed",
 					})}
 				>
-					{APP_VERSION}
-				</div>
+					{displayVersion}
+				</a>
 			</SidebarFooter>
 		</Sidebar>
 	);
