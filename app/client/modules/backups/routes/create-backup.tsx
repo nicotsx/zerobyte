@@ -92,6 +92,7 @@ export default function CreateBackup({ loaderData }: Route.ComponentProps) {
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
 				excludeIfPresent: formValues.excludeIfPresent,
+				oneFileSystem: formValues.oneFileSystem,
 			},
 		});
 	};

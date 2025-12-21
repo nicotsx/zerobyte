@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { Checkbox } from "~/client/components/ui/checkbox";
 import {
 	Form,
 	FormControl,
@@ -38,6 +39,7 @@ const internalFormSchema = type({
 	keepWeekly: "number?",
 	keepMonthly: "number?",
 	keepYearly: "number?",
+	oneFileSystem: "boolean?",
 });
 const cleanSchema = type.pipe((d) => internalFormSchema(deepClean(d)));
 
@@ -101,6 +103,7 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 		includePatternsText: textPatterns.length > 0 ? textPatterns.join("\n") : undefined,
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
+		oneFileSystem: schedule.oneFileSystem ?? false,
 		...schedule.retentionPolicy,
 	};
 };
@@ -416,6 +419,24 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									</FormItem>
 								)}
 							/>
+							<FormField
+								control={form.control}
+								name="oneFileSystem"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
+										<FormControl>
+											<Checkbox checked={field.value} onCheckedChange={field.onChange} />
+										</FormControl>
+										<div className="space-y-1 leading-none">
+											<FormLabel>Stay on one file system</FormLabel>
+											<FormDescription>
+												Prevent Restic from crossing file system boundaries. This is useful to avoid backing up network
+												mounts or other partitions that might be mounted inside your backup source.
+											</FormDescription>
+										</div>
+									</FormItem>
+								)}
+							/>
 						</CardContent>
 					</Card>
 
@@ -629,6 +650,10 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									</div>
 								</div>
 							)}
+							<div>
+								<p className="text-xs uppercase text-muted-foreground">One file system</p>
+								<p className="font-medium">{formValues.oneFileSystem ? "Enabled" : "Disabled"}</p>
+							</div>
 							<div>
 								<p className="text-xs uppercase text-muted-foreground">Retention</p>
 								<p className="font-medium">

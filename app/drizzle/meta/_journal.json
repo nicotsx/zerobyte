@@ -162,6 +162,13 @@
       "when": 1765794552191,
       "tag": "0022_woozy_shen",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1766320570509,
+      "tag": "0023_special_thor",
+      "breakpoints": true
     }
   ]
 }

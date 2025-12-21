@@ -124,6 +124,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			excludePatterns: data.excludePatterns ?? [],
 			excludeIfPresent: data.excludeIfPresent ?? [],
 			includePatterns: data.includePatterns ?? [],
+			oneFileSystem: data.oneFileSystem,
 			nextBackupAt: nextBackupAt,
 		})
 		.returning();
@@ -273,9 +274,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			excludeIfPresent?: string[];
 			include?: string[];
 			tags?: string[];
+			oneFileSystem?: boolean;
 			signal?: AbortSignal;
 		} = {
 			tags: [schedule.id.toString()],
+			oneFileSystem: schedule.oneFileSystem,
 			signal: abortController.signal,
 		};
 

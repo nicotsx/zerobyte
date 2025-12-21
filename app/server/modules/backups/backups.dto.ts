@@ -26,6 +26,7 @@ const backupScheduleSchema = type({
 	excludePatterns: "string[] | null",
 	excludeIfPresent: "string[] | null",
 	includePatterns: "string[] | null",
+	oneFileSystem: "boolean",
 	lastBackupAt: "number | null",
 	lastBackupStatus: "'success' | 'error' | 'in_progress' | 'warning' | null",
 	lastBackupError: "string | null",
@@ -131,6 +132,7 @@ export const createBackupScheduleBody = type({
 	excludePatterns: "string[]?",
 	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
+	oneFileSystem: "boolean?",
 	tags: "string[]?",
 });
 
@@ -168,6 +170,7 @@ export const updateBackupScheduleBody = type({
 	excludePatterns: "string[]?",
 	excludeIfPresent: "string[]?",
 	includePatterns: "string[]?",
+	oneFileSystem: "boolean?",
 	tags: "string[]?",
 });
 

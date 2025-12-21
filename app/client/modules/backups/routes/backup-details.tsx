@@ -162,6 +162,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
 				excludeIfPresent: formValues.excludeIfPresent,
+				oneFileSystem: formValues.oneFileSystem,
 			},
 		});
 	};
@@ -177,6 +178,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				includePatterns: schedule.includePatterns || [],
 				excludePatterns: schedule.excludePatterns || [],
 				excludeIfPresent: schedule.excludeIfPresent || [],
+				oneFileSystem: schedule.oneFileSystem,
 			},
 		});
 	};
