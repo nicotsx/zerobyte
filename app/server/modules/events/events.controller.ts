@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
+import { requireAuth } from "../auth/auth.middleware";
 
-export const eventsController = new Hono().get("/", (c) => {
+export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 	logger.info("Client connected to SSE endpoint");
 
 	return streamSSE(c, async (stream) => {
