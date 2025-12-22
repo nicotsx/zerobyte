@@ -68,7 +68,6 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let processedConfig = config;
 	if (config.backend === "local" && !config.isExistingRepository) {
-		// if (config.backend === "local") {
 		processedConfig = { ...config, name: shortId };
 	}
 
