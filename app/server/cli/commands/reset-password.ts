@@ -21,8 +21,10 @@ const resetPassword = async (username: string, newPassword: string) => {
 		timeCost: 2,
 	});
 
-	await db.update(usersTable).set({ passwordHash: newPasswordHash }).where(eq(usersTable.id, user.id));
-	await db.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
+	await db.transaction(async (tx) => {
+		await tx.update(usersTable).set({ passwordHash: newPasswordHash }).where(eq(usersTable.id, user.id));
+		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
+	});
 };
 
 export const resetPasswordCommand = new Command("reset-password")
