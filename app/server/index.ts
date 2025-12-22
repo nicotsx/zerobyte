@@ -34,7 +34,6 @@ process.on("SIGINT", async () => {
 	process.exit(0);
 });
 
-console.log(config.serverIdleTimeout);
 export default await createHonoServer({
 	app,
 	port: 4096,
