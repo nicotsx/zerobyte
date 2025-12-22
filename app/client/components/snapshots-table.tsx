@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, FolderTree, HardDrive, Trash2 } from "lucide-react";
+import { Calendar, Clock, Database, FolderTree, HardDrive, Server, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -79,6 +79,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 							<TableHead className="uppercase">Date & Time</TableHead>
 							<TableHead className="uppercase">Size</TableHead>
 							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
+							<TableHead className="uppercase hidden text-right lg:table-cell">Volume</TableHead>
 							<TableHead className="uppercase hidden text-right lg:table-cell">Paths</TableHead>
 							<TableHead className="uppercase text-right">Actions</TableHead>
 						</TableRow>
@@ -133,6 +134,22 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 										<div className="flex items-center justify-end gap-2">
 											<Clock className="h-4 w-4 text-muted-foreground" />
 											<span className="text-sm text-muted-foreground">{formatDuration(snapshot.duration / 1000)}</span>
+										</div>
+									</TableCell>
+									<TableCell className="hidden lg:table-cell">
+										<div className="flex items-center justify-end gap-2">
+											<Server className="h-4 w-4 text-muted-foreground" />
+											{backup ? (
+												<Link
+													to={`/volumes/${backup.volume.id}`}
+													onClick={(e) => e.stopPropagation()}
+													className="text-sm hover:underline"
+												>
+													{backup.volume.name}
+												</Link>
+											) : (
+												<span className="text-sm text-muted-foreground">-</span>
+											)}
 										</div>
 									</TableCell>
 									<TableCell className="hidden lg:table-cell">
