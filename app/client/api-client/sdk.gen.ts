@@ -170,18 +170,18 @@ export const listRcloneRemotes = <ThrowOnError extends boolean = false>(options?
 /**
  * Delete a repository
  */
-export const deleteRepository = <ThrowOnError extends boolean = false>(options: Options<DeleteRepositoryData, ThrowOnError>) => (options.client ?? client).delete<DeleteRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}', ...options });
+export const deleteRepository = <ThrowOnError extends boolean = false>(options: Options<DeleteRepositoryData, ThrowOnError>) => (options.client ?? client).delete<DeleteRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}', ...options });
 
 /**
- * Get a single repository by name
+ * Get a single repository by ID
  */
-export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>) => (options.client ?? client).get<GetRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}', ...options });
+export const getRepository = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryData, ThrowOnError>) => (options.client ?? client).get<GetRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}', ...options });
 
 /**
  * Update a repository's name or settings
  */
 export const updateRepository = <ThrowOnError extends boolean = false>(options: Options<UpdateRepositoryData, ThrowOnError>) => (options.client ?? client).patch<UpdateRepositoryResponses, UpdateRepositoryErrors, ThrowOnError>({
-    url: '/api/v1/repositories/{name}',
+    url: '/api/v1/repositories/{id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -192,28 +192,28 @@ export const updateRepository = <ThrowOnError extends boolean = false>(options: 
 /**
  * List all snapshots in a repository
  */
-export const listSnapshots = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotsData, ThrowOnError>) => (options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}/snapshots', ...options });
+export const listSnapshots = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotsData, ThrowOnError>) => (options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}/snapshots', ...options });
 
 /**
  * Delete a specific snapshot from a repository
  */
-export const deleteSnapshot = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotData, ThrowOnError>) => (options.client ?? client).delete<DeleteSnapshotResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}/snapshots/{snapshotId}', ...options });
+export const deleteSnapshot = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotData, ThrowOnError>) => (options.client ?? client).delete<DeleteSnapshotResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}/snapshots/{snapshotId}', ...options });
 
 /**
  * Get details of a specific snapshot
  */
-export const getSnapshotDetails = <ThrowOnError extends boolean = false>(options: Options<GetSnapshotDetailsData, ThrowOnError>) => (options.client ?? client).get<GetSnapshotDetailsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}/snapshots/{snapshotId}', ...options });
+export const getSnapshotDetails = <ThrowOnError extends boolean = false>(options: Options<GetSnapshotDetailsData, ThrowOnError>) => (options.client ?? client).get<GetSnapshotDetailsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}/snapshots/{snapshotId}', ...options });
 
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFiles = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotFilesData, ThrowOnError>) => (options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}/snapshots/{snapshotId}/files', ...options });
+export const listSnapshotFiles = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotFilesData, ThrowOnError>) => (options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}/snapshots/{snapshotId}/files', ...options });
 
 /**
  * Restore a snapshot to a target path on the filesystem
  */
 export const restoreSnapshot = <ThrowOnError extends boolean = false>(options: Options<RestoreSnapshotData, ThrowOnError>) => (options.client ?? client).post<RestoreSnapshotResponses, unknown, ThrowOnError>({
-    url: '/api/v1/repositories/{name}/restore',
+    url: '/api/v1/repositories/{id}/restore',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(options: O
 /**
  * Run doctor operations on a repository to fix common issues (unlock, check, repair index). Use this when the repository is locked or has errors.
  */
-export const doctorRepository = <ThrowOnError extends boolean = false>(options: Options<DoctorRepositoryData, ThrowOnError>) => (options.client ?? client).post<DoctorRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{name}/doctor', ...options });
+export const doctorRepository = <ThrowOnError extends boolean = false>(options: Options<DoctorRepositoryData, ThrowOnError>) => (options.client ?? client).post<DoctorRepositoryResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{id}/doctor', ...options });
 
 /**
  * List all backup schedules

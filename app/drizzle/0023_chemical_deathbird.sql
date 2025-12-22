@@ -1,0 +1,1 @@
+DROP INDEX `repositories_table_name_unique`;

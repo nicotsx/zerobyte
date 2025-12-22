@@ -870,6 +870,7 @@ export type CreateRepositoryResponses = {
         repository: {
             id: string;
             name: string;
+            shortId: string;
         };
     };
 };
@@ -898,10 +899,10 @@ export type ListRcloneRemotesResponse = ListRcloneRemotesResponses[keyof ListRcl
 export type DeleteRepositoryData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}';
+    url: '/api/v1/repositories/{id}';
 };
 
 export type DeleteRepositoryResponses = {
@@ -918,10 +919,10 @@ export type DeleteRepositoryResponse = DeleteRepositoryResponses[keyof DeleteRep
 export type GetRepositoryData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}';
+    url: '/api/v1/repositories/{id}';
 };
 
 export type GetRepositoryResponses = {
@@ -1011,10 +1012,10 @@ export type UpdateRepositoryData = {
         name?: string;
     };
     path: {
-        name: string;
+        id: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}';
+    url: '/api/v1/repositories/{id}';
 };
 
 export type UpdateRepositoryErrors = {
@@ -1112,12 +1113,12 @@ export type UpdateRepositoryResponse = UpdateRepositoryResponses[keyof UpdateRep
 export type ListSnapshotsData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
     };
     query?: {
         backupId?: string;
     };
-    url: '/api/v1/repositories/{name}/snapshots';
+    url: '/api/v1/repositories/{id}/snapshots';
 };
 
 export type ListSnapshotsResponses = {
@@ -1139,11 +1140,11 @@ export type ListSnapshotsResponse = ListSnapshotsResponses[keyof ListSnapshotsRe
 export type DeleteSnapshotData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
         snapshotId: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}/snapshots/{snapshotId}';
+    url: '/api/v1/repositories/{id}/snapshots/{snapshotId}';
 };
 
 export type DeleteSnapshotResponses = {
@@ -1160,11 +1161,11 @@ export type DeleteSnapshotResponse = DeleteSnapshotResponses[keyof DeleteSnapsho
 export type GetSnapshotDetailsData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
         snapshotId: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}/snapshots/{snapshotId}';
+    url: '/api/v1/repositories/{id}/snapshots/{snapshotId}';
 };
 
 export type GetSnapshotDetailsResponses = {
@@ -1186,13 +1187,13 @@ export type GetSnapshotDetailsResponse = GetSnapshotDetailsResponses[keyof GetSn
 export type ListSnapshotFilesData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
         snapshotId: string;
     };
     query?: {
         path?: string;
     };
-    url: '/api/v1/repositories/{name}/snapshots/{snapshotId}/files';
+    url: '/api/v1/repositories/{id}/snapshots/{snapshotId}/files';
 };
 
 export type ListSnapshotFilesResponses = {
@@ -1235,10 +1236,10 @@ export type RestoreSnapshotData = {
         targetPath?: string;
     };
     path: {
-        name: string;
+        id: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}/restore';
+    url: '/api/v1/repositories/{id}/restore';
 };
 
 export type RestoreSnapshotResponses = {
@@ -1258,10 +1259,10 @@ export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnap
 export type DoctorRepositoryData = {
     body?: never;
     path: {
-        name: string;
+        id: string;
     };
     query?: never;
-    url: '/api/v1/repositories/{name}/doctor';
+    url: '/api/v1/repositories/{id}/doctor';
 };
 
 export type DoctorRepositoryResponses = {

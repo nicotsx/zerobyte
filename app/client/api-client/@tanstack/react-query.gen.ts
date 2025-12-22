@@ -407,7 +407,7 @@ export const deleteRepositoryMutation = (options?: Partial<Options<DeleteReposit
 export const getRepositoryQueryKey = (options: Options<GetRepositoryData>) => createQueryKey('getRepository', options);
 
 /**
- * Get a single repository by name
+ * Get a single repository by ID
  */
 export const getRepositoryOptions = (options: Options<GetRepositoryData>) => queryOptions<GetRepositoryResponse, DefaultError, GetRepositoryResponse, ReturnType<typeof getRepositoryQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

@@ -176,6 +176,13 @@
       "when": 1766325504548,
       "tag": "0024_schedules-one-fs",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1766431021321,
+      "tag": "0025_remarkable_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

@@ -2,5 +2,5 @@ import crypto from "node:crypto";
 
 export const generateShortId = (length = 5): string => {
 	const bytesNeeded = Math.ceil((length * 3) / 4);
-	return crypto.randomBytes(bytesNeeded).toString("base64url").slice(0, length);
+	return crypto.randomBytes(bytesNeeded).toString("base64url").slice(0, length).toLowerCase();
 };

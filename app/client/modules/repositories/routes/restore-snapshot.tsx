@@ -1,13 +1,13 @@
 import { redirect } from "react-router";
-import { getSnapshotDetails } from "~/client/api-client";
+import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import { RestoreForm } from "~/client/components/restore-form";
 import type { Route } from "./+types/restore-snapshot";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
 		{ label: "Repositories", href: "/repositories" },
-		{ label: match.params.name, href: `/repositories/${match.params.name}` },
-		{ label: match.params.snapshotId, href: `/repositories/${match.params.name}/${match.params.snapshotId}` },
+		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
+		{ label: match.params.snapshotId, href: `/repositories/${match.params.id}/${match.params.snapshotId}` },
 		{ label: "Restore" },
 	],
 };
@@ -24,22 +24,25 @@ export function meta({ params }: Route.MetaArgs) {
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 	const snapshot = await getSnapshotDetails({
-		path: { name: params.name, snapshotId: params.snapshotId },
+		path: { id: params.id, snapshotId: params.snapshotId },
 	});
-	if (snapshot.data) return { snapshot: snapshot.data, name: params.name, snapshotId: params.snapshotId };
+	if (!snapshot.data) return redirect("/repositories");
 
-	return redirect("/repositories");
+	const repository = await getRepository({ path: { id: params.id } });
+	if (!repository.data) return redirect(`/repositories`);
+
+	return { snapshot: snapshot.data, id: params.id, repository: repository.data, snapshotId: params.snapshotId };
 };
 
 export default function RestoreSnapshotPage({ loaderData }: Route.ComponentProps) {
-	const { snapshot, name, snapshotId } = loaderData;
+	const { snapshot, id, snapshotId, repository } = loaderData;
 
 	return (
 		<RestoreForm
 			snapshot={snapshot}
-			repositoryName={name}
+			repository={repository}
 			snapshotId={snapshotId}
-			returnPath={`/repositories/${name}/${snapshotId}`}
+			returnPath={`/repositories/${id}/${snapshotId}`}
 		/>
 	);
 }
