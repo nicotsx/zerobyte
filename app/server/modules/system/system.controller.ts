@@ -14,6 +14,7 @@ import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
 export const systemController = new Hono()
+	.use(requireAuth)
 	.get("/info", systemInfoDto, async (c) => {
 		const info = await systemService.getSystemInfo();
 
@@ -22,7 +23,6 @@ export const systemController = new Hono()
 	.post(
 		"/restic-password",
 		downloadResticPasswordDto,
-		requireAuth,
 		validator("json", downloadResticPasswordBodySchema),
 		async (c) => {
 			const user = c.get("user");

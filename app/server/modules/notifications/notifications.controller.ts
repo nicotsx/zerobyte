@@ -17,8 +17,10 @@ import {
 	type UpdateDestinationDto,
 } from "./notifications.dto";
 import { notificationsService } from "./notifications.service";
+import { requireAuth } from "../auth/auth.middleware";
 
 export const notificationsController = new Hono()
+	.use(requireAuth)
 	.get("/destinations", listDestinationsDto, async (c) => {
 		const destinations = await notificationsService.listDestinations();
 		return c.json<ListDestinationsDto>(destinations, 200);

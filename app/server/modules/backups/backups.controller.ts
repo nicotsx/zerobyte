@@ -41,8 +41,10 @@ import {
 	type UpdateScheduleNotificationsDto,
 } from "../notifications/notifications.dto";
 import { notificationsService } from "../notifications/notifications.service";
+import { requireAuth } from "../auth/auth.middleware";
 
 export const backupScheduleController = new Hono()
+	.use(requireAuth)
 	.get("/", listBackupSchedulesDto, async (c) => {
 		const schedules = await backupsService.listSchedules();
 

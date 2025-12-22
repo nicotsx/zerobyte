@@ -31,8 +31,10 @@ import {
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
+import { requireAuth } from "../auth/auth.middleware";
 
 export const repositoriesController = new Hono()
+	.use(requireAuth)
 	.get("/", listRepositoriesDto, async (c) => {
 		const repositories = await repositoriesService.listRepositories();
 
