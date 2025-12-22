@@ -124,7 +124,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
 								</p>
 							</div>
-							{repository.type === "rest" && (
+							{repository.type === "rest" && "cacert" in repository.config && (
 								<>
 									<div>
 										<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
@@ -139,7 +139,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									<div>
 										<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
 										<p className="mt-1 text-sm">
-											{repository.config.insecureTls ? (
+											{"insecureTls" in repository.config && repository.config.insecureTls ? (
 												<span className="text-red-500">disabled</span>
 											) : (
 												<span className="text-green-500">enabled</span>
