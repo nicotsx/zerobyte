@@ -1,4 +1,5 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
+
 import { useQuery } from "@tanstack/react-query";
 import { type } from "arktype";
 import { useCallback, useState } from "react";
@@ -6,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { Checkbox } from "~/client/components/ui/checkbox";
 import {
 	Form,
 	FormControl,
@@ -17,6 +19,7 @@ import {
 } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
+import { Button } from "~/client/components/ui/button";
 import { Textarea } from "~/client/components/ui/textarea";
 import { VolumeFileBrowser } from "~/client/components/volume-file-browser";
 import type { BackupSchedule, Volume } from "~/client/lib/types";
@@ -32,12 +35,14 @@ const internalFormSchema = type({
 	frequency: "string",
 	dailyTime: "string?",
 	weeklyDay: "string?",
+	monthlyDays: "string[]?",
 	keepLast: "number?",
 	keepHourly: "number?",
 	keepDaily: "number?",
 	keepWeekly: "number?",
 	keepMonthly: "number?",
 	keepYearly: "number?",
+	oneFileSystem: "boolean?",
 });
 const cleanSchema = type.pipe((d) => internalFormSchema(deepClean(d)));
 
@@ -76,15 +81,16 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 	}
 
 	const parts = schedule.cronExpression.split(" ");
-	const [minutePart, hourPart, , , dayOfWeekPart] = parts;
+	const [minutePart, hourPart, dayOfMonthPart, , dayOfWeekPart] = parts;
 
 	const isHourly = hourPart === "*";
-	const isDaily = !isHourly && dayOfWeekPart === "*";
-	const frequency = isHourly ? "hourly" : isDaily ? "daily" : "weekly";
+	const isMonthly = !isHourly && dayOfMonthPart !== "*" && dayOfWeekPart === "*";
+	const isDaily = !isHourly && dayOfMonthPart === "*" && dayOfWeekPart === "*";
 
+	const frequency = isHourly ? "hourly" : isMonthly ? "monthly" : isDaily ? "daily" : "weekly";
 	const dailyTime = isHourly ? undefined : `${hourPart.padStart(2, "0")}:${minutePart.padStart(2, "0")}`;
-
 	const weeklyDay = frequency === "weekly" ? dayOfWeekPart : undefined;
+	const monthlyDays = isMonthly ? dayOfMonthPart.split(",") : undefined;
 
 	const patterns = schedule.includePatterns || [];
 	const isGlobPattern = (p: string) => /[*?[\]]/.test(p);
@@ -95,12 +101,14 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 		name: schedule.name,
 		repositoryId: schedule.repositoryId,
 		frequency,
+		monthlyDays,
 		dailyTime,
 		weeklyDay,
 		includePatterns: fileBrowserPaths.length > 0 ? fileBrowserPaths : undefined,
 		includePatternsText: textPatterns.length > 0 ? textPatterns.join("\n") : undefined,
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
+		oneFileSystem: schedule.oneFileSystem ?? false,
 		...schedule.retentionPolicy,
 	};
 };
@@ -246,6 +254,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 													<SelectItem value="hourly">Hourly</SelectItem>
 													<SelectItem value="daily">Daily</SelectItem>
 													<SelectItem value="weekly">Weekly</SelectItem>
+													<SelectItem value="monthly">Specific days</SelectItem>
 												</SelectContent>
 											</Select>
 										</FormControl>
@@ -294,6 +303,42 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 												</Select>
 											</FormControl>
 											<FormDescription>Choose which day of the week to run the backup.</FormDescription>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							)}
+							{frequency === "monthly" && (
+								<FormField
+									control={form.control}
+									name="monthlyDays"
+									render={({ field }) => (
+										<FormItem className="md:col-span-2">
+											<FormLabel>Days of the month</FormLabel>
+											<FormControl>
+												<div className="grid grid-cols-7 gap-4 w-max">
+													{Array.from({ length: 31 }, (_, i) => {
+														const day = (i + 1).toString();
+														const isSelected = field.value?.includes(day);
+														return (
+															<Button
+																type="button"
+																key={day}
+																variant={isSelected ? "primary" : "secondary"}
+																size="icon"
+																onClick={() => {
+																	const current = field.value || [];
+																	const next = isSelected ? current.filter((d) => d !== day) : [...current, day];
+																	field.onChange(next);
+																}}
+															>
+																{day}
+															</Button>
+														);
+													})}
+												</div>
+											</FormControl>
+											<FormDescription>Select one or more days when the backup should run.</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)}
@@ -413,6 +458,24 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 											containing a <code className="bg-muted px-1 rounded">.nobackup</code> file.
 										</FormDescription>
 										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name="oneFileSystem"
+								render={({ field }) => (
+									<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 mt-6">
+										<FormControl>
+											<Checkbox checked={field.value} onCheckedChange={field.onChange} />
+										</FormControl>
+										<div className="space-y-1 leading-none">
+											<FormLabel>Stay on one file system</FormLabel>
+											<FormDescription>
+												Prevent Restic from crossing file system boundaries. This is useful to avoid backing up network
+												mounts or other partitions that might be mounted inside your backup source.
+											</FormDescription>
+										</div>
 									</FormItem>
 								)}
 							/>
@@ -629,6 +692,10 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									</div>
 								</div>
 							)}
+							<div>
+								<p className="text-xs uppercase text-muted-foreground">One file system</p>
+								<p className="font-medium">{formValues.oneFileSystem ? "Enabled" : "Disabled"}</p>
+							</div>
 							<div>
 								<p className="text-xs uppercase text-muted-foreground">Retention</p>
 								<p className="font-medium">

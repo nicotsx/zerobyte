@@ -181,7 +181,8 @@ export const ScheduleSummary = (props: Props) => {
 						<div className="md:col-span-2 lg:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Warning Details</p>
 							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap break-all">
-								Last backup completed with warnings. Check your container logs for more details.
+								{schedule.lastBackupError ??
+									"Last backup completed with warnings. Check your container logs for more details."}
 							</p>
 						</div>
 					)}

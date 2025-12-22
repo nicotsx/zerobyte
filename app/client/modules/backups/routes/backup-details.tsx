@@ -141,7 +141,12 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 	const handleSubmit = (formValues: BackupScheduleFormValues) => {
 		if (!schedule) return;
 
-		const cronExpression = getCronExpression(formValues.frequency, formValues.dailyTime, formValues.weeklyDay);
+		const cronExpression = getCronExpression(
+			formValues.frequency,
+			formValues.dailyTime,
+			formValues.weeklyDay,
+			formValues.monthlyDays,
+		);
 
 		const retentionPolicy: Record<string, number> = {};
 		if (formValues.keepLast) retentionPolicy.keepLast = formValues.keepLast;
@@ -162,6 +167,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
 				excludeIfPresent: formValues.excludeIfPresent,
+				oneFileSystem: formValues.oneFileSystem,
 			},
 		});
 	};
@@ -177,6 +183,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				includePatterns: schedule.includePatterns || [],
 				excludePatterns: schedule.excludePatterns || [],
 				excludeIfPresent: schedule.excludeIfPresent || [],
+				oneFileSystem: schedule.oneFileSystem,
 			},
 		});
 	};

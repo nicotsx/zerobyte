@@ -40,7 +40,7 @@ export class CleanupDanglingMountsJob extends Job {
 			if (!matchingVolume) {
 				const fullPath = path.join(VOLUME_MOUNT_BASE, dir);
 				logger.info(`Found dangling mount directory at ${fullPath}, attempting to remove...`);
-				await fs.rmdir(fullPath, { recursive: true }).catch((err) => {
+				await fs.rm(fullPath, { recursive: true, force: true }).catch((err) => {
 					logger.warn(`Failed to remove dangling mount directory ${fullPath}: ${toMessage(err)}`);
 				});
 			}

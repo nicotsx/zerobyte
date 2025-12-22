@@ -176,6 +176,10 @@ const buildEnv = async (config: RepositoryConfig) => {
 				"UserKnownHostsFile=/dev/null",
 				"-o",
 				"LogLevel=VERBOSE",
+				"-o",
+				"ServerAliveInterval=60",
+				"-o",
+				"ServerAliveCountMax=240",
 				"-i",
 				keyPath,
 			];
@@ -238,6 +242,7 @@ const backup = async (
 		excludeIfPresent?: string[];
 		include?: string[];
 		tags?: string[];
+		oneFileSystem?: boolean;
 		compressionMode?: CompressionMode;
 		signal?: AbortSignal;
 		onProgress?: (progress: BackupProgress) => void;
@@ -246,14 +251,11 @@ const backup = async (
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args: string[] = [
-		"--repo",
-		repoUrl,
-		"backup",
-		"--one-file-system",
-		"--compression",
-		options?.compressionMode ?? "auto",
-	];
+	const args: string[] = ["--repo", repoUrl, "backup", "--compression", options?.compressionMode ?? "auto"];
+
+	if (options?.oneFileSystem) {
+		args.push("--one-file-system");
+	}
 
 	if (options?.tags && options.tags.length > 0) {
 		for (const tag of options.tags) {

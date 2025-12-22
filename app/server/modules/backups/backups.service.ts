@@ -124,6 +124,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			excludePatterns: data.excludePatterns ?? [],
 			excludeIfPresent: data.excludeIfPresent ?? [],
 			includePatterns: data.includePatterns ?? [],
+			oneFileSystem: data.oneFileSystem,
 			nextBackupAt: nextBackupAt,
 		})
 		.returning();
@@ -273,9 +274,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			excludeIfPresent?: string[];
 			include?: string[];
 			tags?: string[];
+			oneFileSystem?: boolean;
 			signal?: AbortSignal;
 		} = {
 			tags: [schedule.id.toString()],
+			oneFileSystem: schedule.oneFileSystem,
 			signal: abortController.signal,
 		};
 
@@ -428,23 +431,25 @@ const stopBackup = async (scheduleId: number) => {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
-	const abortController = runningBackups.get(scheduleId);
-	if (!abortController) {
-		throw new ConflictError("No backup is currently running for this schedule");
+	try {
+		const abortController = runningBackups.get(scheduleId);
+		if (!abortController) {
+			throw new ConflictError("No backup is currently running for this schedule");
+		}
+
+		logger.info(`Stopping backup for schedule ${scheduleId}`);
+
+		abortController.abort();
+	} finally {
+		await db
+			.update(backupSchedulesTable)
+			.set({
+				lastBackupStatus: "warning",
+				lastBackupError: "Backup was stopped by user",
+				updatedAt: Date.now(),
+			})
+			.where(eq(backupSchedulesTable.id, scheduleId));
 	}
-
-	logger.info(`Stopping backup for schedule ${scheduleId}`);
-
-	abortController.abort();
-
-	await db
-		.update(backupSchedulesTable)
-		.set({
-			lastBackupStatus: "warning",
-			lastBackupError: "Backup was stopped by user",
-			updatedAt: Date.now(),
-		})
-		.where(eq(backupSchedulesTable.id, scheduleId));
 };
 
 const runForget = async (scheduleId: number, repositoryId?: string) => {

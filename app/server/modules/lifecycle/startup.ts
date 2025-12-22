@@ -1,7 +1,7 @@
 import { Scheduler } from "../../core/scheduler";
 import { and, eq, or } from "drizzle-orm";
 import { db } from "../../db/db";
-import { volumesTable } from "../../db/schema";
+import { backupSchedulesTable, volumesTable } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { restic } from "../../utils/restic";
 import { volumeService } from "../volumes/volume.service";
@@ -70,6 +70,18 @@ export const startup = async () => {
 			logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
 		});
 	}
+
+	await db
+		.update(backupSchedulesTable)
+		.set({
+			lastBackupStatus: "warning",
+			lastBackupError: "Zerobyte was restarted during the last scheduled backup",
+			updatedAt: Date.now(),
+		})
+		.where(eq(backupSchedulesTable.lastBackupStatus, "in_progress"))
+		.catch((err) => {
+			logger.error(`Failed to update stuck backup schedules on startup: ${err.message}`);
+		});
 
 	Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
 	Scheduler.build(VolumeHealthCheckJob).schedule("*/30 * * * *");

@@ -1305,6 +1305,7 @@ export type ListBackupSchedulesResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         name: string;
         nextBackupAt: number | null;
+        oneFileSystem: boolean;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
@@ -1453,6 +1454,7 @@ export type CreateBackupScheduleData = {
         excludeIfPresent?: Array<string>;
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
+        oneFileSystem?: boolean;
         retentionPolicy?: {
             keepDaily?: number;
             keepHourly?: number;
@@ -1486,6 +1488,7 @@ export type CreateBackupScheduleResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         name: string;
         nextBackupAt: number | null;
+        oneFileSystem: boolean;
         repositoryId: string;
         retentionPolicy: {
             keepDaily?: number;
@@ -1549,6 +1552,7 @@ export type GetBackupScheduleResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         name: string;
         nextBackupAt: number | null;
+        oneFileSystem: boolean;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
@@ -1696,6 +1700,7 @@ export type UpdateBackupScheduleData = {
         excludePatterns?: Array<string>;
         includePatterns?: Array<string>;
         name?: string;
+        oneFileSystem?: boolean;
         retentionPolicy?: {
             keepDaily?: number;
             keepHourly?: number;
@@ -1731,6 +1736,7 @@ export type UpdateBackupScheduleResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         name: string;
         nextBackupAt: number | null;
+        oneFileSystem: boolean;
         repositoryId: string;
         retentionPolicy: {
             keepDaily?: number;
@@ -1774,6 +1780,7 @@ export type GetBackupScheduleForVolumeResponses = {
         lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
         name: string;
         nextBackupAt: number | null;
+        oneFileSystem: boolean;
         repository: {
             compressionMode: 'auto' | 'max' | 'off' | null;
             config: {
