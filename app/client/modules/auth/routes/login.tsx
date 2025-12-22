@@ -1,16 +1,19 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { useMutation } from "@tanstack/react-query";
 import { type } from "arktype";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Button } from "~/client/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/client/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { authMiddleware } from "~/middleware/auth";
 import type { Route } from "./+types/login";
 import { loginMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { copyToClipboard } from "~/utils/clipboard";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -33,6 +36,7 @@ type LoginFormValues = typeof loginSchema.inferIn;
 
 export default function LoginPage() {
 	const navigate = useNavigate();
+	const [showResetDialog, setShowResetDialog] = useState(false);
 
 	const form = useForm<LoginFormValues>({
 		resolver: arktypeResolver(loginSchema),
@@ -93,7 +97,7 @@ export default function LoginPage() {
 									<button
 										type="button"
 										className="text-xs text-muted-foreground hover:underline"
-										onClick={() => toast.info("Password reset not implemented")}
+										onClick={() => setShowResetDialog(true)}
 									>
 										Forgot your password?
 									</button>
@@ -110,6 +114,39 @@ export default function LoginPage() {
 					</Button>
 				</form>
 			</Form>
+
+			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>
+	);
+}
+
+const RESET_PASSWORD_COMMAND = "docker exec -it zerobyte bun run cli reset-password";
+
+function ResetPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+	const handleCopy = async () => {
+		await copyToClipboard(RESET_PASSWORD_COMMAND);
+		toast.success("Command copied to clipboard");
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-xl">
+				<DialogHeader>
+					<DialogTitle>Reset your password</DialogTitle>
+					<DialogDescription>
+						To reset your password, run the following command on the server where Zerobyte is installed.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="space-y-4">
+					<div className="rounded-md bg-muted p-4 font-mono text-sm break-all">{RESET_PASSWORD_COMMAND}</div>
+					<p className="text-sm text-muted-foreground">
+						This command will start an interactive session where you can enter a new password for your account.
+					</p>
+					<Button onClick={handleCopy} variant="outline" className="w-full">
+						Copy Command
+					</Button>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }

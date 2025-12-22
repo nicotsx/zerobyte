@@ -12,6 +12,7 @@ import { ChevronDown, ChevronRight, File as FileIcon, Folder as FolderIcon, Fold
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "~/client/lib/utils";
 import { Checkbox } from "~/client/components/ui/checkbox";
+import { ByteSize } from "~/client/components/bytes-size";
 
 const NODE_PADDING_LEFT = 12;
 
@@ -431,7 +432,7 @@ interface FileProps {
 }
 
 const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onCheckboxChange }: FileProps) => {
-	const { depth, name, fullPath } = file;
+	const { depth, name, fullPath, size } = file;
 
 	const handleClick = useCallback(() => {
 		onFileSelect(fullPath);
@@ -458,6 +459,11 @@ const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onChec
 				<Checkbox checked={checked} onCheckedChange={handleCheckboxChange} onClick={(e) => e.stopPropagation()} />
 			)}
 			<span className="truncate">{name}</span>
+			{typeof size === "number" && (
+				<span className="ml-auto shrink-0 text-xs text-muted-foreground">
+					<ByteSize bytes={size} />
+				</span>
+			)}
 		</NodeButton>
 	);
 });
@@ -499,6 +505,7 @@ interface BaseNode {
 
 interface FileNode extends BaseNode {
 	kind: "file";
+	size?: number;
 }
 
 interface FolderNode extends BaseNode {
@@ -518,12 +525,14 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 		const name = segments[segments.length - 1];
 
 		if (!fileMap.has(file.path)) {
+			const isFile = file.type === "file";
 			fileMap.set(file.path, {
-				kind: file.type === "file" ? "file" : "folder",
+				kind: isFile ? "file" : "folder",
 				id: fileMap.size,
 				name,
 				fullPath: file.path,
 				depth,
+				size: file.size,
 			});
 		}
 	}

@@ -7,6 +7,7 @@ import { shutdown } from "./modules/lifecycle/shutdown";
 import { REQUIRED_MIGRATIONS } from "./core/constants";
 import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
 import { createApp } from "./app";
+import { config } from "./core/config";
 
 const app = createApp();
 
@@ -33,4 +34,13 @@ process.on("SIGINT", async () => {
 	process.exit(0);
 });
 
-export default await createHonoServer({ app, port: 4096 });
+export default await createHonoServer({
+	app,
+	port: 4096,
+	customBunServer: {
+		idleTimeout: config.serverIdleTimeout,
+		error(err) {
+			logger.error(`[Bun.serve] Server error: ${err.message}`);
+		},
+	},
+});

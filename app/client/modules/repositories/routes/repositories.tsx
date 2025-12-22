@@ -148,9 +148,9 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 						) : (
 							filteredRepositories.map((repository) => (
 								<TableRow
-									key={repository.name}
+									key={repository.id}
 									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate(`/repositories/${repository.name}`)}
+									onClick={() => navigate(`/repositories/${repository.shortId}`)}
 								>
 									<TableCell className="font-medium text-strong-accent">{repository.name}</TableCell>
 									<TableCell>

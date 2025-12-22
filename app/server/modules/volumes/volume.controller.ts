@@ -24,8 +24,10 @@ import {
 } from "./volume.dto";
 import { volumeService } from "./volume.service";
 import { getVolumePath } from "./helpers";
+import { requireAuth } from "../auth/auth.middleware";
 
 export const volumeController = new Hono()
+	.use(requireAuth)
 	.get("/", listVolumesDto, async (c) => {
 		const volumes = await volumeService.listVolumes();
 

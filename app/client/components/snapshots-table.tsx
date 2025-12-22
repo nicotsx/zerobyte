@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, FolderTree, HardDrive, Trash2 } from "lucide-react";
+import { Calendar, Clock, Database, HardDrive, Server, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { Button } from "~/client/components/ui/button";
 import {
 	AlertDialog,
@@ -21,14 +20,15 @@ import { formatDuration } from "~/utils/utils";
 import { deleteSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
+import { cn } from "../lib/utils";
 
 type Props = {
 	snapshots: Snapshot[];
 	backups: BackupSchedule[];
-	repositoryName: string;
+	repositoryId: string;
 };
 
-export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) => {
+export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -53,7 +53,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 		if (snapshotToDelete) {
 			toast.promise(
 				deleteSnapshot.mutateAsync({
-					path: { name: repositoryName, snapshotId: snapshotToDelete },
+					path: { id: repositoryId, snapshotId: snapshotToDelete },
 				}),
 				{
 					loading: "Deleting snapshot...",
@@ -65,7 +65,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 	};
 
 	const handleRowClick = (snapshotId: string) => {
-		navigate(`/repositories/${repositoryName}/${snapshotId}`);
+		navigate(`/repositories/${repositoryId}/${snapshotId}`);
 	};
 
 	return (
@@ -79,7 +79,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 							<TableHead className="uppercase">Date & Time</TableHead>
 							<TableHead className="uppercase">Size</TableHead>
 							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
-							<TableHead className="uppercase hidden text-right lg:table-cell">Paths</TableHead>
+							<TableHead className="uppercase hidden text-right lg:table-cell">Volume</TableHead>
 							<TableHead className="uppercase text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -108,7 +108,7 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 												onClick={(e) => e.stopPropagation()}
 												className="hover:underline"
 											>
-												<span className="text-sm">{backup ? backup.id : "-"}</span>
+												<span className="text-sm">{backup ? backup.name : "-"}</span>
 											</Link>
 											<span hidden={!!backup} className="text-sm text-muted-foreground">
 												-
@@ -137,23 +137,18 @@ export const SnapshotsTable = ({ snapshots, repositoryName, backups }: Props) =>
 									</TableCell>
 									<TableCell className="hidden lg:table-cell">
 										<div className="flex items-center justify-end gap-2">
-											<FolderTree className="h-4 w-4 text-muted-foreground" />
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<span className="text-xs bg-primary/10 text-primary rounded-md px-2 py-1 cursor-help">
-														{snapshot.paths.length} {snapshot.paths.length === 1 ? "path" : "paths"}
-													</span>
-												</TooltipTrigger>
-												<TooltipContent side="top" className="max-w-md">
-													<div className="flex flex-col gap-1">
-														{snapshot.paths.map((path) => (
-															<div key={`${snapshot.short_id}-${path}`} className="text-xs font-mono">
-																{path}
-															</div>
-														))}
-													</div>
-												</TooltipContent>
-											</Tooltip>
+											<Server className={cn("h-4 w-4 text-muted-foreground", { hidden: !backup })} />
+											<Link
+												hidden={!backup}
+												to={backup ? `/volumes/${backup.volume.name}` : "#"}
+												onClick={(e) => e.stopPropagation()}
+												className="hover:underline"
+											>
+												<span className="text-sm">{backup ? backup.volume.name : "-"}</span>
+											</Link>
+											<span hidden={!!backup} className="text-sm text-muted-foreground">
+												-
+											</span>
 										</div>
 									</TableCell>
 									<TableCell className="text-right">

@@ -14,18 +14,18 @@ import { FileTree } from "~/client/components/file-tree";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
-import type { Snapshot } from "~/client/lib/types";
+import type { Repository, Snapshot } from "~/client/lib/types";
 
 type RestoreLocation = "original" | "custom";
 
 interface RestoreFormProps {
 	snapshot: Snapshot;
-	repositoryName: string;
+	repository: Repository;
 	snapshotId: string;
 	returnPath: string;
 }
 
-export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }: RestoreFormProps) {
+export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: RestoreFormProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
@@ -42,10 +42,9 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 
 	const { data: filesData, isLoading: filesLoading } = useQuery({
 		...listSnapshotFilesOptions({
-			path: { name: repositoryName, snapshotId },
+			path: { id: repository.id, snapshotId },
 			query: { path: volumeBasePath },
 		}),
-		enabled: !!repositoryName && !!snapshotId,
 	});
 
 	const stripBasePath = useCallback(
@@ -78,7 +77,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 		fetchFolder: async (path) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
-					path: { name: repositoryName, snapshotId },
+					path: { id: repository.id, snapshotId },
 					query: { path },
 				}),
 			);
@@ -86,7 +85,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 		prefetchFolder: (path) => {
 			queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
-					path: { name: repositoryName, snapshotId },
+					path: { id: repository.id, snapshotId },
 					query: { path },
 				}),
 			);
@@ -111,8 +110,6 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 	});
 
 	const handleRestore = useCallback(() => {
-		if (!repositoryName || !snapshotId) return;
-
 		const excludeXattrArray = excludeXattr
 			?.split(",")
 			.map((s) => s.trim())
@@ -125,7 +122,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 		const includePaths = pathsArray.map((path) => addBasePath(path));
 
 		restoreSnapshot({
-			path: { name: repositoryName },
+			path: { id: repository.id },
 			body: {
 				snapshotId,
 				include: includePaths.length > 0 ? includePaths : undefined,
@@ -136,7 +133,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 			},
 		});
 	}, [
-		repositoryName,
+		repository.id,
 		snapshotId,
 		excludeXattr,
 		restoreLocation,
@@ -156,7 +153,7 @@ export function RestoreForm({ snapshot, repositoryName, snapshotId, returnPath }
 				<div>
 					<h1 className="text-2xl font-bold">Restore Snapshot</h1>
 					<p className="text-sm text-muted-foreground">
-						{repositoryName} / {snapshotId}
+						{repository.name} / {snapshotId}
 					</p>
 				</div>
 				<div className="flex gap-2">

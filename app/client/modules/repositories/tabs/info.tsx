@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router";
 import { Check, Save } from "lucide-react";
 import { Card } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
@@ -19,9 +18,7 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
-import { slugify } from "~/client/lib/utils";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import type { UpdateRepositoryResponse } from "~/client/api-client/types.gen";
 import type { CompressionMode } from "~/schemas/restic";
 
 type Props = {
@@ -29,22 +26,19 @@ type Props = {
 };
 
 export const RepositoryInfoTabContent = ({ repository }: Props) => {
-	const navigate = useNavigate();
 	const [name, setName] = useState(repository.name);
 	const [compressionMode, setCompressionMode] = useState<CompressionMode>(
 		(repository.compressionMode as CompressionMode) || "off",
 	);
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
+	const isImportedLocal = repository.type === "local" && repository.config.isExistingRepository;
+
 	const updateMutation = useMutation({
 		...updateRepositoryMutation(),
-		onSuccess: (data: UpdateRepositoryResponse) => {
+		onSuccess: () => {
 			toast.success("Repository updated successfully");
 			setShowConfirmDialog(false);
-
-			if (data.name !== repository.name) {
-				navigate(`/repositories/${data.name}`);
-			}
 		},
 		onError: (error) => {
 			toast.error("Failed to update repository", { description: error.message, richColors: true });
@@ -59,7 +53,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	const confirmUpdate = () => {
 		updateMutation.mutate({
-			path: { name: repository.name },
+			path: { id: repository.id },
 			body: { name, compressionMode },
 		});
 	};
@@ -79,12 +73,17 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<Input
 									id="name"
 									value={name}
-									onChange={(e) => setName(slugify(e.target.value))}
+									onChange={(e) => setName(e.target.value)}
 									placeholder="Repository name"
 									maxLength={32}
 									minLength={2}
+									disabled={isImportedLocal}
 								/>
-								<p className="text-sm text-muted-foreground">Unique identifier for the repository.</p>
+								<p className="text-sm text-muted-foreground">
+									{isImportedLocal
+										? "Imported local repositories cannot be renamed."
+										: "Unique identifier for the repository."}
+								</p>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="compressionMode">Compression mode</Label>

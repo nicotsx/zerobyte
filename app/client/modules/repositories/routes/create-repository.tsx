@@ -36,7 +36,7 @@ export default function CreateRepository() {
 		...createRepositoryMutation(),
 		onSuccess: (data) => {
 			toast.success("Repository created successfully");
-			navigate(`/repositories/${data.repository.name}`);
+			navigate(`/repositories/${data.repository.shortId}`);
 		},
 	});
 

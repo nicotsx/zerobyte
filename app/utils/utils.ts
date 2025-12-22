@@ -5,7 +5,12 @@ export const getCronExpression = (
 	dailyTime?: string,
 	weeklyDay?: string,
 	monthlyDays?: string[],
+	cronExpression?: string,
 ): string => {
+	if (frequency === "cron" && cronExpression) {
+		return cronExpression;
+	}
+
 	if (frequency === "hourly") {
 		return "0 * * * *";
 	}

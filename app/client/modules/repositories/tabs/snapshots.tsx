@@ -17,7 +17,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const { data, isFetching, failureReason } = useQuery({
-		...listSnapshotsOptions({ path: { name: repository.name } }),
+		...listSnapshotsOptions({ path: { id: repository.id } }),
 		initialData: [],
 	});
 
@@ -28,9 +28,15 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	const filteredSnapshots = data.filter((snapshot: Snapshot) => {
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
+
+		const backupIds = snapshot.tags.map(Number).filter((tag) => !Number.isNaN(tag));
+		const backup = schedules.data?.find((b) => backupIds.includes(b.id));
+
 		return (
 			snapshot.short_id.toLowerCase().includes(searchLower) ||
-			snapshot.paths.some((path) => path.toLowerCase().includes(searchLower))
+			snapshot.paths.some((path) => path.toLowerCase().includes(searchLower)) ||
+			backup?.name?.toLowerCase().includes(searchLower) ||
+			backup?.volume?.name?.toLowerCase().includes(searchLower)
 		);
 	});
 
@@ -137,7 +143,11 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 					</TableBody>
 				</Table>
 			) : (
-				<SnapshotsTable snapshots={filteredSnapshots} repositoryName={repository.name} backups={schedules.data ?? []} />
+				<SnapshotsTable
+					snapshots={filteredSnapshots}
+					repositoryId={repository.shortId}
+					backups={schedules.data ?? []}
+				/>
 			)}
 			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-between border-t">
 				<span>

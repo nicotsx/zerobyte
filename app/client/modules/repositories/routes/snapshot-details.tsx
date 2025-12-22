@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { redirect, useParams } from "react-router";
-import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { redirect, useParams, Link, Await } from "react-router";
+import { listBackupSchedulesOptions, listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
-import { getSnapshotDetails } from "~/client/api-client";
+import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import type { Route } from "./+types/snapshot-details";
+import { Suspense } from "react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
 		{ label: "Repositories", href: "/repositories" },
-		{ label: match.params.name, href: `/repositories/${match.params.name}` },
+		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
 		{ label: match.params.snapshotId },
 	],
 };
@@ -25,29 +26,35 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const snapshot = await getSnapshotDetails({
-		path: { name: params.name, snapshotId: params.snapshotId },
+	const snapshot = getSnapshotDetails({
+		path: { id: params.id, snapshotId: params.snapshotId },
 	});
-	if (snapshot.data) return snapshot.data;
 
-	return redirect("/repositories");
+	const repository = await getRepository({ path: { id: params.id } });
+	if (!repository.data) return redirect("/repositories");
+
+	return { snapshot: snapshot, repository: repository.data };
 };
 
 export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps) {
-	const { name, snapshotId } = useParams<{
-		name: string;
+	const { id, snapshotId } = useParams<{
+		id: string;
 		snapshotId: string;
 	}>();
 
 	const { data } = useQuery({
 		...listSnapshotFilesOptions({
-			path: { name: name ?? "", snapshotId: snapshotId ?? "" },
+			path: { id: id ?? "", snapshotId: snapshotId ?? "" },
 			query: { path: "/" },
 		}),
-		enabled: !!name && !!snapshotId,
+		enabled: !!id && !!snapshotId,
 	});
 
-	if (!name || !snapshotId) {
+	const schedules = useQuery({
+		...listBackupSchedulesOptions(),
+	});
+
+	if (!id || !snapshotId) {
 		return (
 			<div className="flex items-center justify-center h-full">
 				<p className="text-destructive">Invalid snapshot reference</p>
@@ -59,12 +66,27 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">{name}</h1>
+					<h1 className="text-2xl font-bold">{loaderData.repository.name}</h1>
 					<p className="text-sm text-muted-foreground">Snapshot: {snapshotId}</p>
 				</div>
 			</div>
 
-			<SnapshotFileBrowser repositoryName={name} snapshot={loaderData} />
+			<Suspense
+				fallback={
+					<SnapshotFileBrowser
+						repositoryId={id}
+						snapshot={{ duration: 0, paths: [], short_id: "", size: 0, tags: [], time: 0 }}
+					/>
+				}
+			>
+				<Await resolve={loaderData.snapshot}>
+					{(value) => {
+						if (!value.data) return <div className="text-destructive">Snapshot data not found.</div>;
+
+						return <SnapshotFileBrowser repositoryId={id} snapshot={value.data} />;
+					}}
+				</Await>
+			</Suspense>
 
 			{data?.snapshot && (
 				<Card>
@@ -89,6 +111,41 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 								<span className="text-muted-foreground">Time:</span>
 								<p>{new Date(data.snapshot.time).toLocaleString()}</p>
 							</div>
+							<Suspense fallback={<div>Loading...</div>}>
+								<Await resolve={loaderData.snapshot}>
+									{(value) => {
+										if (!value.data) return null;
+
+										const backupIds = value.data.tags.map(Number).filter((tag) => !Number.isNaN(tag));
+										const backupSchedule = schedules.data?.find((s) => backupIds.includes(s.id));
+
+										return (
+											<>
+												<div>
+													<span className="text-muted-foreground">Backup Schedule:</span>
+													<p>
+														<Link to={`/backups/${backupSchedule?.id}`} className="text-primary hover:underline">
+															{backupSchedule?.name}
+														</Link>
+													</p>
+												</div>
+												<div>
+													<span className="text-muted-foreground">Volume:</span>
+													<p>
+														<Link
+															to={`/volumes/${backupSchedule?.volume.name}`}
+															className="text-primary hover:underline"
+														>
+															{backupSchedule?.volume.name}
+														</Link>
+													</p>
+												</div>
+											</>
+										);
+									}}
+								</Await>
+							</Suspense>
+
 							<div className="col-span-2">
 								<span className="text-muted-foreground">Paths:</span>
 								<div className="space-y-1 mt-1">
