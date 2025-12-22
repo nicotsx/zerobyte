@@ -77,6 +77,10 @@ const matchers: Matcher[] = [
 ];
 
 export const cronToFormValues = (cronExpression: string): CronFormValues => {
+	if (!cronExpression) {
+		return { frequency: "hourly" };
+	}
+
 	const normalized = cronExpression.trim().replace(/\s+/g, " ");
 	const parts = normalized.split(" ");
 

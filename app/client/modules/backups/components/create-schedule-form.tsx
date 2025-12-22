@@ -83,7 +83,7 @@ const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValu
 		return undefined;
 	}
 
-	const cronValues = cronToFormValues(schedule.cronExpression);
+	const cronValues = cronToFormValues(schedule.cronExpression ?? "0 * * * *");
 
 	const patterns = schedule.includePatterns || [];
 	const isGlobPattern = (p: string) => /[*?[\]]/.test(p);
