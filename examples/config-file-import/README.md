@@ -313,12 +313,34 @@ Note for importing existing local repositories (migration):
   "retentionPolicy": { "keepLast": 7, "keepDaily": 7 },
   "includePatterns": ["important-folder"],
   "excludePatterns": ["*.tmp", "*.log"],
+  "excludeIfPresent": [".nobackup"],
+  "oneFileSystem": true,
   "enabled": true,
-  "notifications": ["slack-alerts", "email-admin"]
+  "notifications": ["slack-alerts", "email-admin"],
+  "mirrors": [
+    { "repository": "s3-repo" },
+    { "repository": "lo2" }
+  ]
 }
 ```
 
-`notifications` can also be an array of objects:
+**Fields:**
+
+- `name`: Unique schedule name
+- `volume`: Name of the source volume
+- `repository`: Name of the primary destination repository
+- `cronExpression`: Cron string for schedule timing
+- `retentionPolicy`: Object with retention rules (`keepLast`, `keepHourly`, `keepDaily`, `keepWeekly`, `keepMonthly`, `keepYearly`, `keepWithinDuration`)
+- `includePatterns` / `excludePatterns`: Arrays of file patterns
+- `excludeIfPresent`: Array of filenames; if any of these files exist in a directory, that directory is excluded (e.g., `[".nobackup"]`)
+- `oneFileSystem`: Boolean; if `true`, restic won't cross filesystem boundaries (useful when backing up `/` to avoid traversing into mounted volumes)
+- `enabled`: Boolean
+- `notifications`: Array of notification destination names or detailed objects (see below)
+- `mirrors`: Array of mirror repositories (see below)
+
+#### Notifications (detailed)
+
+`notifications` can be strings (destination names) or objects with fine-grained control:
 
 ```json
 [
@@ -329,6 +351,18 @@ Note for importing existing local repositories (migration):
     "notifyOnWarning": true,
     "notifyOnFailure": true
   }
+]
+```
+
+#### Mirrors
+
+Mirrors let you automatically copy snapshots to additional repositories after each backup.
+Each mirror references a repository by name:
+
+```json
+"mirrors": [
+  { "repository": "s3-repo" },
+  { "repository": "lo2", "enabled": false }
 ]
 ```
 

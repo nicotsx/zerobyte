@@ -127,6 +127,12 @@ async function importVolumes(volumes: unknown[]): Promise<void> {
 			}
 			await volumeService.createVolume(v.name, v.config as BackendConfig);
 			logger.info(`Initialized volume from config: ${v.name}`);
+
+			// If autoRemount is explicitly false, update the volume (default is true)
+			if (v.autoRemount === false) {
+				await volumeService.updateVolume(v.name, { autoRemount: false });
+				logger.info(`Set autoRemount=false for volume: ${v.name}`);
+			}
 		} catch (e) {
 			const err = e instanceof Error ? e : new Error(String(e));
 			logger.warn(`Volume not created: ${err.message}`);
@@ -165,8 +171,14 @@ async function importNotificationDestinations(notificationDestinations: unknown[
 			if (!isRecord(n) || typeof n.name !== "string" || !isRecord(n.config) || typeof n.config.type !== "string") {
 				throw new Error("Invalid notification destination entry");
 			}
-			await notificationsServiceModule.notificationsService.createDestination(n.name, n.config as NotificationConfig);
+			const created = await notificationsServiceModule.notificationsService.createDestination(n.name, n.config as NotificationConfig);
 			logger.info(`Initialized notification destination from config: ${n.name}`);
+
+			// If enabled is explicitly false, update the destination (default is true)
+			if (n.enabled === false) {
+				await notificationsServiceModule.notificationsService.updateDestination(created.id, { enabled: false });
+				logger.info(`Set enabled=false for notification destination: ${n.name}`);
+			}
 		} catch (e) {
 			const err = e instanceof Error ? e : new Error(String(e));
 			logger.warn(`Notification destination not created: ${err.message}`);
@@ -243,9 +255,10 @@ async function attachScheduleNotifications(
 }
 
 async function importBackupSchedules(backupSchedules: unknown[]): Promise<void> {
+	if (!Array.isArray(backupSchedules) || backupSchedules.length === 0) return;
+
 	const backupServiceModule = await import("../backups/backups.service");
 	const notificationsServiceModule = await import("../notifications/notifications.service");
-	if (!Array.isArray(backupSchedules) || backupSchedules.length === 0) return;
 
 	const volumes = await db.query.volumesTable.findMany();
 	const repositories = await db.query.repositoriesTable.findMany();
@@ -312,6 +325,7 @@ async function importBackupSchedules(backupSchedules: unknown[]): Promise<void> 
 				excludePatterns: asStringArray(s.excludePatterns),
 				excludeIfPresent: asStringArray(s.excludeIfPresent),
 				includePatterns: asStringArray(s.includePatterns),
+				oneFileSystem: typeof s.oneFileSystem === "boolean" ? s.oneFileSystem : undefined,
 			});
 			logger.info(`Initialized backup schedule from config: ${scheduleName}`);
 		} catch (e) {
@@ -323,6 +337,57 @@ async function importBackupSchedules(backupSchedules: unknown[]): Promise<void> 
 		if (createdSchedule && Array.isArray(s.notifications) && s.notifications.length > 0) {
 			await attachScheduleNotifications(createdSchedule.id, s.notifications, destinationBySlug, notificationsServiceModule);
 		}
+
+		if (createdSchedule && Array.isArray(s.mirrors) && s.mirrors.length > 0) {
+			await attachScheduleMirrors(createdSchedule.id, s.mirrors, repoByName, backupServiceModule);
+		}
+	}
+}
+
+async function attachScheduleMirrors(
+	scheduleId: number,
+	mirrors: unknown[],
+	repoByName: Map<string, { id: string; name: string }>,
+	backupServiceModule: typeof import("../backups/backups.service"),
+): Promise<void> {
+	try {
+		const mirrorConfigs: Array<{ repositoryId: string; enabled: boolean }> = [];
+
+		for (const m of mirrors) {
+			if (!isRecord(m)) continue;
+
+			// Support both repository name (string) and repository object with name
+			const repoName =
+				typeof m.repository === "string"
+					? m.repository
+					: typeof m.repositoryName === "string"
+						? m.repositoryName
+						: null;
+
+			if (!repoName) {
+				logger.warn("Mirror missing repository name; skipping");
+				continue;
+			}
+
+			const repo = repoByName.get(repoName);
+			if (!repo) {
+				logger.warn(`Mirror repository '${repoName}' not found; skipping`);
+				continue;
+			}
+
+			mirrorConfigs.push({
+				repositoryId: repo.id,
+				enabled: typeof m.enabled === "boolean" ? m.enabled : true,
+			});
+		}
+
+		if (mirrorConfigs.length === 0) return;
+
+		await backupServiceModule.backupsService.updateMirrors(scheduleId, { mirrors: mirrorConfigs });
+		logger.info(`Assigned ${mirrorConfigs.length} mirror(s) to backup schedule`);
+	} catch (e) {
+		const err = e instanceof Error ? e : new Error(String(e));
+		logger.warn(`Failed to assign mirrors to schedule: ${err.message}`);
 	}
 }
 

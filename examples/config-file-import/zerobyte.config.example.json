@@ -125,8 +125,13 @@
       "retentionPolicy": { "keepLast": 7, "keepDaily": 7 },
       "includePatterns": ["important-folder"],
       "excludePatterns": ["*.tmp", "*.log"],
+      "excludeIfPresent": [".nobackup"],
+      "oneFileSystem": false,
       "enabled": true,
-      "notifications": ["slack-alerts"]
+      "notifications": ["slack-alerts"],
+      "mirrors": [
+        { "repository": "s3-repo" }
+      ]
     }
   ],
   "notificationDestinations": [
