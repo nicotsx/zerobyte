@@ -2045,6 +2045,15 @@ export type GetScheduleNotificationsResponses = {
                 threadId?: string;
                 username?: string;
             } | {
+                type: 'generic';
+                url: string;
+                contentType?: string;
+                headers?: Array<string>;
+                messageKey?: string;
+                method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+                titleKey?: string;
+                useJson?: boolean;
+            } | {
                 type: 'slack';
                 webhookUrl: string;
                 channel?: string;
@@ -2055,7 +2064,7 @@ export type GetScheduleNotificationsResponses = {
             enabled: boolean;
             id: number;
             name: string;
-            type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
         destinationId: number;
@@ -2135,6 +2144,15 @@ export type UpdateScheduleNotificationsResponses = {
                 threadId?: string;
                 username?: string;
             } | {
+                type: 'generic';
+                url: string;
+                contentType?: string;
+                headers?: Array<string>;
+                messageKey?: string;
+                method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+                titleKey?: string;
+                useJson?: boolean;
+            } | {
                 type: 'slack';
                 webhookUrl: string;
                 channel?: string;
@@ -2145,7 +2163,7 @@ export type UpdateScheduleNotificationsResponses = {
             enabled: boolean;
             id: number;
             name: string;
-            type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
         destinationId: number;
@@ -2458,6 +2476,15 @@ export type ListNotificationDestinationsResponses = {
             threadId?: string;
             username?: string;
         } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
@@ -2468,7 +2495,7 @@ export type ListNotificationDestinationsResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     }>;
 };
@@ -2518,6 +2545,15 @@ export type CreateNotificationDestinationData = {
             avatarUrl?: string;
             threadId?: string;
             username?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
@@ -2579,6 +2615,15 @@ export type CreateNotificationDestinationResponses = {
             threadId?: string;
             username?: string;
         } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
@@ -2589,7 +2634,7 @@ export type CreateNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -2686,6 +2731,15 @@ export type GetNotificationDestinationResponses = {
             threadId?: string;
             username?: string;
         } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
@@ -2696,7 +2750,7 @@ export type GetNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -2746,6 +2800,15 @@ export type UpdateNotificationDestinationData = {
             avatarUrl?: string;
             threadId?: string;
             username?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
@@ -2817,6 +2880,15 @@ export type UpdateNotificationDestinationResponses = {
             threadId?: string;
             username?: string;
         } | {
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT';
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
@@ -2827,7 +2899,7 @@ export type UpdateNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };

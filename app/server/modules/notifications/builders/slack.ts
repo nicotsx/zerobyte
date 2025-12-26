@@ -1,6 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildSlackShoutrrrUrl(config: Extract<NotificationConfig, { type: "slack" }>): string {
+export const buildSlackShoutrrrUrl = (config: Extract<NotificationConfig, { type: "slack" }>) => {
 	const url = new URL(config.webhookUrl);
 	const pathParts = url.pathname.split("/").filter(Boolean);
 
@@ -28,4 +28,4 @@ export function buildSlackShoutrrrUrl(config: Extract<NotificationConfig, { type
 	}
 
 	return shoutrrrUrl;
-}
+};
