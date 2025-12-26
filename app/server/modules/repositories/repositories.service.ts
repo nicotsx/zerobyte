@@ -53,6 +53,9 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 			if (config.password) {
 				encryptedConfig.password = await cryptoUtils.sealSecret(config.password);
 			}
+			if (config.cacert) {
+				encryptedConfig.cacert = await cryptoUtils.sealSecret(config.cacert);
+			}
 			break;
 		case "sftp":
 			encryptedConfig.privateKey = await cryptoUtils.sealSecret(config.privateKey);
