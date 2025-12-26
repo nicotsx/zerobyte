@@ -1,6 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildGotifyShoutrrrUrl(config: Extract<NotificationConfig, { type: "gotify" }>): string {
+export const buildGotifyShoutrrrUrl = (config: Extract<NotificationConfig, { type: "gotify" }>) => {
 	const url = new URL(config.serverUrl);
 	const hostname = url.hostname;
 	const port = url.port ? `:${url.port}` : "";
@@ -13,4 +13,4 @@ export function buildGotifyShoutrrrUrl(config: Extract<NotificationConfig, { typ
 	}
 
 	return shoutrrrUrl;
-}
+};

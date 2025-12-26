@@ -71,6 +71,11 @@ async function encryptSensitiveFields(config: NotificationConfig): Promise<Notif
 				...config,
 				botToken: await cryptoUtils.sealSecret(config.botToken),
 			};
+		case "generic":
+			return {
+				...config,
+				url: await cryptoUtils.sealSecret(config.url),
+			};
 		case "custom":
 			return {
 				...config,
@@ -117,6 +122,11 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 			return {
 				...config,
 				botToken: await cryptoUtils.resolveSecret(config.botToken),
+			};
+		case "generic":
+			return {
+				...config,
+				url: await cryptoUtils.resolveSecret(config.url),
 			};
 		case "custom":
 			return {

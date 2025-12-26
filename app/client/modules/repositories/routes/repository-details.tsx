@@ -25,7 +25,7 @@ import { cn } from "~/client/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
-import { Loader2, Stethoscope, Trash2, X } from "lucide-react";
+import { Loader2, Stethoscope, Trash2 } from "lucide-react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
