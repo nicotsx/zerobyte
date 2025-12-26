@@ -64,7 +64,21 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 
 const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
 	const id = crypto.randomUUID();
-	const shortId = generateShortId();
+
+	// Determine shortId: use provided config.name for local repo migrations, otherwise generate
+	let shortId: string;
+	if (config.backend === "local" && config.name?.length) {
+		// User provided a name (migration scenario) - check for conflicts
+		shortId = config.name;
+		const existingByShortId = await db.query.repositoriesTable.findFirst({
+			where: eq(repositoriesTable.shortId, shortId),
+		});
+		if (existingByShortId) {
+			throw new ConflictError(`A repository with shortId '${shortId}' already exists. The shortId is used as the subdirectory name for local repositories.`);
+		}
+	} else {
+		shortId = generateShortId();
+	}
 
 	let processedConfig = config;
 	if (config.backend === "local" && !config.isExistingRepository) {
@@ -72,6 +86,24 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	}
 
 	const encryptedConfig = await encryptConfig(processedConfig);
+
+	const repoExists = await restic
+		.snapshots(encryptedConfig)
+		.then(() => true)
+		.catch(() => false);
+
+	if (repoExists && !config.isExistingRepository) {
+		throw new ConflictError(
+			`A restic repository already exists at this location. ` +
+			`If you want to use the existing repository, set "isExistingRepository": true in the config.`
+		);
+	}
+
+	if (!repoExists && config.isExistingRepository) {
+		throw new InternalServerError(
+			`Cannot access existing repository. Verify the path/credentials are correct and the repository exists.`
+		);
+	}
 
 	const [created] = await db
 		.insert(repositoriesTable)
@@ -92,14 +124,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let error: string | null = null;
 
-	if (config.isExistingRepository) {
-		const result = await restic
-			.snapshots(encryptedConfig)
-			.then(() => ({ error: null }))
-			.catch((error) => ({ error }));
-
-		error = result.error;
-	} else {
+	if (!repoExists) {
 		const initResult = await restic.init(encryptedConfig);
 		error = initResult.error;
 	}

@@ -13,7 +13,7 @@ export class AuthService {
 		const [existingUser] = await db.select().from(usersTable);
 
 		if (existingUser) {
-			throw new Error("Admin user already exists");
+			throw new Error("A user already exists");
 		}
 
 		const passwordHash = await Bun.password.hash(password, {

@@ -10,6 +10,7 @@ import { VolumeHealthCheckJob } from "../../jobs/healthchecks";
 import { RepositoryHealthCheckJob } from "../../jobs/repository-healthchecks";
 import { BackupExecutionJob } from "../../jobs/backup-execution";
 import { CleanupSessionsJob } from "../../jobs/cleanup-sessions";
+import { applyConfigImportFromFile } from "./config-import";
 import { repositoriesService } from "../repositories/repositories.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
@@ -43,6 +44,13 @@ const ensureLatestConfigurationSchema = async () => {
 export const startup = async () => {
 	await Scheduler.start();
 	await Scheduler.clear();
+
+	if (process.env.ZEROBYTE_CONFIG_IMPORT === "true") {
+		logger.info("Config import enabled (ZEROBYTE_CONFIG_IMPORT=true)");
+		await applyConfigImportFromFile();
+	} else {
+		logger.info("Config import skipped (set ZEROBYTE_CONFIG_IMPORT=true to enable)");
+	}
 
 	await restic.ensurePassfile().catch((err) => {
 		logger.error(`Error ensuring restic passfile exists: ${err.message}`);
