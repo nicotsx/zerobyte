@@ -72,7 +72,7 @@ const ensurePassfile = async () => {
 	}
 };
 
-const buildRepoUrl = (config: RepositoryConfig): string => {
+export const buildRepoUrl = (config: RepositoryConfig): string => {
 	switch (config.backend) {
 		case "local":
 			if (config.isExistingRepository) {
@@ -105,7 +105,7 @@ const buildRepoUrl = (config: RepositoryConfig): string => {
 	}
 };
 
-const buildEnv = async (config: RepositoryConfig) => {
+export const buildEnv = async (config: RepositoryConfig) => {
 	const env: Record<string, string> = {
 		RESTIC_CACHE_DIR: "/var/lib/zerobyte/restic/cache",
 		PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
@@ -805,7 +805,7 @@ const copy = async (
 	};
 };
 
-const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string, string>) => {
+export const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string, string>) => {
 	if (config.backend === "sftp" && env._SFTP_KEY_PATH) {
 		await fs.unlink(env._SFTP_KEY_PATH).catch(() => {});
 	} else if (config.isExistingRepository && config.customPassword && env.RESTIC_PASSWORD_FILE) {
@@ -815,7 +815,7 @@ const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string
 	}
 };
 
-const addCommonArgs = (args: string[], env: Record<string, string>) => {
+export const addCommonArgs = (args: string[], env: Record<string, string>) => {
 	args.push("--json");
 
 	if (env._SFTP_SSH_ARGS) {

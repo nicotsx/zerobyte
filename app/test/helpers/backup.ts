@@ -8,6 +8,7 @@ export const createTestBackupSchedule = async (overrides: Partial<BackupSchedule
 		cronExpression: "0 0 * * *",
 		repositoryId: "repo_123",
 		volumeId: 1,
+		shortId: faker.string.uuid(),
 		...overrides,
 	};
 

@@ -29,8 +29,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
 
-		const backupIds = snapshot.tags.map(Number).filter((tag) => !Number.isNaN(tag));
-		const backup = schedules.data?.find((b) => backupIds.includes(b.id));
+		const backup = schedules.data?.find((b) => snapshot.tags.includes(b.shortId));
 
 		return (
 			snapshot.short_id.toLowerCase().includes(searchLower) ||

@@ -1,7 +1,7 @@
 import { createHonoServer } from "react-router-hono-server/bun";
 import { runDbMigrations } from "./db/db";
 import { startup } from "./modules/lifecycle/startup";
-import { migrateToShortIds } from "./modules/lifecycle/migration";
+import { retagSnapshots } from "./modules/lifecycle/migration";
 import { logger } from "./utils/logger";
 import { shutdown } from "./modules/lifecycle/shutdown";
 import { REQUIRED_MIGRATIONS } from "./core/constants";
@@ -13,7 +13,7 @@ const app = createApp();
 
 runDbMigrations();
 
-await migrateToShortIds();
+await retagSnapshots();
 await validateRequiredMigrations(REQUIRED_MIGRATIONS);
 
 startup();

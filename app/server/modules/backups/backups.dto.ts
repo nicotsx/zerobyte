@@ -17,6 +17,7 @@ export type RetentionPolicy = typeof retentionPolicySchema.infer;
 
 const backupScheduleSchema = type({
 	id: "number",
+	shortId: "string",
 	name: "string",
 	volumeId: "number",
 	repositoryId: "string",
