@@ -161,7 +161,7 @@ const listSnapshots = async (id: string, backupId?: string) => {
 		let snapshots = [];
 
 		if (backupId) {
-			snapshots = await restic.snapshots(repository.config, { tags: [backupId.toString()] });
+			snapshots = await restic.snapshots(repository.config, { tags: [backupId] });
 		} else {
 			snapshots = await restic.snapshots(repository.config);
 		}

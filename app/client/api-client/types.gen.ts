@@ -1390,6 +1390,7 @@ export type ListBackupSchedulesResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
@@ -1500,6 +1501,7 @@ export type CreateBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volumeId: number;
     };
@@ -1637,6 +1639,7 @@ export type GetBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
@@ -1748,6 +1751,7 @@ export type UpdateBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volumeId: number;
     };
@@ -1865,6 +1869,7 @@ export type GetBackupScheduleForVolumeResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
