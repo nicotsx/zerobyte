@@ -2152,6 +2152,15 @@ export type GetScheduleNotificationsResponses = {
                 password?: string;
                 username?: string;
             } | {
+                method: 'GET' | 'POST';
+                type: 'generic';
+                url: string;
+                contentType?: string;
+                headers?: Array<string>;
+                messageKey?: string;
+                titleKey?: string;
+                useJson?: boolean;
+            } | {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
                 type: 'ntfy';
@@ -2184,7 +2193,7 @@ export type GetScheduleNotificationsResponses = {
             enabled: boolean;
             id: number;
             name: string;
-            type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
         destinationId: number;
@@ -2242,6 +2251,15 @@ export type UpdateScheduleNotificationsResponses = {
                 password?: string;
                 username?: string;
             } | {
+                method: 'GET' | 'POST';
+                type: 'generic';
+                url: string;
+                contentType?: string;
+                headers?: Array<string>;
+                messageKey?: string;
+                titleKey?: string;
+                useJson?: boolean;
+            } | {
                 priority: 'default' | 'high' | 'low' | 'max' | 'min';
                 topic: string;
                 type: 'ntfy';
@@ -2274,7 +2292,7 @@ export type UpdateScheduleNotificationsResponses = {
             enabled: boolean;
             id: number;
             name: string;
-            type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
         destinationId: number;
@@ -2569,6 +2587,15 @@ export type ListNotificationDestinationsResponses = {
             password?: string;
             username?: string;
         } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
@@ -2601,7 +2628,7 @@ export type ListNotificationDestinationsResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     }>;
 };
@@ -2629,6 +2656,15 @@ export type CreateNotificationDestinationData = {
             useTLS: boolean;
             password?: string;
             username?: string;
+        } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2690,6 +2726,15 @@ export type CreateNotificationDestinationResponses = {
             password?: string;
             username?: string;
         } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
@@ -2722,7 +2767,7 @@ export type CreateNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -2797,6 +2842,15 @@ export type GetNotificationDestinationResponses = {
             password?: string;
             username?: string;
         } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
@@ -2829,7 +2883,7 @@ export type GetNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -2857,6 +2911,15 @@ export type UpdateNotificationDestinationData = {
             useTLS: boolean;
             password?: string;
             username?: string;
+        } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
         } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
@@ -2928,6 +2991,15 @@ export type UpdateNotificationDestinationResponses = {
             password?: string;
             username?: string;
         } | {
+            method: 'GET' | 'POST';
+            type: 'generic';
+            url: string;
+            contentType?: string;
+            headers?: Array<string>;
+            messageKey?: string;
+            titleKey?: string;
+            useJson?: boolean;
+        } | {
             priority: 'default' | 'high' | 'low' | 'max' | 'min';
             topic: string;
             type: 'ntfy';
@@ -2960,7 +3032,7 @@ export type UpdateNotificationDestinationResponses = {
         enabled: boolean;
         id: number;
         name: string;
-        type: 'custom' | 'discord' | 'email' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
+        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };

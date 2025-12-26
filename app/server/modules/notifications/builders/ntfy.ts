@@ -1,6 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildNtfyShoutrrrUrl(config: Extract<NotificationConfig, { type: "ntfy" }>): string {
+export const buildNtfyShoutrrrUrl = (config: Extract<NotificationConfig, { type: "ntfy" }>) => {
 	let shoutrrrUrl: string;
 
 	const params = new URLSearchParams();
@@ -38,4 +38,4 @@ export function buildNtfyShoutrrrUrl(config: Extract<NotificationConfig, { type:
 	}
 
 	return shoutrrrUrl;
-}
+};

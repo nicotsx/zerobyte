@@ -1,6 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildDiscordShoutrrrUrl(config: Extract<NotificationConfig, { type: "discord" }>): string {
+export const buildDiscordShoutrrrUrl = (config: Extract<NotificationConfig, { type: "discord" }>) => {
 	const url = new URL(config.webhookUrl);
 	const pathParts = url.pathname.split("/").filter(Boolean);
 
@@ -28,4 +28,4 @@ export function buildDiscordShoutrrrUrl(config: Extract<NotificationConfig, { ty
 	}
 
 	return shoutrrrUrl;
-}
+};
