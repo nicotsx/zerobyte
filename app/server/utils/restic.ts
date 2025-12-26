@@ -5,6 +5,7 @@ import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
 import { REPOSITORY_BASE, RESTIC_PASS_FILE, DEFAULT_EXCLUDES } from "../core/constants";
+import { config as appConfig } from "../core/config";
 import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
@@ -260,6 +261,10 @@ const backup = async (
 
 	if (options?.oneFileSystem) {
 		args.push("--one-file-system");
+	}
+
+	if (appConfig.resticHostname) {
+		args.push("--host", appConfig.resticHostname);
 	}
 
 	if (options?.tags && options.tags.length > 0) {
