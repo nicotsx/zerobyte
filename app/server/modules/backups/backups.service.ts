@@ -234,7 +234,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		throw new BadRequestError("Volume is not mounted");
 	}
 
-	logger.info(`Starting backup for volume ${volume.name} to repository ${repository.name}`);
+	logger.info(`Starting backup ${schedule.name} for volume ${volume.name} to repository ${repository.name}`);
 
 	serverEvents.emit("backup:started", {
 		scheduleId,
@@ -246,6 +246,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		.sendBackupNotification(scheduleId, "start", {
 			volumeName: volume.name,
 			repositoryName: repository.name,
+			scheduleName: schedule.name,
 		})
 		.catch((error) => {
 			logger.error(`Failed to send backup start notification: ${toMessage(error)}`);
@@ -339,9 +340,9 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.where(eq(backupSchedulesTable.id, scheduleId));
 
 		if (finalStatus === "warning") {
-			logger.warn(`Backup completed with warnings for volume ${volume.name} to repository ${repository.name}`);
+			logger.warn(`Backup ${schedule.name} completed with warnings for volume ${volume.name} to repository ${repository.name}`);
 		} else {
-			logger.info(`Backup completed successfully for volume ${volume.name} to repository ${repository.name}`);
+			logger.info(`Backup ${schedule.name} completed successfully for volume ${volume.name} to repository ${repository.name}`);
 		}
 
 		serverEvents.emit("backup:completed", {
@@ -355,12 +356,13 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.sendBackupNotification(scheduleId, finalStatus === "success" ? "success" : "warning", {
 				volumeName: volume.name,
 				repositoryName: repository.name,
+				scheduleName: schedule.name,
 			})
 			.catch((error) => {
 				logger.error(`Failed to send backup success notification: ${toMessage(error)}`);
 			});
 	} catch (error) {
-		logger.error(`Backup failed for volume ${volume.name} to repository ${repository.name}: ${toMessage(error)}`);
+		logger.error(`Backup ${schedule.name} failed for volume ${volume.name} to repository ${repository.name}: ${toMessage(error)}`);
 
 		await db
 			.update(backupSchedulesTable)
@@ -383,6 +385,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.sendBackupNotification(scheduleId, "failure", {
 				volumeName: volume.name,
 				repositoryName: repository.name,
+				scheduleName: schedule.name,
 				error: toMessage(error),
 			})
 			.catch((notifError) => {
