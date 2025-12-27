@@ -56,10 +56,35 @@ export const azureRepositoryConfigSchema = type({
 	endpointSuffix: "string?",
 }).and(baseRepositoryConfigSchema);
 
+export const BANDWIDTH_UNITS = {
+	K: "K",
+	M: "M",
+	G: "G",
+	T: "T",
+} as const;
+
+export type BandwidthUnit = keyof typeof BANDWIDTH_UNITS;
+
+// Schema for bandwidth limit (upload or download)
+export const bandwidthLimitSchema = type({
+	enabled: "boolean",
+	value: "number>=0",
+	unit: type.valueOf(BANDWIDTH_UNITS),
+});
+
+export type BandwidthLimit = typeof bandwidthLimitSchema.infer;
+
 export const rcloneRepositoryConfigSchema = type({
 	backend: "'rclone'",
 	remote: "string",
 	path: "string",
+	// Advanced options
+	transfers: "1<=number<=128|undefined",
+	checkers: "1<=number<=256|undefined",
+	fastList: "boolean|undefined",
+	bwlimitUpload: bandwidthLimitSchema.or("undefined"),
+	bwlimitDownload: bandwidthLimitSchema.or("undefined"),
+	additionalArgs: "string|undefined",
 }).and(baseRepositoryConfigSchema);
 
 export const restRepositoryConfigSchema = type({

@@ -10,6 +10,7 @@ import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
 import {
 	repositoryConfigSchema,
+	type BandwidthLimit,
 	type CompressionMode,
 	type OverwriteMode,
 	type RepositoryConfig,
@@ -28,7 +29,8 @@ const listRepositories = async () => {
 };
 
 const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
-	const encryptedConfig: Record<string, string | boolean | number> = { ...config };
+	// Use a mutable copy that preserves the structure
+	const encryptedConfig: Record<string, unknown> = { ...config };
 
 	if (config.customPassword) {
 		encryptedConfig.customPassword = await cryptoUtils.sealSecret(config.customPassword);
@@ -389,7 +391,20 @@ const deleteSnapshot = async (id: string, snapshotId: string) => {
 	}
 };
 
-const updateRepository = async (id: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
+const updateRepository = async (
+	id: string,
+	updates: {
+		name?: string;
+		compressionMode?: CompressionMode;
+		// Rclone-specific options
+		transfers?: number;
+		checkers?: number;
+		fastList?: boolean;
+		bwlimitUpload?: BandwidthLimit;
+		bwlimitDownload?: BandwidthLimit;
+		additionalArgs?: string;
+	},
+) => {
 	const existing = await findRepository(id);
 
 	if (!existing) {
@@ -399,6 +414,28 @@ const updateRepository = async (id: string, updates: { name?: string; compressio
 	const newConfig = repositoryConfigSchema(existing.config);
 	if (newConfig instanceof type.errors) {
 		throw new InternalServerError("Invalid repository configuration");
+	}
+
+	// Apply rclone-specific updates if this is an rclone repository
+	if (newConfig.backend === "rclone") {
+		if (updates.transfers !== undefined) {
+			newConfig.transfers = updates.transfers;
+		}
+		if (updates.checkers !== undefined) {
+			newConfig.checkers = updates.checkers;
+		}
+		if (updates.fastList !== undefined) {
+			newConfig.fastList = updates.fastList;
+		}
+		if (updates.bwlimitUpload !== undefined) {
+			newConfig.bwlimitUpload = updates.bwlimitUpload;
+		}
+		if (updates.bwlimitDownload !== undefined) {
+			newConfig.bwlimitDownload = updates.bwlimitDownload;
+		}
+		if (updates.additionalArgs !== undefined) {
+			newConfig.additionalArgs = updates.additionalArgs;
+		}
 	}
 
 	const encryptedConfig = await encryptConfig(newConfig);

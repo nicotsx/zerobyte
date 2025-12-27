@@ -137,6 +137,21 @@ export const deleteRepositoryDto = describeRoute({
 export const updateRepositoryBody = type({
 	name: "string?",
 	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+	// Rclone-specific options
+	transfers: "number?",
+	checkers: "number?",
+	fastList: "boolean?",
+	bwlimitUpload: type({
+		enabled: "boolean",
+		value: "number",
+		unit: "string",
+	}).or("undefined"),
+	bwlimitDownload: type({
+		enabled: "boolean",
+		value: "number",
+		unit: "string",
+	}).or("undefined"),
+	additionalArgs: "string?",
 });
 
 export type UpdateRepositoryBody = typeof updateRepositoryBody.infer;

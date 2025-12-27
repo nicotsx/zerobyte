@@ -10,7 +10,7 @@ import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn } from "./spawn";
-import type { CompressionMode, RepositoryConfig, OverwriteMode } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
 import { ResticError } from "./errors";
 
 const backupOutputSchema = type({
@@ -213,7 +213,7 @@ const init = async (config: RepositoryConfig) => {
 	const env = await buildEnv(config);
 
 	const args = ["init", "--repo", repoUrl];
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -305,7 +305,7 @@ const backup = async (
 		}
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const logData = throttle((data: string) => {
 		logger.info(data.trim());
@@ -437,7 +437,7 @@ const restore = async (
 		}
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await safeSpawn({ command: "restic", args, env });
@@ -500,7 +500,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 		}
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -549,7 +549,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	}
 
 	args.push("--prune");
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -567,7 +567,7 @@ const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
 	const env = await buildEnv(config);
 
 	const args: string[] = ["--repo", repoUrl, "forget", snapshotId, "--prune"];
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -617,7 +617,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 		args.push(path);
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -668,7 +668,7 @@ const unlock = async (config: RepositoryConfig) => {
 	const env = await buildEnv(config);
 
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -692,7 +692,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 		args.push("--read-data");
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -725,7 +725,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 	const env = await buildEnv(config);
 
 	const args = ["repair", "index", "--repo", repoUrl];
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, config);
 
 	const res = await safeSpawn({ command: "restic", args, env });
 	await cleanupTemporaryKeys(config, env);
@@ -777,7 +777,7 @@ const copy = async (
 		args.push("latest");
 	}
 
-	addCommonArgs(args, env);
+	addCommonArgs(args, env, destConfig);
 
 	if (sourceConfig.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${sourceEnv._SFTP_SSH_ARGS}`);
@@ -815,11 +815,182 @@ const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string
 	}
 };
 
-const addCommonArgs = (args: string[], env: Record<string, string>) => {
+const buildRcloneEnv = (config: RepositoryConfig, env: Record<string, string>): void => {
+	if (config.backend !== "rclone") {
+		return;
+	}
+
+	// Add transfers option via environment variable
+	if (config.transfers !== undefined) {
+		env.RCLONE_TRANSFERS = String(config.transfers);
+	}
+
+	// Add checkers option via environment variable
+	if (config.checkers !== undefined) {
+		env.RCLONE_CHECKERS = String(config.checkers);
+	}
+
+	// Add fast-list option via environment variable
+	if (config.fastList === true) {
+		env.RCLONE_FAST_LIST = "true";
+	}
+
+	// Build bandwidth limit string
+	const formatBwLimit = (limit: BandwidthLimit | undefined): string | null => {
+		if (!limit?.enabled) {
+			return null;
+		}
+		return `${limit.value}${limit.unit}`;
+	};
+
+	const uploadLimit = formatBwLimit(config.bwlimitUpload);
+	const downloadLimit = formatBwLimit(config.bwlimitDownload);
+
+	if (uploadLimit && downloadLimit) {
+		env.RCLONE_BWLIMIT = `${uploadLimit}:${downloadLimit}`;
+	} else if (uploadLimit) {
+		env.RCLONE_BWLIMIT = `${uploadLimit}:off`;
+	} else if (downloadLimit) {
+		env.RCLONE_BWLIMIT = `off:${downloadLimit}`;
+	}
+
+	// Add additional arguments from config via environment variables
+	if (config.additionalArgs) {
+		// Denylist of dangerous rclone flags that could be used for injection attacks
+		const DENIED_FLAGS = new Set([
+			"--config",
+			"--password-command",
+			"--password-file",
+			"--dump",
+			"--env-auth",
+			"--ask-password",
+			"--rc",
+			"--rc-addr",
+			"--rc-user",
+			"--rc-pass",
+			"--rc-web-gui",
+			"--rc-serve",
+			"--cache-db-path",
+			"--cache-chunk-path",
+			"--log-file",
+			"--include-from",
+			"--exclude-from",
+			"--files-from",
+			"--filter-from",
+		]);
+
+		// Shell metacharacters and dangerous patterns
+		const SHELL_METACHAR_PATTERN = /[`$(){}|;&<>!\\'"]/;
+
+		// Pattern for valid flag values (alphanumeric, paths, common safe characters)
+		const SAFE_VALUE_PATTERN = /^[a-zA-Z0-9_\-./=:,@%+]+$/;
+
+		const normalizeArgs = (input: string | string[]): string[] => {
+			if (Array.isArray(input)) {
+				// Flatten array, split each entry on whitespace/newlines, trim and filter empty
+				return input
+					.flatMap((arg) => arg.split(/[\s\n]+/))
+					.map((arg) => arg.trim())
+					.filter((arg) => arg.length > 0);
+			}
+			// Split string on whitespace or newlines, trim and filter empty
+			return input
+				.split(/[\s\n]+/)
+				.map((arg) => arg.trim())
+				.filter((arg) => arg.length > 0);
+		};
+
+		// Convert flag name to environment variable name
+		// e.g., "--drive-chunk-size" -> "RCLONE_DRIVE_CHUNK_SIZE"
+		const flagToEnvVar = (flag: string): string => {
+			return "RCLONE_" + flag.replace(/^--/, "").replace(/-/g, "_").toUpperCase();
+		};
+
+		const validateAndSetEnvVars = (args: string[]): void => {
+			for (let i = 0; i < args.length; i++) {
+				const arg = args[i];
+
+				// Check for shell metacharacters in the entire argument
+				if (SHELL_METACHAR_PATTERN.test(arg)) {
+					logger.error(`Rclone additional args validation failed: shell metacharacters detected in "${arg}"`);
+					throw new Error(`Invalid rclone argument: shell metacharacters are not allowed in "${arg}"`);
+				}
+
+				// Handle --flag=value format
+				if (arg.startsWith("--") && arg.includes("=")) {
+					const [flag, ...valueParts] = arg.split("=");
+					const value = valueParts.join("="); // Rejoin in case value contains =
+
+					// Check if flag is in denylist
+					if (DENIED_FLAGS.has(flag)) {
+						logger.error(`Rclone additional args validation failed: denied flag "${flag}"`);
+						throw new Error(`Invalid rclone argument: "${flag}" is not allowed for security reasons`);
+					}
+
+					// Validate the value doesn't contain dangerous characters
+					if (value && !SAFE_VALUE_PATTERN.test(value)) {
+						logger.error(`Rclone additional args validation failed: unsafe value in "${arg}"`);
+						throw new Error(`Invalid rclone argument: unsafe characters in value for "${flag}"`);
+					}
+
+					// Set as environment variable
+					const envVarName = flagToEnvVar(flag);
+					env[envVarName] = value;
+				}
+				// Handle --flag format (standalone or with separate value)
+				else if (arg.startsWith("--")) {
+					// Check if flag is in denylist
+					if (DENIED_FLAGS.has(arg)) {
+						logger.error(`Rclone additional args validation failed: denied flag "${arg}"`);
+						throw new Error(`Invalid rclone argument: "${arg}" is not allowed for security reasons`);
+					}
+
+					// Check if next arg is a value (doesn't start with -- or -)
+					const nextArg = args[i + 1];
+					if (nextArg && !nextArg.startsWith("-")) {
+						// Validate the value
+						if (!SAFE_VALUE_PATTERN.test(nextArg)) {
+							logger.error(`Rclone additional args validation failed: unsafe value "${nextArg}" for flag "${arg}"`);
+							throw new Error(`Invalid rclone argument: unsafe characters in value for "${arg}"`);
+						}
+						// Set as environment variable with value
+						const envVarName = flagToEnvVar(arg);
+						env[envVarName] = nextArg;
+						i++; // Skip the next arg since we've processed it
+					} else {
+						// Boolean flag (no value) - set to "true"
+						const envVarName = flagToEnvVar(arg);
+						env[envVarName] = "true";
+					}
+				}
+				// Handle short flags like -v, -P - these cannot be easily converted to env vars
+				else if (arg.startsWith("-") && !arg.startsWith("--")) {
+					logger.warn(`Rclone short flag "${arg}" cannot be passed via environment variable, skipping`);
+					// Short flags are skipped as they can't be reliably converted to env vars
+				}
+				// Reject anything that doesn't look like a flag
+				else {
+					logger.error(`Rclone additional args validation failed: unexpected argument "${arg}"`);
+					throw new Error(`Invalid rclone argument: "${arg}" is not a valid flag format`);
+				}
+			}
+		};
+
+		const parsedArgs = normalizeArgs(config.additionalArgs);
+		validateAndSetEnvVars(parsedArgs);
+	}
+};
+
+const addCommonArgs = (args: string[], env: Record<string, string>, config?: RepositoryConfig) => {
 	args.push("--json");
 
 	if (env._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
+	}
+
+	// Add rclone-specific options via environment variables
+	if (config) {
+		buildRcloneEnv(config, env);
 	}
 };
 
