@@ -14,9 +14,17 @@ const sqlite = new Database(DATABASE_URL);
 export const db = drizzle({ client: sqlite, schema });
 
 export const runDbMigrations = () => {
-	let migrationsFolder = path.join("/app", "assets", "migrations");
+	let migrationsFolder: string;
 
-	if (!config.__prod__) {
+	// Migration path priority:
+	// 1. MIGRATIONS_PATH env var (Nix, custom deployments)
+	// 2. /app/assets/migrations (Docker production)
+	// 3. /app/app/drizzle (Docker development)
+	if (config.migrationsPath) {
+		migrationsFolder = config.migrationsPath;
+	} else if (config.__prod__) {
+		migrationsFolder = path.join("/app", "assets", "migrations");
+	} else {
 		migrationsFolder = path.join("/app", "app", "drizzle");
 	}
 

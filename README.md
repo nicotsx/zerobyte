@@ -98,6 +98,67 @@ services:
 
 If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
 
+### Nix Flake
+
+Zerobyte provides a Nix flake for NixOS users and Nix-based development environments.
+
+**Development shell:**
+
+```bash
+nix develop
+```
+
+**NixOS module:**
+
+```nix
+{
+  inputs.zerobyte.url = "github:nicotsx/zerobyte";
+
+  outputs = { self, nixpkgs, zerobyte }: {
+    nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+      modules = [
+        zerobyte.nixosModules.default
+        {
+          services.zerobyte = {
+            enable = true;
+            port = 4096;
+            openFirewall = true;
+            # fuse.enable = true;  # Enabled by default for remote mounts
+          };
+        }
+      ];
+    };
+  };
+}
+```
+
+**Available module options (NixOS):**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `enable` | `false` | Enable Zerobyte service |
+| `port` | `4096` | HTTP port |
+| `dataDir` | `/var/lib/zerobyte` | Data directory |
+| `user` | `"zerobyte"` | User to run service as |
+| `group` | `"zerobyte"` | Group to run service as |
+| `createUser` | `true` | Create user/group automatically |
+| `serverIp` | `"0.0.0.0"` | Bind address |
+| `openFirewall` | `false` | Open firewall port (NixOS only) |
+| `fuse.enable` | `true` | Enable FUSE/remote mounts (NixOS only) |
+| `protectHome` | `true` | Block /home access (NixOS only, set false to backup home dirs) |
+| `extraReadWritePaths` | `[]` | Additional writable paths (e.g., `["/mnt/storage"]` for custom repos) |
+| `timezone` | `"UTC"` | Timezone for scheduling |
+| `resticHostname` | `"zerobyte"` | Hostname for restic |
+
+**Updating dependencies (for contributors):**
+
+After modifying `package.json` or `bun.lock`, regenerate the Nix dependency file:
+
+```bash
+nix develop
+bun2nix -o bun.nix
+```
+
 ## Examples
 
 See [examples/README.md](examples/README.md) for runnable, copy/paste-friendly examples.
