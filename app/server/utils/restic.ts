@@ -815,26 +815,24 @@ const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string
 	}
 };
 
-const buildRcloneArgs = (config: RepositoryConfig): string | null => {
+const buildRcloneEnv = (config: RepositoryConfig, env: Record<string, string>): void => {
 	if (config.backend !== "rclone") {
-		return null;
+		return;
 	}
 
-	const rcloneArgs: string[] = [];
-
-	// Add transfers option
+	// Add transfers option via environment variable
 	if (config.transfers !== undefined) {
-		rcloneArgs.push(`--transfers=${config.transfers}`);
+		env.RCLONE_TRANSFERS = String(config.transfers);
 	}
 
-	// Add checkers option
+	// Add checkers option via environment variable
 	if (config.checkers !== undefined) {
-		rcloneArgs.push(`--checkers=${config.checkers}`);
+		env.RCLONE_CHECKERS = String(config.checkers);
 	}
 
-	// Add fast-list option
+	// Add fast-list option via environment variable
 	if (config.fastList === true) {
-		rcloneArgs.push("--fast-list");
+		env.RCLONE_FAST_LIST = "true";
 	}
 
 	// Build bandwidth limit string
@@ -849,14 +847,14 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 	const downloadLimit = formatBwLimit(config.bwlimitDownload);
 
 	if (uploadLimit && downloadLimit) {
-		rcloneArgs.push(`--bwlimit=${uploadLimit}:${downloadLimit}`);
+		env.RCLONE_BWLIMIT = `${uploadLimit}:${downloadLimit}`;
 	} else if (uploadLimit) {
-		rcloneArgs.push(`--bwlimit=${uploadLimit}:off`);
+		env.RCLONE_BWLIMIT = `${uploadLimit}:off`;
 	} else if (downloadLimit) {
-		rcloneArgs.push(`--bwlimit=off:${downloadLimit}`);
+		env.RCLONE_BWLIMIT = `off:${downloadLimit}`;
 	}
 
-	// Add additional arguments from config
+	// Add additional arguments from config via environment variables
 	if (config.additionalArgs) {
 		// Denylist of dangerous rclone flags that could be used for injection attacks
 		const DENIED_FLAGS = new Set([
@@ -902,9 +900,13 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 				.filter((arg) => arg.length > 0);
 		};
 
-		const validateArgs = (args: string[]): string[] => {
-			const validatedArgs: string[] = [];
+		// Convert flag name to environment variable name
+		// e.g., "--drive-chunk-size" -> "RCLONE_DRIVE_CHUNK_SIZE"
+		const flagToEnvVar = (flag: string): string => {
+			return "RCLONE_" + flag.replace(/^--/, "").replace(/-/g, "_").toUpperCase();
+		};
 
+		const validateAndSetEnvVars = (args: string[]): void => {
 			for (let i = 0; i < args.length; i++) {
 				const arg = args[i];
 
@@ -931,7 +933,9 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 						throw new Error(`Invalid rclone argument: unsafe characters in value for "${flag}"`);
 					}
 
-					validatedArgs.push(arg);
+					// Set as environment variable
+					const envVarName = flagToEnvVar(flag);
+					env[envVarName] = value;
 				}
 				// Handle --flag format (standalone or with separate value)
 				else if (arg.startsWith("--")) {
@@ -941,24 +945,28 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 						throw new Error(`Invalid rclone argument: "${arg}" is not allowed for security reasons`);
 					}
 
-					validatedArgs.push(arg);
-
-					// Check if next arg is a value (doesn't start with --)
+					// Check if next arg is a value (doesn't start with -- or -)
 					const nextArg = args[i + 1];
-					if (nextArg && !nextArg.startsWith("--")) {
+					if (nextArg && !nextArg.startsWith("-")) {
 						// Validate the value
 						if (!SAFE_VALUE_PATTERN.test(nextArg)) {
 							logger.error(`Rclone additional args validation failed: unsafe value "${nextArg}" for flag "${arg}"`);
 							throw new Error(`Invalid rclone argument: unsafe characters in value for "${arg}"`);
 						}
-						validatedArgs.push(nextArg);
+						// Set as environment variable with value
+						const envVarName = flagToEnvVar(arg);
+						env[envVarName] = nextArg;
 						i++; // Skip the next arg since we've processed it
+					} else {
+						// Boolean flag (no value) - set to "true"
+						const envVarName = flagToEnvVar(arg);
+						env[envVarName] = "true";
 					}
 				}
-				// Handle short flags like -v, -P
+				// Handle short flags like -v, -P - these cannot be easily converted to env vars
 				else if (arg.startsWith("-") && !arg.startsWith("--")) {
-					// Short flags are generally safe, but check for shell metacharacters (already done above)
-					validatedArgs.push(arg);
+					logger.warn(`Rclone short flag "${arg}" cannot be passed via environment variable, skipping`);
+					// Short flags are skipped as they can't be reliably converted to env vars
 				}
 				// Reject anything that doesn't look like a flag
 				else {
@@ -966,16 +974,11 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 					throw new Error(`Invalid rclone argument: "${arg}" is not a valid flag format`);
 				}
 			}
-
-			return validatedArgs;
 		};
 
 		const parsedArgs = normalizeArgs(config.additionalArgs);
-		const validatedArgs = validateArgs(parsedArgs);
-		rcloneArgs.push(...validatedArgs);
+		validateAndSetEnvVars(parsedArgs);
 	}
-
-	return rcloneArgs.length > 0 ? rcloneArgs.join(" ") : null;
 };
 
 const addCommonArgs = (args: string[], env: Record<string, string>, config?: RepositoryConfig) => {
@@ -985,12 +988,9 @@ const addCommonArgs = (args: string[], env: Record<string, string>, config?: Rep
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}
 
-	// Add rclone-specific options
+	// Add rclone-specific options via environment variables
 	if (config) {
-		const rcloneArgs = buildRcloneArgs(config);
-		if (rcloneArgs) {
-			args.push("-o", `rclone.args=${rcloneArgs}`);
-		}
+		buildRcloneEnv(config, env);
 	}
 };
 
