@@ -2907,3 +2907,58 @@ export type DownloadResticPasswordResponses = {
 };
 
 export type DownloadResticPasswordResponse = DownloadResticPasswordResponses[keyof DownloadResticPasswordResponses];
+
+export type ExportFullConfigData = {
+    body?: {
+        password: string;
+        includeMetadata?: boolean;
+        includePasswordHash?: boolean;
+        includeRecoveryKey?: boolean;
+        secretsMode?: 'cleartext' | 'encrypted' | 'exclude';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/config/export';
+};
+
+export type ExportFullConfigErrors = {
+    /**
+     * Password required for export or authentication failed
+     */
+    401: {
+        error: string;
+    };
+    /**
+     * Export failed
+     */
+    500: {
+        error: string;
+    };
+};
+
+export type ExportFullConfigError = ExportFullConfigErrors[keyof ExportFullConfigErrors];
+
+export type ExportFullConfigResponses = {
+    /**
+     * Full configuration export
+     */
+    200: {
+        version: number;
+        backupSchedules?: Array<unknown>;
+        exportedAt?: string;
+        notificationDestinations?: Array<unknown>;
+        recoveryKey?: string;
+        repositories?: Array<unknown>;
+        users?: Array<{
+            username: string;
+            createdAt?: number;
+            hasDownloadedResticPassword?: boolean;
+            id?: number;
+            passwordHash?: string;
+            updatedAt?: number;
+        }>;
+        volumes?: Array<unknown>;
+    };
+};
+
+export type ExportFullConfigResponse = ExportFullConfigResponses[keyof ExportFullConfigResponses];

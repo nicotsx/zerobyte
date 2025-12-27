@@ -238,6 +238,26 @@ Zerobyte allows you to easily restore your data from backups. To restore data, n
 
 ![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
 
+## Exporting configuration
+
+Zerobyte allows you to export your configuration for backup, migration, or documentation purposes.
+
+To export, click the "Export" button in Settings. A dialog will appear with options to:
+
+- **Include metadata** - Include IDs, timestamps, and runtime state of entities
+- **Secrets handling**:
+  - **Exclude** - Remove sensitive fields like passwords and API keys
+  - **Keep encrypted** - Export secrets in encrypted form (requires the same recovery key to decrypt on import)
+  - **Decrypt** - Export secrets as plaintext (use with caution)
+- **Include recovery key** - Include the master encryption key for all repositories
+- **Include password hash** - Include the hashed user passwords (enables future import workflows)
+
+Export requires password verification for security. You must enter your password to confirm your identity before any configuration can be exported.
+
+Export is downloaded as JSON file that can be used for reference or future import functionality.
+
+> **Sensitive data handling**: Some sensitive data from earlier versions may not be encrypted in the database. Additionally, nested configuration objects within config fields are exported as-is and not processed separately. Review exported data carefully before sharing, especially when using the "Decrypt" secrets option.
+
 ## Third-Party Software
 
 This project includes the following third-party software components:
