@@ -1,5 +1,7 @@
 .DS_Store
+.direnv/
 /node_modules/
+result
 
 # React Router
 /.react-router/
@@ -13,3 +15,4 @@ CLAUDE.md
 mutagen.yml.lock
 notes.md
 smb-password.txt
+.envrc
