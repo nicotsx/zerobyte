@@ -858,6 +858,35 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 
 	// Add additional arguments from config
 	if (config.additionalArgs) {
+		// Denylist of dangerous rclone flags that could be used for injection attacks
+		const DENIED_FLAGS = new Set([
+			"--config",
+			"--password-command",
+			"--password-file",
+			"--dump",
+			"--env-auth",
+			"--ask-password",
+			"--rc",
+			"--rc-addr",
+			"--rc-user",
+			"--rc-pass",
+			"--rc-web-gui",
+			"--rc-serve",
+			"--cache-db-path",
+			"--cache-chunk-path",
+			"--log-file",
+			"--include-from",
+			"--exclude-from",
+			"--files-from",
+			"--filter-from",
+		]);
+
+		// Shell metacharacters and dangerous patterns
+		const SHELL_METACHAR_PATTERN = /[`$(){}|;&<>!\\'"]/;
+
+		// Pattern for valid flag values (alphanumeric, paths, common safe characters)
+		const SAFE_VALUE_PATTERN = /^[a-zA-Z0-9_\-./=:,@%+]+$/;
+
 		const normalizeArgs = (input: string | string[]): string[] => {
 			if (Array.isArray(input)) {
 				// Flatten array, split each entry on whitespace/newlines, trim and filter empty
@@ -873,8 +902,77 @@ const buildRcloneArgs = (config: RepositoryConfig): string | null => {
 				.filter((arg) => arg.length > 0);
 		};
 
-		const additionalArgs = normalizeArgs(config.additionalArgs);
-		rcloneArgs.push(...additionalArgs);
+		const validateArgs = (args: string[]): string[] => {
+			const validatedArgs: string[] = [];
+
+			for (let i = 0; i < args.length; i++) {
+				const arg = args[i];
+
+				// Check for shell metacharacters in the entire argument
+				if (SHELL_METACHAR_PATTERN.test(arg)) {
+					logger.error(`Rclone additional args validation failed: shell metacharacters detected in "${arg}"`);
+					throw new Error(`Invalid rclone argument: shell metacharacters are not allowed in "${arg}"`);
+				}
+
+				// Handle --flag=value format
+				if (arg.startsWith("--") && arg.includes("=")) {
+					const [flag, ...valueParts] = arg.split("=");
+					const value = valueParts.join("="); // Rejoin in case value contains =
+
+					// Check if flag is in denylist
+					if (DENIED_FLAGS.has(flag)) {
+						logger.error(`Rclone additional args validation failed: denied flag "${flag}"`);
+						throw new Error(`Invalid rclone argument: "${flag}" is not allowed for security reasons`);
+					}
+
+					// Validate the value doesn't contain dangerous characters
+					if (value && !SAFE_VALUE_PATTERN.test(value)) {
+						logger.error(`Rclone additional args validation failed: unsafe value in "${arg}"`);
+						throw new Error(`Invalid rclone argument: unsafe characters in value for "${flag}"`);
+					}
+
+					validatedArgs.push(arg);
+				}
+				// Handle --flag format (standalone or with separate value)
+				else if (arg.startsWith("--")) {
+					// Check if flag is in denylist
+					if (DENIED_FLAGS.has(arg)) {
+						logger.error(`Rclone additional args validation failed: denied flag "${arg}"`);
+						throw new Error(`Invalid rclone argument: "${arg}" is not allowed for security reasons`);
+					}
+
+					validatedArgs.push(arg);
+
+					// Check if next arg is a value (doesn't start with --)
+					const nextArg = args[i + 1];
+					if (nextArg && !nextArg.startsWith("--")) {
+						// Validate the value
+						if (!SAFE_VALUE_PATTERN.test(nextArg)) {
+							logger.error(`Rclone additional args validation failed: unsafe value "${nextArg}" for flag "${arg}"`);
+							throw new Error(`Invalid rclone argument: unsafe characters in value for "${arg}"`);
+						}
+						validatedArgs.push(nextArg);
+						i++; // Skip the next arg since we've processed it
+					}
+				}
+				// Handle short flags like -v, -P
+				else if (arg.startsWith("-") && !arg.startsWith("--")) {
+					// Short flags are generally safe, but check for shell metacharacters (already done above)
+					validatedArgs.push(arg);
+				}
+				// Reject anything that doesn't look like a flag
+				else {
+					logger.error(`Rclone additional args validation failed: unexpected argument "${arg}"`);
+					throw new Error(`Invalid rclone argument: "${arg}" is not a valid flag format`);
+				}
+			}
+
+			return validatedArgs;
+		};
+
+		const parsedArgs = normalizeArgs(config.additionalArgs);
+		const validatedArgs = validateArgs(parsedArgs);
+		rcloneArgs.push(...validatedArgs);
 	}
 
 	return rcloneArgs.length > 0 ? rcloneArgs.join(" ") : null;
