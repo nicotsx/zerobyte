@@ -1195,6 +1195,28 @@ export type UpdateRepositoryResponses = {
 
 export type UpdateRepositoryResponse = UpdateRepositoryResponses[keyof UpdateRepositoryResponses];
 
+export type DeleteSnapshotsData = {
+    body?: {
+        snapshotIds: Array<string>;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{id}/snapshots';
+};
+
+export type DeleteSnapshotsResponses = {
+    /**
+     * Snapshots deleted successfully
+     */
+    200: {
+        message: string;
+    };
+};
+
+export type DeleteSnapshotsResponse = DeleteSnapshotsResponses[keyof DeleteSnapshotsResponses];
+
 export type ListSnapshotsData = {
     body?: never;
     path: {

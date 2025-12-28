@@ -5,6 +5,8 @@ import {
 	createRepositoryDto,
 	deleteRepositoryDto,
 	deleteSnapshotDto,
+	deleteSnapshotsBody,
+	deleteSnapshotsDto,
 	doctorRepositoryDto,
 	getRepositoryDto,
 	getSnapshotDetailsDto,
@@ -20,6 +22,7 @@ import {
 	updateRepositoryDto,
 	type DeleteRepositoryDto,
 	type DeleteSnapshotDto,
+	type DeleteSnapshotsResponseDto,
 	type DoctorRepositoryDto,
 	type GetRepositoryDto,
 	type GetSnapshotDetailsDto,
@@ -159,6 +162,14 @@ export const repositoriesController = new Hono()
 		await repositoriesService.deleteSnapshot(id, snapshotId);
 
 		return c.json<DeleteSnapshotDto>({ message: "Snapshot deleted" }, 200);
+	})
+	.delete("/:id/snapshots", deleteSnapshotsDto, validator("json", deleteSnapshotsBody), async (c) => {
+		const { id } = c.req.param();
+		const { snapshotIds } = c.req.valid("json");
+
+		await repositoriesService.deleteSnapshots(id, snapshotIds);
+
+		return c.json<DeleteSnapshotsResponseDto>({ message: "Snapshots deleted" }, 200);
 	})
 	.patch("/:id", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
 		const { id } = c.req.param();

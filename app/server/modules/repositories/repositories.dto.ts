@@ -400,3 +400,32 @@ export const deleteSnapshotDto = describeRoute({
 		},
 	},
 });
+
+/**
+ * Delete multiple snapshots
+ */
+export const deleteSnapshotsBody = type({
+	snapshotIds: "string[]",
+});
+
+export const deleteSnapshotsResponse = type({
+	message: "string",
+});
+
+export type DeleteSnapshotsResponseDto = typeof deleteSnapshotsResponse.infer;
+
+export const deleteSnapshotsDto = describeRoute({
+	description: "Delete multiple snapshots from a repository",
+	tags: ["Repositories"],
+	operationId: "deleteSnapshots",
+	responses: {
+		200: {
+			description: "Snapshots deleted successfully",
+			content: {
+				"application/json": {
+					schema: resolver(deleteSnapshotsResponse),
+				},
+			},
+		},
+	},
+});

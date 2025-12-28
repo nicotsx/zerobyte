@@ -567,11 +567,11 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	return { success: true };
 };
 
-const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
+const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[]) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
-	const args: string[] = ["--repo", repoUrl, "forget", snapshotId, "--prune"];
+	const args: string[] = ["--repo", repoUrl, "forget", ...snapshotIds, "--prune"];
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
@@ -583,6 +583,10 @@ const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
 	}
 
 	return { success: true };
+};
+
+const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string) => {
+	return deleteSnapshots(config, [snapshotId]);
 };
 
 const lsNodeSchema = type({
@@ -841,6 +845,7 @@ export const restic = {
 	snapshots,
 	forget,
 	deleteSnapshot,
+	deleteSnapshots,
 	unlock,
 	ls,
 	check,

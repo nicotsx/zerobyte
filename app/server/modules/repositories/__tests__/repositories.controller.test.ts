@@ -50,6 +50,7 @@ describe("repositories security", () => {
 			{ method: "POST", path: "/api/v1/repositories/test-repo/restore" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/doctor" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
+			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots" },
 			{ method: "PATCH", path: "/api/v1/repositories/test-repo" },
 		];
 
