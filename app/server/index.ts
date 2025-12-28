@@ -18,7 +18,7 @@ await validateRequiredMigrations(REQUIRED_MIGRATIONS);
 
 startup();
 
-logger.info(`Server is running at http://localhost:4096`);
+logger.info(`Server is running at http://localhost:${config.port}`);
 
 export type AppType = typeof app;
 
@@ -36,7 +36,7 @@ process.on("SIGINT", async () => {
 
 export default await createHonoServer({
 	app,
-	port: 4096,
+	port: config.port,
 	customBunServer: {
 		idleTimeout: config.serverIdleTimeout,
 		error(err) {
