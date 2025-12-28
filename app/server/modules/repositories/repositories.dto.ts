@@ -429,3 +429,35 @@ export const deleteSnapshotsDto = describeRoute({
 		},
 	},
 });
+
+/**
+ * Tag multiple snapshots
+ */
+export const tagSnapshotsBody = type({
+	snapshotIds: "string[]",
+	add: "string[]?",
+	remove: "string[]?",
+	set: "string[]?",
+});
+
+export const tagSnapshotsResponse = type({
+	message: "string",
+});
+
+export type TagSnapshotsResponseDto = typeof tagSnapshotsResponse.infer;
+
+export const tagSnapshotsDto = describeRoute({
+	description: "Tag multiple snapshots in a repository",
+	tags: ["Repositories"],
+	operationId: "tagSnapshots",
+	responses: {
+		200: {
+			description: "Snapshots tagged successfully",
+			content: {
+				"application/json": {
+					schema: resolver(tagSnapshotsResponse),
+				},
+			},
+		},
+	},
+});

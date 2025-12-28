@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, HardDrive, Server, Tag, Trash2, X } from "lucide-react";
+import { Calendar, Clock, Database, HardDrive, Tag, Trash2, X } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -27,7 +27,7 @@ import {
 } from "~/client/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { formatDuration } from "~/utils/utils";
-import { deleteSnapshotMutation, deleteSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
@@ -41,22 +41,11 @@ type Props = {
 export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 	const [showReTagDialog, setShowReTagDialog] = useState(false);
 	const [targetScheduleId, setTargetScheduleId] = useState<string>("");
-
-	const deleteSnapshot = useMutation({
-		...deleteSnapshotMutation(),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
-			setShowDeleteConfirm(false);
-			setSnapshotToDelete(null);
-		},
-	});
 
 	const deleteSnapshots = useMutation({
 		...deleteSnapshotsMutation(),
@@ -67,26 +56,18 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 		},
 	});
 
-	const handleDeleteClick = (e: React.MouseEvent, snapshotId: string) => {
-		e.stopPropagation();
-		setSnapshotToDelete(snapshotId);
-		setShowDeleteConfirm(true);
-	};
-
-	const handleConfirmDelete = () => {
-		if (snapshotToDelete) {
-			toast.promise(
-				deleteSnapshot.mutateAsync({
-					path: { id: repositoryId, snapshotId: snapshotToDelete },
-				}),
-				{
-					loading: "Deleting snapshot...",
-					success: "Snapshot deleted successfully",
-					error: (error) => parseError(error)?.message || "Failed to delete snapshot",
-				},
-			);
-		}
-	};
+	const tagSnapshots = useMutation({
+		...tagSnapshotsMutation(),
+		onMutate: () => {
+			setShowReTagDialog(false);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
+			setShowReTagDialog(false);
+			setSelectedIds(new Set());
+			setTargetScheduleId("");
+		},
+	});
 
 	const handleRowClick = (snapshotId: string) => {
 		navigate(`/repositories/${repositoryId}/${snapshotId}`);
@@ -116,10 +97,22 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 
 	const handleBulkReTag = () => {
 		const schedule = backups.find((b) => String(b.id) === targetScheduleId);
-		toast.success(`Re-tagged ${selectedIds.size} snapshots to ${schedule?.name} (Backend not implemented)`);
-		setShowReTagDialog(false);
-		setSelectedIds(new Set());
-		setTargetScheduleId("");
+		if (!schedule) return;
+
+		toast.promise(
+			tagSnapshots.mutateAsync({
+				path: { id: repositoryId },
+				body: {
+					snapshotIds: Array.from(selectedIds),
+					set: [schedule.shortId],
+				},
+			}),
+			{
+				loading: `Re-tagging ${selectedIds.size} snapshots...`,
+				success: `Snapshots re-tagged to ${schedule.name}`,
+				error: (error) => parseError(error)?.message || "Failed to re-tag snapshots",
+			},
+		);
 	};
 
 	return (
@@ -140,8 +133,6 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 							<TableHead className="uppercase">Date & Time</TableHead>
 							<TableHead className="uppercase">Size</TableHead>
 							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
-							<TableHead className="uppercase hidden text-right lg:table-cell">Volume</TableHead>
-							<TableHead className="uppercase text-right">Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -211,60 +202,12 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 											<span className="text-sm text-muted-foreground">{formatDuration(snapshot.duration / 1000)}</span>
 										</div>
 									</TableCell>
-									<TableCell className="hidden lg:table-cell">
-										<div className="flex items-center justify-end gap-2">
-											<Server className={cn("h-4 w-4 text-muted-foreground", { hidden: !backup })} />
-											<Link
-												hidden={!backup}
-												to={backup ? `/volumes/${backup.volume.name}` : "#"}
-												onClick={(e) => e.stopPropagation()}
-												className="hover:underline"
-											>
-												<span className="text-sm">{backup ? backup.volume.name : "-"}</span>
-											</Link>
-											<span hidden={!!backup} className="text-sm text-muted-foreground">
-												-
-											</span>
-										</div>
-									</TableCell>
-									<TableCell className="text-right">
-										<Button
-											variant="ghost"
-											size="sm"
-											onClick={(e) => handleDeleteClick(e, snapshot.short_id)}
-											disabled={deleteSnapshot.isPending}
-										>
-											<Trash2 className="h-4 w-4 text-destructive" />
-										</Button>
-									</TableCell>
 								</TableRow>
 							);
 						})}
 					</TableBody>
 				</Table>
 			</div>
-
-			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete snapshot?</AlertDialogTitle>
-						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete the snapshot and all its data from the
-							repository.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleConfirmDelete}
-							disabled={deleteSnapshot.isPending}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-						>
-							Delete snapshot
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 
 			{selectedIds.size > 0 && (
 				<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">

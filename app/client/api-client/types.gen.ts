@@ -1389,6 +1389,31 @@ export type DoctorRepositoryResponses = {
 
 export type DoctorRepositoryResponse = DoctorRepositoryResponses[keyof DoctorRepositoryResponses];
 
+export type TagSnapshotsData = {
+    body?: {
+        snapshotIds: Array<string>;
+        add?: Array<string>;
+        remove?: Array<string>;
+        set?: Array<string>;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{id}/snapshots/tag';
+};
+
+export type TagSnapshotsResponses = {
+    /**
+     * Snapshots tagged successfully
+     */
+    200: {
+        message: string;
+    };
+};
+
+export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
+
 export type ListBackupSchedulesData = {
     body?: never;
     path?: never;

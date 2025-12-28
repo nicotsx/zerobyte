@@ -18,6 +18,8 @@ import {
 	listSnapshotsFilters,
 	restoreSnapshotBody,
 	restoreSnapshotDto,
+	tagSnapshotsBody,
+	tagSnapshotsDto,
 	updateRepositoryBody,
 	updateRepositoryDto,
 	type DeleteRepositoryDto,
@@ -30,6 +32,7 @@ import {
 	type ListSnapshotFilesDto,
 	type ListSnapshotsDto,
 	type RestoreSnapshotDto,
+	type TagSnapshotsResponseDto,
 	type UpdateRepositoryDto,
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
@@ -170,6 +173,14 @@ export const repositoriesController = new Hono()
 		await repositoriesService.deleteSnapshots(id, snapshotIds);
 
 		return c.json<DeleteSnapshotsResponseDto>({ message: "Snapshots deleted" }, 200);
+	})
+	.post("/:id/snapshots/tag", tagSnapshotsDto, validator("json", tagSnapshotsBody), async (c) => {
+		const { id } = c.req.param();
+		const { snapshotIds, ...tags } = c.req.valid("json");
+
+		await repositoriesService.tagSnapshots(id, snapshotIds, tags);
+
+		return c.json<TagSnapshotsResponseDto>({ message: "Snapshots tagged" }, 200);
 	})
 	.patch("/:id", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
 		const { id } = c.req.param();
