@@ -186,7 +186,7 @@ export const buildEnv = async (config: RepositoryConfig) => {
 				keyPath,
 			];
 
-			if (config.skipHostKeyCheck) {
+			if (config.skipHostKeyCheck || !config.knownHosts) {
 				sshArgs.push("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null");
 			} else if (config.knownHosts) {
 				const knownHostsPath = path.join("/tmp", `zerobyte-known-hosts-${crypto.randomBytes(8).toString("hex")}`);

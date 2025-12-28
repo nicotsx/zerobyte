@@ -60,7 +60,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			"gid=1000",
 		];
 
-		if (config.skipHostKeyCheck) {
+		if (config.skipHostKeyCheck || !config.knownHosts) {
 			options.push("StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null");
 		} else if (config.knownHosts) {
 			const knownHostsPath = getKnownHostsPath(mountPath);
