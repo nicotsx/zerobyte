@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-Zerobyte is a backup automation tool built on top of Restic that provides a web interface for scheduling, managing, and monitoring encrypted backups. It supports multiple volume backends (NFS, SMB, WebDAV, local directories) and repository backends (S3, Azure, GCS, local, and rclone-based storage).
+Zerobyte is a backup automation tool built on top of Restic that provides a web interface for scheduling, managing, and monitoring encrypted backups. It supports multiple volume backends (NFS, SMB, WebDAV, SFTP, local directories) and repository backends (S3, Azure, GCS, local, and rclone-based storage).
 
 ## Technology Stack
 
@@ -99,7 +99,7 @@ The server follows a modular service-oriented architecture:
 Each module follows a controller � service � database pattern:
 
 - `auth/` - User authentication and session management
-- `volumes/` - Volume mounting/unmounting (NFS, SMB, WebDAV, directories)
+- `volumes/` - Volume mounting/unmounting (NFS, SMB, WebDAV, SFTP, directories)
 - `repositories/` - Restic repository management (S3, Azure, GCS, local, rclone)
 - `backups/` - Backup schedule management and execution
 - `notifications/` - Notification system with multiple providers (Discord, email, Gotify, Ntfy, Slack, Pushover)
@@ -109,7 +109,7 @@ Each module follows a controller � service � database pattern:
 - `lifecycle/` - Application startup/shutdown hooks
 
 **Backends** (`app/server/modules/backends/`):
-Each volume backend (NFS, SMB, WebDAV, directory) implements mounting logic using system tools (mount.nfs, mount.cifs, davfs2).
+Each volume backend (NFS, SMB, WebDAV, SFTP, directory) implements mounting logic using system tools (mount.nfs, mount.cifs, davfs2, sshfs).
 
 **Jobs** (`app/server/jobs/`):
 Cron-based background jobs managed by the Scheduler:
@@ -158,7 +158,7 @@ Routes are organized in feature modules at `app/client/modules/*/routes/`.
 
 `app/schemas/` contains ArkType schemas used by both client and server:
 
-- Volume configurations (NFS, SMB, WebDAV, directory)
+- Volume configurations (NFS, SMB, WebDAV, SFTP, directory)
 - Repository configurations (S3, Azure, GCS, local, rclone)
 - Restic command output parsing types
 - Backend status types

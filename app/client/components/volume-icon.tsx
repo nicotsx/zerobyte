@@ -1,53 +1,52 @@
-import { Cloud, Folder, Server, Share2 } from "lucide-react";
+import { Cloud, Folder, Server } from "lucide-react";
 import type { BackendType } from "~/schemas/volumes";
 
 type VolumeIconProps = {
 	backend: BackendType;
 };
 
-const getIconAndColor = (backend: BackendType) => {
+const getIconAndLabel = (backend: BackendType) => {
 	switch (backend) {
 		case "directory":
 			return {
 				icon: Folder,
-				color: "text-blue-600 dark:text-blue-400",
 				label: "Directory",
 			};
 		case "nfs":
 			return {
 				icon: Server,
-				color: "text-orange-600 dark:text-orange-400",
 				label: "NFS",
 			};
 		case "smb":
 			return {
-				icon: Share2,
-				color: "text-purple-600 dark:text-purple-400",
+				icon: Server,
 				label: "SMB",
 			};
 		case "webdav":
 			return {
-				icon: Cloud,
-				color: "text-green-600 dark:text-green-400",
+				icon: Server,
 				label: "WebDAV",
 			};
 		case "rclone":
 			return {
 				icon: Cloud,
-				color: "text-cyan-600 dark:text-cyan-400",
 				label: "Rclone",
+			};
+		case "sftp":
+			return {
+				icon: Server,
+				label: "SFTP",
 			};
 		default:
 			return {
 				icon: Folder,
-				color: "text-gray-600 dark:text-gray-400",
 				label: "Unknown",
 			};
 	}
 };
 
 export const VolumeIcon = ({ backend }: VolumeIconProps) => {
-	const { icon: Icon, label } = getIconAndColor(backend);
+	const { icon: Icon, label } = getIconAndLabel(backend);
 
 	return (
 		<span className={`flex items-center gap-2 rounded-md px-2 py-1`}>

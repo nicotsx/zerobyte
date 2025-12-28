@@ -22,7 +22,7 @@ import { volumeConfigSchemaBase } from "~/schemas/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
-import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm } from "./volume-forms";
+import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm, SFTPForm } from "./volume-forms";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -46,6 +46,7 @@ const defaultValuesForType = {
 	smb: { backend: "smb" as const, port: 445, vers: "3.0" as const },
 	webdav: { backend: "webdav" as const, port: 80, ssl: false, path: "/webdav" },
 	rclone: { backend: "rclone" as const, path: "/" },
+	sftp: { backend: "sftp" as const, port: 22, path: "/" },
 };
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
@@ -96,7 +97,12 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 	const handleTestConnection = async () => {
 		const formValues = getValues();
 
-		if (formValues.backend === "nfs" || formValues.backend === "smb" || formValues.backend === "webdav") {
+		if (
+			formValues.backend === "nfs" ||
+			formValues.backend === "smb" ||
+			formValues.backend === "webdav" ||
+			formValues.backend === "sftp"
+		) {
 			testBackendConnection.mutate({
 				body: { config: formValues },
 			});
@@ -180,6 +186,18 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<div>
+												<SelectItem disabled={!capabilities.sysAdmin} value="sftp">
+													SFTP
+												</SelectItem>
+											</div>
+										</TooltipTrigger>
+										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+											<p>Remote mounts require SYS_ADMIN capability</p>
+										</TooltipContent>
+									</Tooltip>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<div>
 												<SelectItem disabled={!capabilities.rclone || !capabilities.sysAdmin} value="rclone">
 													rclone
 												</SelectItem>
@@ -204,6 +222,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 				{watchedBackend === "webdav" && <WebDAVForm form={form} />}
 				{watchedBackend === "smb" && <SMBForm form={form} />}
 				{watchedBackend === "rclone" && <RcloneForm form={form} />}
+				{watchedBackend === "sftp" && <SFTPForm form={form} />}
 				{watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
 					<div className="space-y-3">
 						<div className="flex items-center gap-2">

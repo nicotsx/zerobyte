@@ -170,6 +170,15 @@ export type ListVolumesResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -196,7 +205,7 @@ export type ListVolumesResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     }>;
 };
@@ -220,6 +229,15 @@ export type CreateVolumeData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -271,6 +289,15 @@ export type CreateVolumeResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -297,7 +324,7 @@ export type CreateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -321,6 +348,15 @@ export type TestConnectionData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -425,6 +461,15 @@ export type GetVolumeResponses = {
                 remote: string;
                 readOnly?: boolean;
             } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                password?: string;
+                privateKey?: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -451,7 +496,7 @@ export type GetVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
     };
@@ -477,6 +522,15 @@ export type UpdateVolumeData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -537,6 +591,15 @@ export type UpdateVolumeResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -563,7 +626,7 @@ export type UpdateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -1411,6 +1474,15 @@ export type ListBackupSchedulesResponses = {
                 remote: string;
                 readOnly?: boolean;
             } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                password?: string;
+                privateKey?: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1437,7 +1509,7 @@ export type ListBackupSchedulesResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1660,6 +1732,15 @@ export type GetBackupScheduleResponses = {
                 remote: string;
                 readOnly?: boolean;
             } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                password?: string;
+                privateKey?: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1686,7 +1767,7 @@ export type GetBackupScheduleResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1890,6 +1971,15 @@ export type GetBackupScheduleForVolumeResponses = {
                 remote: string;
                 readOnly?: boolean;
             } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                password?: string;
+                privateKey?: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -1916,7 +2006,7 @@ export type GetBackupScheduleForVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;

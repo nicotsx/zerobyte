@@ -6,6 +6,7 @@ import { makeNfsBackend } from "./nfs/nfs-backend";
 import { makeRcloneBackend } from "./rclone/rclone-backend";
 import { makeSmbBackend } from "./smb/smb-backend";
 import { makeWebdavBackend } from "./webdav/webdav-backend";
+import { makeSftpBackend } from "./sftp/sftp-backend";
 
 type OperationResult = {
 	error?: string;
@@ -36,6 +37,9 @@ export const createVolumeBackend = (volume: Volume): VolumeBackend => {
 		}
 		case "rclone": {
 			return makeRcloneBackend(volume.config, path);
+		}
+		case "sftp": {
+			return makeSftpBackend(volume.config, path);
 		}
 	}
 };
