@@ -39,13 +39,14 @@ const mount = async (config: BackendConfig, path: string) => {
 		const password = await cryptoUtils.resolveSecret(config.password);
 
 		const source = `//${config.server}/${config.share}`;
+		const { uid, gid } = os.userInfo();
 		const options = [
 			`user=${config.username}`,
 			`pass=${password}`,
 			`vers=${config.vers}`,
 			`port=${config.port}`,
-			"uid=1000",
-			"gid=1000",
+			`uid=${uid}`,
+			`gid=${gid}`,
 		];
 
 		if (config.domain) {

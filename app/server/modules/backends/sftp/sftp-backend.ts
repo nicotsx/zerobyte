@@ -51,13 +51,14 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		await fs.mkdir(mountPath, { recursive: true });
 		await fs.mkdir(SSH_KEYS_DIR, { recursive: true });
 
+		const { uid, gid } = os.userInfo();
 		const options = [
 			"reconnect",
 			"ServerAliveInterval=15",
 			"ServerAliveCountMax=3",
 			"allow_other",
-			"uid=1000",
-			"gid=1000",
+			`uid=${uid}`,
+			`gid=${gid}`,
 		];
 
 		if (config.skipHostKeyCheck || !config.knownHosts) {
@@ -113,7 +114,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 	};
 
 	try {
-		return await withTimeout(run(), OPERATION_TIMEOUT, "SFTP mount");
+		return await withTimeout(run(), OPERATION_TIMEOUT * 2, "SFTP mount");
 	} catch (error) {
 		const errorMsg = toMessage(error);
 		logger.error("Error mounting SFTP volume", { error: errorMsg });
