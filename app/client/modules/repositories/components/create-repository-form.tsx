@@ -58,7 +58,7 @@ const defaultValuesForType = {
 	azure: { backend: "azure" as const, compressionMode: "auto" as const },
 	rclone: { backend: "rclone" as const, compressionMode: "auto" as const },
 	rest: { backend: "rest" as const, compressionMode: "auto" as const },
-	sftp: { backend: "sftp" as const, compressionMode: "auto" as const, port: 22 },
+	sftp: { backend: "sftp" as const, compressionMode: "auto" as const, port: 22, skipHostKeyCheck: true },
 };
 
 export const CreateRepositoryForm = ({

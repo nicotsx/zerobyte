@@ -19,6 +19,11 @@ const getPrivateKeyPath = (mountPath: string) => {
 	return path.join(SSH_KEYS_DIR, `${name}.key`);
 };
 
+const getKnownHostsPath = (mountPath: string) => {
+	const name = path.basename(mountPath);
+	return path.join(SSH_KEYS_DIR, `${name}.known_hosts`);
+};
+
 const mount = async (config: BackendConfig, mountPath: string) => {
 	logger.debug(`Mounting SFTP volume ${mountPath}...`);
 
@@ -51,11 +56,17 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			"ServerAliveInterval=15",
 			"ServerAliveCountMax=3",
 			"allow_other",
-			"StrictHostKeyChecking=no",
-			"UserKnownHostsFile=/dev/null",
 			"uid=1000",
 			"gid=1000",
 		];
+
+		if (config.skipHostKeyCheck) {
+			options.push("StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null");
+		} else if (config.knownHosts) {
+			const knownHostsPath = getKnownHostsPath(mountPath);
+			await fs.writeFile(knownHostsPath, config.knownHosts, { mode: 0o600 });
+			options.push(`UserKnownHostsFile=${knownHostsPath}`, "StrictHostKeyChecking=yes");
+		}
 
 		if (config.readOnly) {
 			options.push("ro");
@@ -126,6 +137,10 @@ const unmount = async (mountPath: string) => {
 
 		const keyPath = getPrivateKeyPath(mountPath);
 		await fs.unlink(keyPath).catch(() => {});
+
+		const knownHostsPath = getKnownHostsPath(mountPath);
+		await fs.unlink(knownHostsPath).catch(() => {});
+
 		await fs.rmdir(mountPath).catch(() => {});
 
 		logger.info(`SFTP volume at ${mountPath} unmounted successfully.`);

@@ -175,6 +175,8 @@ export type ListVolumesResponses = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -236,6 +238,8 @@ export type CreateVolumeData = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -294,6 +298,8 @@ export type CreateVolumeResponses = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -355,6 +361,8 @@ export type TestConnectionData = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -466,6 +474,8 @@ export type GetVolumeResponses = {
                 path: string;
                 username: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
                 password?: string;
                 privateKey?: string;
                 readOnly?: boolean;
@@ -529,6 +539,8 @@ export type UpdateVolumeData = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -596,6 +608,8 @@ export type UpdateVolumeResponses = {
             path: string;
             username: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
             password?: string;
             privateKey?: string;
             readOnly?: boolean;
@@ -836,8 +850,10 @@ export type ListRepositoriesResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -913,8 +929,10 @@ export type CreateRepositoryData = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         name: string;
         compressionMode?: 'auto' | 'max' | 'off';
@@ -1052,8 +1070,10 @@ export type GetRepositoryResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -1156,8 +1176,10 @@ export type UpdateRepositoryResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -1430,8 +1452,10 @@ export type ListBackupSchedulesResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1479,6 +1503,8 @@ export type ListBackupSchedulesResponses = {
                 path: string;
                 username: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
                 password?: string;
                 privateKey?: string;
                 readOnly?: boolean;
@@ -1688,8 +1714,10 @@ export type GetBackupScheduleResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1737,6 +1765,8 @@ export type GetBackupScheduleResponses = {
                 path: string;
                 username: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
                 password?: string;
                 privateKey?: string;
                 readOnly?: boolean;
@@ -1927,8 +1957,10 @@ export type GetBackupScheduleForVolumeResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1976,6 +2008,8 @@ export type GetBackupScheduleForVolumeResponses = {
                 path: string;
                 username: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
                 password?: string;
                 privateKey?: string;
                 readOnly?: boolean;
@@ -2333,8 +2367,10 @@ export type GetScheduleMirrorsResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -2437,8 +2473,10 @@ export type UpdateScheduleMirrorsResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;

@@ -46,7 +46,7 @@ const defaultValuesForType = {
 	smb: { backend: "smb" as const, port: 445, vers: "3.0" as const },
 	webdav: { backend: "webdav" as const, port: 80, ssl: false, path: "/webdav" },
 	rclone: { backend: "rclone" as const, path: "/" },
-	sftp: { backend: "sftp" as const, port: 22, path: "/" },
+	sftp: { backend: "sftp" as const, port: 22, path: "/", skipHostKeyCheck: true },
 };
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {

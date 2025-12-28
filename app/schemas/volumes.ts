@@ -65,6 +65,8 @@ export const sftpConfigSchema = type({
 	privateKey: "string?",
 	path: "string",
 	readOnly: "boolean?",
+	skipHostKeyCheck: "boolean = true",
+	knownHosts: "string?",
 });
 
 export const volumeConfigSchemaBase = nfsConfigSchema

@@ -11,6 +11,7 @@ import {
 import { Input } from "../../../../components/ui/input";
 import { SecretInput } from "../../../../components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
+import { Switch } from "../../../../components/ui/switch";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
@@ -36,7 +37,6 @@ export const SFTPForm = ({ form }: Props) => {
 			<FormField
 				control={form.control}
 				name="port"
-				defaultValue={22}
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Port</FormLabel>
@@ -115,6 +115,48 @@ export const SFTPForm = ({ form }: Props) => {
 					</FormItem>
 				)}
 			/>
+			<FormField
+				control={form.control}
+				name="skipHostKeyCheck"
+				defaultValue={true}
+				render={({ field }) => (
+					<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+						<div className="space-y-0.5">
+							<FormLabel>Skip Host Key Verification</FormLabel>
+							<FormDescription>
+								Disable SSH host key checking. Useful for servers with dynamic IPs or self-signed keys.
+							</FormDescription>
+						</div>
+						<FormControl>
+							<Switch checked={field.value} onCheckedChange={field.onChange} />
+						</FormControl>
+					</FormItem>
+				)}
+			/>
+			{!form.watch("skipHostKeyCheck") && (
+				<FormField
+					control={form.control}
+					name="knownHosts"
+					render={({ field }) => (
+						<FormItem>
+							<FormLabel>Known Hosts</FormLabel>
+							<FormControl>
+								<Textarea
+									placeholder="example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ..."
+									className="font-mono text-xs"
+									rows={3}
+									{...field}
+									value={field.value ?? ""}
+								/>
+							</FormControl>
+							<FormDescription>
+								The contents of the <code>known_hosts</code> file for this server.
+							</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+			)}
 		</>
 	);
 };

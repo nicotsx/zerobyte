@@ -159,7 +159,7 @@ export const buildEnv = async (config: RepositoryConfig) => {
 		}
 		case "sftp": {
 			const decryptedKey = await cryptoUtils.resolveSecret(config.privateKey);
-			const keyPath = path.join("/tmp", `ironmount-ssh-${crypto.randomBytes(8).toString("hex")}`);
+			const keyPath = path.join("/tmp", `zerobyte-ssh-${crypto.randomBytes(8).toString("hex")}`);
 
 			let normalizedKey = decryptedKey.replace(/\r\n/g, "\n");
 			if (!normalizedKey.endsWith("\n")) {
@@ -177,10 +177,6 @@ export const buildEnv = async (config: RepositoryConfig) => {
 
 			const sshArgs = [
 				"-o",
-				"StrictHostKeyChecking=no",
-				"-o",
-				"UserKnownHostsFile=/dev/null",
-				"-o",
 				"LogLevel=VERBOSE",
 				"-o",
 				"ServerAliveInterval=60",
@@ -189,6 +185,15 @@ export const buildEnv = async (config: RepositoryConfig) => {
 				"-i",
 				keyPath,
 			];
+
+			if (config.skipHostKeyCheck) {
+				sshArgs.push("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null");
+			} else if (config.knownHosts) {
+				const knownHostsPath = path.join("/tmp", `zerobyte-known-hosts-${crypto.randomBytes(8).toString("hex")}`);
+				await fs.writeFile(knownHostsPath, config.knownHosts, { mode: 0o600 });
+				env._SFTP_KNOWN_HOSTS_PATH = knownHostsPath;
+				sshArgs.push("-o", "StrictHostKeyChecking=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`);
+			}
 
 			if (config.port && config.port !== 22) {
 				sshArgs.push("-p", String(config.port));
@@ -806,8 +811,13 @@ const copy = async (
 };
 
 export const cleanupTemporaryKeys = async (config: RepositoryConfig, env: Record<string, string>) => {
-	if (config.backend === "sftp" && env._SFTP_KEY_PATH) {
-		await fs.unlink(env._SFTP_KEY_PATH).catch(() => {});
+	if (config.backend === "sftp") {
+		if (env._SFTP_KEY_PATH) {
+			await fs.unlink(env._SFTP_KEY_PATH).catch(() => {});
+		}
+		if (env._SFTP_KNOWN_HOSTS_PATH) {
+			await fs.unlink(env._SFTP_KNOWN_HOSTS_PATH).catch(() => {});
+		}
 	} else if (config.isExistingRepository && config.customPassword && env.RESTIC_PASSWORD_FILE) {
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	} else if (config.backend === "gcs" && env.GOOGLE_APPLICATION_CREDENTIALS) {
