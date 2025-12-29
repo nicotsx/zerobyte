@@ -52,15 +52,52 @@ docker compose up -d
 
 ## Notes
 
-### Enabling import
+### Import methods
 
-Config import is opt-in and only runs when:
+Zerobyte supports two ways to import configuration:
 
-- `ZEROBYTE_CONFIG_IMPORT=true`
+#### Method 1: Environment variable (automatic on startup)
 
-The config path defaults to `/app/zerobyte.config.json`, but you can override it via:
+Set `ZEROBYTE_CONFIG_IMPORT=true` and the import runs automatically when the container starts:
 
-- `ZEROBYTE_CONFIG_PATH=/app/your-config.json`
+```yaml
+services:
+  zerobyte:
+    environment:
+      - ZEROBYTE_CONFIG_IMPORT=true
+      - ZEROBYTE_CONFIG_PATH=/app/zerobyte.config.json  # optional, this is the default
+```
+
+This is ideal for automated deployments where you want `docker compose up` to fully configure the instance.
+
+#### Method 2: CLI command (manual control)
+
+Run the import explicitly using the CLI:
+
+```bash
+# Import from a mounted config file (starts a new temporary container)
+docker compose run --rm zerobyte bun run cli import-config --config /app/zerobyte.config.json
+
+# Import from a mounted config file into an already-running container
+docker compose exec zerobyte bun run cli import-config --config /app/zerobyte.config.json
+
+# Import from stdin (into running container)
+cat zerobyte.config.json | docker compose exec -T zerobyte bun run cli import-config --stdin
+
+# Import from stdin in PowerShell (into running container)
+Get-Content zerobyte.config.json | docker compose exec -T zerobyte bun run cli import-config --stdin
+
+# Validate config without importing (dry run)
+docker compose run --rm zerobyte bun run cli import-config --config /app/zerobyte.config.json --dry-run
+```
+
+The `--stdin` option is useful when you don't want to mount the config file - just pipe it directly.
+
+This is useful when you want to:
+- See import output directly in your terminal
+- Re-run import after fixing issues
+- Test config files before applying them
+- Import without modifying your docker-compose.yml
 
 ### Secrets via env vars
 

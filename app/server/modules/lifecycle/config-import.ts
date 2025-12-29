@@ -171,7 +171,10 @@ async function importNotificationDestinations(notificationDestinations: unknown[
 			if (!isRecord(n) || typeof n.name !== "string" || !isRecord(n.config) || typeof n.config.type !== "string") {
 				throw new Error("Invalid notification destination entry");
 			}
-			const created = await notificationsServiceModule.notificationsService.createDestination(n.name, n.config as NotificationConfig);
+			const created = await notificationsServiceModule.notificationsService.createDestination(
+				n.name,
+				n.config as NotificationConfig,
+			);
 			logger.info(`Initialized notification destination from config: ${n.name}`);
 
 			// If enabled is explicitly false, update the destination (default is true)
@@ -187,7 +190,11 @@ async function importNotificationDestinations(notificationDestinations: unknown[
 }
 
 function getScheduleVolumeName(schedule: Record<string, unknown>): string | null {
-	return typeof schedule.volume === "string" ? schedule.volume : typeof schedule.volumeName === "string" ? schedule.volumeName : null;
+	return typeof schedule.volume === "string"
+		? schedule.volume
+		: typeof schedule.volumeName === "string"
+			? schedule.volumeName
+			: null;
 }
 
 function getScheduleRepositoryName(schedule: Record<string, unknown>): string | null {
@@ -335,7 +342,12 @@ async function importBackupSchedules(backupSchedules: unknown[]): Promise<void> 
 		}
 
 		if (createdSchedule && Array.isArray(s.notifications) && s.notifications.length > 0) {
-			await attachScheduleNotifications(createdSchedule.id, s.notifications, destinationBySlug, notificationsServiceModule);
+			await attachScheduleNotifications(
+				createdSchedule.id,
+				s.notifications,
+				destinationBySlug,
+				notificationsServiceModule,
+			);
 		}
 
 		if (createdSchedule && Array.isArray(s.mirrors) && s.mirrors.length > 0) {
@@ -450,18 +462,33 @@ async function setupInitialUser(users: unknown[], recoveryKey: string | null): P
 	}
 }
 
+async function runImport(config: ImportConfig): Promise<void> {
+	await writeRecoveryKeyFromConfig(config.recoveryKey);
+
+	await importVolumes(config.volumes);
+	await importRepositories(config.repositories);
+	await importNotificationDestinations(config.notificationDestinations);
+	await importBackupSchedules(config.backupSchedules);
+	await setupInitialUser(config.users, config.recoveryKey);
+}
+
+/**
+ * Import configuration from a raw config object (used by CLI)
+ */
+export async function applyConfigImport(configRaw: unknown): Promise<void> {
+	const config = parseImportConfig(configRaw);
+	await runImport(config);
+}
+
+/**
+ * Import configuration from a file (used by env var startup)
+ */
 export async function applyConfigImportFromFile(): Promise<void> {
 	const configRaw = await loadConfigFromFile();
 	const config = parseImportConfig(configRaw);
 
-	await writeRecoveryKeyFromConfig(config.recoveryKey);
-
 	try {
-		await importVolumes(config.volumes);
-		await importRepositories(config.repositories);
-		await importNotificationDestinations(config.notificationDestinations);
-		await importBackupSchedules(config.backupSchedules);
-		await setupInitialUser(config.users, config.recoveryKey);
+		await runImport(config);
 	} catch (e) {
 		const err = e instanceof Error ? e : new Error(String(e));
 		logger.error(`Failed to initialize from config: ${err.message}`);
