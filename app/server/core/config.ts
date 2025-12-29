@@ -7,7 +7,7 @@ const envSchema = type({
 	SERVER_IDLE_TIMEOUT: 'string.integer.parse = "60"',
 	RESTIC_HOSTNAME: "string = 'zerobyte'",
 	PORT: 'string.integer.parse = "4096"',
-	"MIGRATIONS_PATH?": "string",
+	MIGRATIONS_PATH: "string?",
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
