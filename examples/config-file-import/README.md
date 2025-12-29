@@ -264,6 +264,43 @@ This example is intended to be the primary, copy/paste-friendly reference for co
 }
 ```
 
+#### SFTP
+
+```json
+{
+  "name": "sftp-volume",
+  "config": {
+    "backend": "sftp",
+    "host": "sftp.example.com",
+    "port": 22,
+    "username": "user",
+    "password": "${SFTP_PASSWORD}",
+    "path": "/data",
+    "readOnly": false,
+    "skipHostKeyCheck": true
+  }
+}
+```
+
+For key-based authentication:
+
+```json
+{
+  "name": "sftp-volume-key",
+  "config": {
+    "backend": "sftp",
+    "host": "sftp.example.com",
+    "port": 22,
+    "username": "user",
+    "privateKey": "${SFTP_PRIVATE_KEY}",
+    "path": "/data",
+    "readOnly": false,
+    "skipHostKeyCheck": false,
+    "knownHosts": "sftp.example.com ssh-ed25519 AAAA..."
+  }
+}
+```
+
 ### Repository types
 
 #### Local

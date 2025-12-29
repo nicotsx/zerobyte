@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { eq, or } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -74,7 +74,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 			where: eq(repositoriesTable.shortId, shortId),
 		});
 		if (existingByShortId) {
-			throw new ConflictError(`A repository with shortId '${shortId}' already exists. The shortId is used as the subdirectory name for local repositories.`);
+			throw new ConflictError(
+				`A repository with shortId '${shortId}' already exists. The shortId is used as the subdirectory name for local repositories.`,
+			);
 		}
 	} else {
 		shortId = generateShortId();
@@ -95,13 +97,13 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	if (repoExists && !config.isExistingRepository) {
 		throw new ConflictError(
 			`A restic repository already exists at this location. ` +
-			`If you want to use the existing repository, set "isExistingRepository": true in the config.`
+				`If you want to use the existing repository, set "isExistingRepository": true in the config.`,
 		);
 	}
 
 	if (!repoExists && config.isExistingRepository) {
 		throw new InternalServerError(
-			`Cannot access existing repository. Verify the path/credentials are correct and the repository exists.`
+			`Cannot access existing repository. Verify the path/credentials are correct and the repository exists.`,
 		);
 	}
 
