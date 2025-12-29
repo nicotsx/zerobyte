@@ -571,6 +571,10 @@ const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[]) 
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
+	if (snapshotIds.length === 0) {
+		throw new Error("No snapshot IDs provided for deletion.");
+	}
+
 	const args: string[] = ["--repo", repoUrl, "forget", ...snapshotIds, "--prune"];
 	addCommonArgs(args, env);
 
@@ -596,6 +600,10 @@ const tagSnapshots = async (
 ) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
+
+	if (snapshotIds.length === 0) {
+		throw new Error("No snapshot IDs provided for tagging.");
+	}
 
 	const args: string[] = ["--repo", repoUrl, "tag", ...snapshotIds];
 

@@ -405,7 +405,7 @@ export const deleteSnapshotDto = describeRoute({
  * Delete multiple snapshots
  */
 export const deleteSnapshotsBody = type({
-	snapshotIds: "string[]",
+	snapshotIds: "string[]>=1",
 });
 
 export const deleteSnapshotsResponse = type({
@@ -434,7 +434,7 @@ export const deleteSnapshotsDto = describeRoute({
  * Tag multiple snapshots
  */
 export const tagSnapshotsBody = type({
-	snapshotIds: "string[]",
+	snapshotIds: "string[]>=1",
 	add: "string[]?",
 	remove: "string[]?",
 	set: "string[]?",
