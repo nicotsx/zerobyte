@@ -206,7 +206,7 @@ async function importRepositories(repositories: unknown[]): Promise<ImportResult
 					.snapshots({ ...r.config, isExistingRepository: true } as RepositoryConfig)
 					.then(() => true)
 					.catch((e) => {
- 						const err = e instanceof Error ? e : new Error(String(e));
+						const err = e instanceof Error ? e : new Error(String(e));
 						logger.debug(`Repo existence check for '${r.name}': ${err.message}`);
 						return false;
 					});
