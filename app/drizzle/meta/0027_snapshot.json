@@ -1,8 +1,8 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "d5a60aea-4490-423e-8725-6ace87a76c9b",
-	"prevId": "d0bfd316-b8f5-459b-ab17-0ce679479321",
+	"id": "94ebc8c3-f11f-48cb-9814-d8d550422d26",
+	"prevId": "19421265-4e3a-46b8-9ca1-a01d1e293dbc",
 	"tables": {
 		"app_metadata": {
 			"name": "app_metadata",
@@ -170,6 +170,14 @@
 					"autoincrement": false,
 					"default": false
 				},
+				"notify_on_warning": {
+					"name": "notify_on_warning",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": true
+				},
 				"notify_on_failure": {
 					"name": "notify_on_failure",
 					"type": "integer",
@@ -227,6 +235,20 @@
 					"notNull": true,
 					"autoincrement": true
 				},
+				"short_id": {
+					"name": "short_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
+				},
 				"volume_id": {
 					"name": "volume_id",
 					"type": "integer",
@@ -271,6 +293,14 @@
 					"autoincrement": false,
 					"default": "'[]'"
 				},
+				"exclude_if_present": {
+					"name": "exclude_if_present",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": "'[]'"
+				},
 				"include_patterns": {
 					"name": "include_patterns",
 					"type": "text",
@@ -307,6 +337,22 @@
 					"notNull": false,
 					"autoincrement": false
 				},
+				"one_file_system": {
+					"name": "one_file_system",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": false
+				},
+				"sort_order": {
+					"name": "sort_order",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
 				"created_at": {
 					"name": "created_at",
 					"type": "integer",
@@ -324,7 +370,18 @@
 					"default": "(unixepoch() * 1000)"
 				}
 			},
-			"indexes": {},
+			"indexes": {
+				"backup_schedules_table_short_id_unique": {
+					"name": "backup_schedules_table_short_id_unique",
+					"columns": ["short_id"],
+					"isUnique": true
+				},
+				"backup_schedules_table_name_unique": {
+					"name": "backup_schedules_table_name_unique",
+					"columns": ["name"],
+					"isUnique": true
+				}
+			},
 			"foreignKeys": {
 				"backup_schedules_table_volume_id_volumes_table_id_fk": {
 					"name": "backup_schedules_table_volume_id_volumes_table_id_fk",
@@ -506,11 +563,6 @@
 				"repositories_table_short_id_unique": {
 					"name": "repositories_table_short_id_unique",
 					"columns": ["short_id"],
-					"isUnique": true
-				},
-				"repositories_table_name_unique": {
-					"name": "repositories_table_name_unique",
-					"columns": ["name"],
 					"isUnique": true
 				}
 			},

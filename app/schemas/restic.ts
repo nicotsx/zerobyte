@@ -77,6 +77,8 @@ export const sftpRepositoryConfigSchema = type({
 	user: "string",
 	path: "string",
 	privateKey: "string",
+	skipHostKeyCheck: "boolean = true",
+	knownHosts: "string?",
 }).and(baseRepositoryConfigSchema);
 
 export const repositoryConfigSchemaBase = s3RepositoryConfigSchema

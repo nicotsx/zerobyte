@@ -1,8 +1,8 @@
 {
+	"id": "19421265-4e3a-46b8-9ca1-a01d1e293dbc",
+	"prevId": "ca46a423-51ca-45ae-9470-f82172a67bd3",
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "d5a60aea-4490-423e-8725-6ace87a76c9b",
-	"prevId": "d0bfd316-b8f5-459b-ab17-0ce679479321",
 	"tables": {
 		"app_metadata": {
 			"name": "app_metadata",
@@ -117,20 +117,20 @@
 				"backup_schedule_mirrors_table_schedule_id_backup_schedules_table_id_fk": {
 					"name": "backup_schedule_mirrors_table_schedule_id_backup_schedules_table_id_fk",
 					"tableFrom": "backup_schedule_mirrors_table",
-					"tableTo": "backup_schedules_table",
 					"columnsFrom": ["schedule_id"],
+					"tableTo": "backup_schedules_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				},
 				"backup_schedule_mirrors_table_repository_id_repositories_table_id_fk": {
 					"name": "backup_schedule_mirrors_table_repository_id_repositories_table_id_fk",
 					"tableFrom": "backup_schedule_mirrors_table",
-					"tableTo": "repositories_table",
 					"columnsFrom": ["repository_id"],
+					"tableTo": "repositories_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -170,6 +170,14 @@
 					"autoincrement": false,
 					"default": false
 				},
+				"notify_on_warning": {
+					"name": "notify_on_warning",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": true
+				},
 				"notify_on_failure": {
 					"name": "notify_on_failure",
 					"type": "integer",
@@ -192,20 +200,20 @@
 				"backup_schedule_notifications_table_schedule_id_backup_schedules_table_id_fk": {
 					"name": "backup_schedule_notifications_table_schedule_id_backup_schedules_table_id_fk",
 					"tableFrom": "backup_schedule_notifications_table",
-					"tableTo": "backup_schedules_table",
 					"columnsFrom": ["schedule_id"],
+					"tableTo": "backup_schedules_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				},
 				"backup_schedule_notifications_table_destination_id_notification_destinations_table_id_fk": {
 					"name": "backup_schedule_notifications_table_destination_id_notification_destinations_table_id_fk",
 					"tableFrom": "backup_schedule_notifications_table",
-					"tableTo": "notification_destinations_table",
 					"columnsFrom": ["destination_id"],
+					"tableTo": "notification_destinations_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				}
 			},
 			"compositePrimaryKeys": {
@@ -226,6 +234,13 @@
 					"primaryKey": true,
 					"notNull": true,
 					"autoincrement": true
+				},
+				"name": {
+					"name": "name",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false
 				},
 				"volume_id": {
 					"name": "volume_id",
@@ -271,6 +286,14 @@
 					"autoincrement": false,
 					"default": "'[]'"
 				},
+				"exclude_if_present": {
+					"name": "exclude_if_present",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false,
+					"autoincrement": false,
+					"default": "'[]'"
+				},
 				"include_patterns": {
 					"name": "include_patterns",
 					"type": "text",
@@ -307,6 +330,22 @@
 					"notNull": false,
 					"autoincrement": false
 				},
+				"one_file_system": {
+					"name": "one_file_system",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": false
+				},
+				"sort_order": {
+					"name": "sort_order",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"autoincrement": false,
+					"default": 0
+				},
 				"created_at": {
 					"name": "created_at",
 					"type": "integer",
@@ -324,25 +363,31 @@
 					"default": "(unixepoch() * 1000)"
 				}
 			},
-			"indexes": {},
+			"indexes": {
+				"backup_schedules_table_name_unique": {
+					"name": "backup_schedules_table_name_unique",
+					"columns": ["name"],
+					"isUnique": true
+				}
+			},
 			"foreignKeys": {
 				"backup_schedules_table_volume_id_volumes_table_id_fk": {
 					"name": "backup_schedules_table_volume_id_volumes_table_id_fk",
 					"tableFrom": "backup_schedules_table",
-					"tableTo": "volumes_table",
 					"columnsFrom": ["volume_id"],
+					"tableTo": "volumes_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				},
 				"backup_schedules_table_repository_id_repositories_table_id_fk": {
 					"name": "backup_schedules_table_repository_id_repositories_table_id_fk",
 					"tableFrom": "backup_schedules_table",
-					"tableTo": "repositories_table",
 					"columnsFrom": ["repository_id"],
+					"tableTo": "repositories_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -507,11 +552,6 @@
 					"name": "repositories_table_short_id_unique",
 					"columns": ["short_id"],
 					"isUnique": true
-				},
-				"repositories_table_name_unique": {
-					"name": "repositories_table_name_unique",
-					"columns": ["name"],
-					"isUnique": true
 				}
 			},
 			"foreignKeys": {},
@@ -557,11 +597,11 @@
 				"sessions_table_user_id_users_table_id_fk": {
 					"name": "sessions_table_user_id_users_table_id_fk",
 					"tableFrom": "sessions_table",
-					"tableTo": "users_table",
 					"columnsFrom": ["user_id"],
+					"tableTo": "users_table",
 					"columnsTo": ["id"],
-					"onDelete": "cascade",
-					"onUpdate": "no action"
+					"onUpdate": "no action",
+					"onDelete": "cascade"
 				}
 			},
 			"compositePrimaryKeys": {},
@@ -736,9 +776,9 @@
 	"views": {},
 	"enums": {},
 	"_meta": {
+		"columns": {},
 		"schemas": {},
-		"tables": {},
-		"columns": {}
+		"tables": {}
 	},
 	"internal": {
 		"indexes": {}

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { eq, or } from "drizzle-orm";
-import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -161,7 +161,7 @@ const listSnapshots = async (id: string, backupId?: string) => {
 		let snapshots = [];
 
 		if (backupId) {
-			snapshots = await restic.snapshots(repository.config, { tags: [backupId.toString()] });
+			snapshots = await restic.snapshots(repository.config, { tags: [backupId] });
 		} else {
 			snapshots = await restic.snapshots(repository.config);
 		}
@@ -394,15 +394,6 @@ const updateRepository = async (id: string, updates: { name?: string; compressio
 
 	if (!existing) {
 		throw new NotFoundError("Repository not found");
-	}
-
-	if (
-		updates.name !== undefined &&
-		updates.name !== existing.name &&
-		existing.config.backend === "local" &&
-		existing.config.isExistingRepository
-	) {
-		throw new ConflictError("Cannot rename an imported local repository");
 	}
 
 	const newConfig = repositoryConfigSchema(existing.config);

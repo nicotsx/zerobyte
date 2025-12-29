@@ -31,7 +31,7 @@ Zerobyte is a backup automation tool that helps you save your data across multip
 - &nbsp; **Automated backups** with encryption, compression and retention policies powered by Restic
 - &nbsp; **Flexible scheduling** For automated backup jobs with fine-grained retention policies
 - &nbsp; **End-to-end encryption** ensuring your data is always protected
-- &nbsp; **Multi-protocol support**: Backup from NFS, SMB, WebDAV, or local directories
+- &nbsp; **Multi-protocol support**: Backup from NFS, SMB, WebDAV, SFTP, or local directories
 
 ## Installation
 
@@ -94,7 +94,7 @@ services:
 - ✅ Improved security by reducing container capabilities
 - ✅ Support for local directories
 - ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)
-- ❌ Cannot mount NFS, SMB, or WebDAV shares directly from Zerobyte
+- ❌ Cannot mount NFS, SMB, WebDAV, or SFTP shares directly from Zerobyte
 
 If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
 
@@ -104,7 +104,7 @@ See [examples/README.md](examples/README.md) for runnable, copy/paste-friendly e
 
 ## Adding your first volume
 
-Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, and local directories. A volume represents the source data you want to back up and monitor.
+Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, SFTP, and local directories. A volume represents the source data you want to back up and monitor.
 
 To add your first volume, navigate to the "Volumes" section in the web interface and click on "Create volume". Fill in the required details such as volume name, type, and connection settings.
 

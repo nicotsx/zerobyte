@@ -3,7 +3,9 @@ ARG BUN_VERSION="1.3.5"
 FROM oven/bun:${BUN_VERSION}-alpine AS base
 
 RUN apk upgrade --no-cache && \
-    apk add --no-cache davfs2=1.6.1-r2 openssh-client fuse3
+    apk add --no-cache davfs2=1.6.1-r2 openssh-client fuse3 sshfs tini
+
+ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
 
 # ------------------------------
@@ -64,7 +66,7 @@ CMD ["bun", "run", "dev"]
 # ------------------------------
 # PRODUCTION
 # ------------------------------
-FROM oven/bun:${BUN_VERSION} AS builder
+FROM oven/bun:${BUN_VERSION}-alpine AS builder
 
 ARG APP_VERSION=dev
 

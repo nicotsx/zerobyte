@@ -80,7 +80,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		isLoading,
 		failureReason,
 	} = useQuery({
-		...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.id.toString() } }),
+		...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } }),
 	});
 
 	const updateSchedule = useMutation({

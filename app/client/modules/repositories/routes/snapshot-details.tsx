@@ -116,8 +116,7 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 									{(value) => {
 										if (!value.data) return null;
 
-										const backupIds = value.data.tags.map(Number).filter((tag) => !Number.isNaN(tag));
-										const backupSchedule = schedules.data?.find((s) => backupIds.includes(s.id));
+										const backupSchedule = schedules.data?.find((s) => value.data.tags.includes(s.shortId));
 
 										return (
 											<>

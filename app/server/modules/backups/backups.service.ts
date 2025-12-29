@@ -14,6 +14,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import { repoMutex } from "../../core/repository-mutex";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
 import path from "node:path";
+import { generateShortId } from "~/server/utils/id";
 
 const runningBackups = new Map<number, AbortController>();
 
@@ -126,6 +127,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			nextBackupAt: nextBackupAt,
+			shortId: generateShortId(),
 		})
 		.returning();
 
@@ -277,7 +279,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			oneFileSystem?: boolean;
 			signal?: AbortSignal;
 		} = {
-			tags: [schedule.id.toString()],
+			tags: [schedule.shortId],
 			oneFileSystem: schedule.oneFileSystem,
 			signal: abortController.signal,
 		};
@@ -476,7 +478,7 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	logger.info(`running retention policy (forget) for schedule ${scheduleId}`);
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 	try {
-		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.id.toString() });
+		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId });
 	} finally {
 		releaseLock();
 	}
@@ -570,6 +572,14 @@ const copyToMirrors = async (
 	sourceRepository: { id: string; config: (typeof repositoriesTable.$inferSelect)["config"] },
 	retentionPolicy: (typeof backupSchedulesTable.$inferSelect)["retentionPolicy"],
 ) => {
+	const schedule = await db.query.backupSchedulesTable.findFirst({
+		where: eq(backupSchedulesTable.id, scheduleId),
+	});
+
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
 	const mirrors = await db.query.backupScheduleMirrorsTable.findMany({
 		where: eq(backupScheduleMirrorsTable.scheduleId, scheduleId),
 		with: { repository: true },
@@ -599,7 +609,7 @@ const copyToMirrors = async (
 			const releaseMirror = await repoMutex.acquireShared(mirror.repository.id, `mirror:${scheduleId}`);
 
 			try {
-				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: scheduleId.toString() });
+				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId });
 			} finally {
 				releaseSource();
 				releaseMirror();

@@ -85,8 +85,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 					</TableHeader>
 					<TableBody>
 						{snapshots.map((snapshot) => {
-							const backupIds = snapshot.tags.map(Number).filter((tag) => !Number.isNaN(tag));
-							const backup = backups.find((b) => backupIds.includes(b.id));
+							const backup = backups.find((b) => snapshot.tags.includes(b.shortId));
 
 							return (
 								<TableRow

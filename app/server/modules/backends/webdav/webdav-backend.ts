@@ -43,9 +43,10 @@ const mount = async (config: BackendConfig, path: string) => {
 		const port = config.port !== defaultPort ? `:${config.port}` : "";
 		const source = `${protocol}://${config.server}${port}${config.path}`;
 
+		const { uid, gid } = os.userInfo();
 		const options = config.readOnly
-			? ["uid=1000", "gid=1000", "file_mode=0444", "dir_mode=0555", "ro"]
-			: ["uid=1000", "gid=1000", "file_mode=0664", "dir_mode=0775"];
+			? [`uid=${uid}`, `gid=${gid}`, "file_mode=0444", "dir_mode=0555", "ro"]
+			: [`uid=${uid}`, `gid=${gid}`, "file_mode=0664", "dir_mode=0775"];
 
 		if (config.username && config.password) {
 			const password = await cryptoUtils.resolveSecret(config.password);

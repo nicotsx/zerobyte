@@ -6,6 +6,7 @@ export const BACKEND_TYPES = {
 	directory: "directory",
 	webdav: "webdav",
 	rclone: "rclone",
+	sftp: "sftp",
 } as const;
 
 export type BackendType = keyof typeof BACKEND_TYPES;
@@ -55,11 +56,25 @@ export const rcloneConfigSchema = type({
 	readOnly: "boolean?",
 });
 
+export const sftpConfigSchema = type({
+	backend: "'sftp'",
+	host: "string",
+	port: type("string.integer").or(type("number")).to("1 <= number <= 65535").default(22),
+	username: "string",
+	password: "string?",
+	privateKey: "string?",
+	path: "string",
+	readOnly: "boolean?",
+	skipHostKeyCheck: "boolean = true",
+	knownHosts: "string?",
+});
+
 export const volumeConfigSchemaBase = nfsConfigSchema
 	.or(smbConfigSchema)
 	.or(webdavConfigSchema)
 	.or(directoryConfigSchema)
-	.or(rcloneConfigSchema);
+	.or(rcloneConfigSchema)
+	.or(sftpConfigSchema);
 
 export const volumeConfigSchema = volumeConfigSchemaBase.onUndeclaredKey("delete");
 

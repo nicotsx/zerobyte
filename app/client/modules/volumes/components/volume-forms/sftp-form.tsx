@@ -1,4 +1,5 @@
 import type { UseFormReturn } from "react-hook-form";
+import type { FormValues } from "../create-volume-form";
 import {
 	FormControl,
 	FormDescription,
@@ -8,15 +9,15 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "../../../../components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
-import type { RepositoryFormValues } from "../create-repository-form";
 
 type Props = {
-	form: UseFormReturn<RepositoryFormValues>;
+	form: UseFormReturn<FormValues>;
 };
 
-export const SftpRepositoryForm = ({ form }: Props) => {
+export const SFTPForm = ({ form }: Props) => {
 	return (
 		<>
 			<FormField
@@ -26,7 +27,7 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Host</FormLabel>
 						<FormControl>
-							<Input placeholder="192.168.1.100" {...field} />
+							<Input placeholder="example.com" {...field} />
 						</FormControl>
 						<FormDescription>SFTP server hostname or IP address.</FormDescription>
 						<FormMessage />
@@ -44,24 +45,58 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 								type="number"
 								placeholder="22"
 								{...field}
-								onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+								onChange={(e) => field.onChange(parseInt(e.target.value, 10) || undefined)}
 							/>
 						</FormControl>
-						<FormDescription>SSH port (default: 22).</FormDescription>
+						<FormDescription>SFTP server port (default: 22).</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
 			/>
 			<FormField
 				control={form.control}
-				name="user"
+				name="username"
 				render={({ field }) => (
 					<FormItem>
-						<FormLabel>User</FormLabel>
+						<FormLabel>Username</FormLabel>
 						<FormControl>
-							<Input placeholder="backup-user" {...field} />
+							<Input placeholder="root" {...field} />
 						</FormControl>
-						<FormDescription>SSH username for authentication.</FormDescription>
+						<FormDescription>Username for SFTP authentication.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="password"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Password (Optional)</FormLabel>
+						<FormControl>
+							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
+						</FormControl>
+						<FormDescription>Password for SFTP authentication (optional if using private key).</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="privateKey"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Private Key (Optional)</FormLabel>
+						<FormControl>
+							<Textarea
+								placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+								className="font-mono text-xs"
+								rows={5}
+								{...field}
+								value={field.value ?? ""}
+							/>
+						</FormControl>
+						<FormDescription>SSH private key for authentication (optional if using password).</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -73,26 +108,9 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Path</FormLabel>
 						<FormControl>
-							<Input placeholder="backups/zerobyte" {...field} />
+							<Input placeholder="/backups" {...field} />
 						</FormControl>
-						<FormDescription>Repository path on the SFTP server. </FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
-				name="privateKey"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>SSH Private Key</FormLabel>
-						<FormControl>
-							<Textarea
-								{...field}
-								placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
-							/>
-						</FormControl>
-						<FormDescription>Paste the contents of your SSH private key.</FormDescription>
+						<FormDescription>Path to the directory on the SFTP server.</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

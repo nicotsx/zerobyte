@@ -31,9 +31,12 @@ jobs:
             echo "release_type=release" >> $GITHUB_OUTPUT
           fi
 
+  checks:
+    uses: ./.github/workflows/checks.yml
+
   build-images:
     timeout-minutes: 15
-    needs: [determine-release-type]
+    needs: [determine-release-type, checks]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

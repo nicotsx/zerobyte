@@ -31,6 +31,12 @@ async function encryptSensitiveFields(config: BackendConfig): Promise<BackendCon
 				...config,
 				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
 			};
+		case "sftp":
+			return {
+				...config,
+				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
+				privateKey: config.privateKey ? await cryptoUtils.sealSecret(config.privateKey) : undefined,
+			};
 		default:
 			return config;
 	}

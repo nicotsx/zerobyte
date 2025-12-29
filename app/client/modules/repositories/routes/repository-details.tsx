@@ -25,7 +25,7 @@ import { cn } from "~/client/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
-import { Loader2, Stethoscope, Trash2, X } from "lucide-react";
+import { Loader2, Stethoscope, Trash2 } from "lucide-react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -185,13 +185,13 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 						<AlertDialogDescription>
 							Are you sure you want to delete the repository <strong>{data.name}</strong>? This will not remove the
 							actual data from the backend storage, only the repository configuration will be deleted.
+							<br />
+							<br />
+							All backup schedules associated with this repository will also be removed.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-3 justify-end">
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

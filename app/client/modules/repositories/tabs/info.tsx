@@ -32,8 +32,6 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 	);
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-	const isImportedLocal = repository.type === "local" && repository.config.isExistingRepository;
-
 	const updateMutation = useMutation({
 		...updateRepositoryMutation(),
 		onSuccess: () => {
@@ -77,13 +75,8 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									placeholder="Repository name"
 									maxLength={32}
 									minLength={2}
-									disabled={isImportedLocal}
 								/>
-								<p className="text-sm text-muted-foreground">
-									{isImportedLocal
-										? "Imported local repositories cannot be renamed."
-										: "Unique identifier for the repository."}
-								</p>
+								<p className="text-sm text-muted-foreground">Unique identifier for the repository.</p>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="compressionMode">Compression mode</Label>

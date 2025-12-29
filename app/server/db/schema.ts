@@ -69,6 +69,7 @@ export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
  */
 export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	id: int().primaryKey({ autoIncrement: true }),
+	shortId: text("short_id").notNull().unique(),
 	name: text().notNull().unique(),
 	volumeId: int("volume_id")
 		.notNull()

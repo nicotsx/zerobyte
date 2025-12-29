@@ -170,6 +170,17 @@ export type ListVolumesResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -196,7 +207,7 @@ export type ListVolumesResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     }>;
 };
@@ -220,6 +231,17 @@ export type CreateVolumeData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -271,6 +293,17 @@ export type CreateVolumeResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -297,7 +330,7 @@ export type CreateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -321,6 +354,17 @@ export type TestConnectionData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -425,6 +469,17 @@ export type GetVolumeResponses = {
                 remote: string;
                 readOnly?: boolean;
             } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                password?: string;
+                privateKey?: string;
+                readOnly?: boolean;
+            } | {
                 backend: 'smb';
                 password: string;
                 server: string;
@@ -451,7 +506,7 @@ export type GetVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
     };
@@ -477,6 +532,17 @@ export type UpdateVolumeData = {
             backend: 'rclone';
             path: string;
             remote: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
@@ -537,6 +603,17 @@ export type UpdateVolumeResponses = {
             remote: string;
             readOnly?: boolean;
         } | {
+            backend: 'sftp';
+            host: string;
+            path: string;
+            username: string;
+            port?: number;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
+            password?: string;
+            privateKey?: string;
+            readOnly?: boolean;
+        } | {
             backend: 'smb';
             password: string;
             server: string;
@@ -563,7 +640,7 @@ export type UpdateVolumeResponses = {
         name: string;
         shortId: string;
         status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
         updatedAt: number;
     };
 };
@@ -773,8 +850,10 @@ export type ListRepositoriesResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -850,8 +929,10 @@ export type CreateRepositoryData = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         name: string;
         compressionMode?: 'auto' | 'max' | 'off';
@@ -989,8 +1070,10 @@ export type GetRepositoryResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -1093,8 +1176,10 @@ export type UpdateRepositoryResponses = {
             privateKey: string;
             user: string;
             port?: number;
+            skipHostKeyCheck?: boolean;
             customPassword?: string;
             isExistingRepository?: boolean;
+            knownHosts?: string;
         };
         createdAt: number;
         id: string;
@@ -1367,8 +1452,10 @@ export type ListBackupSchedulesResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1390,6 +1477,7 @@ export type ListBackupSchedulesResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
@@ -1408,6 +1496,17 @@ export type ListBackupSchedulesResponses = {
                 backend: 'rclone';
                 path: string;
                 remote: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                password?: string;
+                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
@@ -1436,7 +1535,7 @@ export type ListBackupSchedulesResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1500,6 +1599,7 @@ export type CreateBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volumeId: number;
     };
@@ -1614,8 +1714,10 @@ export type GetBackupScheduleResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1637,6 +1739,7 @@ export type GetBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
@@ -1655,6 +1758,17 @@ export type GetBackupScheduleResponses = {
                 backend: 'rclone';
                 path: string;
                 remote: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                password?: string;
+                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
@@ -1683,7 +1797,7 @@ export type GetBackupScheduleResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -1748,6 +1862,7 @@ export type UpdateBackupScheduleResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volumeId: number;
     };
@@ -1842,8 +1957,10 @@ export type GetBackupScheduleForVolumeResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -1865,6 +1982,7 @@ export type GetBackupScheduleForVolumeResponses = {
             keepWithinDuration?: string;
             keepYearly?: number;
         } | null;
+        shortId: string;
         updatedAt: number;
         volume: {
             autoRemount: boolean;
@@ -1883,6 +2001,17 @@ export type GetBackupScheduleForVolumeResponses = {
                 backend: 'rclone';
                 path: string;
                 remote: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                path: string;
+                username: string;
+                port?: number;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                password?: string;
+                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
@@ -1911,7 +2040,7 @@ export type GetBackupScheduleForVolumeResponses = {
             name: string;
             shortId: string;
             status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'smb' | 'webdav';
+            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
             updatedAt: number;
         };
         volumeId: number;
@@ -2238,8 +2367,10 @@ export type GetScheduleMirrorsResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;
@@ -2342,8 +2473,10 @@ export type UpdateScheduleMirrorsResponses = {
                 privateKey: string;
                 user: string;
                 port?: number;
+                skipHostKeyCheck?: boolean;
                 customPassword?: string;
                 isExistingRepository?: boolean;
+                knownHosts?: string;
             };
             createdAt: number;
             id: string;

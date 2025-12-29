@@ -1,9 +1,7 @@
 name: Checks
 
-permissions:
-  contents: read
-
 on:
+  workflow_call:
   pull_request:
     branches:
       - main
@@ -11,8 +9,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
-  ci:
+  checks:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -23,6 +24,10 @@ jobs:
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
+
+      - name: Run lint
+        shell: bash
+        run: bun run lint:ci
 
       - name: Run type checks
         shell: bash
