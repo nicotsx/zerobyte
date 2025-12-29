@@ -342,9 +342,13 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			.where(eq(backupSchedulesTable.id, scheduleId));
 
 		if (finalStatus === "warning") {
-			logger.warn(`Backup ${schedule.name} completed with warnings for volume ${volume.name} to repository ${repository.name}`);
+			logger.warn(
+				`Backup ${schedule.name} completed with warnings for volume ${volume.name} to repository ${repository.name}`,
+			);
 		} else {
-			logger.info(`Backup ${schedule.name} completed successfully for volume ${volume.name} to repository ${repository.name}`);
+			logger.info(
+				`Backup ${schedule.name} completed successfully for volume ${volume.name} to repository ${repository.name}`,
+			);
 		}
 
 		serverEvents.emit("backup:completed", {
@@ -364,7 +368,9 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				logger.error(`Failed to send backup success notification: ${toMessage(error)}`);
 			});
 	} catch (error) {
-		logger.error(`Backup ${schedule.name} failed for volume ${volume.name} to repository ${repository.name}: ${toMessage(error)}`);
+		logger.error(
+			`Backup ${schedule.name} failed for volume ${volume.name} to repository ${repository.name}: ${toMessage(error)}`,
+		);
 
 		await db
 			.update(backupSchedulesTable)
