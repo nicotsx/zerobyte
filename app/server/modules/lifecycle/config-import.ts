@@ -222,9 +222,9 @@ async function importRepositories(repositories: unknown[]): Promise<ImportResult
 				logger.warn(`Could not build URL for '${r.name}' to check duplicates: ${toError(e).message}`);
 			}
 
-			// For local repos without isExistingRepository, check if the provided path is already a restic repo
+			// For repos without isExistingRepository, check if the location is already a restic repo
 			// This catches the case where user forgot to set isExistingRepository: true
-			if (r.config.backend === "local" && !r.config.isExistingRepository) {
+			if (!r.config.isExistingRepository) {
 				const isAlreadyRepo = await restic
 					.snapshots({ ...r.config, isExistingRepository: true } as RepositoryConfig)
 					.then(() => true)
@@ -235,8 +235,8 @@ async function importRepositories(repositories: unknown[]): Promise<ImportResult
 
 				if (isAlreadyRepo) {
 					logger.warn(
-						`Skipping '${r.name}': path '${r.config.path}' is already a restic repository. ` +
-							`Set "isExistingRepository": true to import it, or use a different path for a new repository.`,
+						`Skipping '${r.name}': location is already a restic repository. ` +
+							`Set "isExistingRepository": true to import it, or use a different location for a new repository.`,
 					);
 					result.warnings++;
 					continue;
