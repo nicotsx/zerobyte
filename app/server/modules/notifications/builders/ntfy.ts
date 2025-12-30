@@ -10,6 +10,13 @@ export function buildNtfyShoutrrrUrl(config: Extract<NotificationConfig, { type:
 			? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
 			: "";
 
+	const auth =
+		config.accessToken
+			? `:${encodeURIComponent(config.accessToken)}@`
+			: config.username && config.password
+				? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
+				: "";
+
 	if (config.serverUrl) {
 		const url = new URL(config.serverUrl);
 		const hostname = url.hostname;

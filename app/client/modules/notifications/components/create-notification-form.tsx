@@ -520,6 +520,20 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 						/>
 						<FormField
 							control={form.control}
+							name="accessToken"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Access token (Optional)</FormLabel>
+									<FormControl>
+										<SecretInput {...field} placeholder="••••••••" />
+									</FormControl>
+									<FormDescription>Access token for server authentication, if required.</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
 							name="priority"
 							render={({ field }) => (
 								<FormItem>
