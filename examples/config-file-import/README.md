@@ -140,6 +140,26 @@ This example uses:
 
 So to make `${VAR_NAME}` work, put the variables in `.env` (or otherwise provide them in the container environment).
 
+##### Host-side interpolation (alternative)
+
+You can also interpolate environment variables **on the host** before piping the config to the container.
+This is useful in CI/CD pipelines where secrets are injected by the pipeline and you don't want them exposed to the container environment.
+
+**Linux/macOS** (using `envsubst`):
+
+```bash
+# Load .env and substitute variables before piping
+export $(grep -v '^#' .env | xargs) && envsubst < zerobyte.config.json | docker compose exec -T zerobyte bun run cli import-config --stdin
+```
+
+**PowerShell**:
+
+```powershell
+# Load .env and substitute variables before piping
+Get-Content .env | ForEach-Object { if ($_ -match '^([^#][^=]+)=(.*)$') { [Environment]::SetEnvironmentVariable($matches[1], $matches[2]) } }
+(Get-Content zerobyte.config.json -Raw) -replace '\$\{(\w+)\}', { $env:($_.Groups[1].Value) } | docker compose exec -T zerobyte bun run cli import-config --stdin
+```
+
 #### 2) Secret placeholders: `env://...` and `file://...`
 
 Separately from config import, Zerobyte supports **secret placeholders** for *some sensitive fields*.
