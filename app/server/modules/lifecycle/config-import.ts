@@ -286,7 +286,8 @@ async function importNotificationDestinations(notificationDestinations: unknown[
 			}
 
 			// The service uses slugify to normalize the name, so we check against stored names
-			if (existingNames.has(n.name)) {
+			const slugifiedName = slugify(n.name, { lower: true, strict: true });
+			if (existingNames.has(slugifiedName)) {
 				logger.info(`Notification destination '${n.name}' already exists`);
 				result.skipped++;
 				continue;
