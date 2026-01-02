@@ -182,7 +182,8 @@ export const FileTree = memo((props: Props) => {
 						if (
 							item.fullPath.startsWith(`${selectedParentPath}/`) &&
 							!item.fullPath.startsWith(`${path}/`) &&
-							item.fullPath !== path
+							item.fullPath !== path &&
+							!path.startsWith(`${item.fullPath}/`)
 						) {
 							newSelection.add(item.fullPath);
 						}
@@ -190,39 +191,45 @@ export const FileTree = memo((props: Props) => {
 				}
 			}
 
-			const childrenByParent = new Map<string, string[]>();
-			for (const selectedPath of newSelection) {
-				const lastSlashIndex = selectedPath.lastIndexOf("/");
-				if (lastSlashIndex > 0) {
-					const parentPath = selectedPath.slice(0, lastSlashIndex);
-					if (!childrenByParent.has(parentPath)) {
-						childrenByParent.set(parentPath, []);
-					}
-					childrenByParent.get(parentPath)?.push(selectedPath);
-				}
-			}
-
-			// For each parent, check if all its children are selected
-			for (const [parentPath, selectedChildren] of childrenByParent.entries()) {
-				// Get all children of this parent from the file list
-				const allChildren = fileList.filter((item) => {
-					const itemParentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/"));
-					return itemParentPath === parentPath;
-				});
-
-				// If all children are selected, replace them with the parent
-				if (allChildren.length > 0 && selectedChildren.length === allChildren.length) {
-					// Check that we have every child
-					const allChildrenPaths = new Set(allChildren.map((c) => c.fullPath));
-					const allChildrenSelected = selectedChildren.every((c) => allChildrenPaths.has(c));
-
-					if (allChildrenSelected) {
-						// Remove all children
-						for (const childPath of selectedChildren) {
-							newSelection.delete(childPath);
+			let changed = true;
+			while (changed) {
+				changed = false;
+				const childrenByParent = new Map<string, string[]>();
+				for (const selectedPath of newSelection) {
+					const lastSlashIndex = selectedPath.lastIndexOf("/");
+					if (lastSlashIndex > 0) {
+						const parentPath = selectedPath.slice(0, lastSlashIndex);
+						if (!childrenByParent.has(parentPath)) {
+							childrenByParent.set(parentPath, []);
 						}
-						// Add the parent
-						newSelection.add(parentPath);
+						childrenByParent.get(parentPath)?.push(selectedPath);
+					}
+				}
+
+				// For each parent, check if all its children are selected
+				for (const [parentPath, selectedChildren] of childrenByParent.entries()) {
+					// Get all children of this parent from the file list
+					const allChildren = fileList.filter((item) => {
+						const itemParentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/"));
+						return itemParentPath === parentPath;
+					});
+
+					// If all children are selected, replace them with the parent
+					if (allChildren.length > 0 && selectedChildren.length === allChildren.length) {
+						// Check that we have every child
+						const allChildrenPaths = new Set(allChildren.map((c) => c.fullPath));
+						const allChildrenSelected = selectedChildren.every((c) => allChildrenPaths.has(c));
+
+						if (allChildrenSelected) {
+							// Remove all children
+							for (const childPath of selectedChildren) {
+								newSelection.delete(childPath);
+							}
+							// Add the parent
+							newSelection.add(parentPath);
+							changed = true;
+							break;
+						}
 					}
 				}
 			}
