@@ -57,6 +57,9 @@ const defaultValuesForType = {
 	slack: {
 		type: "slack" as const,
 		webhookUrl: "",
+		channel: "",
+		username: "",
+		iconEmoji: "",
 	},
 	discord: {
 		type: "discord" as const,
@@ -103,7 +106,9 @@ const defaultValuesForType = {
 export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValues, formId, className }: Props) => {
 	const form = useForm<NotificationFormValues>({
 		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
-		defaultValues: initialValues,
+		defaultValues: initialValues || {
+			name: "",
+		},
 		resetOptions: {
 			keepDefaultValues: true,
 			keepDirtyValues: false,
@@ -116,7 +121,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 	useEffect(() => {
 		if (!initialValues) {
 			form.reset({
-				name: form.getValues().name,
+				name: form.getValues().name || "",
 				...defaultValuesForType[watchedType as keyof typeof defaultValuesForType],
 			});
 		}
