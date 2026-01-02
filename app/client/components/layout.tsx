@@ -76,7 +76,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 				</header>
 				<div className="main-content flex-1 overflow-y-auto">
 					<GridBackground>
-						<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto">
+						<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto @container">
 							<Outlet />
 						</main>
 					</GridBackground>

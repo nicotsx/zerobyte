@@ -81,7 +81,7 @@ export const ScheduleSummary = (props: Props) => {
 		<div className="space-y-4">
 			<Card>
 				<CardHeader className="space-y-4">
-					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+					<div className="flex flex-col @sm:flex-row @sm:items-center @sm:justify-between gap-4">
 						<div>
 							<CardTitle>{schedule.name}</CardTitle>
 							<CardDescription className="mt-1">
@@ -96,7 +96,7 @@ export const ScheduleSummary = (props: Props) => {
 								</Link>
 							</CardDescription>
 						</div>
-						<div className="flex items-center gap-2 justify-between sm:justify-start">
+						<div className="flex items-center gap-2 justify-between @sm:justify-start">
 							<OnOff
 								isOn={schedule.enabled}
 								toggle={handleToggleEnabled}
@@ -105,16 +105,16 @@ export const ScheduleSummary = (props: Props) => {
 							/>
 						</div>
 					</div>
-					<div className="flex flex-col sm:flex-row gap-2">
+					<div className="flex flex-col @md:flex-row gap-2">
 						{schedule.lastBackupStatus === "in_progress" ? (
-							<Button variant="destructive" size="sm" onClick={handleStopBackup} className="w-full sm:w-auto">
+							<Button variant="destructive" size="sm" onClick={handleStopBackup} className="w-full @md:w-auto">
 								<Square className="h-4 w-4 mr-2" />
-								<span className="sm:inline">Stop backup</span>
+								<span>Stop backup</span>
 							</Button>
 						) : (
-							<Button variant="default" size="sm" onClick={handleRunBackupNow} className="w-full sm:w-auto">
+							<Button variant="default" size="sm" onClick={handleRunBackupNow} className="w-full @md:w-auto">
 								<Play className="h-4 w-4 mr-2" />
-								<span className="sm:inline">Backup now</span>
+								<span>Backup now</span>
 							</Button>
 						)}
 						{schedule.retentionPolicy && (
@@ -123,28 +123,28 @@ export const ScheduleSummary = (props: Props) => {
 								size="sm"
 								loading={runForget.isPending}
 								onClick={() => setShowForgetConfirm(true)}
-								className="w-full sm:w-auto"
+								className="w-full @md:w-auto"
 							>
 								<Eraser className="h-4 w-4 mr-2" />
-								<span className="sm:inline">Run cleanup</span>
+								<span>Run cleanup</span>
 							</Button>
 						)}
-						<Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="w-full sm:w-auto">
+						<Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="w-full @md:w-auto">
 							<Pencil className="h-4 w-4 mr-2" />
-							<span className="sm:inline">Edit schedule</span>
+							<span>Edit schedule</span>
 						</Button>
 						<Button
 							variant="outline"
 							size="sm"
 							onClick={() => setShowDeleteConfirm(true)}
-							className="text-destructive hover:text-destructive w-full sm:w-auto"
+							className="text-destructive hover:text-destructive w-full @md:w-auto"
 						>
 							<Trash2 className="h-4 w-4 mr-2" />
-							<span className="sm:inline">Delete</span>
+							<span>Delete</span>
 						</Button>
 					</div>
 				</CardHeader>
-				<CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+				<CardContent className="grid gap-4 @md:grid-cols-2 @lg:grid-cols-4">
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Schedule</p>
 						<p className="font-medium">{summary.scheduleLabel}</p>
@@ -178,7 +178,7 @@ export const ScheduleSummary = (props: Props) => {
 					</div>
 
 					{schedule.lastBackupStatus === "warning" && (
-						<div className="md:col-span-2 lg:col-span-4">
+						<div className="@md:col-span-2 @lg:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Warning Details</p>
 							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap break-all">
 								{schedule.lastBackupError ??
@@ -188,7 +188,7 @@ export const ScheduleSummary = (props: Props) => {
 					)}
 
 					{schedule.lastBackupError && (
-						<div className="md:col-span-2 lg:col-span-4">
+						<div className="@md:col-span-2 @lg:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Error Details</p>
 							<p className="font-mono text-sm text-red-600 whitespace-pre-wrap break-all">{schedule.lastBackupError}</p>
 						</div>

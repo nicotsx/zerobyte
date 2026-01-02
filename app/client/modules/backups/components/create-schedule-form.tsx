@@ -195,12 +195,12 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								Schedule automated backups of <strong>{volume.name}</strong> to a secure repository.
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-6 md:grid-cols-2">
+						<CardContent className="grid gap-6 @md:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="name"
 								render={({ field }) => (
-									<FormItem className="md:col-span-2">
+									<FormItem className="@md:col-span-2">
 										<FormLabel>Backup name</FormLabel>
 										<FormControl>
 											<Input placeholder="My backup" {...field} />
@@ -215,7 +215,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								control={form.control}
 								name="repositoryId"
 								render={({ field }) => (
-									<FormItem className="md:col-span-2">
+									<FormItem className="@md:col-span-2">
 										<FormLabel>Backup repository</FormLabel>
 										<FormControl>
 											<Select {...field} onValueChange={field.onChange}>
@@ -300,7 +300,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									control={form.control}
 									name="weeklyDay"
 									render={({ field }) => (
-										<FormItem className="md:col-span-2">
+										<FormItem className="@md:col-span-2">
 											<FormLabel>Execution day</FormLabel>
 											<FormControl>
 												<Select {...field} onValueChange={field.onChange}>
@@ -327,7 +327,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									control={form.control}
 									name="monthlyDays"
 									render={({ field }) => (
-										<FormItem className="md:col-span-2">
+										<FormItem className="@md:col-span-2">
 											<FormLabel>Days of the month</FormLabel>
 											<FormControl>
 												<div className="grid grid-cols-7 gap-4 w-max">
@@ -512,7 +512,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 							<CardTitle>Retention policy</CardTitle>
 							<CardDescription>Define how many snapshots to keep. Leave empty to keep all.</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-4 md:grid-cols-2">
+						<CardContent className="grid gap-4 @md:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="keepLast"

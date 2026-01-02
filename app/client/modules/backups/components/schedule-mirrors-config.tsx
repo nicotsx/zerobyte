@@ -196,7 +196,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 							<Copy className="h-5 w-5" />
 							Mirror Repositories
 						</CardTitle>
-						<CardDescription>
+						<CardDescription className="hidden @md:block mt-1">
 							Configure secondary repositories where snapshots will be automatically copied after each backup
 						</CardDescription>
 					</div>
@@ -270,9 +270,9 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 							<TableHeader>
 								<TableRow>
 									<TableHead>Repository</TableHead>
-									<TableHead className="text-center w-[100px]">Enabled</TableHead>
-									<TableHead className="w-[180px]">Last Copy</TableHead>
-									<TableHead className="w-[50px]"></TableHead>
+									<TableHead className="text-center w-25">Enabled</TableHead>
+									<TableHead className="w-45">Last Copy</TableHead>
+									<TableHead className="w-12.5"></TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
