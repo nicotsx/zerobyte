@@ -34,6 +34,10 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 		encryptedConfig.customPassword = await cryptoUtils.sealSecret(config.customPassword);
 	}
 
+	if (config.cacert) {
+		encryptedConfig.cacert = await cryptoUtils.sealSecret(config.cacert);
+	}
+
 	switch (config.backend) {
 		case "s3":
 		case "r2":
@@ -52,9 +56,6 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 			}
 			if (config.password) {
 				encryptedConfig.password = await cryptoUtils.sealSecret(config.password);
-			}
-			if (config.cacert) {
-				encryptedConfig.cacert = await cryptoUtils.sealSecret(config.cacert);
 			}
 			break;
 		case "sftp":

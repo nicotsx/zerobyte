@@ -155,15 +155,6 @@ export const buildEnv = async (config: RepositoryConfig) => {
 			if (config.password) {
 				env.RESTIC_REST_PASSWORD = await cryptoUtils.resolveSecret(config.password);
 			}
-			if (config.cacert) {
-				const decryptedCert = await cryptoUtils.resolveSecret(config.cacert);
-				const certPath = path.join("/tmp", `zerobyte-cacert-${crypto.randomBytes(8).toString("hex")}.pem`);
-				await fs.writeFile(certPath, decryptedCert, { mode: 0o600 });
-				env.RESTIC_CACERT = certPath;
-			}
-			if (config.insecureTls) {
-				env._REST_INSECURE_TLS = "true";
-			}
 			break;
 		}
 		case "sftp": {
@@ -214,6 +205,17 @@ export const buildEnv = async (config: RepositoryConfig) => {
 		}
 	}
 
+	if (config.cacert) {
+		const decryptedCert = await cryptoUtils.resolveSecret(config.cacert);
+		const certPath = path.join("/tmp", `zerobyte-cacert-${crypto.randomBytes(8).toString("hex")}.pem`);
+		await fs.writeFile(certPath, decryptedCert, { mode: 0o600 });
+		env.RESTIC_CACERT = certPath;
+	}
+
+	if (config.insecureTls) {
+		env._INSECURE_TLS = "true";
+	}
+
 	return env;
 };
 
@@ -230,7 +232,7 @@ const init = async (config: RepositoryConfig) => {
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic init failed: ${res.stderr}`);
@@ -358,7 +360,7 @@ const backup = async (
 		finally: async () => {
 			includeFile && (await fs.unlink(includeFile).catch(() => {}));
 			excludeFile && (await fs.unlink(excludeFile).catch(() => {}));
-			await cleanupTemporaryKeys(config, env);
+			await cleanupTemporaryKeys(env);
 		},
 	});
 
@@ -456,7 +458,7 @@ const restore = async (
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await safeSpawn({ command: "restic", args, env });
 
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic restore failed: ${res.stderr}`);
@@ -517,7 +519,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic snapshots retrieval failed: ${res.stderr}`);
@@ -566,7 +568,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic forget failed: ${res.stderr}`);
@@ -588,7 +590,7 @@ const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[]) 
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic snapshot deletion failed: ${res.stderr}`);
@@ -637,7 +639,7 @@ const tagSnapshots = async (
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic snapshot tagging failed: ${res.stderr}`);
@@ -687,7 +689,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic ls failed: ${res.stderr}`);
@@ -738,7 +740,7 @@ const unlock = async (config: RepositoryConfig) => {
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic unlock failed: ${res.stderr}`);
@@ -762,7 +764,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;
 
@@ -795,7 +797,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 	addCommonArgs(args, env);
 
 	const res = await safeSpawn({ command: "restic", args, env });
-	await cleanupTemporaryKeys(config, env);
+	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;
 
@@ -881,7 +883,7 @@ export const cleanupTemporaryKeys = async (env: Record<string, string>) => {
 		await fs.unlink(env._SFTP_KNOWN_HOSTS_PATH).catch(() => {});
 	}
 
-	if (env.RESTIC_PASSWORD_FILE) {
+	if (env.RESTIC_PASSWORD_FILE && env.RESTIC_PASSWORD_FILE !== RESTIC_PASS_FILE) {
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	}
 
@@ -901,8 +903,12 @@ export const addCommonArgs = (args: string[], env: Record<string, string>) => {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}
 
-	if (env._REST_INSECURE_TLS === "true") {
+	if (env._INSECURE_TLS === "true") {
 		args.push("--insecure-tls");
+	}
+
+	if (env.RESTIC_CACERT) {
+		args.push("--cacert", env.RESTIC_CACERT);
 	}
 };
 
