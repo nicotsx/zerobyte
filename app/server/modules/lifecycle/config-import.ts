@@ -167,7 +167,9 @@ async function importVolumes(volumes: unknown[]): Promise<ImportResult> {
 				continue;
 			}
 
-			await volumeService.createVolume(v.name, v.config as BackendConfig);
+			// Pass shortId from config if provided (for IaC reproducibility)
+			const shortId = typeof v.shortId === "string" ? v.shortId : undefined;
+			await volumeService.createVolume(v.name, v.config as BackendConfig, shortId);
 			logger.info(`Initialized volume from config: ${v.name}`);
 			result.succeeded++;
 
@@ -257,10 +259,13 @@ async function importRepositories(repositories: unknown[]): Promise<ImportResult
 				r.compressionMode === "auto" || r.compressionMode === "off" || r.compressionMode === "max"
 					? r.compressionMode
 					: undefined;
+			// Pass shortId from config if provided (for IaC reproducibility)
+			const shortId = typeof r.shortId === "string" ? r.shortId : undefined;
 			await repoServiceModule.repositoriesService.createRepository(
 				r.name,
 				r.config as RepositoryConfig,
 				compressionMode,
+				shortId,
 			);
 			logger.info(`Initialized repository from config: ${r.name}`);
 			result.succeeded++;
@@ -514,18 +519,23 @@ async function importBackupSchedules(backupSchedules: unknown[]): Promise<Import
 
 			try {
 				const retentionPolicy = isRecord(s.retentionPolicy) ? (s.retentionPolicy as RetentionPolicy) : undefined;
-				const createdSchedule = await backupServiceModule.backupsService.createSchedule({
-					name: scheduleName,
-					volumeId: volume.id,
-					repositoryId: repository.id,
-					enabled: typeof s.enabled === "boolean" ? s.enabled : true,
-					cronExpression: s.cronExpression,
-					retentionPolicy,
-					excludePatterns: asStringArray(s.excludePatterns),
-					excludeIfPresent: asStringArray(s.excludeIfPresent),
-					includePatterns: asStringArray(s.includePatterns),
-					oneFileSystem: typeof s.oneFileSystem === "boolean" ? s.oneFileSystem : undefined,
-				});
+				// Pass shortId from config if provided (for IaC reproducibility)
+				const providedShortId = typeof s.shortId === "string" ? s.shortId : undefined;
+				const createdSchedule = await backupServiceModule.backupsService.createSchedule(
+					{
+						name: scheduleName,
+						volumeId: volume.id,
+						repositoryId: repository.id,
+						enabled: typeof s.enabled === "boolean" ? s.enabled : true,
+						cronExpression: s.cronExpression,
+						retentionPolicy,
+						excludePatterns: asStringArray(s.excludePatterns),
+						excludeIfPresent: asStringArray(s.excludeIfPresent),
+						includePatterns: asStringArray(s.includePatterns),
+						oneFileSystem: typeof s.oneFileSystem === "boolean" ? s.oneFileSystem : undefined,
+					},
+					providedShortId,
+				);
 				logger.info(`Initialized backup schedule from config: ${scheduleName}`);
 				result.succeeded++;
 				scheduleId = createdSchedule.id;
@@ -568,7 +578,7 @@ async function attachScheduleMirrors(
 	scheduleId: number,
 	scheduleName: string,
 	mirrors: unknown[],
-	repoByName: Map<string, { id: string; name: string }>,
+	repoByName: Map<string, { id: string; name: string; config: RepositoryConfig }>,
 	backupServiceModule: typeof import("../backups/backups.service"),
 ): Promise<ImportResult> {
 	const result: ImportResult = { succeeded: 0, skipped: 0, warnings: 0, errors: 0 };
@@ -576,7 +586,11 @@ async function attachScheduleMirrors(
 		const existingMirrors = await backupServiceModule.backupsService.getMirrors(scheduleId);
 		const existingRepoIds = new Set(existingMirrors.map((m) => m.repositoryId));
 
-		const mirrorConfigs: Array<{ repositoryId: string; repositoryName: string; enabled: boolean }> = [];
+		const mirrorConfigs: Array<{
+			repositoryId: string;
+			repositoryName: string;
+			enabled: boolean;
+		}> = [];
 
 		for (const m of mirrors) {
 			if (!isRecord(m)) continue;

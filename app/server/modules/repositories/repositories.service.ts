@@ -4,7 +4,7 @@ import { ConflictError, InternalServerError, NotFoundError } from "http-errors-e
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
-import { generateShortId } from "../../utils/id";
+import { generateShortId, isValidShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { repoMutex } from "../../core/repository-mutex";
@@ -62,9 +62,32 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	return encryptedConfig as RepositoryConfig;
 };
 
-const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
+const createRepository = async (
+	name: string,
+	config: RepositoryConfig,
+	compressionMode?: CompressionMode,
+	providedShortId?: string,
+) => {
 	const id = crypto.randomUUID();
-	const shortId = generateShortId();
+
+	// Use provided shortId if valid, otherwise generate a new one
+	let shortId: string;
+	if (providedShortId) {
+		if (!isValidShortId(providedShortId)) {
+			throw new Error(`Invalid shortId format: '${providedShortId}'. Must be 8 base64url characters.`);
+		}
+		const shortIdInUse = await db.query.repositoriesTable.findFirst({
+			where: eq(repositoriesTable.shortId, providedShortId),
+		});
+		if (shortIdInUse) {
+			throw new ConflictError(
+				`Repository shortId '${providedShortId}' is already in use by repository '${shortIdInUse.name}'`,
+			);
+		}
+		shortId = providedShortId;
+	} else {
+		shortId = generateShortId();
+	}
 
 	let processedConfig = config;
 	if (config.backend === "local" && !config.isExistingRepository) {
