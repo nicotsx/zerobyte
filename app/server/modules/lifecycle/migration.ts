@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db/db";
-import { repositoriesTable } from "../../db/schema";
+import { backupScheduleMirrorsTable, repositoriesTable, type Repository } from "../../db/schema";
 import { logger } from "../../utils/logger";
 import { hasMigrationCheckpoint, recordMigrationCheckpoint } from "./checkpoint";
 import { toMessage } from "~/server/utils/errors";
@@ -51,6 +51,32 @@ export const retagSnapshots = async () => {
 	logger.info(`Snapshots retagging migration (${MIGRATION_VERSION}) complete.`);
 };
 
+const migrateTag = async (
+	oldTag: string,
+	newTag: string,
+	repository: Repository,
+	scheduleName: string,
+): Promise<string | null> => {
+	const repoUrl = buildRepoUrl(repository.config);
+	const env = await buildEnv(repository.config);
+
+	const args = ["--repo", repoUrl, "tag", "--tag", oldTag, "--add", newTag, "--remove", oldTag];
+
+	addCommonArgs(args, env);
+
+	logger.info(`Migrating snapshots for schedule '${scheduleName}' from tag '${oldTag}' to '${newTag}'`);
+	const res = await safeSpawn({ command: "restic", args, env });
+	await cleanupTemporaryKeys(env);
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic tag failed: ${res.stderr}`);
+		return toMessage(res.stderr);
+	}
+
+	logger.info(`Migrated snapshots for schedule '${scheduleName}' from tag '${oldTag}' to '${newTag}'`);
+	return null;
+};
+
 const migrateSnapshotsToShortIdTag = async (): Promise<MigrationResult> => {
 	const errors: Array<{ name: string; error: string }> = [];
 	const backupSchedules = await db.query.backupSchedulesTable.findMany({});
@@ -68,21 +94,31 @@ const migrateSnapshotsToShortIdTag = async (): Promise<MigrationResult> => {
 			continue;
 		}
 
-		const repoUrl = buildRepoUrl(repository.config);
-		const env = await buildEnv(repository.config);
-
-		const args = ["--repo", repoUrl, "tag", "--tag", oldTag, "--add", newTag, "--remove", oldTag];
-
-		addCommonArgs(args, env);
-
-		logger.info(`Migrating snapshots for schedule '${schedule.name}' from tag '${oldTag}' to '${newTag}'`);
-		const res = await safeSpawn({ command: "restic", args, env });
-		await cleanupTemporaryKeys(env);
-
-		if (res.exitCode !== 0) {
-			logger.error(`Restic tag failed: ${res.stderr}`);
-			errors.push({ name: `schedule:${schedule.name}`, error: `Restic tag command failed: ${toMessage(res.stderr)}` });
+		const error = await migrateTag(oldTag, newTag, repository, schedule.name);
+		if (error) {
+			errors.push({ name: `schedule:${schedule.name}`, error });
 			continue;
+		}
+
+		const mirrors = await db
+			.select()
+			.from(backupScheduleMirrorsTable)
+			.where(eq(backupScheduleMirrorsTable.scheduleId, schedule.id));
+
+		for (const mirror of mirrors) {
+			const mirrorRepo = await db.query.repositoriesTable.findFirst({
+				where: eq(repositoriesTable.id, mirror.repositoryId),
+			});
+
+			if (!mirrorRepo) {
+				errors.push({ name: `schedule-mirror:${schedule.name}`, error: `Associated mirror repository not found` });
+				continue;
+			}
+
+			const mirrorError = await migrateTag(oldTag, newTag, mirrorRepo, `${schedule.name} (mirror)`);
+			if (mirrorError) {
+				errors.push({ name: `schedule-mirror:${schedule.name}`, error: mirrorError });
+			}
 		}
 
 		logger.info(`Migrated snapshots for schedule '${schedule.name}' from tag '${oldTag}' to '${newTag}'`);
