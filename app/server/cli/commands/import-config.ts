@@ -1,8 +1,7 @@
 import { Command } from "commander";
 import path from "node:path";
 import fs from "node:fs/promises";
-
-const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+import { toError } from "../../utils/errors";
 
 type Output = ReturnType<typeof createOutput>;
 

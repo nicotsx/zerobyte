@@ -10,14 +10,13 @@ import {
 	notificationDestinationsTable,
 } from "../../db/schema";
 import { logger } from "../../utils/logger";
+import { toError } from "../../utils/errors";
 import { volumeService } from "../volumes/volume.service";
 import type { NotificationConfig } from "~/schemas/notifications";
 import type { RepositoryConfig } from "~/schemas/restic";
 import type { BackendConfig } from "~/schemas/volumes";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-
-const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
 const asStringArray = (value: unknown): string[] => {
 	if (!Array.isArray(value)) return [];
