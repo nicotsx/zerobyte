@@ -31,6 +31,7 @@ import {
 	RcloneRepositoryForm,
 	RestRepositoryForm,
 	SftpRepositoryForm,
+	AdvancedForm,
 } from "./repository-forms";
 
 export const formSchema = type({
@@ -267,6 +268,8 @@ export const CreateRepositoryForm = ({
 				{watchedBackend === "rclone" && <RcloneRepositoryForm form={form} />}
 				{watchedBackend === "rest" && <RestRepositoryForm form={form} />}
 				{watchedBackend === "sftp" && <SftpRepositoryForm form={form} />}
+
+				<AdvancedForm form={form} />
 
 				{mode === "update" && (
 					<Button type="submit" className="w-full" loading={loading}>

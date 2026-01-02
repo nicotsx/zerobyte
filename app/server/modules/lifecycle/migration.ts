@@ -77,7 +77,7 @@ const migrateSnapshotsToShortIdTag = async (): Promise<MigrationResult> => {
 
 		logger.info(`Migrating snapshots for schedule '${schedule.name}' from tag '${oldTag}' to '${newTag}'`);
 		const res = await safeSpawn({ command: "restic", args, env });
-		await cleanupTemporaryKeys(repository.config, env);
+		await cleanupTemporaryKeys(env);
 
 		if (res.exitCode !== 0) {
 			logger.error(`Restic tag failed: ${res.stderr}`);

@@ -19,7 +19,7 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import type { CompressionMode } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 
 type Props = {
 	repository: Repository;
@@ -58,6 +58,8 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	const hasChanges =
 		name !== repository.name || compressionMode !== ((repository.compressionMode as CompressionMode) || "off");
+
+	const config = repository.config as RepositoryConfig;
 
 	return (
 		<>
@@ -116,7 +118,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
 								</p>
 							</div>
-							{repository.config.backend === "rest" && repository.config.cacert && (
+							{config.cacert && (
 								<div>
 									<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
 									<p className="mt-1 text-sm">
@@ -124,11 +126,11 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									</p>
 								</div>
 							)}
-							{repository.config.backend === "rest" && "insecureTls" in repository.config && (
+							{"insecureTls" in config && (
 								<div>
 									<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
 									<p className="mt-1 text-sm">
-										{repository.config.insecureTls ? (
+										{config.insecureTls ? (
 											<span className="text-red-500">disabled</span>
 										) : (
 											<span className="text-green-500">enabled</span>
