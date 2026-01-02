@@ -219,15 +219,15 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					<DialogTrigger asChild>
 						<Button variant="outline">
 							<Download size={16} className="mr-2" />
-							Download Restic Password
+							Download recovery key
 						</Button>
 					</DialogTrigger>
 					<DialogContent>
 						<form onSubmit={handleDownloadResticPassword}>
 							<DialogHeader>
-								<DialogTitle>Download Restic Password</DialogTitle>
+								<DialogTitle>Download Recovery Key</DialogTitle>
 								<DialogDescription>
-									For security reasons, please enter your account password to download the Restic password file.
+									For security reasons, please enter your account password to download the recovery key file.
 								</DialogDescription>
 							</DialogHeader>
 							<div className="space-y-4 py-4">
