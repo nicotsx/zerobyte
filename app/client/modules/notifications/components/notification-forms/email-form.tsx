@@ -93,7 +93,14 @@ export const EmailForm = ({ form }: Props) => {
 								{...field}
 								placeholder="user@example.com, admin@example.com"
 								value={Array.isArray(field.value) ? field.value.join(", ") : ""}
-								onChange={(e) => field.onChange(e.target.value.split(",").map((email) => email.trim()))}
+								onChange={(e) =>
+									field.onChange(
+										e.target.value
+											.split(",")
+											.map((email) => email.trim())
+											.filter(Boolean),
+									)
+								}
 							/>
 						</FormControl>
 						<FormDescription>Comma-separated list of recipient email addresses.</FormDescription>
