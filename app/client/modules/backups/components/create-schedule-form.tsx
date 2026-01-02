@@ -2,6 +2,7 @@ import { arktypeResolver } from "@hookform/resolvers/arktype";
 
 import { useQuery } from "@tanstack/react-query";
 import { type } from "arktype";
+import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
@@ -167,6 +168,16 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 			form.setValue("includePatterns", Array.from(paths));
 		},
 		[form],
+	);
+
+	const handleRemovePath = useCallback(
+		(pathToRemove: string) => {
+			const newPaths = new Set(selectedPaths);
+			newPaths.delete(pathToRemove);
+			setSelectedPaths(newPaths);
+			form.setValue("includePatterns", Array.from(newPaths));
+		},
+		[selectedPaths, form],
 	);
 
 	return (
@@ -373,8 +384,19 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									<p className="text-xs text-muted-foreground mb-2">Selected paths:</p>
 									<div className="flex flex-wrap gap-2">
 										{Array.from(selectedPaths).map((path) => (
-											<span key={path} className="text-xs bg-accent px-2 py-1 rounded-md font-mono">
+											<span
+												key={path}
+												className="text-xs bg-accent px-2 py-1 rounded-md font-mono inline-flex items-center gap-1"
+											>
 												{path}
+												<button
+													type="button"
+													onClick={() => handleRemovePath(path)}
+													className="ml-1 hover:bg-destructive/20 rounded p-0.5 transition-colors"
+													aria-label={`Remove ${path}`}
+												>
+													<X className="h-3 w-3" />
+												</button>
 											</span>
 										))}
 									</div>
