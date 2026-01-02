@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef } from "react";
 import type {
 	BackupCompletedEventDto,
 	BackupProgressEventDto,
 	BackupStartedEventDto,
+	RestoreCompletedEventDto,
+	RestoreProgressEventDto,
+	RestoreStartedEventDto,
 } from "~/schemas/events-dto";
 
 type ServerEventType =
@@ -17,6 +20,9 @@ type ServerEventType =
 	| "volume:updated"
 	| "mirror:started"
 	| "mirror:completed"
+	| "restore:started"
+	| "restore:progress"
+	| "restore:completed"
 	| "doctor:started"
 	| "doctor:completed"
 	| "doctor:cancelled";
@@ -157,6 +163,32 @@ export function useServerEvents() {
 			void queryClient.invalidateQueries();
 
 			handlersRef.current.get("mirror:completed")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:started", (e) => {
+			const data = JSON.parse(e.data) as RestoreStartedEventDto;
+			console.info("[SSE] Restore started:", data);
+
+			handlersRef.current.get("restore:started")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:progress", (e) => {
+			const data = JSON.parse(e.data) as RestoreProgressEventDto;
+
+			handlersRef.current.get("restore:progress")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("restore:completed", (e) => {
+			const data = JSON.parse(e.data) as RestoreCompletedEventDto;
+			console.info("[SSE] Restore completed:", data);
+
+			handlersRef.current.get("restore:completed")?.forEach((handler) => {
 				handler(data);
 			});
 		});

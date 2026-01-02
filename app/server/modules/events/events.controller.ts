@@ -1,14 +1,17 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { logger } from "../../utils/logger";
-import { serverEvents } from "../../core/events";
-import { requireAuth } from "../auth/auth.middleware";
-import type { DoctorResult } from "~/schemas/restic";
 import type {
 	ServerBackupCompletedEventDto,
 	ServerBackupProgressEventDto,
 	ServerBackupStartedEventDto,
+	ServerRestoreCompletedEventDto,
+	ServerRestoreProgressEventDto,
+	ServerRestoreStartedEventDto,
 } from "~/schemas/events-dto";
+import type { DoctorResult } from "~/schemas/restic";
+import { serverEvents } from "../../core/events";
+import { logger } from "../../utils/logger";
+import { requireAuth } from "../auth/auth.middleware";
 
 export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 	logger.info("Client connected to SSE endpoint");
@@ -96,6 +99,30 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			});
 		};
 
+		const onRestoreStarted = async (data: ServerRestoreStartedEventDto) => {
+			if (data.organizationId !== organizationId) return;
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:started",
+			});
+		};
+
+		const onRestoreProgress = async (data: ServerRestoreProgressEventDto) => {
+			if (data.organizationId !== organizationId) return;
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:progress",
+			});
+		};
+
+		const onRestoreCompleted = async (data: ServerRestoreCompletedEventDto) => {
+			if (data.organizationId !== organizationId) return;
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "restore:completed",
+			});
+		};
+
 		const onDoctorStarted = async (data: { organizationId: string; repositoryId: string; repositoryName: string }) => {
 			if (data.organizationId !== organizationId) return;
 			await stream.writeSSE({
@@ -139,6 +166,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 		serverEvents.on("volume:updated", onVolumeUpdated);
 		serverEvents.on("mirror:started", onMirrorStarted);
 		serverEvents.on("mirror:completed", onMirrorCompleted);
+		serverEvents.on("restore:started", onRestoreStarted);
+		serverEvents.on("restore:progress", onRestoreProgress);
+		serverEvents.on("restore:completed", onRestoreCompleted);
 		serverEvents.on("doctor:started", onDoctorStarted);
 		serverEvents.on("doctor:completed", onDoctorCompleted);
 		serverEvents.on("doctor:cancelled", onDoctorCancelled);
@@ -159,6 +189,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			serverEvents.off("volume:updated", onVolumeUpdated);
 			serverEvents.off("mirror:started", onMirrorStarted);
 			serverEvents.off("mirror:completed", onMirrorCompleted);
+			serverEvents.off("restore:started", onRestoreStarted);
+			serverEvents.off("restore:progress", onRestoreProgress);
+			serverEvents.off("restore:completed", onRestoreCompleted);
 			serverEvents.off("doctor:started", onDoctorStarted);
 			serverEvents.off("doctor:completed", onDoctorCompleted);
 			serverEvents.off("doctor:cancelled", onDoctorCancelled);

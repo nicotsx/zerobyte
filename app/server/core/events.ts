@@ -1,11 +1,14 @@
 import { EventEmitter } from "node:events";
 import type { TypedEmitter } from "tiny-typed-emitter";
-import type { DoctorResult } from "~/schemas/restic";
 import type {
 	ServerBackupCompletedEventDto,
 	ServerBackupProgressEventDto,
 	ServerBackupStartedEventDto,
+	ServerRestoreCompletedEventDto,
+	ServerRestoreProgressEventDto,
+	ServerRestoreStartedEventDto,
 } from "~/schemas/events-dto";
+import type { DoctorResult } from "~/schemas/restic";
 
 /**
  * Event payloads for the SSE system
@@ -14,6 +17,9 @@ interface ServerEvents {
 	"backup:started": (data: ServerBackupStartedEventDto) => void;
 	"backup:progress": (data: ServerBackupProgressEventDto) => void;
 	"backup:completed": (data: ServerBackupCompletedEventDto) => void;
+	"restore:started": (data: ServerRestoreStartedEventDto) => void;
+	"restore:progress": (data: ServerRestoreProgressEventDto) => void;
+	"restore:completed": (data: ServerRestoreCompletedEventDto) => void;
 	"mirror:started": (data: {
 		organizationId: string;
 		scheduleId: number;

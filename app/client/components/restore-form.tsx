@@ -9,6 +9,7 @@ import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { PathSelector } from "~/client/components/path-selector";
 import { FileTree } from "~/client/components/file-tree";
+import { RestoreProgress } from "~/client/components/restore-progress";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
@@ -168,6 +169,8 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="space-y-6">
+					{isRestoring && <RestoreProgress repositoryId={repository.id} snapshotId={snapshotId} />}
+
 					<Card>
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
