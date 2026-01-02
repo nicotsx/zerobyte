@@ -206,7 +206,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					<Download className="size-5" />
 					Backup Recovery Key
 				</CardTitle>
-				<CardDescription className="mt-1.5">Download your Restic password file for disaster recovery</CardDescription>
+				<CardDescription className="mt-1.5">Download your recovery key for Restic backups</CardDescription>
 			</div>
 			<CardContent className="p-6 space-y-4">
 				<p className="text-sm text-muted-foreground max-w-2xl">

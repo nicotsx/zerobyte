@@ -10,14 +10,14 @@ function Card({ className, children, ...props }: React.ComponentProps<"div">) {
 			{...props}
 		>
 			<span aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 select-none">
-				<span className="absolute left-[-2px] top-[-2px] h-0.5 w-4 bg-white/80" />
-				<span className="absolute left-[-2px] top-[-2px] h-4 w-0.5 bg-white/80" />
-				<span className="absolute right-[-2px] top-[-2px] h-0.5 w-4 bg-white/80" />
-				<span className="absolute right-[-2px] top-[-2px] h-4 w-0.5 bg-white/80" />
-				<span className="absolute left-[-2px] bottom-[-2px] h-0.5 w-4 bg-white/80" />
-				<span className="absolute left-[-2px] bottom-[-2px] h-4 w-0.5 bg-white/80" />
-				<span className="absolute right-[-2px] bottom-[-2px] h-0.5 w-4 bg-white/80" />
-				<span className="absolute right-[-2px] bottom-[-2px] h-4 w-0.5 bg-white/80" />
+				<span className="absolute -left-0.5 -top-0.5 h-0.5 w-4 bg-white/80" />
+				<span className="absolute -left-0.5 -top-0.5 h-4 w-0.5 bg-white/80" />
+				<span className="absolute -right-0.5 -top-0.5 h-0.5 w-4 bg-white/80" />
+				<span className="absolute -right-0.5 -top-0.5 h-4 w-0.5 bg-white/80" />
+				<span className="absolute -left-0.5 -bottom-0.5 h-0.5 w-4 bg-white/80" />
+				<span className="absolute -left-0.5 -bottom-0.5 h-4 w-0.5 bg-white/80" />
+				<span className="absolute -right-0.5 -bottom-0.5 h-0.5 w-4 bg-white/80" />
+				<span className="absolute -right-0.5 -bottom-0.5 h-4 w-0.5 bg-white/80" />
 			</span>
 			{children}
 		</div>

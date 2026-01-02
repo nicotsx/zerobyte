@@ -226,12 +226,13 @@ export const CreateRepositoryForm = ({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									<SelectItem value="default">Use Zerobyte's password</SelectItem>
+									<SelectItem value="default">Use the existing recovery key</SelectItem>
 									<SelectItem value="custom">Enter password manually</SelectItem>
 								</SelectContent>
 							</Select>
 							<FormDescription>
-								Choose whether to use Zerobyte's master password or enter a custom password for the existing repository.
+								Choose whether to use Zerobyte's recovery key (which you downloaded when creating your account) or enter
+								a custom password for the existing repository.
 							</FormDescription>
 						</FormItem>
 

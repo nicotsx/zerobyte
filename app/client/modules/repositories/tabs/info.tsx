@@ -147,7 +147,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<h3 className="text-lg font-semibold text-red-500">Last Error</h3>
 							</div>
 							<div className="bg-red-500/10 border border-red-500/20 rounded-md p-4">
-								<p className="text-sm text-red-500">{repository.lastError}</p>
+								<p className="text-sm text-red-500 wrap-break-word">{repository.lastError}</p>
 							</div>
 						</div>
 					)}

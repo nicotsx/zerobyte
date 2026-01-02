@@ -105,7 +105,7 @@ export const ScheduleSummary = (props: Props) => {
 							/>
 						</div>
 					</div>
-					<div className="flex flex-col @md:flex-row gap-2">
+					<div className="flex flex-col @lg:flex-row gap-2">
 						{schedule.lastBackupStatus === "in_progress" ? (
 							<Button variant="destructive" size="sm" onClick={handleStopBackup} className="w-full @md:w-auto">
 								<Square className="h-4 w-4 mr-2" />
@@ -144,7 +144,7 @@ export const ScheduleSummary = (props: Props) => {
 						</Button>
 					</div>
 				</CardHeader>
-				<CardContent className="grid gap-4 @md:grid-cols-2 @lg:grid-cols-4">
+				<CardContent className="grid gap-4 grid-cols-1 @md:grid-cols-2 @lg:grid-cols-4">
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Schedule</p>
 						<p className="font-medium">{summary.scheduleLabel}</p>
@@ -180,17 +180,19 @@ export const ScheduleSummary = (props: Props) => {
 					{schedule.lastBackupStatus === "warning" && (
 						<div className="@md:col-span-2 @lg:col-span-4">
 							<p className="text-xs uppercase text-muted-foreground">Warning Details</p>
-							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap break-all">
+							<p className="font-mono text-sm text-yellow-600 whitespace-pre-wrap wrap-break-word">
 								{schedule.lastBackupError ??
 									"Last backup completed with warnings. Check your container logs for more details."}
 							</p>
 						</div>
 					)}
 
-					{schedule.lastBackupError && (
+					{schedule.lastBackupError && schedule.lastBackupStatus === "error" && (
 						<div className="@md:col-span-2 @lg:col-span-4">
-							<p className="text-xs uppercase text-muted-foreground">Error Details</p>
-							<p className="font-mono text-sm text-red-600 whitespace-pre-wrap break-all">{schedule.lastBackupError}</p>
+							<p className="text-xs uppercase text-muted-foreground">Error details</p>
+							<p className="font-mono text-sm text-red-600 whitespace-pre-wrap wrap-break-word">
+								{schedule.lastBackupError}
+							</p>
 						</div>
 					)}
 				</CardContent>
