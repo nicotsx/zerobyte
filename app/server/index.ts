@@ -8,6 +8,12 @@ import { REQUIRED_MIGRATIONS } from "./core/constants";
 import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
 import { createApp } from "./app";
 import { config } from "./core/config";
+import { runCLI } from "./cli";
+
+const cliRun = await runCLI(Bun.argv);
+if (cliRun) {
+	process.exit(0);
+}
 
 const app = createApp();
 

@@ -17,6 +17,8 @@ export type RepositoryBackend = keyof typeof REPOSITORY_BACKENDS;
 const baseRepositoryConfigSchema = type({
 	isExistingRepository: "boolean?",
 	customPassword: "string?",
+	cacert: "string?",
+	insecureTls: "boolean?",
 });
 
 export const s3RepositoryConfigSchema = type({

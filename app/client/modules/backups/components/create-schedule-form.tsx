@@ -2,6 +2,7 @@ import { arktypeResolver } from "@hookform/resolvers/arktype";
 
 import { useQuery } from "@tanstack/react-query";
 import { type } from "arktype";
+import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
@@ -169,6 +170,16 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 		[form],
 	);
 
+	const handleRemovePath = useCallback(
+		(pathToRemove: string) => {
+			const newPaths = new Set(selectedPaths);
+			newPaths.delete(pathToRemove);
+			setSelectedPaths(newPaths);
+			form.setValue("includePatterns", Array.from(newPaths));
+		},
+		[selectedPaths, form],
+	);
+
 	return (
 		<Form {...form}>
 			<form
@@ -184,12 +195,12 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								Schedule automated backups of <strong>{volume.name}</strong> to a secure repository.
 							</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-6 md:grid-cols-2">
+						<CardContent className="grid gap-6 @md:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="name"
 								render={({ field }) => (
-									<FormItem className="md:col-span-2">
+									<FormItem className="@md:col-span-2">
 										<FormLabel>Backup name</FormLabel>
 										<FormControl>
 											<Input placeholder="My backup" {...field} />
@@ -204,7 +215,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								control={form.control}
 								name="repositoryId"
 								render={({ field }) => (
-									<FormItem className="md:col-span-2">
+									<FormItem className="@md:col-span-2">
 										<FormLabel>Backup repository</FormLabel>
 										<FormControl>
 											<Select {...field} onValueChange={field.onChange}>
@@ -289,7 +300,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									control={form.control}
 									name="weeklyDay"
 									render={({ field }) => (
-										<FormItem className="md:col-span-2">
+										<FormItem className="@md:col-span-2">
 											<FormLabel>Execution day</FormLabel>
 											<FormControl>
 												<Select {...field} onValueChange={field.onChange}>
@@ -316,7 +327,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									control={form.control}
 									name="monthlyDays"
 									render={({ field }) => (
-										<FormItem className="md:col-span-2">
+										<FormItem className="@md:col-span-2">
 											<FormLabel>Days of the month</FormLabel>
 											<FormControl>
 												<div className="grid grid-cols-7 gap-4 w-max">
@@ -373,8 +384,19 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 									<p className="text-xs text-muted-foreground mb-2">Selected paths:</p>
 									<div className="flex flex-wrap gap-2">
 										{Array.from(selectedPaths).map((path) => (
-											<span key={path} className="text-xs bg-accent px-2 py-1 rounded-md font-mono">
+											<span
+												key={path}
+												className="text-xs bg-accent px-2 py-1 rounded-md font-mono inline-flex items-center gap-1"
+											>
 												{path}
+												<button
+													type="button"
+													onClick={() => handleRemovePath(path)}
+													className="ml-1 hover:bg-destructive/20 rounded p-0.5 transition-colors"
+													aria-label={`Remove ${path}`}
+												>
+													<X className="h-3 w-3" />
+												</button>
 											</span>
 										))}
 									</div>
@@ -490,7 +512,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 							<CardTitle>Retention policy</CardTitle>
 							<CardDescription>Define how many snapshots to keep. Leave empty to keep all.</CardDescription>
 						</CardHeader>
-						<CardContent className="grid gap-4 md:grid-cols-2">
+						<CardContent className="grid gap-4 @md:grid-cols-2">
 							<FormField
 								control={form.control}
 								name="keepLast"

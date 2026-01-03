@@ -46,13 +46,13 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 			<Card>
 				<CardContent className="flex flex-col items-center justify-center text-center py-12">
 					<Database className="mb-4 h-12 w-12 text-destructive" />
-					<p className="text-destructive font-semibold">Repository Error</p>
+					<p className="text-destructive font-semibold">Repository error</p>
 					<p className="text-sm text-muted-foreground mt-2">
 						This repository is in an error state and cannot be accessed.
 					</p>
 					{repository.lastError && (
-						<div className="mt-4 max-w-md bg-destructive/10 border border-destructive/20 rounded-md p-3">
-							<p className="text-sm text-destructive">{repository.lastError}</p>
+						<div className="mt-4 w-full max-w-md bg-destructive/10 border border-destructive/20 rounded-md p-3">
+							<p className="text-sm text-destructive wrap-break-word">{repository.lastError}</p>
 						</div>
 					)}
 				</CardContent>

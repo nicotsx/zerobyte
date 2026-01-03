@@ -31,6 +31,7 @@ import {
 	RcloneRepositoryForm,
 	RestRepositoryForm,
 	SftpRepositoryForm,
+	AdvancedForm,
 } from "./repository-forms";
 
 export const formSchema = type({
@@ -225,12 +226,13 @@ export const CreateRepositoryForm = ({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									<SelectItem value="default">Use Zerobyte's password</SelectItem>
+									<SelectItem value="default">Use the existing recovery key</SelectItem>
 									<SelectItem value="custom">Enter password manually</SelectItem>
 								</SelectContent>
 							</Select>
 							<FormDescription>
-								Choose whether to use Zerobyte's master password or enter a custom password for the existing repository.
+								Choose whether to use Zerobyte's recovery key (which you downloaded when creating your account) or enter
+								a custom password for the existing repository.
 							</FormDescription>
 						</FormItem>
 
@@ -267,6 +269,8 @@ export const CreateRepositoryForm = ({
 				{watchedBackend === "rclone" && <RcloneRepositoryForm form={form} />}
 				{watchedBackend === "rest" && <RestRepositoryForm form={form} />}
 				{watchedBackend === "sftp" && <SftpRepositoryForm form={form} />}
+
+				<AdvancedForm form={form} />
 
 				{mode === "update" && (
 					<Button type="submit" className="w-full" loading={loading}>

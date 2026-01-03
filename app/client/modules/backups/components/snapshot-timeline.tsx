@@ -1,5 +1,5 @@
 import { cn } from "~/client/lib/utils";
-import { Card } from "~/client/components/ui/card";
+import { Card, CardContent } from "~/client/components/ui/card";
 import { ByteSize } from "~/client/components/bytes-size";
 import { useEffect } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
@@ -24,9 +24,9 @@ export const SnapshotTimeline = (props: Props) => {
 	if (error) {
 		return (
 			<Card>
-				<div className="flex items-center justify-center h-24 p-4 text-center">
-					<p className="text-destructive">Error loading snapshots: {error}</p>
-				</div>
+				<CardContent className="flex items-center justify-center text-center">
+					<p className="text-destructive text-sm">{error}</p>
+				</CardContent>
 			</Card>
 		);
 	}

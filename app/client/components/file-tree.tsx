@@ -116,13 +116,15 @@ export const FileTree = memo((props: Props) => {
 	// Add new folders to collapsed set when file list changes
 	useEffect(() => {
 		setCollapsedFolders((prevSet) => {
+			let hasChanges = false;
 			const newSet = new Set(prevSet);
 			for (const item of fileList) {
 				if (item.kind === "folder" && !newSet.has(item.fullPath) && !expandedFolders.has(item.fullPath)) {
 					newSet.add(item.fullPath);
+					hasChanges = true;
 				}
 			}
-			return newSet;
+			return hasChanges ? newSet : prevSet;
 		});
 	}, [fileList, expandedFolders]);
 
@@ -149,9 +151,9 @@ export const FileTree = memo((props: Props) => {
 				newSelection.add(path);
 
 				// Remove any descendants from selection since parent now covers them
-				for (const item of fileList) {
-					if (item.fullPath.startsWith(`${path}/`)) {
-						newSelection.delete(item.fullPath);
+				for (const selectedPath of newSelection) {
+					if (selectedPath.startsWith(`${path}/`)) {
+						newSelection.delete(selectedPath);
 					}
 				}
 			} else {
@@ -182,7 +184,8 @@ export const FileTree = memo((props: Props) => {
 						if (
 							item.fullPath.startsWith(`${selectedParentPath}/`) &&
 							!item.fullPath.startsWith(`${path}/`) &&
-							item.fullPath !== path
+							item.fullPath !== path &&
+							!path.startsWith(`${item.fullPath}/`)
 						) {
 							newSelection.add(item.fullPath);
 						}
@@ -190,39 +193,45 @@ export const FileTree = memo((props: Props) => {
 				}
 			}
 
-			const childrenByParent = new Map<string, string[]>();
-			for (const selectedPath of newSelection) {
-				const lastSlashIndex = selectedPath.lastIndexOf("/");
-				if (lastSlashIndex > 0) {
-					const parentPath = selectedPath.slice(0, lastSlashIndex);
-					if (!childrenByParent.has(parentPath)) {
-						childrenByParent.set(parentPath, []);
-					}
-					childrenByParent.get(parentPath)?.push(selectedPath);
-				}
-			}
-
-			// For each parent, check if all its children are selected
-			for (const [parentPath, selectedChildren] of childrenByParent.entries()) {
-				// Get all children of this parent from the file list
-				const allChildren = fileList.filter((item) => {
-					const itemParentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/"));
-					return itemParentPath === parentPath;
-				});
-
-				// If all children are selected, replace them with the parent
-				if (allChildren.length > 0 && selectedChildren.length === allChildren.length) {
-					// Check that we have every child
-					const allChildrenPaths = new Set(allChildren.map((c) => c.fullPath));
-					const allChildrenSelected = selectedChildren.every((c) => allChildrenPaths.has(c));
-
-					if (allChildrenSelected) {
-						// Remove all children
-						for (const childPath of selectedChildren) {
-							newSelection.delete(childPath);
+			let changed = true;
+			while (changed) {
+				changed = false;
+				const childrenByParent = new Map<string, string[]>();
+				for (const selectedPath of newSelection) {
+					const lastSlashIndex = selectedPath.lastIndexOf("/");
+					if (lastSlashIndex > 0) {
+						const parentPath = selectedPath.slice(0, lastSlashIndex);
+						if (!childrenByParent.has(parentPath)) {
+							childrenByParent.set(parentPath, []);
 						}
-						// Add the parent
-						newSelection.add(parentPath);
+						childrenByParent.get(parentPath)?.push(selectedPath);
+					}
+				}
+
+				// For each parent, check if all its children are selected
+				for (const [parentPath, selectedChildren] of childrenByParent.entries()) {
+					// Get all children of this parent from the file list
+					const allChildren = fileList.filter((item) => {
+						const itemParentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/"));
+						return itemParentPath === parentPath;
+					});
+
+					// If all children are selected, replace them with the parent
+					if (allChildren.length > 0 && selectedChildren.length === allChildren.length) {
+						// Check that we have every child
+						const allChildrenPaths = new Set(allChildren.map((c) => c.fullPath));
+						const allChildrenSelected = selectedChildren.every((c) => allChildrenPaths.has(c));
+
+						if (allChildrenSelected) {
+							// Remove all children
+							for (const childPath of selectedChildren) {
+								newSelection.delete(childPath);
+							}
+							// Add the parent
+							newSelection.add(parentPath);
+							changed = true;
+							break;
+						}
 					}
 				}
 			}
@@ -481,8 +490,9 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 	const paddingLeft = useMemo(() => `${8 + depth * NODE_PADDING_LEFT}px`, [depth]);
 
 	return (
-		<button
-			type="button"
+		// biome-ignore lint/a11y/noStaticElementInteractions: we handle click and hover manually
+		// biome-ignore lint/a11y/useKeyWithClickEvents: we handle click and hover manually
+		<div
 			className={cn("flex items-center gap-2 w-full pr-2 text-sm py-1.5 text-left", className)}
 			style={{ paddingLeft }}
 			onClick={onClick}
@@ -490,7 +500,7 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 		>
 			{icon}
 			<div className="truncate w-full flex items-center gap-2">{children}</div>
-		</button>
+		</div>
 	);
 });
 

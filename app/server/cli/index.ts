@@ -10,13 +10,29 @@ program.addCommand(resetPasswordCommand);
 
 export async function runCLI(argv: string[]): Promise<boolean> {
 	const args = argv.slice(2);
-	const hasCommand = args.length > 0 && !args[0].startsWith("-");
+	const isCLIMode = process.env.ZEROBYTE_CLI === "1";
 
-	if (!hasCommand) {
+	if (args.length === 0) {
+		if (isCLIMode) {
+			program.help();
+			return true;
+		}
 		return false;
 	}
 
-	await program.parseAsync(argv);
+	if (!isCLIMode && args[0].startsWith("-")) {
+		return false;
+	}
+
+	await program.parseAsync(argv).catch((err) => {
+		if (err.message.includes("SIGINT")) {
+			process.exit(0);
+		}
+
+		console.error(err.message);
+		process.exit(1);
+	});
+
 	return true;
 }
 

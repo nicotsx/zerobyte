@@ -6,3 +6,4 @@ export { AzureRepositoryForm } from "./azure-repository-form";
 export { RcloneRepositoryForm } from "./rclone-repository-form";
 export { RestRepositoryForm } from "./rest-repository-form";
 export { SftpRepositoryForm } from "./sftp-repository-form";
+export { AdvancedForm } from "./advanced-tls-form";

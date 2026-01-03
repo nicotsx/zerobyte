@@ -152,7 +152,9 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 							<Bell className="h-5 w-5" />
 							Notifications
 						</CardTitle>
-						<CardDescription>Configure which notifications to send for this backup schedule</CardDescription>
+						<CardDescription className="hidden @md:block mt-1">
+							Configure which notifications to send for this backup schedule
+						</CardDescription>
 					</div>
 					{!isAddingNew && availableDestinations.length > 0 && (
 						<Button variant="outline" size="sm" onClick={() => setIsAddingNew(true)}>
@@ -198,11 +200,11 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props)
 							<TableHeader>
 								<TableRow>
 									<TableHead>Destination</TableHead>
-									<TableHead className="text-center w-[100px]">Start</TableHead>
-									<TableHead className="text-center w-[100px]">Success</TableHead>
-									<TableHead className="text-center w-[100px]">Warnings</TableHead>
-									<TableHead className="text-center w-[100px]">Failures</TableHead>
-									<TableHead className="w-[50px]"></TableHead>
+									<TableHead className="text-center w-25">Start</TableHead>
+									<TableHead className="text-center w-25">Success</TableHead>
+									<TableHead className="text-center w-25">Warnings</TableHead>
+									<TableHead className="text-center w-25">Failures</TableHead>
+									<TableHead className="w-12.5"></TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>

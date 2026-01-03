@@ -1,6 +1,6 @@
 import type { NotificationConfig } from "~/schemas/notifications";
 
-export function buildEmailShoutrrrUrl(config: Extract<NotificationConfig, { type: "email" }>): string {
+export const buildEmailShoutrrrUrl = (config: Extract<NotificationConfig, { type: "email" }>) => {
 	const auth =
 		config.username && config.password
 			? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`
@@ -10,4 +10,4 @@ export function buildEmailShoutrrrUrl(config: Extract<NotificationConfig, { type
 	const useStartTLS = config.useTLS ? "yes" : "no";
 
 	return `smtp://${auth}${host}/?from=${encodeURIComponent(config.from)}&to=${toRecipients}&starttls=${useStartTLS}`;
-}
+};

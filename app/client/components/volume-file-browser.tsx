@@ -57,7 +57,7 @@ export const VolumeFileBrowser = ({
 
 	if (fileBrowser.isLoading) {
 		return (
-			<div className="flex items-center justify-center h-full min-h-[200px]">
+			<div className="flex items-center justify-center h-full min-h-50">
 				<p className="text-muted-foreground">Loading files...</p>
 			</div>
 		);
@@ -65,7 +65,7 @@ export const VolumeFileBrowser = ({
 
 	if (error) {
 		return (
-			<div className="flex items-center justify-center h-full min-h-[200px]">
+			<div className="flex items-center justify-center h-full min-h-50">
 				<p className="text-destructive">Failed to load files: {(error as Error).message}</p>
 			</div>
 		);
@@ -73,7 +73,7 @@ export const VolumeFileBrowser = ({
 
 	if (fileBrowser.isEmpty) {
 		return (
-			<div className="flex flex-col items-center justify-center h-full text-center p-8 min-h-[200px]">
+			<div className="flex flex-col items-center justify-center h-full text-center p-8 min-h-50">
 				<FolderOpen className="mb-4 h-12 w-12 text-muted-foreground" />
 				<p className="text-muted-foreground">{emptyMessage}</p>
 				{emptyDescription && <p className="text-sm text-muted-foreground mt-2">{emptyDescription}</p>}

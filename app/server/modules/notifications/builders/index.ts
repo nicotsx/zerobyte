@@ -6,9 +6,10 @@ import { buildGotifyShoutrrrUrl } from "./gotify";
 import { buildNtfyShoutrrrUrl } from "./ntfy";
 import { buildPushoverShoutrrrUrl } from "./pushover";
 import { buildTelegramShoutrrrUrl } from "./telegram";
+import { buildGenericShoutrrrUrl } from "./generic";
 import { buildCustomShoutrrrUrl } from "./custom";
 
-export function buildShoutrrrUrl(config: NotificationConfig): string {
+export const buildShoutrrrUrl = (config: NotificationConfig) => {
 	switch (config.type) {
 		case "email":
 			return buildEmailShoutrrrUrl(config);
@@ -24,12 +25,13 @@ export function buildShoutrrrUrl(config: NotificationConfig): string {
 			return buildPushoverShoutrrrUrl(config);
 		case "telegram":
 			return buildTelegramShoutrrrUrl(config);
+		case "generic":
+			return buildGenericShoutrrrUrl(config);
 		case "custom":
 			return buildCustomShoutrrrUrl(config);
 		default: {
-			// TypeScript exhaustiveness check
 			const _exhaustive: never = config;
 			throw new Error(`Unsupported notification type: ${(_exhaustive as NotificationConfig).type}`);
 		}
 	}
-}
+};

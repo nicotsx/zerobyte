@@ -19,7 +19,7 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import type { CompressionMode } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 
 type Props = {
 	repository: Repository;
@@ -58,6 +58,8 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	const hasChanges =
 		name !== repository.name || compressionMode !== ((repository.compressionMode as CompressionMode) || "off");
+
+	const config = repository.config as RepositoryConfig;
 
 	return (
 		<>
@@ -116,6 +118,26 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
 								</p>
 							</div>
+							{config.cacert && (
+								<div>
+									<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
+									<p className="mt-1 text-sm">
+										<span className="text-green-500">configured</span>
+									</p>
+								</div>
+							)}
+							{"insecureTls" in config && (
+								<div>
+									<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
+									<p className="mt-1 text-sm">
+										{config.insecureTls ? (
+											<span className="text-red-500">disabled</span>
+										) : (
+											<span className="text-green-500">enabled</span>
+										)}
+									</p>
+								</div>
+							)}
 						</div>
 					</div>
 
@@ -125,7 +147,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<h3 className="text-lg font-semibold text-red-500">Last Error</h3>
 							</div>
 							<div className="bg-red-500/10 border border-red-500/20 rounded-md p-4">
-								<p className="text-sm text-red-500">{repository.lastError}</p>
+								<p className="text-sm text-red-500 wrap-break-word">{repository.lastError}</p>
 							</div>
 						</div>
 					)}

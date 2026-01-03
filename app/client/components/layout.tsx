@@ -43,8 +43,8 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 			<AppSidebar />
 			<div className="w-full relative flex flex-col h-screen overflow-hidden">
 				<header className="z-50 bg-card-header border-b border-border/50 shrink-0">
-					<div className="flex items-center justify-between py-3 sm:py-4 px-2 sm:px-8 mx-auto container">
-						<div className="flex items-center gap-4">
+					<div className="flex items-center justify-between py-3 sm:py-4 px-2 sm:px-8 mx-auto container gap-4">
+						<div className="flex items-center gap-4 min-w-0">
 							<SidebarTrigger />
 							<AppBreadcrumb />
 						</div>
@@ -76,7 +76,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 				</header>
 				<div className="main-content flex-1 overflow-y-auto">
 					<GridBackground>
-						<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto">
+						<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto @container">
 							<Outlet />
 						</main>
 					</GridBackground>

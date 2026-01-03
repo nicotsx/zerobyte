@@ -4,8 +4,8 @@ import { ChevronRight, MoreHorizontal } from "lucide-react";
 
 import { cn } from "~/client/lib/utils";
 
-function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
-	return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />;
+function Breadcrumb({ className, ...props }: React.ComponentProps<"nav">) {
+	return <nav aria-label="breadcrumb" data-slot="breadcrumb" className={cn("min-w-0", className)} {...props} />;
 }
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
@@ -13,7 +13,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 		<ol
 			data-slot="breadcrumb-list"
 			className={cn(
-				"text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm wrap-break-words sm:gap-2.5",
+				"text-muted-foreground flex items-center gap-1.5 text-sm sm:gap-2.5 min-w-0",
 				className,
 			)}
 			{...props}
@@ -22,7 +22,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 }
 
 function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
-	return <li data-slot="breadcrumb-item" className={cn("inline-flex items-center gap-1.5", className)} {...props} />;
+	return <li data-slot="breadcrumb-item" className={cn("inline-flex items-center gap-1.5 min-w-0", className)} {...props} />;
 }
 
 function BreadcrumbLink({
@@ -35,7 +35,11 @@ function BreadcrumbLink({
 	const Comp = asChild ? Slot : "a";
 
 	return (
-		<Comp data-slot="breadcrumb-link" className={cn("hover:text-foreground transition-colors", className)} {...props} />
+		<Comp
+			data-slot="breadcrumb-link"
+			className={cn("hover:text-foreground transition-colors truncate", className)}
+			{...props}
+		/>
 	);
 }
 
@@ -46,7 +50,7 @@ function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
 			role="link"
 			aria-disabled="true"
 			aria-current="page"
-			className={cn("text-foreground font-normal", className)}
+			className={cn("text-foreground font-normal truncate", className)}
 			{...props}
 		/>
 	);

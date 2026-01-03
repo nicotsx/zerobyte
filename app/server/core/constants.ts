@@ -6,4 +6,4 @@ export const RESTIC_PASS_FILE = "/var/lib/zerobyte/data/restic.pass";
 
 export const DEFAULT_EXCLUDES = [DATABASE_URL, RESTIC_PASS_FILE, REPOSITORY_BASE];
 
-export const REQUIRED_MIGRATIONS = ["v0.21.0"];
+export const REQUIRED_MIGRATIONS = []; // ["v0.21.1"] add this once re-tagging migration is removed
