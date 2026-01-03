@@ -179,7 +179,7 @@ export type GetTwoFactorStatusDto = typeof twoFactorStatusResponseSchema.infer;
 // Verify 2FA DTO
 export const verify2faBodySchema = type({
 	pendingSessionId: "string>0",
-	code: "string==6",
+	code: /^\d{6}$/,
 });
 
 const verify2faResponseSchema = type({
@@ -248,7 +248,7 @@ export type Setup2faDto = typeof setup2faResponseSchema.infer;
 // 2FA Enable DTO (verify code and enable)
 export const enable2faBodySchema = type({
 	password: "string>0",
-	code: "string==6",
+	code: /^\d{6}$/,
 	secret: "string>0",
 });
 
@@ -284,7 +284,7 @@ export type Enable2faDto = typeof enable2faResponseSchema.infer;
 // 2FA Disable DTO (require password and TOTP code)
 export const disable2faBodySchema = type({
 	password: "string>0",
-	code: "string==6",
+	code: /^\d{6}$/,
 });
 
 const disable2faResponseSchema = type({

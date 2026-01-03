@@ -127,10 +127,14 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				setEnable2faStep("verify");
 			} else {
 				toast.error("Failed to setup 2FA", { description: data.message });
+				setEnable2faDialogOpen(false);
+				resetEnable2faDialog();
 			}
 		},
 		onError: (error) => {
 			toast.error("Failed to setup 2FA", { description: error.message });
+			setEnable2faDialogOpen(false);
+			resetEnable2faDialog();
 		},
 	});
 

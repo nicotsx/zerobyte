@@ -108,9 +108,9 @@ export default function LoginPage() {
 		verify2fa.mutate({
 			body: {
 				pendingSessionId,
-				code: twoFactorCode.trim(),
+				code: twoFactorCode,
 			},
-		} as Parameters<typeof verify2fa.mutate>[0]);
+		});
 	};
 
 	// Show 2FA verification form
