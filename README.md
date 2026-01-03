@@ -145,7 +145,7 @@ Now, when adding a new volume in the Zerobyte web interface, you can select "Dir
 
 A repository is where your backups will be securely stored encrypted. Zerobyte supports multiple storage backends for your backup repositories:
 
-- **Local directories** - Store backups on local disk at `/var/lib/zerobyte/repositories/<repository-name>`
+- **Local directories** - Store backups on local disk subfolder of `/var/lib/zerobyte/repositories/` or any other (mounted) path
 - **S3-compatible storage** - Amazon S3, MinIO, Wasabi, DigitalOcean Spaces, etc.
 - **Google Cloud Storage** - Google's cloud storage service
 - **Azure Blob Storage** - Microsoft Azure storage
