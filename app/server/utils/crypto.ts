@@ -186,4 +186,6 @@ const sealSecret = async (value: string): Promise<string> => {
 export const cryptoUtils = {
 	resolveSecret,
 	sealSecret,
+	isEncrypted,
+	decrypt,
 };
