@@ -116,10 +116,7 @@ export default function LoginPage() {
 	// Show 2FA verification form
 	if (pendingSessionId) {
 		return (
-			<AuthLayout
-				title="Two-Factor Authentication"
-				description="Enter the 6-digit code from your authenticator app"
-			>
+			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
 				<form onSubmit={handleTwoFactorSubmit} className="space-y-4">
 					<div className="grid gap-2">
 						<Label htmlFor="2fa-code">Authentication Code</Label>

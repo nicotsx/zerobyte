@@ -34,22 +34,20 @@ const disableTwoFactor = async (username: string): Promise<void> => {
 	console.log("   All existing sessions have been invalidated.");
 };
 
-export const twoFactorCommand = new Command("2fa")
-	.description("Two-factor authentication recovery")
-	.addCommand(
-		new Command("disable")
-			.description("Disable 2FA for a user (recovery method when authenticator access is lost)")
-			.requiredOption("-u, --username <username>", "Username of the account")
-			.action(async (options) => {
-				console.log("\n🔐 Zerobyte Two-Factor Authentication Recovery\n");
+export const twoFactorCommand = new Command("2fa").description("Two-factor authentication recovery").addCommand(
+	new Command("disable")
+		.description("Disable 2FA for a user (recovery method when authenticator access is lost)")
+		.requiredOption("-u, --username <username>", "Username of the account")
+		.action(async (options) => {
+			console.log("\n🔐 Zerobyte Two-Factor Authentication Recovery\n");
 
-				try {
-					await disableTwoFactor(options.username);
-				} catch (error) {
-					console.error(`\n❌ ${error instanceof Error ? error.message : "Unknown error"}`);
-					process.exit(1);
-				}
+			try {
+				await disableTwoFactor(options.username);
+			} catch (error) {
+				console.error(`\n❌ ${error instanceof Error ? error.message : "Unknown error"}`);
+				process.exit(1);
+			}
 
-				process.exit(0);
-			}),
-	);
+			process.exit(0);
+		}),
+);

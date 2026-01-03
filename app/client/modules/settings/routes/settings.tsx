@@ -150,10 +150,14 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				}, 1500);
 			} else {
 				toast.error("Failed to enable 2FA", { description: data.message });
+				setEnable2faDialogOpen(false);
+				resetEnable2faDialog();
 			}
 		},
 		onError: (error) => {
 			toast.error("Failed to enable 2FA", { description: error.message });
+			setEnable2faDialogOpen(false);
+			resetEnable2faDialog();
 		},
 	});
 
@@ -169,10 +173,14 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				}, 1500);
 			} else {
 				toast.error("Failed to disable 2FA", { description: data.message });
+				setDisable2faDialogOpen(false);
+				resetDisable2faDialog();
 			}
 		},
 		onError: (error) => {
 			toast.error("Failed to disable 2FA", { description: error.message });
+			setDisable2faDialogOpen(false);
+			resetDisable2faDialog();
 		},
 	});
 
@@ -350,10 +358,20 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				<CardTitle className="flex items-center gap-2">
 					<Shield className="size-5" />
 					Two-Factor Authentication
-					{twoFactorStatus.data && (
-						<Badge variant={twoFactorStatus.data.enabled ? "success" : "secondary"} className="ml-2">
-							{twoFactorStatus.data.enabled ? "Enabled" : "Disabled"}
+					{twoFactorStatus.isLoading ? (
+						<Badge variant="secondary" className="ml-2">
+							Loading...
 						</Badge>
+					) : twoFactorStatus.isError ? (
+						<Badge variant="secondary" className="ml-2">
+							Status unavailable
+						</Badge>
+					) : (
+						twoFactorStatus.data && (
+							<Badge variant={twoFactorStatus.data.enabled ? "success" : "secondary"} className="ml-2">
+								{twoFactorStatus.data.enabled ? "Enabled" : "Disabled"}
+							</Badge>
+						)
 					)}
 				</CardTitle>
 				<CardDescription className="mt-1.5">Add an extra layer of security to your account</CardDescription>
@@ -364,7 +382,12 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					authenticator app when logging in.
 				</p>
 
-				{twoFactorStatus.data?.enabled ? (
+				{twoFactorStatus.isLoading || twoFactorStatus.isError ? (
+					<Button variant="outline" disabled>
+						<Shield size={16} className="mr-2" />
+						{twoFactorStatus.isLoading ? "Loading..." : "Status unavailable"}
+					</Button>
+				) : twoFactorStatus.data?.enabled ? (
 					<Dialog
 						open={disable2faDialogOpen}
 						onOpenChange={(open) => {
