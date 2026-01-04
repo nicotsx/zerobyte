@@ -107,6 +107,8 @@ const exportResponseSchema = type({
 		.optional(),
 });
 
+export type ExportFullConfigResponse = typeof exportResponseSchema.infer;
+
 const errorResponseSchema = type({
 	error: "string",
 });

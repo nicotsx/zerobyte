@@ -7,6 +7,7 @@ import {
 	fullExportDto,
 	getUpdatesDto,
 	systemInfoDto,
+	type ExportFullConfigResponse,
 	type SystemInfoDto,
 	type UpdateInfoDto,
 } from "./system.dto";
@@ -79,4 +80,8 @@ export const systemController = new Hono()
 		if (!isValid) {
 			return c.json({ message: "Incorrect password" }, 401);
 		}
+
+		const res = await systemService.exportConfig(body);
+
+		return c.json(res);
 	});
