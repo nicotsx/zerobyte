@@ -6,6 +6,7 @@ import { db } from "../../db/db";
 import { backupSchedulesTable, backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "../../db/schema";
 import { restic } from "../../utils/restic";
 import { logger } from "../../utils/logger";
+import { cache } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
 import { toMessage } from "../../utils/errors";
@@ -329,6 +330,8 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 		const finalStatus = exitCode === 0 ? "success" : "warning";
 
+		cache.delByPrefix(`snapshots:${repository.id}:`);
+
 		const nextBackupAt = calculateNextRun(schedule.cronExpression);
 		await db
 			.update(backupSchedulesTable)
@@ -488,6 +491,7 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 	try {
 		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId });
+		cache.delByPrefix(`snapshots:${repository.id}:`);
 	} finally {
 		releaseLock();
 	}
@@ -619,6 +623,7 @@ const copyToMirrors = async (
 
 			try {
 				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId });
+				cache.delByPrefix(`snapshots:${mirror.repository.id}:`);
 			} finally {
 				releaseSource();
 				releaseMirror();

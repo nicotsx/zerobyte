@@ -54,6 +54,11 @@ export const createCache = (options: CacheOptions = {}) => {
 		stmt.run(key);
 	};
 
+	const delByPrefix = (prefix: string) => {
+		const stmt = db.prepare("DELETE FROM cache WHERE key LIKE ?");
+		stmt.run(`${prefix}%`);
+	};
+
 	const getByPrefix = <T>(prefix: string): { key: string; value: T }[] => {
 		const stmt = db.prepare("SELECT key, value, expiration FROM cache WHERE key LIKE ?");
 		const rows = stmt.all(`${prefix}%`) as { key: string; value: string; expiration: number }[];
@@ -88,6 +93,7 @@ export const createCache = (options: CacheOptions = {}) => {
 		set,
 		get,
 		del,
+		delByPrefix,
 		getByPrefix,
 		clear,
 	};
