@@ -45,6 +45,8 @@ RUN tar -xzf shoutrrr.tar.gz && chmod +x shoutrrr
 # ------------------------------
 FROM base AS development
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENV NODE_ENV="development"
 
 WORKDIR /app
@@ -84,6 +86,8 @@ RUN bun run build
 
 FROM base AS production
 
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 ENV NODE_ENV="production"
 
 WORKDIR /app
