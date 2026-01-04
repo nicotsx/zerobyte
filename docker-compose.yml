@@ -25,6 +25,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
+      args:
+        - APP_VERSION=0.20.0
     container_name: zerobyte
     restart: unless-stopped
     devices:
