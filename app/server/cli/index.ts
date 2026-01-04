@@ -1,9 +1,11 @@
 import { Command } from "commander";
+import { importConfigCommand } from "./commands/import-config";
 import { resetPasswordCommand } from "./commands/reset-password";
 
 const program = new Command();
 
 program.name("zerobyte").description("Zerobyte CLI - Backup automation tool built on top of Restic").version("1.0.0");
+program.addCommand(importConfigCommand);
 program.addCommand(resetPasswordCommand);
 
 export async function runCLI(argv: string[]): Promise<boolean> {

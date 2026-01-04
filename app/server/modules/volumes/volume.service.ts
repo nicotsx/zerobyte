@@ -2,13 +2,13 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { and, eq, ne } from "drizzle-orm";
-import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import slugify from "slugify";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
-import { generateShortId } from "../../utils/id";
+import { generateShortId, isValidShortId } from "../../utils/id";
 import { getStatFs, type StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
 import { createVolumeBackend } from "../backends/backend";
@@ -48,7 +48,7 @@ const listVolumes = async () => {
 	return volumes;
 };
 
-const createVolume = async (name: string, backendConfig: BackendConfig) => {
+const createVolume = async (name: string, backendConfig: BackendConfig, providedShortId?: string) => {
 	const slug = slugify(name, { lower: true, strict: true });
 
 	const existing = await db.query.volumesTable.findFirst({
@@ -59,7 +59,22 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		throw new ConflictError("Volume already exists");
 	}
 
-	const shortId = generateShortId();
+	// Use provided shortId if valid, otherwise generate a new one
+	let shortId: string;
+	if (providedShortId) {
+		if (!isValidShortId(providedShortId)) {
+			throw new BadRequestError(`Invalid shortId format: '${providedShortId}'. Must be 8 base64url characters.`);
+		}
+		const shortIdInUse = await db.query.volumesTable.findFirst({
+			where: eq(volumesTable.shortId, providedShortId),
+		});
+		if (shortIdInUse) {
+			throw new ConflictError(`Volume shortId '${providedShortId}' is already in use by volume '${shortIdInUse.name}'`);
+		}
+		shortId = providedShortId;
+	} else {
+		shortId = generateShortId();
+	}
 	const encryptedConfig = await encryptSensitiveFields(backendConfig);
 
 	const [created] = await db

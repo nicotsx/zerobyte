@@ -3,7 +3,7 @@ import { describeRoute, resolver } from "hono-openapi";
 import { volumeSchema } from "../volumes/volume.dto";
 import { repositorySchema } from "../repositories/repositories.dto";
 
-const retentionPolicySchema = type({
+export const retentionPolicySchema = type({
 	keepLast: "number?",
 	keepHourly: "number?",
 	keepDaily: "number?",
