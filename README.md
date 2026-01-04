@@ -32,6 +32,7 @@ Zerobyte is a backup automation tool that helps you save your data across multip
 - &nbsp; **Flexible scheduling** For automated backup jobs with fine-grained retention policies
 - &nbsp; **End-to-end encryption** ensuring your data is always protected
 - &nbsp; **Multi-protocol support**: Backup from NFS, SMB, WebDAV, SFTP, or local directories
+- &nbsp; **Two-factor authentication** (TOTP) for enhanced account security
 
 ## Installation
 
@@ -69,6 +70,16 @@ docker compose up -d
 ```
 
 Once the container is running, you can access the web interface at `http://<your-server-ip>:4096`.
+
+### Two-Factor Authentication
+
+Zerobyte supports TOTP-based two-factor authentication for enhanced account security. You can enable 2FA from the Settings page in the web interface using any authenticator app (Google Authenticator, Authy, 1Password, etc.).
+
+**Recovery:** If you lose access to your authenticator app, you can disable 2FA via the CLI:
+
+```bash
+docker exec -it zerobyte bun run cli 2fa disable -u <username>
+```
 
 ### Simplified setup (No remote mounts)
 

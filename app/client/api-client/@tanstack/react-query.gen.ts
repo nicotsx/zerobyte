@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, changePassword, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteVolume, doctorRepository, downloadResticPassword, getBackupSchedule, getBackupScheduleForVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, register, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, stopBackup, tagSnapshots, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, ChangePasswordData, ChangePasswordResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteVolumeData, DeleteVolumeResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, RegisterData, RegisterResponse, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, StopBackupData, StopBackupResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
+import { browseFilesystem, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteVolume, disable2Fa, doctorRepository, downloadResticPassword, enable2Fa, getBackupSchedule, getBackupScheduleForVolume, getMe, getMirrorCompatibility, getNotificationDestination, getRepository, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getStatus, getSystemInfo, getTwoFactorStatus, getVolume, healthCheckVolume, changePassword, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, login, logout, mountVolume, type Options, register, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setup2Fa, stopBackup, tagSnapshots, testConnection, testNotificationDestination, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateVolume, verify2Fa } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteVolumeData, DeleteVolumeResponse, Disable2FaData, Disable2FaResponse, DoctorRepositoryData, DoctorRepositoryResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, Enable2FaData, Enable2FaResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetMeData, GetMeResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetRepositoryData, GetRepositoryResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetTwoFactorStatusData, GetTwoFactorStatusResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ChangePasswordData, ChangePasswordResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, MountVolumeData, MountVolumeResponse, RegisterData, RegisterResponse, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, Setup2FaData, Setup2FaResponse, StopBackupData, StopBackupResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateVolumeData, UpdateVolumeResponse, Verify2FaData, Verify2FaResponse } from '../types.gen';
 
 /**
  * Register a new user
@@ -30,6 +30,23 @@ export const loginMutation = (options?: Partial<Options<LoginData>>): UseMutatio
     const mutationOptions: UseMutationOptions<LoginResponse, DefaultError, Options<LoginData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await login({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Verify 2FA code and complete login
+ */
+export const verify2FaMutation = (options?: Partial<Options<Verify2FaData>>): UseMutationOptions<Verify2FaResponse, DefaultError, Options<Verify2FaData>> => {
+    const mutationOptions: UseMutationOptions<Verify2FaResponse, DefaultError, Options<Verify2FaData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await verify2Fa({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -133,6 +150,75 @@ export const changePasswordMutation = (options?: Partial<Options<ChangePasswordD
     const mutationOptions: UseMutationOptions<ChangePasswordResponse, DefaultError, Options<ChangePasswordData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await changePassword({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getTwoFactorStatusQueryKey = (options?: Options<GetTwoFactorStatusData>) => createQueryKey('getTwoFactorStatus', options);
+
+/**
+ * Get 2FA status for current authenticated user
+ */
+export const getTwoFactorStatusOptions = (options?: Options<GetTwoFactorStatusData>) => queryOptions<GetTwoFactorStatusResponse, DefaultError, GetTwoFactorStatusResponse, ReturnType<typeof getTwoFactorStatusQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getTwoFactorStatus({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getTwoFactorStatusQueryKey(options)
+});
+
+/**
+ * Generate 2FA setup data (secret and otpauth URI for QR code)
+ */
+export const setup2FaMutation = (options?: Partial<Options<Setup2FaData>>): UseMutationOptions<Setup2FaResponse, DefaultError, Options<Setup2FaData>> => {
+    const mutationOptions: UseMutationOptions<Setup2FaResponse, DefaultError, Options<Setup2FaData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setup2Fa({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Verify 2FA code and enable 2FA for the account
+ */
+export const enable2FaMutation = (options?: Partial<Options<Enable2FaData>>): UseMutationOptions<Enable2FaResponse, DefaultError, Options<Enable2FaData>> => {
+    const mutationOptions: UseMutationOptions<Enable2FaResponse, DefaultError, Options<Enable2FaData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await enable2Fa({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Disable 2FA for the account (requires password and current TOTP code)
+ */
+export const disable2FaMutation = (options?: Partial<Options<Disable2FaData>>): UseMutationOptions<Disable2FaResponse, DefaultError, Options<Disable2FaData>> => {
+    const mutationOptions: UseMutationOptions<Disable2FaResponse, DefaultError, Options<Disable2FaData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await disable2Fa({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

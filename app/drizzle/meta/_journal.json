@@ -204,6 +204,13 @@
 			"when": 1766778162985,
 			"tag": "0028_third_amazoness",
 			"breakpoints": true
+		},
+		{
+			"idx": 29,
+			"version": "6",
+			"when": 1767366633340,
+			"tag": "0029_demonic_namor",
+			"breakpoints": true
 		}
 	]
 }

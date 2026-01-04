@@ -3,7 +3,8 @@ import { authService } from "../modules/auth/auth.service";
 
 export class CleanupSessionsJob extends Job {
 	async run() {
-		authService.cleanupExpiredSessions();
+		await authService.cleanupExpiredSessions();
+		authService.cleanupExpiredPending2faSessions();
 
 		return { done: true, timestamp: new Date() };
 	}
