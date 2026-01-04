@@ -12,6 +12,22 @@ export const systemInfoResponse = type({
 
 export type SystemInfoDto = typeof systemInfoResponse.infer;
 
+export const releaseInfoSchema = type({
+	version: "string",
+	url: "string",
+	publishedAt: "string",
+	body: "string",
+});
+
+export const updateInfoResponse = type({
+	currentVersion: "string",
+	latestVersion: "string",
+	hasUpdate: "boolean",
+	missedReleases: releaseInfoSchema.array(),
+});
+
+export type UpdateInfoDto = typeof updateInfoResponse.infer;
+
 export const systemInfoDto = describeRoute({
 	description: "Get system information including available capabilities",
 	tags: ["System"],
@@ -22,6 +38,22 @@ export const systemInfoDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(systemInfoResponse),
+				},
+			},
+		},
+	},
+});
+
+export const getUpdatesDto = describeRoute({
+	description: "Check for application updates from GitHub",
+	tags: ["System"],
+	operationId: "getUpdates",
+	responses: {
+		200: {
+			description: "Update information and missed releases",
+			content: {
+				"application/json": {
+					schema: resolver(updateInfoResponse),
 				},
 			},
 		},

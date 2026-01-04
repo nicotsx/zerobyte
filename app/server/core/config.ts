@@ -8,6 +8,7 @@ const envSchema = type({
 	RESTIC_HOSTNAME: "string = 'zerobyte'",
 	PORT: 'string.integer.parse = "4096"',
 	MIGRATIONS_PATH: "string?",
+	APP_VERSION: "string = 'dev'",
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
@@ -16,6 +17,7 @@ const envSchema = type({
 	resticHostname: s.RESTIC_HOSTNAME,
 	port: s.PORT,
 	migrationsPath: s.MIGRATIONS_PATH,
+	appVersion: s.APP_VERSION,
 }));
 
 const parseConfig = (env: unknown) => {

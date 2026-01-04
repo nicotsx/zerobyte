@@ -3,8 +3,10 @@ import { validator } from "hono-openapi";
 import {
 	downloadResticPasswordBodySchema,
 	downloadResticPasswordDto,
+	getUpdatesDto,
 	systemInfoDto,
 	type SystemInfoDto,
+	type UpdateInfoDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
 import { requireAuth } from "../auth/auth.middleware";
@@ -19,6 +21,11 @@ export const systemController = new Hono()
 		const info = await systemService.getSystemInfo();
 
 		return c.json<SystemInfoDto>(info, 200);
+	})
+	.get("/updates", getUpdatesDto, async (c) => {
+		const updates = await systemService.getUpdates();
+
+		return c.json<UpdateInfoDto>(updates, 200);
 	})
 	.post(
 		"/restic-password",
