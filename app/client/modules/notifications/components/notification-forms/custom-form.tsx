@@ -24,7 +24,7 @@ export const CustomForm = ({ form }: Props) => {
 					<FormDescription>
 						Direct Shoutrrr URL for power users. See&nbsp;
 						<a
-							href="https://shoutrrr.nickfedor.com/v0.12.0/services/overview/"
+							href="https://shoutrrr.nickfedor.com/latest/services/overview/"
 							target="_blank"
 							rel="noopener noreferrer"
 							className="text-strong-accent hover:underline"
