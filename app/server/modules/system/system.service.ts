@@ -2,13 +2,9 @@ import { getCapabilities } from "../../core/capabilities";
 import { config } from "../../core/config";
 import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
+import { cache } from "../../utils/cache";
 
-let updateCache: {
-	data: UpdateInfoDto;
-	timestamp: number;
-} | null = null;
-
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL = 60 * 60;
 
 const getSystemInfo = async () => {
 	return {
@@ -24,9 +20,11 @@ interface GitHubRelease {
 }
 
 const getUpdates = async (): Promise<UpdateInfoDto> => {
-	const now = Date.now();
-	if (updateCache && now - updateCache.timestamp < CACHE_TTL) {
-		return updateCache.data;
+	const CACHE_KEY = `system:updates:${config.appVersion}`;
+
+	const cached = cache.get<UpdateInfoDto>(CACHE_KEY);
+	if (cached) {
+		return cached;
 	}
 
 	try {
@@ -72,10 +70,7 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 			missedReleases,
 		};
 
-		updateCache = {
-			data,
-			timestamp: now,
-		};
+		cache.set(CACHE_KEY, data, CACHE_TTL);
 
 		return data;
 	} catch (error) {
