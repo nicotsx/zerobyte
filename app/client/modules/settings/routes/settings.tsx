@@ -1,5 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Download, KeyRound, User, X } from "lucide-react";
+import { ExportDialog } from "~/client/components/export-dialog";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import {
 	downloadResticPasswordMutation,
 	logoutMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadFile } from "~/client/lib/utils";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
@@ -78,16 +80,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
 		onSuccess: (data) => {
-			const blob = new Blob([data], { type: "text/plain" });
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "restic.pass";
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
-
+			downloadFile(data, "restic.pass");
 			toast.success("Restic password file downloaded successfully");
 			setDownloadDialogOpen(false);
 			setDownloadPassword("");
@@ -264,6 +257,21 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						</form>
 					</DialogContent>
 				</Dialog>
+			</CardContent>
+
+			<div className="border-t border-border/50 bg-card-header p-6">
+				<CardTitle className="flex items-center gap-2">
+					<Download className="size-5" />
+					Export Configuration
+				</CardTitle>
+				<CardDescription className="mt-1.5">Export your Zerobyte configuration for backup or migration</CardDescription>
+			</div>
+			<CardContent className="p-6 space-y-4">
+				<p className="text-sm text-muted-foreground max-w-2xl">
+					Export all your volumes, repositories, backup schedules, and notification settings to a JSON file. This can be
+					used to restore your configuration on a new instance or as a backup of your settings.
+				</p>
+				<ExportDialog />
 			</CardContent>
 		</Card>
 	);

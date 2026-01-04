@@ -3337,3 +3337,37 @@ export type DownloadResticPasswordResponses = {
 };
 
 export type DownloadResticPasswordResponse = DownloadResticPasswordResponses[keyof DownloadResticPasswordResponses];
+
+export type ExportFullConfigData = {
+    body?: {
+        password: string;
+        includeMetadata?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/export';
+};
+
+export type ExportFullConfigResponses = {
+    /**
+     * Full configuration export
+     */
+    200: {
+        version: number;
+        backupSchedules?: Array<unknown>;
+        exportedAt?: string;
+        notificationDestinations?: Array<unknown>;
+        recoveryKey?: string;
+        repositories?: Array<unknown>;
+        users?: Array<{
+            username: string;
+            createdAt?: number;
+            hasDownloadedResticPassword?: boolean;
+            id?: number;
+            updatedAt?: number;
+        }>;
+        volumes?: Array<unknown>;
+    };
+};
+
+export type ExportFullConfigResponse = ExportFullConfigResponses[keyof ExportFullConfigResponses];
