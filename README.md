@@ -50,7 +50,7 @@ services:
     devices:
       - /dev/fuse:/dev/fuse
     environment:
-      - TZ=Europe/Paris  # Set your timezone here
+      - TZ=Europe/Paris # Set your timezone here
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -83,7 +83,7 @@ services:
     ports:
       - "4096:4096"
     environment:
-      - TZ=Europe/Paris  # Set your timezone here
+      - TZ=Europe/Paris # Set your timezone here
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -91,6 +91,7 @@ services:
 ```
 
 **Trade-offs:**
+
 - ✅ Improved security by reducing container capabilities
 - ✅ Support for local directories
 - ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)

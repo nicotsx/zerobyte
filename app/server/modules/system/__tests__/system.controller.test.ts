@@ -41,6 +41,7 @@ describe("system security", () => {
 		const endpoints: { method: string; path: string }[] = [
 			{ method: "GET", path: "/api/v1/system/info" },
 			{ method: "POST", path: "/api/v1/system/restic-password" },
+			{ method: "POST", path: "/api/v1/system/export" },
 		];
 
 		for (const { method, path } of endpoints) {
@@ -85,5 +86,61 @@ describe("system security", () => {
 			const body = await res.json();
 			expect(body.message).toBe("Incorrect password");
 		});
+	});
+
+	test("should return 400 for invalid payload on full export", async () => {
+		const { sessionId } = await createTestSession();
+		const res = await app.request("/api/v1/system/export", {
+			method: "POST",
+			headers: {
+				Cookie: `session_id=${sessionId}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({}),
+		});
+
+		expect(res.status).toBe(400);
+	});
+
+	test("should return 401 for incorrect password on full export", async () => {
+		const { sessionId } = await createTestSession();
+		const res = await app.request("/api/v1/system/export", {
+			method: "POST",
+			headers: {
+				Cookie: `session_id=${sessionId}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				includeMetadata: true,
+				password: "wrong-password",
+			}),
+		});
+
+		expect(res.status).toBe(401);
+		const body = await res.json();
+		expect(body.message).toBe("Incorrect password");
+	});
+
+	test("full export never exposes password hashes", async () => {
+		const { sessionId } = await createTestSession();
+
+		const res = await app.request("/api/v1/system/export", {
+			method: "POST",
+			headers: {
+				Cookie: `session_id=${sessionId}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				includeMetadata: true,
+				password: "testpassword",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { users?: Array<Record<string, unknown>> };
+		expect(Array.isArray(body.users)).toBe(true);
+		for (const user of body.users ?? []) {
+			expect(user.passwordHash).toBeUndefined();
+		}
 	});
 });

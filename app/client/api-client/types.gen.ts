@@ -3364,7 +3364,6 @@ export type ExportFullConfigResponses = {
             createdAt?: number;
             hasDownloadedResticPassword?: boolean;
             id?: number;
-            passwordHash?: string;
             updatedAt?: number;
         }>;
         volumes?: Array<unknown>;

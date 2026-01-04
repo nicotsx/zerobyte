@@ -187,12 +187,18 @@ const exportConfig = async (params: ExportParams) => {
 
 	const backupSchedules = transformBackupSchedules(backupSchedulesRaw, scheduleNotifications, scheduleMirrors, params);
 
-	const [exportVolumes, exportRepositories, exportNotifications, exportUsers] = await Promise.all([
+	const [exportVolumes, exportRepositories, exportNotifications, exportedUsersWithHash] = await Promise.all([
 		exportEntities(volumes, params),
 		exportEntities(repositories, params),
 		exportEntities(notifications, params),
 		exportEntities(users, params),
 	]);
+
+	const exportUsers = exportedUsersWithHash.map((user) => {
+		const sanitizedUser = { ...user };
+		delete sanitizedUser.passwordHash;
+		return sanitizedUser;
+	});
 
 	return {
 		version: 1,

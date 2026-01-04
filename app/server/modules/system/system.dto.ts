@@ -98,7 +98,6 @@ const exportResponseSchema = type({
 	users: type({
 		id: "number?",
 		username: "string",
-		passwordHash: "string?",
 		createdAt: "number?",
 		updatedAt: "number?",
 		hasDownloadedResticPassword: "boolean?",
