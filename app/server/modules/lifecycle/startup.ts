@@ -13,6 +13,7 @@ import { CleanupSessionsJob } from "../../jobs/cleanup-sessions";
 import { repositoriesService } from "../repositories/repositories.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
+import { cache } from "~/server/utils/cache";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -41,6 +42,8 @@ const ensureLatestConfigurationSchema = async () => {
 };
 
 export const startup = async () => {
+	cache.clear();
+
 	await Scheduler.start();
 	await Scheduler.clear();
 
