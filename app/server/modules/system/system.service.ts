@@ -3,6 +3,7 @@ import { config } from "../../core/config";
 import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache } from "../../utils/cache";
+import { logger } from "~/server/utils/logger";
 
 const CACHE_TTL = 60 * 60;
 
@@ -28,11 +29,16 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 	}
 
 	try {
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 5000);
+
 		const response = await fetch("https://api.github.com/repos/nicotsx/zerobyte/releases", {
+			signal: controller.signal,
 			headers: {
 				"User-Agent": "zerobyte-app",
 			},
 		});
+		clearTimeout(timeoutId);
 
 		if (!response.ok) {
 			throw new Error(`GitHub API returned ${response.status}`);
@@ -74,7 +80,7 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 
 		return data;
 	} catch (error) {
-		console.error("Failed to fetch updates from GitHub:", error);
+		logger.error("Failed to fetch updates from GitHub:", error);
 		return {
 			currentVersion: config.appVersion,
 			latestVersion: config.appVersion,
