@@ -24,9 +24,7 @@ export const AdvancedForm = ({ form }: Props) => {
 
 	return (
 		<Collapsible>
-			<CollapsibleTrigger className="w-full text-muted-foreground hover:no-underline">
-				Advanced Settings
-			</CollapsibleTrigger>
+			<CollapsibleTrigger className="">Advanced Settings</CollapsibleTrigger>
 			<CollapsibleContent className="pb-4 space-y-4">
 				<FormField
 					control={form.control}

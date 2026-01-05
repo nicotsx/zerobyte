@@ -200,10 +200,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>
-							<X className="h-4 w-4 mr-2" />
-							Cancel
-						</AlertDialogCancel>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction onClick={handleConfirmDelete}>
 							<Trash2 className="h-4 w-4 mr-2" />
 							Delete

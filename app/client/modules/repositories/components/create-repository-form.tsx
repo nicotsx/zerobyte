@@ -270,7 +270,7 @@ export const CreateRepositoryForm = ({
 				{watchedBackend === "rest" && <RestRepositoryForm form={form} />}
 				{watchedBackend === "sftp" && <SftpRepositoryForm form={form} />}
 
-				<AdvancedForm form={form} />
+				{watchedBackend && watchedBackend !== "local" && <AdvancedForm form={form} />}
 
 				{mode === "update" && (
 					<Button type="submit" className="w-full" loading={loading}>

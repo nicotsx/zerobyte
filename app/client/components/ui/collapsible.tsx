@@ -56,15 +56,15 @@ const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTrigge
 				ref={ref}
 				type="button"
 				className={cn(
-					"flex w-full items-center justify-between py-2 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
+					"flex gap-2 items-center justify-between py-2 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
 					className,
 				)}
 				data-state={open ? "open" : "closed"}
 				onClick={() => setOpen(!open)}
 				{...props}
 			>
-				{children}
 				<ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+				{children}
 			</button>
 		);
 	},
