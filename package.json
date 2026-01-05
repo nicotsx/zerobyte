@@ -4,14 +4,13 @@
 	"type": "module",
 	"packageManager": "bun@1.3.5",
 	"scripts": {
+		"lint": "oxlint --type-aware",
 		"build": "react-router build",
 		"dev": "bunx --bun vite",
 		"start": "bun ./dist/server/index.js",
 		"cli:dev": "bun run app/server/cli/main.ts",
 		"cli": "ZEROBYTE_CLI=1 bun ./dist/server/index.js",
 		"tsc": "react-router typegen && tsc",
-		"lint": "biome check .",
-		"lint:ci": "biome ci . --changed --error-on-warnings --no-errors-on-unmatched",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
 		"gen:api-client": "openapi-ts",
@@ -84,7 +83,6 @@
 		"yaml": "^2.8.2"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.8",
 		"@faker-js/faker": "^10.1.0",
 		"@happy-dom/global-registrator": "^20.0.11",
 		"@hey-api/openapi-ts": "^0.88.0",
@@ -102,6 +100,8 @@
 		"dotenv-cli": "^11.0.0",
 		"drizzle-kit": "^0.31.7",
 		"lightningcss": "^1.30.2",
+		"oxlint": "^1.36.0",
+		"oxlint-tsgolint": "^0.10.1",
 		"tailwindcss": "^4.1.17",
 		"tinyglobby": "^0.2.15",
 		"tw-animate-css": "^1.4.0",
