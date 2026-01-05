@@ -1,4 +1,5 @@
 import { createLogger, format, transports } from "winston";
+
 import { sanitizeSensitiveData } from "./sanitize";
 
 const { printf, combine, colorize } = format;
@@ -27,7 +28,7 @@ const log = (level: "info" | "warn" | "error" | "debug", messages: unknown[]) =>
 			return sanitizeSensitiveData(JSON.stringify(m, null, 2));
 		}
 
-		return sanitizeSensitiveData(String(JSON.stringify(m)));
+		return sanitizeSensitiveData(JSON.stringify(m));
 	});
 
 	winstonLogger.log(level, stringMessages.join(" "));
