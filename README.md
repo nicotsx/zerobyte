@@ -86,10 +86,12 @@ Zerobyte can be customized using environment variables. Below are the available 
 
 ### Secret References
 
-For enhanced security, Zerobyte supports dynamic secret resolution for sensitive fields (like passwords, access keys, etc.) in volume and repository configurations. Instead of storing the encrypted secret in the database, you can use one of the following prefixes:
+Zerobyte supports dynamic secret resolution for **any configuration field** in volumes, repositories, and notifications. Instead of storing secrets directly, you can use:
 
-- `env://VAR_NAME`: Reads the secret from the environment variable `VAR_NAME`.
-- `file://SECRET_NAME`: Reads the secret from `/run/secrets/SECRET_NAME` (standard Docker Secrets path).
+- `env://VAR_NAME`: Reads the value from environment variable `VAR_NAME`
+- `file://SECRET_NAME`: Reads from `/run/secrets/SECRET_NAME` (Docker Secrets)
+
+This works for passwords, access keys, private keys, webhook URLs, or any other field.
 
 **Example:**
 When configuring an S3 repository, you can set the Secret Access Key to `env://S3_SECRET_KEY` and then provide that variable in your `docker-compose.yml`.
