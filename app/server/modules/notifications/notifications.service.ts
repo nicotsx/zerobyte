@@ -369,10 +369,12 @@ function buildNotificationMessage(
 		snapshotId?: string;
 	},
 ) {
+	const backupName = context.scheduleName ?? "backup";
+
 	switch (event) {
 		case "start":
 			return {
-				title: `Zerobyte ${context.scheduleName ? context.scheduleName : "backup"} started`,
+				title: `Zerobyte ${backupName} started`,
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
@@ -384,7 +386,7 @@ function buildNotificationMessage(
 
 		case "success":
 			return {
-				title: `Zerobyte ${context.scheduleName ? context.scheduleName : "backup"} completed successfully`,
+				title: `Zerobyte ${backupName} completed successfully`,
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
@@ -400,7 +402,7 @@ function buildNotificationMessage(
 
 		case "warning":
 			return {
-				title: `Zerobyte ${context.scheduleName ? context.scheduleName : "backup"} completed with warnings`,
+				title: `Zerobyte ${backupName} completed with warnings`,
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
@@ -417,7 +419,7 @@ function buildNotificationMessage(
 
 		case "failure":
 			return {
-				title: `Zerobyte ${context.scheduleName ? context.scheduleName : "backup"} failed`,
+				title: `Zerobyte ${backupName} failed`,
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
@@ -430,7 +432,7 @@ function buildNotificationMessage(
 
 		default:
 			return {
-				title: "Backup Notification",
+				title: `Zerobyte ${backupName} notification`,
 				body: [
 					`Volume: ${context.volumeName}`,
 					`Repository: ${context.repositoryName}`,
