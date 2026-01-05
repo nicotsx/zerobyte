@@ -25,9 +25,10 @@ jobs:
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
 
-      - name: Run lint
-        shell: bash
-        run: bun run lint:ci
+      - uses: oxc-project/oxlint-action@latest
+        with:
+          config: .oxlintrc.json
+          deny-warnings: true
 
       - name: Run type checks
         shell: bash
