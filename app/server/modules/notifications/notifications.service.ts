@@ -83,55 +83,6 @@ async function encryptSensitiveFields(config: NotificationConfig): Promise<Notif
 	}
 }
 
-async function decryptSensitiveFields(config: NotificationConfig): Promise<NotificationConfig> {
-	switch (config.type) {
-		case "email":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.resolveSecret(config.password) : undefined,
-			};
-		case "slack":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.resolveSecret(config.webhookUrl),
-			};
-		case "discord":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.resolveSecret(config.webhookUrl),
-			};
-		case "gotify":
-			return {
-				...config,
-				token: await cryptoUtils.resolveSecret(config.token),
-			};
-		case "ntfy":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.resolveSecret(config.password) : undefined,
-			};
-		case "pushover":
-			return {
-				...config,
-				apiToken: await cryptoUtils.resolveSecret(config.apiToken),
-			};
-		case "telegram":
-			return {
-				...config,
-				botToken: await cryptoUtils.resolveSecret(config.botToken),
-			};
-		case "generic":
-			return config;
-		case "custom":
-			return {
-				...config,
-				shoutrrrUrl: await cryptoUtils.resolveSecret(config.shoutrrrUrl),
-			};
-		default:
-			return config;
-	}
-}
-
 const createDestination = async (name: string, config: NotificationConfig) => {
 	const slug = slugify(name, { lower: true, strict: true });
 
@@ -225,9 +176,9 @@ const testDestination = async (id: number) => {
 		throw new ConflictError("Cannot test disabled notification destination");
 	}
 
-	const decryptedConfig = await decryptSensitiveFields(destination.config);
+	const resolvedConfig = await cryptoUtils.resolveSecretsDeep(destination.config);
 
-	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
+	const shoutrrrUrl = buildShoutrrrUrl(resolvedConfig);
 
 	console.log("Testing notification with Shoutrrr URL:", shoutrrrUrl);
 
@@ -327,8 +278,8 @@ const sendBackupNotification = async (
 
 		for (const assignment of relevantAssignments) {
 			try {
-				const decryptedConfig = await decryptSensitiveFields(assignment.destination.config);
-				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
+				const resolvedConfig = await cryptoUtils.resolveSecretsDeep(assignment.destination.config);
+				const shoutrrrUrl = buildShoutrrrUrl(resolvedConfig);
 
 				const result = await sendNotification({
 					shoutrrrUrl,

@@ -3,7 +3,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { $ } from "bun";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
-import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
 import { getMountForPath } from "../../../utils/mountinfo";
@@ -79,8 +78,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 		const keyPath = getPrivateKeyPath(mountPath);
 		if (config.privateKey) {
-			const decryptedKey = await cryptoUtils.resolveSecret(config.privateKey);
-			let normalizedKey = decryptedKey.replace(/\r\n/g, "\n");
+			let normalizedKey = config.privateKey.replace(/\r\n/g, "\n");
 			if (!normalizedKey.endsWith("\n")) {
 				normalizedKey += "\n";
 			}
@@ -95,10 +93,9 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 		let result: $.ShellOutput;
 		if (config.password) {
-			const password = await cryptoUtils.resolveSecret(config.password);
 			args.push("-o", "password_stdin");
 			logger.info(`Executing sshfs: echo "******" | sshfs ${args.join(" ")}`);
-			result = await $`echo ${password} | sshfs ${args}`.nothrow();
+			result = await $`echo ${config.password} | sshfs ${args}`.nothrow();
 		} else {
 			logger.info(`Executing sshfs: sshfs ${args.join(" ")}`);
 			result = await $`sshfs ${args}`.nothrow();

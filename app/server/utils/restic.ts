@@ -112,10 +112,9 @@ export const buildEnv = async (config: RepositoryConfig) => {
 	};
 
 	if (config.isExistingRepository && config.customPassword) {
-		const decryptedPassword = await cryptoUtils.resolveSecret(config.customPassword);
 		const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
 
-		await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
+		await fs.writeFile(passwordFilePath, config.customPassword, { mode: 0o600 });
 		env.RESTIC_PASSWORD_FILE = passwordFilePath;
 	} else {
 		env.RESTIC_PASSWORD_FILE = RESTIC_PASS_FILE;
@@ -123,26 +122,25 @@ export const buildEnv = async (config: RepositoryConfig) => {
 
 	switch (config.backend) {
 		case "s3":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(config.secretAccessKey);
+			env.AWS_ACCESS_KEY_ID = config.accessKeyId;
+			env.AWS_SECRET_ACCESS_KEY = config.secretAccessKey;
 			break;
 		case "r2":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(config.secretAccessKey);
+			env.AWS_ACCESS_KEY_ID = config.accessKeyId;
+			env.AWS_SECRET_ACCESS_KEY = config.secretAccessKey;
 			env.AWS_REGION = "auto";
 			env.AWS_S3_FORCE_PATH_STYLE = "true";
 			break;
 		case "gcs": {
-			const decryptedCredentials = await cryptoUtils.resolveSecret(config.credentialsJson);
 			const credentialsPath = path.join("/tmp", `zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`);
-			await fs.writeFile(credentialsPath, decryptedCredentials, { mode: 0o600 });
+			await fs.writeFile(credentialsPath, config.credentialsJson, { mode: 0o600 });
 			env.GOOGLE_PROJECT_ID = config.projectId;
 			env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 			break;
 		}
 		case "azure": {
 			env.AZURE_ACCOUNT_NAME = config.accountName;
-			env.AZURE_ACCOUNT_KEY = await cryptoUtils.resolveSecret(config.accountKey);
+			env.AZURE_ACCOUNT_KEY = config.accountKey;
 			if (config.endpointSuffix) {
 				env.AZURE_ENDPOINT_SUFFIX = config.endpointSuffix;
 			}
@@ -150,18 +148,17 @@ export const buildEnv = async (config: RepositoryConfig) => {
 		}
 		case "rest": {
 			if (config.username) {
-				env.RESTIC_REST_USERNAME = await cryptoUtils.resolveSecret(config.username);
+				env.RESTIC_REST_USERNAME = config.username;
 			}
 			if (config.password) {
-				env.RESTIC_REST_PASSWORD = await cryptoUtils.resolveSecret(config.password);
+				env.RESTIC_REST_PASSWORD = config.password;
 			}
 			break;
 		}
 		case "sftp": {
-			const decryptedKey = await cryptoUtils.resolveSecret(config.privateKey);
 			const keyPath = path.join("/tmp", `zerobyte-ssh-${crypto.randomBytes(8).toString("hex")}`);
 
-			let normalizedKey = decryptedKey.replace(/\r\n/g, "\n");
+			let normalizedKey = config.privateKey.replace(/\r\n/g, "\n");
 			if (!normalizedKey.endsWith("\n")) {
 				normalizedKey += "\n";
 			}
@@ -206,9 +203,8 @@ export const buildEnv = async (config: RepositoryConfig) => {
 	}
 
 	if (config.cacert) {
-		const decryptedCert = await cryptoUtils.resolveSecret(config.cacert);
 		const certPath = path.join("/tmp", `zerobyte-cacert-${crypto.randomBytes(8).toString("hex")}.pem`);
-		await fs.writeFile(certPath, decryptedCert, { mode: 0o600 });
+		await fs.writeFile(certPath, config.cacert, { mode: 0o600 });
 		env.RESTIC_CACERT = certPath;
 	}
 
@@ -219,14 +215,23 @@ export const buildEnv = async (config: RepositoryConfig) => {
 	return env;
 };
 
+/**
+ * Resolves all secret placeholders in config and builds repo URL + env.
+ * Call this at the start of each restic operation.
+ */
+const resolveAndBuild = async (config: RepositoryConfig) => {
+	const resolved = await cryptoUtils.resolveSecretsDeep(config);
+	const repoUrl = buildRepoUrl(resolved);
+	const env = await buildEnv(resolved);
+	return { resolved, repoUrl, env };
+};
+
 const init = async (config: RepositoryConfig) => {
 	await ensurePassfile();
 
-	const repoUrl = buildRepoUrl(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	logger.info(`Initializing restic repository at ${repoUrl}...`);
-
-	const env = await buildEnv(config);
 
 	const args = ["init", "--repo", repoUrl];
 	addCommonArgs(args, env);
@@ -270,8 +275,7 @@ const backup = async (
 		onProgress?: (progress: BackupProgress) => void;
 	},
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args: string[] = ["--repo", repoUrl, "backup", "--compression", options?.compressionMode ?? "auto"];
 
@@ -422,8 +426,7 @@ const restore = async (
 		overwrite?: OverwriteMode;
 	},
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args: string[] = ["--repo", repoUrl, "restore", snapshotId, "--target", target];
 
@@ -505,8 +508,7 @@ const restore = async (
 const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } = {}) => {
 	const { tags } = options;
 
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args = ["--repo", repoUrl, "snapshots"];
 
@@ -537,8 +539,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 };
 
 const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra: { tag: string }) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args: string[] = ["--repo", repoUrl, "forget", "--group-by", "tags", "--tag", extra.tag];
 
@@ -579,8 +580,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 };
 
 const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[]) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	if (snapshotIds.length === 0) {
 		throw new Error("No snapshot IDs provided for deletion.");
@@ -609,8 +609,7 @@ const tagSnapshots = async (
 	snapshotIds: string[],
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	if (snapshotIds.length === 0) {
 		throw new Error("No snapshot IDs provided for tagging.");
@@ -677,8 +676,7 @@ const lsSnapshotInfoSchema = type({
 });
 
 const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--long"];
 
@@ -733,8 +731,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 };
 
 const unlock = async (config: RepositoryConfig) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env);
@@ -752,8 +749,7 @@ const unlock = async (config: RepositoryConfig) => {
 };
 
 const check = async (config: RepositoryConfig, options?: { readData?: boolean }) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args: string[] = ["--repo", repoUrl, "check"];
 
@@ -790,8 +786,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 };
 
 const repairIndex = async (config: RepositoryConfig) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config);
+	const { repoUrl, env } = await resolveAndBuild(config);
 
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env);
@@ -822,11 +817,8 @@ const copy = async (
 		snapshotId?: string;
 	},
 ) => {
-	const sourceRepoUrl = buildRepoUrl(sourceConfig);
-	const destRepoUrl = buildRepoUrl(destConfig);
-
-	const sourceEnv = await buildEnv(sourceConfig);
-	const destEnv = await buildEnv(destConfig);
+	const { resolved: resolvedSource, repoUrl: sourceRepoUrl, env: sourceEnv } = await resolveAndBuild(sourceConfig);
+	const { repoUrl: destRepoUrl, env: destEnv } = await resolveAndBuild(destConfig);
 
 	const env: Record<string, string> = {
 		...sourceEnv,
@@ -848,7 +840,7 @@ const copy = async (
 
 	addCommonArgs(args, env);
 
-	if (sourceConfig.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
+	if (resolvedSource.backend === "sftp" && sourceEnv._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${sourceEnv._SFTP_SSH_ARGS}`);
 	}
 

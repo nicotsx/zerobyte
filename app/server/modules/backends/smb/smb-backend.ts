@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
-import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
 import { getMountForPath } from "../../../utils/mountinfo";
@@ -36,13 +35,11 @@ const mount = async (config: BackendConfig, path: string) => {
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true });
 
-		const password = await cryptoUtils.resolveSecret(config.password);
-
 		const source = `//${config.server}/${config.share}`;
 		const { uid, gid } = os.userInfo();
 		const options = [
 			`user=${config.username}`,
-			`pass=${password}`,
+			`pass=${config.password}`,
 			`vers=${config.vers}`,
 			`port=${config.port}`,
 			`uid=${uid}`,

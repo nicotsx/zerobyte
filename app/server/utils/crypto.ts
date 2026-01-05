@@ -183,7 +183,53 @@ const sealSecret = async (value: string): Promise<string> => {
 	return encrypt(value);
 };
 
+/**
+ * Helper to check if a value is a plain object (not null, array, Date, etc.)
+ */
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+	return typeof value === "object" && value !== null && !Array.isArray(value) && value.constructor === Object;
+};
+
+/**
+ * Recursively resolves all secret references in an object or array.
+ * Handles nested objects, arrays, and circular references.
+ */
+const resolveSecretsDeep = async <T>(input: T): Promise<T> => {
+	const seen = new WeakMap<object, unknown>();
+
+	const resolve = async (value: unknown): Promise<unknown> => {
+		if (typeof value === "string") {
+			return resolveSecret(value);
+		}
+
+		if (Array.isArray(value)) {
+			if (seen.has(value)) return seen.get(value);
+			const result: unknown[] = [];
+			seen.set(value, result);
+			for (const item of value) {
+				result.push(await resolve(item));
+			}
+			return result;
+		}
+
+		if (isPlainObject(value)) {
+			if (seen.has(value)) return seen.get(value);
+			const result: Record<string, unknown> = {};
+			seen.set(value, result);
+			for (const [key, val] of Object.entries(value)) {
+				result[key] = await resolve(val);
+			}
+			return result;
+		}
+
+		return value;
+	};
+
+	return resolve(input) as Promise<T>;
+};
+
 export const cryptoUtils = {
 	resolveSecret,
 	sealSecret,
+	resolveSecretsDeep,
 };

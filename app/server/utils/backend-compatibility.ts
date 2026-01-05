@@ -35,52 +35,54 @@ export const hasCompatibleCredentials = async (
 		return true;
 	}
 
+	// Resolve secrets in both configs for comparison
+	const resolvedConfig1 = await cryptoUtils.resolveSecretsDeep(config1);
+	const resolvedConfig2 = await cryptoUtils.resolveSecretsDeep(config2);
+
 	switch (group1) {
 		case "s3": {
 			if (
-				(config1.backend === "s3" || config1.backend === "r2") &&
-				(config2.backend === "s3" || config2.backend === "r2")
+				(resolvedConfig1.backend === "s3" || resolvedConfig1.backend === "r2") &&
+				(resolvedConfig2.backend === "s3" || resolvedConfig2.backend === "r2")
 			) {
-				const accessKey1 = await cryptoUtils.resolveSecret(config1.accessKeyId);
-				const secretKey1 = await cryptoUtils.resolveSecret(config1.secretAccessKey);
-
-				const accessKey2 = await cryptoUtils.resolveSecret(config2.accessKeyId);
-				const secretKey2 = await cryptoUtils.resolveSecret(config2.secretAccessKey);
-
-				return accessKey1 === accessKey2 && secretKey1 === secretKey2;
+				return (
+					resolvedConfig1.accessKeyId === resolvedConfig2.accessKeyId &&
+					resolvedConfig1.secretAccessKey === resolvedConfig2.secretAccessKey
+				);
 			}
 			return false;
 		}
 		case "gcs": {
-			if (config1.backend === "gcs" && config2.backend === "gcs") {
-				const credentials1 = await cryptoUtils.resolveSecret(config1.credentialsJson);
-				const credentials2 = await cryptoUtils.resolveSecret(config2.credentialsJson);
-
-				return credentials1 === credentials2 && config1.projectId === config2.projectId;
+			if (resolvedConfig1.backend === "gcs" && resolvedConfig2.backend === "gcs") {
+				return (
+					resolvedConfig1.credentialsJson === resolvedConfig2.credentialsJson &&
+					resolvedConfig1.projectId === resolvedConfig2.projectId
+				);
 			}
 			return false;
 		}
 		case "azure": {
-			if (config1.backend === "azure" && config2.backend === "azure") {
-				const config1Accountkey = await cryptoUtils.resolveSecret(config1.accountKey);
-				const config2Accountkey = await cryptoUtils.resolveSecret(config2.accountKey);
-
-				return config1.accountName === config2.accountName && config1Accountkey === config2Accountkey;
+			if (resolvedConfig1.backend === "azure" && resolvedConfig2.backend === "azure") {
+				return (
+					resolvedConfig1.accountName === resolvedConfig2.accountName &&
+					resolvedConfig1.accountKey === resolvedConfig2.accountKey
+				);
 			}
 			return false;
 		}
 		case "rest": {
-			if (config1.backend === "rest" && config2.backend === "rest") {
-				if (!config1.username && !config2.username && !config1.password && !config2.password) {
+			if (resolvedConfig1.backend === "rest" && resolvedConfig2.backend === "rest") {
+				if (
+					!resolvedConfig1.username &&
+					!resolvedConfig2.username &&
+					!resolvedConfig1.password &&
+					!resolvedConfig2.password
+				) {
 					return true;
 				}
-
-				const config1Username = await cryptoUtils.resolveSecret(config1.username || "");
-				const config1Password = await cryptoUtils.resolveSecret(config1.password || "");
-				const config2Username = await cryptoUtils.resolveSecret(config2.username || "");
-				const config2Password = await cryptoUtils.resolveSecret(config2.password || "");
-
-				return config1Username === config2Username && config1Password === config2Password;
+				return (
+					resolvedConfig1.username === resolvedConfig2.username && resolvedConfig1.password === resolvedConfig2.password
+				);
 			}
 			return false;
 		}
