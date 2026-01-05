@@ -23,13 +23,20 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const [schedule, snapshot, repository] = await Promise.all([
-		getBackupSchedule({ path: { scheduleId: params.id } }),
-		getSnapshotDetails({ path: { id: params.id, snapshotId: params.snapshotId } }),
-		getRepository({ path: { id: params.id } }),
-	]);
+	const schedule = await getBackupSchedule({ path: { scheduleId: params.id } });
 
 	if (!schedule.data) return redirect("/backups");
+
+	const [snapshot, repository] = await Promise.all([
+		getSnapshotDetails({
+			path: {
+				id: schedule.data.repositoryId,
+				snapshotId: params.snapshotId,
+			},
+		}),
+		getRepository({ path: { id: schedule.data.repositoryId } }),
+	]);
+
 	if (!snapshot.data) return redirect(`/backups/${params.id}`);
 	if (!repository.data) return redirect(`/backups/${params.id}`);
 
