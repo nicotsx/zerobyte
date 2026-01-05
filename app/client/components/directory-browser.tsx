@@ -23,7 +23,7 @@ export const DirectoryBrowser = ({ onSelectPath, selectedPath }: Props) => {
 			return await queryClient.ensureQueryData(browseFilesystemOptions({ query: { path } }));
 		},
 		prefetchFolder: (path) => {
-			queryClient.prefetchQuery(browseFilesystemOptions({ query: { path } }));
+			void queryClient.prefetchQuery(browseFilesystemOptions({ query: { path } }));
 		},
 	});
 

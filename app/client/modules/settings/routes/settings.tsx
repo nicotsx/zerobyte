@@ -54,7 +54,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const logout = useMutation({
 		...logoutMutation(),
 		onSuccess: () => {
-			navigate("/login", { replace: true });
+			void navigate("/login", { replace: true });
 		},
 	});
 

@@ -50,7 +50,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const deleteSnapshots = useMutation({
 		...deleteSnapshotsMutation(),
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
+			void queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
 			setShowBulkDeleteConfirm(false);
 			setSelectedIds(new Set());
 		},
@@ -62,7 +62,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 			setShowReTagDialog(false);
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
+			void queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
 			setShowReTagDialog(false);
 			setSelectedIds(new Set());
 			setTargetScheduleId("");
@@ -70,7 +70,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	});
 
 	const handleRowClick = (snapshotId: string) => {
-		navigate(`/repositories/${repositoryId}/${snapshotId}`);
+		void navigate(`/repositories/${repositoryId}/${snapshotId}`);
 	};
 
 	const toggleSelectAll = () => {

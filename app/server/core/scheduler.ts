@@ -34,7 +34,7 @@ class SchedulerClass {
 
 	async stop() {
 		for (const task of this.tasks) {
-			task.stop();
+			await task.stop();
 		}
 		this.tasks = [];
 		logger.info("Scheduler stopped");
@@ -42,7 +42,7 @@ class SchedulerClass {
 
 	async clear() {
 		for (const task of this.tasks) {
-			task.destroy();
+			await task.destroy();
 		}
 		this.tasks = [];
 		logger.info("Scheduler cleared all tasks");

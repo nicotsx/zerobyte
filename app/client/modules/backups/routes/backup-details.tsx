@@ -120,7 +120,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		...deleteBackupScheduleMutation(),
 		onSuccess: () => {
 			toast.success("Backup schedule deleted successfully");
-			navigate("/backups");
+			void navigate("/backups");
 		},
 		onError: (error) => {
 			toast.error("Failed to delete backup schedule", { description: parseError(error)?.message });

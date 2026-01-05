@@ -56,7 +56,7 @@ export default function OnboardingPage() {
 		...registerMutation(),
 		onSuccess: async () => {
 			toast.success("Admin user created successfully!");
-			navigate("/download-recovery-key");
+			void navigate("/download-recovery-key");
 		},
 		onError: (error) => {
 			console.error(error);

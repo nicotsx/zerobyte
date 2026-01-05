@@ -4,7 +4,7 @@ import path from "node:path";
 import { cwd } from "node:process";
 import { db } from "~/server/db/db";
 
-mock.module("~/server/utils/logger", () => ({
+void mock.module("~/server/utils/logger", () => ({
 	logger: {
 		debug: () => {},
 		info: () => {},

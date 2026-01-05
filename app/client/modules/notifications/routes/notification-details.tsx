@@ -24,7 +24,7 @@ import { getNotificationDestination } from "~/client/api-client/sdk.gen";
 import type { Route } from "./+types/notification-details";
 import { cn } from "~/client/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { Bell, Save, TestTube2, Trash2, X } from "lucide-react";
+import { Bell, Save, TestTube2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
 
@@ -66,7 +66,7 @@ export default function NotificationDetailsPage({ loaderData }: Route.ComponentP
 		...deleteNotificationDestinationMutation(),
 		onSuccess: () => {
 			toast.success("Notification destination deleted successfully");
-			navigate("/notifications");
+			void navigate("/notifications");
 		},
 		onError: (error) => {
 			toast.error("Failed to delete notification destination", {

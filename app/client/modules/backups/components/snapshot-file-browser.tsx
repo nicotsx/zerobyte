@@ -68,7 +68,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			);
 		},
 		prefetchFolder: (path) => {
-			queryClient.prefetchQuery(
+			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repositoryId, snapshotId: snapshot.short_id },
 					query: { path },

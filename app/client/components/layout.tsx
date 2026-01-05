@@ -30,7 +30,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 	const logout = useMutation({
 		...logoutMutation(),
 		onSuccess: async () => {
-			navigate("/login", { replace: true });
+			void navigate("/login", { replace: true });
 		},
 		onError: (error) => {
 			console.error(error);

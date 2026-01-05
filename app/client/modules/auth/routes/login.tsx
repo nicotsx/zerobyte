@@ -49,9 +49,9 @@ export default function LoginPage() {
 		...loginMutation(),
 		onSuccess: async (data) => {
 			if (data.user && !data.user.hasDownloadedResticPassword) {
-				navigate("/download-recovery-key");
+				void navigate("/download-recovery-key");
 			} else {
-				navigate("/volumes");
+				void navigate("/volumes");
 			}
 		},
 		onError: (error) => {

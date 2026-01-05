@@ -87,8 +87,8 @@ export function useServerEvents() {
 			const data = JSON.parse(e.data) as BackupEvent;
 			console.log("[SSE] Backup completed:", data);
 
-			queryClient.invalidateQueries();
-			queryClient.refetchQueries();
+			void queryClient.invalidateQueries();
+			void queryClient.refetchQueries();
 
 			handlersRef.current.get("backup:completed")?.forEach((handler) => {
 				handler(data);
@@ -117,7 +117,7 @@ export function useServerEvents() {
 			const data = JSON.parse(e.data) as VolumeEvent;
 			console.log("[SSE] Volume updated:", data);
 
-			queryClient.invalidateQueries();
+			void queryClient.invalidateQueries();
 
 			handlersRef.current.get("volume:updated")?.forEach((handler) => {
 				handler(data);
@@ -128,7 +128,7 @@ export function useServerEvents() {
 			const data = JSON.parse(e.data) as VolumeEvent;
 			console.log("[SSE] Volume status updated:", data);
 
-			queryClient.invalidateQueries();
+			void queryClient.invalidateQueries();
 
 			handlersRef.current.get("volume:updated")?.forEach((handler) => {
 				handler(data);
@@ -149,7 +149,7 @@ export function useServerEvents() {
 			console.log("[SSE] Mirror copy completed:", data);
 
 			// Invalidate queries to refresh mirror status in the UI
-			queryClient.invalidateQueries();
+			void queryClient.invalidateQueries();
 
 			handlersRef.current.get("mirror:completed")?.forEach((handler) => {
 				handler(data);

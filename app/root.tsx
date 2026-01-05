@@ -27,11 +27,11 @@ export const links: Route.LinksFunction = () => [
 const queryClient = new QueryClient({
 	mutationCache: new MutationCache({
 		onSuccess: () => {
-			queryClient.invalidateQueries();
+			void queryClient.invalidateQueries();
 		},
 		onError: (error) => {
 			console.error("Mutation error:", error);
-			queryClient.invalidateQueries();
+			void queryClient.invalidateQueries();
 		},
 	}),
 });

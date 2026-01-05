@@ -67,14 +67,14 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 	});
 
 	useEffect(() => {
-		queryClient.prefetchQuery(listSnapshotsOptions({ path: { id: data.id } }));
+		void queryClient.prefetchQuery(listSnapshotsOptions({ path: { id: data.id } }));
 	}, [queryClient, data.id]);
 
 	const deleteRepo = useMutation({
 		...deleteRepositoryMutation(),
 		onSuccess: () => {
 			toast.success("Repository deleted successfully");
-			navigate("/repositories");
+			void navigate("/repositories");
 		},
 		onError: (error) => {
 			toast.error("Failed to delete repository", {

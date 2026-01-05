@@ -728,7 +728,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 										.filter(([key, value]) => key.startsWith("keep") && Boolean(value))
 										.map(([key, value]) => {
 											const label = key.replace("keep", "").toLowerCase();
-											return `${value} ${label}`;
+											return `${value.toString()} ${label}`;
 										})
 										.join(", ") || "-"}
 								</p>

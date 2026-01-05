@@ -37,7 +37,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 			setPendingValues(null);
 
 			if (data.name !== volume.name) {
-				navigate(`/volumes/${data.name}`);
+				void navigate(`/volumes/${data.name}`);
 			}
 		},
 		onError: (error) => {

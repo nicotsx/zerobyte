@@ -3,7 +3,7 @@ import { sanitizeSensitiveData } from "./sanitize";
 
 const { printf, combine, colorize } = format;
 
-const printConsole = printf((info) => `${info.level} > ${info.message}`);
+const printConsole = printf((info) => `${info.level} > ${String(info.message)}`);
 const consoleFormat = combine(colorize(), printConsole);
 
 const getDefaultLevel = () => {
@@ -27,7 +27,7 @@ const log = (level: "info" | "warn" | "error" | "debug", messages: unknown[]) =>
 			return sanitizeSensitiveData(JSON.stringify(m, null, 2));
 		}
 
-		return sanitizeSensitiveData(String(m));
+		return sanitizeSensitiveData(String(JSON.stringify(m)));
 	});
 
 	winstonLogger.log(level, stringMessages.join(" "));

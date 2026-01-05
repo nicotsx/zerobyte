@@ -83,7 +83,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			);
 		},
 		prefetchFolder: (path) => {
-			queryClient.prefetchQuery(
+			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repository.id, snapshotId },
 					query: { path },
@@ -102,7 +102,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			toast.success("Restore completed", {
 				description: `Successfully restored ${data.filesRestored} file(s). ${data.filesSkipped} file(s) skipped.`,
 			});
-			navigate(returnPath);
+			void navigate(returnPath);
 		},
 		onError: (error) => {
 			toast.error("Restore failed", { description: error.message || "Failed to restore snapshot" });

@@ -358,8 +358,8 @@ const backup = async (
 			}
 		},
 		finally: async () => {
-			includeFile && (await fs.unlink(includeFile).catch(() => {}));
-			excludeFile && (await fs.unlink(excludeFile).catch(() => {}));
+			if (includeFile) await fs.unlink(includeFile).catch(() => {});
+			if (excludeFile) await fs.unlink(excludeFile).catch(() => {});
 			await cleanupTemporaryKeys(env);
 		},
 	});
@@ -393,7 +393,7 @@ const backup = async (
 	const result = backupOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
-		logger.error(`Restic backup output validation failed: ${result}`);
+		logger.error(`Restic backup output validation failed: ${result.summary}`);
 		return { result: null, exitCode: res.exitCode };
 	}
 
@@ -484,7 +484,7 @@ const restore = async (
 	const result = restoreOutputSchema(resSummary);
 
 	if (result instanceof type.errors) {
-		logger.warn(`Restic restore output validation failed: ${result}`);
+		logger.warn(`Restic restore output validation failed: ${result.summary}`);
 		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
 		return {
 			message_type: "summary" as const,
@@ -529,8 +529,8 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 	const result = snapshotInfoSchema.array()(JSON.parse(res.stdout));
 
 	if (result instanceof type.errors) {
-		logger.error(`Restic snapshots output validation failed: ${result}`);
-		throw new Error(`Restic snapshots output validation failed: ${result}`);
+		logger.error(`Restic snapshots output validation failed: ${result.summary}`);
+		throw new Error(`Restic snapshots output validation failed: ${result.summary}`);
 	}
 
 	return result;
@@ -712,8 +712,8 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 	const snapshot = lsSnapshotInfoSchema(snapshotLine);
 
 	if (snapshot instanceof type.errors) {
-		logger.error(`Restic ls snapshot info validation failed: ${snapshot}`);
-		throw new Error(`Restic ls snapshot info validation failed: ${snapshot}`);
+		logger.error(`Restic ls snapshot info validation failed: ${snapshot.summary}`);
+		throw new Error(`Restic ls snapshot info validation failed: ${snapshot.summary}`);
 	}
 
 	const nodes: Array<typeof lsNodeSchema.infer> = [];
@@ -722,7 +722,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 		const nodeValidation = lsNodeSchema(nodeLine);
 
 		if (nodeValidation instanceof type.errors) {
-			logger.warn(`Skipping invalid node: ${nodeValidation}`);
+			logger.warn(`Skipping invalid node: ${nodeValidation.summary}`);
 			continue;
 		}
 

@@ -46,7 +46,7 @@ export const VolumeFileBrowser = ({
 			);
 		},
 		prefetchFolder: (path) => {
-			queryClient.prefetchQuery(
+			void queryClient.prefetchQuery(
 				listFilesOptions({
 					path: { name: volumeName },
 					query: { path },

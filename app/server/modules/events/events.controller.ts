@@ -13,14 +13,14 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			event: "connected",
 		});
 
-		const onBackupStarted = (data: { scheduleId: number; volumeName: string; repositoryName: string }) => {
-			stream.writeSSE({
+		const onBackupStarted = async (data: { scheduleId: number; volumeName: string; repositoryName: string }) => {
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "backup:started",
 			});
 		};
 
-		const onBackupProgress = (data: {
+		const onBackupProgress = async (data: {
 			scheduleId: number;
 			volumeName: string;
 			repositoryName: string;
@@ -32,60 +32,60 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			bytes_done: number;
 			current_files: string[];
 		}) => {
-			stream.writeSSE({
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "backup:progress",
 			});
 		};
 
-		const onBackupCompleted = (data: {
+		const onBackupCompleted = async (data: {
 			scheduleId: number;
 			volumeName: string;
 			repositoryName: string;
 			status: "success" | "error" | "stopped" | "warning";
 		}) => {
-			stream.writeSSE({
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "backup:completed",
 			});
 		};
 
-		const onVolumeMounted = (data: { volumeName: string }) => {
-			stream.writeSSE({
+		const onVolumeMounted = async (data: { volumeName: string }) => {
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "volume:mounted",
 			});
 		};
 
-		const onVolumeUnmounted = (data: { volumeName: string }) => {
-			stream.writeSSE({
+		const onVolumeUnmounted = async (data: { volumeName: string }) => {
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "volume:unmounted",
 			});
 		};
 
-		const onVolumeUpdated = (data: { volumeName: string }) => {
-			stream.writeSSE({
+		const onVolumeUpdated = async (data: { volumeName: string }) => {
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "volume:updated",
 			});
 		};
 
-		const onMirrorStarted = (data: { scheduleId: number; repositoryId: string; repositoryName: string }) => {
-			stream.writeSSE({
+		const onMirrorStarted = async (data: { scheduleId: number; repositoryId: string; repositoryName: string }) => {
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "mirror:started",
 			});
 		};
 
-		const onMirrorCompleted = (data: {
+		const onMirrorCompleted = async (data: {
 			scheduleId: number;
 			repositoryId: string;
 			repositoryName: string;
 			status: "success" | "error";
 			error?: string;
 		}) => {
-			stream.writeSSE({
+			await stream.writeSSE({
 				data: JSON.stringify(data),
 				event: "mirror:completed",
 			});

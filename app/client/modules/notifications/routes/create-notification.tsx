@@ -33,7 +33,7 @@ export default function CreateNotification() {
 		...createNotificationDestinationMutation(),
 		onSuccess: () => {
 			toast.success("Notification destination created successfully");
-			navigate(`/notifications`);
+			void navigate(`/notifications`);
 		},
 	});
 

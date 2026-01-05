@@ -101,7 +101,7 @@ describe("execute backup", () => {
 		});
 
 		// act
-		backupsService.executeBackup(schedule.id);
+		void backupsService.executeBackup(schedule.id);
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		await backupsService.executeBackup(schedule.id);
 

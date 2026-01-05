@@ -33,7 +33,7 @@ export default function CreateVolume() {
 		...createVolumeMutation(),
 		onSuccess: (data) => {
 			toast.success("Volume created successfully");
-			navigate(`/volumes/${data.name}`);
+			void navigate(`/volumes/${data.name}`);
 		},
 	});
 

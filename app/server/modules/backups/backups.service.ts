@@ -28,7 +28,7 @@ const calculateNextRun = (cronExpression: string): number => {
 
 		return interval.next().getTime();
 	} catch (error) {
-		logger.error(`Failed to parse cron expression "${cronExpression}": ${error}`);
+		logger.error(`Failed to parse cron expression "${cronExpression}": ${toMessage(error)}`);
 		const fallback = new Date();
 		fallback.setMinutes(fallback.getMinutes() + 1);
 		return fallback.getTime();

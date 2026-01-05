@@ -22,7 +22,7 @@ runDbMigrations();
 await retagSnapshots();
 await validateRequiredMigrations(REQUIRED_MIGRATIONS);
 
-startup();
+void startup();
 
 logger.info(`Server is running at http://localhost:${config.port}`);
 

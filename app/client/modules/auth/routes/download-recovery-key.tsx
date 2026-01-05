@@ -42,7 +42,7 @@ export default function DownloadRecoveryKeyPage() {
 			window.URL.revokeObjectURL(url);
 
 			toast.success("Recovery key downloaded successfully!");
-			navigate("/volumes", { replace: true });
+			void navigate("/volumes", { replace: true });
 		},
 		onError: (error) => {
 			toast.error("Failed to download recovery key", { description: error.message });
