@@ -33,8 +33,7 @@ export function meta(_: Route.MetaArgs) {
 }
 
 export const clientLoader = async () => {
-	const volumes = await listVolumes();
-	const repositories = await listRepositories();
+	const [volumes, repositories] = await Promise.all([listVolumes(), listRepositories()]);
 
 	if (volumes.data && repositories.data) return { volumes: volumes.data, repositories: repositories.data };
 	return { volumes: [], repositories: [] };

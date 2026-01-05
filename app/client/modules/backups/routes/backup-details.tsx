@@ -30,7 +30,13 @@ import { ScheduleSummary } from "../components/schedule-summary";
 import type { Route } from "./+types/backup-details";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
 import { SnapshotTimeline } from "../components/snapshot-timeline";
-import { getBackupSchedule, listNotificationDestinations, listRepositories } from "~/client/api-client";
+import {
+	getBackupSchedule,
+	getScheduleMirrors,
+	getScheduleNotifications,
+	listNotificationDestinations,
+	listRepositories,
+} from "~/client/api-client";
 import { ScheduleNotificationsConfig } from "../components/schedule-notifications-config";
 import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
 import { cn } from "~/client/lib/utils";
@@ -53,13 +59,23 @@ export function meta(_: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.LoaderArgs) => {
-	const schedule = await getBackupSchedule({ path: { scheduleId: params.id } });
-	const notifs = await listNotificationDestinations();
-	const repos = await listRepositories();
+	const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
+		getBackupSchedule({ path: { scheduleId: params.id } }),
+		listNotificationDestinations(),
+		listRepositories(),
+		getScheduleNotifications({ path: { scheduleId: params.id } }),
+		getScheduleMirrors({ path: { scheduleId: params.id } }),
+	]);
 
 	if (!schedule.data) return redirect("/backups");
 
-	return { schedule: schedule.data, notifs: notifs.data, repos: repos.data };
+	return {
+		schedule: schedule.data,
+		notifs: notifs.data,
+		repos: repos.data,
+		scheduleNotifs: scheduleNotifs.data,
+		scheduleMirrors: mirrors.data,
+	};
 };
 
 export default function ScheduleDetailsPage({ params, loaderData }: Route.ComponentProps) {
@@ -240,13 +256,18 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				schedule={schedule}
 			/>
 			<div className={cn({ hidden: !loaderData.notifs?.length })}>
-				<ScheduleNotificationsConfig scheduleId={schedule.id} destinations={loaderData.notifs ?? []} />
+				<ScheduleNotificationsConfig
+					scheduleId={schedule.id}
+					destinations={loaderData.notifs ?? []}
+					initialData={loaderData.scheduleNotifs ?? []}
+				/>
 			</div>
 			<div className={cn({ hidden: !loaderData.repos?.length || loaderData.repos.length < 2 })}>
 				<ScheduleMirrorsConfig
 					scheduleId={schedule.id}
 					primaryRepositoryId={schedule.repositoryId}
 					repositories={loaderData.repos ?? []}
+					initialData={loaderData.scheduleMirrors ?? []}
 				/>
 			</div>
 			<SnapshotTimeline

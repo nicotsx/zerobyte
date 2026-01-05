@@ -21,11 +21,13 @@ import { StatusDot } from "~/client/components/status-dot";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router";
 import { cn } from "~/client/lib/utils";
+import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 
 type Props = {
 	scheduleId: number;
 	primaryRepositoryId: string;
 	repositories: Repository[];
+	initialData: GetScheduleMirrorsResponse;
 };
 
 type MirrorAssignment = {
@@ -36,13 +38,14 @@ type MirrorAssignment = {
 	lastCopyError: string | null;
 };
 
-export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, repositories }: Props) => {
+export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, repositories, initialData }: Props) => {
 	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(new Map());
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 
 	const { data: currentMirrors } = useQuery({
 		...getScheduleMirrorsOptions({ path: { scheduleId: scheduleId.toString() } }),
+		initialData,
 	});
 
 	const { data: compatibility } = useQuery({

@@ -14,10 +14,12 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { NotificationDestination } from "~/client/lib/types";
+import type { GetScheduleNotificationsResponse } from "~/client/api-client";
 
 type Props = {
 	scheduleId: number;
 	destinations: NotificationDestination[];
+	initialData: GetScheduleNotificationsResponse;
 };
 
 type NotificationAssignment = {
@@ -28,13 +30,14 @@ type NotificationAssignment = {
 	notifyOnFailure: boolean;
 };
 
-export const ScheduleNotificationsConfig = ({ scheduleId, destinations }: Props) => {
+export const ScheduleNotificationsConfig = ({ scheduleId, destinations, initialData }: Props) => {
 	const [assignments, setAssignments] = useState<Map<number, NotificationAssignment>>(new Map());
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 
 	const { data: currentAssignments } = useQuery({
 		...getScheduleNotificationsOptions({ path: { scheduleId: scheduleId.toString() } }),
+		initialData,
 	});
 
 	const updateNotifications = useMutation({

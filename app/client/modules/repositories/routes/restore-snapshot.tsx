@@ -23,12 +23,12 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const snapshot = await getSnapshotDetails({
-		path: { id: params.id, snapshotId: params.snapshotId },
-	});
-	if (!snapshot.data) return redirect("/repositories");
+	const [snapshot, repository] = await Promise.all([
+		getSnapshotDetails({ path: { id: params.id, snapshotId: params.snapshotId } }),
+		getRepository({ path: { id: params.id } }),
+	]);
 
-	const repository = await getRepository({ path: { id: params.id } });
+	if (!snapshot.data) return redirect("/repositories");
 	if (!repository.data) return redirect(`/repositories`);
 
 	return { snapshot: snapshot.data, id: params.id, repository: repository.data, snapshotId: params.snapshotId };
