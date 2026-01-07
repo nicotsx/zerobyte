@@ -39,7 +39,6 @@ CREATE TABLE `__new_sessions_table` (
 	FOREIGN KEY (`user_id`) REFERENCES `users_table`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-INSERT INTO `__new_sessions_table`("id", "user_id", "token", "expires_at", "created_at", "updated_at", "ip_address", "user_agent") SELECT "id", "user_id", "token", "expires_at", "created_at", "updated_at", "ip_address", "user_agent" FROM `sessions_table`;--> statement-breakpoint
 DROP TABLE `sessions_table`;--> statement-breakpoint
 ALTER TABLE `__new_sessions_table` RENAME TO `sessions_table`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint
