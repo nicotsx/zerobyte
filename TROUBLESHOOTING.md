@@ -1,7 +1,7 @@
 # Troubleshooting
 
 If you encounter any issues while using Zerobyte, you can check the application logs for more information.
-These logs could help you identify and resolve common problems along with checking existing and also closed issues on GitHub.
+These logs can help you identify and resolve common problems; you should also check existing and closed issues on GitHub.
 In case you need further assistance, feel free to open a new issue with detailed information about the problem you are facing and any relevant log entries.
 
 > [!WARNING]
