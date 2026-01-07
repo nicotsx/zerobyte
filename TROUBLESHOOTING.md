@@ -74,7 +74,7 @@ services:
 
 On hosts using AppArmor, the default Docker profile (`docker-default`) may block mount operations even when `SYS_ADMIN` is present.
 
-If mount operations fail with permission errors, you may need to disable AppArmor confinement for the container. Check first if AppArmor is enabled on your system and profile of the container:
+If mount operations fail with permission errors, you may need to disable AppArmor confinement for the container. Check first if AppArmor is enabled on your system and the profile of the container:
 
 ```bash
 # check if AppArmor is enabled
