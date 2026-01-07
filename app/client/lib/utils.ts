@@ -28,3 +28,20 @@ export function slugify(input: string): string {
 		.replace(/[_]{2,}/g, "_")
 		.trim();
 }
+
+type DownloadFileMimeType = "text/plain" | "application/json";
+export const downloadFile = (data: unknown, filename: string, mimeType: DownloadFileMimeType = "text/plain") => {
+	const content = mimeType === "application/json" && typeof data !== "string" ? JSON.stringify(data, null, 2) : data;
+
+	const blob = new Blob([content as BlobPart], { type: mimeType });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+
+	a.href = url;
+	a.download = filename;
+	document.body.appendChild(a);
+	a.click();
+
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+};
