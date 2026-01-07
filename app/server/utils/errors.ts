@@ -18,6 +18,8 @@ export const toMessage = (err: unknown): string => {
 	return sanitizeSensitiveData(message);
 };
 
+export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+
 const resticErrorCodes: Record<number, string> = {
 	1: "Command failed: An error occurred while executing the command.",
 	2: "Go runtime error: A runtime error occurred in the Go program.",

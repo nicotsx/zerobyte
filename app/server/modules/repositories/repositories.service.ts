@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
 import { eq, or } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
-import { generateShortId } from "../../utils/id";
+import { generateShortId, isValidShortId } from "../../utils/id";
 import { restic } from "../../utils/restic";
 import { cryptoUtils } from "../../utils/crypto";
 import { cache } from "../../utils/cache";
@@ -67,9 +67,32 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	return encryptedConfig as RepositoryConfig;
 };
 
-const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
+const createRepository = async (
+	name: string,
+	config: RepositoryConfig,
+	compressionMode?: CompressionMode,
+	providedShortId?: string,
+) => {
 	const id = crypto.randomUUID();
-	const shortId = generateShortId();
+
+	// Use provided shortId if valid, otherwise generate a new one
+	let shortId: string;
+	if (providedShortId) {
+		if (!isValidShortId(providedShortId)) {
+			throw new BadRequestError(`Invalid shortId format: '${providedShortId}'. Must be 8 base64url characters.`);
+		}
+		const shortIdInUse = await db.query.repositoriesTable.findFirst({
+			where: eq(repositoriesTable.shortId, providedShortId),
+		});
+		if (shortIdInUse) {
+			throw new ConflictError(
+				`Repository shortId '${providedShortId}' is already in use by repository '${shortIdInUse.name}'`,
+			);
+		}
+		shortId = providedShortId;
+	} else {
+		shortId = generateShortId();
+	}
 
 	let processedConfig = config;
 	if (config.backend === "local" && !config.isExistingRepository) {
@@ -77,6 +100,24 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	}
 
 	const encryptedConfig = await encryptConfig(processedConfig);
+
+	const repoExists = await restic
+		.snapshots(encryptedConfig)
+		.then(() => true)
+		.catch(() => false);
+
+	if (repoExists && !config.isExistingRepository) {
+		throw new ConflictError(
+			`A restic repository already exists at this location. ` +
+				`If you want to use the existing repository, set "isExistingRepository": true in the config.`,
+		);
+	}
+
+	if (!repoExists && config.isExistingRepository) {
+		throw new BadRequestError(
+			`Cannot access existing repository. Verify the path/credentials are correct and the repository exists.`,
+		);
+	}
 
 	const [created] = await db
 		.insert(repositoriesTable)
@@ -97,14 +138,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 	let error: string | null = null;
 
-	if (config.isExistingRepository) {
-		const result = await restic
-			.snapshots(encryptedConfig)
-			.then(() => ({ error: null }))
-			.catch((error) => ({ error }));
-
-		error = result.error;
-	} else {
+	if (!repoExists) {
 		const initResult = await restic.init(encryptedConfig);
 		error = initResult.error;
 	}

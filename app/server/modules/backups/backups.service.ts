@@ -15,7 +15,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import { repoMutex } from "../../core/repository-mutex";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
 import path from "node:path";
-import { generateShortId } from "~/server/utils/id";
+import { generateShortId, isValidShortId } from "~/server/utils/id";
 
 const runningBackups = new Map<number, AbortController>();
 
@@ -83,7 +83,7 @@ const getSchedule = async (scheduleId: number) => {
 	return schedule;
 };
 
-const createSchedule = async (data: CreateBackupScheduleBody) => {
+const createSchedule = async (data: CreateBackupScheduleBody, providedShortId?: string) => {
 	if (!cron.validate(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
 	}
@@ -94,6 +94,25 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	if (existingName) {
 		throw new ConflictError("A backup schedule with this name already exists");
+	}
+
+	// Use provided shortId if valid, otherwise generate a new one
+	let shortId: string;
+	if (providedShortId) {
+		if (!isValidShortId(providedShortId)) {
+			throw new BadRequestError(`Invalid shortId format: '${providedShortId}'. Must be 8 base64url characters.`);
+		}
+		const shortIdInUse = await db.query.backupSchedulesTable.findFirst({
+			where: eq(backupSchedulesTable.shortId, providedShortId),
+		});
+		if (shortIdInUse) {
+			throw new ConflictError(
+				`Schedule shortId '${providedShortId}' is already in use by schedule '${shortIdInUse.name}'`,
+			);
+		}
+		shortId = providedShortId;
+	} else {
+		shortId = generateShortId();
 	}
 
 	const volume = await db.query.volumesTable.findFirst({
@@ -128,7 +147,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			nextBackupAt: nextBackupAt,
-			shortId: generateShortId(),
+			shortId,
 		})
 		.returning();
 

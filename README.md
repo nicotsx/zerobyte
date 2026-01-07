@@ -127,6 +127,12 @@ If you need remote mount capabilities, keep the original configuration with `cap
 
 See [examples/README.md](examples/README.md) for runnable, copy/paste-friendly examples.
 
+### Config file import (Infrastructure as Code)
+
+If you want Zerobyte to create volumes, repositories, schedules, notification destinations, and an initial user from a JSON file, check the following example:
+
+- [examples/config-file-import/README.md](examples/config-file-import/README.md)
+
 ## Adding your first volume
 
 Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, SFTP, and local directories. A volume represents the source data you want to back up and monitor.

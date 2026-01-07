@@ -1,0 +1,4 @@
+.env
+
+*.json
+!zerobyte.config.example.json

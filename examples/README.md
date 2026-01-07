@@ -11,6 +11,7 @@ This folder contains runnable, copy/paste-friendly examples for running Zerobyte
 - [Bind-mount a local directory](directory-bind-mount/README.md) — back up a host folder by mounting it into the container.
 - [Mount an rclone config](rclone-config-mount/README.md) — use rclone-based repository backends by mounting your rclone config.
 - [Secret placeholders + Docker secrets](secrets-placeholders/README.md) — keep secrets out of the DB using `env://...` and `file://...` references.
+- [Config file import (Infrastructure as Code)](config-file-import/README.md) — pre-configure volumes/repos/schedules/users from json file.
 
 ### Advanced setups
 
