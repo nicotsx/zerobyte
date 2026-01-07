@@ -1,17 +1,51 @@
-import "dotenv/config";
 import { Database } from "bun:sqlite";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { DATABASE_URL } from "../core/constants";
-import * as schema from "./schema";
-import fs from "node:fs/promises";
+import fs from "node:fs";
 import { config } from "../core/config";
+import type * as schemaTypes from "./schema";
 
-await fs.mkdir(path.dirname(DATABASE_URL), { recursive: true });
+/**
+ * TODO: try to remove this if moving away from react-router.
+ * The rr vite plugin doesn't let us customize the chunk names
+ * to isolate the db initialization code from the rest of the server code.
+ */
+let _sqlite: Database | undefined;
+let _db: ReturnType<typeof drizzle<typeof schemaTypes>> | undefined;
+let _schema: typeof schemaTypes | undefined;
 
-const sqlite = new Database(DATABASE_URL);
-export const db = drizzle({ client: sqlite, schema });
+/**
+ * Sets the database schema. This must be called before any database operations.
+ */
+export const setSchema = (schema: typeof schemaTypes) => {
+	_schema = schema;
+};
+
+const initDb = () => {
+	if (!_schema) {
+		throw new Error("Database schema not set. Call setSchema() before accessing the database.");
+	}
+	fs.mkdirSync(path.dirname(DATABASE_URL), { recursive: true });
+	_sqlite = new Database(DATABASE_URL);
+	return drizzle({ client: _sqlite, schema: _schema });
+};
+
+/**
+ * Database instance (Proxy for lazy initialization)
+ */
+export const db = new Proxy(
+	{},
+	{
+		get(_, prop, receiver) {
+			if (!_db) {
+				_db = initDb();
+			}
+			return Reflect.get(_db, prop, receiver);
+		},
+	},
+) as ReturnType<typeof drizzle<typeof schemaTypes>>;
 
 export const runDbMigrations = () => {
 	let migrationsFolder: string;
@@ -26,5 +60,9 @@ export const runDbMigrations = () => {
 
 	migrate(db, { migrationsFolder });
 
-	sqlite.run("PRAGMA foreign_keys = ON;");
+	if (!_sqlite) {
+		throw new Error("Database not initialized");
+	}
+
+	_sqlite.run("PRAGMA foreign_keys = ON;");
 };

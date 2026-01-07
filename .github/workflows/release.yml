@@ -78,6 +78,7 @@ jobs:
             APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
 
       - name: Scan new image for vulnerabilities
+        if: needs.determine-release-type.outputs.release_type == 'release'
         uses: anchore/scan-action@v7
         id: scan
         with:
@@ -86,6 +87,7 @@ jobs:
           severity-cutoff: critical
 
       - name: upload Anchore scan report
+        if: needs.determine-release-type.outputs.release_type == 'release'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}

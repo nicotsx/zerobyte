@@ -14,6 +14,7 @@ import { RESTIC_PASS_FILE } from "../../core/constants";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { verifyUserPassword } from "../auth/helpers";
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -35,16 +36,9 @@ export const systemController = new Hono()
 			const user = c.get("user");
 			const body = c.req.valid("json");
 
-			const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
-
-			if (!dbUser) {
-				return c.json({ message: "User not found" }, 401);
-			}
-
-			const isValid = await Bun.password.verify(body.password, dbUser.passwordHash);
-
-			if (!isValid) {
-				return c.json({ message: "Incorrect password" }, 401);
+			const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });
+			if (!isPasswordValid) {
+				return c.json({ message: "Invalid password" }, 401);
 			}
 
 			try {

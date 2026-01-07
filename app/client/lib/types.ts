@@ -1,6 +1,5 @@
 import type {
 	GetBackupScheduleResponse,
-	GetMeResponse,
 	GetRepositoryResponse,
 	GetVolumeResponse,
 	ListNotificationDestinationsResponse,
@@ -10,8 +9,6 @@ import type {
 export type Volume = GetVolumeResponse["volume"];
 export type StatFs = GetVolumeResponse["statfs"];
 export type VolumeStatus = Volume["status"];
-
-export type User = GetMeResponse["user"];
 
 export type Repository = GetRepositoryResponse;
 

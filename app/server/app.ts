@@ -15,6 +15,7 @@ import { notificationsController } from "./modules/notifications/notifications.c
 import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { config } from "./core/config";
+import { auth } from "~/lib/auth";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -62,6 +63,7 @@ export const createApp = () => {
 		.route("/api/v1/system", systemController)
 		.route("/api/v1/events", eventsController);
 
+	app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 	app.get("/api/v1/openapi.json", generalDescriptor(app));
 	app.get("/api/v1/docs", requireAuth, scalarDescriptor);
 

@@ -1,4 +1,3 @@
-import { useMutation } from "@tanstack/react-query";
 import { LifeBuoy } from "lucide-react";
 import { Outlet, redirect, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -10,7 +9,7 @@ import { GridBackground } from "./grid-background";
 import { Button } from "./ui/button";
 import { SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
-import { logoutMutation } from "../api-client/@tanstack/react-query.gen";
+import { authClient } from "../lib/auth-client";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -27,16 +26,18 @@ export async function clientLoader({ context }: Route.LoaderArgs) {
 export default function Layout({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
 
-	const logout = useMutation({
-		...logoutMutation(),
-		onSuccess: async () => {
-			void navigate("/login", { replace: true });
-		},
-		onError: (error) => {
-			console.error(error);
-			toast.error("Logout failed", { description: error.message });
-		},
-	});
+	const handleLogout = async () => {
+		await authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					void navigate("/login", { replace: true });
+				},
+				onError: ({ error }) => {
+					toast.error("Logout failed", { description: error.message });
+				},
+			},
+		});
+	};
 
 	return (
 		<SidebarProvider defaultOpen={true}>
@@ -54,7 +55,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 									Welcome,&nbsp;
 									<span className="text-strong-accent">{loaderData.user?.username}</span>
 								</span>
-								<Button variant="default" size="sm" onClick={() => logout.mutate({})} loading={logout.isPending}>
+								<Button variant="default" size="sm" onClick={handleLogout}>
 									Logout
 								</Button>
 								<Button variant="default" size="sm" className="relative overflow-hidden hidden lg:inline-flex">

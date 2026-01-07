@@ -1,13 +1,14 @@
 import { redirect, type MiddlewareFunction } from "react-router";
-import { getMe, getStatus } from "~/client/api-client";
+import { getStatus } from "~/client/api-client";
+import { authClient } from "~/client/lib/auth-client";
 import { appContext } from "~/context";
 
 export const authMiddleware: MiddlewareFunction = async ({ context, request }) => {
-	const session = await getMe();
+	const { data: session } = await authClient.getSession();
 
 	const isAuthRoute = ["/login", "/onboarding"].includes(new URL(request.url).pathname);
 
-	if (!session.data?.user?.id && !isAuthRoute) {
+	if (!session?.user?.id && !isAuthRoute) {
 		const status = await getStatus();
 		if (!status.data?.hasUsers) {
 			throw redirect("/onboarding");
@@ -16,8 +17,8 @@ export const authMiddleware: MiddlewareFunction = async ({ context, request }) =
 		throw redirect("/login");
 	}
 
-	if (session.data?.user?.id) {
-		context.set(appContext, { user: session.data.user, hasUsers: true });
+	if (session?.user?.id) {
+		context.set(appContext, { user: session.user, hasUsers: true });
 
 		if (isAuthRoute) {
 			throw redirect("/");
