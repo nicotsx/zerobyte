@@ -211,6 +211,13 @@
       "when": 1767819883495,
       "tag": "0029_boring_luke_cage",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1767821088612,
+      "tag": "0030_lower-trim-username",
+      "breakpoints": true
     }
   ]
 }
