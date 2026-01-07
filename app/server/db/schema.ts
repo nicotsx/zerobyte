@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { int, integer, sqliteTable, text, primaryKey, unique } from "drizzle-orm/sqlite-core";
+import { index, int, integer, sqliteTable, text, primaryKey, unique } from "drizzle-orm/sqlite-core";
 import type { CompressionMode, RepositoryBackend, repositoryConfigSchema, RepositoryStatus } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
@@ -14,9 +14,16 @@ export const volumesTable = sqliteTable("volumes_table", {
 	type: text().$type<BackendType>().notNull(),
 	status: text().$type<BackendStatus>().notNull().default("unmounted"),
 	lastError: text("last_error"),
-	lastHealthCheck: integer("last_health_check", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	createdAt: integer("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: integer("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	lastHealthCheck: integer("last_health_check", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	createdAt: integer("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: integer("updated_at", { mode: "number" })
+		.notNull()
+		.$onUpdate(() => Date.now())
+		.default(sql`(unixepoch() * 1000)`),
 	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
 	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 });
@@ -27,23 +34,111 @@ export type VolumeInsert = typeof volumesTable.$inferInsert;
  * Users Table
  */
 export const usersTable = sqliteTable("users_table", {
-	id: int().primaryKey({ autoIncrement: true }),
+	id: text("id").primaryKey(),
 	username: text().notNull().unique(),
-	passwordHash: text("password_hash").notNull(),
+	passwordHash: text("password_hash"),
 	hasDownloadedResticPassword: int("has_downloaded_restic_password", { mode: "boolean" }).notNull().default(false),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: int("created_at", { mode: "timestamp_ms" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "timestamp_ms" })
+		.notNull()
+		.$onUpdate(() => new Date())
+		.default(sql`(unixepoch() * 1000)`),
+	name: text("name").notNull(),
+	email: text("email").notNull().unique(),
+	emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
+	image: text("image"),
+	displayUsername: text("display_username"),
 });
+
 export type User = typeof usersTable.$inferSelect;
 export const sessionsTable = sqliteTable("sessions_table", {
 	id: text().primaryKey(),
-	userId: int("user_id")
+	userId: text("user_id")
 		.notNull()
 		.references(() => usersTable.id, { onDelete: "cascade" }),
-	expiresAt: int("expires_at", { mode: "number" }).notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	token: text("token").notNull().unique(),
+	expiresAt: int("expires_at", { mode: "timestamp_ms" }).notNull(),
+	createdAt: int("created_at", { mode: "timestamp_ms" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+		.notNull()
+		.$onUpdate(() => new Date())
+		.default(sql`(unixepoch() * 1000)`),
+	ipAddress: text("ip_address"),
+	userAgent: text("user_agent"),
 });
 export type Session = typeof sessionsTable.$inferSelect;
+
+export const account = sqliteTable(
+	"account",
+	{
+		id: text("id").primaryKey(),
+		accountId: text("account_id").notNull(),
+		providerId: text("provider_id").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		idToken: text("id_token"),
+		accessTokenExpiresAt: integer("access_token_expires_at", {
+			mode: "timestamp_ms",
+		}),
+		refreshTokenExpiresAt: integer("refresh_token_expires_at", {
+			mode: "timestamp_ms",
+		}),
+		scope: text("scope"),
+		password: text("password"),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.$onUpdate(() => new Date())
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [index("account_userId_idx").on(table.userId)],
+);
+
+export const verification = sqliteTable(
+	"verification",
+	{
+		id: text("id").primaryKey(),
+		identifier: text("identifier").notNull(),
+		value: text("value").notNull(),
+		expiresAt: integer("expires_at", { mode: "number" }).notNull(),
+		createdAt: integer("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: integer("updated_at", { mode: "number" })
+			.$onUpdate(() => Date.now())
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+export const userRelations = relations(usersTable, ({ many }) => ({
+	sessions: many(sessionsTable),
+	accounts: many(account),
+}));
+
+export const sessionRelations = relations(sessionsTable, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [sessionsTable.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [account.userId],
+		references: [usersTable.id],
+	}),
+}));
 
 /**
  * Repositories Table
@@ -58,8 +153,12 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	status: text().$type<RepositoryStatus>().default("unknown"),
 	lastChecked: int("last_checked", { mode: "number" }),
 	lastError: text("last_error"),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: int("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
 });
 export type Repository = typeof repositoriesTable.$inferSelect;
 export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
@@ -97,8 +196,12 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
 	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: int("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
 });
 export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
@@ -125,8 +228,12 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
 	type: text().$type<NotificationType>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof notificationConfigSchema.inferOut>().notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: int("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
 });
 export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
 	schedules: many(backupScheduleNotificationsTable),
@@ -149,7 +256,9 @@ export const backupScheduleNotificationsTable = sqliteTable(
 		notifyOnSuccess: int("notify_on_success", { mode: "boolean" }).notNull().default(false),
 		notifyOnWarning: int("notify_on_warning", { mode: "boolean" }).notNull().default(true),
 		notifyOnFailure: int("notify_on_failure", { mode: "boolean" }).notNull().default(true),
-		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
 	},
 	(table) => [primaryKey({ columns: [table.scheduleId, table.destinationId] })],
 );
@@ -183,7 +292,9 @@ export const backupScheduleMirrorsTable = sqliteTable(
 		lastCopyAt: int("last_copy_at", { mode: "number" }),
 		lastCopyStatus: text("last_copy_status").$type<"success" | "error">(),
 		lastCopyError: text("last_copy_error"),
-		createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
 	},
 	(table) => [unique().on(table.scheduleId, table.repositoryId)],
 );
@@ -207,7 +318,11 @@ export type BackupScheduleMirror = typeof backupScheduleMirrorsTable.$inferSelec
 export const appMetadataTable = sqliteTable("app_metadata", {
 	key: text().primaryKey(),
 	value: text().notNull(),
-	createdAt: int("created_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" }).notNull().default(sql`(unixepoch() * 1000)`),
+	createdAt: int("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: int("updated_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
 });
 export type AppMetadata = typeof appMetadataTable.$inferSelect;

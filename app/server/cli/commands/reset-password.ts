@@ -1,28 +1,45 @@
-import { Command } from "commander";
 import { password, select } from "@inquirer/prompts";
-import { eq } from "drizzle-orm";
+import { hashPassword } from "better-auth/crypto";
+import { Command } from "commander";
+import { and, eq } from "drizzle-orm";
+import { toMessage } from "~/server/utils/errors";
 import { db } from "../../db/db";
-import { sessionsTable, usersTable } from "../../db/schema";
+import { account, sessionsTable, usersTable } from "../../db/schema";
 
 const listUsers = () => {
-	return db.select({ id: usersTable.id, username: usersTable.username }).from(usersTable);
+	return db
+		.select({ id: usersTable.id, username: usersTable.username })
+		.from(usersTable);
 };
 
 const resetPassword = async (username: string, newPassword: string) => {
-	const [user] = await db.select().from(usersTable).where(eq(usersTable.username, username));
+	const [user] = await db
+		.select()
+		.from(usersTable)
+		.where(eq(usersTable.username, username));
 
 	if (!user) {
 		throw new Error(`User "${username}" not found`);
 	}
 
-	const newPasswordHash = await Bun.password.hash(newPassword, {
-		algorithm: "argon2id",
-		memoryCost: 19456,
-		timeCost: 2,
-	});
+	const newPasswordHash = await hashPassword(newPassword);
 
 	await db.transaction(async (tx) => {
-		await tx.update(usersTable).set({ passwordHash: newPasswordHash }).where(eq(usersTable.id, user.id));
+		await tx
+			.update(account)
+			.set({ password: newPasswordHash })
+			.where(
+				and(eq(account.userId, user.id), eq(account.providerId, "credential")),
+			);
+
+		if (user.passwordHash) {
+			const legacyHash = await Bun.password.hash(newPassword);
+			await tx
+				.update(usersTable)
+				.set({ passwordHash: legacyHash })
+				.where(eq(usersTable.id, user.id));
+		}
+
 		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
 	});
 };
@@ -42,7 +59,9 @@ export const resetPasswordCommand = new Command("reset-password")
 
 			if (users.length === 0) {
 				console.error("❌ No users found in the database.");
-				console.log("   Please create a user first by starting the application.");
+				console.log(
+					"   Please create a user first by starting the application.",
+				);
 				process.exit(1);
 			}
 
@@ -80,10 +99,12 @@ export const resetPasswordCommand = new Command("reset-password")
 
 		try {
 			await resetPassword(username, newPassword);
-			console.log(`\n✅ Password for user "${username}" has been reset successfully.`);
+			console.log(
+				`\n✅ Password for user "${username}" has been reset successfully.`,
+			);
 			console.log("   All existing sessions have been invalidated.");
 		} catch (error) {
-			console.error(`\n❌ Failed to reset password: ${error instanceof Error ? error.message : "Unknown error"}`);
+			console.error(`\n❌ Failed to reset password: ${toMessage(error)}`);
 			process.exit(1);
 		}
 

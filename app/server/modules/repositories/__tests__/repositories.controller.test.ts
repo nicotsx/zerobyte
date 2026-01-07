@@ -9,28 +9,26 @@ describe("repositories security", () => {
 		const res = await app.request("/api/v1/repositories");
 		expect(res.status).toBe(401);
 		const body = await res.json();
-		expect(body.message).toBe("Authentication required");
+		expect(body.message).toBe("Invalid or expired session");
 	});
 
 	test("should return 401 if session is invalid", async () => {
 		const res = await app.request("/api/v1/repositories", {
 			headers: {
-				Cookie: "session_id=invalid-session",
+				Cookie: "better-auth.session_token=invalid-session",
 			},
 		});
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body.message).toBe("Invalid or expired session");
-
-		expect(res.headers.get("Set-Cookie")).toContain("session_id=;");
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { sessionId } = await createTestSession();
+		const { token } = await createTestSession();
 
 		const res = await app.request("/api/v1/repositories", {
 			headers: {
-				Cookie: `session_id=${sessionId}`,
+				Cookie: `better-auth.session_token=${token}`,
 			},
 		});
 
@@ -59,7 +57,7 @@ describe("repositories security", () => {
 				const res = await app.request(path, { method });
 				expect(res.status).toBe(401);
 				const body = await res.json();
-				expect(body.message).toBe("Authentication required");
+				expect(body.message).toBe("Invalid or expired session");
 			});
 		}
 	});
@@ -69,16 +67,16 @@ describe("repositories security", () => {
 			const res = await app.request("/api/v1/repositories/non-existent-repo");
 			expect(res.status).toBe(401);
 			const body = await res.json();
-			expect(body.message).toBe("Authentication required");
+			expect(body.message).toBe("Invalid or expired session");
 		});
 	});
 
 	describe("input validation", () => {
 		test("should return 404 for non-existent repository", async () => {
-			const { sessionId } = await createTestSession();
+			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo", {
 				headers: {
-					Cookie: `session_id=${sessionId}`,
+					Cookie: `better-auth.session_token=${token}`,
 				},
 			});
 
@@ -88,11 +86,11 @@ describe("repositories security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { sessionId } = await createTestSession();
+			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/repositories", {
 				method: "POST",
 				headers: {
-					Cookie: `session_id=${sessionId}`,
+					Cookie: `better-auth.session_token=${token}`,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

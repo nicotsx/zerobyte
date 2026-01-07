@@ -1,5 +1,6 @@
 import { createHonoServer } from "react-router-hono-server/bun";
-import { runDbMigrations } from "./db/db";
+import * as schema from "./db/schema";
+import { setSchema, runDbMigrations } from "./db/db";
 import { startup } from "./modules/lifecycle/startup";
 import { retagSnapshots } from "./modules/lifecycle/migration";
 import { logger } from "./utils/logger";
@@ -9,6 +10,8 @@ import { validateRequiredMigrations } from "./modules/lifecycle/checkpoint";
 import { createApp } from "./app";
 import { config } from "./core/config";
 import { runCLI } from "./cli";
+
+setSchema(schema);
 
 const cliRun = await runCLI(Bun.argv);
 if (cliRun) {

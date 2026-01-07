@@ -1,5 +1,11 @@
 import { createContext } from "react-router";
-import type { User } from "./client/lib/types";
+
+type User = {
+	id: string;
+	email: string;
+	username: string;
+	hasDownloadedResticPassword: boolean;
+};
 
 type AppContext = {
 	user: User | null;

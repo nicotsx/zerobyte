@@ -18,11 +18,8 @@ import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { appContext } from "~/context";
 import type { Route } from "./+types/settings";
-import {
-	changePasswordMutation,
-	downloadResticPasswordMutation,
-	logoutMutation,
-} from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { authClient } from "~/client/lib/auth-client";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
@@ -49,31 +46,22 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
+	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const navigate = useNavigate();
 
-	const logout = useMutation({
-		...logoutMutation(),
-		onSuccess: () => {
-			void navigate("/login", { replace: true });
-		},
-	});
-
-	const changePassword = useMutation({
-		...changePasswordMutation(),
-		onSuccess: (data) => {
-			if (data.success) {
-				toast.success("Password changed successfully. You will be logged out.");
-				setTimeout(() => {
-					logout.mutate({});
-				}, 1500);
-			} else {
-				toast.error("Failed to change password", { description: data.message });
-			}
-		},
-		onError: (error) => {
-			toast.error("Failed to change password", { description: error.message });
-		},
-	});
+	const handleLogout = async () => {
+		await authClient.signOut({
+			fetchOptions: {
+				onSuccess: () => {
+					void navigate("/login", { replace: true });
+				},
+				onError: ({ error }) => {
+					console.error(error);
+					toast.error("Logout failed", { description: error.message });
+				},
+			},
+		});
+	};
 
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
@@ -97,7 +85,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleChangePassword = (e: React.FormEvent) => {
+	const handleChangePassword = async (e: React.FormEvent) => {
 		e.preventDefault();
 
 		if (newPassword !== confirmPassword) {
@@ -110,10 +98,26 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		changePassword.mutate({
-			body: {
-				currentPassword,
-				newPassword,
+		await authClient.changePassword({
+			newPassword,
+			currentPassword: currentPassword,
+			revokeOtherSessions: true,
+			fetchOptions: {
+				onSuccess: () => {
+					toast.success("Password changed successfully. You will be logged out.");
+					setTimeout(() => {
+						void handleLogout();
+					}, 1500);
+				},
+				onError: (error) => {
+					toast.error("Failed to change password", { description: error.error.message });
+				},
+				onRequest: () => {
+					setIsChangingPassword(true);
+				},
+				onResponse: () => {
+					setIsChangingPassword(false);
+				},
 			},
 		});
 	};
@@ -194,7 +198,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 							minLength={8}
 						/>
 					</div>
-					<Button type="submit" loading={changePassword.isPending} className="mt-4">
+					<Button type="submit" loading={isChangingPassword} className="mt-4">
 						<KeyRound className="h-4 w-4 mr-2" />
 						Change Password
 					</Button>

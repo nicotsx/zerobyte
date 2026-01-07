@@ -9,7 +9,6 @@ import { CleanupDanglingMountsJob } from "../../jobs/cleanup-dangling";
 import { VolumeHealthCheckJob } from "../../jobs/healthchecks";
 import { RepositoryHealthCheckJob } from "../../jobs/repository-healthchecks";
 import { BackupExecutionJob } from "../../jobs/backup-execution";
-import { CleanupSessionsJob } from "../../jobs/cleanup-sessions";
 import { repositoriesService } from "../repositories/repositories.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
@@ -82,6 +81,5 @@ export const startup = async () => {
 	Scheduler.build(VolumeHealthCheckJob).schedule("*/30 * * * *");
 	Scheduler.build(RepositoryHealthCheckJob).schedule("50 12 * * *");
 	Scheduler.build(BackupExecutionJob).schedule("* * * * *");
-	Scheduler.build(CleanupSessionsJob).schedule("0 0 * * *");
 	Scheduler.build(VolumeAutoRemountJob).schedule("*/5 * * * *");
 };

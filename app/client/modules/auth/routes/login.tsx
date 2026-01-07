@@ -1,5 +1,4 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { useMutation } from "@tanstack/react-query";
 import { type } from "arktype";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -11,8 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "~/client/components/ui/input";
 import { authMiddleware } from "~/middleware/auth";
 import type { Route } from "./+types/login";
-import { loginMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
+import { authClient } from "~/client/lib/auth-client";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -36,6 +35,7 @@ type LoginFormValues = typeof loginSchema.inferIn;
 export default function LoginPage() {
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
+	const [isLoggingIn, setIsLoggingIn] = useState(false);
 
 	const form = useForm<LoginFormValues>({
 		resolver: arktypeResolver(loginSchema),
@@ -45,28 +45,32 @@ export default function LoginPage() {
 		},
 	});
 
-	const login = useMutation({
-		...loginMutation(),
-		onSuccess: async (data) => {
-			if (data.user && !data.user.hasDownloadedResticPassword) {
-				void navigate("/download-recovery-key");
-			} else {
-				void navigate("/volumes");
-			}
-		},
-		onError: (error) => {
-			console.error(error);
-			toast.error("Login failed", { description: error.message });
-		},
-	});
-
-	const onSubmit = (values: LoginFormValues) => {
-		login.mutate({
-			body: {
-				username: values.username.trim(),
-				password: values.password.trim(),
+	const onSubmit = async (values: LoginFormValues) => {
+		const { data, error } = await authClient.signIn.username({
+			username: values.username.toLowerCase().trim(),
+			password: values.password,
+			fetchOptions: {
+				onRequest: () => {
+					setIsLoggingIn(true);
+				},
+				onResponse: () => {
+					setIsLoggingIn(false);
+				},
 			},
 		});
+
+		if (error) {
+			console.error(error);
+			toast.error("Login failed", { description: error.message });
+			return;
+		}
+
+		const d = await authClient.getSession();
+		if (data.user && !d.data?.user.hasDownloadedResticPassword) {
+			void navigate("/download-recovery-key");
+		} else {
+			void navigate("/volumes");
+		}
 	};
 
 	return (
@@ -80,7 +84,7 @@ export default function LoginPage() {
 							<FormItem>
 								<FormLabel>Username</FormLabel>
 								<FormControl>
-									<Input {...field} type="text" placeholder="admin" disabled={login.isPending} autoFocus />
+									<Input {...field} type="text" placeholder="admin" disabled={isLoggingIn} autoFocus />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -102,13 +106,13 @@ export default function LoginPage() {
 									</button>
 								</div>
 								<FormControl>
-									<Input {...field} type="password" disabled={login.isPending} />
+									<Input {...field} type="password" disabled={isLoggingIn} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>
 						)}
 					/>
-					<Button type="submit" className="w-full" loading={login.isPending}>
+					<Button type="submit" className="w-full" loading={isLoggingIn}>
 						Login
 					</Button>
 				</form>
