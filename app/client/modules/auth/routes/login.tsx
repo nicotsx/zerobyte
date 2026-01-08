@@ -10,10 +10,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
-import { authMiddleware } from "~/middleware/auth";
-import type { Route } from "./+types/login";
-import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { authClient } from "~/client/lib/auth-client";
+import { authMiddleware } from "~/middleware/auth";
+import { ResetPasswordDialog } from "../components/reset-password-dialog";
+import type { Route } from "./+types/login";
 
 export const clientMiddleware = [authMiddleware];
 

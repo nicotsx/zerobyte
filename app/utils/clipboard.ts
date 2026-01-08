@@ -1,7 +1,10 @@
+import { toast } from "sonner";
+
 export async function copyToClipboard(textToCopy: string) {
 	// Navigator clipboard api needs a secure context (https)
 	if (navigator.clipboard && window.isSecureContext) {
 		await navigator.clipboard.writeText(textToCopy);
+		toast.success("Copied to clipboard");
 	} else {
 		// Use the 'out of viewport hidden text area' trick
 		const textArea = document.createElement("textarea");
@@ -16,6 +19,7 @@ export async function copyToClipboard(textToCopy: string) {
 
 		try {
 			document.execCommand("copy");
+			toast.success("Copied to clipboard");
 		} catch (error) {
 			console.error(error);
 		} finally {
