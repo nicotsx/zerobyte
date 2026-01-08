@@ -114,12 +114,12 @@ export const verification = sqliteTable(
 		id: text("id").primaryKey(),
 		identifier: text("identifier").notNull(),
 		value: text("value").notNull(),
-		expiresAt: integer("expires_at", { mode: "number" }).notNull(),
-		createdAt: integer("created_at", { mode: "number" })
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.notNull()
 			.default(sql`(unixepoch() * 1000)`),
-		updatedAt: integer("updated_at", { mode: "number" })
-			.$onUpdate(() => Date.now())
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.$onUpdate(() => new Date())
 			.notNull()
 			.default(sql`(unixepoch() * 1000)`),
 	},
