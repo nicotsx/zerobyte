@@ -84,6 +84,7 @@ jobs:
         with:
           image: local/zerobyte:ci
           fail-build: true
+          only-fixed: true
           severity-cutoff: critical
 
       - name: upload Anchore scan report

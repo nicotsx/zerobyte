@@ -6,7 +6,7 @@ import {
 	type MiddlewareOptions,
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, username } from "better-auth/plugins";
+import { createAuthMiddleware, twoFactor, username } from "better-auth/plugins";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { db } from "~/server/db/db";

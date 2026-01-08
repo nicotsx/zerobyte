@@ -50,26 +50,31 @@ export const usersTable = sqliteTable("users_table", {
 	emailVerified: integer("email_verified", { mode: "boolean" }).default(false).notNull(),
 	image: text("image"),
 	displayUsername: text("display_username"),
+	twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
 });
 
 export type User = typeof usersTable.$inferSelect;
-export const sessionsTable = sqliteTable("sessions_table", {
-	id: text().primaryKey(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => usersTable.id, { onDelete: "cascade" }),
-	token: text("token").notNull().unique(),
-	expiresAt: int("expires_at", { mode: "timestamp_ms" }).notNull(),
-	createdAt: int("created_at", { mode: "timestamp_ms" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-		.notNull()
-		.$onUpdate(() => new Date())
-		.default(sql`(unixepoch() * 1000)`),
-	ipAddress: text("ip_address"),
-	userAgent: text("user_agent"),
-});
+export const sessionsTable = sqliteTable(
+	"sessions_table",
+	{
+		id: text().primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+		token: text("token").notNull().unique(),
+		expiresAt: int("expires_at", { mode: "timestamp_ms" }).notNull(),
+		createdAt: int("created_at", { mode: "timestamp_ms" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.notNull()
+			.$onUpdate(() => new Date())
+			.default(sql`(unixepoch() * 1000)`),
+		ipAddress: text("ip_address"),
+		userAgent: text("user_agent"),
+	},
+	(table) => [index("sessionsTable_userId_idx").on(table.userId)],
+);
 export type Session = typeof sessionsTable.$inferSelect;
 
 export const account = sqliteTable(
@@ -124,6 +129,7 @@ export const verification = sqliteTable(
 export const userRelations = relations(usersTable, ({ many }) => ({
 	sessions: many(sessionsTable),
 	accounts: many(account),
+	twoFactors: many(twoFactor),
 }));
 
 export const sessionRelations = relations(sessionsTable, ({ one }) => ({
@@ -326,3 +332,16 @@ export const appMetadataTable = sqliteTable("app_metadata", {
 		.default(sql`(unixepoch() * 1000)`),
 });
 export type AppMetadata = typeof appMetadataTable.$inferSelect;
+
+export const twoFactor = sqliteTable(
+	"two_factor",
+	{
+		id: text("id").primaryKey(),
+		secret: text("secret").notNull(),
+		backupCodes: text("backup_codes").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+	},
+	(table) => [index("twoFactor_secret_idx").on(table.secret), index("twoFactor_userId_idx").on(table.userId)],
+);
