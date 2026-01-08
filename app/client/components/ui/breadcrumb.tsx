@@ -43,16 +43,17 @@ function BreadcrumbLink({
 	);
 }
 
-function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
+function BreadcrumbPage({ className, children, ...props }: React.ComponentProps<"a">) {
 	return (
-		<span
+		<a
 			data-slot="breadcrumb-page"
-			role="link"
 			aria-disabled="true"
 			aria-current="page"
 			className={cn("text-foreground font-normal truncate", className)}
 			{...props}
-		/>
+		>
+			{children}
+		</a>
 	);
 }
 

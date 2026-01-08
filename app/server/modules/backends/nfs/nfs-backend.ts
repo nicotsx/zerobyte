@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
+import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
@@ -7,19 +8,24 @@ import { getMountForPath } from "../../../utils/mountinfo";
 import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";
 import { executeMount, executeUnmount } from "../utils/backend-utils";
-import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
 
 const mount = async (config: BackendConfig, path: string) => {
 	logger.debug(`Mounting volume ${path}...`);
 
 	if (config.backend !== "nfs") {
 		logger.error("Provided config is not for NFS backend");
-		return { status: BACKEND_STATUS.error, error: "Provided config is not for NFS backend" };
+		return {
+			status: BACKEND_STATUS.error,
+			error: "Provided config is not for NFS backend",
+		};
 	}
 
 	if (os.platform() !== "linux") {
 		logger.error("NFS mounting is only supported on Linux hosts.");
-		return { status: BACKEND_STATUS.error, error: "NFS mounting is only supported on Linux hosts." };
+		return {
+			status: BACKEND_STATUS.error,
+			error: "NFS mounting is only supported on Linux hosts.",
+		};
 	}
 
 	const { status } = await checkHealth(path);
@@ -37,6 +43,9 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		const source = `${config.server}:${config.exportPath}`;
 		const options = [`vers=${config.version}`, `port=${config.port}`];
+		if (config.version === "3") {
+			options.push("nolock");
+		}
 		if (config.readOnly) {
 			options.push("ro");
 		}
@@ -46,6 +55,9 @@ const mount = async (config: BackendConfig, path: string) => {
 		logger.info(`Executing mount: mount ${args.join(" ")}`);
 
 		await executeMount(args);
+
+		// Fallback with -i flag if the first mount fails using the mount helper
+		await executeMount(["-i", ...args]);
 
 		logger.info(`NFS volume at ${path} mounted successfully.`);
 		return { status: BACKEND_STATUS.mounted };
@@ -62,7 +74,10 @@ const mount = async (config: BackendConfig, path: string) => {
 const unmount = async (path: string) => {
 	if (os.platform() !== "linux") {
 		logger.error("NFS unmounting is only supported on Linux hosts.");
-		return { status: BACKEND_STATUS.error, error: "NFS unmounting is only supported on Linux hosts." };
+		return {
+			status: BACKEND_STATUS.error,
+			error: "NFS unmounting is only supported on Linux hosts.",
+		};
 	}
 
 	const run = async () => {
@@ -83,7 +98,10 @@ const unmount = async (path: string) => {
 	try {
 		return await withTimeout(run(), OPERATION_TIMEOUT, "NFS unmount");
 	} catch (err) {
-		logger.error("Error unmounting NFS volume", { path, error: toMessage(err) });
+		logger.error("Error unmounting NFS volume", {
+			path,
+			error: toMessage(err),
+		});
 		return { status: BACKEND_STATUS.error, error: toMessage(err) };
 	}
 };

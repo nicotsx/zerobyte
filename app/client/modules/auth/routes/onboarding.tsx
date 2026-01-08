@@ -115,7 +115,7 @@ export default function OnboardingPage() {
 							<FormItem>
 								<FormLabel>Username</FormLabel>
 								<FormControl>
-									<Input {...field} type="text" placeholder="admin" disabled={submitting} autoFocus />
+									<Input {...field} type="text" placeholder="admin" disabled={submitting} />
 								</FormControl>
 								<FormDescription>Choose a username for the admin account</FormDescription>
 								<FormMessage />

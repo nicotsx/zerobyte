@@ -61,6 +61,9 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		await executeMount(args);
 
+		// Fallback with -i flag if the first mount fails using the mount helper
+		await executeMount(["-i", ...args]);
+
 		logger.info(`SMB volume at ${path} mounted successfully.`);
 		return { status: BACKEND_STATUS.mounted };
 	};

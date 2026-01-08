@@ -84,7 +84,7 @@ export default function LoginPage() {
 							<FormItem>
 								<FormLabel>Username</FormLabel>
 								<FormControl>
-									<Input {...field} type="text" placeholder="admin" disabled={isLoggingIn} autoFocus />
+									<Input {...field} type="text" placeholder="admin" disabled={isLoggingIn} />
 								</FormControl>
 								<FormMessage />
 							</FormItem>

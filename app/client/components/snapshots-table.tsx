@@ -158,7 +158,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 												}
 												setSelectedIds(newSelected);
 											}}
-											aria-label={`Select snapshot ${snapshot.short_id}`}
+											aria-label={`Select snapshot ${snapshot.short_id}` as string}
 										/>
 									</TableCell>
 									<TableCell className="font-mono text-sm">

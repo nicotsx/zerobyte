@@ -1,23 +1,30 @@
 import * as fs from "node:fs/promises";
 import * as npath from "node:path";
+import { $ } from "bun";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
-import { $ } from "bun";
 
 export const executeMount = async (args: string[]): Promise<void> => {
-	let stderr: string | undefined;
+	const shouldBeVerbose = process.env.LOG_LEVEL === "debug" || process.env.NODE_ENV !== "production";
+	const hasVerboseFlag = args.some((arg) => arg === "-v" || arg.startsWith("-vv"));
+	const effectiveArgs = shouldBeVerbose && !hasVerboseFlag ? ["-vvv", ...args] : args;
 
-	logger.debug(`Executing mount ${args.join(" ")}`);
-	const result = await $`mount ${args}`.nothrow();
-	stderr = result.stderr.toString();
+	logger.debug(`Executing mount ${effectiveArgs.join(" ")}`);
+	const result = await $`mount ${effectiveArgs}`.nothrow();
 
-	if (stderr?.trim()) {
-		logger.warn(stderr.trim());
+	const stdout = result.stdout.toString().trim();
+	const stderr = result.stderr.toString().trim();
+
+	if (result.exitCode === 0) {
+		if (stdout) logger.debug(stdout);
+		if (stderr) logger.debug(stderr);
+		return;
 	}
 
-	if (result.exitCode !== 0) {
-		throw new Error(`Mount command failed with exit code ${result.exitCode}: ${stderr?.trim()}`);
-	}
+	if (stdout) logger.warn(stdout);
+	if (stderr) logger.warn(stderr);
+
+	throw new Error(`Mount command failed with exit code ${result.exitCode}: ${stderr || stdout || "unknown error"}`);
 };
 
 export const executeUnmount = async (path: string): Promise<void> => {
