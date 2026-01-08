@@ -133,7 +133,6 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 									onChange={(e) => setPassword(e.target.value)}
 									placeholder="Enter your password"
 									required
-									autoFocus
 								/>
 							</div>
 						</div>

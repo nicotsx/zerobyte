@@ -79,7 +79,6 @@ export const TwoFactorDisableDialog = ({ open, onOpenChange, onSuccess }: TwoFac
 								onChange={(e) => setPassword(e.target.value)}
 								placeholder="Enter your password"
 								required
-								autoFocus
 							/>
 						</div>
 					</div>

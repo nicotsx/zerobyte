@@ -114,7 +114,6 @@ export const BackupCodesDialog = ({ open, onOpenChange }: BackupCodesDialogProps
 									onChange={(e) => setPassword(e.target.value)}
 									placeholder="Enter your password"
 									required
-									autoFocus
 								/>
 							</div>
 							<Button type="submit" loading={isGenerating} className="w-full">

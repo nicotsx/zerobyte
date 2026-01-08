@@ -90,14 +90,18 @@ export default function LoginPage() {
 			return;
 		}
 
-		setIsVerifying2FA(true);
-
 		const { data, error } = await authClient.twoFactor.verifyTotp({
 			code: totpCode,
 			trustDevice,
+			fetchOptions: {
+				onRequest: () => {
+					setIsVerifying2FA(true);
+				},
+				onResponse: () => {
+					setIsVerifying2FA(false);
+				},
+			},
 		});
-
-		setIsVerifying2FA(false);
 
 		if (error) {
 			console.error(error);
