@@ -489,18 +489,27 @@ interface ButtonProps {
 const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, children }: ButtonProps) => {
 	const paddingLeft = useMemo(() => `${8 + depth * NODE_PADDING_LEFT}px`, [depth]);
 
+	const handleKeyDown = useCallback(
+		(e: React.KeyboardEvent) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				onClick?.();
+			}
+		},
+		[onClick],
+	);
+
 	return (
-		// biome-ignore lint/a11y/noStaticElementInteractions: we handle click and hover manually
-		// biome-ignore lint/a11y/useKeyWithClickEvents: we handle click and hover manually
-		<div
+		<button
 			className={cn("flex items-center gap-2 w-full pr-2 text-sm py-1.5 text-left", className)}
 			style={{ paddingLeft }}
 			onClick={onClick}
 			onMouseEnter={onMouseEnter}
+			onKeyDown={handleKeyDown}
 		>
 			{icon}
 			<div className="truncate w-full flex items-center gap-2">{children}</div>
-		</div>
+		</button>
 	);
 });
 

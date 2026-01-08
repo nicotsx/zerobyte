@@ -244,7 +244,6 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 										onChange={(e) => setDownloadPassword(e.target.value)}
 										placeholder="Enter your password"
 										required
-										autoFocus
 									/>
 								</div>
 							</div>
