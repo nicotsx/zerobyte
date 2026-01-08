@@ -1,4 +1,4 @@
-import { safeSpawn } from "./spawn";
+import { exec } from "./spawn";
 import { logger } from "./logger";
 import { toMessage } from "./errors";
 
@@ -16,10 +16,7 @@ export async function sendNotification(params: SendNotificationParams) {
 
 		logger.debug(`Sending notification via Shoutrrr: ${title}`);
 
-		const result = await safeSpawn({
-			command: "shoutrrr",
-			args,
-		});
+		const result = await exec({ command: "shoutrrr", args });
 
 		if (result.exitCode === 0) {
 			logger.debug(`Notification sent successfully: ${title}`);

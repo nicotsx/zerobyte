@@ -1,13 +1,13 @@
-import { $ } from "bun";
 import { logger } from "./logger";
 import { toMessage } from "./errors";
+import { exec } from "./spawn";
 
 /**
  * List all configured rclone remotes
  * @returns Array of remote names
  */
 export async function listRcloneRemotes(): Promise<string[]> {
-	const result = await $`rclone listremotes`.nothrow();
+	const result = await exec({ command: "rclone", args: ["listremotes"] });
 
 	if (result.exitCode !== 0) {
 		logger.error(`Failed to list rclone remotes: ${result.stderr.toString()}`);
@@ -34,7 +34,7 @@ export async function getRcloneRemoteInfo(
 	remote: string,
 ): Promise<{ type: string; config: Record<string, string> } | null> {
 	try {
-		const result = await $`rclone config show ${remote}`.quiet();
+		const result = await exec({ command: "rclone", args: ["config", "show", remote] });
 
 		if (result.exitCode !== 0) {
 			logger.error(`Failed to get info for remote ${remote}: ${result.stderr.toString()}`);

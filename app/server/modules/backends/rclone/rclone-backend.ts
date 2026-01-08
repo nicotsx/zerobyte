@@ -1,6 +1,5 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { $ } from "bun";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
@@ -9,6 +8,7 @@ import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";
 import { executeUnmount } from "../utils/backend-utils";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
+import { exec } from "~/server/utils/spawn";
 
 const mount = async (config: BackendConfig, path: string) => {
 	logger.debug(`Mounting rclone volume ${path}...`);
@@ -50,7 +50,7 @@ const mount = async (config: BackendConfig, path: string) => {
 		logger.debug(`Mounting rclone volume ${path}...`);
 		logger.info(`Executing rclone: rclone ${args.join(" ")}`);
 
-		const result = await $`rclone ${args}`.nothrow();
+		const result = await exec({ command: "rclone", args });
 
 		if (result.exitCode !== 0) {
 			const errorMsg = result.stderr.toString() || result.stdout.toString() || "Unknown error";
