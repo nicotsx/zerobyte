@@ -3,7 +3,7 @@ import { db } from "../../../db/db";
 import { backupScheduleMirrorsTable, repositoriesTable, type Repository } from "../../../db/schema";
 import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
-import { safeSpawn } from "~/server/utils/spawn";
+import { exec } from "~/server/utils/spawn";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "~/server/utils/restic";
 
 const migrateTag = async (
@@ -20,7 +20,7 @@ const migrateTag = async (
 	addCommonArgs(args, env);
 
 	logger.info(`Migrating snapshots for schedule '${scheduleName}' from tag '${oldTag}' to '${newTag}'`);
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {

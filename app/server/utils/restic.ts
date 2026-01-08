@@ -231,7 +231,7 @@ const init = async (config: RepositoryConfig) => {
 	const args = ["init", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -341,8 +341,6 @@ const backup = async (
 		}
 	}, 1000);
 
-	let stdout = "";
-
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 	const res = await safeSpawn({
 		command: "restic",
@@ -350,19 +348,16 @@ const backup = async (
 		env,
 		signal: options?.signal,
 		onStdout: (data) => {
-			stdout = data;
 			logData(data);
-
 			if (options?.onProgress) {
 				streamProgress(data);
 			}
 		},
-		finally: async () => {
-			if (includeFile) await fs.unlink(includeFile).catch(() => {});
-			if (excludeFile) await fs.unlink(excludeFile).catch(() => {});
-			await cleanupTemporaryKeys(env);
-		},
 	});
+
+	includeFile && (await fs.unlink(includeFile).catch(() => {}));
+	excludeFile && (await fs.unlink(excludeFile).catch(() => {}));
+	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
 		logger.warn("Restic backup was aborted by signal.");
@@ -370,17 +365,17 @@ const backup = async (
 	}
 
 	if (res.exitCode === 3) {
-		logger.error(`Restic backup encountered read errors: ${res.stderr}`);
+		logger.error(`Restic backup encountered read errors: ${res.error}`);
 	}
 
 	if (res.exitCode !== 0 && res.exitCode !== 3) {
-		logger.error(`Restic backup failed: ${res.stderr}`);
+		logger.error(`Restic backup failed: ${res.error}`);
 		logger.error(`Command executed: restic ${args.join(" ")}`);
 
-		throw new ResticError(res.exitCode, res.stderr);
+		throw new ResticError(res.exitCode, res.error);
 	}
 
-	const lastLine = (stdout || res.stdout).trim();
+	const lastLine = res.summary.trim();
 	let summaryLine = "";
 	try {
 		const resSummary = JSON.parse(lastLine ?? "{}");
@@ -390,6 +385,7 @@ const backup = async (
 		summaryLine = "{}";
 	}
 
+	logger.debug(`Restic restore output last line: ${summaryLine}`);
 	const result = backupOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
@@ -461,27 +457,22 @@ const restore = async (
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
-		logger.error(`Restic restore failed: ${res.stderr}`);
-		throw new ResticError(res.exitCode, res.stderr);
+		logger.error(`Restic restore failed: ${res.error}`);
+		throw new ResticError(res.exitCode, res.error);
 	}
 
-	const outputLines = res.stdout.trim().split("\n");
-	const lastLine = outputLines[outputLines.length - 1];
-
-	if (!lastLine) {
-		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
-		return {
-			message_type: "summary" as const,
-			total_files: 0,
-			files_restored: 0,
-			files_skipped: 0,
-			bytes_skipped: 0,
-		};
+	const lastLine = res.summary.trim();
+	let summaryLine = "";
+	try {
+		const resSummary = JSON.parse(lastLine ?? "{}");
+		summaryLine = resSummary;
+	} catch (_) {
+		logger.warn("Failed to parse restic backup output JSON summary.", lastLine);
+		summaryLine = "{}";
 	}
 
-	logger.debug(`Restic restore output last line: ${lastLine}`);
-	const resSummary = JSON.parse(lastLine);
-	const result = restoreOutputSchema(resSummary);
+	logger.debug(`Restic restore output last line: ${summaryLine}`);
+	const result = restoreOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
 		logger.warn(`Restic restore output validation failed: ${result.summary}`);
@@ -518,7 +509,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[] } 
 
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -567,7 +558,7 @@ const forget = async (config: RepositoryConfig, options: RetentionPolicy, extra:
 	args.push("--prune");
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -589,7 +580,7 @@ const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[]) 
 	const args: string[] = ["--repo", repoUrl, "forget", ...snapshotIds, "--prune"];
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -638,7 +629,7 @@ const tagSnapshots = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -688,7 +679,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -739,7 +730,7 @@ const unlock = async (config: RepositoryConfig) => {
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -763,7 +754,7 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;
@@ -796,7 +787,7 @@ const repairIndex = async (config: RepositoryConfig) => {
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;
@@ -863,7 +854,7 @@ const copy = async (
 	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 
-	const res = await safeSpawn({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env });
 
 	await cleanupTemporaryKeys(sourceEnv);
 	await cleanupTemporaryKeys(destEnv);

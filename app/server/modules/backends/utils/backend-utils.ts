@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as npath from "node:path";
-import { $ } from "bun";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
+import { exec } from "~/server/utils/spawn";
 
 export const executeMount = async (args: string[]): Promise<void> => {
 	const shouldBeVerbose = process.env.LOG_LEVEL === "debug" || process.env.NODE_ENV !== "production";
@@ -10,7 +10,7 @@ export const executeMount = async (args: string[]): Promise<void> => {
 	const effectiveArgs = shouldBeVerbose && !hasVerboseFlag ? ["-v", ...args] : args;
 
 	logger.debug(`Executing mount ${effectiveArgs.join(" ")}`);
-	let result = await $`mount ${effectiveArgs}`.nothrow();
+	const result = await exec({ command: "mount", args: effectiveArgs, timeout: 10000 });
 
 	const stdout = result.stdout.toString().trim();
 	const stderr = result.stderr.toString().trim();
@@ -31,7 +31,8 @@ export const executeUnmount = async (path: string): Promise<void> => {
 	let stderr: string | undefined;
 
 	logger.debug(`Executing umount -l ${path}`);
-	const result = await $`umount -l ${path}`.nothrow();
+	const result = await exec({ command: "umount", args: ["-l", path], timeout: 10000 });
+
 	stderr = result.stderr.toString();
 
 	if (stderr?.trim()) {
