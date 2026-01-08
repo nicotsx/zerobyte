@@ -393,7 +393,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 													type="button"
 													onClick={() => handleRemovePath(path)}
 													className="ml-1 hover:bg-destructive/20 rounded p-0.5 transition-colors"
-													aria-label={`Remove ${path}`}
+													aria-label={`Remove ${path}` as string}
 												>
 													<X className="h-3 w-3" />
 												</button>

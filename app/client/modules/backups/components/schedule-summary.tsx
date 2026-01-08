@@ -65,7 +65,7 @@ export const ScheduleSummary = (props: Props) => {
 			repositoryLabel: schedule.repositoryId || "No repository selected",
 			retentionLabel: retentionParts.length > 0 ? retentionParts.join(" • ") : "No retention policy",
 		};
-	}, [schedule, schedule.volume.name]);
+	}, [schedule]);
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);

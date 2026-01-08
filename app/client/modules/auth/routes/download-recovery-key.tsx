@@ -88,7 +88,6 @@ export default function DownloadRecoveryKeyPage() {
 						onChange={(e) => setPassword(e.target.value)}
 						placeholder="Enter your password"
 						required
-						autoFocus
 						disabled={downloadResticPassword.isPending}
 					/>
 					<p className="text-xs text-muted-foreground">Enter your account password to download the recovery key</p>
