@@ -16,9 +16,9 @@ if (cliRun) {
 	process.exit(0);
 }
 
-const app = createApp();
-
 runDbMigrations();
+
+const app = createApp();
 
 await runMigrations();
 await startup();
