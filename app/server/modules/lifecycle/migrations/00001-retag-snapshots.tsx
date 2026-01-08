@@ -1,59 +1,10 @@
 import { eq } from "drizzle-orm";
-import { db } from "../../db/db";
-import { backupScheduleMirrorsTable, repositoriesTable, type Repository } from "../../db/schema";
-import { logger } from "../../utils/logger";
-import { hasMigrationCheckpoint, recordMigrationCheckpoint } from "./checkpoint";
+import { db } from "../../../db/db";
+import { backupScheduleMirrorsTable, repositoriesTable, type Repository } from "../../../db/schema";
+import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
 import { safeSpawn } from "~/server/utils/spawn";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "~/server/utils/restic";
-
-const MIGRATION_VERSION = "v0.21.1";
-
-interface MigrationResult {
-	success: boolean;
-	errors: Array<{ name: string; error: string }>;
-}
-
-export class MigrationError extends Error {
-	version: string;
-	failedItems: Array<{ name: string; error: string }>;
-
-	constructor(version: string, failedItems: Array<{ name: string; error: string }>) {
-		const itemNames = failedItems.map((e) => e.name).join(", ");
-		super(`Migration ${version} failed for: ${itemNames}`);
-		this.version = version;
-		this.failedItems = failedItems;
-		this.name = "MigrationError";
-	}
-}
-
-export const retagSnapshots = async () => {
-	const alreadyMigrated = await hasMigrationCheckpoint(MIGRATION_VERSION);
-	if (alreadyMigrated) {
-		logger.debug(`Migration ${MIGRATION_VERSION} already completed, skipping.`);
-		return;
-	}
-
-	logger.info(`Starting snapshots retagging migration (${MIGRATION_VERSION})...`);
-
-	const result = await migrateSnapshotsToShortIdTag();
-	const allErrors = [...result.errors];
-
-	if (allErrors.length > 0) {
-		logger.error(`Migration ${MIGRATION_VERSION} completed with errors: ${allErrors.length} items failed.`);
-		logger.error(
-			`Some snapshots could not be retagged. Please check the logs for details. Fix any repository in error state and re-start zerobyte to retry the migration for failed items.`,
-		);
-		for (const err of allErrors) {
-			logger.error(`Migration failure - ${err.name}: ${err.error}`);
-		}
-
-		return;
-	}
-
-	await recordMigrationCheckpoint(MIGRATION_VERSION);
-	logger.info(`Snapshots retagging migration (${MIGRATION_VERSION}) complete.`);
-};
 
 const migrateTag = async (
 	oldTag: string,
@@ -81,7 +32,7 @@ const migrateTag = async (
 	return null;
 };
 
-const migrateSnapshotsToShortIdTag = async (): Promise<MigrationResult> => {
+const execute = async () => {
 	const errors: Array<{ name: string; error: string }> = [];
 	const backupSchedules = await db.query.backupSchedulesTable.findMany({});
 
@@ -133,4 +84,10 @@ const migrateSnapshotsToShortIdTag = async (): Promise<MigrationResult> => {
 	}
 
 	return { success: errors.length === 0, errors };
+};
+
+export const v00001 = {
+	execute,
+	id: "00001-retag-snapshots",
+	type: "maintenance" as const,
 };

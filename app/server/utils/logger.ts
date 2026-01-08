@@ -27,7 +27,7 @@ const log = (level: "info" | "warn" | "error" | "debug", messages: unknown[]) =>
 			return sanitizeSensitiveData(JSON.stringify(m, null, 2));
 		}
 
-		return sanitizeSensitiveData(String(JSON.stringify(m)));
+		return sanitizeSensitiveData(String(m as string));
 	});
 
 	winstonLogger.log(level, stringMessages.join(" "));
