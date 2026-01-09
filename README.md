@@ -76,13 +76,13 @@ Zerobyte can be customized using environment variables. Below are the available 
 
 ### Environment Variables
 
-| Variable              | Description                                                                                                   | Default    |
-| :-------------------- | :------------------------------------------------------------------------------------------------------------ | :--------- |
-| `PORT`                | The port the web interface and API will listen on.                                                            | `4096`     |
+| Variable              | Description                                                                                                        | Default    |
+| :-------------------- | :----------------------------------------------------------------------------------------------------------------- | :--------- |
+| `PORT`                | The port the web interface and API will listen on.                                                                 | `4096`     |
 | `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
-| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                 | `info`     |
-| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                       | `60`       |
-| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                | `UTC`      |
+| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                      | `info`     |
+| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                            | `60`       |
+| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                     | `UTC`      |
 
 ### Secret References
 
@@ -285,3 +285,28 @@ For a complete list of third-party software licenses and attributions, please re
 ## Contributing
 
 Contributions by anyone are welcome! If you find a bug or have a feature request, please open an issue on GitHub. If you want to contribute code, feel free to fork the repository and submit a pull request. We require that all contributors sign a Contributor License Agreement (CLA) before we can accept your contributions. This is to protect both you and the project. Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more details.
+
+## Development (no Docker)
+
+You can run Zerobyte locally during development without Docker:
+
+```bash
+bun install
+bun run dev
+```
+
+For local development, create a `.env.local` file at the repo root and override the Docker paths:
+
+```bash
+# Example
+DATABASE_URL=./data/zerobyte.db
+RESTIC_PASS_FILE=./data/restic.pass
+RESTIC_CACHE_DIR=./data/restic/cache
+ZEROBYTE_REPOSITORIES_DIR=./data/repositories
+ZEROBYTE_VOLUMES_DIR=./data/volumes
+```
+
+Notes:
+
+- Remote mount backends (NFS/SMB/WebDAV/SFTP) rely on Linux mount tooling and `CAP_SYS_ADMIN`; on macOS they are expected to be unavailable.
+- To actually run backups/repository checks, install `restic` on your machine (e.g. via Homebrew). If `restic` is not installed, the app still starts but backup operations will fail with a clear error.

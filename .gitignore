@@ -14,3 +14,9 @@ mutagen.yml.lock
 notes.md
 smb-password.txt
 cache.db
+
+data/
+
+.env*
+!.env.example
+!.env.test

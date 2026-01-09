@@ -3,6 +3,7 @@ import { Download, KeyRound, User, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import {
@@ -16,10 +17,10 @@ import {
 } from "~/client/components/ui/dialog";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
-import { appContext } from "~/context";
-import type { Route } from "./+types/settings";
-import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { authClient } from "~/client/lib/auth-client";
+import { appContext } from "~/context";
+import { TwoFactorSection } from "../components/two-factor-section";
+import type { Route } from "./+types/settings";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
@@ -47,6 +48,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
+
 	const navigate = useNavigate();
 
 	const handleLogout = async () => {
@@ -81,7 +83,9 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 			setDownloadPassword("");
 		},
 		onError: (error) => {
-			toast.error("Failed to download Restic password", { description: error.message });
+			toast.error("Failed to download Restic password", {
+				description: error.message,
+			});
 		},
 	});
 
@@ -109,8 +113,10 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						void handleLogout();
 					}, 1500);
 				},
-				onError: (error) => {
-					toast.error("Failed to change password", { description: error.error.message });
+				onError: ({ error }) => {
+					toast.error("Failed to change password", {
+						description: error.message,
+					});
 				},
 				onRequest: () => {
 					setIsChangingPassword(true);
@@ -150,6 +156,10 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				<div className="space-y-2">
 					<Label>Username</Label>
 					<Input value={loaderData.user?.username || ""} disabled className="max-w-md" />
+				</div>
+				<div className="space-y-2">
+					<Label>Email</Label>
+					<Input value={loaderData.user?.email || ""} disabled className="max-w-md" />
 				</div>
 			</CardContent>
 
@@ -268,6 +278,8 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					</DialogContent>
 				</Dialog>
 			</CardContent>
+
+			<TwoFactorSection twoFactorEnabled={loaderData.user?.twoFactorEnabled} />
 		</Card>
 	);
 }

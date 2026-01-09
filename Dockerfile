@@ -64,7 +64,7 @@ COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
 COPY ./package.json ./bun.lock ./
 
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --verbose --ignore-scripts
 
 COPY . .
 

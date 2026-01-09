@@ -501,6 +501,7 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 
 	return (
 		<button
+			type="button"
 			className={cn("flex items-center gap-2 w-full pr-2 text-sm py-1.5 text-left", className)}
 			style={{ paddingLeft }}
 			onClick={onClick}

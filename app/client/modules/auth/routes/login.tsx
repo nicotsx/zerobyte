@@ -8,10 +8,12 @@ import { AuthLayout } from "~/client/components/auth-layout";
 import { Button } from "~/client/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
-import { authMiddleware } from "~/middleware/auth";
-import type { Route } from "./+types/login";
-import { ResetPasswordDialog } from "../components/reset-password-dialog";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
+import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { authMiddleware } from "~/middleware/auth";
+import { ResetPasswordDialog } from "../components/reset-password-dialog";
+import type { Route } from "./+types/login";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -36,6 +38,10 @@ export default function LoginPage() {
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
+	const [requires2FA, setRequires2FA] = useState(false);
+	const [totpCode, setTotpCode] = useState("");
+	const [isVerifying2FA, setIsVerifying2FA] = useState(false);
+	const [trustDevice, setTrustDevice] = useState(false);
 
 	const form = useForm<LoginFormValues>({
 		resolver: arktypeResolver(loginSchema),
@@ -65,6 +71,11 @@ export default function LoginPage() {
 			return;
 		}
 
+		if ("twoFactorRedirect" in data && data.twoFactorRedirect) {
+			setRequires2FA(true);
+			return;
+		}
+
 		const d = await authClient.getSession();
 		if (data.user && !d.data?.user.hasDownloadedResticPassword) {
 			void navigate("/download-recovery-key");
@@ -72,6 +83,117 @@ export default function LoginPage() {
 			void navigate("/volumes");
 		}
 	};
+
+	const handleVerify2FA = async () => {
+		if (totpCode.length !== 6) {
+			toast.error("Please enter a 6-digit code");
+			return;
+		}
+
+		const { data, error } = await authClient.twoFactor.verifyTotp({
+			code: totpCode,
+			trustDevice,
+			fetchOptions: {
+				onRequest: () => {
+					setIsVerifying2FA(true);
+				},
+				onResponse: () => {
+					setIsVerifying2FA(false);
+				},
+			},
+		});
+
+		if (error) {
+			console.error(error);
+			toast.error("Verification failed", { description: error.message });
+			setTotpCode("");
+			return;
+		}
+
+		if (data) {
+			toast.success("Login successful");
+			const session = await authClient.getSession();
+			if (session.data?.user && !session.data.user.hasDownloadedResticPassword) {
+				void navigate("/download-recovery-key");
+			} else {
+				void navigate("/volumes");
+			}
+		}
+	};
+
+	const handleBackToLogin = () => {
+		setRequires2FA(false);
+		setTotpCode("");
+		setTrustDevice(false);
+		form.reset();
+	};
+
+	if (requires2FA) {
+		return (
+			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
+				<div className="space-y-6">
+					<div className="space-y-4 flex flex-col items-center">
+						<Label htmlFor="totp-code">Authentication code</Label>
+						<div>
+							<InputOTP
+								maxLength={6}
+								value={totpCode}
+								onChange={setTotpCode}
+								onComplete={handleVerify2FA}
+								disabled={isVerifying2FA}
+							>
+								<InputOTPGroup>
+									<InputOTPSlot index={0} />
+									<InputOTPSlot index={1} />
+									<InputOTPSlot index={2} />
+								</InputOTPGroup>
+								<InputOTPSeparator />
+								<InputOTPGroup>
+									<InputOTPSlot index={3} />
+									<InputOTPSlot index={4} />
+									<InputOTPSlot index={5} />
+								</InputOTPGroup>
+							</InputOTP>
+						</div>
+					</div>
+
+					<div className="flex items-center space-x-2">
+						<input
+							type="checkbox"
+							id="trust-device"
+							checked={trustDevice}
+							onChange={(e) => setTrustDevice(e.target.checked)}
+							className="h-4 w-4"
+						/>
+						<label htmlFor="trust-device" className="text-sm text-muted-foreground cursor-pointer">
+							Trust this device for 30 days
+						</label>
+					</div>
+
+					<div className="space-y-2">
+						<Button
+							type="button"
+							className="w-full"
+							loading={isVerifying2FA}
+							onClick={handleVerify2FA}
+							disabled={totpCode.length !== 6}
+						>
+							Verify
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							className="w-full"
+							onClick={handleBackToLogin}
+							disabled={isVerifying2FA}
+						>
+							Back to Login
+						</Button>
+					</div>
+				</div>
+			</AuthLayout>
+		);
+	}
 
 	return (
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">

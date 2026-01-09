@@ -5,6 +5,7 @@ type User = {
 	email: string;
 	username: string;
 	hasDownloadedResticPassword: boolean;
+	twoFactorEnabled?: boolean | null;
 };
 
 type AppContext = {

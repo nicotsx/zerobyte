@@ -55,7 +55,7 @@ export const runDbMigrations = () => {
 	} else if (config.__prod__) {
 		migrationsFolder = path.join("/app", "assets", "migrations");
 	} else {
-		migrationsFolder = path.join("/app", "app", "drizzle");
+		migrationsFolder = path.join(process.cwd(), "app", "drizzle");
 	}
 
 	migrate(db, { migrationsFolder });

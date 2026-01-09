@@ -3,6 +3,7 @@ import { FolderOpen } from "lucide-react";
 import { FileTree } from "~/client/components/file-tree";
 import { listFilesOptions } from "../api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "../hooks/use-file-browser";
+import { parseError } from "../lib/errors";
 
 type VolumeFileBrowserProps = {
 	volumeName: string;
@@ -66,7 +67,7 @@ export const VolumeFileBrowser = ({
 	if (error) {
 		return (
 			<div className="flex items-center justify-center h-full min-h-50">
-				<p className="text-destructive">Failed to load files: {(error as Error).message}</p>
+				<p className="text-destructive">Failed to load files: {parseError(error)?.message}</p>
 			</div>
 		);
 	}

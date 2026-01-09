@@ -1,4 +1,6 @@
 import * as fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { logger } from "../utils/logger";
 
 export type SystemCapabilities = {
@@ -55,6 +57,11 @@ async function detectRclone(): Promise<boolean> {
 }
 
 async function detectSysAdmin(): Promise<boolean> {
+	if (process.platform !== "linux") {
+		logger.warn("sysAdmin capability: disabled. Non-Linux platform detected");
+		return false;
+	}
+
 	try {
 		const procStatus = await fs.readFile("/proc/self/status", "utf-8");
 

@@ -6,7 +6,9 @@ import { X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { CronInput } from "~/client/components/cron-input";
 import { RepositoryIcon } from "~/client/components/repository-icon";
+import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import {
@@ -20,16 +22,14 @@ import {
 } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
-import { Button } from "~/client/components/ui/button";
 import { Textarea } from "~/client/components/ui/textarea";
 import { VolumeFileBrowser } from "~/client/components/volume-file-browser";
-import { CronInput } from "~/client/components/cron-input";
-import { cronToFormValues } from "../lib/cron-utils";
 import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { deepClean } from "~/utils/object";
+import { cronToFormValues } from "../lib/cron-utils";
 
 const internalFormSchema = type({
-	name: "1 <= string <= 32",
+	name: "1 <= string <= 128",
 	repositoryId: "string",
 	excludePatternsText: "string?",
 	excludeIfPresentText: "string?",
@@ -377,7 +377,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 								onSelectionChange={handleSelectionChange}
 								withCheckboxes={true}
 								foldersOnly={false}
-								className="flex-1 border rounded-md bg-card p-2 min-h-75 max-h-100 overflow-auto"
+								className="relative border rounded-md bg-card p-2 h-100 overflow-y-auto"
 							/>
 							{selectedPaths.size > 0 && (
 								<div className="mt-4">
@@ -641,8 +641,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						</CardContent>
 					</Card>
 				</div>
-				<div className="h-full">
-					<Card className="h-full">
+				<div className="xl:sticky xl:top-6 xl:self-start">
+					<Card>
 						<CardHeader className="flex flex-row items-center justify-between gap-4">
 							<div>
 								<CardTitle>Schedule summary</CardTitle>
