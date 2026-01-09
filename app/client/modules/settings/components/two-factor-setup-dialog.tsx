@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Button } from "~/client/components/ui/button";
 import {
@@ -15,7 +14,6 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
-import { copyToClipboard } from "~/utils/clipboard";
 
 type TwoFactorSetupDialogProps = {
 	open: boolean;
@@ -107,11 +105,6 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 		}, 200);
 	};
 
-	const copyAllBackupCodes = () => {
-		const text = backupCodes.join("\n");
-		void copyToClipboard(text);
-	};
-
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
 			<DialogContent className="max-w-md">
@@ -165,16 +158,8 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 									<Input
 										value={totpUri.split("secret=")[1]?.split("&")[0] || ""}
 										readOnly
-										className="text-xs font-mono"
+										className="text-xs font-mono select-all"
 									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={() => copyToClipboard(totpUri.split("secret=")[1]?.split("&")[0] || "")}
-									>
-										<Copy className="h-4 w-4" />
-									</Button>
 								</div>
 							</div>
 							{backupCodes.length > 0 && (
@@ -182,24 +167,11 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 									<Label className="text-xs">Backup codes (save these securely)</Label>
 									<div className="p-3 bg-muted rounded-md space-y-1 max-h-32 overflow-y-auto">
 										{backupCodes.map((code) => (
-											<div key={code} className="text-xs font-mono flex items-center justify-between">
-												<span>{code}</span>
-												<Button
-													type="button"
-													variant="ghost"
-													size="sm"
-													onClick={() => copyToClipboard(code)}
-													className="h-6 w-6 p-0"
-												>
-													<Copy className="h-3 w-3" />
-												</Button>
+											<div key={code} className="text-xs font-mono py-1">
+												<span className="select-all block w-full">{code}</span>
 											</div>
 										))}
 									</div>
-									<Button type="button" variant="outline" size="sm" onClick={copyAllBackupCodes} className="w-full">
-										<Copy className="h-4 w-4 mr-2" />
-										Copy all
-									</Button>
 								</div>
 							)}
 						</div>

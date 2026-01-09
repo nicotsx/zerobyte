@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { Copy, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import {
 	Dialog,
@@ -13,7 +13,6 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
-import { copyToClipboard } from "~/utils/clipboard";
 
 type BackupCodesDialogProps = {
 	open: boolean;
@@ -64,11 +63,6 @@ export const BackupCodesDialog = ({ open, onOpenChange }: BackupCodesDialogProps
 		}, 200);
 	};
 
-	const copyAllBackupCodes = () => {
-		const text = backupCodes.join("\n");
-		void copyToClipboard(text);
-	};
-
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
 			<DialogContent>
@@ -84,24 +78,11 @@ export const BackupCodesDialog = ({ open, onOpenChange }: BackupCodesDialogProps
 						<>
 							<div className="p-3 bg-muted rounded-md space-y-1 max-h-48 overflow-y-auto">
 								{backupCodes.map((code) => (
-									<div key={code} className="text-sm font-mono flex items-center justify-between">
-										<span>{code}</span>
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() => copyToClipboard(code)}
-											className="h-8 w-8 p-0"
-										>
-											<Copy className="h-4 w-4" />
-										</Button>
+									<div key={code} className="text-sm font-mono py-1">
+										<span className="select-all block w-full">{code}</span>
 									</div>
 								))}
 							</div>
-							<Button type="button" variant="outline" onClick={copyAllBackupCodes} className="w-full">
-								<Copy className="h-4 w-4 mr-2" />
-								Copy all
-							</Button>
 						</>
 					) : (
 						<form onSubmit={handleGenerate} className="space-y-4">
