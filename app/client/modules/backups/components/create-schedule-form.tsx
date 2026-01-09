@@ -29,7 +29,7 @@ import type { BackupSchedule, Volume } from "~/client/lib/types";
 import { deepClean } from "~/utils/object";
 
 const internalFormSchema = type({
-	name: "1 <= string <= 32",
+	name: "1 <= string <= 128",
 	repositoryId: "string",
 	excludePatternsText: "string?",
 	excludeIfPresentText: "string?",

@@ -124,7 +124,7 @@ export const getBackupScheduleForVolumeDto = describeRoute({
  * Create a new backup schedule
  */
 export const createBackupScheduleBody = type({
-	name: "1 <= string <= 32",
+	name: "1 <= string <= 128",
 	volumeId: "number",
 	repositoryId: "string",
 	enabled: "boolean",
@@ -163,7 +163,7 @@ export const createBackupScheduleDto = describeRoute({
  * Update a backup schedule
  */
 export const updateBackupScheduleBody = type({
-	name: "(1 <= string <= 32)?",
+	name: "(1 <= string <= 128)?",
 	repositoryId: "string",
 	enabled: "boolean?",
 	cronExpression: "string",
