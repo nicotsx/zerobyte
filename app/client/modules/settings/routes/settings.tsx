@@ -113,9 +113,9 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 						void handleLogout();
 					}, 1500);
 				},
-				onError: (error) => {
+				onError: ({ error }) => {
 					toast.error("Failed to change password", {
-						description: error.error.message,
+						description: error.message,
 					});
 				},
 				onRequest: () => {

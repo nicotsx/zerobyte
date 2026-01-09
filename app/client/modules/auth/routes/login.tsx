@@ -133,7 +133,7 @@ export default function LoginPage() {
 			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
 				<div className="space-y-6">
 					<div className="space-y-4 flex flex-col items-center">
-						<Label htmlFor="totp-code text-center">Authentication code</Label>
+						<Label htmlFor="totp-code">Authentication code</Label>
 						<div>
 							<InputOTP
 								maxLength={6}

@@ -46,7 +46,15 @@ const createBetterAuth = (secret: string) =>
 		session: {
 			modelName: "sessionsTable",
 		},
-		plugins: [username(), twoFactor()],
+		plugins: [
+			username(),
+			twoFactor({
+				backupCodeOptions: {
+					storeBackupCodes: "encrypted",
+					amount: 5,
+				},
+			}),
+		],
 		advanced: {
 			disableOriginCheck: true,
 		},
