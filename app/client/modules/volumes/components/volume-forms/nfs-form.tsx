@@ -73,7 +73,7 @@ export const NFSForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Version</FormLabel>
-						<Select onValueChange={field.onChange} defaultValue="4.1">
+						<Select onValueChange={field.onChange} value={field.value}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select NFS version" />
