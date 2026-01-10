@@ -82,9 +82,14 @@ export const SnapshotTimeline = (props: Props) => {
 										<div className="text-xs text-muted-foreground opacity-75">
 											<ByteSize bytes={snapshot.size} />
 										</div>
-										{isLatest && (
-											<div className="text-xs font-semibold text-primary px-2 py-0.5 bg-primary/20 rounded">Latest</div>
-										)}
+										<div
+											aria-hidden={!isLatest}
+											className={cn("text-xs font-semibold text-primary px-2 py-0.5 bg-primary/20 rounded", {
+												invisible: !isLatest,
+											})}
+										>
+											Latest
+										</div>
 									</button>
 								);
 							})}
