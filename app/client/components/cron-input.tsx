@@ -1,9 +1,9 @@
 import { CronExpressionParser } from "cron-parser";
-import { format } from "date-fns";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useMemo } from "react";
 import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
+import { formatDateTime } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 
 interface CronInputProps {
@@ -51,7 +51,9 @@ export function CronInput({ value, onChange, error }: CronInputProps) {
 						placeholder="* * * * *"
 						value={value}
 						onChange={(e) => onChange(e.target.value)}
-						className={cn("font-mono", { "border-destructive": error || (value && !isValid) })}
+						className={cn("font-mono", {
+							"border-destructive": error || (value && !isValid),
+						})}
 					/>
 					<div className="absolute right-3 top-1/2 -translate-y-1/2">
 						{value && (
@@ -77,7 +79,7 @@ export function CronInput({ value, onChange, error }: CronInputProps) {
 						{nextRuns.map((date, i) => (
 							<li key={date.toISOString()} className="text-xs font-mono flex items-center gap-2">
 								<span className="text-muted-foreground w-4">{i + 1}.</span>
-								{format(date, "PPP p")}
+								{formatDateTime(date)}
 							</li>
 						))}
 					</ul>

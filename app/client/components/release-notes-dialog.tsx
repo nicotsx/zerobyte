@@ -1,8 +1,8 @@
-import { format } from "date-fns";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/client/components/ui/dialog";
 import { ScrollArea } from "~/client/components/ui/scroll-area";
+import { formatDate } from "~/client/lib/datetime";
 import type { UpdateInfoDto } from "~/server/modules/system/system.dto";
 
 interface ReleaseNotesDialogProps {
@@ -29,7 +29,7 @@ export function ReleaseNotesDialog({ open, onOpenChange, updates }: ReleaseNotes
 							<div key={release.version} className="space-y-4">
 								<div className="flex items-center justify-between border-b pb-2">
 									<h3 className="text-lg font-bold text-foreground">{release.version}</h3>
-									<span className="text-sm text-muted-foreground">{format(new Date(release.publishedAt), "PPP")}</span>
+									<span className="text-sm text-muted-foreground">{formatDate(release.publishedAt)}</span>
 								</div>
 								<div className="prose prose-sm dark:prose-invert max-w-none prose-pre:bg-muted prose-pre:text-muted-foreground prose-a:text-primary hover:prose-a:underline wrap-anywhere text-wrap prose-pre:whitespace-pre-wrap prose-pre:wrap-anywhere">
 									<ReactMarkdown remarkPlugins={[remarkGfm]}>{release.body}</ReactMarkdown>

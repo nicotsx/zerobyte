@@ -1,8 +1,9 @@
-import { cn } from "~/client/lib/utils";
-import { Card, CardContent } from "~/client/components/ui/card";
-import { ByteSize } from "~/client/components/bytes-size";
 import { useEffect } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
+import { ByteSize } from "~/client/components/bytes-size";
+import { Card, CardContent } from "~/client/components/ui/card";
+import { formatDateWithMonth, formatShortDate, formatTime } from "~/client/lib/datetime";
+import { cn } from "~/client/lib/utils";
 
 interface Props {
 	snapshots: ListSnapshotsResponse;
@@ -76,12 +77,8 @@ export const SnapshotTimeline = (props: Props) => {
 											},
 										)}
 									>
-										<div className="text-xs font-semibold text-foreground">
-											{date.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-										</div>
-										<div className="text-xs text-muted-foreground">
-											{date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-										</div>
+										<div className="text-xs font-semibold text-foreground">{formatShortDate(date)}</div>
+										<div className="text-xs text-muted-foreground">{formatTime(date)}</div>
 										<div className="text-xs text-muted-foreground opacity-75">
 											<ByteSize bytes={snapshot.size} />
 										</div>
@@ -98,8 +95,7 @@ export const SnapshotTimeline = (props: Props) => {
 				<div className="px-4 py-2 text-xs text-muted-foreground bg-card-header border-t border-border flex justify-between">
 					<span>{snapshots.length} snapshots</span>
 					<span>
-						{new Date(snapshots[0].time).toLocaleDateString()} -{" "}
-						{new Date(snapshots.at(-1)?.time ?? 0).toLocaleDateString()}
+						{formatDateWithMonth(snapshots[0].time)}&nbsp;-&nbsp;{formatDateWithMonth(snapshots.at(-1)?.time)}
 					</span>
 				</div>
 			</div>

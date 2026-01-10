@@ -3,6 +3,7 @@ import { redirect, useParams, Link, Await } from "react-router";
 import { listBackupSchedulesOptions, listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
+import { formatDateTime } from "~/client/lib/datetime";
 import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import type { Route } from "./+types/snapshot-details";
 import { Suspense } from "react";
@@ -112,7 +113,7 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 							</div>
 							<div>
 								<span className="text-muted-foreground">Time:</span>
-								<p>{new Date(data.snapshot.time).toLocaleString()}</p>
+								<p>{formatDateTime(data.snapshot.time)}</p>
 							</div>
 							<Suspense fallback={<div>Loading...</div>}>
 								<Await resolve={loaderData.snapshot}>

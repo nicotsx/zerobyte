@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupStatusDot } from "./backup-status-dot";
+import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
 
 export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 	return (
@@ -36,15 +37,11 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 						</div>
 						<div className="flex items-center justify-between text-sm">
 							<span className="text-muted-foreground">Last backup</span>
-							<span className="font-medium">
-								{schedule.lastBackupAt ? new Date(schedule.lastBackupAt).toLocaleDateString() : "Never"}
-							</span>
+							<span className="font-medium">{formatTimeAgo(schedule.lastBackupAt)}</span>
 						</div>
 						<div className="flex items-center justify-between text-sm">
 							<span className="text-muted-foreground">Next backup</span>
-							<span className="font-medium">
-								{schedule.nextBackupAt ? new Date(schedule.nextBackupAt).toLocaleDateString() : "N/A"}
-							</span>
+							<span className="font-medium">{formatShortDateTime(schedule.nextBackupAt)}</span>
 						</div>
 					</div>
 				</CardContent>

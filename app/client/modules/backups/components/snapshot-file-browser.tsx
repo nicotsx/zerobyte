@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/cli
 import { Button, buttonVariants } from "~/client/components/ui/button";
 import type { Snapshot } from "~/client/lib/types";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { formatDateTime } from "~/client/lib/datetime";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { cn } from "~/client/lib/utils";
 
@@ -90,7 +91,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 							<CardTitle>File Browser</CardTitle>
 							<CardDescription
 								className={cn({ hidden: !snapshot.time })}
-							>{`Viewing snapshot from ${new Date(snapshot?.time ?? 0).toLocaleString()}`}</CardDescription>
+							>{`Viewing snapshot from ${formatDateTime(snapshot?.time)}`}</CardDescription>
 						</div>
 						<div className="flex gap-2">
 							<Link

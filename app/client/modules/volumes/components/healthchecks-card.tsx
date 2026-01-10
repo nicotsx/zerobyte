@@ -1,11 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
 import { Activity, HeartIcon } from "lucide-react";
 import { toast } from "sonner";
 import { healthCheckVolumeMutation, updateVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { OnOff } from "~/client/components/onoff";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { formatTimeAgo } from "~/client/lib/datetime";
 import type { Volume } from "~/client/lib/types";
 
 type Props = {
@@ -13,10 +13,6 @@ type Props = {
 };
 
 export const HealthchecksCard = ({ volume }: Props) => {
-	const timeAgo = formatDistanceToNow(volume.lastHealthCheck, {
-		addSuffix: true,
-	});
-
 	const healthcheck = useMutation({
 		...healthCheckVolumeMutation(),
 		onSuccess: (d) => {
@@ -55,9 +51,9 @@ export const HealthchecksCard = ({ volume }: Props) => {
 			<CardContent>
 				<div className="flex flex-col flex-1 justify-start">
 					{volume.lastError && <span className="text-sm text-red-500 wrap-break-word">{volume.lastError}</span>}
-					{volume.status === "mounted" && <span className="text-md text-emerald-500">Healthy</span>}
+					{volume.status === "mounted" && <span className="text-md text-green-500">Healthy</span>}
 					{volume.status !== "unmounted" && (
-						<span className="text-xs text-muted-foreground mb-4">Checked {timeAgo || "never"}</span>
+						<span className="text-xs text-muted-foreground mb-4">Checked {formatTimeAgo(volume.lastHealthCheck)}</span>
 					)}
 					<span className="flex justify-between items-center gap-2">
 						<span className="text-sm">Remount on error</span>

@@ -19,6 +19,7 @@ import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { parseError } from "~/client/lib/errors";
 import { Link } from "react-router";
+import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
 
 type Props = {
 	schedule: BackupSchedule;
@@ -155,15 +156,11 @@ export const ScheduleSummary = (props: Props) => {
 					</div>
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Last backup</p>
-						<p className="font-medium">
-							{schedule.lastBackupAt ? new Date(schedule.lastBackupAt).toLocaleString() : "Never"}
-						</p>
+						<p className="font-medium">{formatTimeAgo(schedule.lastBackupAt)}</p>
 					</div>
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Next backup</p>
-						<p className="font-medium">
-							{schedule.nextBackupAt ? new Date(schedule.nextBackupAt).toLocaleString() : "Never"}
-						</p>
+						<p className="font-medium">{formatShortDateTime(schedule.nextBackupAt)}</p>
 					</div>
 
 					<div>

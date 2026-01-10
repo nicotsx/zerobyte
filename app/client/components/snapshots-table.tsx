@@ -27,6 +27,7 @@ import {
 } from "~/client/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { formatDuration } from "~/utils/utils";
+import { formatDateTime } from "~/client/lib/datetime";
 import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
@@ -185,7 +186,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 									<TableCell>
 										<div className="flex items-center gap-2">
 											<Calendar className="h-4 w-4 text-muted-foreground" />
-											<span className="text-sm">{new Date(snapshot.time).toLocaleString()}</span>
+											<span className="text-sm">{formatDateTime(snapshot.time)}</span>
 										</div>
 									</TableCell>
 									<TableCell>

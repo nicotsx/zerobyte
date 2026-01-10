@@ -19,6 +19,7 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
 import { REPOSITORY_BASE } from "~/client/lib/constants";
+import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 
@@ -131,13 +132,11 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 							)}
 							<div>
 								<div className="text-sm font-medium text-muted-foreground">Created at</div>
-								<p className="mt-1 text-sm">{new Date(repository.createdAt).toLocaleString()}</p>
+								<p className="mt-1 text-sm">{formatDateTime(repository.createdAt)}</p>
 							</div>
 							<div>
 								<div className="text-sm font-medium text-muted-foreground">Last checked</div>
-								<p className="mt-1 text-sm">
-									{repository.lastChecked ? new Date(repository.lastChecked).toLocaleString() : "Never"}
-								</p>
+								<p className="mt-1 text-sm">{formatTimeAgo(repository.lastChecked)}</p>
 							</div>
 							{config.cacert && (
 								<div>
