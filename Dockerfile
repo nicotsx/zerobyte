@@ -64,7 +64,7 @@ COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
 COPY ./package.json ./bun.lock ./
 
-RUN bun install --frozen-lockfile --verbose --ignore-scripts
+RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
@@ -98,7 +98,7 @@ ENV NODE_ENV="production"
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./
-RUN bun install --production --frozen-lockfile --verbose
+RUN bun install --production --frozen-lockfile
 
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone

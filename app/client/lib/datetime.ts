@@ -86,7 +86,8 @@ export function formatTimeAgo(date: Date | string | number | null | undefined): 
 
 	const timeAgo = formatDistanceToNow(d, {
 		addSuffix: true,
+		includeSeconds: true,
 	});
 
-	return timeAgo;
+	return timeAgo.replace("about ", "").replace("over ", "").replace("almost ", "").replace("less than ", "");
 }
