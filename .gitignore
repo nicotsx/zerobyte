@@ -20,3 +20,5 @@ data/
 .env*
 !.env.example
 !.env.test
+
+.idea/

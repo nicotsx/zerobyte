@@ -225,6 +225,13 @@
       "when": 1767863951955,
       "tag": "0031_graceful_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1768040838612,
+      "tag": "0032_outstanding_ultron",
+      "breakpoints": true
     }
   ]
 }
