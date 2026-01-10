@@ -61,14 +61,14 @@ export function useServerEvents() {
 		eventSourceRef.current = eventSource;
 
 		eventSource.addEventListener("connected", () => {
-			console.log("[SSE] Connected to server events");
+			console.info("[SSE] Connected to server events");
 		});
 
 		eventSource.addEventListener("heartbeat", () => {});
 
 		eventSource.addEventListener("backup:started", (e) => {
 			const data = JSON.parse(e.data) as BackupEvent;
-			console.log("[SSE] Backup started:", data);
+			console.info("[SSE] Backup started:", data);
 
 			handlersRef.current.get("backup:started")?.forEach((handler) => {
 				handler(data);
@@ -85,7 +85,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("backup:completed", (e) => {
 			const data = JSON.parse(e.data) as BackupEvent;
-			console.log("[SSE] Backup completed:", data);
+			console.info("[SSE] Backup completed:", data);
 
 			void queryClient.invalidateQueries();
 			void queryClient.refetchQueries();
@@ -97,7 +97,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("volume:mounted", (e) => {
 			const data = JSON.parse(e.data) as VolumeEvent;
-			console.log("[SSE] Volume mounted:", data);
+			console.info("[SSE] Volume mounted:", data);
 
 			handlersRef.current.get("volume:mounted")?.forEach((handler) => {
 				handler(data);
@@ -106,7 +106,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("volume:unmounted", (e) => {
 			const data = JSON.parse(e.data) as VolumeEvent;
-			console.log("[SSE] Volume unmounted:", data);
+			console.info("[SSE] Volume unmounted:", data);
 
 			handlersRef.current.get("volume:unmounted")?.forEach((handler) => {
 				handler(data);
@@ -115,7 +115,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("volume:updated", (e) => {
 			const data = JSON.parse(e.data) as VolumeEvent;
-			console.log("[SSE] Volume updated:", data);
+			console.info("[SSE] Volume updated:", data);
 
 			void queryClient.invalidateQueries();
 
@@ -126,7 +126,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("volume:status_updated", (e) => {
 			const data = JSON.parse(e.data) as VolumeEvent;
-			console.log("[SSE] Volume status updated:", data);
+			console.info("[SSE] Volume status updated:", data);
 
 			void queryClient.invalidateQueries();
 
@@ -137,7 +137,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("mirror:started", (e) => {
 			const data = JSON.parse(e.data) as MirrorEvent;
-			console.log("[SSE] Mirror copy started:", data);
+			console.info("[SSE] Mirror copy started:", data);
 
 			handlersRef.current.get("mirror:started")?.forEach((handler) => {
 				handler(data);
@@ -146,7 +146,7 @@ export function useServerEvents() {
 
 		eventSource.addEventListener("mirror:completed", (e) => {
 			const data = JSON.parse(e.data) as MirrorEvent;
-			console.log("[SSE] Mirror copy completed:", data);
+			console.info("[SSE] Mirror copy completed:", data);
 
 			// Invalidate queries to refresh mirror status in the UI
 			void queryClient.invalidateQueries();
@@ -161,7 +161,7 @@ export function useServerEvents() {
 		};
 
 		return () => {
-			console.log("[SSE] Disconnecting from server events");
+			console.info("[SSE] Disconnecting from server events");
 			eventSource.close();
 			eventSourceRef.current = null;
 		};

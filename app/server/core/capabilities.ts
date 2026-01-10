@@ -1,6 +1,4 @@
 import * as fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import { logger } from "../utils/logger";
 
 export type SystemCapabilities = {

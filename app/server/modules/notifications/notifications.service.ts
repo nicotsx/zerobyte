@@ -229,7 +229,7 @@ const testDestination = async (id: number) => {
 
 	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
-	console.log("Testing notification with Shoutrrr URL:", shoutrrrUrl);
+	logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
 
 	const result = await sendNotification({
 		shoutrrrUrl,

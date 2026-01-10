@@ -113,7 +113,8 @@
 		"unicorn/no-useless-spread": "warn",
 		"unicorn/prefer-set-size": "warn",
 		"unicorn/prefer-string-starts-ends-with": "warn",
-		"import/no-cycle": "error"
+		"import/no-cycle": "error",
+		"eslint/no-console": ["warn", { "allow": ["warn", "error", "info"] }]
 	},
 	"settings": {
 		"jsx-a11y": {

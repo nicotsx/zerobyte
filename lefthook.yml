@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    oxfmt:
+      glob: '*.{js,jsx,ts,tsx,json,jsonc}'
+      run: bunx oxfmt --write {staged_files}
+      stage_fixed: true
+
