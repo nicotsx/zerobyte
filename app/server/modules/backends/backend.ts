@@ -1,5 +1,6 @@
-import type { BackendStatus } from "~/schemas/volumes";
+import type { BackendConfig, BackendStatus } from "~/schemas/volumes";
 import type { Volume } from "../../db/schema";
+import { cryptoUtils } from "../../utils/crypto";
 import { getVolumePath } from "../volumes/helpers";
 import { makeDirectoryBackend } from "./directory/directory-backend";
 import { makeNfsBackend } from "./nfs/nfs-backend";
@@ -19,27 +20,33 @@ export type VolumeBackend = {
 	checkHealth: () => Promise<OperationResult>;
 };
 
+const getBackendFactory = (backendType: BackendConfig["backend"]) => {
+	switch (backendType) {
+		case "nfs":
+			return makeNfsBackend;
+		case "smb":
+			return makeSmbBackend;
+		case "directory":
+			return makeDirectoryBackend;
+		case "webdav":
+			return makeWebdavBackend;
+		case "rclone":
+			return makeRcloneBackend;
+		case "sftp":
+			return makeSftpBackend;
+	}
+};
+
 export const createVolumeBackend = (volume: Volume): VolumeBackend => {
 	const path = getVolumePath(volume);
+	const makeBackend = getBackendFactory(volume.config.backend);
 
-	switch (volume.config.backend) {
-		case "nfs": {
-			return makeNfsBackend(volume.config, path);
-		}
-		case "smb": {
-			return makeSmbBackend(volume.config, path);
-		}
-		case "directory": {
-			return makeDirectoryBackend(volume.config, path);
-		}
-		case "webdav": {
-			return makeWebdavBackend(volume.config, path);
-		}
-		case "rclone": {
-			return makeRcloneBackend(volume.config, path);
-		}
-		case "sftp": {
-			return makeSftpBackend(volume.config, path);
-		}
-	}
+	return {
+		mount: async () => {
+			const resolvedConfig = await cryptoUtils.resolveSecretsDeep(volume.config);
+			return makeBackend(resolvedConfig, path).mount();
+		},
+		unmount: () => makeBackend(volume.config, path).unmount(),
+		checkHealth: () => makeBackend(volume.config, path).checkHealth(),
+	};
 };

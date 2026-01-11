@@ -1,7 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
-import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
 import { getMountForPath } from "../../../utils/mountinfo";
@@ -49,9 +48,8 @@ const mount = async (config: BackendConfig, path: string) => {
 			: [`uid=${uid}`, `gid=${gid}`, "file_mode=0664", "dir_mode=0775"];
 
 		if (config.username && config.password) {
-			const password = await cryptoUtils.resolveSecret(config.password);
 			const secretsFile = "/etc/davfs2/secrets";
-			const secretsContent = `${source} ${config.username} ${password}\n`;
+			const secretsContent = `${source} ${config.username} ${config.password}\n`;
 			await fs.appendFile(secretsFile, secretsContent, { mode: 0o600 });
 		}
 

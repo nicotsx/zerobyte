@@ -1,6 +1,6 @@
 # Secret placeholders (env:// and file://) + Docker secrets
 
-Zerobyte supports **secret placeholders** in many configuration fields (repositories, volumes, notifications).
+Zerobyte supports **secret placeholders** in **any configuration field** (repositories, volumes, notifications).
 Instead of storing raw secrets in the database, you can store a reference that gets resolved at runtime.
 
 Supported formats:
