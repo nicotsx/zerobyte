@@ -9,14 +9,12 @@ const sqlite = createClient({ url: `file:${path.join(process.cwd(), "data", DATA
 export const db = drizzle({ client: sqlite, schema: schema });
 
 export const resetDatabase = async () => {
-	for (const table of Object.values(schema)) {
-		if ("getSQL" in table) {
-			await db
-				.delete(table)
-				.execute()
-				.catch(() => {
-					/* Ignore errors */
-				});
-		}
+	const cursor = await sqlite.execute("SELECT name FROM sqlite_master WHERE type='table'");
+	const tables = cursor.rows
+		.map((row) => row.name)
+		.filter((name) => name !== "sqlite_sequence" && name !== "__drizzle_migrations") as string[];
+
+	for (const table of tables) {
+		await sqlite.execute(`DELETE FROM ${table}`);
 	}
 };

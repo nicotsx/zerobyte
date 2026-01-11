@@ -47,6 +47,8 @@ services:
       target: production
     container_name: zerobyte
     restart: unless-stopped
+    environment:
+      - DISABLE_RATE_LIMITING=true
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:

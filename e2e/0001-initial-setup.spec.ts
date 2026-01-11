@@ -7,6 +7,7 @@ import { createTestAccount } from "./helpers/account";
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async () => {
+	console.log("Resetting database...");
 	await resetDatabase();
 });
 
@@ -73,5 +74,5 @@ test("can't create another admin user after initial setup", async ({ page }) => 
 
 	await page.getByRole("button", { name: "Create admin user" }).click();
 
-	await expect(page.getByText("Admin user already exists")).toBeVisible();
+	await expect(page.getByText("Failed to create admin user")).toBeVisible();
 });

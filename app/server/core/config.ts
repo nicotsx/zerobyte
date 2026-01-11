@@ -33,6 +33,7 @@ const envSchema = type({
 	MIGRATIONS_PATH: "string?",
 	APP_VERSION: "string = 'dev'",
 	TRUSTED_ORIGINS: "string?",
+	DISABLE_RATE_LIMITING: 'string = "false"',
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
@@ -43,6 +44,7 @@ const envSchema = type({
 	migrationsPath: s.MIGRATIONS_PATH,
 	appVersion: s.APP_VERSION,
 	trustedOrigins: s.TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()),
+	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
 }));
 
 const parseConfig = (env: unknown) => {

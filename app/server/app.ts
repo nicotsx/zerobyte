@@ -37,7 +37,7 @@ export const scalarDescriptor = Scalar({
 });
 
 export const createApp = () => {
-	const app = new Hono();
+	const app = new Hono().use(secureHeaders());
 
 	if (config.trustedOrigins) {
 		app.use(cors({ origin: config.trustedOrigins }));
@@ -47,9 +47,8 @@ export const createApp = () => {
 		app.use(honoLogger());
 	}
 
-	app
-		.use(secureHeaders())
-		.use(
+	if (!config.disableRateLimiting) {
+		app.use(
 			rateLimiter({
 				windowMs: 60 * 5 * 1000,
 				limit: 1000,
@@ -58,7 +57,10 @@ export const createApp = () => {
 					return config.__prod__ === false;
 				},
 			}),
-		)
+		);
+	}
+
+	app
 		.get("healthcheck", (c) => c.json({ status: "ok" }))
 		.route("/api/v1/auth", authController)
 		.route("/api/v1/volumes", volumeController)
