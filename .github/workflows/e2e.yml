@@ -1,12 +1,10 @@
 name: E2E Tests
 permissions:
   contents: read
+
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   playwright:
