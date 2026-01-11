@@ -1,6 +1,9 @@
 import fs from "fs";
 import { test, expect } from "@playwright/test";
 import { resetDatabase } from "./helpers/db";
+import path from "node:path";
+
+const authFile = path.join(process.cwd(), "./playwright/.auth/user.json");
 
 // TODO: Run these tests with different users once multi-user support is added
 
@@ -79,4 +82,17 @@ test("can't create another admin user after initial setup", async ({ page }) => 
 	await page.getByRole("button", { name: "Create admin user" }).click();
 
 	await expect(page.getByText("Failed to create admin user")).toBeVisible();
+});
+
+test("can login after initial setup", async ({ page }) => {
+	await page.goto("/login");
+
+	await page.getByRole("textbox", { name: "Username" }).fill("test");
+	await page.getByRole("textbox", { name: "Password" }).fill("password");
+	await page.getByRole("button", { name: "Login" }).click();
+
+	await expect(page).toHaveURL("/volumes");
+	await expect(page.getByRole("heading", { name: "No volume" })).toBeVisible();
+
+	await page.context().storageState({ path: authFile });
 });

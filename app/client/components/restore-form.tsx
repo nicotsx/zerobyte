@@ -98,10 +98,8 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 
 	const { mutate: restoreSnapshot, isPending: isRestoring } = useMutation({
 		...restoreSnapshotMutation(),
-		onSuccess: (data) => {
-			toast.success("Restore completed", {
-				description: `Successfully restored ${data.filesRestored} file(s). ${data.filesSkipped} file(s) skipped.`,
-			});
+		onSuccess: () => {
+			toast.success("Restore completed");
 			void navigate(returnPath);
 		},
 		onError: (error) => {

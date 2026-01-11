@@ -57,4 +57,5 @@ services:
       - "4096:4096"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./data:/var/lib/zerobyte
+      - ./playwright/data:/var/lib/zerobyte/data
+      - ./playwright/temp:/test-data

@@ -4,7 +4,7 @@ import path from "node:path";
 import { DATABASE_URL } from "~/server/core/constants";
 import * as schema from "~/server/db/schema";
 
-const sqlite = createClient({ url: `file:${path.join(process.cwd(), "data", DATABASE_URL)}` });
+const sqlite = createClient({ url: `file:${path.join(process.cwd(), "playwright", DATABASE_URL)}` });
 
 export const db = drizzle({ client: sqlite, schema: schema });
 
