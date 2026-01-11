@@ -44,6 +44,9 @@ jobs:
       - name: Prepare environment
         run: |
           mkdir -p data
+          mkdir -p playwright/temp
+          mkdir -p playwright/data
+          chmod -R 777 playwright/temp
           touch .env.local
           echo "SERVER_IP=localhost" >> .env.local
           echo "DATABASE_URL=./data/zerobyte.db" >> .env.local
@@ -54,21 +57,31 @@ jobs:
       - name: Wait for zerobyte to be ready
         run: |
           timeout 30s bash -c 'until curl -f http://localhost:4096/healthcheck; do echo "Waiting for server..." && sleep 2; done'
-        continue-on-error: false
 
       - name: Make playwright directory writable
-        run: sudo chmod -R 777 playwright
+        run: sudo chmod 777 playwright/data/zerobyte.db
 
       - name: Run Playwright tests
         run: bun run test:e2e
 
-      - name: Stop Docker Compose
+      - name: Dump container logs in playwright-report folder
         if: always()
-        run: docker compose down
+        run: |
+          tree playwright
+          docker logs zerobyte > playwright-report/container-logs.txt || true
 
-      - uses: actions/upload-artifact@v4
+      - name: Debug - print content of /test-data in container
+        if: failure()
+        run: |
+          docker exec zerobyte /bin/ash -c "ls -la /test-data" || true
+
+      - uses: actions/upload-artifact@v5
         if: always()
         with:
           name: playwright-report
           path: playwright-report/
-          retention-days: 30
+          retention-days: 5
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down

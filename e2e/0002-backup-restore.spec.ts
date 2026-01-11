@@ -5,7 +5,11 @@ import fs from "node:fs";
 test.beforeAll(() => {
 	const testDataPath = path.join(process.cwd(), "playwright", "temp");
 	if (fs.existsSync(testDataPath)) {
-		fs.rmSync(testDataPath, { recursive: true, force: true });
+		for (const file of fs.readdirSync(testDataPath)) {
+			fs.rmSync(path.join(testDataPath, file), { recursive: true, force: true });
+		}
+	} else {
+		fs.mkdirSync(testDataPath, { recursive: true });
 	}
 });
 
@@ -15,11 +19,7 @@ test("can backup & restore a file", async ({ page }) => {
 
 	// 0. Create a test file in /test-data
 	const testDataPath = path.join(process.cwd(), "playwright", "temp");
-	if (!fs.existsSync(testDataPath)) {
-		fs.mkdirSync(testDataPath);
-	}
 	const filePath = path.join(testDataPath, "test.json");
-	fs.chmodSync(testDataPath, 0o777);
 	fs.writeFileSync(filePath, JSON.stringify({ data: "test file" }));
 
 	// 1. Create a local volume on /test-data

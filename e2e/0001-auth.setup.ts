@@ -61,9 +61,9 @@ test("user can download recovery key", async ({ page }) => {
 	const download = await downloadPromise;
 
 	expect(download.suggestedFilename()).toBe("restic.pass");
-	await download.saveAs("./data/restic.pass");
+	await download.saveAs("./playwright/restic.pass");
 
-	const fileContent = await fs.promises.readFile("./data/restic.pass", "utf8");
+	const fileContent = await fs.promises.readFile("./playwright/restic.pass", "utf8");
 
 	expect(fileContent).toHaveLength(64);
 });
