@@ -1,13 +1,13 @@
 import fs from "fs";
 import { test, expect } from "@playwright/test";
 import { resetDatabase } from "./helpers/db";
-import { createTestAccount } from "./helpers/account";
+
+// TODO: Run these tests with different users once multi-user support is added
 
 // Run tests in serial mode to avoid conflicts during onboarding
 test.describe.configure({ mode: "serial" });
 
-test.beforeEach(async () => {
-	console.log("Resetting database...");
+test.beforeAll(async () => {
 	await resetDatabase();
 });
 
@@ -36,7 +36,13 @@ test("user can register a new account", async ({ page }) => {
 });
 
 test("user can download recovery key", async ({ page }) => {
-	await createTestAccount(page);
+	await page.goto("/login");
+
+	await page.getByRole("textbox", { name: "Username" }).fill("test");
+	await page.getByRole("textbox", { name: "Password" }).fill("password");
+	await page.getByRole("button", { name: "Login" }).click();
+
+	await expect(page.getByText("Download Your Recovery Key")).toBeVisible();
 
 	await page.getByRole("textbox", { name: "Confirm Your Password" }).fill("test");
 	await page.getByRole("button", { name: "Download Recovery Key" }).click();
@@ -60,8 +66,6 @@ test("user can download recovery key", async ({ page }) => {
 });
 
 test("can't create another admin user after initial setup", async ({ page }) => {
-	await createTestAccount(page);
-
 	await page.goto("/onboarding");
 
 	await page.getByRole("textbox", { name: "Email" }).click();
