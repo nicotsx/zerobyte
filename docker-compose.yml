@@ -39,3 +39,22 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
       - ~/.config/rclone:/root/.config/rclone
+
+  zerobyte-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: zerobyte
+    restart: unless-stopped
+    environment:
+      - DISABLE_RATE_LIMITING=true
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    ports:
+      - "4096:4096"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./data:/var/lib/zerobyte

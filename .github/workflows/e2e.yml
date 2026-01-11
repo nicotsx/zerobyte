@@ -1,0 +1,74 @@
+name: E2E Tests
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  playwright:
+    name: Playwright
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Get Playwright version
+        id: playwright-version
+        shell: bash
+        run: |
+          playwright_version=$(bun -e "console.log((await Bun.file('./package.json').json()).devDependencies['@playwright/test'])")
+          echo "version=$playwright_version" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright Browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps
+
+      - name: Install Playwright System Dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: bunx playwright install-deps
+
+      - name: Prepare environment
+        run: |
+          mkdir -p data
+          touch .env.local
+          echo "SERVER_IP=localhost" >> .env.local
+          echo "DATABASE_URL=./data/zerobyte.db" >> .env.local
+
+      - name: Start zerobyte-e2e service
+        run: bun run start:e2e -- -d
+
+      - name: Wait for zerobyte to be ready
+        run: |
+          timeout 30s bash -c 'until curl -f http://localhost:4096/healthcheck; do echo "Waiting for server..." && sleep 2; done'
+        continue-on-error: false
+
+      - name: Make data directory writable
+        run: sudo chmod -R 777 data
+
+      - name: Run Playwright tests
+        run: bun run test:e2e
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30

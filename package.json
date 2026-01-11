@@ -12,12 +12,16 @@
 		"tsc": "react-router typegen && tsc",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
+		"start:e2e": "docker compose down && docker compose up --build zerobyte-e2e",
 		"gen:api-client": "openapi-ts",
 		"gen:migrations": "drizzle-kit generate",
 		"studio": "drizzle-kit studio",
 		"test:server": "dotenv -e .env.test -- bun test app/server --preload ./app/test/setup.ts",
 		"test:client": "dotenv -e .env.test -- bun test app/client --preload ./app/test/setup-client.ts",
-		"test": "bun run test:server && bun run test:client"
+		"test": "bun run test:server && bun run test:client",
+		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- playwright test",
+		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- playwright test --ui",
+		"test:codegen": "playwright codegen localhost:4096"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",
@@ -85,6 +89,8 @@
 		"@faker-js/faker": "^10.2.0",
 		"@happy-dom/global-registrator": "^20.1.0",
 		"@hey-api/openapi-ts": "^0.90.2",
+		"@libsql/client": "^0.17.0",
+		"@playwright/test": "^1.57.0",
 		"@react-router/dev": "^7.12.0",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "^4.1.17",
