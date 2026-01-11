@@ -16,20 +16,22 @@ const changeUsername = async (oldUsername: string, newUsername: string) => {
 		throw new Error(`User "${oldUsername}" not found`);
 	}
 
-	const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.username, newUsername));
+	const normalizedUsername = newUsername.toLowerCase().trim();
+
+	const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.username, normalizedUsername));
 	if (existingUser) {
 		throw new Error(`Username "${newUsername}" is already taken`);
 	}
 
 	const usernameRegex = /^[a-z0-9_]{3,30}$/;
-	if (!usernameRegex.test(newUsername)) {
+	if (!usernameRegex.test(normalizedUsername)) {
 		throw new Error(
 			`Invalid username "${newUsername}". Usernames must be 3-30 characters long and can only contain lowercase letters, numbers, and underscores.`,
 		);
 	}
 
 	await db.transaction(async (tx) => {
-		await tx.update(usersTable).set({ username: newUsername.toLowerCase().trim() }).where(eq(usersTable.id, user.id));
+		await tx.update(usersTable).set({ username: normalizedUsername }).where(eq(usersTable.id, user.id));
 		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
 	});
 };
@@ -65,8 +67,14 @@ export const changeUsernameCommand = new Command("change-username")
 			if (!newUsername) {
 				newUsername = await input({
 					message: "Enter the new username:",
-					validate: (val) => (val.length > 0 ? true : "Username cannot be empty"),
+					validate: (val) => {
+						const usernameRegex = /^[a-z0-9_]{3,30}$/;
+						return usernameRegex.test(val)
+							? true
+							: "Username must be 3-30 characters and contain only lowercase letters, numbers, or underscores";
+					},
 				});
+				newUsername = newUsername.toLowerCase().trim();
 			}
 
 			await changeUsername(username, newUsername);

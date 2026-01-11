@@ -56,8 +56,8 @@ jobs:
           timeout 30s bash -c 'until curl -f http://localhost:4096/healthcheck; do echo "Waiting for server..." && sleep 2; done'
         continue-on-error: false
 
-      - name: Make data directory writable
-        run: sudo chmod -R 777 data
+      - name: Make playwright directory writable
+        run: sudo chmod -R 777 playwright
 
       - name: Run Playwright tests
         run: bun run test:e2e
