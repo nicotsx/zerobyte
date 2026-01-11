@@ -1,0 +1,50 @@
+name: E2E Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  playwright:
+    name: Playwright
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Install Playwright Browsers
+        run: bunx playwright install --with-deps
+
+      - name: Prepare environment
+        run: |
+          mkdir -p data
+          touch .env.local
+          echo "SERVER_IP=localhost" >> .env.local
+          echo "DATABASE_URL=./data/zerobyte.db" >> .env.local
+
+      - name: Start zerobyte-e2e service
+        run: bun run start:e2e -- -d
+
+      - name: Wait for zerobyte to be ready
+        run: |
+          timeout 30s bash -c 'until curl -f http://localhost:4096/healthcheck; do echo "Waiting for server..." && sleep 2; done'
+        continue-on-error: false
+
+      - name: Run Playwright tests
+        run: bun run test:e2e
+
+      - name: Stop Docker Compose
+        if: always()
+        run: docker compose down
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
