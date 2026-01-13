@@ -114,10 +114,10 @@ import type {
 	UpdateVolumeResponses,
 } from "./types.gen";
 
-export type Options<
-	TData extends TDataShape = TDataShape,
-	ThrowOnError extends boolean = boolean,
-> = Options2<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<
+	TData,
+	ThrowOnError
+> & {
 	/**
 	 * You can provide a client instance returned by `createClient()` instead of
 	 * individual options. This might be also useful if you want to implement a
@@ -134,9 +134,7 @@ export type Options<
 /**
  * Get authentication system status
  */
-export const getStatus = <ThrowOnError extends boolean = false>(
-	options?: Options<GetStatusData, ThrowOnError>,
-) =>
+export const getStatus = <ThrowOnError extends boolean = false>(options?: Options<GetStatusData, ThrowOnError>) =>
 	(options?.client ?? client).get<GetStatusResponses, unknown, ThrowOnError>({
 		url: "/api/v1/auth/status",
 		...options,
@@ -145,25 +143,14 @@ export const getStatus = <ThrowOnError extends boolean = false>(
 /**
  * List all volumes
  */
-export const listVolumes = <ThrowOnError extends boolean = false>(
-	options?: Options<ListVolumesData, ThrowOnError>,
-) =>
-	(options?.client ?? client).get<ListVolumesResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes",
-		...options,
-	});
+export const listVolumes = <ThrowOnError extends boolean = false>(options?: Options<ListVolumesData, ThrowOnError>) =>
+	(options?.client ?? client).get<ListVolumesResponses, unknown, ThrowOnError>({ url: "/api/v1/volumes", ...options });
 
 /**
  * Create a new volume
  */
-export const createVolume = <ThrowOnError extends boolean = false>(
-	options?: Options<CreateVolumeData, ThrowOnError>,
-) =>
-	(options?.client ?? client).post<
-		CreateVolumeResponses,
-		unknown,
-		ThrowOnError
-	>({
+export const createVolume = <ThrowOnError extends boolean = false>(options?: Options<CreateVolumeData, ThrowOnError>) =>
+	(options?.client ?? client).post<CreateVolumeResponses, unknown, ThrowOnError>({
 		url: "/api/v1/volumes",
 		...options,
 		headers: {
@@ -178,11 +165,7 @@ export const createVolume = <ThrowOnError extends boolean = false>(
 export const testConnection = <ThrowOnError extends boolean = false>(
 	options?: Options<TestConnectionData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		TestConnectionResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<TestConnectionResponses, unknown, ThrowOnError>({
 		url: "/api/v1/volumes/test-connection",
 		...options,
 		headers: {
@@ -194,38 +177,26 @@ export const testConnection = <ThrowOnError extends boolean = false>(
 /**
  * Delete a volume
  */
-export const deleteVolume = <ThrowOnError extends boolean = false>(
-	options: Options<DeleteVolumeData, ThrowOnError>,
-) =>
-	(options.client ?? client).delete<
-		DeleteVolumeResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/volumes/{name}", ...options });
+export const deleteVolume = <ThrowOnError extends boolean = false>(options: Options<DeleteVolumeData, ThrowOnError>) =>
+	(options.client ?? client).delete<DeleteVolumeResponses, unknown, ThrowOnError>({
+		url: "/api/v1/volumes/{name}",
+		...options,
+	});
 
 /**
  * Get a volume by name
  */
-export const getVolume = <ThrowOnError extends boolean = false>(
-	options: Options<GetVolumeData, ThrowOnError>,
-) =>
-	(options.client ?? client).get<
-		GetVolumeResponses,
-		GetVolumeErrors,
-		ThrowOnError
-	>({ url: "/api/v1/volumes/{name}", ...options });
+export const getVolume = <ThrowOnError extends boolean = false>(options: Options<GetVolumeData, ThrowOnError>) =>
+	(options.client ?? client).get<GetVolumeResponses, GetVolumeErrors, ThrowOnError>({
+		url: "/api/v1/volumes/{name}",
+		...options,
+	});
 
 /**
  * Update a volume's configuration
  */
-export const updateVolume = <ThrowOnError extends boolean = false>(
-	options: Options<UpdateVolumeData, ThrowOnError>,
-) =>
-	(options.client ?? client).put<
-		UpdateVolumeResponses,
-		UpdateVolumeErrors,
-		ThrowOnError
-	>({
+export const updateVolume = <ThrowOnError extends boolean = false>(options: Options<UpdateVolumeData, ThrowOnError>) =>
+	(options.client ?? client).put<UpdateVolumeResponses, UpdateVolumeErrors, ThrowOnError>({
 		url: "/api/v1/volumes/{name}",
 		...options,
 		headers: {
@@ -237,9 +208,7 @@ export const updateVolume = <ThrowOnError extends boolean = false>(
 /**
  * Mount a volume
  */
-export const mountVolume = <ThrowOnError extends boolean = false>(
-	options: Options<MountVolumeData, ThrowOnError>,
-) =>
+export const mountVolume = <ThrowOnError extends boolean = false>(options: Options<MountVolumeData, ThrowOnError>) =>
 	(options.client ?? client).post<MountVolumeResponses, unknown, ThrowOnError>({
 		url: "/api/v1/volumes/{name}/mount",
 		...options,
@@ -251,11 +220,10 @@ export const mountVolume = <ThrowOnError extends boolean = false>(
 export const unmountVolume = <ThrowOnError extends boolean = false>(
 	options: Options<UnmountVolumeData, ThrowOnError>,
 ) =>
-	(options.client ?? client).post<
-		UnmountVolumeResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/volumes/{name}/unmount", ...options });
+	(options.client ?? client).post<UnmountVolumeResponses, unknown, ThrowOnError>({
+		url: "/api/v1/volumes/{name}/unmount",
+		...options,
+	});
 
 /**
  * Perform a health check on a volume
@@ -263,18 +231,15 @@ export const unmountVolume = <ThrowOnError extends boolean = false>(
 export const healthCheckVolume = <ThrowOnError extends boolean = false>(
 	options: Options<HealthCheckVolumeData, ThrowOnError>,
 ) =>
-	(options.client ?? client).post<
-		HealthCheckVolumeResponses,
-		HealthCheckVolumeErrors,
-		ThrowOnError
-	>({ url: "/api/v1/volumes/{name}/health-check", ...options });
+	(options.client ?? client).post<HealthCheckVolumeResponses, HealthCheckVolumeErrors, ThrowOnError>({
+		url: "/api/v1/volumes/{name}/health-check",
+		...options,
+	});
 
 /**
  * List files in a volume directory
  */
-export const listFiles = <ThrowOnError extends boolean = false>(
-	options: Options<ListFilesData, ThrowOnError>,
-) =>
+export const listFiles = <ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>) =>
 	(options.client ?? client).get<ListFilesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/volumes/{name}/files",
 		...options,
@@ -286,11 +251,10 @@ export const listFiles = <ThrowOnError extends boolean = false>(
 export const browseFilesystem = <ThrowOnError extends boolean = false>(
 	options?: Options<BrowseFilesystemData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		BrowseFilesystemResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/volumes/filesystem/browse", ...options });
+	(options?.client ?? client).get<BrowseFilesystemResponses, unknown, ThrowOnError>({
+		url: "/api/v1/volumes/filesystem/browse",
+		...options,
+	});
 
 /**
  * List all repositories
@@ -298,11 +262,10 @@ export const browseFilesystem = <ThrowOnError extends boolean = false>(
 export const listRepositories = <ThrowOnError extends boolean = false>(
 	options?: Options<ListRepositoriesData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		ListRepositoriesResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories", ...options });
+	(options?.client ?? client).get<ListRepositoriesResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories",
+		...options,
+	});
 
 /**
  * Create a new restic repository
@@ -310,11 +273,7 @@ export const listRepositories = <ThrowOnError extends boolean = false>(
 export const createRepository = <ThrowOnError extends boolean = false>(
 	options?: Options<CreateRepositoryData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		CreateRepositoryResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<CreateRepositoryResponses, unknown, ThrowOnError>({
 		url: "/api/v1/repositories",
 		...options,
 		headers: {
@@ -329,11 +288,10 @@ export const createRepository = <ThrowOnError extends boolean = false>(
 export const listRcloneRemotes = <ThrowOnError extends boolean = false>(
 	options?: Options<ListRcloneRemotesData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		ListRcloneRemotesResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories/rclone-remotes", ...options });
+	(options?.client ?? client).get<ListRcloneRemotesResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/rclone-remotes",
+		...options,
+	});
 
 /**
  * Delete a repository
@@ -341,11 +299,10 @@ export const listRcloneRemotes = <ThrowOnError extends boolean = false>(
 export const deleteRepository = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteRepositoryData, ThrowOnError>,
 ) =>
-	(options.client ?? client).delete<
-		DeleteRepositoryResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories/{id}", ...options });
+	(options.client ?? client).delete<DeleteRepositoryResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}",
+		...options,
+	});
 
 /**
  * Get a single repository by ID
@@ -353,9 +310,10 @@ export const deleteRepository = <ThrowOnError extends boolean = false>(
 export const getRepository = <ThrowOnError extends boolean = false>(
 	options: Options<GetRepositoryData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<GetRepositoryResponses, unknown, ThrowOnError>(
-		{ url: "/api/v1/repositories/{id}", ...options },
-	);
+	(options.client ?? client).get<GetRepositoryResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}",
+		...options,
+	});
 
 /**
  * Update a repository's name or settings
@@ -363,11 +321,7 @@ export const getRepository = <ThrowOnError extends boolean = false>(
 export const updateRepository = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateRepositoryData, ThrowOnError>,
 ) =>
-	(options.client ?? client).patch<
-		UpdateRepositoryResponses,
-		UpdateRepositoryErrors,
-		ThrowOnError
-	>({
+	(options.client ?? client).patch<UpdateRepositoryResponses, UpdateRepositoryErrors, ThrowOnError>({
 		url: "/api/v1/repositories/{id}",
 		...options,
 		headers: {
@@ -382,11 +336,7 @@ export const updateRepository = <ThrowOnError extends boolean = false>(
 export const deleteSnapshots = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteSnapshotsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).delete<
-		DeleteSnapshotsResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).delete<DeleteSnapshotsResponses, unknown, ThrowOnError>({
 		url: "/api/v1/repositories/{id}/snapshots",
 		...options,
 		headers: {
@@ -401,9 +351,10 @@ export const deleteSnapshots = <ThrowOnError extends boolean = false>(
 export const listSnapshots = <ThrowOnError extends boolean = false>(
 	options: Options<ListSnapshotsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>(
-		{ url: "/api/v1/repositories/{id}/snapshots", ...options },
-	);
+	(options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/snapshots",
+		...options,
+	});
 
 /**
  * Delete a specific snapshot from a repository
@@ -411,11 +362,10 @@ export const listSnapshots = <ThrowOnError extends boolean = false>(
 export const deleteSnapshot = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteSnapshotData, ThrowOnError>,
 ) =>
-	(options.client ?? client).delete<
-		DeleteSnapshotResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories/{id}/snapshots/{snapshotId}", ...options });
+	(options.client ?? client).delete<DeleteSnapshotResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}",
+		...options,
+	});
 
 /**
  * Get details of a specific snapshot
@@ -423,11 +373,10 @@ export const deleteSnapshot = <ThrowOnError extends boolean = false>(
 export const getSnapshotDetails = <ThrowOnError extends boolean = false>(
 	options: Options<GetSnapshotDetailsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetSnapshotDetailsResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories/{id}/snapshots/{snapshotId}", ...options });
+	(options.client ?? client).get<GetSnapshotDetailsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}",
+		...options,
+	});
 
 /**
  * List files and directories in a snapshot
@@ -435,11 +384,7 @@ export const getSnapshotDetails = <ThrowOnError extends boolean = false>(
 export const listSnapshotFiles = <ThrowOnError extends boolean = false>(
 	options: Options<ListSnapshotFilesData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		ListSnapshotFilesResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files",
 		...options,
 	});
@@ -450,11 +395,7 @@ export const listSnapshotFiles = <ThrowOnError extends boolean = false>(
 export const restoreSnapshot = <ThrowOnError extends boolean = false>(
 	options: Options<RestoreSnapshotData, ThrowOnError>,
 ) =>
-	(options.client ?? client).post<
-		RestoreSnapshotResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).post<RestoreSnapshotResponses, unknown, ThrowOnError>({
 		url: "/api/v1/repositories/{id}/restore",
 		...options,
 		headers: {
@@ -469,28 +410,23 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(
 export const doctorRepository = <ThrowOnError extends boolean = false>(
 	options: Options<DoctorRepositoryData, ThrowOnError>,
 ) =>
-	(options.client ?? client).post<
-		DoctorRepositoryResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/repositories/{id}/doctor", ...options });
+	(options.client ?? client).post<DoctorRepositoryResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/doctor",
+		...options,
+	});
 
 /**
  * Tag multiple snapshots in a repository
  */
-export const tagSnapshots = <ThrowOnError extends boolean = false>(
-	options: Options<TagSnapshotsData, ThrowOnError>,
-) =>
-	(options.client ?? client).post<TagSnapshotsResponses, unknown, ThrowOnError>(
-		{
-			url: "/api/v1/repositories/{id}/snapshots/tag",
-			...options,
-			headers: {
-				"Content-Type": "application/json",
-				...options.headers,
-			},
+export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Options<TagSnapshotsData, ThrowOnError>) =>
+	(options.client ?? client).post<TagSnapshotsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/snapshots/tag",
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			...options.headers,
 		},
-	);
+	});
 
 /**
  * List all backup schedules
@@ -498,11 +434,10 @@ export const tagSnapshots = <ThrowOnError extends boolean = false>(
 export const listBackupSchedules = <ThrowOnError extends boolean = false>(
 	options?: Options<ListBackupSchedulesData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		ListBackupSchedulesResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups", ...options });
+	(options?.client ?? client).get<ListBackupSchedulesResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups",
+		...options,
+	});
 
 /**
  * Create a new backup schedule for a volume
@@ -510,11 +445,7 @@ export const listBackupSchedules = <ThrowOnError extends boolean = false>(
 export const createBackupSchedule = <ThrowOnError extends boolean = false>(
 	options?: Options<CreateBackupScheduleData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		CreateBackupScheduleResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<CreateBackupScheduleResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups",
 		...options,
 		headers: {
@@ -529,11 +460,10 @@ export const createBackupSchedule = <ThrowOnError extends boolean = false>(
 export const deleteBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteBackupScheduleData, ThrowOnError>,
 ) =>
-	(options.client ?? client).delete<
-		DeleteBackupScheduleResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}", ...options });
+	(options.client ?? client).delete<DeleteBackupScheduleResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}",
+		...options,
+	});
 
 /**
  * Get a backup schedule by ID
@@ -541,11 +471,10 @@ export const deleteBackupSchedule = <ThrowOnError extends boolean = false>(
 export const getBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<GetBackupScheduleData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetBackupScheduleResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}", ...options });
+	(options.client ?? client).get<GetBackupScheduleResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}",
+		...options,
+	});
 
 /**
  * Update a backup schedule
@@ -553,11 +482,7 @@ export const getBackupSchedule = <ThrowOnError extends boolean = false>(
 export const updateBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateBackupScheduleData, ThrowOnError>,
 ) =>
-	(options.client ?? client).patch<
-		UpdateBackupScheduleResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).patch<UpdateBackupScheduleResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups/{scheduleId}",
 		...options,
 		headers: {
@@ -569,45 +494,36 @@ export const updateBackupSchedule = <ThrowOnError extends boolean = false>(
 /**
  * Get a backup schedule for a specific volume
  */
-export const getBackupScheduleForVolume = <
-	ThrowOnError extends boolean = false,
->(
+export const getBackupScheduleForVolume = <ThrowOnError extends boolean = false>(
 	options: Options<GetBackupScheduleForVolumeData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetBackupScheduleForVolumeResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/volume/{volumeId}", ...options });
+	(options.client ?? client).get<GetBackupScheduleForVolumeResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/volume/{volumeId}",
+		...options,
+	});
 
 /**
  * Trigger a backup immediately for a schedule
  */
-export const runBackupNow = <ThrowOnError extends boolean = false>(
-	options: Options<RunBackupNowData, ThrowOnError>,
-) =>
-	(options.client ?? client).post<RunBackupNowResponses, unknown, ThrowOnError>(
-		{ url: "/api/v1/backups/{scheduleId}/run", ...options },
-	);
+export const runBackupNow = <ThrowOnError extends boolean = false>(options: Options<RunBackupNowData, ThrowOnError>) =>
+	(options.client ?? client).post<RunBackupNowResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}/run",
+		...options,
+	});
 
 /**
  * Stop a backup that is currently in progress
  */
-export const stopBackup = <ThrowOnError extends boolean = false>(
-	options: Options<StopBackupData, ThrowOnError>,
-) =>
-	(options.client ?? client).post<
-		StopBackupResponses,
-		StopBackupErrors,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}/stop", ...options });
+export const stopBackup = <ThrowOnError extends boolean = false>(options: Options<StopBackupData, ThrowOnError>) =>
+	(options.client ?? client).post<StopBackupResponses, StopBackupErrors, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}/stop",
+		...options,
+	});
 
 /**
  * Manually apply retention policy to clean up old snapshots
  */
-export const runForget = <ThrowOnError extends boolean = false>(
-	options: Options<RunForgetData, ThrowOnError>,
-) =>
+export const runForget = <ThrowOnError extends boolean = false>(options: Options<RunForgetData, ThrowOnError>) =>
 	(options.client ?? client).post<RunForgetResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups/{scheduleId}/forget",
 		...options,
@@ -619,25 +535,18 @@ export const runForget = <ThrowOnError extends boolean = false>(
 export const getScheduleNotifications = <ThrowOnError extends boolean = false>(
 	options: Options<GetScheduleNotificationsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetScheduleNotificationsResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}/notifications", ...options });
+	(options.client ?? client).get<GetScheduleNotificationsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}/notifications",
+		...options,
+	});
 
 /**
  * Update notification assignments for a backup schedule
  */
-export const updateScheduleNotifications = <
-	ThrowOnError extends boolean = false,
->(
+export const updateScheduleNotifications = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateScheduleNotificationsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).put<
-		UpdateScheduleNotificationsResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).put<UpdateScheduleNotificationsResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups/{scheduleId}/notifications",
 		...options,
 		headers: {
@@ -652,11 +561,10 @@ export const updateScheduleNotifications = <
 export const getScheduleMirrors = <ThrowOnError extends boolean = false>(
 	options: Options<GetScheduleMirrorsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetScheduleMirrorsResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}/mirrors", ...options });
+	(options.client ?? client).get<GetScheduleMirrorsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}/mirrors",
+		...options,
+	});
 
 /**
  * Update mirror repository assignments for a backup schedule
@@ -664,11 +572,7 @@ export const getScheduleMirrors = <ThrowOnError extends boolean = false>(
 export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateScheduleMirrorsData, ThrowOnError>,
 ) =>
-	(options.client ?? client).put<
-		UpdateScheduleMirrorsResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options.client ?? client).put<UpdateScheduleMirrorsResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups/{scheduleId}/mirrors",
 		...options,
 		headers: {
@@ -683,11 +587,10 @@ export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(
 export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(
 	options: Options<GetMirrorCompatibilityData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetMirrorCompatibilityResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/backups/{scheduleId}/mirrors/compatibility", ...options });
+	(options.client ?? client).get<GetMirrorCompatibilityResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{scheduleId}/mirrors/compatibility",
+		...options,
+	});
 
 /**
  * Reorder backup schedules by providing an array of schedule IDs in the desired order
@@ -695,11 +598,7 @@ export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(
 export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(
 	options?: Options<ReorderBackupSchedulesData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		ReorderBackupSchedulesResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<ReorderBackupSchedulesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/backups/reorder",
 		...options,
 		headers: {
@@ -711,30 +610,21 @@ export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(
 /**
  * List all notification destinations
  */
-export const listNotificationDestinations = <
-	ThrowOnError extends boolean = false,
->(
+export const listNotificationDestinations = <ThrowOnError extends boolean = false>(
 	options?: Options<ListNotificationDestinationsData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		ListNotificationDestinationsResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/notifications/destinations", ...options });
+	(options?.client ?? client).get<ListNotificationDestinationsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/notifications/destinations",
+		...options,
+	});
 
 /**
  * Create a new notification destination
  */
-export const createNotificationDestination = <
-	ThrowOnError extends boolean = false,
->(
+export const createNotificationDestination = <ThrowOnError extends boolean = false>(
 	options?: Options<CreateNotificationDestinationData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		CreateNotificationDestinationResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<CreateNotificationDestinationResponses, unknown, ThrowOnError>({
 		url: "/api/v1/notifications/destinations",
 		...options,
 		headers: {
@@ -746,9 +636,7 @@ export const createNotificationDestination = <
 /**
  * Delete a notification destination
  */
-export const deleteNotificationDestination = <
-	ThrowOnError extends boolean = false,
->(
+export const deleteNotificationDestination = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteNotificationDestinationData, ThrowOnError>,
 ) =>
 	(options.client ?? client).delete<
@@ -760,23 +648,18 @@ export const deleteNotificationDestination = <
 /**
  * Get a notification destination by ID
  */
-export const getNotificationDestination = <
-	ThrowOnError extends boolean = false,
->(
+export const getNotificationDestination = <ThrowOnError extends boolean = false>(
 	options: Options<GetNotificationDestinationData, ThrowOnError>,
 ) =>
-	(options.client ?? client).get<
-		GetNotificationDestinationResponses,
-		GetNotificationDestinationErrors,
-		ThrowOnError
-	>({ url: "/api/v1/notifications/destinations/{id}", ...options });
+	(options.client ?? client).get<GetNotificationDestinationResponses, GetNotificationDestinationErrors, ThrowOnError>({
+		url: "/api/v1/notifications/destinations/{id}",
+		...options,
+	});
 
 /**
  * Update a notification destination
  */
-export const updateNotificationDestination = <
-	ThrowOnError extends boolean = false,
->(
+export const updateNotificationDestination = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateNotificationDestinationData, ThrowOnError>,
 ) =>
 	(options.client ?? client).patch<
@@ -795,9 +678,7 @@ export const updateNotificationDestination = <
 /**
  * Test a notification destination by sending a test message
  */
-export const testNotificationDestination = <
-	ThrowOnError extends boolean = false,
->(
+export const testNotificationDestination = <ThrowOnError extends boolean = false>(
 	options: Options<TestNotificationDestinationData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<
@@ -812,18 +693,15 @@ export const testNotificationDestination = <
 export const getSystemInfo = <ThrowOnError extends boolean = false>(
 	options?: Options<GetSystemInfoData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).get<
-		GetSystemInfoResponses,
-		unknown,
-		ThrowOnError
-	>({ url: "/api/v1/system/info", ...options });
+	(options?.client ?? client).get<GetSystemInfoResponses, unknown, ThrowOnError>({
+		url: "/api/v1/system/info",
+		...options,
+	});
 
 /**
  * Check for application updates from GitHub
  */
-export const getUpdates = <ThrowOnError extends boolean = false>(
-	options?: Options<GetUpdatesData, ThrowOnError>,
-) =>
+export const getUpdates = <ThrowOnError extends boolean = false>(options?: Options<GetUpdatesData, ThrowOnError>) =>
 	(options?.client ?? client).get<GetUpdatesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/system/updates",
 		...options,
@@ -835,11 +713,7 @@ export const getUpdates = <ThrowOnError extends boolean = false>(
 export const downloadResticPassword = <ThrowOnError extends boolean = false>(
 	options?: Options<DownloadResticPasswordData, ThrowOnError>,
 ) =>
-	(options?.client ?? client).post<
-		DownloadResticPasswordResponses,
-		unknown,
-		ThrowOnError
-	>({
+	(options?.client ?? client).post<DownloadResticPasswordResponses, unknown, ThrowOnError>({
 		url: "/api/v1/system/restic-password",
 		...options,
 		headers: {
