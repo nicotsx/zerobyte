@@ -7,6 +7,7 @@ import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
+import { Checkbox } from "~/client/components/ui/checkbox";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,7 +21,8 @@ import {
 import type { Repository } from "~/client/lib/types";
 import { REPOSITORY_BASE } from "~/client/lib/constants";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import type { CompressionMode, RepositoryConfig, BandwidthUnit } from "~/schemas/restic";
+import { BANDWIDTH_UNITS } from "~/schemas/restic";
 
 type Props = {
 	repository: Repository;
@@ -43,6 +45,28 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 	const [compressionMode, setCompressionMode] = useState<CompressionMode>(
 		(repository.compressionMode as CompressionMode) || "off",
 	);
+
+	// Bandwidth limit states
+	const [uploadLimitEnabled, setUploadLimitEnabled] = useState(
+		(repository as any).uploadLimitEnabled ?? false
+	);
+	const [uploadLimitValue, setUploadLimitValue] = useState(
+		(repository as any).uploadLimitValue ?? 0
+	);
+	const [uploadLimitUnit, setUploadLimitUnit] = useState<BandwidthUnit>(
+		(repository as any).uploadLimitUnit ?? "Mbps"
+	);
+
+	const [downloadLimitEnabled, setDownloadLimitEnabled] = useState(
+		(repository as any).downloadLimitEnabled ?? false
+	);
+	const [downloadLimitValue, setDownloadLimitValue] = useState(
+		(repository as any).downloadLimitValue ?? 0
+	);
+	const [downloadLimitUnit, setDownloadLimitUnit] = useState<BandwidthUnit>(
+		(repository as any).downloadLimitUnit ?? "Mbps"
+	);
+
 	const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
 	const effectiveLocalPath = getEffectiveLocalPath(repository);
@@ -67,12 +91,32 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 	const confirmUpdate = () => {
 		updateMutation.mutate({
 			path: { id: repository.id },
-			body: { name, compressionMode },
+			body: {
+				name,
+				compressionMode,
+				uploadLimit: {
+					enabled: uploadLimitEnabled,
+					value: uploadLimitValue,
+					unit: uploadLimitUnit,
+				},
+				downloadLimit: {
+					enabled: downloadLimitEnabled,
+					value: downloadLimitValue,
+					unit: downloadLimitUnit,
+				},
+			},
 		});
 	};
 
 	const hasChanges =
-		name !== repository.name || compressionMode !== ((repository.compressionMode as CompressionMode) || "off");
+		name !== repository.name ||
+		compressionMode !== ((repository.compressionMode as CompressionMode) || "off") ||
+		uploadLimitEnabled !== ((repository as any).uploadLimitEnabled ?? false) ||
+		uploadLimitValue !== ((repository as any).uploadLimitValue ?? 0) ||
+		uploadLimitUnit !== ((repository as any).uploadLimitUnit ?? "Mbps") ||
+		downloadLimitEnabled !== ((repository as any).downloadLimitEnabled ?? false) ||
+		downloadLimitValue !== ((repository as any).downloadLimitValue ?? 0) ||
+		downloadLimitUnit !== ((repository as any).downloadLimitUnit ?? "Mbps");
 
 	const config = repository.config as RepositoryConfig;
 
@@ -108,6 +152,108 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									</SelectContent>
 								</Select>
 								<p className="text-sm text-muted-foreground">Compression level for new data.</p>
+							</div>
+						</div>
+					</div>
+
+					{/* Bandwidth Limits Section */}
+					<div>
+						<h3 className="text-lg font-semibold mb-4">Bandwidth Limits</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+							{/* Upload Limit */}
+							<div className="space-y-4 rounded-lg border bg-background/50 p-4">
+								<div className="flex flex-row items-start space-x-3 space-y-0">
+									<Checkbox
+										checked={uploadLimitEnabled}
+										onCheckedChange={(checked) => setUploadLimitEnabled(!!checked)}
+									/>
+									<div className="space-y-1 leading-none">
+										<Label>Enable upload speed limit</Label>
+										<p className="text-xs text-muted-foreground">
+											Limit upload speed to the repository
+										</p>
+									</div>
+								</div>
+
+								{uploadLimitEnabled && (
+									<div className="space-y-3 pt-2">
+										<div className="flex items-center gap-2">
+											<div className="flex-1">
+												<Input
+													type="number"
+													placeholder="10"
+													min="0"
+													step="0.1"
+													value={uploadLimitValue}
+													onChange={(e) => setUploadLimitValue(parseFloat(e.target.value) || 0)}
+												/>
+											</div>
+											<Select
+												value={uploadLimitUnit}
+												onValueChange={(val) => setUploadLimitUnit(val as BandwidthUnit)}
+											>
+												<SelectTrigger className="w-24 text-xs">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{Object.keys(BANDWIDTH_UNITS).map((unit) => (
+														<SelectItem key={unit} value={unit} className="text-xs">
+															{unit}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+								)}
+							</div>
+
+							{/* Download Limit */}
+							<div className="space-y-4 rounded-lg border bg-background/50 p-4">
+								<div className="flex flex-row items-start space-x-3 space-y-0">
+									<Checkbox
+										checked={downloadLimitEnabled}
+										onCheckedChange={(checked) => setDownloadLimitEnabled(!!checked)}
+									/>
+									<div className="space-y-1 leading-none">
+										<Label>Enable download speed limit</Label>
+										<p className="text-xs text-muted-foreground">
+											Limit download speed from the repository
+										</p>
+									</div>
+								</div>
+
+								{downloadLimitEnabled && (
+									<div className="space-y-3 pt-2">
+										<div className="flex items-center gap-2">
+											<div className="flex-1">
+												<Input
+													type="number"
+													placeholder="10"
+													min="0"
+													step="0.1"
+													value={downloadLimitValue}
+													onChange={(e) => setDownloadLimitValue(parseFloat(e.target.value) || 0)}
+												/>
+											</div>
+											<Select
+												value={downloadLimitUnit}
+												onValueChange={(val) => setDownloadLimitUnit(val as BandwidthUnit)}
+											>
+												<SelectTrigger className="w-24 text-xs">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{Object.keys(BANDWIDTH_UNITS).map((unit) => (
+														<SelectItem key={unit} value={unit} className="text-xs">
+															{unit}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+								)}
 							</div>
 						</div>
 					</div>

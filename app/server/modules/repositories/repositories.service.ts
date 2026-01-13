@@ -469,7 +469,15 @@ const tagSnapshots = async (
 	}
 };
 
-const updateRepository = async (id: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
+const updateRepository = async (
+	id: string,
+	updates: {
+		name?: string;
+		compressionMode?: CompressionMode;
+		uploadLimit?: { enabled: boolean; value: number; unit: string };
+		downloadLimit?: { enabled: boolean; value: number; unit: string };
+	},
+) => {
 	const existing = await findRepository(id);
 
 	if (!existing) {
@@ -488,14 +496,30 @@ const updateRepository = async (id: string, updates: { name?: string; compressio
 		newName = updates.name.trim();
 	}
 
+	const updateData: Record<string, any> = {
+		name: newName,
+		compressionMode: updates.compressionMode ?? existing.compressionMode,
+		updatedAt: Date.now(),
+		config: encryptedConfig,
+	};
+
+	// Update upload limit if provided
+	if (updates.uploadLimit !== undefined) {
+		updateData.uploadLimitEnabled = updates.uploadLimit.enabled;
+		updateData.uploadLimitValue = updates.uploadLimit.value;
+		updateData.uploadLimitUnit = updates.uploadLimit.unit;
+	}
+
+	// Update download limit if provided
+	if (updates.downloadLimit !== undefined) {
+		updateData.downloadLimitEnabled = updates.downloadLimit.enabled;
+		updateData.downloadLimitValue = updates.downloadLimit.value;
+		updateData.downloadLimitUnit = updates.downloadLimit.unit;
+	}
+
 	const [updated] = await db
 		.update(repositoriesTable)
-		.set({
-			name: newName,
-			compressionMode: updates.compressionMode ?? existing.compressionMode,
-			updatedAt: Date.now(),
-			config: encryptedConfig,
-		})
+		.set(updateData)
 		.where(eq(repositoriesTable.id, existing.id))
 		.returning();
 

@@ -137,6 +137,16 @@ export const deleteRepositoryDto = describeRoute({
 export const updateRepositoryBody = type({
 	name: "string?",
 	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+	"uploadLimit?": {
+		enabled: "boolean",
+		value: "number >= 0",
+		unit: "string",
+	},
+	"downloadLimit?": {
+		enabled: "boolean",
+		value: "number >= 0",
+		unit: "string",
+	},
 });
 
 export type UpdateRepositoryBody = typeof updateRepositoryBody.infer;
