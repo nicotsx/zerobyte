@@ -7,7 +7,7 @@ import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
 import * as spawnModule from "~/server/utils/spawn";
 
-const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, stdout: "", stderr: "" }));
+const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
 
 beforeEach(() => {
 	resticBackupMock.mockClear();
@@ -31,7 +31,7 @@ describe("execute backup", () => {
 		expect(schedule.nextBackupAt).toBeNull();
 
 		resticBackupMock.mockImplementationOnce(() =>
-			Promise.resolve({ exitCode: 0, stdout: generateBackupOutput(), stderr: "" }),
+			Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 		);
 
 		// act
@@ -76,7 +76,7 @@ describe("execute backup", () => {
 		});
 
 		resticBackupMock.mockImplementationOnce(() =>
-			Promise.resolve({ exitCode: 0, stdout: generateBackupOutput(), stderr: "" }),
+			Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 		);
 
 		// act
@@ -97,7 +97,7 @@ describe("execute backup", () => {
 
 		resticBackupMock.mockImplementation(async () => {
 			await new Promise((resolve) => setTimeout(resolve, 100));
-			return Promise.resolve({ exitCode: 0, stdout: generateBackupOutput(), stderr: "" });
+			return Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" });
 		});
 
 		// act
@@ -119,7 +119,7 @@ describe("execute backup", () => {
 		});
 
 		resticBackupMock.mockImplementationOnce(() =>
-			Promise.resolve({ exitCode: 3, stdout: generateBackupOutput(), stderr: "Some error occurred" }),
+			Promise.resolve({ exitCode: 3, summary: generateBackupOutput(), error: "Some error occurred" }),
 		);
 
 		// act
@@ -140,7 +140,7 @@ describe("execute backup", () => {
 		});
 
 		resticBackupMock.mockImplementationOnce(() =>
-			Promise.resolve({ exitCode: 1, stdout: generateBackupOutput(), stderr: "Some error occurred" }),
+			Promise.resolve({ exitCode: 1, summary: generateBackupOutput(), error: "Some error occurred" }),
 		);
 
 		// act

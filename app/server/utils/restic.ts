@@ -9,7 +9,7 @@ import { config as appConfig } from "../core/config";
 import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
-import { safeSpawn } from "./spawn";
+import { safeSpawn, exec } from "./spawn";
 import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
 import { ResticError } from "./errors";
 
@@ -355,8 +355,8 @@ const backup = async (
 		},
 	});
 
-	includeFile && (await fs.unlink(includeFile).catch(() => {}));
-	excludeFile && (await fs.unlink(excludeFile).catch(() => {}));
+	if (includeFile) await fs.unlink(includeFile).catch(() => {});
+	if (excludeFile) await fs.unlink(excludeFile).catch(() => {});
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
@@ -385,7 +385,7 @@ const backup = async (
 		summaryLine = "{}";
 	}
 
-	logger.debug(`Restic restore output last line: ${summaryLine}`);
+	logger.debug(`Restic backup output last line: ${summaryLine}`);
 	const result = backupOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
