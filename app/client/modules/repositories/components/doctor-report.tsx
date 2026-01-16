@@ -44,14 +44,14 @@ export const DoctorReport = ({
 								<CollapsibleContent className="border-t bg-muted/50">
 									<div className="p-2 space-y-3">
 										{step.output && (
-											<pre className="text-xs font-mono bg-background/50 p-3 rounded border overflow-auto max-h-50 whitespace-pre-wrap">
+											<pre className="text-xs font-mono bg-background/50 p-3 border overflow-auto max-h-50 whitespace-pre-wrap">
 												{step.output.startsWith("{") ? JSON.stringify(JSON.parse(step.output), null, 2) : step.output}
 											</pre>
 										)}
 										{step.error && (
 											<div className="space-y-1.5">
 												<div className="text-[10px] uppercase font-bold text-red-500/70 px-1">Error</div>
-												<pre className="text-xs font-mono bg-red-500/5 text-red-500 p-3 rounded border border-red-500/20 overflow-auto whitespace-pre-wrap">
+												<pre className="text-xs font-mono bg-red-500/5 text-red-500 p-3 border border-red-500/20 overflow-auto whitespace-pre-wrap">
 													{step.error}
 												</pre>
 											</div>
@@ -67,20 +67,20 @@ export const DoctorReport = ({
 				</div>
 			)}
 			<div
-				className={cn("mt-2 bg-muted/30 border rounded-lg p-6 text-center", {
+				className={cn("mt-2 bg-muted/30 border p-6 text-center", {
 					hidden: result !== null || repositoryStatus === "doctor",
 				})}
 			>
 				<p className="text-sm text-muted-foreground">No doctor report available.</p>
 			</div>
 			<div
-				className={cn("mt-2 border rounded-lg p-6 text-center", {
+				className={cn("mt-2 border p-6 text-center", {
 					hidden: repositoryStatus !== "doctor",
 				})}
 			>
 				<div className="flex items-center justify-center gap-2">
 					<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-					<p className="text-sm ">Doctor operation is currently running...</p>
+					<p className="text-sm ">Doctor operation running...</p>
 				</div>
 			</div>
 		</div>
