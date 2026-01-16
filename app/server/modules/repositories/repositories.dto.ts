@@ -6,7 +6,6 @@ import {
 	REPOSITORY_BACKENDS,
 	REPOSITORY_STATUS,
 	repositoryConfigSchema,
-	doctorStepSchema,
 	doctorResultSchema,
 } from "~/schemas/restic";
 
