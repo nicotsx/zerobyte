@@ -33,7 +33,7 @@ export const AdvancedForm = ({ form }: Props) => {
 			<CollapsibleContent className="pb-4 space-y-4">
 				<div className="space-y-4 mt-4">
 					<div className="grid gap-6">
-						<div className="space-y-4 rounded-lg border bg-background/50 p-4">
+						<div className="space-y-4 border p-4">
 							<FormField
 								control={form.control}
 								name="uploadLimit.enabled"
@@ -109,7 +109,7 @@ export const AdvancedForm = ({ form }: Props) => {
 						</div>
 					</div>
 
-					<div className="rounded-lg border bg-background/50 p-4">
+					<div className="border bg-background/50 p-4">
 						<FormField
 							control={form.control}
 							name="downloadLimit.enabled"
@@ -191,7 +191,7 @@ export const AdvancedForm = ({ form }: Props) => {
 					control={form.control}
 					name="insecureTls"
 					render={({ field }) => (
-						<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+						<FormItem className="flex flex-row items-start space-x-3 space-y-0 border p-4">
 							<FormControl>
 								<Tooltip delayDuration={500}>
 									<TooltipTrigger asChild>
