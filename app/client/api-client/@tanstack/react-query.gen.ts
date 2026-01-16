@@ -5,6 +5,7 @@ import { type DefaultError, queryOptions, type UseMutationOptions } from "@tanst
 import { client } from "../client.gen";
 import {
 	browseFilesystem,
+	cancelDoctor,
 	createBackupSchedule,
 	createNotificationDestination,
 	createRepository,
@@ -15,7 +16,6 @@ import {
 	deleteSnapshot,
 	deleteSnapshots,
 	deleteVolume,
-	doctorRepository,
 	downloadResticPassword,
 	getBackupSchedule,
 	getBackupScheduleForVolume,
@@ -62,6 +62,8 @@ import {
 import type {
 	BrowseFilesystemData,
 	BrowseFilesystemResponse,
+	CancelDoctorData,
+	CancelDoctorResponse,
 	CreateBackupScheduleData,
 	CreateBackupScheduleResponse,
 	CreateNotificationDestinationData,
@@ -82,8 +84,6 @@ import type {
 	DeleteSnapshotsResponse,
 	DeleteVolumeData,
 	DeleteVolumeResponse,
-	DoctorRepositoryData,
-	DoctorRepositoryResponse,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponse,
 	GetBackupScheduleData,
@@ -719,14 +719,33 @@ export const restoreSnapshotMutation = (
 };
 
 /**
- * Run doctor operations on a repository to fix common issues (unlock, check, repair index). Use this when the repository is locked or has errors.
+ * Cancel a running doctor operation on a repository
  */
-export const doctorRepositoryMutation = (
-	options?: Partial<Options<DoctorRepositoryData>>,
-): UseMutationOptions<DoctorRepositoryResponse, DefaultError, Options<DoctorRepositoryData>> => {
-	const mutationOptions: UseMutationOptions<DoctorRepositoryResponse, DefaultError, Options<DoctorRepositoryData>> = {
+export const cancelDoctorMutation = (
+	options?: Partial<Options<CancelDoctorData>>,
+): UseMutationOptions<CancelDoctorResponse, DefaultError, Options<CancelDoctorData>> => {
+	const mutationOptions: UseMutationOptions<CancelDoctorResponse, DefaultError, Options<CancelDoctorData>> = {
 		mutationFn: async (fnOptions) => {
-			const { data } = await doctorRepository({
+			const { data } = await cancelDoctor({
+				...options,
+				...fnOptions,
+				throwOnError: true,
+			});
+			return data;
+		},
+	};
+	return mutationOptions;
+};
+
+/**
+ * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.
+ */
+export const startDoctorMutation = (
+	options?: Partial<Options<StartDoctorData>>,
+): UseMutationOptions<StartDoctorResponse, DefaultError, Options<StartDoctorData>> => {
+	const mutationOptions: UseMutationOptions<StartDoctorResponse, DefaultError, Options<StartDoctorData>> = {
+		mutationFn: async (fnOptions) => {
+			const { data } = await startDoctor({
 				...options,
 				...fnOptions,
 				throwOnError: true,

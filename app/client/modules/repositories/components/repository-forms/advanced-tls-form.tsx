@@ -29,7 +29,7 @@ export const AdvancedForm = ({ form }: Props) => {
 
 	return (
 		<Collapsible>
-			<CollapsibleTrigger className="">Advanced Settings</CollapsibleTrigger>
+			<CollapsibleTrigger>Advanced Settings</CollapsibleTrigger>
 			<CollapsibleContent className="pb-4 space-y-4">
 				<div className="space-y-4 mt-4">
 					<div className="grid gap-6">

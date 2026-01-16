@@ -912,12 +912,22 @@ export type ListRepositoriesResponses = {
 					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	}>;
@@ -1340,12 +1350,22 @@ export type GetRepositoryResponses = {
 					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -1550,12 +1570,22 @@ export type UpdateRepositoryResponses = {
 					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -1731,7 +1761,7 @@ export type RestoreSnapshotResponses = {
 
 export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnapshotResponses];
 
-export type DoctorRepositoryData = {
+export type CancelDoctorData = {
 	body?: never;
 	path: {
 		id: string;
@@ -1740,22 +1770,51 @@ export type DoctorRepositoryData = {
 	url: "/api/v1/repositories/{id}/doctor";
 };
 
-export type DoctorRepositoryResponses = {
+export type CancelDoctorErrors = {
 	/**
-	 * Doctor operation completed
+	 * No doctor operation is currently running
+	 */
+	409: unknown;
+};
+
+export type CancelDoctorResponses = {
+	/**
+	 * Doctor operation cancelled
 	 */
 	200: {
-		steps: Array<{
-			error: string | null;
-			output: string | null;
-			step: string;
-			success: boolean;
-		}>;
-		success: boolean;
+		message: string;
 	};
 };
 
-export type DoctorRepositoryResponse = DoctorRepositoryResponses[keyof DoctorRepositoryResponses];
+export type CancelDoctorResponse = CancelDoctorResponses[keyof CancelDoctorResponses];
+
+export type StartDoctorData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/doctor";
+};
+
+export type StartDoctorErrors = {
+	/**
+	 * Doctor operation already in progress
+	 */
+	409: unknown;
+};
+
+export type StartDoctorResponses = {
+	/**
+	 * Doctor operation started
+	 */
+	202: {
+		message: string;
+		repositoryId: string;
+	};
+};
+
+export type StartDoctorResponse = StartDoctorResponses[keyof StartDoctorResponses];
 
 export type TagSnapshotsData = {
 	body?: {
@@ -1977,12 +2036,22 @@ export type ListBackupSchedulesResponses = {
 						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2349,12 +2418,22 @@ export type GetBackupScheduleResponses = {
 						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2702,12 +2781,22 @@ export type GetBackupScheduleForVolumeResponses = {
 						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -3263,12 +3352,22 @@ export type GetScheduleMirrorsResponses = {
 						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -3473,12 +3572,22 @@ export type UpdateScheduleMirrorsResponses = {
 						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};

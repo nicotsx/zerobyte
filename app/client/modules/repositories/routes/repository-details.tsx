@@ -3,10 +3,11 @@ import { redirect, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import {
+	cancelDoctorMutation,
 	deleteRepositoryMutation,
-	doctorRepositoryMutation,
 	getRepositoryOptions,
 	listSnapshotsOptions,
+	startDoctorMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import {
@@ -25,7 +26,7 @@ import { cn } from "~/client/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
-import { Loader2, Stethoscope, Trash2 } from "lucide-react";
+import { Square, Stethoscope, Trash2 } from "lucide-react";
 
 export const handle = {
 	breadcrumb: (match: Route.MetaArgs) => [
@@ -52,8 +53,6 @@ export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
 };
 
 export default function RepositoryDetailsPage({ loaderData }: Route.ComponentProps) {
-	const [showDoctorResults, setShowDoctorResults] = useState(false);
-
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -83,24 +82,22 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 		},
 	});
 
-	const doctorMutation = useMutation({
-		...doctorRepositoryMutation(),
-		onSuccess: (data) => {
-			if (data) {
-				setShowDoctorResults(true);
+	const startDoctor = useMutation({
+		...startDoctorMutation(),
+		onError: (error) => {
+			toast.error("Failed to start doctor", {
+				description: parseError(error)?.message,
+			});
+		},
+	});
 
-				if (data.success) {
-					toast.success("Repository doctor completed successfully");
-				} else {
-					toast.warning("Doctor completed with some issues", {
-						description: "Check the details for more information",
-						richColors: true,
-					});
-				}
-			}
+	const cancelDoctor = useMutation({
+		...cancelDoctorMutation(),
+		onSuccess: () => {
+			toast.info("Doctor operation cancelled");
 		},
 		onError: (error) => {
-			toast.error("Failed to run doctor", {
+			toast.error("Failed to cancel doctor", {
 				description: parseError(error)?.message,
 			});
 		},
@@ -111,21 +108,6 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 		deleteRepo.mutate({ path: { id: data.id } });
 	};
 
-	const getStepLabel = (step: string) => {
-		switch (step) {
-			case "unlock":
-				return "Unlock Repository";
-			case "check":
-				return "Check Repository";
-			case "repair_index":
-				return "Repair Index";
-			case "recheck":
-				return "Re-check Repository";
-			default:
-				return step;
-		}
-	};
-
 	return (
 		<>
 			<div className="flex items-center justify-between mb-4">
@@ -134,6 +116,7 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 						className={cn("inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500", {
 							"bg-green-500/10 text-green-500": data.status === "healthy",
 							"bg-red-500/10 text-red-500": data.status === "error",
+							"bg-blue-500/10 text-blue-500": data.status === "doctor",
 						})}
 					>
 						{data.status || "unknown"}
@@ -141,23 +124,17 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 					<span className="text-xs bg-primary/10 rounded-md px-2 py-1">{data.type}</span>
 				</div>
 				<div className="flex gap-4">
-					<Button
-						onClick={() => doctorMutation.mutate({ path: { id: data.id } })}
-						disabled={doctorMutation.isPending}
-						variant={"outline"}
-					>
-						{doctorMutation.isPending ? (
-							<>
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-								Running doctor...
-							</>
-						) : (
-							<>
-								<Stethoscope className="h-4 w-4 mr-2" />
-								Run doctor
-							</>
-						)}
-					</Button>
+					{data.status === "doctor" ? (
+						<Button variant="destructive" onClick={() => cancelDoctor.mutate({ path: { id: data.id } })}>
+							<Square className="h-4 w-4 mr-2" />
+							<span>Cancel doctor</span>
+						</Button>
+					) : (
+						<Button onClick={() => startDoctor.mutate({ path: { id: data.id } })} disabled={startDoctor.isPending}>
+							<Stethoscope className="h-4 w-4 mr-2" />
+							Run doctor
+						</Button>
+					)}
 					<Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteRepo.isPending}>
 						<Trash2 className="h-4 w-4 mr-2" />
 						Delete
@@ -199,46 +176,6 @@ export default function RepositoryDetailsPage({ loaderData }: Route.ComponentPro
 							<Trash2 className="h-4 w-4 mr-2" />
 							Delete repository
 						</AlertDialogAction>
-					</div>
-				</AlertDialogContent>
-			</AlertDialog>
-
-			<AlertDialog open={showDoctorResults} onOpenChange={setShowDoctorResults}>
-				<AlertDialogContent className="max-w-2xl">
-					<AlertDialogHeader>
-						<AlertDialogTitle>Doctor results</AlertDialogTitle>
-						<AlertDialogDescription>Repository doctor operation completed</AlertDialogDescription>
-					</AlertDialogHeader>
-
-					{doctorMutation.data && (
-						<div className="space-y-3 max-h-96 overflow-y-auto">
-							{doctorMutation.data.steps.map((step) => (
-								<div
-									key={step.step}
-									className={cn("border rounded-md p-3", {
-										"bg-green-500/10 border-green-500/20": step.success,
-										"bg-yellow-500/10 border-yellow-500/20": !step.success,
-									})}
-								>
-									<div className="flex items-center justify-between mb-2">
-										<span className="font-medium text-sm">{getStepLabel(step.step)}</span>
-										<span
-											className={cn("text-xs px-2 py-1 rounded", {
-												"bg-green-500/20 text-green-500": step.success,
-												"bg-yellow-500/20 text-yellow-500": !step.success,
-											})}
-										>
-											{step.success ? "Success" : "Warning"}
-										</span>
-									</div>
-									{step.error && <p className="text-xs text-red-500 mt-1">{step.error}</p>}
-								</div>
-							))}
-						</div>
-					)}
-
-					<div className="flex justify-end">
-						<Button onClick={() => setShowDoctorResults(false)}>Close</Button>
 					</div>
 				</AlertDialogContent>
 			</AlertDialog>

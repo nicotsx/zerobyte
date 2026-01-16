@@ -6,6 +6,8 @@ import {
 	REPOSITORY_BACKENDS,
 	REPOSITORY_STATUS,
 	repositoryConfigSchema,
+	doctorStepSchema,
+	doctorResultSchema,
 } from "~/schemas/restic";
 
 export const repositorySchema = type({
@@ -18,6 +20,7 @@ export const repositorySchema = type({
 	status: type.valueOf(REPOSITORY_STATUS).or("null"),
 	lastChecked: "number | null",
 	lastError: "string | null",
+	doctorResult: doctorResultSchema.or("null"),
 	createdAt: "number",
 	updatedAt: "number",
 });
@@ -317,35 +320,59 @@ export const restoreSnapshotDto = describeRoute({
 });
 
 /**
- * Doctor a repository (unlock, check, repair)
+ * Start doctor operation
  */
-export const doctorStepSchema = type({
-	step: "string",
-	success: "boolean",
-	output: "string | null",
-	error: "string | null",
+export const startDoctorResponse = type({
+	message: "string",
+	repositoryId: "string",
 });
 
-export const doctorRepositoryResponse = type({
-	success: "boolean",
-	steps: doctorStepSchema.array(),
-});
+export type StartDoctorDto = typeof startDoctorResponse.infer;
 
-export type DoctorRepositoryDto = typeof doctorRepositoryResponse.infer;
-
-export const doctorRepositoryDto = describeRoute({
+export const startDoctorDto = describeRoute({
 	description:
-		"Run doctor operations on a repository to fix common issues (unlock, check, repair index). Use this when the repository is locked or has errors.",
+		"Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.",
 	tags: ["Repositories"],
-	operationId: "doctorRepository",
+	operationId: "startDoctor",
 	responses: {
-		200: {
-			description: "Doctor operation completed",
+		202: {
+			description: "Doctor operation started",
 			content: {
 				"application/json": {
-					schema: resolver(doctorRepositoryResponse),
+					schema: resolver(startDoctorResponse),
 				},
 			},
+		},
+		409: {
+			description: "Doctor operation already in progress",
+		},
+	},
+});
+
+/**
+ * Cancel running doctor operation
+ */
+export const cancelDoctorResponse = type({
+	message: "string",
+});
+
+export type CancelDoctorDto = typeof cancelDoctorResponse.infer;
+
+export const cancelDoctorDto = describeRoute({
+	description: "Cancel a running doctor operation on a repository",
+	tags: ["Repositories"],
+	operationId: "cancelDoctor",
+	responses: {
+		200: {
+			description: "Doctor operation cancelled",
+			content: {
+				"application/json": {
+					schema: resolver(cancelDoctorResponse),
+				},
+			},
+		},
+		409: {
+			description: "No doctor operation is currently running",
 		},
 	},
 });

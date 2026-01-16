@@ -11,7 +11,10 @@ type ServerEventType =
 	| "volume:unmounted"
 	| "volume:updated"
 	| "mirror:started"
-	| "mirror:completed";
+	| "mirror:completed"
+	| "doctor:started"
+	| "doctor:completed"
+	| "doctor:cancelled";
 
 export interface BackupEvent {
 	scheduleId: number;
@@ -43,6 +46,21 @@ export interface MirrorEvent {
 	repositoryName: string;
 	status?: "success" | "error";
 	error?: string;
+}
+
+export interface DoctorEvent {
+	repositoryId: string;
+	repositoryName: string;
+}
+
+export interface DoctorCompletedEvent extends DoctorEvent {
+	success: boolean;
+	steps: Array<{
+		step: string;
+		success: boolean;
+		output: string | null;
+		error: string | null;
+	}>;
 }
 
 type EventHandler = (data: unknown) => void;
@@ -152,6 +170,39 @@ export function useServerEvents() {
 			void queryClient.invalidateQueries();
 
 			handlersRef.current.get("mirror:completed")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("doctor:started", (e) => {
+			const data = JSON.parse(e.data) as DoctorEvent;
+			console.info("[SSE] Doctor started:", data);
+
+			void queryClient.invalidateQueries();
+
+			handlersRef.current.get("doctor:started")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("doctor:completed", (e) => {
+			const data = JSON.parse(e.data) as DoctorCompletedEvent;
+			console.info("[SSE] Doctor completed:", data);
+
+			void queryClient.invalidateQueries();
+
+			handlersRef.current.get("doctor:completed")?.forEach((handler) => {
+				handler(data);
+			});
+		});
+
+		eventSource.addEventListener("doctor:cancelled", (e) => {
+			const data = JSON.parse(e.data) as DoctorEvent;
+			console.info("[SSE] Doctor cancelled:", data);
+
+			void queryClient.invalidateQueries();
+
+			handlersRef.current.get("doctor:cancelled")?.forEach((handler) => {
 				handler(data);
 			});
 		});

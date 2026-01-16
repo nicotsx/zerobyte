@@ -5,6 +5,9 @@ import { client } from "./client.gen";
 import type {
 	BrowseFilesystemData,
 	BrowseFilesystemResponses,
+	CancelDoctorData,
+	CancelDoctorErrors,
+	CancelDoctorResponses,
 	CreateBackupScheduleData,
 	CreateBackupScheduleResponses,
 	CreateNotificationDestinationData,
@@ -26,8 +29,6 @@ import type {
 	DeleteSnapshotsResponses,
 	DeleteVolumeData,
 	DeleteVolumeResponses,
-	DoctorRepositoryData,
-	DoctorRepositoryResponses,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponses,
 	GetBackupScheduleData,
@@ -422,12 +423,19 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(
 	});
 
 /**
- * Run doctor operations on a repository to fix common issues (unlock, check, repair index). Use this when the repository is locked or has errors.
+ * Cancel a running doctor operation on a repository
  */
-export const doctorRepository = <ThrowOnError extends boolean = false>(
-	options: Options<DoctorRepositoryData, ThrowOnError>,
-) =>
-	(options.client ?? client).post<DoctorRepositoryResponses, unknown, ThrowOnError>({
+export const cancelDoctor = <ThrowOnError extends boolean = false>(options: Options<CancelDoctorData, ThrowOnError>) =>
+	(options.client ?? client).delete<CancelDoctorResponses, CancelDoctorErrors, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/doctor",
+		...options,
+	});
+
+/**
+ * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.
+ */
+export const startDoctor = <ThrowOnError extends boolean = false>(options: Options<StartDoctorData, ThrowOnError>) =>
+	(options.client ?? client).post<StartDoctorResponses, StartDoctorErrors, ThrowOnError>({
 		url: "/api/v1/repositories/{id}/doctor",
 		...options,
 	});

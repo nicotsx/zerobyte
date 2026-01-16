@@ -6,6 +6,7 @@ import type {
 	repositoryConfigSchema,
 	RepositoryStatus,
 	BandwidthUnit,
+	DoctorResult,
 } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
@@ -213,6 +214,7 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	status: text().$type<RepositoryStatus>().default("unknown"),
 	lastChecked: int("last_checked", { mode: "number" }),
 	lastError: text("last_error"),
+	doctorResult: text("doctor_result", { mode: "json" }).$type<DoctorResult>(),
 	uploadLimitEnabled: int("upload_limit_enabled", { mode: "boolean" }).notNull().default(false),
 	uploadLimitValue: real("upload_limit_value").notNull().default(1),
 	uploadLimitUnit: text("upload_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),

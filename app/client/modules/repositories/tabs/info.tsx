@@ -22,6 +22,7 @@ import { REPOSITORY_BASE } from "~/client/lib/constants";
 import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import { updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
+import { DoctorReport } from "../components/doctor-report";
 
 type Props = {
 	repository: Repository;
@@ -126,7 +127,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 							</div>
 							{effectiveLocalPath && (
 								<div className="md:col-span-2">
-									<div className="text-sm font-medium text-muted-foreground">Effective Local Path</div>
+									<div className="text-sm font-medium text-muted-foreground">Local path</div>
 									<p className="mt-1 text-sm font-mono">{effectiveLocalPath}</p>
 								</div>
 							)}
@@ -178,6 +179,8 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 							<pre className="text-sm overflow-auto">{JSON.stringify(repository.config, null, 2)}</pre>
 						</div>
 					</div>
+
+					<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
 
 					<div className="flex justify-end pt-4 border-t">
 						<Button type="submit" disabled={!hasChanges || updateMutation.isPending} loading={updateMutation.isPending}>

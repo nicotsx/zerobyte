@@ -7,7 +7,8 @@ import {
 	deleteSnapshotDto,
 	deleteSnapshotsBody,
 	deleteSnapshotsDto,
-	doctorRepositoryDto,
+	startDoctorDto,
+	cancelDoctorDto,
 	getRepositoryDto,
 	getSnapshotDetailsDto,
 	listRcloneRemotesDto,
@@ -25,7 +26,8 @@ import {
 	type DeleteRepositoryDto,
 	type DeleteSnapshotDto,
 	type DeleteSnapshotsResponseDto,
-	type DoctorRepositoryDto,
+	type StartDoctorDto,
+	type CancelDoctorDto,
 	type GetRepositoryDto,
 	type GetSnapshotDetailsDto,
 	type ListRepositoriesDto,
@@ -150,11 +152,19 @@ export const repositoriesController = new Hono()
 
 		return c.json<RestoreSnapshotDto>(result, 200);
 	})
-	.post("/:id/doctor", doctorRepositoryDto, async (c) => {
+	.post("/:id/doctor", startDoctorDto, async (c) => {
 		const { id } = c.req.param();
-		const result = await repositoriesService.doctorRepository(id);
 
-		return c.json<DoctorRepositoryDto>(result, 200);
+		const result = await repositoriesService.startDoctor(id);
+
+		return c.json<StartDoctorDto>(result, 202);
+	})
+	.delete("/:id/doctor", cancelDoctorDto, async (c) => {
+		const { id } = c.req.param();
+
+		const result = await repositoriesService.cancelDoctor(id);
+
+		return c.json<CancelDoctorDto>(result, 200);
 	})
 	.delete("/:id/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
 		const { id, snapshotId } = c.req.param();
