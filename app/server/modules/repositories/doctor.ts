@@ -9,8 +9,8 @@ import { type } from "arktype";
 import { serverEvents } from "../../core/events";
 import { logger } from "../../utils/logger";
 
-const runUnlockStep = async (config: RepositoryConfig): Promise<DoctorStep> => {
-	const result = await restic.unlock(config).then(
+const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => {
+	const result = await restic.unlock(config, { signal }).then(
 		(result) => ({ success: true, message: result.message, error: null }),
 		(error) => ({ success: false, message: null, error: toMessage(error) }),
 	);
@@ -23,8 +23,8 @@ const runUnlockStep = async (config: RepositoryConfig): Promise<DoctorStep> => {
 	};
 };
 
-const runCheckStep = async (config: RepositoryConfig): Promise<DoctorStep> => {
-	const result = await restic.check(config, { readData: true }).then(
+const runCheckStep = async (config: RepositoryConfig, signal: AbortSignal) => {
+	const result = await restic.check(config, { readData: true, signal }).then(
 		(result) => result,
 		(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
 	);
@@ -37,8 +37,8 @@ const runCheckStep = async (config: RepositoryConfig): Promise<DoctorStep> => {
 	};
 };
 
-const runRepairIndexStep = async (config: RepositoryConfig) => {
-	const result = await restic.repairIndex(config).then(
+const runRepairIndexStep = async (config: RepositoryConfig, signal: AbortSignal) => {
+	const result = await restic.repairIndex(config, { signal }).then(
 		(result) => ({ success: true, output: result.output, error: null }),
 		(error) => ({ success: false, output: null, error: toMessage(error) }),
 	);
@@ -103,28 +103,28 @@ export const executeDoctor = async (
 	repositoryId: string,
 	repositoryConfig: RepositoryConfig,
 	repositoryName: string,
-	signal: AbortSignal | undefined,
+	signal: AbortSignal,
 ) => {
 	const steps: DoctorStep[] = [];
 
 	try {
-		const releaseLock = await repoMutex.acquireExclusive(repositoryId, "doctor");
+		const releaseLock = await repoMutex.acquireExclusive(repositoryId, "doctor", signal);
 
-		// Step 1: Unlock repository
-		const unlockStep = await runUnlockStep(repositoryConfig);
-		steps.push(unlockStep);
-		checkAbortSignal(signal);
-
-		// Step 2: Check repository with exclusive lock
 		try {
-			const checkStep = await runCheckStep(repositoryConfig);
+			// Step 1: Unlock repository
+			const unlockStep = await runUnlockStep(repositoryConfig, signal);
+			steps.push(unlockStep);
+			checkAbortSignal(signal);
+
+			// Step 2: Check repository
+			const checkStep = await runCheckStep(repositoryConfig, signal);
 			steps.push(checkStep);
 			checkAbortSignal(signal);
 
 			// Step 3: Repair index if suggested
 			const checkOutput = parseCheckOutput(checkStep.output);
 			if (checkOutput?.suggest_repair_index) {
-				const repairStep = await runRepairIndexStep(repositoryConfig);
+				const repairStep = await runRepairIndexStep(repositoryConfig, signal);
 				steps.push(repairStep);
 				checkAbortSignal(signal);
 			}

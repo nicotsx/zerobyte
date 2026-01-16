@@ -298,7 +298,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			backupOptions.include = schedule.includePatterns.map((p) => processPattern(p, volumePath));
 		}
 
-		const releaseBackupLock = await repoMutex.acquireShared(repository.id, `backup:${volume.name}`);
+		const releaseBackupLock = await repoMutex.acquireShared(repository.id, `backup:${volume.name}`, abortController.signal);
 		let exitCode: number;
 		try {
 			const result = await restic.backup(repository.config, volumePath, {
