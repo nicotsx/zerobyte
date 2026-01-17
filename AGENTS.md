@@ -18,7 +18,7 @@ Zerobyte is a backup automation tool built on top of Restic that provides a web 
 - **Validation**: ArkType for runtime schema validation
 - **Styling**: Tailwind CSS v4 + Radix UI components
 - **Architecture**: Unified application structure (not a monorepo)
-- **Code Quality**: Biome (formatter & linter)
+- **Code Quality**: Oxfmt for formatting, Oxlint for linting
 
 ## Repository Structure
 
@@ -75,8 +75,6 @@ bun run gen:api-client
 ### Code Quality
 
 ```bash
-# Format and lint
-
 # Format
 bunx oxfmt format --write <path>
 
@@ -238,8 +236,6 @@ On startup, the server detects available capabilities (see `core/capabilities.ts
 
 ## Important Notes
 
-- **Code Style**: Uses Biome with tabs (not spaces), 120 char line width, double quotes
-- **Imports**: Organize imports is disabled in Biome - do not auto-organize
 - **TypeScript**: Uses `"type": "module"` - all imports must include extensions when targeting Node/Bun
 - **Validation**: Prefer ArkType over Zod - it's used throughout the codebase
 - **Visibility**: Prefer using the `cn` helper with `{ hidden: condition }` instead of conditional rendering with ternaries or `&&` for toggling element visibility in the DOM.

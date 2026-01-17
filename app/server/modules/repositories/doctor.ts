@@ -8,6 +8,11 @@ import { type DoctorStep, type DoctorResult, type RepositoryConfig } from "~/sch
 import { type } from "arktype";
 import { serverEvents } from "../../core/events";
 import { logger } from "../../utils/logger";
+import { safeJsonParse } from "../../utils/json";
+
+class AbortError extends Error {
+	name = "AbortError";
+}
 
 const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => {
 	const result = await restic.unlock(config, { signal }).then(
@@ -53,7 +58,13 @@ const runRepairIndexStep = async (config: RepositoryConfig, signal: AbortSignal)
 
 const parseCheckOutput = (checkOutput: string | null) => {
 	const schema = type({ suggest_repair_index: "boolean", suggest_prune: "boolean" });
-	const parsed = schema(JSON.parse(checkOutput ?? "{}"));
+	const parsedJson = safeJsonParse(checkOutput);
+
+	if (parsedJson === null) {
+		return null;
+	}
+
+	const parsed = schema(parsedJson);
 
 	if (parsed instanceof type.errors) {
 		logger.error(`Invalid check output format: ${parsed.summary}`);
@@ -65,7 +76,7 @@ const parseCheckOutput = (checkOutput: string | null) => {
 
 const checkAbortSignal = (signal: AbortSignal | undefined): void => {
 	if (signal?.aborted) {
-		throw new Error("Doctor operation cancelled");
+		throw new AbortError("Doctor operation cancelled");
 	}
 };
 
@@ -143,18 +154,42 @@ export const executeDoctor = async (
 			completedAt: Date.now(),
 		});
 	} catch (error) {
-		await db
-			.update(repositoriesTable)
-			.set({ status: "error", lastError: toMessage(error) })
-			.where(eq(repositoriesTable.id, repositoryId));
+		if (error instanceof AbortError) {
+			const doctorResult: DoctorResult = {
+				success: false,
+				steps,
+				completedAt: Date.now(),
+			};
 
-		steps.push({ step: "doctor", success: false, output: null, error: toMessage(error) });
-		serverEvents.emit("doctor:completed", {
-			repositoryId,
-			repositoryName,
-			success: false,
-			steps,
-			completedAt: Date.now(),
-		});
+			await db
+				.update(repositoriesTable)
+				.set({
+					status: "cancelled",
+					lastChecked: Date.now(),
+					lastError: toMessage(error),
+					doctorResult,
+				})
+				.where(eq(repositoriesTable.id, repositoryId));
+
+			serverEvents.emit("doctor:cancelled", {
+				repositoryId,
+				repositoryName,
+				error: toMessage(error),
+			});
+		} else {
+			await db
+				.update(repositoriesTable)
+				.set({ status: "error", lastError: toMessage(error) })
+				.where(eq(repositoriesTable.id, repositoryId));
+
+			steps.push({ step: "doctor", success: false, output: null, error: toMessage(error) });
+			serverEvents.emit("doctor:completed", {
+				repositoryId,
+				repositoryName,
+				success: false,
+				steps,
+				completedAt: Date.now(),
+			});
+		}
 	}
 };

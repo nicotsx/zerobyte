@@ -128,6 +128,7 @@ export const REPOSITORY_STATUS = {
 	error: "error",
 	unknown: "unknown",
 	doctor: "doctor",
+	cancelled: "cancelled",
 } as const;
 
 export type RepositoryStatus = keyof typeof REPOSITORY_STATUS;

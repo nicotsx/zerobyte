@@ -357,17 +357,20 @@ const startDoctor = async (id: string) => {
 	}
 
 	const abortController = new AbortController();
-	runningDoctors.set(repository.id, abortController);
 
-	await db
-		.update(repositoriesTable)
-		.set({ status: "doctor", doctorResult: null })
-		.where(eq(repositoriesTable.id, repository.id));
+	try {
+		await db.update(repositoriesTable).set({ status: "doctor" }).where(eq(repositoriesTable.id, repository.id));
 
-	serverEvents.emit("doctor:started", {
-		repositoryId: repository.id,
-		repositoryName: repository.name,
-	});
+		serverEvents.emit("doctor:started", {
+			repositoryId: repository.id,
+			repositoryName: repository.name,
+		});
+
+		runningDoctors.set(repository.id, abortController);
+	} catch (error) {
+		runningDoctors.delete(repository.id);
+		throw error;
+	}
 
 	executeDoctor(repository.id, repository.config, repository.name, abortController.signal)
 		.catch((error) => {
@@ -387,8 +390,6 @@ const cancelDoctor = async (id: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
-
 	const abortController = runningDoctors.get(repository.id);
 	if (!abortController) {
 		throw new ConflictError("No doctor operation is currently running");
@@ -396,6 +397,8 @@ const cancelDoctor = async (id: string) => {
 
 	abortController.abort();
 	runningDoctors.delete(repository.id);
+
+	await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
 
 	serverEvents.emit("doctor:cancelled", {
 		repositoryId: repository.id,

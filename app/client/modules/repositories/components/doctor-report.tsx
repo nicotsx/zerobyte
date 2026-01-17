@@ -1,7 +1,7 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
 import { formatDateTime } from "~/client/lib/datetime";
-import { cn } from "~/client/lib/utils";
+import { cn, safeJsonParse } from "~/client/lib/utils";
 
 type DoctorStep = {
 	step: string;
@@ -15,13 +15,13 @@ type DoctorResult = {
 	steps: DoctorStep[];
 	completedAt: number;
 };
-export const DoctorReport = ({
-	result,
-	repositoryStatus,
-}: {
+
+type Props = {
 	result?: DoctorResult | null;
 	repositoryStatus: string | null;
-}) => {
+};
+
+export const DoctorReport = ({ result, repositoryStatus }: Props) => {
 	return (
 		<div>
 			<h3 className="text-lg font-semibold">Doctor Report</h3>
@@ -30,10 +30,10 @@ export const DoctorReport = ({
 					<span className="text-xs text-muted-foreground">Completed {formatDateTime(result.completedAt)}</span>
 					<div className="space-y-2 mt-2">
 						{result.steps.map((step) => (
-							<Collapsible key={step.step} className="border rounde overflow-hidden bg-muted/30 group">
+							<Collapsible key={step.step} className="border rounded overflow-hidden bg-muted/30 group">
 								<CollapsibleTrigger className="w-full flex items-center justify-start p-3 hover:bg-muted/50 transition-colors">
 									<div className="flex items-center gap-3">
-										<span className="text-sm font-medium">{step.step.replace("_", " ")}</span>
+										<span className="text-sm font-medium">{step.step.replaceAll("_", " ")}</span>
 										{step.success ? (
 											<CheckCircle2 className="h-4 w-4 text-green-500" />
 										) : (
@@ -45,7 +45,7 @@ export const DoctorReport = ({
 									<div className="p-2 space-y-3">
 										{step.output && (
 											<pre className="text-xs font-mono bg-background/50 p-3 border overflow-auto max-h-50 whitespace-pre-wrap">
-												{step.output.startsWith("{") ? JSON.stringify(JSON.parse(step.output), null, 2) : step.output}
+												{safeJsonParse(step.output) ? JSON.stringify(safeJsonParse(step.output), null, 2) : step.output}
 											</pre>
 										)}
 										{step.error && (
@@ -68,7 +68,7 @@ export const DoctorReport = ({
 			)}
 			<div
 				className={cn("mt-2 bg-muted/30 border p-6 text-center", {
-					hidden: result !== null || repositoryStatus === "doctor",
+					hidden: result != null || repositoryStatus === "doctor",
 				})}
 			>
 				<p className="text-sm text-muted-foreground">No doctor report available.</p>
