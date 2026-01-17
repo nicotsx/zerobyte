@@ -2,8 +2,9 @@ services:
   # The Test Runner
   tester:
     build:
-      context: .
-      dockerfile: Dockerfile.tester
+      context: ../../../../
+      dockerfile: Dockerfile
+      target: production
     privileged: true # Required for mount operations
     volumes:
       - ../../../../:/app
