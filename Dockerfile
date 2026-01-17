@@ -98,7 +98,7 @@ ENV NODE_ENV="production"
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./
-RUN bun install --production --frozen-lockfile
+RUN bun install --production --frozen-lockfile && rm -rf $HOME/.bun/install/cache
 
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
