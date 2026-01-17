@@ -42,13 +42,15 @@ async function encryptSensitiveFields(config: BackendConfig): Promise<BackendCon
 	}
 }
 
-const listVolumes = async () => {
-	const volumes = await db.query.volumesTable.findMany({});
+const listVolumes = async (organizationId: string) => {
+	const volumes = await db.query.volumesTable.findMany({
+		where: eq(volumesTable.organizationId, organizationId),
+	});
 
 	return volumes;
 };
 
-const createVolume = async (name: string, backendConfig: BackendConfig) => {
+const createVolume = async (name: string, backendConfig: BackendConfig, organizationId: string) => {
 	const slug = slugify(name, { lower: true, strict: true });
 
 	const existing = await db.query.volumesTable.findFirst({
@@ -69,6 +71,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 			name: slug,
 			config: encryptedConfig,
 			type: backendConfig.backend,
+			organizationId,
 		})
 		.returning();
 
@@ -252,6 +255,7 @@ const testConnection = async (backendConfig: BackendConfig) => {
 		status: "unmounted" as const,
 		lastError: null,
 		autoRemount: true,
+		organizationId: "test-org",
 	};
 
 	const backend = createVolumeBackend(mockVolume);

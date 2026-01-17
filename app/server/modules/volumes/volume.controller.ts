@@ -29,13 +29,13 @@ import { requireAuth } from "../auth/auth.middleware";
 export const volumeController = new Hono()
 	.use(requireAuth)
 	.get("/", listVolumesDto, async (c) => {
-		const volumes = await volumeService.listVolumes();
+		const volumes = await volumeService.listVolumes(c.get("organizationId"));
 
 		return c.json<ListVolumesDto>(volumes, 200);
 	})
 	.post("/", createVolumeDto, validator("json", createVolumeBody), async (c) => {
 		const body = c.req.valid("json");
-		const res = await volumeService.createVolume(body.name, body.config);
+		const res = await volumeService.createVolume(body.name, body.config, c.get("organizationId"));
 
 		const response = {
 			...res.volume,

@@ -267,6 +267,20 @@
       "when": 1768654184173,
       "tag": "0037_create-default-member",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1768658258128,
+      "tag": "0038_shallow_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1768658359845,
+      "tag": "0039_backfill-entities-org-id",
+      "breakpoints": true
     }
   ]
 }

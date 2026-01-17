@@ -8,6 +8,7 @@ declare module "hono" {
 			username: string;
 			hasDownloadedResticPassword: boolean;
 		};
+		organizationId: string;
 	}
 }
 
@@ -16,17 +17,19 @@ declare module "hono" {
  * Verifies the session cookie and attaches user to context
  */
 export const requireAuth = createMiddleware(async (c, next) => {
-	const session = await auth.api.getSession({
+	const sess = await auth.api.getSession({
 		headers: c.req.raw.headers,
 	});
 
-	const { user } = session ?? {};
+	const { user, session } = sess ?? {};
+	const { activeOrganizationId } = session ?? {};
 
-	if (!user) {
+	if (!user || !session || !activeOrganizationId) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
 
 	c.set("user", user);
+	c.set("organizationId", activeOrganizationId);
 
 	await next();
 });

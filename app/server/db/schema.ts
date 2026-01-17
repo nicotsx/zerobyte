@@ -169,7 +169,7 @@ export const invitation = sqliteTable(
 export const volumesTable = sqliteTable("volumes_table", {
 	id: int().primaryKey({ autoIncrement: true }),
 	shortId: text("short_id").notNull().unique(),
-	name: text().notNull().unique(),
+	name: text().notNull(),
 	type: text().$type<BackendType>().notNull(),
 	status: text().$type<BackendStatus>().notNull().default("unmounted"),
 	lastError: text("last_error"),
@@ -185,6 +185,7 @@ export const volumesTable = sqliteTable("volumes_table", {
 		.default(sql`(unixepoch() * 1000)`),
 	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
 	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
+	organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
 });
 export type Volume = typeof volumesTable.$inferSelect;
 export type VolumeInsert = typeof volumesTable.$inferInsert;
@@ -214,6 +215,7 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	updatedAt: int("updated_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),
+	organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
 });
 export type Repository = typeof repositoriesTable.$inferSelect;
 export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
@@ -257,6 +259,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	updatedAt: int("updated_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),
+	organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
 });
 export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
@@ -277,6 +280,7 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	updatedAt: int("updated_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),
+	organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
 });
 export type NotificationDestination = typeof notificationDestinationsTable.$inferSelect;
 
@@ -372,6 +376,10 @@ export const sessionRelations = relations(sessionsTable, ({ one }) => ({
 	user: one(usersTable, {
 		fields: [sessionsTable.userId],
 		references: [usersTable.id],
+	}),
+	activeOrganization: one(organization, {
+		fields: [sessionsTable.activeOrganizationId],
+		references: [organization.id],
 	}),
 }));
 
