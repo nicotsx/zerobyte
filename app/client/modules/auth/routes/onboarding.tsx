@@ -86,7 +86,14 @@ export default function OnboardingPage() {
 			void navigate("/download-recovery-key");
 		} else if (error) {
 			console.error(error);
-			toast.error("Failed to create admin user", { description: error.message });
+			const errorMessage = error.message ?? "Unknown error";
+			if (errorMessage.includes("User registrations are currently disabled")) {
+				toast.error("User registrations are currently disabled", {
+					description: "Please contact an administrator for access.",
+				});
+			} else {
+				toast.error("Failed to create admin user", { description: errorMessage });
+			}
 		}
 	};
 

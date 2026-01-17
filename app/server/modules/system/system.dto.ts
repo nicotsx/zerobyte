@@ -79,3 +79,45 @@ export const downloadResticPasswordDto = describeRoute({
 		},
 	},
 });
+
+export const registrationStatusResponse = type({
+	disabled: "boolean",
+});
+
+export type RegistrationStatusDto = typeof registrationStatusResponse.infer;
+
+export const registrationStatusBody = type({
+	disabled: "boolean",
+});
+
+export const getRegistrationStatusDto = describeRoute({
+	description: "Get the current registration status for new users",
+	tags: ["System"],
+	operationId: "getRegistrationStatus",
+	responses: {
+		200: {
+			description: "Registration status",
+			content: {
+				"application/json": {
+					schema: resolver(registrationStatusResponse),
+				},
+			},
+		},
+	},
+});
+
+export const setRegistrationStatusDto = describeRoute({
+	description: "Update the registration status for new users. Requires global admin role.",
+	tags: ["System"],
+	operationId: "setRegistrationStatus",
+	responses: {
+		200: {
+			description: "Registration status updated",
+			content: {
+				"application/json": {
+					schema: resolver(registrationStatusResponse),
+				},
+			},
+		},
+	},
+});

@@ -10,6 +10,7 @@ declare module "hono" {
 			id: string;
 			username: string;
 			hasDownloadedResticPassword: boolean;
+			role?: string | null | undefined;
 		};
 		organizationId: string;
 	}

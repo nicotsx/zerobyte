@@ -4135,6 +4135,44 @@ export type GetUpdatesResponses = {
 
 export type GetUpdatesResponse = GetUpdatesResponses[keyof GetUpdatesResponses];
 
+export type GetRegistrationStatusData = {
+	body?: never;
+	path?: never;
+	query?: never;
+	url: "/api/v1/system/registration-status";
+};
+
+export type GetRegistrationStatusResponses = {
+	/**
+	 * Registration status
+	 */
+	200: {
+		disabled: boolean;
+	};
+};
+
+export type GetRegistrationStatusResponse = GetRegistrationStatusResponses[keyof GetRegistrationStatusResponses];
+
+export type SetRegistrationStatusData = {
+	body?: {
+		disabled: boolean;
+	};
+	path?: never;
+	query?: never;
+	url: "/api/v1/system/registration-status";
+};
+
+export type SetRegistrationStatusResponses = {
+	/**
+	 * Registration status updated
+	 */
+	200: {
+		disabled: boolean;
+	};
+};
+
+export type SetRegistrationStatusResponse = SetRegistrationStatusResponses[keyof SetRegistrationStatusResponses];
+
 export type DownloadResticPasswordData = {
 	body?: {
 		password: string;

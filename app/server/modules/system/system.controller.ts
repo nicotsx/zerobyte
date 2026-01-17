@@ -7,6 +7,10 @@ import {
 	systemInfoDto,
 	type SystemInfoDto,
 	type UpdateInfoDto,
+	setRegistrationStatusDto,
+	getRegistrationStatusDto,
+	registrationStatusBody,
+	type RegistrationStatusDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
@@ -15,6 +19,17 @@ import { organization, usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
+import { createMiddleware } from "hono/factory";
+
+const requireGlobalAdmin = createMiddleware(async (c, next) => {
+	const user = c.get("user");
+
+	if (!user || user.role !== "admin") {
+		return c.json({ message: "Forbidden" }, 403);
+	}
+
+	await next();
+});
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -28,6 +43,24 @@ export const systemController = new Hono()
 
 		return c.json<UpdateInfoDto>(updates, 200);
 	})
+	.get("/registration-status", getRegistrationStatusDto, async (c) => {
+		const disabled = await systemService.isRegistrationDisabled();
+
+		return c.json<RegistrationStatusDto>({ disabled }, 200);
+	})
+	.put(
+		"/registration-status",
+		requireGlobalAdmin,
+		setRegistrationStatusDto,
+		validator("json", registrationStatusBody),
+		async (c) => {
+			const body = c.req.valid("json");
+
+			await systemService.setRegistrationDisabled(body.disabled);
+
+			return c.json<RegistrationStatusDto>({ disabled: body.disabled }, 200);
+		},
+	)
 	.post(
 		"/restic-password",
 		requireOrgAdmin,

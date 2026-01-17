@@ -1,17 +1,25 @@
 import { db } from "~/server/db/db";
 import type { AuthMiddlewareContext } from "../auth";
 import { logger } from "~/server/utils/logger";
+import { eq } from "drizzle-orm";
+import { appMetadataTable } from "~/server/db/schema";
+
+export const REGISTRATION_DISABLED_KEY = "registrationsDisabled";
 
 export const ensureOnlyOneUser = async (ctx: AuthMiddlewareContext) => {
 	const { path } = ctx;
+	const existingUser = await db.query.usersTable.findFirst();
 
 	if (path !== "/sign-up/email") {
 		return;
 	}
 
-	const existingUser = await db.query.usersTable.findFirst();
-	if (existingUser) {
-		logger.error("Attempt to create a second administrator account blocked.");
-		throw new Error("An administrator account already exists");
+	const result = await db.query.appMetadataTable.findFirst({
+		where: eq(appMetadataTable.key, REGISTRATION_DISABLED_KEY),
+	});
+
+	if (result?.value === "true" && existingUser) {
+		logger.info("User registration attempt blocked: registrations are disabled.");
+		throw new Error("User registrations are currently disabled. Please contact an administrator for access.");
 	}
 };

@@ -39,6 +39,8 @@ import type {
 	GetNotificationDestinationData,
 	GetNotificationDestinationErrors,
 	GetNotificationDestinationResponses,
+	GetRegistrationStatusData,
+	GetRegistrationStatusResponses,
 	GetRepositoryData,
 	GetRepositoryResponses,
 	GetScheduleMirrorsData,
@@ -85,6 +87,8 @@ import type {
 	RunBackupNowResponses,
 	RunForgetData,
 	RunForgetResponses,
+	SetRegistrationStatusData,
+	SetRegistrationStatusResponses,
 	StopBackupData,
 	StopBackupErrors,
 	StopBackupResponses,
@@ -705,6 +709,32 @@ export const getUpdates = <ThrowOnError extends boolean = false>(options?: Optio
 	(options?.client ?? client).get<GetUpdatesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/system/updates",
 		...options,
+	});
+
+/**
+ * Get the current registration status for new users
+ */
+export const getRegistrationStatus = <ThrowOnError extends boolean = false>(
+	options?: Options<GetRegistrationStatusData, ThrowOnError>,
+) =>
+	(options?.client ?? client).get<GetRegistrationStatusResponses, unknown, ThrowOnError>({
+		url: "/api/v1/system/registration-status",
+		...options,
+	});
+
+/**
+ * Update the registration status for new users. Requires global admin role.
+ */
+export const setRegistrationStatus = <ThrowOnError extends boolean = false>(
+	options?: Options<SetRegistrationStatusData, ThrowOnError>,
+) =>
+	(options?.client ?? client).put<SetRegistrationStatusResponses, unknown, ThrowOnError>({
+		url: "/api/v1/system/registration-status",
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			...options?.headers,
+		},
 	});
 
 /**

@@ -13,6 +13,7 @@ import { config } from "../server/core/config";
 import { db } from "../server/db/db";
 import { cryptoUtils } from "../server/utils/crypto";
 import { organization as organizationTable, member } from "../server/db/schema";
+import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -22,7 +23,7 @@ const createBetterAuth = (secret: string) =>
 		trustedOrigins: config.trustedOrigins ?? ["*"],
 		hooks: {
 			before: createAuthMiddleware(async (ctx) => {
-				// await ensureOnlyOneUser(ctx);
+				await ensureOnlyOneUser(ctx);
 				await convertLegacyUserOnFirstLogin(ctx);
 			}),
 		},

@@ -21,6 +21,7 @@ import {
 	getBackupScheduleForVolume,
 	getMirrorCompatibility,
 	getNotificationDestination,
+	getRegistrationStatus,
 	getRepository,
 	getScheduleMirrors,
 	getScheduleNotifications,
@@ -44,6 +45,7 @@ import {
 	restoreSnapshot,
 	runBackupNow,
 	runForget,
+	setRegistrationStatus,
 	stopBackup,
 	tagSnapshots,
 	testConnection,
@@ -91,6 +93,8 @@ import type {
 	GetMirrorCompatibilityResponse,
 	GetNotificationDestinationData,
 	GetNotificationDestinationResponse,
+	GetRegistrationStatusData,
+	GetRegistrationStatusResponse,
 	GetRepositoryData,
 	GetRepositoryResponse,
 	GetScheduleMirrorsData,
@@ -135,6 +139,8 @@ import type {
 	RunBackupNowResponse,
 	RunForgetData,
 	RunForgetResponse,
+	SetRegistrationStatusData,
+	SetRegistrationStatusResponse,
 	StopBackupData,
 	StopBackupResponse,
 	TagSnapshotsData,
@@ -1258,6 +1264,54 @@ export const getUpdatesOptions = (options?: Options<GetUpdatesData>) =>
 		},
 		queryKey: getUpdatesQueryKey(options),
 	});
+
+export const getRegistrationStatusQueryKey = (options?: Options<GetRegistrationStatusData>) =>
+	createQueryKey("getRegistrationStatus", options);
+
+/**
+ * Get the current registration status for new users
+ */
+export const getRegistrationStatusOptions = (options?: Options<GetRegistrationStatusData>) =>
+	queryOptions<
+		GetRegistrationStatusResponse,
+		DefaultError,
+		GetRegistrationStatusResponse,
+		ReturnType<typeof getRegistrationStatusQueryKey>
+	>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await getRegistrationStatus({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: getRegistrationStatusQueryKey(options),
+	});
+
+/**
+ * Update the registration status for new users. Requires global admin role.
+ */
+export const setRegistrationStatusMutation = (
+	options?: Partial<Options<SetRegistrationStatusData>>,
+): UseMutationOptions<SetRegistrationStatusResponse, DefaultError, Options<SetRegistrationStatusData>> => {
+	const mutationOptions: UseMutationOptions<
+		SetRegistrationStatusResponse,
+		DefaultError,
+		Options<SetRegistrationStatusData>
+	> = {
+		mutationFn: async (fnOptions) => {
+			const { data } = await setRegistrationStatus({
+				...options,
+				...fnOptions,
+				throwOnError: true,
+			});
+			return data;
+		},
+	};
+	return mutationOptions;
+};
 
 /**
  * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.
