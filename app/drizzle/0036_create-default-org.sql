@@ -1,4 +1,3 @@
--- Custom SQL migration file, put your code below! --
 INSERT INTO organization (id, name, slug, created_at)
 SELECT
     'default-org-' || u.id as id,

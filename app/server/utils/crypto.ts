@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { RESTIC_PASS_FILE } from "../core/constants";
+import { getAppSecret } from "../core/config";
 import { isNodeJSErrnoException } from "./fs";
 import { promisify } from "node:util";
 
@@ -84,7 +85,7 @@ const resolveFileSecret = async (ref: string): Promise<string> => {
 };
 
 /**
- * Given a string, encrypts it using a randomly generated salt.
+ * Given a string, encrypts it using a randomly generated salt and the APP_SECRET.
  * Returns the input unchanged if it's empty or already encrypted.
  */
 const encrypt = async (data: string) => {
@@ -96,7 +97,7 @@ const encrypt = async (data: string) => {
 		return data;
 	}
 
-	const secret = await Bun.file(RESTIC_PASS_FILE).text();
+	const secret = getAppSecret();
 
 	const salt = crypto.randomBytes(16);
 	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
@@ -110,10 +111,40 @@ const encrypt = async (data: string) => {
 };
 
 /**
- * Given an encrypted string, decrypts it using the salt stored in the string.
+ * Given an encrypted string, decrypts it using the salt stored in the string and the APP_SECRET.
  * Returns the input unchanged if it's not encrypted (for backward compatibility).
  */
 const decrypt = async (encryptedData: string) => {
+	if (!isEncrypted(encryptedData)) {
+		return encryptedData;
+	}
+
+	const secret = getAppSecret();
+
+	const parts = encryptedData.split(":").slice(1); // Remove prefix
+	const saltHex = parts.shift() as string;
+	const salt = Buffer.from(saltHex, "hex");
+
+	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
+
+	const iv = Buffer.from(parts.shift() as string, "hex");
+	const encrypted = Buffer.from(parts.shift() as string, "hex");
+	const tag = Buffer.from(parts.shift() as string, "hex");
+	const decipher = crypto.createDecipheriv(algorithm, key, iv);
+
+	decipher.setAuthTag(tag);
+
+	let decrypted = decipher.update(encrypted);
+	decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+	return decrypted.toString();
+};
+
+/**
+ * Decrypts data using the legacy restic passfile.
+ * Used during migration to re-key existing secrets.
+ */
+const legacyDecrypt = async (encryptedData: string): Promise<string> => {
 	if (!isEncrypted(encryptedData)) {
 		return encryptedData;
 	}
@@ -187,15 +218,22 @@ const sealSecret = async (value: string): Promise<string> => {
 };
 
 async function deriveSecret(label: string) {
-	const masterSecret = await Bun.file(RESTIC_PASS_FILE).text();
+	const masterSecret = getAppSecret();
 
 	const derivedKey = await hkdf("sha256", masterSecret, "", label, 32);
 
 	return Buffer.from(derivedKey).toString("hex");
 }
 
+function generateResticPassword(): string {
+	return crypto.randomBytes(32).toString("hex");
+}
+
 export const cryptoUtils = {
 	resolveSecret,
 	sealSecret,
 	deriveSecret,
+	legacyDecrypt,
+	generateResticPassword,
+	isEncrypted,
 };

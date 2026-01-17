@@ -8,11 +8,11 @@ import {
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
-import { cryptoUtils } from "~/server/utils/crypto";
-import { db } from "~/server/db/db";
-import { member, organization as organizationTable } from "~/server/db/schema";
-import { config } from "~/server/core/config";
 import { eq } from "drizzle-orm";
+import { config } from "../server/core/config";
+import { db } from "../server/db/db";
+import { cryptoUtils } from "../server/utils/crypto";
+import { organization as organizationTable, member } from "../server/db/schema";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -45,6 +45,11 @@ const createBetterAuth = (secret: string) =>
 					after: async (user) => {
 						const slug = user.email.split("@")[0] + "-" + Math.random().toString(36).slice(-4);
 
+						const resticPassword = cryptoUtils.generateResticPassword();
+						const metadata = {
+							resticPassword: await cryptoUtils.sealSecret(resticPassword),
+						};
+
 						await db.transaction(async (tx) => {
 							const orgId = Bun.randomUUIDv7();
 
@@ -53,6 +58,7 @@ const createBetterAuth = (secret: string) =>
 								slug: slug,
 								id: orgId,
 								createdAt: new Date(),
+								metadata,
 							});
 
 							await tx.insert(member).values({

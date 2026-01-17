@@ -1,4 +1,3 @@
--- Custom SQL migration file, put your code below! --
 INSERT INTO member (id, organization_id, user_id, role, created_at)
 SELECT
     'default-mem-' || u.id as id,

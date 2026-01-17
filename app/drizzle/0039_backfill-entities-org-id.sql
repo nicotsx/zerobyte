@@ -1,22 +1,15 @@
--- Backfill organization_id for volumes, backups, notifications and repositories
--- Uses the first organization found in the database
-
--- Update volumes_table
 UPDATE volumes_table
 SET organization_id = (SELECT id FROM organization ORDER BY created_at ASC LIMIT 1)
 WHERE organization_id IS NULL;
-
--- Update backup_schedules_table
+--> statement-breakpoint
 UPDATE backup_schedules_table
 SET organization_id = (SELECT id FROM organization ORDER BY created_at ASC LIMIT 1)
 WHERE organization_id IS NULL;
-
--- Update notification_destinations_table
+--> statement-breakpoint
 UPDATE notification_destinations_table
 SET organization_id = (SELECT id FROM organization ORDER BY created_at ASC LIMIT 1)
 WHERE organization_id IS NULL;
-
--- Update repositories_table
+--> statement-breakpoint
 UPDATE repositories_table
 SET organization_id = (SELECT id FROM organization ORDER BY created_at ASC LIMIT 1)
 WHERE organization_id IS NULL;

@@ -112,6 +112,10 @@ export const verification = sqliteTable(
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+export type OrganizationMetadata = {
+	resticPassword: string;
+};
+
 export const organization = sqliteTable(
 	"organization",
 	{
@@ -120,7 +124,7 @@ export const organization = sqliteTable(
 		slug: text("slug").notNull().unique(),
 		logo: text("logo"),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-		metadata: text("metadata"),
+		metadata: text("metadata", { mode: "json" }).$type<OrganizationMetadata>(),
 	},
 	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
 );

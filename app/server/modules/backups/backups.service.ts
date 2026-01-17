@@ -306,6 +306,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 			const result = await restic.backup(repository.config, volumePath, {
 				...backupOptions,
 				compressionMode: repository.compressionMode ?? "auto",
+				organizationId,
 				onProgress: (progress) => {
 					serverEvents.emit("backup:progress", {
 						scheduleId,
@@ -493,7 +494,7 @@ const runForget = async (scheduleId: number, organizationId: string, repositoryI
 	logger.info(`running retention policy (forget) for schedule ${scheduleId}`);
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 	try {
-		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId });
+		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId });
 		cache.delByPrefix(`snapshots:${repository.id}:`);
 	} finally {
 		releaseLock();
@@ -626,7 +627,7 @@ const copyToMirrors = async (
 			const releaseMirror = await repoMutex.acquireShared(mirror.repository.id, `mirror:${scheduleId}`);
 
 			try {
-				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId });
+				await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId, organizationId });
 				cache.delByPrefix(`snapshots:${mirror.repository.id}:`);
 			} finally {
 				releaseSource();
