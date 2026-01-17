@@ -14,9 +14,9 @@ export class VolumeHealthCheckJob extends Job {
 		});
 
 		for (const volume of volumes) {
-			const { status } = await volumeService.checkHealth(volume.name);
+			const { status } = await volumeService.checkHealth(volume.name, volume.organizationId);
 			if (status === "error" && volume.autoRemount) {
-				await volumeService.mountVolume(volume.name);
+				await volumeService.mountVolume(volume.name, volume.organizationId);
 			}
 		}
 

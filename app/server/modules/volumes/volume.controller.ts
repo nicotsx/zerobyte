@@ -52,13 +52,13 @@ export const volumeController = new Hono()
 	})
 	.delete("/:name", deleteVolumeDto, async (c) => {
 		const { name } = c.req.param();
-		await volumeService.deleteVolume(name);
+		await volumeService.deleteVolume(name, c.get("organizationId"));
 
 		return c.json({ message: "Volume deleted" }, 200);
 	})
 	.get("/:name", getVolumeDto, async (c) => {
 		const { name } = c.req.param();
-		const res = await volumeService.getVolume(name);
+		const res = await volumeService.getVolume(name, c.get("organizationId"));
 
 		const response = {
 			volume: {
@@ -77,7 +77,7 @@ export const volumeController = new Hono()
 	.put("/:name", updateVolumeDto, validator("json", updateVolumeBody), async (c) => {
 		const { name } = c.req.param();
 		const body = c.req.valid("json");
-		const res = await volumeService.updateVolume(name, body);
+		const res = await volumeService.updateVolume(name, body, c.get("organizationId"));
 
 		const response = {
 			...res.volume,
@@ -88,26 +88,26 @@ export const volumeController = new Hono()
 	})
 	.post("/:name/mount", mountVolumeDto, async (c) => {
 		const { name } = c.req.param();
-		const { error, status } = await volumeService.mountVolume(name);
+		const { error, status } = await volumeService.mountVolume(name, c.get("organizationId"));
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
 	.post("/:name/unmount", unmountVolumeDto, async (c) => {
 		const { name } = c.req.param();
-		const { error, status } = await volumeService.unmountVolume(name);
+		const { error, status } = await volumeService.unmountVolume(name, c.get("organizationId"));
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
 	.post("/:name/health-check", healthCheckDto, async (c) => {
 		const { name } = c.req.param();
-		const { error, status } = await volumeService.checkHealth(name);
+		const { error, status } = await volumeService.checkHealth(name, c.get("organizationId"));
 
 		return c.json({ error, status }, 200);
 	})
 	.get("/:name/files", listFilesDto, async (c) => {
 		const { name } = c.req.param();
 		const subPath = c.req.query("path");
-		const result = await volumeService.listFiles(name, subPath);
+		const result = await volumeService.listFiles(name, c.get("organizationId"), subPath);
 
 		const response = {
 			files: result.files,

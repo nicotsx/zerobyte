@@ -8,10 +8,18 @@ import { logger } from "../utils/logger";
 import { executeUnmount } from "../modules/backends/utils/backend-utils";
 import { toMessage } from "../utils/errors";
 import { VOLUME_MOUNT_BASE } from "../core/constants";
+import { db } from "../db/db";
 
 export class CleanupDanglingMountsJob extends Job {
 	async run() {
-		const allVolumes = await volumeService.listVolumes();
+		const organizations = await db.query.organization.findMany({});
+
+		const allVolumes = [];
+		for (const org of organizations) {
+			const volumes = await volumeService.listVolumes(org.id);
+			allVolumes.push(...volumes);
+		}
+
 		const allSystemMounts = await readMountInfo();
 
 		for (const mount of allSystemMounts) {

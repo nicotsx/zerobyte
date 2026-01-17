@@ -56,8 +56,9 @@ const processPattern = (pattern: string, volumePath: string): string => {
 	return pattern;
 };
 
-const listSchedules = async () => {
+const listSchedules = async (organizationId: string) => {
 	const schedules = await db.query.backupSchedulesTable.findMany({
+		where: eq(backupSchedulesTable.organizationId, organizationId),
 		with: {
 			volume: true,
 			repository: true,
@@ -67,9 +68,9 @@ const listSchedules = async () => {
 	return schedules;
 };
 
-const getSchedule = async (scheduleId: number) => {
+const getSchedule = async (scheduleId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 		with: {
 			volume: true,
 			repository: true,
@@ -83,13 +84,13 @@ const getSchedule = async (scheduleId: number) => {
 	return schedule;
 };
 
-const createSchedule = async (data: CreateBackupScheduleBody) => {
+const createSchedule = async (data: CreateBackupScheduleBody, organizationId: string) => {
 	if (!cron.validate(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
 	}
 
 	const existingName = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.name, data.name),
+		where: and(eq(backupSchedulesTable.name, data.name), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (existingName) {
@@ -97,7 +98,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	}
 
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.id, data.volumeId),
+		where: and(eq(volumesTable.id, data.volumeId), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -105,7 +106,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, data.repositoryId),
+		where: and(eq(repositoriesTable.id, data.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
 	});
 
 	if (!repository) {
@@ -129,6 +130,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			oneFileSystem: data.oneFileSystem,
 			nextBackupAt: nextBackupAt,
 			shortId: generateShortId(),
+			organizationId,
 		})
 		.returning();
 
@@ -139,9 +141,9 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	return newSchedule;
 };
 
-const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody) => {
+const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -154,7 +156,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	if (data.name) {
 		const existingName = await db.query.backupSchedulesTable.findFirst({
-			where: and(eq(backupSchedulesTable.name, data.name), ne(backupSchedulesTable.id, scheduleId)),
+			where: and(eq(backupSchedulesTable.name, data.name), ne(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 		});
 
 		if (existingName) {
@@ -163,7 +165,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, data.repositoryId),
+		where: and(eq(repositoriesTable.id, data.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
 	});
 
 	if (!repository) {
@@ -186,9 +188,9 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 	return updated;
 };
 
-const deleteSchedule = async (scheduleId: number) => {
+const deleteSchedule = async (scheduleId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -198,9 +200,9 @@ const deleteSchedule = async (scheduleId: number) => {
 	await db.delete(backupSchedulesTable).where(eq(backupSchedulesTable.id, scheduleId));
 };
 
-const executeBackup = async (scheduleId: number, manual = false) => {
+const executeBackup = async (scheduleId: number, organizationId: string, manual = false) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -319,12 +321,12 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		}
 
 		if (schedule.retentionPolicy) {
-			void runForget(schedule.id).catch((error) => {
+			void runForget(schedule.id, organizationId).catch((error) => {
 				logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
 			});
 		}
 
-		void copyToMirrors(scheduleId, repository, schedule.retentionPolicy).catch((error) => {
+		void copyToMirrors(scheduleId, organizationId, repository, schedule.retentionPolicy).catch((error) => {
 			logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
 		});
 
@@ -407,12 +409,13 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	}
 };
 
-const getSchedulesToExecute = async () => {
+const getSchedulesToExecute = async (organizationId: string) => {
 	const now = Date.now();
 	const schedules = await db.query.backupSchedulesTable.findMany({
 		where: and(
 			eq(backupSchedulesTable.enabled, true),
 			or(ne(backupSchedulesTable.lastBackupStatus, "in_progress"), isNull(backupSchedulesTable.lastBackupStatus)),
+			eq(backupSchedulesTable.organizationId, organizationId)
 		),
 	});
 
@@ -427,18 +430,18 @@ const getSchedulesToExecute = async () => {
 	return schedulesToRun;
 };
 
-const getScheduleForVolume = async (volumeId: number) => {
+const getScheduleForVolume = async (volumeId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.volumeId, volumeId),
+		where: and(eq(backupSchedulesTable.volumeId, volumeId), eq(backupSchedulesTable.organizationId, organizationId)),
 		with: { volume: true, repository: true },
 	});
 
 	return schedule ?? null;
 };
 
-const stopBackup = async (scheduleId: number) => {
+const stopBackup = async (scheduleId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -466,9 +469,9 @@ const stopBackup = async (scheduleId: number) => {
 	}
 };
 
-const runForget = async (scheduleId: number, repositoryId?: string) => {
+const runForget = async (scheduleId: number, organizationId: string, repositoryId?: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -480,7 +483,7 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId),
+		where: and(eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
 	});
 
 	if (!repository) {
@@ -499,9 +502,9 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	logger.info(`Retention policy applied successfully for schedule ${scheduleId}`);
 };
 
-const getMirrors = async (scheduleId: number) => {
+const getMirrors = async (scheduleId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -516,9 +519,9 @@ const getMirrors = async (scheduleId: number) => {
 	return mirrors;
 };
 
-const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody) => {
+const updateMirrors = async (scheduleId: number, organizationId: string, data: UpdateScheduleMirrorsBody) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 		with: { repository: true },
 	});
 
@@ -532,7 +535,7 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		}
 
 		const repo = await db.query.repositoriesTable.findFirst({
-			where: eq(repositoriesTable.id, mirror.repositoryId),
+			where: and(eq(repositoriesTable.id, mirror.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
 		});
 
 		if (!repo) {
@@ -577,16 +580,17 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		);
 	}
 
-	return getMirrors(scheduleId);
+	return getMirrors(scheduleId, organizationId);
 };
 
 const copyToMirrors = async (
 	scheduleId: number,
+	organizationId: string,
 	sourceRepository: { id: string; config: (typeof repositoriesTable.$inferSelect)["config"] },
 	retentionPolicy: (typeof backupSchedulesTable.$inferSelect)["retentionPolicy"],
 ) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 	});
 
 	if (!schedule) {
@@ -630,7 +634,7 @@ const copyToMirrors = async (
 			}
 
 			if (retentionPolicy) {
-				void runForget(scheduleId, mirror.repository.id).catch((error) => {
+				void runForget(scheduleId, organizationId, mirror.repository.id).catch((error) => {
 					logger.error(
 						`Failed to run retention policy for mirror repository ${mirror.repository.name}: ${toMessage(error)}`,
 					);
@@ -670,9 +674,9 @@ const copyToMirrors = async (
 	}
 };
 
-const getMirrorCompatibility = async (scheduleId: number) => {
+const getMirrorCompatibility = async (scheduleId: number, organizationId: string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: eq(backupSchedulesTable.id, scheduleId),
+		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
 		with: { repository: true },
 	});
 
@@ -680,7 +684,9 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
-	const allRepositories = await db.query.repositoriesTable.findMany();
+	const allRepositories = await db.query.repositoriesTable.findMany({
+		where: eq(repositoriesTable.organizationId, organizationId),
+	});
 	const repos = allRepositories.filter((repo) => repo.id !== schedule.repositoryId);
 
 	const compatibility = await Promise.all(
@@ -690,13 +696,14 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 	return compatibility;
 };
 
-const reorderSchedules = async (scheduleIds: number[]) => {
+const reorderSchedules = async (scheduleIds: number[], organizationId: string) => {
 	const uniqueIds = new Set(scheduleIds);
 	if (uniqueIds.size !== scheduleIds.length) {
 		throw new BadRequestError("Duplicate schedule IDs in reorder request");
 	}
 
 	const existingSchedules = await db.query.backupSchedulesTable.findMany({
+		where: eq(backupSchedulesTable.organizationId, organizationId),
 		columns: { id: true },
 	});
 	const existingIds = new Set(existingSchedules.map((s) => s.id));

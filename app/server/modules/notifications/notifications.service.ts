@@ -15,16 +15,17 @@ import { notificationConfigSchema, type NotificationConfig, type NotificationEve
 import { toMessage } from "../../utils/errors";
 import { type } from "arktype";
 
-const listDestinations = async () => {
+const listDestinations = async (organizationId: string) => {
 	const destinations = await db.query.notificationDestinationsTable.findMany({
+		where: eq(notificationDestinationsTable.organizationId, organizationId),
 		orderBy: (destinations, { asc }) => [asc(destinations.name)],
 	});
 	return destinations;
 };
 
-const getDestination = async (id: number) => {
+const getDestination = async (id: number, organizationId: string) => {
 	const destination = await db.query.notificationDestinationsTable.findFirst({
-		where: eq(notificationDestinationsTable.id, id),
+		where: and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
 	});
 
 	if (!destination) {
@@ -132,11 +133,11 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 	}
 }
 
-const createDestination = async (name: string, config: NotificationConfig) => {
+const createDestination = async (name: string, config: NotificationConfig, organizationId: string) => {
 	const slug = slugify(name, { lower: true, strict: true });
 
 	const existing = await db.query.notificationDestinationsTable.findFirst({
-		where: eq(notificationDestinationsTable.name, slug),
+		where: and(eq(notificationDestinationsTable.name, slug), eq(notificationDestinationsTable.organizationId, organizationId)),
 	});
 
 	if (existing) {
@@ -151,6 +152,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 			name: slug,
 			type: config.type,
 			config: encryptedConfig,
+			organizationId,
 		})
 		.returning();
 
@@ -163,9 +165,10 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 
 const updateDestination = async (
 	id: number,
+	organizationId: string,
 	updates: { name?: string; enabled?: boolean; config?: NotificationConfig },
 ) => {
-	const existing = await getDestination(id);
+	const existing = await getDestination(id, organizationId);
 
 	if (!existing) {
 		throw new NotFoundError("Notification destination not found");
@@ -179,7 +182,7 @@ const updateDestination = async (
 		const slug = slugify(updates.name, { lower: true, strict: true });
 
 		const conflict = await db.query.notificationDestinationsTable.findFirst({
-			where: and(eq(notificationDestinationsTable.name, slug), ne(notificationDestinationsTable.id, id)),
+			where: and(eq(notificationDestinationsTable.name, slug), ne(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
 		});
 
 		if (conflict) {
@@ -214,12 +217,13 @@ const updateDestination = async (
 	return updated;
 };
 
-const deleteDestination = async (id: number) => {
+const deleteDestination = async (id: number, organizationId: string) => {
+	await getDestination(id, organizationId);
 	await db.delete(notificationDestinationsTable).where(eq(notificationDestinationsTable.id, id));
 };
 
-const testDestination = async (id: number) => {
-	const destination = await getDestination(id);
+const testDestination = async (id: number, organizationId: string) => {
+	const destination = await getDestination(id, organizationId);
 
 	if (!destination.enabled) {
 		throw new ConflictError("Cannot test disabled notification destination");

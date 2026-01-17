@@ -20,7 +20,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
-		await volumeService.updateVolume(volume.name, volume).catch((err) => {
+		await volumeService.updateVolume(volume.name, volume, volume.organizationId).catch((err) => {
 			logger.error(`Failed to update volume ${volume.name}: ${err}`);
 		});
 	}
@@ -28,7 +28,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
 
 	for (const repo of repositories) {
-		await repositoriesService.updateRepository(repo.id, {}).catch((err) => {
+		await repositoriesService.updateRepository(repo.id, repo.organizationId, {}).catch((err) => {
 			logger.error(`Failed to update repository ${repo.name}: ${err}`);
 		});
 	}
@@ -36,9 +36,11 @@ const ensureLatestConfigurationSchema = async () => {
 	const notifications = await db.query.notificationDestinationsTable.findMany({});
 
 	for (const notification of notifications) {
-		await notificationsService.updateDestination(notification.id, notification).catch((err) => {
-			logger.error(`Failed to update notification destination ${notification.id}: ${err}`);
-		});
+		await notificationsService
+			.updateDestination(notification.id, notification.organizationId, notification)
+			.catch((err) => {
+				logger.error(`Failed to update notification destination ${notification.id}: ${err}`);
+			});
 	}
 };
 
@@ -67,7 +69,7 @@ export const startup = async () => {
 	});
 
 	for (const volume of volumes) {
-		await volumeService.mountVolume(volume.name).catch((err) => {
+		await volumeService.mountVolume(volume.name, volume.organizationId).catch((err) => {
 			logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
 		});
 	}

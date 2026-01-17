@@ -42,13 +42,13 @@ import { requireAuth } from "../auth/auth.middleware";
 export const repositoriesController = new Hono()
 	.use(requireAuth)
 	.get("/", listRepositoriesDto, async (c) => {
-		const repositories = await repositoriesService.listRepositories();
+		const repositories = await repositoriesService.listRepositories(c.get("organizationId"));
 
 		return c.json<ListRepositoriesDto>(repositories, 200);
 	})
 	.post("/", createRepositoryDto, validator("json", createRepositoryBody), async (c) => {
 		const body = c.req.valid("json");
-		const res = await repositoriesService.createRepository(body.name, body.config, body.compressionMode);
+		const res = await repositoriesService.createRepository(body.name, body.config, c.get("organizationId"), body.compressionMode);
 
 		return c.json({ message: "Repository created", repository: res.repository }, 201);
 	})
@@ -69,13 +69,13 @@ export const repositoriesController = new Hono()
 	})
 	.get("/:id", getRepositoryDto, async (c) => {
 		const { id } = c.req.param();
-		const res = await repositoriesService.getRepository(id);
+		const res = await repositoriesService.getRepository(id, c.get("organizationId"));
 
 		return c.json<GetRepositoryDto>(res.repository, 200);
 	})
 	.delete("/:id", deleteRepositoryDto, async (c) => {
 		const { id } = c.req.param();
-		await repositoriesService.deleteRepository(id);
+		await repositoriesService.deleteRepository(id, c.get("organizationId"));
 
 		return c.json<DeleteRepositoryDto>({ message: "Repository deleted" }, 200);
 	})
@@ -83,7 +83,7 @@ export const repositoriesController = new Hono()
 		const { id } = c.req.param();
 		const { backupId } = c.req.valid("query");
 
-		const res = await repositoriesService.listSnapshots(id, backupId);
+		const res = await repositoriesService.listSnapshots(id, c.get("organizationId"), backupId);
 
 		const snapshots = res.map((snapshot) => {
 			const { summary } = snapshot;
@@ -108,7 +108,7 @@ export const repositoriesController = new Hono()
 	})
 	.get("/:id/snapshots/:snapshotId", getSnapshotDetailsDto, async (c) => {
 		const { id, snapshotId } = c.req.param();
-		const snapshot = await repositoriesService.getSnapshotDetails(id, snapshotId);
+		const snapshot = await repositoriesService.getSnapshotDetails(id, c.get("organizationId"), snapshotId);
 
 		let duration = 0;
 		if (snapshot.summary) {
@@ -137,7 +137,7 @@ export const repositoriesController = new Hono()
 			const { path } = c.req.valid("query");
 
 			const decodedPath = path ? decodeURIComponent(path) : undefined;
-			const result = await repositoriesService.listSnapshotFiles(id, snapshotId, decodedPath);
+			const result = await repositoriesService.listSnapshotFiles(id, c.get("organizationId"), snapshotId, decodedPath);
 
 			c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
 
@@ -148,21 +148,21 @@ export const repositoriesController = new Hono()
 		const { id } = c.req.param();
 		const { snapshotId, ...options } = c.req.valid("json");
 
-		const result = await repositoriesService.restoreSnapshot(id, snapshotId, options);
+		const result = await repositoriesService.restoreSnapshot(id, c.get("organizationId"), snapshotId, options);
 
 		return c.json<RestoreSnapshotDto>(result, 200);
 	})
 	.post("/:id/doctor", doctorRepositoryDto, async (c) => {
 		const { id } = c.req.param();
 
-		const result = await repositoriesService.doctorRepository(id);
+		const result = await repositoriesService.doctorRepository(id, c.get("organizationId"));
 
 		return c.json<DoctorRepositoryDto>(result, 200);
 	})
 	.delete("/:id/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
 		const { id, snapshotId } = c.req.param();
 
-		await repositoriesService.deleteSnapshot(id, snapshotId);
+		await repositoriesService.deleteSnapshot(id, c.get("organizationId"), snapshotId);
 
 		return c.json<DeleteSnapshotDto>({ message: "Snapshot deleted" }, 200);
 	})
@@ -170,7 +170,7 @@ export const repositoriesController = new Hono()
 		const { id } = c.req.param();
 		const { snapshotIds } = c.req.valid("json");
 
-		await repositoriesService.deleteSnapshots(id, snapshotIds);
+		await repositoriesService.deleteSnapshots(id, c.get("organizationId"), snapshotIds);
 
 		return c.json<DeleteSnapshotsResponseDto>({ message: "Snapshots deleted" }, 200);
 	})
@@ -178,7 +178,7 @@ export const repositoriesController = new Hono()
 		const { id } = c.req.param();
 		const { snapshotIds, ...tags } = c.req.valid("json");
 
-		await repositoriesService.tagSnapshots(id, snapshotIds, tags);
+		await repositoriesService.tagSnapshots(id, c.get("organizationId"), snapshotIds, tags);
 
 		return c.json<TagSnapshotsResponseDto>({ message: "Snapshots tagged" }, 200);
 	})
@@ -186,7 +186,7 @@ export const repositoriesController = new Hono()
 		const { id } = c.req.param();
 		const body = c.req.valid("json");
 
-		const res = await repositoriesService.updateRepository(id, body);
+		const res = await repositoriesService.updateRepository(id, c.get("organizationId"), body);
 
 		return c.json<UpdateRepositoryDto>(res.repository, 200);
 	});

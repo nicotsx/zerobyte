@@ -54,7 +54,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig, organiza
 	const slug = slugify(name, { lower: true, strict: true });
 
 	const existing = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, slug),
+		where: and(eq(volumesTable.name, slug), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (existing) {
@@ -90,9 +90,9 @@ const createVolume = async (name: string, backendConfig: BackendConfig, organiza
 	return { volume: created, status: 201 };
 };
 
-const deleteVolume = async (name: string) => {
+const deleteVolume = async (name: string, organizationId: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -104,9 +104,9 @@ const deleteVolume = async (name: string) => {
 	await db.delete(volumesTable).where(eq(volumesTable.name, name));
 };
 
-const mountVolume = async (name: string) => {
+const mountVolume = async (name: string, organizationId: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -128,9 +128,9 @@ const mountVolume = async (name: string) => {
 	return { error, status };
 };
 
-const unmountVolume = async (name: string) => {
+const unmountVolume = async (name: string, organizationId: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -149,9 +149,9 @@ const unmountVolume = async (name: string) => {
 	return { error, status };
 };
 
-const getVolume = async (name: string) => {
+const getVolume = async (name: string, organizationId: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -169,9 +169,9 @@ const getVolume = async (name: string) => {
 	return { volume, statfs };
 };
 
-const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
+const updateVolume = async (name: string, volumeData: UpdateVolumeBody, organizationId: string) => {
 	const existing = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!existing) {
@@ -183,7 +183,7 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody) => {
 		const newSlug = slugify(volumeData.name, { lower: true, strict: true });
 
 		const conflict = await db.query.volumesTable.findFirst({
-			where: and(eq(volumesTable.name, newSlug), ne(volumesTable.id, existing.id)),
+			where: and(eq(volumesTable.name, newSlug), ne(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)),
 		});
 
 		if (conflict) {
@@ -272,9 +272,9 @@ const testConnection = async (backendConfig: BackendConfig) => {
 	};
 };
 
-const checkHealth = async (name: string) => {
+const checkHealth = async (name: string, organizationId: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -296,9 +296,9 @@ const checkHealth = async (name: string) => {
 	return { status, error };
 };
 
-const listFiles = async (name: string, subPath?: string) => {
+const listFiles = async (name: string, organizationId: string, subPath?: string) => {
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.name, name),
+		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
