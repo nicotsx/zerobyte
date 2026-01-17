@@ -239,6 +239,13 @@
       "when": 1768497767122,
       "tag": "0033_chunky_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1768571707915,
+      "tag": "0034_acoustic_sentry",
+      "breakpoints": true
     }
   ]
 }

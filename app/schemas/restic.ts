@@ -127,9 +127,28 @@ export const REPOSITORY_STATUS = {
 	healthy: "healthy",
 	error: "error",
 	unknown: "unknown",
+	doctor: "doctor",
+	cancelled: "cancelled",
 } as const;
 
 export type RepositoryStatus = keyof typeof REPOSITORY_STATUS;
+
+export const doctorStepSchema = type({
+	step: "string",
+	success: "boolean",
+	output: "string | null",
+	error: "string | null",
+});
+
+export type DoctorStep = typeof doctorStepSchema.infer;
+
+export const doctorResultSchema = type({
+	success: "boolean",
+	steps: doctorStepSchema.array(),
+	completedAt: "number",
+});
+
+export type DoctorResult = typeof doctorResultSchema.infer;
 
 export const OVERWRITE_MODES = {
 	always: "always",

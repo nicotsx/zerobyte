@@ -3,6 +3,7 @@ import { streamSSE } from "hono/streaming";
 import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
 import { requireAuth } from "../auth/auth.middleware";
+import type { DoctorResult } from "~/schemas/restic";
 
 export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 	logger.info("Client connected to SSE endpoint");
@@ -91,6 +92,32 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			});
 		};
 
+		const onDoctorStarted = async (data: { repositoryId: string; repositoryName: string }) => {
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "doctor:started",
+			});
+		};
+
+		const onDoctorCompleted = async (
+			data: {
+				repositoryId: string;
+				repositoryName: string;
+			} & DoctorResult,
+		) => {
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "doctor:completed",
+			});
+		};
+
+		const onDoctorCancelled = async (data: { repositoryId: string; repositoryName: string; error?: string }) => {
+			await stream.writeSSE({
+				data: JSON.stringify(data),
+				event: "doctor:cancelled",
+			});
+		};
+
 		serverEvents.on("backup:started", onBackupStarted);
 		serverEvents.on("backup:progress", onBackupProgress);
 		serverEvents.on("backup:completed", onBackupCompleted);
@@ -99,6 +126,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 		serverEvents.on("volume:updated", onVolumeUpdated);
 		serverEvents.on("mirror:started", onMirrorStarted);
 		serverEvents.on("mirror:completed", onMirrorCompleted);
+		serverEvents.on("doctor:started", onDoctorStarted);
+		serverEvents.on("doctor:completed", onDoctorCompleted);
+		serverEvents.on("doctor:cancelled", onDoctorCancelled);
 
 		let keepAlive = true;
 
@@ -113,6 +143,9 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			serverEvents.off("volume:updated", onVolumeUpdated);
 			serverEvents.off("mirror:started", onMirrorStarted);
 			serverEvents.off("mirror:completed", onMirrorCompleted);
+			serverEvents.off("doctor:started", onDoctorStarted);
+			serverEvents.off("doctor:completed", onDoctorCompleted);
+			serverEvents.off("doctor:cancelled", onDoctorCancelled);
 		});
 
 		while (keepAlive) {

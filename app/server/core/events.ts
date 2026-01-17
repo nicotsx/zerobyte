@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import type { TypedEmitter } from "tiny-typed-emitter";
+import type { DoctorResult } from "~/schemas/restic";
 
 /**
  * Event payloads for the SSE system
@@ -36,6 +37,14 @@ interface ServerEvents {
 	"volume:unmounted": (data: { volumeName: string }) => void;
 	"volume:updated": (data: { volumeName: string }) => void;
 	"volume:status_changed": (data: { volumeName: string; status: string }) => void;
+	"doctor:started": (data: { repositoryId: string; repositoryName: string }) => void;
+	"doctor:completed": (
+		data: {
+			repositoryId: string;
+			repositoryName: string;
+		} & DoctorResult,
+	) => void;
+	"doctor:cancelled": (data: { repositoryId: string; repositoryName: string; error?: string }) => void;
 }
 
 /**

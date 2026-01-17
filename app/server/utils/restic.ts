@@ -723,14 +723,14 @@ const ls = async (config: RepositoryConfig, snapshotId: string, path?: string) =
 	return { snapshot, nodes };
 };
 
-const unlock = async (config: RepositoryConfig) => {
+const unlock = async (config: RepositoryConfig, options?: { signal?: AbortSignal }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -742,7 +742,7 @@ const unlock = async (config: RepositoryConfig) => {
 	return { success: true, message: "Repository unlocked successfully" };
 };
 
-const check = async (config: RepositoryConfig, options?: { readData?: boolean }) => {
+const check = async (config: RepositoryConfig, options?: { readData?: boolean; signal?: AbortSignal }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
@@ -754,7 +754,8 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
+
 	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;
@@ -780,14 +781,14 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean })
 	};
 };
 
-const repairIndex = async (config: RepositoryConfig) => {
+const repairIndex = async (config: RepositoryConfig, options?: { signal?: AbortSignal }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config);
 
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
 	const { stdout, stderr } = res;

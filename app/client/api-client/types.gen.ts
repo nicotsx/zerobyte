@@ -725,8 +725,18 @@ export type ListRepositoriesResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accessKeyId: string;
@@ -736,8 +746,18 @@ export type ListRepositoriesResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accountKey: string;
@@ -746,9 +766,19 @@ export type ListRepositoriesResponses = {
 					container: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					endpointSuffix?: string;
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "gcs";
@@ -757,17 +787,37 @@ export type ListRepositoriesResponses = {
 					projectId: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "local";
 					name: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rclone";
@@ -775,18 +825,38 @@ export type ListRepositoriesResponses = {
 					remote: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rest";
 					url: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					password?: string;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					username?: string;
 			  }
 			| {
@@ -799,17 +869,37 @@ export type ListRepositoriesResponses = {
 					skipHostKeyCheck?: boolean;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					knownHosts?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	}>;
@@ -828,8 +918,18 @@ export type CreateRepositoryData = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accessKeyId: string;
@@ -839,8 +939,18 @@ export type CreateRepositoryData = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accountKey: string;
@@ -849,9 +959,19 @@ export type CreateRepositoryData = {
 					container: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					endpointSuffix?: string;
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "gcs";
@@ -860,17 +980,37 @@ export type CreateRepositoryData = {
 					projectId: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "local";
 					name: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rclone";
@@ -878,18 +1018,38 @@ export type CreateRepositoryData = {
 					remote: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rest";
 					url: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					password?: string;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					username?: string;
 			  }
 			| {
@@ -902,9 +1062,19 @@ export type CreateRepositoryData = {
 					skipHostKeyCheck?: boolean;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					knownHosts?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  };
 		name: string;
 		compressionMode?: "auto" | "max" | "off";
@@ -993,8 +1163,18 @@ export type GetRepositoryResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accessKeyId: string;
@@ -1004,8 +1184,18 @@ export type GetRepositoryResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accountKey: string;
@@ -1014,9 +1204,19 @@ export type GetRepositoryResponses = {
 					container: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					endpointSuffix?: string;
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "gcs";
@@ -1025,17 +1225,37 @@ export type GetRepositoryResponses = {
 					projectId: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "local";
 					name: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rclone";
@@ -1043,18 +1263,38 @@ export type GetRepositoryResponses = {
 					remote: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rest";
 					url: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					password?: string;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					username?: string;
 			  }
 			| {
@@ -1067,17 +1307,37 @@ export type GetRepositoryResponses = {
 					skipHostKeyCheck?: boolean;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					knownHosts?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -1123,8 +1383,18 @@ export type UpdateRepositoryResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accessKeyId: string;
@@ -1134,8 +1404,18 @@ export type UpdateRepositoryResponses = {
 					secretAccessKey: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					accountKey: string;
@@ -1144,9 +1424,19 @@ export type UpdateRepositoryResponses = {
 					container: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					endpointSuffix?: string;
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "gcs";
@@ -1155,17 +1445,37 @@ export type UpdateRepositoryResponses = {
 					projectId: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "local";
 					name: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rclone";
@@ -1173,18 +1483,38 @@ export type UpdateRepositoryResponses = {
 					remote: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  }
 			| {
 					backend: "rest";
 					url: string;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					password?: string;
 					path?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					username?: string;
 			  }
 			| {
@@ -1197,17 +1527,37 @@ export type UpdateRepositoryResponses = {
 					skipHostKeyCheck?: boolean;
 					cacert?: string;
 					customPassword?: string;
+					downloadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 					insecureTls?: boolean;
 					isExistingRepository?: boolean;
 					knownHosts?: string;
+					uploadLimit?: {
+						unit?: "Gbps" | "Kbps" | "Mbps";
+						value?: number;
+						enabled?: boolean;
+					};
 			  };
 		createdAt: number;
+		doctorResult: {
+			completedAt: number;
+			steps: Array<{
+				error: string | null;
+				output: string | null;
+				step: string;
+				success: boolean;
+			}>;
+			success: boolean;
+		} | null;
 		id: string;
 		lastChecked: number | null;
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "error" | "healthy" | "unknown" | null;
+		status: "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -1383,7 +1733,7 @@ export type RestoreSnapshotResponses = {
 
 export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnapshotResponses];
 
-export type DoctorRepositoryData = {
+export type CancelDoctorData = {
 	body?: never;
 	path: {
 		id: string;
@@ -1392,22 +1742,51 @@ export type DoctorRepositoryData = {
 	url: "/api/v1/repositories/{id}/doctor";
 };
 
-export type DoctorRepositoryResponses = {
+export type CancelDoctorErrors = {
 	/**
-	 * Doctor operation completed
+	 * No doctor operation is currently running
+	 */
+	409: unknown;
+};
+
+export type CancelDoctorResponses = {
+	/**
+	 * Doctor operation cancelled
 	 */
 	200: {
-		steps: Array<{
-			error: string | null;
-			output: string | null;
-			step: string;
-			success: boolean;
-		}>;
-		success: boolean;
+		message: string;
 	};
 };
 
-export type DoctorRepositoryResponse = DoctorRepositoryResponses[keyof DoctorRepositoryResponses];
+export type CancelDoctorResponse = CancelDoctorResponses[keyof CancelDoctorResponses];
+
+export type StartDoctorData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/doctor";
+};
+
+export type StartDoctorErrors = {
+	/**
+	 * Doctor operation already in progress
+	 */
+	409: unknown;
+};
+
+export type StartDoctorResponses = {
+	/**
+	 * Doctor operation started
+	 */
+	202: {
+		message: string;
+		repositoryId: string;
+	};
+};
+
+export type StartDoctorResponse = StartDoctorResponses[keyof StartDoctorResponses];
 
 export type TagSnapshotsData = {
 	body?: {
@@ -1470,8 +1849,18 @@ export type ListBackupSchedulesResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accessKeyId: string;
@@ -1481,8 +1870,18 @@ export type ListBackupSchedulesResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accountKey: string;
@@ -1491,9 +1890,19 @@ export type ListBackupSchedulesResponses = {
 						container: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						endpointSuffix?: string;
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "gcs";
@@ -1502,17 +1911,37 @@ export type ListBackupSchedulesResponses = {
 						projectId: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "local";
 						name: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rclone";
@@ -1520,18 +1949,38 @@ export type ListBackupSchedulesResponses = {
 						remote: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rest";
 						url: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						password?: string;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						username?: string;
 				  }
 				| {
@@ -1544,17 +1993,37 @@ export type ListBackupSchedulesResponses = {
 						skipHostKeyCheck?: boolean;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						knownHosts?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -1762,8 +2231,18 @@ export type GetBackupScheduleResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accessKeyId: string;
@@ -1773,8 +2252,18 @@ export type GetBackupScheduleResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accountKey: string;
@@ -1783,9 +2272,19 @@ export type GetBackupScheduleResponses = {
 						container: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						endpointSuffix?: string;
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "gcs";
@@ -1794,17 +2293,37 @@ export type GetBackupScheduleResponses = {
 						projectId: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "local";
 						name: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rclone";
@@ -1812,18 +2331,38 @@ export type GetBackupScheduleResponses = {
 						remote: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rest";
 						url: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						password?: string;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						username?: string;
 				  }
 				| {
@@ -1836,17 +2375,37 @@ export type GetBackupScheduleResponses = {
 						skipHostKeyCheck?: boolean;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						knownHosts?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2035,8 +2594,18 @@ export type GetBackupScheduleForVolumeResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accessKeyId: string;
@@ -2046,8 +2615,18 @@ export type GetBackupScheduleForVolumeResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accountKey: string;
@@ -2056,9 +2635,19 @@ export type GetBackupScheduleForVolumeResponses = {
 						container: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						endpointSuffix?: string;
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "gcs";
@@ -2067,17 +2656,37 @@ export type GetBackupScheduleForVolumeResponses = {
 						projectId: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "local";
 						name: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rclone";
@@ -2085,18 +2694,38 @@ export type GetBackupScheduleForVolumeResponses = {
 						remote: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rest";
 						url: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						password?: string;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						username?: string;
 				  }
 				| {
@@ -2109,17 +2738,37 @@ export type GetBackupScheduleForVolumeResponses = {
 						skipHostKeyCheck?: boolean;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						knownHosts?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2516,8 +3165,18 @@ export type GetScheduleMirrorsResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accessKeyId: string;
@@ -2527,8 +3186,18 @@ export type GetScheduleMirrorsResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accountKey: string;
@@ -2537,9 +3206,19 @@ export type GetScheduleMirrorsResponses = {
 						container: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						endpointSuffix?: string;
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "gcs";
@@ -2548,17 +3227,37 @@ export type GetScheduleMirrorsResponses = {
 						projectId: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "local";
 						name: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rclone";
@@ -2566,18 +3265,38 @@ export type GetScheduleMirrorsResponses = {
 						remote: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rest";
 						url: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						password?: string;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						username?: string;
 				  }
 				| {
@@ -2590,17 +3309,37 @@ export type GetScheduleMirrorsResponses = {
 						skipHostKeyCheck?: boolean;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						knownHosts?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2646,8 +3385,18 @@ export type UpdateScheduleMirrorsResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accessKeyId: string;
@@ -2657,8 +3406,18 @@ export type UpdateScheduleMirrorsResponses = {
 						secretAccessKey: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						accountKey: string;
@@ -2667,9 +3426,19 @@ export type UpdateScheduleMirrorsResponses = {
 						container: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						endpointSuffix?: string;
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "gcs";
@@ -2678,17 +3447,37 @@ export type UpdateScheduleMirrorsResponses = {
 						projectId: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "local";
 						name: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rclone";
@@ -2696,18 +3485,38 @@ export type UpdateScheduleMirrorsResponses = {
 						remote: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  }
 				| {
 						backend: "rest";
 						url: string;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						password?: string;
 						path?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						username?: string;
 				  }
 				| {
@@ -2720,17 +3529,37 @@ export type UpdateScheduleMirrorsResponses = {
 						skipHostKeyCheck?: boolean;
 						cacert?: string;
 						customPassword?: string;
+						downloadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 						insecureTls?: boolean;
 						isExistingRepository?: boolean;
 						knownHosts?: string;
+						uploadLimit?: {
+							unit?: "Gbps" | "Kbps" | "Mbps";
+							value?: number;
+							enabled?: boolean;
+						};
 				  };
 			createdAt: number;
+			doctorResult: {
+				completedAt: number;
+				steps: Array<{
+					error: string | null;
+					output: string | null;
+					step: string;
+					success: boolean;
+				}>;
+				success: boolean;
+			} | null;
 			id: string;
 			lastChecked: number | null;
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "error" | "healthy" | "unknown" | null;
+			status: "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};

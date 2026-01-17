@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { eq, or } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { InternalServerError, NotFoundError, ConflictError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -16,6 +16,11 @@ import {
 	type RepositoryConfig,
 } from "~/schemas/restic";
 import { type } from "arktype";
+import { serverEvents } from "../../core/events";
+import { logger } from "../../utils/logger";
+import { executeDoctor } from "./doctor";
+
+const runningDoctors = new Map<string, AbortController>();
 
 const findRepository = async (idOrShortId: string) => {
 	return await db.query.repositoriesTable.findFirst({
@@ -321,93 +326,67 @@ const checkHealth = async (repositoryId: string) => {
 	}
 };
 
-const doctorRepository = async (id: string) => {
+const startDoctor = async (id: string) => {
 	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const steps: Array<{ step: string; success: boolean; output: string | null; error: string | null }> = [];
-
-	const unlockResult = await restic.unlock(repository.config).then(
-		(result) => ({ success: true, message: result.message, error: null }),
-		(error) => ({ success: false, message: null, error: toMessage(error) }),
-	);
-
-	steps.push({
-		step: "unlock",
-		success: unlockResult.success,
-		output: unlockResult.message,
-		error: unlockResult.error,
-	});
-
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, "doctor");
-	try {
-		const checkResult = await restic.check(repository.config, { readData: false }).then(
-			(result) => result,
-			(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
-		);
-
-		steps.push({
-			step: "check",
-			success: checkResult.success,
-			output: checkResult.output,
-			error: checkResult.error,
-		});
-
-		if (checkResult.hasErrors) {
-			const repairResult = await restic.repairIndex(repository.config).then(
-				(result) => ({ success: true, output: result.output, error: null }),
-				(error) => ({ success: false, output: null, error: toMessage(error) }),
-			);
-
-			steps.push({
-				step: "repair_index",
-				success: repairResult.success,
-				output: repairResult.output,
-				error: repairResult.error,
-			});
-
-			const recheckResult = await restic.check(repository.config, { readData: false }).then(
-				(result) => result,
-				(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
-			);
-
-			steps.push({
-				step: "recheck",
-				success: recheckResult.success,
-				output: recheckResult.output,
-				error: recheckResult.error,
-			});
-		}
-	} catch (error) {
-		steps.push({
-			step: "unexpected_error",
-			success: false,
-			output: null,
-			error: toMessage(error),
-		});
-	} finally {
-		releaseLock();
+	if (runningDoctors.has(repository.id)) {
+		throw new ConflictError("Doctor operation already in progress");
 	}
 
-	const doctorSucceeded = steps.every((step) => step.success);
-	const doctorError = steps.find((step) => step.error)?.error ?? null;
+	const abortController = new AbortController();
 
-	await db
-		.update(repositoriesTable)
-		.set({
-			status: doctorSucceeded ? "healthy" : "error",
-			lastChecked: Date.now(),
-			lastError: doctorError,
+	try {
+		await db.update(repositoriesTable).set({ status: "doctor" }).where(eq(repositoriesTable.id, repository.id));
+
+		serverEvents.emit("doctor:started", {
+			repositoryId: repository.id,
+			repositoryName: repository.name,
+		});
+
+		runningDoctors.set(repository.id, abortController);
+	} catch (error) {
+		runningDoctors.delete(repository.id);
+		throw error;
+	}
+
+	executeDoctor(repository.id, repository.config, repository.name, abortController.signal)
+		.catch((error) => {
+			logger.error(`Doctor background task failed: ${toMessage(error)}`);
 		})
-		.where(eq(repositoriesTable.id, repository.id));
+		.finally(() => {
+			runningDoctors.delete(repository.id);
+		});
 
-	return {
-		success: doctorSucceeded,
-		steps,
-	};
+	return { message: "Doctor operation started", repositoryId: repository.id };
+};
+
+const cancelDoctor = async (id: string) => {
+	const repository = await findRepository(id);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const abortController = runningDoctors.get(repository.id);
+	if (!abortController) {
+		throw new ConflictError("No doctor operation is currently running");
+	}
+
+	abortController.abort();
+	runningDoctors.delete(repository.id);
+
+	await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
+
+	serverEvents.emit("doctor:cancelled", {
+		repositoryId: repository.id,
+		repositoryName: repository.name,
+	});
+
+	return { message: "Doctor operation cancelled" };
 };
 
 const deleteSnapshot = async (id: string, snapshotId: string) => {
@@ -517,7 +496,8 @@ export const repositoriesService = {
 	restoreSnapshot,
 	getSnapshotDetails,
 	checkHealth,
-	doctorRepository,
+	startDoctor,
+	cancelDoctor,
 	deleteSnapshot,
 	deleteSnapshots,
 	tagSnapshots,
