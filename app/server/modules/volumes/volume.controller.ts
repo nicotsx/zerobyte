@@ -50,15 +50,15 @@ export const volumeController = new Hono()
 
 		return c.json(result, 200);
 	})
-	.delete("/:name", deleteVolumeDto, async (c) => {
-		const { name } = c.req.param();
-		await volumeService.deleteVolume(name, c.get("organizationId"));
+	.delete("/:id", deleteVolumeDto, async (c) => {
+		const { id } = c.req.param();
+		await volumeService.deleteVolume(id, c.get("organizationId"));
 
 		return c.json({ message: "Volume deleted" }, 200);
 	})
-	.get("/:name", getVolumeDto, async (c) => {
-		const { name } = c.req.param();
-		const res = await volumeService.getVolume(name, c.get("organizationId"));
+	.get("/:id", getVolumeDto, async (c) => {
+		const { id } = c.req.param();
+		const res = await volumeService.getVolume(id, c.get("organizationId"));
 
 		const response = {
 			volume: {
@@ -74,10 +74,10 @@ export const volumeController = new Hono()
 
 		return c.json<GetVolumeDto>(response, 200);
 	})
-	.put("/:name", updateVolumeDto, validator("json", updateVolumeBody), async (c) => {
-		const { name } = c.req.param();
+	.put("/:id", updateVolumeDto, validator("json", updateVolumeBody), async (c) => {
+		const { id } = c.req.param();
 		const body = c.req.valid("json");
-		const res = await volumeService.updateVolume(name, body, c.get("organizationId"));
+		const res = await volumeService.updateVolume(id, body, c.get("organizationId"));
 
 		const response = {
 			...res.volume,
@@ -86,28 +86,28 @@ export const volumeController = new Hono()
 
 		return c.json<UpdateVolumeDto>(response, 200);
 	})
-	.post("/:name/mount", mountVolumeDto, async (c) => {
-		const { name } = c.req.param();
-		const { error, status } = await volumeService.mountVolume(name, c.get("organizationId"));
+	.post("/:id/mount", mountVolumeDto, async (c) => {
+		const { id } = c.req.param();
+		const { error, status } = await volumeService.mountVolume(id, c.get("organizationId"));
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
-	.post("/:name/unmount", unmountVolumeDto, async (c) => {
-		const { name } = c.req.param();
-		const { error, status } = await volumeService.unmountVolume(name, c.get("organizationId"));
+	.post("/:id/unmount", unmountVolumeDto, async (c) => {
+		const { id } = c.req.param();
+		const { error, status } = await volumeService.unmountVolume(id, c.get("organizationId"));
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
-	.post("/:name/health-check", healthCheckDto, async (c) => {
-		const { name } = c.req.param();
-		const { error, status } = await volumeService.checkHealth(name, c.get("organizationId"));
+	.post("/:id/health-check", healthCheckDto, async (c) => {
+		const { id } = c.req.param();
+		const { error, status } = await volumeService.checkHealth(id, c.get("organizationId"));
 
 		return c.json({ error, status }, 200);
 	})
-	.get("/:name/files", listFilesDto, async (c) => {
-		const { name } = c.req.param();
+	.get("/:id/files", listFilesDto, async (c) => {
+		const { id } = c.req.param();
 		const subPath = c.req.query("path");
-		const result = await volumeService.listFiles(name, c.get("organizationId"), subPath);
+		const result = await volumeService.listFiles(id, c.get("organizationId"), subPath);
 
 		const response = {
 			files: result.files,

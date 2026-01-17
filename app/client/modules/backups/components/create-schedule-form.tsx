@@ -372,7 +372,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 						<CardContent>
 							<VolumeFileBrowser
 								key={volume.id}
-								volumeName={volume.name}
+								volumeId={volume.shortId}
 								selectedPaths={selectedPaths}
 								onSelectionChange={handleSelectionChange}
 								withCheckboxes={true}

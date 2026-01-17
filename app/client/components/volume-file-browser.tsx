@@ -6,7 +6,7 @@ import { useFileBrowser } from "../hooks/use-file-browser";
 import { parseError } from "../lib/errors";
 
 type VolumeFileBrowserProps = {
-	volumeName: string;
+	volumeId: string;
 	enabled?: boolean;
 	withCheckboxes?: boolean;
 	selectedPaths?: Set<string>;
@@ -18,7 +18,7 @@ type VolumeFileBrowserProps = {
 };
 
 export const VolumeFileBrowser = ({
-	volumeName,
+	volumeId,
 	enabled = true,
 	withCheckboxes = false,
 	selectedPaths,
@@ -31,7 +31,7 @@ export const VolumeFileBrowser = ({
 	const queryClient = useQueryClient();
 
 	const { data, isLoading, error } = useQuery({
-		...listFilesOptions({ path: { name: volumeName } }),
+		...listFilesOptions({ path: { id: volumeId } }),
 		enabled,
 	});
 
@@ -41,7 +41,7 @@ export const VolumeFileBrowser = ({
 		fetchFolder: async (path) => {
 			return await queryClient.ensureQueryData(
 				listFilesOptions({
-					path: { name: volumeName },
+					path: { id: volumeId },
 					query: { path },
 				}),
 			);
@@ -49,7 +49,7 @@ export const VolumeFileBrowser = ({
 		prefetchFolder: (path) => {
 			void queryClient.prefetchQuery(
 				listFilesOptions({
-					path: { name: volumeName },
+					path: { id: volumeId },
 					query: { path },
 				}),
 			);

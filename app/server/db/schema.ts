@@ -196,7 +196,7 @@ export const volumesTable = sqliteTable("volumes_table", {
 	organizationId: text("organization_id")
 		.notNull()
 		.references(() => organization.id, { onDelete: "cascade" }),
-});
+}, (table) => [unique().on(table.name, table.organizationId)]);
 export type Volume = typeof volumesTable.$inferSelect;
 export type VolumeInsert = typeof volumesTable.$inferInsert;
 

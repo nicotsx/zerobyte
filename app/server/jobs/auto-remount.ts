@@ -16,7 +16,7 @@ export class VolumeAutoRemountJob extends Job {
 		for (const volume of volumes) {
 			if (volume.autoRemount) {
 				try {
-					await volumeService.mountVolume(volume.name, volume.organizationId);
+					await volumeService.mountVolume(volume.id, volume.organizationId);
 				} catch (err) {
 					logger.error(`Failed to auto-remount volume ${volume.name}:`, err);
 				}

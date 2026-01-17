@@ -41,12 +41,12 @@ const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "
 };
 
 export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => [{ label: "Volumes", href: "/volumes" }, { label: match.params.name }],
+	breadcrumb: (match: Route.MetaArgs) => [{ label: "Volumes", href: "/volumes" }, { label: match.params.id }],
 };
 
 export function meta({ params }: Route.MetaArgs) {
 	return [
-		{ title: `Zerobyte - ${params.name}` },
+		{ title: `Zerobyte - ${params.id}` },
 		{
 			name: "description",
 			content: "View and manage volume details, configuration, and files.",
@@ -55,19 +55,19 @@ export function meta({ params }: Route.MetaArgs) {
 }
 
 export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const volume = await getVolume({ path: { name: params.name } });
+	const volume = await getVolume({ path: { id: params.id } });
 	if (volume.data) return volume.data;
 };
 
 export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
-	const { name } = useParams<{ name: string }>();
+	const { id } = useParams<{ id: string }>();
 	const navigate = useNavigate();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const activeTab = searchParams.get("tab") || "info";
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	const { data } = useQuery({
-		...getVolumeOptions({ path: { name: name ?? "" } }),
+		...getVolumeOptions({ path: { id: id ?? "" } }),
 		initialData: loaderData,
 	});
 
@@ -110,10 +110,10 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);
-		deleteVol.mutate({ path: { name: name ?? "" } });
+		deleteVol.mutate({ path: { id: id ?? "" } });
 	};
 
-	if (!name) {
+	if (!id) {
 		return <div>Volume not found</div>;
 	}
 
@@ -139,7 +139,7 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 				</div>
 				<div className="flex gap-4">
 					<Button
-						onClick={() => mountVol.mutate({ path: { name } })}
+						onClick={() => mountVol.mutate({ path: { id } })}
 						loading={mountVol.isPending}
 						className={cn({ hidden: volume.status === "mounted" })}
 					>
@@ -148,7 +148,7 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 					</Button>
 					<Button
 						variant="secondary"
-						onClick={() => unmountVol.mutate({ path: { name } })}
+						onClick={() => unmountVol.mutate({ path: { id } })}
 						loading={unmountVol.isPending}
 						className={cn({ hidden: volume.status !== "mounted" })}
 					>
@@ -178,7 +178,7 @@ export default function VolumeDetails({ loaderData }: Route.ComponentProps) {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete volume?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete the volume <strong>{name}</strong>? This action cannot be undone.
+							Are you sure you want to delete the volume <strong>{volume.name}</strong>? This action cannot be undone.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-3 justify-end">

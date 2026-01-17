@@ -179,7 +179,7 @@ export const testConnection = <ThrowOnError extends boolean = false>(
  */
 export const deleteVolume = <ThrowOnError extends boolean = false>(options: Options<DeleteVolumeData, ThrowOnError>) =>
 	(options.client ?? client).delete<DeleteVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{name}",
+		url: "/api/v1/volumes/{id}",
 		...options,
 	});
 
@@ -188,7 +188,7 @@ export const deleteVolume = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const getVolume = <ThrowOnError extends boolean = false>(options: Options<GetVolumeData, ThrowOnError>) =>
 	(options.client ?? client).get<GetVolumeResponses, GetVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{name}",
+		url: "/api/v1/volumes/{id}",
 		...options,
 	});
 
@@ -197,7 +197,7 @@ export const getVolume = <ThrowOnError extends boolean = false>(options: Options
  */
 export const updateVolume = <ThrowOnError extends boolean = false>(options: Options<UpdateVolumeData, ThrowOnError>) =>
 	(options.client ?? client).put<UpdateVolumeResponses, UpdateVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{name}",
+		url: "/api/v1/volumes/{id}",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -210,7 +210,7 @@ export const updateVolume = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const mountVolume = <ThrowOnError extends boolean = false>(options: Options<MountVolumeData, ThrowOnError>) =>
 	(options.client ?? client).post<MountVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{name}/mount",
+		url: "/api/v1/volumes/{id}/mount",
 		...options,
 	});
 
@@ -221,7 +221,7 @@ export const unmountVolume = <ThrowOnError extends boolean = false>(
 	options: Options<UnmountVolumeData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<UnmountVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{name}/unmount",
+		url: "/api/v1/volumes/{id}/unmount",
 		...options,
 	});
 
@@ -232,7 +232,7 @@ export const healthCheckVolume = <ThrowOnError extends boolean = false>(
 	options: Options<HealthCheckVolumeData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<HealthCheckVolumeResponses, HealthCheckVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{name}/health-check",
+		url: "/api/v1/volumes/{id}/health-check",
 		...options,
 	});
 
@@ -241,7 +241,7 @@ export const healthCheckVolume = <ThrowOnError extends boolean = false>(
  */
 export const listFiles = <ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>) =>
 	(options.client ?? client).get<ListFilesResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{name}/files",
+		url: "/api/v1/volumes/{id}/files",
 		...options,
 	});
 
@@ -708,7 +708,7 @@ export const getUpdates = <ThrowOnError extends boolean = false>(options?: Optio
 	});
 
 /**
- * Download the Restic password file for backup recovery. Requires password re-authentication.
+ * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.
  */
 export const downloadResticPassword = <ThrowOnError extends boolean = false>(
 	options?: Options<DownloadResticPasswordData, ThrowOnError>,

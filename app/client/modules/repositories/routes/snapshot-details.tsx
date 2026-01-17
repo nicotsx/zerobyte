@@ -136,7 +136,7 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 													<span className="text-muted-foreground">Volume:</span>
 													<p>
 														<Link
-															to={`/volumes/${backupSchedule?.volume.name}`}
+															to={`/volumes/${backupSchedule?.volume.shortId}`}
 															className="text-primary hover:underline"
 														>
 															{backupSchedule?.volume.name}

@@ -28,7 +28,7 @@ export const FilesTabContent = ({ volume }: Props) => {
 			</CardHeader>
 			<CardContent className="flex-1 overflow-hidden flex flex-col">
 				<VolumeFileBrowser
-					volumeName={volume.name}
+					volumeId={volume.shortId}
 					enabled={volume.status === "mounted"}
 					className="overflow-auto flex-1 border rounded-md bg-card p-2"
 					emptyMessage="This volume is empty."

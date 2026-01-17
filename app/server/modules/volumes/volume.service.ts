@@ -50,6 +50,16 @@ const listVolumes = async (organizationId: string) => {
 	return volumes;
 };
 
+const findVolume = async (idOrShortId: string | number, organizationId: string) => {
+	const isNumeric = typeof idOrShortId === "number" || /^\d+$/.test(String(idOrShortId));
+	return await db.query.volumesTable.findFirst({
+		where: and(
+			isNumeric ? eq(volumesTable.id, Number(idOrShortId)) : eq(volumesTable.shortId, idOrShortId),
+			eq(volumesTable.organizationId, organizationId),
+		),
+	});
+};
+
 const createVolume = async (name: string, backendConfig: BackendConfig, organizationId: string) => {
 	const slug = slugify(name, { lower: true, strict: true });
 
@@ -90,10 +100,8 @@ const createVolume = async (name: string, backendConfig: BackendConfig, organiza
 	return { volume: created, status: 201 };
 };
 
-const deleteVolume = async (name: string, organizationId: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const deleteVolume = async (idOrShortId: string | number, organizationId: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -106,10 +114,8 @@ const deleteVolume = async (name: string, organizationId: string) => {
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 };
 
-const mountVolume = async (name: string, organizationId: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const mountVolume = async (idOrShortId: string | number, organizationId: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -124,16 +130,14 @@ const mountVolume = async (name: string, organizationId: string) => {
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
 	if (status === "mounted") {
-		serverEvents.emit("volume:mounted", { volumeName: name });
+		serverEvents.emit("volume:mounted", { volumeName: volume.name });
 	}
 
 	return { error, status };
 };
 
-const unmountVolume = async (name: string, organizationId: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const unmountVolume = async (idOrShortId: string | number, organizationId: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -148,16 +152,14 @@ const unmountVolume = async (name: string, organizationId: string) => {
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
 	if (status === "unmounted") {
-		serverEvents.emit("volume:unmounted", { volumeName: name });
+		serverEvents.emit("volume:unmounted", { volumeName: volume.name });
 	}
 
 	return { error, status };
 };
 
-const getVolume = async (name: string, organizationId: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const getVolume = async (idOrShortId: string | number, organizationId: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -166,7 +168,7 @@ const getVolume = async (name: string, organizationId: string) => {
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
 		statfs = await withTimeout(getStatFs(getVolumePath(volume)), 1000, "getStatFs").catch((error) => {
-			logger.warn(`Failed to get statfs for volume ${name}: ${toMessage(error)}`);
+			logger.warn(`Failed to get statfs for volume ${volume.name}: ${toMessage(error)}`);
 			return {};
 		});
 	}
@@ -174,10 +176,8 @@ const getVolume = async (name: string, organizationId: string) => {
 	return { volume, statfs };
 };
 
-const updateVolume = async (name: string, volumeData: UpdateVolumeBody, organizationId: string) => {
-	const existing = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const updateVolume = async (idOrShortId: string | number, volumeData: UpdateVolumeBody, organizationId: string) => {
+	const existing = await findVolume(idOrShortId, organizationId);
 
 	if (!existing) {
 		throw new NotFoundError("Volume not found");
@@ -277,10 +277,8 @@ const testConnection = async (backendConfig: BackendConfig) => {
 	};
 };
 
-const checkHealth = async (name: string, organizationId: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const checkHealth = async (idOrShortId: string | number, organizationId: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -290,7 +288,7 @@ const checkHealth = async (name: string, organizationId: string) => {
 	const { error, status } = await backend.checkHealth();
 
 	if (status !== volume.status) {
-		serverEvents.emit("volume:status_changed", { volumeName: name, status });
+		serverEvents.emit("volume:status_changed", { volumeName: volume.name, status });
 	}
 
 	await db
@@ -301,10 +299,8 @@ const checkHealth = async (name: string, organizationId: string) => {
 	return { status, error };
 };
 
-const listFiles = async (name: string, organizationId: string, subPath?: string) => {
-	const volume = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, name), eq(volumesTable.organizationId, organizationId)),
-	});
+const listFiles = async (idOrShortId: string | number, organizationId: string, subPath?: string) => {
+	const volume = await findVolume(idOrShortId, organizationId);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");

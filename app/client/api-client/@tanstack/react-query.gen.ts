@@ -1260,7 +1260,7 @@ export const getUpdatesOptions = (options?: Options<GetUpdatesData>) =>
 	});
 
 /**
- * Download the Restic password file for backup recovery. Requires password re-authentication.
+ * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.
  */
 export const downloadResticPasswordMutation = (
 	options?: Partial<Options<DownloadResticPasswordData>>,

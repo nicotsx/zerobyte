@@ -8,7 +8,7 @@ export default [
 		route("/", "./client/routes/root.tsx"),
 		route("volumes", "./client/modules/volumes/routes/volumes.tsx"),
 		route("volumes/create", "./client/modules/volumes/routes/create-volume.tsx"),
-		route("volumes/:name", "./client/modules/volumes/routes/volume-details.tsx"),
+		route("volumes/:id", "./client/modules/volumes/routes/volume-details.tsx"),
 		route("backups", "./client/modules/backups/routes/backups.tsx"),
 		route("backups/create", "./client/modules/backups/routes/create-backup.tsx"),
 		route("backups/:id", "./client/modules/backups/routes/backup-details.tsx"),

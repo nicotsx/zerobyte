@@ -20,7 +20,7 @@ const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
-		await volumeService.updateVolume(volume.name, volume, volume.organizationId).catch((err) => {
+		await volumeService.updateVolume(volume.id, volume, volume.organizationId).catch((err) => {
 			logger.error(`Failed to update volume ${volume.name}: ${err}`);
 		});
 	}
@@ -69,7 +69,7 @@ export const startup = async () => {
 	});
 
 	for (const volume of volumes) {
-		await volumeService.mountVolume(volume.name, volume.organizationId).catch((err) => {
+		await volumeService.mountVolume(volume.id, volume.organizationId).catch((err) => {
 			logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
 		});
 	}

@@ -159,7 +159,7 @@ export default function Volumes({ loaderData }: Route.ComponentProps) {
 								<TableRow
 									key={volume.name}
 									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate(`/volumes/${volume.name}`)}
+									onClick={() => navigate(`/volumes/${volume.shortId}`)}
 								>
 									<TableCell className="font-medium text-strong-accent">{volume.name}</TableCell>
 									<TableCell>

@@ -86,7 +86,7 @@ export const ScheduleSummary = (props: Props) => {
 						<div>
 							<CardTitle>{schedule.name}</CardTitle>
 							<CardDescription className="mt-1">
-								<Link to={`/volumes/${schedule.volume.name}`} className="hover:underline">
+								<Link to={`/volumes/${schedule.volume.shortId}`} className="hover:underline">
 									<HardDrive className="inline h-4 w-4 mr-2" />
 									<span>{schedule.volume.name}</span>
 								</Link>
