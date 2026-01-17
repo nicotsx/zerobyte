@@ -85,7 +85,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig, organiza
 	await db
 		.update(volumesTable)
 		.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
-		.where(eq(volumesTable.name, slug));
+		.where(and(eq(volumesTable.id, created.id), eq(volumesTable.organizationId, organizationId)));
 
 	return { volume: created, status: 201 };
 };
@@ -101,7 +101,9 @@ const deleteVolume = async (name: string, organizationId: string) => {
 
 	const backend = createVolumeBackend(volume);
 	await backend.unmount();
-	await db.delete(volumesTable).where(eq(volumesTable.name, name));
+	await db
+		.delete(volumesTable)
+		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 };
 
 const mountVolume = async (name: string, organizationId: string) => {
@@ -119,7 +121,7 @@ const mountVolume = async (name: string, organizationId: string) => {
 	await db
 		.update(volumesTable)
 		.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
-		.where(eq(volumesTable.name, name));
+		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
 	if (status === "mounted") {
 		serverEvents.emit("volume:mounted", { volumeName: name });
@@ -140,7 +142,10 @@ const unmountVolume = async (name: string, organizationId: string) => {
 	const backend = createVolumeBackend(volume);
 	const { status, error } = await backend.unmount();
 
-	await db.update(volumesTable).set({ status }).where(eq(volumesTable.name, name));
+	await db
+		.update(volumesTable)
+		.set({ status })
+		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
 	if (status === "unmounted") {
 		serverEvents.emit("volume:unmounted", { volumeName: name });
@@ -218,7 +223,7 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody, organiza
 			autoRemount: volumeData.autoRemount,
 			updatedAt: Date.now(),
 		})
-		.where(eq(volumesTable.id, existing.id))
+		.where(and(eq(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)))
 		.returning();
 
 	if (!updated) {
@@ -231,7 +236,7 @@ const updateVolume = async (name: string, volumeData: UpdateVolumeBody, organiza
 		await db
 			.update(volumesTable)
 			.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
-			.where(eq(volumesTable.id, existing.id));
+			.where(and(eq(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)));
 
 		serverEvents.emit("volume:updated", { volumeName: updated.name });
 	}
@@ -291,7 +296,7 @@ const checkHealth = async (name: string, organizationId: string) => {
 	await db
 		.update(volumesTable)
 		.set({ lastHealthCheck: Date.now(), status, lastError: error ?? null })
-		.where(eq(volumesTable.name, volume.name));
+		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
 	return { status, error };
 };

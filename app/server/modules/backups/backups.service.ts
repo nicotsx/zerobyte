@@ -178,7 +178,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 	const [updated] = await db
 		.update(backupSchedulesTable)
 		.set({ ...data, nextBackupAt, updatedAt: Date.now() })
-		.where(eq(backupSchedulesTable.id, scheduleId))
+		.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)))
 		.returning();
 
 	if (!updated) {
@@ -197,7 +197,9 @@ const deleteSchedule = async (scheduleId: number, organizationId: string) => {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
-	await db.delete(backupSchedulesTable).where(eq(backupSchedulesTable.id, scheduleId));
+	await db
+		.delete(backupSchedulesTable)
+		.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
 };
 
 const executeBackup = async (scheduleId: number, organizationId: string, manual = false) => {
@@ -220,7 +222,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 	}
 
 	const volume = await db.query.volumesTable.findFirst({
-		where: eq(volumesTable.id, schedule.volumeId),
+		where: and(eq(volumesTable.id, schedule.volumeId), eq(volumesTable.organizationId, organizationId)),
 	});
 
 	if (!volume) {
@@ -228,7 +230,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: eq(repositoriesTable.id, schedule.repositoryId),
+		where: and(eq(repositoriesTable.id, schedule.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
 	});
 
 	if (!repository) {
@@ -267,7 +269,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 			lastBackupError: null,
 			nextBackupAt,
 		})
-		.where(eq(backupSchedulesTable.id, scheduleId));
+		.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
 
 	const abortController = new AbortController();
 	runningBackups.set(scheduleId, abortController);
@@ -345,7 +347,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 				nextBackupAt: nextBackupAt,
 				updatedAt: Date.now(),
 			})
-			.where(eq(backupSchedulesTable.id, scheduleId));
+			.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
 
 		if (finalStatus === "warning") {
 			logger.warn(
@@ -386,7 +388,7 @@ const executeBackup = async (scheduleId: number, organizationId: string, manual 
 				lastBackupError: toMessage(error),
 				updatedAt: Date.now(),
 			})
-			.where(eq(backupSchedulesTable.id, scheduleId));
+			.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
 
 		serverEvents.emit("backup:completed", {
 			scheduleId,
@@ -466,7 +468,7 @@ const stopBackup = async (scheduleId: number, organizationId: string) => {
 				lastBackupError: "Backup was stopped by user",
 				updatedAt: Date.now(),
 			})
-			.where(eq(backupSchedulesTable.id, scheduleId));
+			.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
 	}
 };
 
@@ -722,7 +724,7 @@ const reorderSchedules = async (scheduleIds: number[], organizationId: string) =
 				tx
 					.update(backupSchedulesTable)
 					.set({ sortOrder: index, updatedAt: now })
-					.where(eq(backupSchedulesTable.id, scheduleId)),
+					.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId))),
 			),
 		);
 	});

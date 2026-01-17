@@ -124,13 +124,13 @@ const createRepository = async (
 		await db
 			.update(repositoriesTable)
 			.set({ status: "healthy", lastChecked: Date.now(), lastError: null })
-			.where(eq(repositoriesTable.id, id));
+			.where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
 		return { repository: created, status: 201 };
 	}
 
 	const errorMessage = toMessage(error);
-	await db.delete(repositoriesTable).where(eq(repositoriesTable.id, id));
+	await db.delete(repositoriesTable).where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
 	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
@@ -154,7 +154,9 @@ const deleteRepository = async (id: string, organizationId: string) => {
 
 	// TODO: Add cleanup logic for the actual restic repository files
 
-	await db.delete(repositoriesTable).where(eq(repositoriesTable.id, repository.id));
+	await db
+		.delete(repositoriesTable)
+		.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
 
 	cache.delByPrefix(`snapshots:${repository.id}:`);
 	cache.delByPrefix(`ls:${repository.id}:`);
@@ -325,7 +327,7 @@ const checkHealth = async (repositoryId: string, organizationId: string) => {
 				lastChecked: Date.now(),
 				lastError: error,
 			})
-			.where(eq(repositoriesTable.id, repository.id));
+			.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
 
 		return { lastError: error };
 	} finally {
@@ -414,7 +416,7 @@ const doctorRepository = async (id: string, organizationId: string) => {
 			lastChecked: Date.now(),
 			lastError: doctorError,
 		})
-		.where(eq(repositoriesTable.id, repository.id));
+		.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
 
 	return {
 		success: doctorSucceeded,

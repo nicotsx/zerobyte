@@ -219,7 +219,9 @@ const updateDestination = async (
 
 const deleteDestination = async (id: number, organizationId: string) => {
 	await getDestination(id, organizationId);
-	await db.delete(notificationDestinationsTable).where(eq(notificationDestinationsTable.id, id));
+	await db
+		.delete(notificationDestinationsTable)
+		.where(and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)));
 };
 
 const testDestination = async (id: number, organizationId: string) => {
