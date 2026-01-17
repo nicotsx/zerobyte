@@ -79,3 +79,39 @@ export const downloadResticPasswordDto = describeRoute({
 		},
 	},
 });
+
+export const ssoProviderSchema = type({
+	id: "string",
+	providerId: "string",
+	issuer: "string",
+	domain: "string",
+});
+
+export const listSSOProvidersResponse = ssoProviderSchema.array();
+
+export const listSSOProvidersDto = describeRoute({
+	description: "List all configured SSO providers",
+	tags: ["Auth"],
+	operationId: "listSSOProviders",
+	responses: {
+		200: {
+			description: "List of SSO providers",
+			content: {
+				"application/json": {
+					schema: resolver(listSSOProvidersResponse),
+				},
+			},
+		},
+	},
+});
+
+export const deleteSSOProviderDto = describeRoute({
+	description: "Delete an SSO provider",
+	tags: ["Auth"],
+	operationId: "deleteSSOProvider",
+	responses: {
+		200: {
+			description: "Provider deleted",
+		},
+	},
+});

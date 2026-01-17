@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import {
+	deleteSSOProviderDto,
 	downloadResticPasswordBodySchema,
 	downloadResticPasswordDto,
 	getUpdatesDto,
+	listSSOProvidersDto,
 	systemInfoDto,
 	type SystemInfoDto,
 	type UpdateInfoDto,
@@ -12,11 +14,15 @@ import { systemService } from "./system.service";
 import { requireAuth } from "../auth/auth.middleware";
 import { RESTIC_PASS_FILE } from "../../core/constants";
 import { db } from "../../db/db";
-import { usersTable } from "../../db/schema";
+import { ssoProvider, usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 
 export const systemController = new Hono()
+	.get("/sso-providers", listSSOProvidersDto, async (c) => {
+		const providers = await db.select().from(ssoProvider);
+		return c.json(providers, 200);
+	})
 	.use(requireAuth)
 	.get("/info", systemInfoDto, async (c) => {
 		const info = await systemService.getSystemInfo();
@@ -55,4 +61,9 @@ export const systemController = new Hono()
 				return c.json({ message: "Failed to read Restic password file" }, 500);
 			}
 		},
-	);
+	)
+	.delete("/sso-providers/:id", deleteSSOProviderDto, async (c) => {
+		const id = c.req.param("id");
+		await db.delete(ssoProvider).where(eq(ssoProvider.id, id));
+		return c.json({ message: "Provider deleted" }, 200);
+	});

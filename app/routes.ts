@@ -4,6 +4,7 @@ export default [
 	route("onboarding", "./client/modules/auth/routes/onboarding.tsx"),
 	route("login", "./client/modules/auth/routes/login.tsx"),
 	route("download-recovery-key", "./client/modules/auth/routes/download-recovery-key.tsx"),
+	route("auth/error", "./client/modules/auth/routes/auth-error.tsx"),
 	layout("./client/components/layout.tsx", [
 		route("/", "./client/routes/root.tsx"),
 		route("volumes", "./client/modules/volumes/routes/volumes.tsx"),

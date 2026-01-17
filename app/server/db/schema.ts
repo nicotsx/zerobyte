@@ -57,6 +57,10 @@ export const usersTable = sqliteTable("users_table", {
 	image: text("image"),
 	displayUsername: text("display_username"),
 	twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
+	role: text("role"),
+	banned: integer("banned", { mode: "boolean" }).default(false),
+	banReason: text("ban_reason"),
+	banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
 });
 
 export type User = typeof usersTable.$inferSelect;
@@ -78,6 +82,7 @@ export const sessionsTable = sqliteTable(
 			.default(sql`(unixepoch() * 1000)`),
 		ipAddress: text("ip_address"),
 		userAgent: text("user_agent"),
+		impersonatedBy: text("impersonated_by"),
 	},
 	(table) => [index("sessionsTable_userId_idx").on(table.userId)],
 );
@@ -131,26 +136,6 @@ export const verification = sqliteTable(
 	},
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
-
-export const userRelations = relations(usersTable, ({ many }) => ({
-	sessions: many(sessionsTable),
-	accounts: many(account),
-	twoFactors: many(twoFactor),
-}));
-
-export const sessionRelations = relations(sessionsTable, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [sessionsTable.userId],
-		references: [usersTable.id],
-	}),
-}));
-
-export const accountRelations = relations(account, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [account.userId],
-		references: [usersTable.id],
-	}),
-}));
 
 /**
  * Repositories Table
@@ -223,18 +208,6 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 });
 export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
-export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
-	volume: one(volumesTable, {
-		fields: [backupSchedulesTable.volumeId],
-		references: [volumesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupSchedulesTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-	notifications: many(backupScheduleNotificationsTable),
-	mirrors: many(backupScheduleMirrorsTable),
-}));
 export type BackupSchedule = typeof backupSchedulesTable.$inferSelect;
 
 /**
@@ -253,9 +226,6 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),
 });
-export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
-	schedules: many(backupScheduleNotificationsTable),
-}));
 export type NotificationDestination = typeof notificationDestinationsTable.$inferSelect;
 
 /**
@@ -280,16 +250,6 @@ export const backupScheduleNotificationsTable = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.scheduleId, table.destinationId] })],
 );
-export const backupScheduleNotificationRelations = relations(backupScheduleNotificationsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleNotificationsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	destination: one(notificationDestinationsTable, {
-		fields: [backupScheduleNotificationsTable.destinationId],
-		references: [notificationDestinationsTable.id],
-	}),
-}));
 export type BackupScheduleNotification = typeof backupScheduleNotificationsTable.$inferSelect;
 
 /**
@@ -317,16 +277,6 @@ export const backupScheduleMirrorsTable = sqliteTable(
 	(table) => [unique().on(table.scheduleId, table.repositoryId)],
 );
 
-export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleMirrorsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupScheduleMirrorsTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-}));
 export type BackupScheduleMirror = typeof backupScheduleMirrorsTable.$inferSelect;
 
 /**
@@ -357,3 +307,83 @@ export const twoFactor = sqliteTable(
 	},
 	(table) => [index("twoFactor_secret_idx").on(table.secret), index("twoFactor_userId_idx").on(table.userId)],
 );
+
+export const ssoProvider = sqliteTable("sso_provider", {
+	id: text("id").primaryKey(),
+	issuer: text("issuer").notNull(),
+	oidcConfig: text("oidc_config"),
+	samlConfig: text("saml_config"),
+	userId: text("user_id").references(() => usersTable.id, {
+		onDelete: "cascade",
+	}),
+	providerId: text("provider_id").notNull().unique(),
+	organizationId: text("organization_id"),
+	domain: text("domain").notNull(),
+});
+
+export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
+	schedules: many(backupScheduleNotificationsTable),
+}));
+
+export const backupScheduleNotificationRelations = relations(backupScheduleNotificationsTable, ({ one }) => ({
+	schedule: one(backupSchedulesTable, {
+		fields: [backupScheduleNotificationsTable.scheduleId],
+		references: [backupSchedulesTable.id],
+	}),
+	destination: one(notificationDestinationsTable, {
+		fields: [backupScheduleNotificationsTable.destinationId],
+		references: [notificationDestinationsTable.id],
+	}),
+}));
+
+export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
+	schedule: one(backupSchedulesTable, {
+		fields: [backupScheduleMirrorsTable.scheduleId],
+		references: [backupSchedulesTable.id],
+	}),
+	repository: one(repositoriesTable, {
+		fields: [backupScheduleMirrorsTable.repositoryId],
+		references: [repositoriesTable.id],
+	}),
+}));
+
+export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
+	volume: one(volumesTable, {
+		fields: [backupSchedulesTable.volumeId],
+		references: [volumesTable.id],
+	}),
+	repository: one(repositoriesTable, {
+		fields: [backupSchedulesTable.repositoryId],
+		references: [repositoriesTable.id],
+	}),
+	notifications: many(backupScheduleNotificationsTable),
+	mirrors: many(backupScheduleMirrorsTable),
+}));
+
+export const userRelations = relations(usersTable, ({ many }) => ({
+	sessions: many(sessionsTable),
+	accounts: many(account),
+	twoFactors: many(twoFactor),
+	ssoProviders: many(ssoProvider),
+}));
+
+export const sessionRelations = relations(sessionsTable, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [sessionsTable.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [account.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const ssoProviderRelations = relations(ssoProvider, ({ one }) => ({
+	usersTable: one(usersTable, {
+		fields: [ssoProvider.userId],
+		references: [usersTable.id],
+	}),
+}));

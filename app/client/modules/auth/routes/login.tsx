@@ -14,6 +14,7 @@ import { authClient } from "~/client/lib/auth-client";
 import { authMiddleware } from "~/middleware/auth";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import type { Route } from "./+types/login";
+import { listSsoProviders } from "~/client/api-client";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -34,7 +35,14 @@ const loginSchema = type({
 
 type LoginFormValues = typeof loginSchema.inferIn;
 
-export default function LoginPage() {
+export async function clientLoader(_: Route.ClientLoaderArgs) {
+	const providers = await listSsoProviders();
+
+	return { providers: providers.data ?? [] };
+}
+
+export default function LoginPage({ loaderData }: Route.ComponentProps) {
+	const { providers } = loaderData;
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -126,6 +134,13 @@ export default function LoginPage() {
 		setTotpCode("");
 		setTrustDevice(false);
 		form.reset();
+	};
+
+	const handleSSOLogin = async (providerId: string) => {
+		await authClient.signIn.sso({
+			providerId,
+			callbackURL: "/volumes",
+		});
 	};
 
 	if (requires2FA) {
@@ -239,6 +254,26 @@ export default function LoginPage() {
 					</Button>
 				</form>
 			</Form>
+
+			{providers && providers.length > 0 && (
+				<>
+					<div className="relative my-4">
+						<div className="absolute inset-0 flex items-center">
+							<span className="w-full border-t" />
+						</div>
+						<div className="relative flex justify-center text-xs uppercase">
+							<span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+						</div>
+					</div>
+					<div className="grid gap-2">
+						{providers.map((p) => (
+							<Button key={p.id} variant="outline" className="w-full" onClick={() => handleSSOLogin(p.providerId)}>
+								Sign in with {p.providerId}
+							</Button>
+						))}
+					</div>
+				</>
+			)}
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

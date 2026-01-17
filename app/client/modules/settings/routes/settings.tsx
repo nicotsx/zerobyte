@@ -20,7 +20,9 @@ import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { appContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
+import { SSOSection } from "../components/sso-section";
 import type { Route } from "./+types/settings";
+import { listSsoProviders } from "~/client/api-client";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
@@ -36,12 +38,16 @@ export function meta(_: Route.MetaArgs) {
 	];
 }
 
-export async function clientLoader({ context }: Route.LoaderArgs) {
+export async function clientLoader({ context }: Route.ClientLoaderArgs) {
 	const ctx = context.get(appContext);
-	return ctx;
+	const providers = await listSsoProviders();
+	const accounts = await authClient.listAccounts();
+
+	return { ...ctx, ssoProviders: providers.data ?? [], userAccounts: accounts.data ?? [] };
 }
 
 export default function Settings({ loaderData }: Route.ComponentProps) {
+	const { user } = loaderData;
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -155,7 +161,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 			<CardContent className="p-6 space-y-4">
 				<div className="space-y-2">
 					<Label>Username</Label>
-					<Input value={loaderData.user?.username || ""} disabled className="max-w-md" />
+					<Input value={user?.username} disabled className="max-w-md" />
 				</div>
 				{/* <div className="space-y-2"> */}
 				{/* 	<Label>Email</Label> */}
@@ -278,8 +284,8 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 					</DialogContent>
 				</Dialog>
 			</CardContent>
-
-			<TwoFactorSection twoFactorEnabled={loaderData.user?.twoFactorEnabled} />
+			<TwoFactorSection twoFactorEnabled={user?.twoFactorEnabled} />
+			<SSOSection providers={loaderData.ssoProviders} userAccounts={loaderData.userAccounts} />
 		</Card>
 	);
 }

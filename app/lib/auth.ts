@@ -6,11 +6,11 @@ import {
 	type MiddlewareOptions,
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { createAuthMiddleware, twoFactor, username } from "better-auth/plugins";
+import { createAuthMiddleware, twoFactor, username, admin, organization } from "better-auth/plugins";
+import { sso } from "@better-auth/sso";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { db } from "~/server/db/db";
-import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 import { config } from "~/server/core/config";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
@@ -21,9 +21,24 @@ const createBetterAuth = (secret: string) =>
 		trustedOrigins: config.trustedOrigins ?? ["*"],
 		hooks: {
 			before: createAuthMiddleware(async (ctx) => {
-				await ensureOnlyOneUser(ctx);
 				await convertLegacyUserOnFirstLogin(ctx);
 			}),
+		},
+		databaseHooks: {
+			user: {
+				create: {
+					before: async (user) => {
+						const anyUser = await db.query.usersTable.findFirst();
+						const isFirstUser = !anyUser;
+
+						if (isFirstUser) {
+							user.role = "admin";
+						}
+
+						return { data: user };
+					},
+				},
+			},
 		},
 		database: drizzleAdapter(db, {
 			provider: "sqlite",
@@ -50,13 +65,22 @@ const createBetterAuth = (secret: string) =>
 		},
 		plugins: [
 			username(),
+			admin({ defaultRole: "user" }),
+			organization(),
 			twoFactor({
 				backupCodeOptions: {
 					storeBackupCodes: "encrypted",
 					amount: 5,
 				},
 			}),
+			sso(),
 		],
+		account: {
+			accountLinking: {
+				enabled: true,
+				allowDifferentEmails: true,
+			},
+		},
 	});
 
 type Auth = ReturnType<typeof createBetterAuth>;

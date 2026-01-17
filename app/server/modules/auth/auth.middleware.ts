@@ -26,6 +26,11 @@ export const requireAuth = createMiddleware(async (c, next) => {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
 
+	if (user.role !== "admin") {
+		// For now we only have admin users
+		return c.json<unknown>({ message: "Insufficient permissions" }, 403);
+	}
+
 	c.set("user", user);
 
 	await next();
