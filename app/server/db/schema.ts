@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, int, integer, sqliteTable, text, real, primaryKey, unique } from "drizzle-orm/sqlite-core";
+import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type {
 	CompressionMode,
 	RepositoryBackend,
@@ -9,32 +9,6 @@ import type {
 } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
-
-/**
- * Volumes Table
- */
-export const volumesTable = sqliteTable("volumes_table", {
-	id: int().primaryKey({ autoIncrement: true }),
-	shortId: text("short_id").notNull().unique(),
-	name: text().notNull().unique(),
-	type: text().$type<BackendType>().notNull(),
-	status: text().$type<BackendStatus>().notNull().default("unmounted"),
-	lastError: text("last_error"),
-	lastHealthCheck: integer("last_health_check", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	createdAt: integer("created_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	updatedAt: integer("updated_at", { mode: "number" })
-		.notNull()
-		.$onUpdate(() => Date.now())
-		.default(sql`(unixepoch() * 1000)`),
-	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
-	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
-});
-export type Volume = typeof volumesTable.$inferSelect;
-export type VolumeInsert = typeof volumesTable.$inferInsert;
 
 /**
  * Users Table
@@ -57,6 +31,10 @@ export const usersTable = sqliteTable("users_table", {
 	image: text("image"),
 	displayUsername: text("display_username"),
 	twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
+	role: text("role"),
+	banned: integer("banned", { mode: "boolean" }).default(false),
+	banReason: text("ban_reason"),
+	banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
 });
 
 export type User = typeof usersTable.$inferSelect;
@@ -78,6 +56,8 @@ export const sessionsTable = sqliteTable(
 			.default(sql`(unixepoch() * 1000)`),
 		ipAddress: text("ip_address"),
 		userAgent: text("user_agent"),
+		impersonatedBy: text("impersonated_by"),
+		activeOrganizationId: text("active_organization_id"),
 	},
 	(table) => [index("sessionsTable_userId_idx").on(table.userId)],
 );
@@ -132,25 +112,82 @@ export const verification = sqliteTable(
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export const userRelations = relations(usersTable, ({ many }) => ({
-	sessions: many(sessionsTable),
-	accounts: many(account),
-	twoFactors: many(twoFactor),
-}));
+export const organization = sqliteTable(
+	"organization",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		slug: text("slug").notNull().unique(),
+		logo: text("logo"),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+		metadata: text("metadata"),
+	},
+	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
+);
 
-export const sessionRelations = relations(sessionsTable, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [sessionsTable.userId],
-		references: [usersTable.id],
-	}),
-}));
+export const member = sqliteTable(
+	"member",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+		role: text("role").default("member").notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+	},
+	(table) => [index("member_organizationId_idx").on(table.organizationId), index("member_userId_idx").on(table.userId)],
+);
 
-export const accountRelations = relations(account, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [account.userId],
-		references: [usersTable.id],
-	}),
-}));
+export const invitation = sqliteTable(
+	"invitation",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		email: text("email").notNull(),
+		role: text("role"),
+		status: text("status").default("pending").notNull(),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+		inviterId: text("inviter_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		index("invitation_organizationId_idx").on(table.organizationId),
+		index("invitation_email_idx").on(table.email),
+	],
+);
+
+/**
+ * Volumes Table
+ */
+export const volumesTable = sqliteTable("volumes_table", {
+	id: int().primaryKey({ autoIncrement: true }),
+	shortId: text("short_id").notNull().unique(),
+	name: text().notNull().unique(),
+	type: text().$type<BackendType>().notNull(),
+	status: text().$type<BackendStatus>().notNull().default("unmounted"),
+	lastError: text("last_error"),
+	lastHealthCheck: integer("last_health_check", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	createdAt: integer("created_at", { mode: "number" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: integer("updated_at", { mode: "number" })
+		.notNull()
+		.$onUpdate(() => Date.now())
+		.default(sql`(unixepoch() * 1000)`),
+	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
+	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
+});
+export type Volume = typeof volumesTable.$inferSelect;
+export type VolumeInsert = typeof volumesTable.$inferInsert;
 
 /**
  * Repositories Table
@@ -223,18 +260,6 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 });
 export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
-export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
-	volume: one(volumesTable, {
-		fields: [backupSchedulesTable.volumeId],
-		references: [volumesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupSchedulesTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-	notifications: many(backupScheduleNotificationsTable),
-	mirrors: many(backupScheduleMirrorsTable),
-}));
 export type BackupSchedule = typeof backupSchedulesTable.$inferSelect;
 
 /**
@@ -253,9 +278,6 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),
 });
-export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
-	schedules: many(backupScheduleNotificationsTable),
-}));
 export type NotificationDestination = typeof notificationDestinationsTable.$inferSelect;
 
 /**
@@ -280,16 +302,6 @@ export const backupScheduleNotificationsTable = sqliteTable(
 	},
 	(table) => [primaryKey({ columns: [table.scheduleId, table.destinationId] })],
 );
-export const backupScheduleNotificationRelations = relations(backupScheduleNotificationsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleNotificationsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	destination: one(notificationDestinationsTable, {
-		fields: [backupScheduleNotificationsTable.destinationId],
-		references: [notificationDestinationsTable.id],
-	}),
-}));
 export type BackupScheduleNotification = typeof backupScheduleNotificationsTable.$inferSelect;
 
 /**
@@ -317,16 +329,6 @@ export const backupScheduleMirrorsTable = sqliteTable(
 	(table) => [unique().on(table.scheduleId, table.repositoryId)],
 );
 
-export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleMirrorsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupScheduleMirrorsTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-}));
 export type BackupScheduleMirror = typeof backupScheduleMirrorsTable.$inferSelect;
 
 /**
@@ -357,3 +359,98 @@ export const twoFactor = sqliteTable(
 	},
 	(table) => [index("twoFactor_secret_idx").on(table.secret), index("twoFactor_userId_idx").on(table.userId)],
 );
+
+export const userRelations = relations(usersTable, ({ many }) => ({
+	sessions: many(sessionsTable),
+	accounts: many(account),
+	members: many(member),
+	invitations: many(invitation),
+	twoFactors: many(twoFactor),
+}));
+
+export const sessionRelations = relations(sessionsTable, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [sessionsTable.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+	user: one(usersTable, {
+		fields: [account.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const organizationRelations = relations(organization, ({ many }) => ({
+	members: many(member),
+	invitations: many(invitation),
+}));
+
+export const memberRelations = relations(member, ({ one }) => ({
+	organization: one(organization, {
+		fields: [member.organizationId],
+		references: [organization.id],
+	}),
+	usersTable: one(usersTable, {
+		fields: [member.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const invitationRelations = relations(invitation, ({ one }) => ({
+	organization: one(organization, {
+		fields: [invitation.organizationId],
+		references: [organization.id],
+	}),
+	usersTable: one(usersTable, {
+		fields: [invitation.inviterId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
+	usersTable: one(usersTable, {
+		fields: [twoFactor.userId],
+		references: [usersTable.id],
+	}),
+}));
+
+export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
+	schedule: one(backupSchedulesTable, {
+		fields: [backupScheduleMirrorsTable.scheduleId],
+		references: [backupSchedulesTable.id],
+	}),
+	repository: one(repositoriesTable, {
+		fields: [backupScheduleMirrorsTable.repositoryId],
+		references: [repositoriesTable.id],
+	}),
+}));
+
+export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
+	volume: one(volumesTable, {
+		fields: [backupSchedulesTable.volumeId],
+		references: [volumesTable.id],
+	}),
+	repository: one(repositoriesTable, {
+		fields: [backupSchedulesTable.repositoryId],
+		references: [repositoriesTable.id],
+	}),
+	notifications: many(backupScheduleNotificationsTable),
+	mirrors: many(backupScheduleMirrorsTable),
+}));
+
+export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
+	schedules: many(backupScheduleNotificationsTable),
+}));
+
+export const backupScheduleNotificationRelations = relations(backupScheduleNotificationsTable, ({ one }) => ({
+	schedule: one(backupSchedulesTable, {
+		fields: [backupScheduleNotificationsTable.scheduleId],
+		references: [backupSchedulesTable.id],
+	}),
+	destination: one(notificationDestinationsTable, {
+		fields: [backupScheduleNotificationsTable.destinationId],
+		references: [notificationDestinationsTable.id],
+	}),
+}));

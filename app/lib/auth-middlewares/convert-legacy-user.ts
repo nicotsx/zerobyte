@@ -32,6 +32,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 					name: legacyUser.name,
 					hasDownloadedResticPassword: legacyUser.hasDownloadedResticPassword,
 					emailVerified: false,
+					role: "admin", // In legacy system, the only user is an admin
 				});
 
 				await tx.insert(account).values({
