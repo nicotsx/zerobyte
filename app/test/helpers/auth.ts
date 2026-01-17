@@ -1,7 +1,8 @@
 import { db } from "~/server/db/db";
-import { sessionsTable, usersTable, account } from "~/server/db/schema";
+import { sessionsTable, usersTable, account, organization, member } from "~/server/db/schema";
 import { hashPassword } from "better-auth/crypto";
 import { createHmac } from "node:crypto";
+import { eq } from "drizzle-orm";
 
 export async function createTestSession() {
 	const [existingUser] = await db.select().from(usersTable);
@@ -21,6 +22,34 @@ export async function createTestSession() {
 	const sessionId = token;
 	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+	const [existingOrg] = await db.select().from(organization);
+
+	let orgId: string;
+
+	if (!existingOrg) {
+		orgId = crypto.randomUUID();
+		await db.insert(organization).values({
+			id: orgId,
+			name: "Test Org",
+			slug: "test-org",
+			createdAt: new Date(),
+		});
+	} else {
+		orgId = existingOrg.id;
+	}
+
+	const [existingMember] = await db.select().from(member).where(eq(member.userId, user.id));
+
+	if (!existingMember) {
+		await db.insert(member).values({
+			id: crypto.randomUUID(),
+			userId: user.id,
+			organizationId: orgId,
+			role: "owner",
+			createdAt: new Date(),
+		});
+	}
+
 	await db.insert(sessionsTable).values({
 		id: sessionId,
 		userId: user.id,
@@ -28,12 +57,10 @@ export async function createTestSession() {
 		token: token,
 		createdAt: new Date(),
 		updatedAt: new Date(),
+		activeOrganizationId: orgId,
 	});
 
-	// Better Auth signs the token using HMAC-SHA256 with the secret
-	// The secret is "test-secret" because we mocked cryptoUtils.deriveSecret
 	const signature = createHmac("sha256", "test-secret").update(token).digest("base64");
-
 	const signedToken = `${token}.${signature}`;
 
 	await db
@@ -49,5 +76,5 @@ export async function createTestSession() {
 		})
 		.onConflictDoNothing();
 
-	return { token: encodeURIComponent(signedToken), user };
+	return { token: encodeURIComponent(signedToken), user, organizationId: orgId };
 }

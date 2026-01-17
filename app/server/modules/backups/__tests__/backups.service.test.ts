@@ -6,6 +6,7 @@ import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
 import * as spawnModule from "~/server/utils/spawn";
+import { TEST_ORG_ID } from "~/test/helpers/organization";
 
 const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
 
@@ -35,10 +36,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getSchedule(schedule.id, TEST_ORG_ID);
 		expect(updatedSchedule.nextBackupAt).not.toBeNull();
 
 		const nextBackupAt = new Date(updatedSchedule.nextBackupAt ?? 0);
@@ -59,7 +60,7 @@ describe("execute backup", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(resticBackupMock).not.toHaveBeenCalled();
@@ -80,7 +81,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID, true);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalled();
@@ -101,9 +102,9 @@ describe("execute backup", () => {
 		});
 
 		// act
-		void backupsService.executeBackup(schedule.id);
+		void backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 		await new Promise((resolve) => setTimeout(resolve, 10));
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalledTimes(1);
@@ -123,10 +124,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getSchedule(schedule.id, TEST_ORG_ID);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 	});
 
@@ -144,10 +145,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getSchedule(schedule.id, TEST_ORG_ID);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 	});
 });
@@ -168,7 +169,7 @@ describe("getSchedulesToExecute", () => {
 		});
 
 		// act
-		const schedulesToExecute = await backupsService.getSchedulesToExecute();
+		const schedulesToExecute = await backupsService.getSchedulesToExecute(TEST_ORG_ID);
 
 		// assert
 		expect(schedulesToExecute).toContain(schedule.id);

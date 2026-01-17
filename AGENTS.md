@@ -75,14 +75,13 @@ bun run gen:api-client
 ### Code Quality
 
 ```bash
-# Format and lint (Biome)
-bunx biome check --write .
+# Format and lint
 
-# Format only
-bunx biome format --write .
+# Format
+bunx oxfmt format --write <path>
 
-# Lint only
-bunx biome lint .
+# Lint
+bun run lint
 ```
 
 ## Architecture

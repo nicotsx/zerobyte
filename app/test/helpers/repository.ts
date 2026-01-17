@@ -1,8 +1,11 @@
 import { db } from "~/server/db/db";
 import { faker } from "@faker-js/faker";
 import { repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
+import { ensureTestOrganization, TEST_ORG_ID } from "./organization";
 
 export const createTestRepository = async (overrides: Partial<RepositoryInsert> = {}) => {
+	await ensureTestOrganization();
+
 	const repository: RepositoryInsert = {
 		id: faker.string.alphanumeric(6),
 		name: faker.string.alphanumeric(10),
@@ -12,6 +15,7 @@ export const createTestRepository = async (overrides: Partial<RepositoryInsert> 
 			backend: "local",
 		},
 		type: "local",
+		organizationId: TEST_ORG_ID,
 		...overrides,
 	};
 
