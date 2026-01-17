@@ -31,8 +31,8 @@ export const usersTable = sqliteTable("users_table", {
 	image: text("image"),
 	displayUsername: text("display_username"),
 	twoFactorEnabled: integer("two_factor_enabled", { mode: "boolean" }).notNull().default(false),
-	role: text("role"),
-	banned: integer("banned", { mode: "boolean" }).default(false),
+	role: text("role").notNull().default("user"),
+	banned: integer("banned", { mode: "boolean" }).notNull().default(false),
 	banReason: text("ban_reason"),
 	banExpires: integer("ban_expires", { mode: "timestamp_ms" }),
 });
@@ -142,7 +142,11 @@ export const member = sqliteTable(
 		role: text("role").default("member").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 	},
-	(table) => [index("member_organizationId_idx").on(table.organizationId), index("member_userId_idx").on(table.userId)],
+	(table) => [
+		index("member_organizationId_idx").on(table.organizationId),
+		index("member_userId_idx").on(table.userId),
+		uniqueIndex("member_org_user_uidx").on(table.organizationId, table.userId),
+	],
 );
 
 export const invitation = sqliteTable(
@@ -234,7 +238,7 @@ export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
 export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	id: int().primaryKey({ autoIncrement: true }),
 	shortId: text("short_id").notNull().unique(),
-	name: text().notNull().unique(),
+	name: text().notNull(),
 	volumeId: int("volume_id")
 		.notNull()
 		.references(() => volumesTable.id, { onDelete: "cascade" }),
@@ -280,7 +284,7 @@ export type BackupSchedule = typeof backupSchedulesTable.$inferSelect;
  */
 export const notificationDestinationsTable = sqliteTable("notification_destinations_table", {
 	id: int().primaryKey({ autoIncrement: true }),
-	name: text().notNull().unique(),
+	name: text().notNull(),
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
 	type: text().$type<NotificationType>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof notificationConfigSchema.inferOut>().notNull(),

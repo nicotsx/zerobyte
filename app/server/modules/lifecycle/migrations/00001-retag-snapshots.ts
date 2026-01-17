@@ -13,7 +13,7 @@ const migrateTag = async (
 	scheduleName: string,
 ): Promise<string | null> => {
 	const repoUrl = buildRepoUrl(repository.config);
-	const env = await buildEnv(repository.config, "org-id");
+	const env = await buildEnv(repository.config, repository.organizationId);
 
 	const args = ["--repo", repoUrl, "tag", "--tag", oldTag, "--add", newTag, "--remove", oldTag];
 

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db } from "../../../db/db";
 import { organization, repositoriesTable, volumesTable, notificationDestinationsTable } from "../../../db/schema";
@@ -20,6 +21,35 @@ import { RESTIC_PASS_FILE } from "~/server/core/constants";
  * database encryption is decoupled from restic repository passwords.
  */
 
+const legacyDecrypt = async (encryptedData: string): Promise<string> => {
+	const keyLength = 32;
+	const algorithm = "aes-256-gcm" as const;
+
+	if (!cryptoUtils.isEncrypted(encryptedData)) {
+		return encryptedData;
+	}
+
+	const secret = (await Bun.file(RESTIC_PASS_FILE).text()).trim();
+
+	const parts = encryptedData.split(":").slice(1); // Remove prefix
+	const saltHex = parts.shift() as string;
+	const salt = Buffer.from(saltHex, "hex");
+
+	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
+
+	const iv = Buffer.from(parts.shift() as string, "hex");
+	const encrypted = Buffer.from(parts.shift() as string, "hex");
+	const tag = Buffer.from(parts.shift() as string, "hex");
+	const decipher = crypto.createDecipheriv(algorithm, key, iv);
+
+	decipher.setAuthTag(tag);
+
+	let decrypted = decipher.update(encrypted);
+	decrypted = Buffer.concat([decrypted, decipher.final()]);
+
+	return decrypted.toString();
+};
+
 type MigrationError = { name: string; error: string };
 
 const rekeySecrets = async (config: Record<string, unknown>): Promise<Record<string, unknown>> => {
@@ -27,7 +57,7 @@ const rekeySecrets = async (config: Record<string, unknown>): Promise<Record<str
 
 	for (const [key, value] of Object.entries(rekeyedConfig)) {
 		if (typeof value === "string" && cryptoUtils.isEncrypted(value)) {
-			const decrypted = await cryptoUtils.legacyDecrypt(value);
+			const decrypted = await legacyDecrypt(value);
 			rekeyedConfig[key] = await cryptoUtils.sealSecret(decrypted);
 		} else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
 			rekeyedConfig[key] = await rekeySecrets(value as Record<string, unknown>);

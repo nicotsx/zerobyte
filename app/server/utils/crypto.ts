@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { RESTIC_PASS_FILE } from "../core/constants";
-import { getAppSecret } from "../core/config";
+import { config, getAppSecret } from "../core/config";
 import { isNodeJSErrnoException } from "./fs";
 import { promisify } from "node:util";
 
@@ -141,36 +140,6 @@ const decrypt = async (encryptedData: string) => {
 };
 
 /**
- * Decrypts data using the legacy restic passfile.
- * Used during migration to re-key existing secrets.
- */
-const legacyDecrypt = async (encryptedData: string): Promise<string> => {
-	if (!isEncrypted(encryptedData)) {
-		return encryptedData;
-	}
-
-	const secret = (await Bun.file(RESTIC_PASS_FILE).text()).trim();
-
-	const parts = encryptedData.split(":").slice(1); // Remove prefix
-	const saltHex = parts.shift() as string;
-	const salt = Buffer.from(saltHex, "hex");
-
-	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
-
-	const iv = Buffer.from(parts.shift() as string, "hex");
-	const encrypted = Buffer.from(parts.shift() as string, "hex");
-	const tag = Buffer.from(parts.shift() as string, "hex");
-	const decipher = crypto.createDecipheriv(algorithm, key, iv);
-
-	decipher.setAuthTag(tag);
-
-	let decrypted = decipher.update(encrypted);
-	decrypted = Buffer.concat([decrypted, decipher.final()]);
-
-	return decrypted.toString();
-};
-
-/**
  * Resolves secret references and encrypted database values.
  *
  * - encv1:... -> decrypt
@@ -218,9 +187,7 @@ const sealSecret = async (value: string): Promise<string> => {
 };
 
 async function deriveSecret(label: string) {
-	const masterSecret = getAppSecret();
-
-	const derivedKey = await hkdf("sha256", masterSecret, "", label, 32);
+	const derivedKey = await hkdf("sha256", config.appSecret, "", label, 32);
 
 	return Buffer.from(derivedKey).toString("hex");
 }
@@ -233,7 +200,6 @@ export const cryptoUtils = {
 	resolveSecret,
 	sealSecret,
 	deriveSecret,
-	legacyDecrypt,
 	generateResticPassword,
 	isEncrypted,
 };

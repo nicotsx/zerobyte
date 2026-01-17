@@ -13,6 +13,10 @@ import { db } from "../db/db";
 export class CleanupDanglingMountsJob extends Job {
 	async run() {
 		const organizations = await db.query.organization.findMany({});
+		if (organizations.length === 0) {
+			logger.warn("No organizations found; skipping dangling mount cleanup to avoid false positives.");
+			return { done: true, timestamp: new Date() };
+		}
 
 		const allVolumes = [];
 		for (const org of organizations) {
