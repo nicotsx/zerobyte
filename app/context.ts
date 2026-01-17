@@ -6,6 +6,7 @@ type User = {
 	username: string;
 	hasDownloadedResticPassword: boolean;
 	twoFactorEnabled?: boolean | null;
+	role?: string | null | undefined;
 };
 
 type AppContext = {

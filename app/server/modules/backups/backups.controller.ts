@@ -46,27 +46,27 @@ import { requireAuth } from "../auth/auth.middleware";
 export const backupScheduleController = new Hono()
 	.use(requireAuth)
 	.get("/", listBackupSchedulesDto, async (c) => {
-		const schedules = await backupsService.listSchedules();
+		const schedules = await backupsService.listSchedules(c.get("organizationId"));
 
 		return c.json<ListBackupSchedulesResponseDto>(schedules, 200);
 	})
 	.get("/:scheduleId", getBackupScheduleDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		const schedule = await backupsService.getSchedule(Number(scheduleId));
+		const schedule = await backupsService.getSchedule(Number(scheduleId), c.get("organizationId"));
 
 		return c.json<GetBackupScheduleDto>(schedule, 200);
 	})
 	.get("/volume/:volumeId", getBackupScheduleForVolumeDto, async (c) => {
 		const volumeId = c.req.param("volumeId");
-		const schedule = await backupsService.getScheduleForVolume(Number(volumeId));
+		const schedule = await backupsService.getScheduleForVolume(Number(volumeId), c.get("organizationId"));
 
 		return c.json<GetBackupScheduleForVolumeResponseDto>(schedule, 200);
 	})
 	.post("/", createBackupScheduleDto, validator("json", createBackupScheduleBody), async (c) => {
 		const body = c.req.valid("json");
 
-		const schedule = await backupsService.createSchedule(body);
+		const schedule = await backupsService.createSchedule(body, c.get("organizationId"));
 
 		return c.json<CreateBackupScheduleDto>(schedule, 201);
 	})
@@ -74,21 +74,21 @@ export const backupScheduleController = new Hono()
 		const scheduleId = c.req.param("scheduleId");
 		const body = c.req.valid("json");
 
-		const schedule = await backupsService.updateSchedule(Number(scheduleId), body);
+		const schedule = await backupsService.updateSchedule(Number(scheduleId), body, c.get("organizationId"));
 
 		return c.json<UpdateBackupScheduleDto>(schedule, 200);
 	})
 	.delete("/:scheduleId", deleteBackupScheduleDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		await backupsService.deleteSchedule(Number(scheduleId));
+		await backupsService.deleteSchedule(Number(scheduleId), c.get("organizationId"));
 
 		return c.json<DeleteBackupScheduleDto>({ success: true }, 200);
 	})
 	.post("/:scheduleId/run", runBackupNowDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		backupsService.executeBackup(Number(scheduleId), true).catch((err) => {
+		backupsService.executeBackup(Number(scheduleId), c.get("organizationId"), true).catch((err) => {
 			console.error(`Error executing manual backup for schedule ${scheduleId}:`, err);
 		});
 
@@ -97,14 +97,14 @@ export const backupScheduleController = new Hono()
 	.post("/:scheduleId/stop", stopBackupDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		await backupsService.stopBackup(Number(scheduleId));
+		await backupsService.stopBackup(Number(scheduleId), c.get("organizationId"));
 
 		return c.json<StopBackupDto>({ success: true }, 200);
 	})
 	.post("/:scheduleId/forget", runForgetDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
 
-		await backupsService.runForget(Number(scheduleId));
+		await backupsService.runForget(Number(scheduleId), c.get("organizationId"));
 
 		return c.json<RunForgetDto>({ success: true }, 200);
 	})
@@ -128,27 +128,27 @@ export const backupScheduleController = new Hono()
 	)
 	.get("/:scheduleId/mirrors", getScheduleMirrorsDto, async (c) => {
 		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
-		const mirrors = await backupsService.getMirrors(scheduleId);
+		const mirrors = await backupsService.getMirrors(scheduleId, c.get("organizationId"));
 
 		return c.json<GetScheduleMirrorsDto>(mirrors, 200);
 	})
 	.put("/:scheduleId/mirrors", updateScheduleMirrorsDto, validator("json", updateScheduleMirrorsBody), async (c) => {
 		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
 		const body = c.req.valid("json");
-		const mirrors = await backupsService.updateMirrors(scheduleId, body);
+		const mirrors = await backupsService.updateMirrors(scheduleId, c.get("organizationId"), body);
 
 		return c.json<UpdateScheduleMirrorsDto>(mirrors, 200);
 	})
 	.get("/:scheduleId/mirrors/compatibility", getMirrorCompatibilityDto, async (c) => {
 		const scheduleId = Number.parseInt(c.req.param("scheduleId"), 10);
-		const compatibility = await backupsService.getMirrorCompatibility(scheduleId);
+		const compatibility = await backupsService.getMirrorCompatibility(scheduleId, c.get("organizationId"));
 
 		return c.json<GetMirrorCompatibilityDto>(compatibility, 200);
 	})
 	.post("/reorder", reorderBackupSchedulesDto, validator("json", reorderBackupSchedulesBody), async (c) => {
 		const body = c.req.valid("json");
 
-		await backupsService.reorderSchedules(body.scheduleIds);
+		await backupsService.reorderSchedules(body.scheduleIds, c.get("organizationId"));
 
 		return c.json<ReorderBackupSchedulesDto>({ success: true }, 200);
 	});

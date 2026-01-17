@@ -239,6 +239,69 @@
       "when": 1768497767122,
       "tag": "0033_chunky_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1768653352902,
+      "tag": "0034_slippery_mongu",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1768653442143,
+      "tag": "0035_default-admin-role",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1768653580581,
+      "tag": "0036_create-default-org",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "6",
+      "when": 1768654184173,
+      "tag": "0037_create-default-member",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "6",
+      "when": 1768658258128,
+      "tag": "0038_shallow_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "6",
+      "when": 1768658359845,
+      "tag": "0039_backfill-entities-org-id",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1768659604809,
+      "tag": "0040_tidy_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1768684588784,
+      "tag": "0041_motionless_storm",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1768687163221,
+      "tag": "0042_watery_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

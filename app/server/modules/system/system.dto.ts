@@ -65,15 +65,57 @@ export const downloadResticPasswordBodySchema = type({
 });
 
 export const downloadResticPasswordDto = describeRoute({
-	description: "Download the Restic password file for backup recovery. Requires password re-authentication.",
+	description: "Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.",
 	tags: ["System"],
 	operationId: "downloadResticPassword",
 	responses: {
 		200: {
-			description: "Restic password file content",
+			description: "Organization's Restic password",
 			content: {
 				"text/plain": {
 					schema: { type: "string" },
+				},
+			},
+		},
+	},
+});
+
+export const registrationStatusResponse = type({
+	disabled: "boolean",
+});
+
+export type RegistrationStatusDto = typeof registrationStatusResponse.infer;
+
+export const registrationStatusBody = type({
+	disabled: "boolean",
+});
+
+export const getRegistrationStatusDto = describeRoute({
+	description: "Get the current registration status for new users",
+	tags: ["System"],
+	operationId: "getRegistrationStatus",
+	responses: {
+		200: {
+			description: "Registration status",
+			content: {
+				"application/json": {
+					schema: resolver(registrationStatusResponse),
+				},
+			},
+		},
+	},
+});
+
+export const setRegistrationStatusDto = describeRoute({
+	description: "Update the registration status for new users. Requires global admin role.",
+	tags: ["System"],
+	operationId: "setRegistrationStatus",
+	responses: {
+		200: {
+			description: "Registration status updated",
+			content: {
+				"application/json": {
+					schema: resolver(registrationStatusResponse),
 				},
 			},
 		},

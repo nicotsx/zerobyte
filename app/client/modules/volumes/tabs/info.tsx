@@ -37,7 +37,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 			setPendingValues(null);
 
 			if (data.name !== volume.name) {
-				void navigate(`/volumes/${data.name}`);
+				void navigate(`/volumes/${data.shortId}`);
 			}
 		},
 		onError: (error) => {
@@ -58,7 +58,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const confirmUpdate = () => {
 		if (pendingValues) {
 			updateMutation.mutate({
-				path: { name: volume.name },
+				path: { id: volume.shortId },
 				body: { name: pendingValues.name, config: pendingValues },
 			});
 		}

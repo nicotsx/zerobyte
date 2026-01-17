@@ -7,6 +7,7 @@ import { generateBackupOutput } from "~/test/helpers/restic";
 import { getVolumePath } from "../../volumes/helpers";
 import { restic } from "~/server/utils/restic";
 import path from "node:path";
+import { TEST_ORG_ID } from "~/test/helpers/organization";
 
 const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: JSON.parse(generateBackupOutput()) }));
 
@@ -36,7 +37,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -67,7 +68,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -97,7 +98,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -121,7 +122,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id, TEST_ORG_ID);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(

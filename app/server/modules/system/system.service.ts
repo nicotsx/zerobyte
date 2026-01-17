@@ -4,8 +4,12 @@ import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
+import { db } from "../../db/db";
+import { appMetadataTable } from "../../db/schema";
+import { eq } from "drizzle-orm";
 
 const CACHE_TTL = 60 * 60;
+const REGISTRATION_DISABLED_KEY = "registrationsDisabled";
 
 const getSystemInfo = async () => {
 	return {
@@ -69,12 +73,7 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 				? []
 				: formattedReleases.filter((r) => !!(semver.valid(r.version) && semver.gt(r.version, currentVersion)));
 
-		const data: UpdateInfoDto = {
-			currentVersion,
-			latestVersion,
-			hasUpdate,
-			missedReleases,
-		};
+		const data = { currentVersion, latestVersion, hasUpdate, missedReleases };
 
 		cache.set(CACHE_KEY, data, CACHE_TTL);
 
@@ -90,7 +89,28 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 	}
 };
 
+const isRegistrationDisabled = async () => {
+	const result = await db.query.appMetadataTable.findFirst({
+		where: eq(appMetadataTable.key, REGISTRATION_DISABLED_KEY),
+	});
+
+	return result?.value === "true";
+};
+
+const setRegistrationDisabled = async (disabled: boolean) => {
+	const now = Date.now();
+
+	await db
+		.insert(appMetadataTable)
+		.values({ key: REGISTRATION_DISABLED_KEY, value: JSON.stringify(disabled), createdAt: now, updatedAt: now })
+		.onConflictDoUpdate({ target: appMetadataTable.key, set: { value: JSON.stringify(disabled), updatedAt: now } });
+
+	logger.info(`Registration disabled set to: ${disabled}`);
+};
+
 export const systemService = {
 	getSystemInfo,
 	getUpdates,
+	isRegistrationDisabled,
+	setRegistrationDisabled,
 };

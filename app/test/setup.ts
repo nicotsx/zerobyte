@@ -22,6 +22,7 @@ void mock.module("~/server/utils/crypto", () => ({
 		deriveSecret: async () => "test-secret",
 		sealSecret: async (v: string) => v,
 		resolveSecret: async (v: string) => v,
+		generateResticPassword: () => "test-restic-password",
 	},
 }));
 

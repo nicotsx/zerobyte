@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `volumes_table_name_organization_id_unique` ON `volumes_table` (`name`,`organization_id`);

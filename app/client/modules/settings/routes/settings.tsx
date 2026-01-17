@@ -1,9 +1,13 @@
-import { useMutation } from "@tanstack/react-query";
-import { Download, KeyRound, User, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download, KeyRound, User, X, Users } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	downloadResticPasswordMutation,
+	setRegistrationStatusMutation,
+	getRegistrationStatusOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import {
@@ -17,6 +21,7 @@ import {
 } from "~/client/components/ui/dialog";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
+import { Switch } from "~/client/components/ui/switch";
 import { authClient } from "~/client/lib/auth-client";
 import { appContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
@@ -50,6 +55,25 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 
 	const navigate = useNavigate();
+	const isAdmin = loaderData.user?.role === "admin";
+
+	const registrationStatusQuery = useQuery({
+		...getRegistrationStatusOptions(),
+		enabled: isAdmin,
+	});
+
+	const updateRegistrationStatusMutation = useMutation({
+		...setRegistrationStatusMutation(),
+		onSuccess: () => {
+			toast.success("Registration settings updated");
+			void registrationStatusQuery.refetch();
+		},
+		onError: (error) => {
+			toast.error("Failed to update registration settings", {
+				description: error.message,
+			});
+		},
+	});
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -145,6 +169,35 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Card className="p-0 gap-0">
+			{isAdmin && (
+				<div className="border-b border-border/50 bg-card-header p-6">
+					<CardTitle className="flex items-center gap-2">
+						<Users className="size-5" />
+						System Settings
+					</CardTitle>
+					<CardDescription className="mt-1.5">Manage system-wide settings</CardDescription>
+				</div>
+			)}
+			{isAdmin && (
+				<CardContent className="p-6">
+					<div className="flex items-center justify-between">
+						<div className="space-y-0.5">
+							<Label htmlFor="disable-registrations" className="text-base">
+								Disable new user registrations
+							</Label>
+							<p className="text-sm text-muted-foreground max-w-2xl">
+								When enabled, new users cannot sign up. Only administrators can create accounts manually.
+							</p>
+						</div>
+						<Switch
+							id="disable-registrations"
+							checked={registrationStatusQuery.data?.disabled ?? false}
+							onCheckedChange={(checked) => updateRegistrationStatusMutation.mutate({ body: { disabled: checked } })}
+							disabled={registrationStatusQuery.isLoading || updateRegistrationStatusMutation.isPending}
+						/>
+					</div>
+				</CardContent>
+			)}
 			<div className="border-b border-border/50 bg-card-header p-6">
 				<CardTitle className="flex items-center gap-2">
 					<User className="size-5" />
