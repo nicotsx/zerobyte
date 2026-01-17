@@ -28,3 +28,11 @@ export function slugify(input: string): string {
 		.replace(/[_]{2,}/g, "_")
 		.trim();
 }
+
+export function safeJsonParse<T>(input: string): T | null {
+	try {
+		return JSON.parse(input) as T;
+	} catch {
+		return null;
+	}
+}

@@ -137,6 +137,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								<Button
 									type="button"
 									variant="destructive"
+									loading={cancelDoctor.isPending}
 									onClick={() => cancelDoctor.mutate({ path: { id: repository.id } })}
 								>
 									<Square className="h-4 w-4 mr-2" />
