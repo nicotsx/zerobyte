@@ -9,12 +9,12 @@ import {
 	type UpdateInfoDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
-import { requireAuth } from "../auth/auth.middleware";
-import { RESTIC_PASS_FILE } from "../../core/constants";
+import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { db } from "../../db/db";
-import { usersTable } from "../../db/schema";
+import { organization, usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
+import { cryptoUtils } from "../../utils/crypto";
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -30,10 +30,12 @@ export const systemController = new Hono()
 	})
 	.post(
 		"/restic-password",
+		requireOrgAdmin,
 		downloadResticPasswordDto,
 		validator("json", downloadResticPasswordBodySchema),
 		async (c) => {
 			const user = c.get("user");
+			const organizationId = c.get("organizationId");
 			const body = c.req.valid("json");
 
 			const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });
@@ -42,8 +44,15 @@ export const systemController = new Hono()
 			}
 
 			try {
-				const file = Bun.file(RESTIC_PASS_FILE);
-				const content = await file.text();
+				const org = await db.query.organization.findFirst({
+					where: eq(organization.id, organizationId),
+				});
+
+				if (!org?.metadata?.resticPassword) {
+					return c.json({ message: "Organization Restic password not found" }, 404);
+				}
+
+				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
 				await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, user.id));
 
@@ -52,7 +61,7 @@ export const systemController = new Hono()
 
 				return c.text(content);
 			} catch (_error) {
-				return c.json({ message: "Failed to read Restic password file" }, 500);
+				return c.json({ message: "Failed to retrieve Restic password" }, 500);
 			}
 		},
 	);

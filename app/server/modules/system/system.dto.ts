@@ -65,12 +65,12 @@ export const downloadResticPasswordBodySchema = type({
 });
 
 export const downloadResticPasswordDto = describeRoute({
-	description: "Download the Restic password file for backup recovery. Requires password re-authentication.",
+	description: "Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.",
 	tags: ["System"],
 	operationId: "downloadResticPassword",
 	responses: {
 		200: {
-			description: "Restic password file content",
+			description: "Organization's Restic password",
 			content: {
 				"text/plain": {
 					schema: { type: "string" },
