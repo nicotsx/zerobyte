@@ -10,10 +10,5 @@ RUN apt-get update && apt-get install -y \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m davuser
-
-# Enable user_allow_other for FUSE mounts
-RUN echo "user_allow_other" >> /etc/fuse.conf
-
 WORKDIR /app
 

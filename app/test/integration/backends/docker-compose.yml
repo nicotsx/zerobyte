@@ -12,9 +12,8 @@ services:
     environment:
       - NODE_ENV=test
       - LOG_LEVEL=debug
-    command: tail -f /dev/null # Keep alive for exec
+    command: tail -f /dev/null
 
-  # Mock SMB Server
   smb-server:
     image: dperson/samba
     environment:
@@ -23,7 +22,6 @@ services:
     tmpfs:
       - /tmp/samba
 
-  # Mock WebDAV Server
   webdav-server:
     image: bytemark/webdav
     environment:
@@ -33,7 +31,6 @@ services:
     volumes:
       - webdav-data:/var/lib/dav/data
 
-  # Mock NFS Server
   nfs-server:
     image: erichough/nfs-server
     privileged: true
@@ -43,15 +40,6 @@ services:
     volumes:
       - nfs-data:/exports
 
-  # Mock SFTP Server
-  sftp-server:
-    image: atmoz/sftp
-    command: testuser:testpass:1001
-    volumes:
-      - sftp-data:/home/testuser
-
 volumes:
   webdav-data:
   nfs-data:
-  sftp-data:
-

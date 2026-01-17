@@ -38,5 +38,5 @@ describe("NFS Backend Integration", () => {
 		// 4. Unmount
 		const unmountResult = await backend.unmount();
 		expect(unmountResult.status).toBe(BACKEND_STATUS.unmounted);
-	}, 60000);
+	}, 10000);
 });
