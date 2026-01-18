@@ -1,0 +1,62 @@
+name: Bug report
+about: Create a report to help us fix a bug
+title: "[BUG] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Brief description of what went wrong
+      placeholder: Describe the issue...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: List the steps to reproduce the bug
+      placeholder: |
+        1. Go to...
+        2. Click on...
+        3. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Zerobyte version / commit
+      placeholder: e.g., v1.2.3 or commit sha
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment Method
+      options:
+        - Docker Compose
+        - Docker
+        - Local Development
+        - Other
+  - type: textarea
+    id: backup_context
+    attributes:
+      label: Backup/Repository Context
+      description: If this is related to backup operations, provide details about the repository type, storage backend, etc.
+      placeholder: e.g., S3 repository, local filesystem, specific backup operation that failed
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Messages
+      description: Check browser console (F12) or server logs for errors. Remove any sensitive information.
+    validations:
+      required: true
+

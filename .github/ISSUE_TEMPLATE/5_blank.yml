@@ -1,0 +1,20 @@
+name: Blank Issue
+about: Create a blank issue for anything that doesn't fit other templates
+title: ""
+labels: []
+assignees: []
+body:
+  - type: textarea
+    id: content
+    attributes:
+      label: Issue Details
+      description: Describe your issue, question, or request
+      placeholder: |
+        Please provide as much detail as possible about your issue.
+
+        If this is a bug, consider using the Bug Report template instead.
+        If this is a feature request, consider using the Feature Request template instead.
+        If you have a question, consider using the Question template instead.
+    validations:
+      required: true
+

@@ -1,0 +1,21 @@
+name: Question
+about: General questions about usage or implementation
+title: "[QUESTION] "
+labels: ["question"]
+assignees: []
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Provide a clear question and any minimal code samples
+      placeholder: What would you like to know about Zerobyte?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / what you've tried
+      description: Provide context about what you're trying to accomplish and what you've already tried
+      placeholder: I'm trying to... and I've already tried...
+

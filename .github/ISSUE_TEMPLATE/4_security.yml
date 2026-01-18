@@ -1,0 +1,18 @@
+name: Security
+about: Report a security vulnerability (do not file public issues)
+title: "[SECURITY] "
+labels: ["security"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **⚠️ SECURITY VULNERABILITY NOTICE ⚠️**
+
+        If you believe you've found a security vulnerability, **do not open a public issue**.
+
+        Use GitHub's private security advisory feature: [Report a vulnerability](https://github.com/nicotsx/zerobyte/security/advisories/new)
+
+        This helps us address security issues responsibly before they can be exploited.
+
+

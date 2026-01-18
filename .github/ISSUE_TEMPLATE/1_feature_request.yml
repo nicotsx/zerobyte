@@ -1,0 +1,38 @@
+name: Feature request
+about: Suggest an enhancement or new feature
+title: "[FEATURE] "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One-line summary of the requested feature
+      placeholder: Brief description of what you'd like to see added
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / Use case
+      description: Why is this feature needed? What problem does it solve?
+      placeholder: Describe the problem or use case that this feature would address
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Brief implementation idea or API surface
+      placeholder: How do you envision this feature working?
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Low
+        - Medium
+        - High
+      description: Estimated impact on users or project
+
