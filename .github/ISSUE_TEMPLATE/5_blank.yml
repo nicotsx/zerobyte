@@ -1,5 +1,5 @@
 name: Blank Issue
-about: Create a blank issue for anything that doesn't fit other templates
+description: Create a blank issue for anything that doesn't fit other templates
 title: ""
 labels: []
 assignees: []
@@ -17,4 +17,3 @@ body:
         If you have a question, consider using the Question template instead.
     validations:
       required: true
-

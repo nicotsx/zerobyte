@@ -1,5 +1,5 @@
 name: Question
-about: General questions about usage or implementation
+description: General questions about usage or implementation
 title: "[QUESTION] "
 labels: ["question"]
 assignees: []
@@ -18,4 +18,3 @@ body:
       label: Context / what you've tried
       description: Provide context about what you're trying to accomplish and what you've already tried
       placeholder: I'm trying to... and I've already tried...
-

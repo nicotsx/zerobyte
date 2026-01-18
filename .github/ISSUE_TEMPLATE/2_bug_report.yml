@@ -1,5 +1,5 @@
 name: Bug report
-about: Create a report to help us fix a bug
+description: Create a report to help us fix a bug
 title: "[BUG] "
 labels: ["bug"]
 assignees: []
@@ -59,4 +59,3 @@ body:
       description: Check browser console (F12) or server logs for errors. Remove any sensitive information.
     validations:
       required: true
-

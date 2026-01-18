@@ -1,5 +1,5 @@
 name: Feature request
-about: Suggest an enhancement or new feature
+description: Suggest an enhancement or new feature
 title: "[FEATURE] "
 labels: ["enhancement"]
 assignees: []
@@ -35,4 +35,3 @@ body:
         - Medium
         - High
       description: Estimated impact on users or project
-
