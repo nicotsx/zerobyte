@@ -26,7 +26,7 @@ export const smbConfigSchema = type({
 	share: "string",
 	username: "string",
 	password: "string",
-	vers: type("'1.0' | '2.0' | '2.1' | '3.0' | 'auto'").default("auto"),
+	vers: type("'1.0' | '2.0' | '2.1' | '3.0'").default("3.0"),
 	domain: "string?",
 	port: type("string.integer").or(type("number")).to("1 <= number <= 65535").default(445),
 	readOnly: "boolean?",

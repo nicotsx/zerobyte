@@ -73,7 +73,7 @@ export type ListVolumesResponses = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -100,7 +100,8 @@ export type ListVolumesResponses = {
 	}>;
 };
 
-export type ListVolumesResponse = ListVolumesResponses[keyof ListVolumesResponses];
+export type ListVolumesResponse =
+	ListVolumesResponses[keyof ListVolumesResponses];
 
 export type CreateVolumeData = {
 	body?: {
@@ -142,7 +143,7 @@ export type CreateVolumeData = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -208,7 +209,7 @@ export type CreateVolumeResponses = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -235,7 +236,8 @@ export type CreateVolumeResponses = {
 	};
 };
 
-export type CreateVolumeResponse = CreateVolumeResponses[keyof CreateVolumeResponses];
+export type CreateVolumeResponse =
+	CreateVolumeResponses[keyof CreateVolumeResponses];
 
 export type TestConnectionData = {
 	body?: {
@@ -277,7 +279,7 @@ export type TestConnectionData = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -308,7 +310,8 @@ export type TestConnectionResponses = {
 	};
 };
 
-export type TestConnectionResponse = TestConnectionResponses[keyof TestConnectionResponses];
+export type TestConnectionResponse =
+	TestConnectionResponses[keyof TestConnectionResponses];
 
 export type DeleteVolumeData = {
 	body?: never;
@@ -328,7 +331,8 @@ export type DeleteVolumeResponses = {
 	};
 };
 
-export type DeleteVolumeResponse = DeleteVolumeResponses[keyof DeleteVolumeResponses];
+export type DeleteVolumeResponse =
+	DeleteVolumeResponses[keyof DeleteVolumeResponses];
 
 export type GetVolumeData = {
 	body?: never;
@@ -396,7 +400,7 @@ export type GetVolumeResponses = {
 						server: string;
 						share: string;
 						username: string;
-						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+						vers?: "1.0" | "2.0" | "2.1" | "3.0";
 						port?: number;
 						domain?: string;
 						readOnly?: boolean;
@@ -467,7 +471,7 @@ export type UpdateVolumeData = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -542,7 +546,7 @@ export type UpdateVolumeResponses = {
 					server: string;
 					share: string;
 					username: string;
-					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+					vers?: "1.0" | "2.0" | "2.1" | "3.0";
 					port?: number;
 					domain?: string;
 					readOnly?: boolean;
@@ -569,7 +573,8 @@ export type UpdateVolumeResponses = {
 	};
 };
 
-export type UpdateVolumeResponse = UpdateVolumeResponses[keyof UpdateVolumeResponses];
+export type UpdateVolumeResponse =
+	UpdateVolumeResponses[keyof UpdateVolumeResponses];
 
 export type MountVolumeData = {
 	body?: never;
@@ -590,7 +595,8 @@ export type MountVolumeResponses = {
 	};
 };
 
-export type MountVolumeResponse = MountVolumeResponses[keyof MountVolumeResponses];
+export type MountVolumeResponse =
+	MountVolumeResponses[keyof MountVolumeResponses];
 
 export type UnmountVolumeData = {
 	body?: never;
@@ -611,7 +617,8 @@ export type UnmountVolumeResponses = {
 	};
 };
 
-export type UnmountVolumeResponse = UnmountVolumeResponses[keyof UnmountVolumeResponses];
+export type UnmountVolumeResponse =
+	UnmountVolumeResponses[keyof UnmountVolumeResponses];
 
 export type HealthCheckVolumeData = {
 	body?: never;
@@ -639,7 +646,8 @@ export type HealthCheckVolumeResponses = {
 	};
 };
 
-export type HealthCheckVolumeResponse = HealthCheckVolumeResponses[keyof HealthCheckVolumeResponses];
+export type HealthCheckVolumeResponse =
+	HealthCheckVolumeResponses[keyof HealthCheckVolumeResponses];
 
 export type ListFilesData = {
 	body?: never;
@@ -701,7 +709,8 @@ export type BrowseFilesystemResponses = {
 	};
 };
 
-export type BrowseFilesystemResponse = BrowseFilesystemResponses[keyof BrowseFilesystemResponses];
+export type BrowseFilesystemResponse =
+	BrowseFilesystemResponses[keyof BrowseFilesystemResponses];
 
 export type ListRepositoriesData = {
 	body?: never;
@@ -815,7 +824,8 @@ export type ListRepositoriesResponses = {
 	}>;
 };
 
-export type ListRepositoriesResponse = ListRepositoriesResponses[keyof ListRepositoriesResponses];
+export type ListRepositoriesResponse =
+	ListRepositoriesResponses[keyof ListRepositoriesResponses];
 
 export type CreateRepositoryData = {
 	body?: {
@@ -928,7 +938,8 @@ export type CreateRepositoryResponses = {
 	};
 };
 
-export type CreateRepositoryResponse = CreateRepositoryResponses[keyof CreateRepositoryResponses];
+export type CreateRepositoryResponse =
+	CreateRepositoryResponses[keyof CreateRepositoryResponses];
 
 export type ListRcloneRemotesData = {
 	body?: never;
@@ -947,7 +958,8 @@ export type ListRcloneRemotesResponses = {
 	}>;
 };
 
-export type ListRcloneRemotesResponse = ListRcloneRemotesResponses[keyof ListRcloneRemotesResponses];
+export type ListRcloneRemotesResponse =
+	ListRcloneRemotesResponses[keyof ListRcloneRemotesResponses];
 
 export type DeleteRepositoryData = {
 	body?: never;
@@ -967,7 +979,8 @@ export type DeleteRepositoryResponses = {
 	};
 };
 
-export type DeleteRepositoryResponse = DeleteRepositoryResponses[keyof DeleteRepositoryResponses];
+export type DeleteRepositoryResponse =
+	DeleteRepositoryResponses[keyof DeleteRepositoryResponses];
 
 export type GetRepositoryData = {
 	body?: never;
@@ -1083,7 +1096,8 @@ export type GetRepositoryResponses = {
 	};
 };
 
-export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
+export type GetRepositoryResponse =
+	GetRepositoryResponses[keyof GetRepositoryResponses];
 
 export type UpdateRepositoryData = {
 	body?: {
@@ -1213,7 +1227,8 @@ export type UpdateRepositoryResponses = {
 	};
 };
 
-export type UpdateRepositoryResponse = UpdateRepositoryResponses[keyof UpdateRepositoryResponses];
+export type UpdateRepositoryResponse =
+	UpdateRepositoryResponses[keyof UpdateRepositoryResponses];
 
 export type DeleteSnapshotsData = {
 	body?: {
@@ -1235,7 +1250,8 @@ export type DeleteSnapshotsResponses = {
 	};
 };
 
-export type DeleteSnapshotsResponse = DeleteSnapshotsResponses[keyof DeleteSnapshotsResponses];
+export type DeleteSnapshotsResponse =
+	DeleteSnapshotsResponses[keyof DeleteSnapshotsResponses];
 
 export type ListSnapshotsData = {
 	body?: never;
@@ -1262,7 +1278,8 @@ export type ListSnapshotsResponses = {
 	}>;
 };
 
-export type ListSnapshotsResponse = ListSnapshotsResponses[keyof ListSnapshotsResponses];
+export type ListSnapshotsResponse =
+	ListSnapshotsResponses[keyof ListSnapshotsResponses];
 
 export type DeleteSnapshotData = {
 	body?: never;
@@ -1283,7 +1300,8 @@ export type DeleteSnapshotResponses = {
 	};
 };
 
-export type DeleteSnapshotResponse = DeleteSnapshotResponses[keyof DeleteSnapshotResponses];
+export type DeleteSnapshotResponse =
+	DeleteSnapshotResponses[keyof DeleteSnapshotResponses];
 
 export type GetSnapshotDetailsData = {
 	body?: never;
@@ -1309,7 +1327,8 @@ export type GetSnapshotDetailsResponses = {
 	};
 };
 
-export type GetSnapshotDetailsResponse = GetSnapshotDetailsResponses[keyof GetSnapshotDetailsResponses];
+export type GetSnapshotDetailsResponse =
+	GetSnapshotDetailsResponses[keyof GetSnapshotDetailsResponses];
 
 export type ListSnapshotFilesData = {
 	body?: never;
@@ -1350,7 +1369,8 @@ export type ListSnapshotFilesResponses = {
 	};
 };
 
-export type ListSnapshotFilesResponse = ListSnapshotFilesResponses[keyof ListSnapshotFilesResponses];
+export type ListSnapshotFilesResponse =
+	ListSnapshotFilesResponses[keyof ListSnapshotFilesResponses];
 
 export type RestoreSnapshotData = {
 	body?: {
@@ -1381,7 +1401,8 @@ export type RestoreSnapshotResponses = {
 	};
 };
 
-export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnapshotResponses];
+export type RestoreSnapshotResponse =
+	RestoreSnapshotResponses[keyof RestoreSnapshotResponses];
 
 export type DoctorRepositoryData = {
 	body?: never;
@@ -1407,7 +1428,8 @@ export type DoctorRepositoryResponses = {
 	};
 };
 
-export type DoctorRepositoryResponse = DoctorRepositoryResponses[keyof DoctorRepositoryResponses];
+export type DoctorRepositoryResponse =
+	DoctorRepositoryResponses[keyof DoctorRepositoryResponses];
 
 export type TagSnapshotsData = {
 	body?: {
@@ -1432,7 +1454,8 @@ export type TagSnapshotsResponses = {
 	};
 };
 
-export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
+export type TagSnapshotsResponse =
+	TagSnapshotsResponses[keyof TagSnapshotsResponses];
 
 export type ListBackupSchedulesData = {
 	body?: never;
@@ -1555,7 +1578,15 @@ export type ListBackupSchedulesResponses = {
 			name: string;
 			shortId: string;
 			status: "error" | "healthy" | "unknown" | null;
-			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
+			type:
+				| "azure"
+				| "gcs"
+				| "local"
+				| "r2"
+				| "rclone"
+				| "rest"
+				| "s3"
+				| "sftp";
 			updatedAt: number;
 		};
 		repositoryId: string;
@@ -1610,7 +1641,7 @@ export type ListBackupSchedulesResponses = {
 						server: string;
 						share: string;
 						username: string;
-						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+						vers?: "1.0" | "2.0" | "2.1" | "3.0";
 						port?: number;
 						domain?: string;
 						readOnly?: boolean;
@@ -1639,7 +1670,8 @@ export type ListBackupSchedulesResponses = {
 	}>;
 };
 
-export type ListBackupSchedulesResponse = ListBackupSchedulesResponses[keyof ListBackupSchedulesResponses];
+export type ListBackupSchedulesResponse =
+	ListBackupSchedulesResponses[keyof ListBackupSchedulesResponses];
 
 export type CreateBackupScheduleData = {
 	body?: {
@@ -1702,7 +1734,8 @@ export type CreateBackupScheduleResponses = {
 	};
 };
 
-export type CreateBackupScheduleResponse = CreateBackupScheduleResponses[keyof CreateBackupScheduleResponses];
+export type CreateBackupScheduleResponse =
+	CreateBackupScheduleResponses[keyof CreateBackupScheduleResponses];
 
 export type DeleteBackupScheduleData = {
 	body?: never;
@@ -1722,7 +1755,8 @@ export type DeleteBackupScheduleResponses = {
 	};
 };
 
-export type DeleteBackupScheduleResponse = DeleteBackupScheduleResponses[keyof DeleteBackupScheduleResponses];
+export type DeleteBackupScheduleResponse =
+	DeleteBackupScheduleResponses[keyof DeleteBackupScheduleResponses];
 
 export type GetBackupScheduleData = {
 	body?: never;
@@ -1847,7 +1881,15 @@ export type GetBackupScheduleResponses = {
 			name: string;
 			shortId: string;
 			status: "error" | "healthy" | "unknown" | null;
-			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
+			type:
+				| "azure"
+				| "gcs"
+				| "local"
+				| "r2"
+				| "rclone"
+				| "rest"
+				| "s3"
+				| "sftp";
 			updatedAt: number;
 		};
 		repositoryId: string;
@@ -1902,7 +1944,7 @@ export type GetBackupScheduleResponses = {
 						server: string;
 						share: string;
 						username: string;
-						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+						vers?: "1.0" | "2.0" | "2.1" | "3.0";
 						port?: number;
 						domain?: string;
 						readOnly?: boolean;
@@ -1931,7 +1973,8 @@ export type GetBackupScheduleResponses = {
 	};
 };
 
-export type GetBackupScheduleResponse = GetBackupScheduleResponses[keyof GetBackupScheduleResponses];
+export type GetBackupScheduleResponse =
+	GetBackupScheduleResponses[keyof GetBackupScheduleResponses];
 
 export type UpdateBackupScheduleData = {
 	body?: {
@@ -1995,7 +2038,8 @@ export type UpdateBackupScheduleResponses = {
 	};
 };
 
-export type UpdateBackupScheduleResponse = UpdateBackupScheduleResponses[keyof UpdateBackupScheduleResponses];
+export type UpdateBackupScheduleResponse =
+	UpdateBackupScheduleResponses[keyof UpdateBackupScheduleResponses];
 
 export type GetBackupScheduleForVolumeData = {
 	body?: never;
@@ -2120,7 +2164,15 @@ export type GetBackupScheduleForVolumeResponses = {
 			name: string;
 			shortId: string;
 			status: "error" | "healthy" | "unknown" | null;
-			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
+			type:
+				| "azure"
+				| "gcs"
+				| "local"
+				| "r2"
+				| "rclone"
+				| "rest"
+				| "s3"
+				| "sftp";
 			updatedAt: number;
 		};
 		repositoryId: string;
@@ -2175,7 +2227,7 @@ export type GetBackupScheduleForVolumeResponses = {
 						server: string;
 						share: string;
 						username: string;
-						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
+						vers?: "1.0" | "2.0" | "2.1" | "3.0";
 						port?: number;
 						domain?: string;
 						readOnly?: boolean;
@@ -2225,7 +2277,8 @@ export type RunBackupNowResponses = {
 	};
 };
 
-export type RunBackupNowResponse = RunBackupNowResponses[keyof RunBackupNowResponses];
+export type RunBackupNowResponse =
+	RunBackupNowResponses[keyof RunBackupNowResponses];
 
 export type StopBackupData = {
 	body?: never;
@@ -2361,7 +2414,16 @@ export type GetScheduleNotificationsResponses = {
 			enabled: boolean;
 			id: number;
 			name: string;
-			type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+			type:
+				| "custom"
+				| "discord"
+				| "email"
+				| "generic"
+				| "gotify"
+				| "ntfy"
+				| "pushover"
+				| "slack"
+				| "telegram";
 			updatedAt: number;
 		};
 		destinationId: number;
@@ -2471,7 +2533,16 @@ export type UpdateScheduleNotificationsResponses = {
 			enabled: boolean;
 			id: number;
 			name: string;
-			type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+			type:
+				| "custom"
+				| "discord"
+				| "email"
+				| "generic"
+				| "gotify"
+				| "ntfy"
+				| "pushover"
+				| "slack"
+				| "telegram";
 			updatedAt: number;
 		};
 		destinationId: number;
@@ -2601,7 +2672,15 @@ export type GetScheduleMirrorsResponses = {
 			name: string;
 			shortId: string;
 			status: "error" | "healthy" | "unknown" | null;
-			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
+			type:
+				| "azure"
+				| "gcs"
+				| "local"
+				| "r2"
+				| "rclone"
+				| "rest"
+				| "s3"
+				| "sftp";
 			updatedAt: number;
 		};
 		repositoryId: string;
@@ -2609,7 +2688,8 @@ export type GetScheduleMirrorsResponses = {
 	}>;
 };
 
-export type GetScheduleMirrorsResponse = GetScheduleMirrorsResponses[keyof GetScheduleMirrorsResponses];
+export type GetScheduleMirrorsResponse =
+	GetScheduleMirrorsResponses[keyof GetScheduleMirrorsResponses];
 
 export type UpdateScheduleMirrorsData = {
 	body?: {
@@ -2731,7 +2811,15 @@ export type UpdateScheduleMirrorsResponses = {
 			name: string;
 			shortId: string;
 			status: "error" | "healthy" | "unknown" | null;
-			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
+			type:
+				| "azure"
+				| "gcs"
+				| "local"
+				| "r2"
+				| "rclone"
+				| "rest"
+				| "s3"
+				| "sftp";
 			updatedAt: number;
 		};
 		repositoryId: string;
@@ -2739,7 +2827,8 @@ export type UpdateScheduleMirrorsResponses = {
 	}>;
 };
 
-export type UpdateScheduleMirrorsResponse = UpdateScheduleMirrorsResponses[keyof UpdateScheduleMirrorsResponses];
+export type UpdateScheduleMirrorsResponse =
+	UpdateScheduleMirrorsResponses[keyof UpdateScheduleMirrorsResponses];
 
 export type GetMirrorCompatibilityData = {
 	body?: never;
@@ -2761,7 +2850,8 @@ export type GetMirrorCompatibilityResponses = {
 	}>;
 };
 
-export type GetMirrorCompatibilityResponse = GetMirrorCompatibilityResponses[keyof GetMirrorCompatibilityResponses];
+export type GetMirrorCompatibilityResponse =
+	GetMirrorCompatibilityResponses[keyof GetMirrorCompatibilityResponses];
 
 export type ReorderBackupSchedulesData = {
 	body?: {
@@ -2781,7 +2871,8 @@ export type ReorderBackupSchedulesResponses = {
 	};
 };
 
-export type ReorderBackupSchedulesResponse = ReorderBackupSchedulesResponses[keyof ReorderBackupSchedulesResponses];
+export type ReorderBackupSchedulesResponse =
+	ReorderBackupSchedulesResponses[keyof ReorderBackupSchedulesResponses];
 
 export type ListNotificationDestinationsData = {
 	body?: never;
@@ -2866,7 +2957,16 @@ export type ListNotificationDestinationsResponses = {
 		enabled: boolean;
 		id: number;
 		name: string;
-		type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+		type:
+			| "custom"
+			| "discord"
+			| "email"
+			| "generic"
+			| "gotify"
+			| "ntfy"
+			| "pushover"
+			| "slack"
+			| "telegram";
 		updatedAt: number;
 	}>;
 };
@@ -3026,7 +3126,16 @@ export type CreateNotificationDestinationResponses = {
 		enabled: boolean;
 		id: number;
 		name: string;
-		type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+		type:
+			| "custom"
+			| "discord"
+			| "email"
+			| "generic"
+			| "gotify"
+			| "ntfy"
+			| "pushover"
+			| "slack"
+			| "telegram";
 		updatedAt: number;
 	};
 };
@@ -3154,7 +3263,16 @@ export type GetNotificationDestinationResponses = {
 		enabled: boolean;
 		id: number;
 		name: string;
-		type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+		type:
+			| "custom"
+			| "discord"
+			| "email"
+			| "generic"
+			| "gotify"
+			| "ntfy"
+			| "pushover"
+			| "slack"
+			| "telegram";
 		updatedAt: number;
 	};
 };
@@ -3324,7 +3442,16 @@ export type UpdateNotificationDestinationResponses = {
 		enabled: boolean;
 		id: number;
 		name: string;
-		type: "custom" | "discord" | "email" | "generic" | "gotify" | "ntfy" | "pushover" | "slack" | "telegram";
+		type:
+			| "custom"
+			| "discord"
+			| "email"
+			| "generic"
+			| "gotify"
+			| "ntfy"
+			| "pushover"
+			| "slack"
+			| "telegram";
 		updatedAt: number;
 	};
 };
@@ -3387,7 +3514,8 @@ export type GetSystemInfoResponses = {
 	};
 };
 
-export type GetSystemInfoResponse = GetSystemInfoResponses[keyof GetSystemInfoResponses];
+export type GetSystemInfoResponse =
+	GetSystemInfoResponses[keyof GetSystemInfoResponses];
 
 export type GetUpdatesData = {
 	body?: never;
@@ -3431,4 +3559,5 @@ export type DownloadResticPasswordResponses = {
 	200: string;
 };
 
-export type DownloadResticPasswordResponse = DownloadResticPasswordResponses[keyof DownloadResticPasswordResponses];
+export type DownloadResticPasswordResponse =
+	DownloadResticPasswordResponses[keyof DownloadResticPasswordResponses];
