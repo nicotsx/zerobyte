@@ -4,6 +4,14 @@ title: "[BUG] "
 labels: ["bug"]
 assignees: []
 body:
+  - type: checkboxes
+    id: troubleshooting
+    attributes:
+      label: Prerequisites
+      description: Please confirm you have completed the following steps before submitting this bug report
+      options:
+        - label: I have read the [troubleshooting guide](https://github.com/nicotsx/zerobyte/blob/main/TROUBLESHOOTING.md)
+          required: true
   - type: textarea
     id: description
     attributes:
