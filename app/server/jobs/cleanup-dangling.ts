@@ -9,6 +9,7 @@ import { executeUnmount } from "../modules/backends/utils/backend-utils";
 import { toMessage } from "../utils/errors";
 import { VOLUME_MOUNT_BASE } from "../core/constants";
 import { db } from "../db/db";
+import { withContext } from "../core/request-context";
 
 export class CleanupDanglingMountsJob extends Job {
 	async run() {
@@ -20,7 +21,7 @@ export class CleanupDanglingMountsJob extends Job {
 
 		const allVolumes = [];
 		for (const org of organizations) {
-			const volumes = await volumeService.listVolumes(org.id);
+			const volumes = await withContext({ organizationId: org.id }, async () => volumeService.listVolumes());
 			allVolumes.push(...volumes);
 		}
 

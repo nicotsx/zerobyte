@@ -20,6 +20,7 @@ import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { createMiddleware } from "hono/factory";
+import { getOrganizationId } from "~/server/core/request-context";
 
 const requireGlobalAdmin = createMiddleware(async (c, next) => {
 	const user = c.get("user");
@@ -68,7 +69,7 @@ export const systemController = new Hono()
 		validator("json", downloadResticPasswordBodySchema),
 		async (c) => {
 			const user = c.get("user");
-			const organizationId = c.get("organizationId");
+			const organizationId = getOrganizationId();
 			const body = c.req.valid("json");
 
 			const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });

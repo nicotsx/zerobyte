@@ -14,8 +14,10 @@ import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import { toMessage } from "../../utils/errors";
 import { type } from "arktype";
+import { getOrganizationId } from "~/server/core/request-context";
 
-const listDestinations = async (organizationId: string) => {
+const listDestinations = async () => {
+	const organizationId = getOrganizationId();
 	const destinations = await db.query.notificationDestinationsTable.findMany({
 		where: eq(notificationDestinationsTable.organizationId, organizationId),
 		orderBy: (destinations, { asc }) => [asc(destinations.name)],
@@ -23,7 +25,8 @@ const listDestinations = async (organizationId: string) => {
 	return destinations;
 };
 
-const getDestination = async (id: number, organizationId: string) => {
+const getDestination = async (id: number) => {
+	const organizationId = getOrganizationId();
 	const destination = await db.query.notificationDestinationsTable.findFirst({
 		where: and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
 	});
@@ -133,7 +136,8 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 	}
 }
 
-const createDestination = async (name: string, config: NotificationConfig, organizationId: string) => {
+const createDestination = async (name: string, config: NotificationConfig) => {
+	const organizationId = getOrganizationId();
 	const slug = slugify(name, { lower: true, strict: true });
 
 	const existing = await db.query.notificationDestinationsTable.findFirst({
@@ -165,10 +169,10 @@ const createDestination = async (name: string, config: NotificationConfig, organ
 
 const updateDestination = async (
 	id: number,
-	organizationId: string,
 	updates: { name?: string; enabled?: boolean; config?: NotificationConfig },
 ) => {
-	const existing = await getDestination(id, organizationId);
+	const organizationId = getOrganizationId();
+	const existing = await getDestination(id);
 
 	if (!existing) {
 		throw new NotFoundError("Notification destination not found");
@@ -217,15 +221,16 @@ const updateDestination = async (
 	return updated;
 };
 
-const deleteDestination = async (id: number, organizationId: string) => {
-	await getDestination(id, organizationId);
+const deleteDestination = async (id: number) => {
+	const organizationId = getOrganizationId();
+	await getDestination(id);
 	await db
 		.delete(notificationDestinationsTable)
 		.where(and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)));
 };
 
-const testDestination = async (id: number, organizationId: string) => {
-	const destination = await getDestination(id, organizationId);
+const testDestination = async (id: number) => {
+	const destination = await getDestination(id);
 
 	if (!destination.enabled) {
 		throw new ConflictError("Cannot test disabled notification destination");

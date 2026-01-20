@@ -3,6 +3,7 @@ import { auth } from "~/lib/auth";
 import { db } from "~/server/db/db";
 import { member } from "~/server/db/schema";
 import { eq, and } from "drizzle-orm";
+import { withContext } from "~/server/core/request-context";
 
 declare module "hono" {
 	interface ContextVariableMap {
@@ -35,7 +36,9 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	c.set("user", user);
 	c.set("organizationId", activeOrganizationId);
 
-	await next();
+	await withContext({ organizationId: activeOrganizationId, userId: user.id }, async () => {
+		await next();
+	});
 });
 
 /**

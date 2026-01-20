@@ -4,6 +4,7 @@ import { logger } from "../utils/logger";
 import { db } from "../db/db";
 import { eq } from "drizzle-orm";
 import { volumesTable } from "../db/schema";
+import { withContext } from "../core/request-context";
 
 export class VolumeAutoRemountJob extends Job {
 	async run() {
@@ -16,7 +17,9 @@ export class VolumeAutoRemountJob extends Job {
 		for (const volume of volumes) {
 			if (volume.autoRemount) {
 				try {
-					await volumeService.mountVolume(volume.id, volume.organizationId);
+					await withContext({ organizationId: volume.organizationId }, async () => {
+						await volumeService.mountVolume(volume.id);
+					});
 				} catch (err) {
 					logger.error(`Failed to auto-remount volume ${volume.name}:`, err);
 				}

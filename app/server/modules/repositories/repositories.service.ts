@@ -16,8 +16,10 @@ import {
 	type OverwriteMode,
 	type RepositoryConfig,
 } from "~/schemas/restic";
+import { getOrganizationId } from "~/server/core/request-context";
 
-const findRepository = async (idOrShortId: string, organizationId: string) => {
+const findRepository = async (idOrShortId: string) => {
+	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
 		where: and(
 			or(eq(repositoriesTable.id, idOrShortId), eq(repositoriesTable.shortId, idOrShortId)),
@@ -26,7 +28,8 @@ const findRepository = async (idOrShortId: string, organizationId: string) => {
 	});
 };
 
-const listRepositories = async (organizationId: string) => {
+const listRepositories = async () => {
+	const organizationId = getOrganizationId();
 	const repositories = await db.query.repositoriesTable.findMany({
 		where: eq(repositoriesTable.organizationId, organizationId),
 	});
@@ -72,12 +75,8 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	return encryptedConfig as RepositoryConfig;
 };
 
-const createRepository = async (
-	name: string,
-	config: RepositoryConfig,
-	organizationId: string,
-	compressionMode?: CompressionMode,
-) => {
+const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
+	const organizationId = getOrganizationId();
 	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 
@@ -135,8 +134,8 @@ const createRepository = async (
 	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
 
-const getRepository = async (id: string, organizationId: string) => {
-	const repository = await findRepository(id, organizationId);
+const getRepository = async (id: string) => {
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -145,8 +144,8 @@ const getRepository = async (id: string, organizationId: string) => {
 	return { repository };
 };
 
-const deleteRepository = async (id: string, organizationId: string) => {
-	const repository = await findRepository(id, organizationId);
+const deleteRepository = async (id: string) => {
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -170,8 +169,9 @@ const deleteRepository = async (id: string, organizationId: string) => {
  *
  * @returns List of snapshots
  */
-const listSnapshots = async (id: string, organizationId: string, backupId?: string) => {
-	const repository = await findRepository(id, organizationId);
+const listSnapshots = async (id: string, backupId?: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -201,8 +201,9 @@ const listSnapshots = async (id: string, organizationId: string, backupId?: stri
 	}
 };
 
-const listSnapshotFiles = async (id: string, organizationId: string, snapshotId: string, path?: string) => {
-	const repository = await findRepository(id, organizationId);
+const listSnapshotFiles = async (id: string, snapshotId: string, path?: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -246,7 +247,6 @@ const listSnapshotFiles = async (id: string, organizationId: string, snapshotId:
 
 const restoreSnapshot = async (
 	id: string,
-	organizationId: string,
 	snapshotId: string,
 	options?: {
 		include?: string[];
@@ -257,7 +257,8 @@ const restoreSnapshot = async (
 		overwrite?: OverwriteMode;
 	},
 ) => {
-	const repository = await findRepository(id, organizationId);
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -280,8 +281,9 @@ const restoreSnapshot = async (
 	}
 };
 
-const getSnapshotDetails = async (id: string, organizationId: string, snapshotId: string) => {
-	const repository = await findRepository(id, organizationId);
+const getSnapshotDetails = async (id: string, snapshotId: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -309,8 +311,9 @@ const getSnapshotDetails = async (id: string, organizationId: string, snapshotId
 	return snapshot;
 };
 
-const checkHealth = async (repositoryId: string, organizationId: string) => {
-	const repository = await findRepository(repositoryId, organizationId);
+const checkHealth = async (repositoryId: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(repositoryId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -335,8 +338,9 @@ const checkHealth = async (repositoryId: string, organizationId: string) => {
 	}
 };
 
-const doctorRepository = async (id: string, organizationId: string) => {
-	const repository = await findRepository(id, organizationId);
+const doctorRepository = async (id: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -424,8 +428,9 @@ const doctorRepository = async (id: string, organizationId: string) => {
 	};
 };
 
-const deleteSnapshot = async (id: string, organizationId: string, snapshotId: string) => {
-	const repository = await findRepository(id, organizationId);
+const deleteSnapshot = async (id: string, snapshotId: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -441,8 +446,9 @@ const deleteSnapshot = async (id: string, organizationId: string, snapshotId: st
 	}
 };
 
-const deleteSnapshots = async (id: string, organizationId: string, snapshotIds: string[]) => {
-	const repository = await findRepository(id, organizationId);
+const deleteSnapshots = async (id: string, snapshotIds: string[]) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -460,13 +466,9 @@ const deleteSnapshots = async (id: string, organizationId: string, snapshotIds: 
 	}
 };
 
-const tagSnapshots = async (
-	id: string,
-	organizationId: string,
-	snapshotIds: string[],
-	tags: { add?: string[]; remove?: string[]; set?: string[] },
-) => {
-	const repository = await findRepository(id, organizationId);
+const tagSnapshots = async (id: string, snapshotIds: string[], tags: { add?: string[]; remove?: string[]; set?: string[] }) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -484,12 +486,8 @@ const tagSnapshots = async (
 	}
 };
 
-const updateRepository = async (
-	id: string,
-	organizationId: string,
-	updates: { name?: string; compressionMode?: CompressionMode },
-) => {
-	const existing = await findRepository(id, organizationId);
+const updateRepository = async (id: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
+	const existing = await findRepository(id);
 
 	if (!existing) {
 		throw new NotFoundError("Repository not found");

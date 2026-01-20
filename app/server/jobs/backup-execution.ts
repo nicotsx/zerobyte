@@ -2,6 +2,7 @@ import { Job } from "../core/scheduler";
 import { backupsService } from "../modules/backups/backups.service";
 import { logger } from "../utils/logger";
 import { db } from "../db/db";
+import { withContext } from "../core/request-context";
 
 export class BackupExecutionJob extends Job {
 	async run() {
@@ -12,21 +13,23 @@ export class BackupExecutionJob extends Job {
 		let totalExecuted = 0;
 
 		for (const org of organizations) {
-			const scheduleIds = await backupsService.getSchedulesToExecute(org.id);
+			await withContext({ organizationId: org.id }, async () => {
+				const scheduleIds = await backupsService.getSchedulesToExecute();
 
-			if (scheduleIds.length === 0) {
-				continue;
-			}
+				if (scheduleIds.length === 0) {
+					return;
+				}
 
-			logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute for organization ${org.name}`);
+				logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute for organization ${org.name}`);
 
-			for (const scheduleId of scheduleIds) {
-				backupsService.executeBackup(scheduleId, org.id).catch((err) => {
-					logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
-				});
-			}
+				for (const scheduleId of scheduleIds) {
+					backupsService.executeBackup(scheduleId).catch((err) => {
+						logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
+					});
+				}
 
-			totalExecuted += scheduleIds.length;
+				totalExecuted += scheduleIds.length;
+			});
 		}
 
 		if (totalExecuted === 0) {

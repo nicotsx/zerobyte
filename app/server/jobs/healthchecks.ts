@@ -4,6 +4,7 @@ import { logger } from "../utils/logger";
 import { db } from "../db/db";
 import { eq, or } from "drizzle-orm";
 import { volumesTable } from "../db/schema";
+import { withContext } from "../core/request-context";
 
 export class VolumeHealthCheckJob extends Job {
 	async run() {
@@ -14,10 +15,12 @@ export class VolumeHealthCheckJob extends Job {
 		});
 
 		for (const volume of volumes) {
-			const { status } = await volumeService.checkHealth(volume.id, volume.organizationId);
-			if (status === "error" && volume.autoRemount) {
-				await volumeService.mountVolume(volume.id, volume.organizationId);
-			}
+			await withContext({ organizationId: volume.organizationId }, async () => {
+				const { status } = await volumeService.checkHealth(volume.id);
+				if (status === "error" && volume.autoRemount) {
+					await volumeService.mountVolume(volume.id);
+				}
+			});
 		}
 
 		return { done: true, timestamp: new Date() };
