@@ -7,6 +7,7 @@ import {
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
+import { UnauthorizedError } from "http-errors-enhanced";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
 import { eq } from "drizzle-orm";
 import { config } from "../server/core/config";
@@ -21,6 +22,9 @@ const createBetterAuth = (secret: string) =>
 	betterAuth({
 		secret,
 		trustedOrigins: config.trustedOrigins ?? ["*"],
+		onAPIError: {
+			throw: true,
+		},
 		hooks: {
 			before: createAuthMiddleware(async (ctx) => {
 				await ensureOnlyOneUser(ctx);
@@ -81,7 +85,7 @@ const createBetterAuth = (secret: string) =>
 						});
 
 						if (!orgMembership) {
-							throw new Error("User does not belong to any organization");
+							throw new UnauthorizedError("User does not belong to any organization");
 						}
 
 						return {

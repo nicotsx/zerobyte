@@ -3,6 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, usersTable } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "../auth";
+import { UnauthorizedError } from "http-errors-enhanced";
 
 export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) => {
 	const { path, body } = ctx;
@@ -45,7 +46,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 				});
 			});
 		} else {
-			throw new Error("Invalid credentials");
+			throw new UnauthorizedError("Invalid credentials");
 		}
 	}
 };

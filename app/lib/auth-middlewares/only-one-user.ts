@@ -3,6 +3,7 @@ import type { AuthMiddlewareContext } from "../auth";
 import { logger } from "~/server/utils/logger";
 import { eq } from "drizzle-orm";
 import { appMetadataTable } from "~/server/db/schema";
+import { ForbiddenError } from "http-errors-enhanced";
 
 export const REGISTRATION_DISABLED_KEY = "registrationsDisabled";
 
@@ -20,6 +21,6 @@ export const ensureOnlyOneUser = async (ctx: AuthMiddlewareContext) => {
 
 	if (result?.value === "true" && existingUser) {
 		logger.info("User registration attempt blocked: registrations are disabled.");
-		throw new Error("User registrations are currently disabled. Please contact an administrator for access.");
+		throw new ForbiddenError("User registrations are currently disabled. Please contact an administrator for access.");
 	}
 };
