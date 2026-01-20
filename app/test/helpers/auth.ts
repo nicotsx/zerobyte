@@ -2,53 +2,36 @@ import { db } from "~/server/db/db";
 import { sessionsTable, usersTable, account, organization, member } from "~/server/db/schema";
 import { hashPassword } from "better-auth/crypto";
 import { createHmac } from "node:crypto";
-import { eq } from "drizzle-orm";
 
 export async function createTestSession() {
-	const [existingUser] = await db.select().from(usersTable);
-
-	if (!existingUser) {
-		await db.insert(usersTable).values({
-			username: "testuser",
-			email: "test@test.com",
-			name: "Test User",
-			id: crypto.randomUUID(),
-		});
-	}
-
-	const [user] = await db.select().from(usersTable);
+	const userId = crypto.randomUUID();
+	const user = {
+		username: `testuser-${userId}`,
+		email: `${userId}@test.com`,
+		name: "Test User",
+		id: userId,
+	};
+	await db.insert(usersTable).values(user);
 
 	const token = crypto.randomUUID().replace(/-/g, "");
 	const sessionId = token;
 	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-	const [existingOrg] = await db.select().from(organization);
+	const orgId = crypto.randomUUID();
+	await db.insert(organization).values({
+		id: orgId,
+		name: `Org ${orgId}`,
+		slug: `test-org-${orgId}`,
+		createdAt: new Date(),
+	});
 
-	let orgId: string;
-
-	if (!existingOrg) {
-		orgId = crypto.randomUUID();
-		await db.insert(organization).values({
-			id: orgId,
-			name: "Test Org",
-			slug: "test-org",
-			createdAt: new Date(),
-		});
-	} else {
-		orgId = existingOrg.id;
-	}
-
-	const [existingMember] = await db.select().from(member).where(eq(member.userId, user.id));
-
-	if (!existingMember) {
-		await db.insert(member).values({
-			id: crypto.randomUUID(),
-			userId: user.id,
-			organizationId: orgId,
-			role: "owner",
-			createdAt: new Date(),
-		});
-	}
+	await db.insert(member).values({
+		id: crypto.randomUUID(),
+		userId: user.id,
+		organizationId: orgId,
+		role: "owner",
+		createdAt: new Date(),
+	});
 
 	await db.insert(sessionsTable).values({
 		id: sessionId,
@@ -67,7 +50,7 @@ export async function createTestSession() {
 		.insert(account)
 		.values({
 			userId: user.id,
-			accountId: "testuser",
+			accountId: user.username,
 			password: await hashPassword("password123"),
 			id: crypto.randomUUID(),
 			providerId: "credentials",
