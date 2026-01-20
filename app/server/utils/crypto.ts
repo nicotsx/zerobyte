@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { config, getAppSecret } from "../core/config";
+import { config } from "../core/config";
 import { isNodeJSErrnoException } from "./fs";
 import { promisify } from "node:util";
 
@@ -96,10 +96,8 @@ const encrypt = async (data: string) => {
 		return data;
 	}
 
-	const secret = getAppSecret();
-
 	const salt = crypto.randomBytes(16);
-	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
+	const key = crypto.pbkdf2Sync(config.appSecret, salt, 100000, keyLength, "sha256");
 	const iv = crypto.randomBytes(12);
 
 	const cipher = crypto.createCipheriv(algorithm, key, iv);
@@ -118,13 +116,11 @@ const decrypt = async (encryptedData: string) => {
 		return encryptedData;
 	}
 
-	const secret = getAppSecret();
-
 	const parts = encryptedData.split(":").slice(1); // Remove prefix
 	const saltHex = parts.shift() as string;
 	const salt = Buffer.from(saltHex, "hex");
 
-	const key = crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
+	const key = crypto.pbkdf2Sync(config.appSecret, salt, 100000, keyLength, "sha256");
 
 	const iv = Buffer.from(parts.shift() as string, "hex");
 	const encrypted = Buffer.from(parts.shift() as string, "hex");

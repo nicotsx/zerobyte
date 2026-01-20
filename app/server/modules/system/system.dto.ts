@@ -65,7 +65,8 @@ export const downloadResticPasswordBodySchema = type({
 });
 
 export const downloadResticPasswordDto = describeRoute({
-	description: "Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.",
+	description:
+		"Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.",
 	tags: ["System"],
 	operationId: "downloadResticPassword",
 	responses: {
@@ -81,13 +82,13 @@ export const downloadResticPasswordDto = describeRoute({
 });
 
 export const registrationStatusResponse = type({
-	disabled: "boolean",
+	enabled: "boolean",
 });
 
 export type RegistrationStatusDto = typeof registrationStatusResponse.infer;
 
 export const registrationStatusBody = type({
-	disabled: "boolean",
+	enabled: "boolean",
 });
 
 export const getRegistrationStatusDto = describeRoute({

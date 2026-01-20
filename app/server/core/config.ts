@@ -82,15 +82,3 @@ const parseConfig = (env: unknown) => {
 };
 
 export const config = parseConfig(process.env);
-
-export const getAppSecret = (): string => {
-	if (!config.appSecret) {
-		throw new Error("ZEROBYTE_APP_SECRET is not configured");
-	}
-
-	if (config.appSecret.length < 32) {
-		throw new Error("ZEROBYTE_APP_SECRET must be at least 32 characters long");
-	}
-
-	return config.appSecret;
-};

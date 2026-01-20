@@ -7,9 +7,9 @@ import { logger } from "~/server/utils/logger";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { REGISTRATION_ENABLED_KEY } from "~/client/lib/constants";
 
 const CACHE_TTL = 60 * 60;
-const REGISTRATION_DISABLED_KEY = "registrationsDisabled";
 
 const getSystemInfo = async () => {
 	return {
@@ -89,28 +89,28 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 	}
 };
 
-const isRegistrationDisabled = async () => {
+const isRegistrationEnabled = async () => {
 	const result = await db.query.appMetadataTable.findFirst({
-		where: eq(appMetadataTable.key, REGISTRATION_DISABLED_KEY),
+		where: eq(appMetadataTable.key, REGISTRATION_ENABLED_KEY),
 	});
 
 	return result?.value === "true";
 };
 
-const setRegistrationDisabled = async (disabled: boolean) => {
+const setRegistrationEnabled = async (enabled: boolean) => {
 	const now = Date.now();
 
 	await db
 		.insert(appMetadataTable)
-		.values({ key: REGISTRATION_DISABLED_KEY, value: JSON.stringify(disabled), createdAt: now, updatedAt: now })
-		.onConflictDoUpdate({ target: appMetadataTable.key, set: { value: JSON.stringify(disabled), updatedAt: now } });
+		.values({ key: REGISTRATION_ENABLED_KEY, value: JSON.stringify(enabled), createdAt: now, updatedAt: now })
+		.onConflictDoUpdate({ target: appMetadataTable.key, set: { value: JSON.stringify(enabled), updatedAt: now } });
 
-	logger.info(`Registration disabled set to: ${disabled}`);
+	logger.info(`Registration enabled set to: ${enabled}`);
 };
 
 export const systemService = {
 	getSystemInfo,
 	getUpdates,
-	isRegistrationDisabled,
-	setRegistrationDisabled,
+	isRegistrationEnabled,
+	setRegistrationEnabled,
 };

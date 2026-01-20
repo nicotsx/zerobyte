@@ -45,9 +45,9 @@ export const systemController = new Hono()
 		return c.json<UpdateInfoDto>(updates, 200);
 	})
 	.get("/registration-status", getRegistrationStatusDto, async (c) => {
-		const disabled = await systemService.isRegistrationDisabled();
+		const enabled = await systemService.isRegistrationEnabled();
 
-		return c.json<RegistrationStatusDto>({ disabled }, 200);
+		return c.json<RegistrationStatusDto>({ enabled }, 200);
 	})
 	.put(
 		"/registration-status",
@@ -57,9 +57,9 @@ export const systemController = new Hono()
 		async (c) => {
 			const body = c.req.valid("json");
 
-			await systemService.setRegistrationDisabled(body.disabled);
+			await systemService.setRegistrationEnabled(body.enabled);
 
-			return c.json<RegistrationStatusDto>({ disabled: body.disabled }, 200);
+			return c.json<RegistrationStatusDto>({ enabled: body.enabled }, 200);
 		},
 	)
 	.post(

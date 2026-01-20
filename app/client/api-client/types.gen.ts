@@ -4147,7 +4147,7 @@ export type GetRegistrationStatusResponses = {
 	 * Registration status
 	 */
 	200: {
-		disabled: boolean;
+		enabled: boolean;
 	};
 };
 
@@ -4155,7 +4155,7 @@ export type GetRegistrationStatusResponse = GetRegistrationStatusResponses[keyof
 
 export type SetRegistrationStatusData = {
 	body?: {
-		disabled: boolean;
+		enabled: boolean;
 	};
 	path?: never;
 	query?: never;
@@ -4167,7 +4167,7 @@ export type SetRegistrationStatusResponses = {
 	 * Registration status updated
 	 */
 	200: {
-		disabled: boolean;
+		enabled: boolean;
 	};
 };
 

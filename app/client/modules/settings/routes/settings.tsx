@@ -182,17 +182,15 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 				<CardContent className="p-6">
 					<div className="flex items-center justify-between">
 						<div className="space-y-0.5">
-							<Label htmlFor="disable-registrations" className="text-base">
-								Disable new user registrations
+							<Label htmlFor="enable-registrations" className="text-base">
+								Enable new user registrations
 							</Label>
-							<p className="text-sm text-muted-foreground max-w-2xl">
-								When enabled, new users cannot sign up. Only administrators can create accounts manually.
-							</p>
+							<p className="text-sm text-muted-foreground max-w-2xl">When enabled, new users can sign up</p>
 						</div>
 						<Switch
-							id="disable-registrations"
-							checked={registrationStatusQuery.data?.disabled ?? false}
-							onCheckedChange={(checked) => updateRegistrationStatusMutation.mutate({ body: { disabled: checked } })}
+							id="enable-registrations"
+							checked={registrationStatusQuery.data?.enabled ?? false}
+							onCheckedChange={(checked) => updateRegistrationStatusMutation.mutate({ body: { enabled: checked } })}
 							disabled={registrationStatusQuery.isLoading || updateRegistrationStatusMutation.isPending}
 						/>
 					</div>
