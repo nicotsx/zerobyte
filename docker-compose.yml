@@ -12,6 +12,7 @@ services:
       - SYS_ADMIN
     environment:
       - NODE_ENV=development
+      - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
     ports:
       - "4096:4096"
     volumes:
@@ -21,6 +22,7 @@ services:
       - ~/.config/rclone:/root/.config/rclone
 
   zerobyte-prod:
+    # image: ghcr.io/nicotsx/zerobyte:v0.22.0
     build:
       context: .
       dockerfile: Dockerfile
@@ -35,6 +37,8 @@ services:
       - SYS_ADMIN
     ports:
       - "4096:4096"
+    environment:
+      - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -49,6 +53,7 @@ services:
     restart: unless-stopped
     environment:
       - DISABLE_RATE_LIMITING=true
+      - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:

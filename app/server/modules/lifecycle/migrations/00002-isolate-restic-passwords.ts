@@ -15,7 +15,7 @@ import { RESTIC_PASS_FILE } from "~/server/core/constants";
  *
  * This migration performs two critical tasks:
  * 1. Assigns unique restic passwords to each organization (using the legacy password for existing orgs)
- * 2. Re-keys all encrypted secrets from the legacy restic passfile to use the new ZEROBYTE_APP_SECRET
+ * 2. Re-keys all encrypted secrets from the legacy restic passfile to use the new APP_SECRET
  *
  * This allows per-organization encryption key isolation while ensuring
  * database encryption is decoupled from restic repository passwords.

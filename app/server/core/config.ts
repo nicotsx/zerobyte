@@ -34,7 +34,7 @@ const envSchema = type({
 	APP_VERSION: "string = 'dev'",
 	TRUSTED_ORIGINS: "string?",
 	DISABLE_RATE_LIMITING: 'string = "false"',
-	ZEROBYTE_APP_SECRET: "32 <= string <= 256",
+	APP_SECRET: "32 <= string <= 256",
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
@@ -46,25 +46,25 @@ const envSchema = type({
 	appVersion: s.APP_VERSION,
 	trustedOrigins: s.TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()),
 	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
-	appSecret: s.ZEROBYTE_APP_SECRET,
+	appSecret: s.APP_SECRET,
 }));
 
 const parseConfig = (env: unknown) => {
 	const result = envSchema(env);
 
 	if (result instanceof type.errors) {
-		if (!process.env.ZEROBYTE_APP_SECRET) {
+		if (!process.env.APP_SECRET) {
 			const errorMessage = [
 				"",
 				"================================================================================",
-				"ZEROBYTE_APP_SECRET is not configured.",
+				"APP_SECRET is not configured.",
 				"",
 				"This secret is required for encrypting sensitive data in the database.",
 				"",
 				"To generate a new secret, run:",
 				"  openssl rand -hex 32",
 				"",
-				"Then set the ZEROBYTE_APP_SECRET environment variable with the generated value.",
+				"Then set the APP_SECRET environment variable with the generated value.",
 				"",
 				"IMPORTANT: Store this secret securely and back it up. If lost, encrypted data",
 				"in the database will be unrecoverable.",

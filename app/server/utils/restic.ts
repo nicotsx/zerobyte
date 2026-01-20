@@ -64,17 +64,6 @@ const snapshotInfoSchema = type({
 	}).optional(),
 });
 
-const ensurePassfile = async () => {
-	await fs.mkdir(path.dirname(RESTIC_PASS_FILE), { recursive: true });
-
-	try {
-		await fs.access(RESTIC_PASS_FILE);
-	} catch {
-		logger.info("Restic passfile not found, creating a new one...");
-		await fs.writeFile(RESTIC_PASS_FILE, crypto.randomBytes(32).toString("hex"), { mode: 0o600 });
-	}
-};
-
 export const buildRepoUrl = (config: RepositoryConfig): string => {
 	switch (config.backend) {
 		case "local":
@@ -239,8 +228,6 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 };
 
 const init = async (config: RepositoryConfig, organizationId: string) => {
-	await ensurePassfile();
-
 	const repoUrl = buildRepoUrl(config);
 
 	logger.info(`Initializing restic repository at ${repoUrl}...`);
@@ -956,7 +943,6 @@ export const addCommonArgs = (
 };
 
 export const restic = {
-	ensurePassfile,
 	init,
 	backup,
 	restore,

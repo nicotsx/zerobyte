@@ -3,7 +3,6 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "../../db/db";
 import { backupSchedulesTable, volumesTable } from "../../db/schema";
 import { logger } from "../../utils/logger";
-import { restic } from "../../utils/restic";
 import { volumeService } from "../volumes/volume.service";
 import { CleanupDanglingMountsJob } from "../../jobs/cleanup-dangling";
 import { VolumeHealthCheckJob } from "../../jobs/healthchecks";
@@ -54,10 +53,6 @@ export const startup = async () => {
 
 	await Scheduler.start();
 	await Scheduler.clear();
-
-	await restic.ensurePassfile().catch((err) => {
-		logger.error(`Error ensuring restic passfile exists: ${err.message}`);
-	});
 
 	await initAuth().catch((err) => {
 		logger.error(`Error initializing auth: ${toMessage(err)}`);

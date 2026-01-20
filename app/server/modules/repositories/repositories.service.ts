@@ -129,7 +129,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	}
 
 	const errorMessage = toMessage(error);
-	await db.delete(repositoriesTable).where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
+	await db
+		.delete(repositoriesTable)
+		.where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
 	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
@@ -155,7 +157,9 @@ const deleteRepository = async (id: string) => {
 
 	await db
 		.delete(repositoriesTable)
-		.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
+		.where(
+			and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+		);
 
 	cache.delByPrefix(`snapshots:${repository.id}:`);
 	cache.delByPrefix(`ls:${repository.id}:`);
@@ -330,7 +334,9 @@ const checkHealth = async (repositoryId: string) => {
 				lastChecked: Date.now(),
 				lastError: error,
 			})
-			.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
+			.where(
+				and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+			);
 
 		return { lastError: error };
 	} finally {
@@ -420,7 +426,9 @@ const doctorRepository = async (id: string) => {
 			lastChecked: Date.now(),
 			lastError: doctorError,
 		})
-		.where(and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)));
+		.where(
+			and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+		);
 
 	return {
 		success: doctorSucceeded,
@@ -466,7 +474,11 @@ const deleteSnapshots = async (id: string, snapshotIds: string[]) => {
 	}
 };
 
-const tagSnapshots = async (id: string, snapshotIds: string[], tags: { add?: string[]; remove?: string[]; set?: string[] }) => {
+const tagSnapshots = async (
+	id: string,
+	snapshotIds: string[],
+	tags: { add?: string[]; remove?: string[]; set?: string[] },
+) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(id);
 

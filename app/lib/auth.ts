@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { config } from "../server/core/config";
 import { db } from "../server/db/db";
 import { cryptoUtils } from "../server/utils/crypto";
-import { organization as organizationTable, member } from "../server/db/schema";
+import { organization as organizationTable, member, usersTable } from "../server/db/schema";
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
@@ -55,25 +55,31 @@ const createBetterAuth = (secret: string) =>
 							resticPassword: await cryptoUtils.sealSecret(resticPassword),
 						};
 
-						await db.transaction(async (tx) => {
-							const orgId = Bun.randomUUIDv7();
+						try {
+							await db.transaction(async (tx) => {
+								const orgId = Bun.randomUUIDv7();
 
-							await tx.insert(organizationTable).values({
-								name: `${user.name}'s Workspace`,
-								slug: slug,
-								id: orgId,
-								createdAt: new Date(),
-								metadata,
-							});
+								await tx.insert(organizationTable).values({
+									name: `${user.name}'s Workspace`,
+									slug: slug,
+									id: orgId,
+									createdAt: new Date(),
+									metadata,
+								});
 
-							await tx.insert(member).values({
-								id: Bun.randomUUIDv7(),
-								userId: user.id,
-								role: "owner",
-								organizationId: orgId,
-								createdAt: new Date(),
+								await tx.insert(member).values({
+									id: Bun.randomUUIDv7(),
+									userId: user.id,
+									role: "owner",
+									organizationId: orgId,
+									createdAt: new Date(),
+								});
 							});
-						});
+						} catch {
+							await db.delete(usersTable).where(eq(usersTable.id, user.id));
+
+							throw new Error(`Failed to create organization for user ${user.id}`);
+						}
 					},
 				},
 			},

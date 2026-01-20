@@ -185,7 +185,6 @@ Zerobyte is a wrapper around Restic for backup operations. Key integration point
 
 - `buildRepoUrl()` - Constructs repository URLs for different backends
 - `buildEnv()` - Sets environment variables (credentials, cache dir)
-- `ensurePassfile()` - Manages encryption password file
 - Type-safe parsing of Restic JSON output using ArkType schemas
 
 **Rclone Integration** (`app/server/modules/repositories/`):
