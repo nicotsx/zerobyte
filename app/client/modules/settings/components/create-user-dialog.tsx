@@ -153,7 +153,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Role</FormLabel>
-										<Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
+										<Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue placeholder="Select a role" />

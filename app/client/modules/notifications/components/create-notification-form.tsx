@@ -159,7 +159,6 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 							<FormLabel>Type</FormLabel>
 							<Select
 								onValueChange={field.onChange}
-								defaultValue={field.value}
 								value={field.value}
 								disabled={mode === "update"}
 							>
