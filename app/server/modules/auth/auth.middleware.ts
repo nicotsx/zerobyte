@@ -59,3 +59,13 @@ export const requireOrgAdmin = createMiddleware(async (c, next) => {
 
 	await next();
 });
+
+export const requireAdmin = createMiddleware(async (c, next) => {
+	const user = c.get("user");
+
+	if (!user || user.role !== "admin") {
+		return c.json({ message: "Forbidden" }, 403);
+	}
+
+	await next();
+});

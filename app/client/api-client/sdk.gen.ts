@@ -55,6 +55,8 @@ import type {
 	GetSystemInfoResponses,
 	GetUpdatesData,
 	GetUpdatesResponses,
+	GetUserDeletionImpactData,
+	GetUserDeletionImpactResponses,
 	GetVolumeData,
 	GetVolumeErrors,
 	GetVolumeResponses,
@@ -141,6 +143,17 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export const getStatus = <ThrowOnError extends boolean = false>(options?: Options<GetStatusData, ThrowOnError>) =>
 	(options?.client ?? client).get<GetStatusResponses, unknown, ThrowOnError>({
 		url: "/api/v1/auth/status",
+		...options,
+	});
+
+/**
+ * Get impact of deleting a user
+ */
+export const getUserDeletionImpact = <ThrowOnError extends boolean = false>(
+	options: Options<GetUserDeletionImpactData, ThrowOnError>,
+) =>
+	(options.client ?? client).get<GetUserDeletionImpactResponses, unknown, ThrowOnError>({
+		url: "/api/v1/auth/deletion-impact/{userId}",
 		...options,
 	});
 

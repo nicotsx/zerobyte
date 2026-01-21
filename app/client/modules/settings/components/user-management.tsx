@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { Shield, ShieldAlert, UserMinus, UserCheck, Trash2, Search } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Shield, ShieldAlert, UserMinus, UserCheck, Trash2, Search, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "~/client/lib/auth-client";
@@ -17,14 +17,20 @@ import {
 	DialogTitle,
 } from "~/client/components/ui/dialog";
 import { CreateUserDialog } from "./create-user-dialog";
+import { getUserDeletionImpactOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export function UserManagement() {
 	const { data: session } = authClient.useSession();
 	const currentUser = session?.user;
 
 	const [search, setSearch] = useState("");
-	const [isDeleting, setIsDeleting] = useState<string | null>(null);
-	const [isBanning, setIsBanning] = useState<{ id: string; name: string; isBanned: boolean } | null>(null);
+	const [userToDelete, setUserToDelete] = useState<string | null>(null);
+	const [userToBan, setUserToBan] = useState<{ id: string; name: string; isBanned: boolean } | null>(null);
+
+	const { data: deletionImpact, isLoading: isLoadingImpact } = useQuery({
+		...getUserDeletionImpactOptions({ path: { userId: userToDelete ?? "" } }),
+		enabled: Boolean(userToDelete),
+	});
 
 	const { data, isLoading, refetch } = useQuery({
 		queryKey: ["admin-users"],
@@ -35,6 +41,37 @@ export function UserManagement() {
 		},
 	});
 
+	const setRoleMutation = useMutation({
+		mutationFn: async ({ userId, role }: { userId: string; role: "user" | "admin" }) => {
+			const { error } = await authClient.admin.setRole({ userId, role });
+			if (error) throw error;
+		},
+		onSuccess: () => {
+			toast.success("User role updated successfully");
+			void refetch();
+		},
+		onError: (err: any) => {
+			toast.error("Failed to update role", { description: err.message });
+		},
+	});
+
+	const toggleBanUserMutation = useMutation({
+		mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
+			const { error } = ban ? await authClient.admin.banUser({ userId }) : await authClient.admin.unbanUser({ userId });
+			if (error) throw error;
+		},
+		onSuccess: () => {
+			toast.success("User ban status updated successfully");
+			void refetch();
+		},
+		onMutate: () => {
+			setUserToBan(null);
+		},
+		onError: (err: any) => {
+			toast.error("Failed to update ban status", { description: err.message });
+		},
+	});
+
 	const filteredUsers = data?.users.filter(
 		(user) =>
 			user.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -42,40 +79,14 @@ export function UserManagement() {
 			(user as any).username?.toLowerCase().includes(search.toLowerCase()),
 	);
 
-	const handleSetRole = async (userId: string, role: "user" | "admin") => {
-		try {
-			const { error } = await authClient.admin.setRole({ userId, role });
-			if (error) throw error;
-			toast.success(`User role updated to ${role}`);
-			void refetch();
-		} catch (err: any) {
-			toast.error("Failed to update role", { description: err.message });
-		}
-	};
-
-	const handleBanUser = async () => {
-		if (!isBanning) return;
-		try {
-			const { error } = isBanning.isBanned
-				? await authClient.admin.unbanUser({ userId: isBanning.id })
-				: await authClient.admin.banUser({ userId: isBanning.id });
-
-			if (error) throw error;
-			toast.success(`User ${isBanning.isBanned ? "unbanned" : "banned"} successfully`);
-			setIsBanning(null);
-			void refetch();
-		} catch (err: any) {
-			toast.error(`Failed to ${isBanning.isBanned ? "unban" : "ban"} user`, { description: err.message });
-		}
-	};
-
 	const handleDeleteUser = async () => {
-		if (!isDeleting) return;
+		if (!userToDelete) return;
+
 		try {
-			const { error } = await authClient.admin.removeUser({ userId: isDeleting });
+			const { error } = await authClient.admin.removeUser({ userId: userToDelete });
 			if (error) throw error;
 			toast.success("User deleted successfully");
-			setIsDeleting(null);
+			setUserToDelete(null);
 			void refetch();
 		} catch (err: any) {
 			toast.error("Failed to delete user", { description: err.message });
@@ -144,7 +155,7 @@ export function UserManagement() {
 											size="icon"
 											title="Demote to User"
 											className={cn({ hidden: user.role !== "admin" })}
-											onClick={() => handleSetRole(user.id, "user")}
+											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "user" })}
 										>
 											<ShieldAlert className="h-4 w-4" />
 										</Button>
@@ -153,18 +164,17 @@ export function UserManagement() {
 											size="icon"
 											title="Promote to Admin"
 											className={cn({ hidden: user.role === "admin" })}
-											onClick={() => handleSetRole(user.id, "admin")}
+											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "admin" })}
 										>
 											<Shield className="h-4 w-4" />
 										</Button>
 
-										{/* Ban/Unban Actions */}
 										<Button
 											variant="ghost"
 											size="icon"
 											title="Unban User"
 											className={cn({ hidden: !user.banned })}
-											onClick={() => setIsBanning({ id: user.id, name: user.name, isBanned: true })}
+											onClick={() => setUserToBan({ id: user.id, name: user.name, isBanned: true })}
 										>
 											<UserCheck className="h-4 w-4" />
 										</Button>
@@ -173,12 +183,12 @@ export function UserManagement() {
 											size="icon"
 											title="Ban User"
 											className={cn({ hidden: !!user.banned })}
-											onClick={() => setIsBanning({ id: user.id, name: user.name, isBanned: false })}
+											onClick={() => setUserToBan({ id: user.id, name: user.name, isBanned: false })}
 										>
 											<UserMinus className="h-4 w-4" />
 										</Button>
 
-										<Button variant="ghost" size="icon" title="Delete User" onClick={() => setIsDeleting(user.id)}>
+										<Button variant="ghost" size="icon" title="Delete User" onClick={() => setUserToDelete(user.id)}>
 											<Trash2 className="h-4 w-4 text-destructive" />
 										</Button>
 									</div>
@@ -189,7 +199,7 @@ export function UserManagement() {
 				</Table>
 			</div>
 
-			<Dialog open={Boolean(isDeleting)} onOpenChange={(open) => !open && setIsDeleting(null)}>
+			<Dialog open={Boolean(userToDelete)} onOpenChange={(open) => !open && setUserToDelete(null)}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Are you absolutely sure?</DialogTitle>
@@ -198,36 +208,74 @@ export function UserManagement() {
 							servers.
 						</DialogDescription>
 					</DialogHeader>
+
+					<div className={cn("space-y-4", { hidden: !deletionImpact?.organizations.length })}>
+						<div className="flex items-start gap-3 p-3 text-sm border rounded-lg bg-destructive/10 border-destructive/20 text-destructive">
+							<AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+							<div className="space-y-1">
+								<p className="font-semibold">Important: Data Deletion</p>
+								<p>
+									The following personal organizations and all their associated resources will be permanently deleted:
+								</p>
+							</div>
+						</div>
+
+						<div className="space-y-3 overflow-y-auto max-h-48">
+							{deletionImpact?.organizations.map((org) => (
+								<div key={org.id} className="p-3 border rounded-md bg-muted/50">
+									<p className="font-medium">{org.name}</p>
+									<div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
+										<span>{org.resources.volumesCount} Volumes</span>
+										<span>{org.resources.repositoriesCount} Repositories</span>
+										<span>{org.resources.backupSchedulesCount} Backups</span>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+
+					<div className={cn("text-center py-4", { hidden: !isLoadingImpact })}>
+						<p className="text-sm text-muted-foreground">Analyzing deletion impact...</p>
+					</div>
+
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsDeleting(null)}>
+						<Button variant="outline" onClick={() => setUserToDelete(null)}>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleDeleteUser}>
+						<Button variant="destructive" disabled={isLoadingImpact} onClick={handleDeleteUser}>
 							Delete User
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={Boolean(isBanning)} onOpenChange={(open) => !open && setIsBanning(null)}>
+			<Dialog open={Boolean(userToBan)} onOpenChange={(open) => !open && setUserToBan(null)}>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>{isBanning?.isBanned ? "Unban" : "Ban"} User</DialogTitle>
+						<DialogTitle>{userToBan?.isBanned ? "Unban" : "Ban"} User</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to {isBanning?.isBanned ? "unban" : "ban"} {isBanning?.name}?
-							{isBanning?.isBanned
+							Are you sure you want to {userToBan?.isBanned ? "unban" : "ban"} {userToBan?.name}?
+							{userToBan?.isBanned
 								? " They will regain access to the system."
 								: " They will be immediately signed out and lose access."}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setIsBanning(null)}>
+						<Button variant="outline" onClick={() => setUserToBan(null)}>
 							Cancel
 						</Button>
-						<Button variant="default" className={cn({ hidden: !isBanning?.isBanned })} onClick={handleBanUser}>
+						<Button
+							variant="default"
+							className={cn({ hidden: !userToBan?.isBanned })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan!.id, ban: false })}
+						>
 							Unban User
 						</Button>
-						<Button variant="destructive" className={cn({ hidden: !!isBanning?.isBanned })} onClick={handleBanUser}>
+						<Button
+							variant="destructive"
+							className={cn({ hidden: !!userToBan?.isBanned })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan!.id, ban: true })}
+						>
 							Ban User
 						</Button>
 					</DialogFooter>

@@ -15,6 +15,7 @@ import { db } from "../server/db/db";
 import { cryptoUtils } from "../server/utils/crypto";
 import { organization as organizationTable, member, usersTable } from "../server/db/schema";
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
+import { authService } from "../server/modules/auth/auth.service";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -36,6 +37,11 @@ const createBetterAuth = (secret: string) =>
 		}),
 		databaseHooks: {
 			user: {
+				delete: {
+					before: async (user) => {
+						await authService.cleanupUserOrganizations(user.id);
+					},
+				},
 				create: {
 					before: async (user) => {
 						const anyUser = await db.query.usersTable.findFirst();

@@ -29,6 +29,7 @@ import {
 	getStatus,
 	getSystemInfo,
 	getUpdates,
+	getUserDeletionImpact,
 	getVolume,
 	healthCheckVolume,
 	listBackupSchedules,
@@ -109,6 +110,8 @@ import type {
 	GetSystemInfoResponse,
 	GetUpdatesData,
 	GetUpdatesResponse,
+	GetUserDeletionImpactData,
+	GetUserDeletionImpactResponse,
 	GetVolumeData,
 	GetVolumeResponse,
 	HealthCheckVolumeData,
@@ -221,6 +224,31 @@ export const getStatusOptions = (options?: Options<GetStatusData>) =>
 			return data;
 		},
 		queryKey: getStatusQueryKey(options),
+	});
+
+export const getUserDeletionImpactQueryKey = (options: Options<GetUserDeletionImpactData>) =>
+	createQueryKey("getUserDeletionImpact", options);
+
+/**
+ * Get impact of deleting a user
+ */
+export const getUserDeletionImpactOptions = (options: Options<GetUserDeletionImpactData>) =>
+	queryOptions<
+		GetUserDeletionImpactResponse,
+		DefaultError,
+		GetUserDeletionImpactResponse,
+		ReturnType<typeof getUserDeletionImpactQueryKey>
+	>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await getUserDeletionImpact({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: getUserDeletionImpactQueryKey(options),
 	});
 
 export const listVolumesQueryKey = (options?: Options<ListVolumesData>) => createQueryKey("listVolumes", options);

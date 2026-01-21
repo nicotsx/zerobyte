@@ -22,6 +22,34 @@ export type GetStatusResponses = {
 
 export type GetStatusResponse = GetStatusResponses[keyof GetStatusResponses];
 
+export type GetUserDeletionImpactData = {
+	body?: never;
+	path: {
+		userId: string;
+	};
+	query?: never;
+	url: "/api/v1/auth/deletion-impact/{userId}";
+};
+
+export type GetUserDeletionImpactResponses = {
+	/**
+	 * List of organizations and resources to be deleted
+	 */
+	200: {
+		organizations: Array<{
+			id: string;
+			name: string;
+			resources: {
+				backupSchedulesCount: number;
+				repositoriesCount: number;
+				volumesCount: number;
+			};
+		}>;
+	};
+};
+
+export type GetUserDeletionImpactResponse = GetUserDeletionImpactResponses[keyof GetUserDeletionImpactResponses];
+
 export type ListVolumesData = {
 	body?: never;
 	path?: never;
