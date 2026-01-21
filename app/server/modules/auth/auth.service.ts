@@ -7,7 +7,7 @@ import {
 	repositoriesTable,
 	backupSchedulesTable,
 } from "../../db/schema";
-import { eq, sql, and, count, inArray } from "drizzle-orm";
+import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
 
 export class AuthService {
@@ -37,7 +37,7 @@ export class AuthService {
 					and(
 						eq(member.organizationId, membership.organizationId),
 						eq(member.role, "owner"),
-						sql`user_id != ${userId}`,
+						ne(member.userId, userId),
 					),
 				);
 

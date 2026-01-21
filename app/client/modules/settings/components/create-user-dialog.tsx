@@ -1,4 +1,5 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
+import { useMutation } from "@tanstack/react-query";
 import { type } from "arktype";
 import { Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
@@ -35,7 +36,6 @@ interface CreateUserDialogProps {
 
 export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 	const [isOpen, setIsOpen] = useState(false);
-	const [isLoading, setIsLoading] = useState(false);
 
 	const form = useForm<CreateUserFormValues>({
 		resolver: arktypeResolver(createUserSchema),
@@ -48,10 +48,8 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 		},
 	});
 
-	const onSubmit = async (values: CreateUserFormValues) => {
-		setIsLoading(true);
-
-		try {
+	const createUserMutation = useMutation({
+		mutationFn: async (values: CreateUserFormValues) => {
 			const { error } = await authClient.admin.createUser({
 				email: values.email,
 				password: values.password,
@@ -61,20 +59,19 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 			});
 
 			if (error) {
-				toast.error("Failed to create user", { description: error.message });
-			} else {
-				toast.success("User created successfully");
-				setIsOpen(false);
-				form.reset();
-				onUserCreated?.();
+				throw new Error(error.message);
 			}
-		} catch (err) {
-			console.error(err);
-			toast.error("An unexpected error occurred");
-		} finally {
-			setIsLoading(false);
-		}
-	};
+		},
+		onSuccess: () => {
+			toast.success("User created successfully");
+			setIsOpen(false);
+			form.reset();
+			onUserCreated?.();
+		},
+		onError: (error: Error) => {
+			toast.error("Failed to create user", { description: error.message });
+		},
+	});
 
 	return (
 		<Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -86,7 +83,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-106.25">
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(onSubmit)}>
+					<form onSubmit={form.handleSubmit((values) => createUserMutation.mutate(values))} className="space-y-6">
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<UserPlus className="h-5 w-5" />
@@ -102,7 +99,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Full Name</FormLabel>
 										<FormControl>
-											<Input {...field} placeholder="John Doe" disabled={isLoading} />
+											<Input {...field} placeholder="John Doe" disabled={createUserMutation.isPending} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -115,7 +112,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Username</FormLabel>
 										<FormControl>
-											<Input {...field} placeholder="johndoe" disabled={isLoading} />
+											<Input {...field} placeholder="johndoe" disabled={createUserMutation.isPending} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -128,7 +125,12 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Email</FormLabel>
 										<FormControl>
-											<Input {...field} type="email" placeholder="john@example.com" disabled={isLoading} />
+											<Input
+												{...field}
+												type="email"
+												placeholder="john@example.com"
+												disabled={createUserMutation.isPending}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -141,7 +143,12 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Password</FormLabel>
 										<FormControl>
-											<Input {...field} type="password" placeholder="Min. 8 characters" disabled={isLoading} />
+											<Input
+												{...field}
+												type="password"
+												placeholder="Min. 8 characters"
+												disabled={createUserMutation.isPending}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -153,7 +160,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Role</FormLabel>
-										<Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+										<Select onValueChange={field.onChange} value={field.value} disabled={createUserMutation.isPending}>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue placeholder="Select a role" />
@@ -170,10 +177,15 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 							/>
 						</div>
 						<DialogFooter>
-							<Button type="button" variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => setIsOpen(false)}
+								disabled={createUserMutation.isPending}
+							>
 								Cancel
 							</Button>
-							<Button type="submit" loading={isLoading}>
+							<Button type="submit" loading={createUserMutation.isPending}>
 								<UserPlus className="mr-2 h-4 w-4" />
 								Create User
 							</Button>
