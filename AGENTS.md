@@ -242,6 +242,7 @@ On startup, the server detects available capabilities (see `core/capabilities.ts
 - **Imports**: Organize imports is disabled in Biome - do not auto-organize
 - **TypeScript**: Uses `"type": "module"` - all imports must include extensions when targeting Node/Bun
 - **Validation**: Prefer ArkType over Zod - it's used throughout the codebase
+- **Visibility**: Prefer using the `cn` helper with `{ hidden: condition }` instead of conditional rendering with ternaries or `&&` for toggling element visibility in the DOM.
 - **Database**: Timestamps are stored as Unix epoch integers, not ISO strings
 - **Security**: Restic password file has 0600 permissions - never expose it
 - **Mounting**: Requires privileged container or CAP_SYS_ADMIN for FUSE mounts
