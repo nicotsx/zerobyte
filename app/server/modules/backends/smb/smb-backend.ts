@@ -40,14 +40,20 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		const source = `//${config.server}/${config.share}`;
 		const { uid, gid } = os.userInfo();
-		const options = [`user=${config.username}`, `pass=${password}`, `port=${config.port}`, `uid=${uid}`, `gid=${gid}`];
+		const credentialsDir = await fs.mkdtemp(`${os.tmpdir()}/zerobyte-smb-`);
+		const credentialsPath = `${credentialsDir}/credentials`;
+		const credentialsLines = [`username=${config.username}`, `password=${password}`];
+
+		if (config.domain) {
+			credentialsLines.push(`domain=${config.domain}`);
+		}
+
+		await fs.writeFile(credentialsPath, credentialsLines.join("\n"), { mode: 0o600 });
+
+		const options = [`credentials=${credentialsPath}`, `port=${config.port}`, `uid=${uid}`, `gid=${gid}`];
 
 		if (config.vers && config.vers !== "auto") {
 			options.push(`vers=${config.vers}`);
-		}
-
-		if (config.domain) {
-			options.push(`domain=${config.domain}`);
 		}
 
 		if (config.readOnly) {
@@ -60,11 +66,15 @@ const mount = async (config: BackendConfig, path: string) => {
 		logger.info(`Executing mount: mount ${args.join(" ")}`);
 
 		try {
-			await executeMount(args);
-		} catch (error) {
-			logger.warn(`Initial SMB mount failed, retrying with -i flag: ${toMessage(error)}`);
-			// Fallback with -i flag if the first mount fails using the mount helper
-			await executeMount(["-i", ...args]);
+			try {
+				await executeMount(args);
+			} catch (error) {
+				logger.warn(`Initial SMB mount failed, retrying with -i flag: ${toMessage(error)}`);
+				await executeMount(["-i", ...args]);
+			}
+		} finally {
+			await fs.rm(credentialsPath, { force: true });
+			await fs.rmdir(credentialsDir).catch(() => {});
 		}
 
 		logger.info(`SMB volume at ${path} mounted successfully.`);
