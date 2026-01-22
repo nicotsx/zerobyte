@@ -86,6 +86,7 @@ const defaultValuesForType = {
 		type: "telegram" as const,
 		botToken: "",
 		chatId: "",
+		threadId: "",
 	},
 	generic: {
 		type: "generic" as const,

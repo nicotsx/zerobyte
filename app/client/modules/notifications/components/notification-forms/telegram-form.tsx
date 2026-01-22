@@ -39,6 +39,20 @@ export const TelegramForm = ({ form }: Props) => {
 					</FormItem>
 				)}
 			/>
+			<FormField
+				control={form.control}
+				name="threadId"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Thread ID (Optional)</FormLabel>
+						<FormControl>
+							<Input {...field} placeholder="3" />
+						</FormControl>
+						<FormDescription>Telegram Group Topic ID to send notifications to.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
 		</>
 	);
 };

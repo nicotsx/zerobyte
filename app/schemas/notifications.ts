@@ -71,6 +71,7 @@ export const telegramNotificationConfigSchema = type({
 	type: "'telegram'",
 	botToken: "string",
 	chatId: "string",
+	threadId: "string?",
 });
 
 export const genericNotificationConfigSchema = type({
