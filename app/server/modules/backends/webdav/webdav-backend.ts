@@ -51,7 +51,8 @@ const mount = async (config: BackendConfig, path: string) => {
 		if (config.username && config.password) {
 			const password = await cryptoUtils.resolveSecret(config.password);
 			const secretsFile = "/etc/davfs2/secrets";
-			const secretsContent = `${source} ${config.username} ${password}\n`;
+			const entry = [source, config.username, password].map((value) => value.replace(/[\r\n\t\s]+/g, " ")).join(" ");
+			const secretsContent = `${entry}\n`;
 			await fs.appendFile(secretsFile, secretsContent, { mode: 0o600 });
 		}
 

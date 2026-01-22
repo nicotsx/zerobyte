@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { $ } from "bun";
+import { spawn } from "node:child_process";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
 import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
@@ -93,20 +93,52 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 		logger.debug(`Mounting SFTP volume ${mountPath}...`);
 
-		let result: $.ShellOutput;
+		const runSshfs = async (mountArgs: string[], password?: string) => {
+			return new Promise<void>((resolve, reject) => {
+				const child = spawn("sshfs", mountArgs, { stdio: ["pipe", "pipe", "pipe"] });
+				let stdout = "";
+				let stderr = "";
+
+				child.stdout.setEncoding("utf8");
+				child.stderr.setEncoding("utf8");
+
+				child.stdout.on("data", (data) => {
+					stdout += data;
+				});
+
+				child.stderr.on("data", (data) => {
+					stderr += data;
+				});
+
+				child.on("error", (error) => {
+					reject(new Error(`Failed to start sshfs: ${error.message}`));
+				});
+
+				child.on("close", (code) => {
+					if (code === 0) {
+						resolve();
+						return;
+					}
+
+					const errorMsg = stderr.trim() || stdout.trim() || "Unknown error";
+					reject(new Error(`Failed to mount SFTP volume: ${errorMsg}`));
+				});
+
+				if (password) {
+					child.stdin.write(password);
+				}
+				child.stdin.end();
+			});
+		};
+
 		if (config.password) {
 			const password = await cryptoUtils.resolveSecret(config.password);
 			args.push("-o", "password_stdin");
-			logger.info(`Executing sshfs: echo "******" | sshfs ${args.join(" ")}`);
-			result = await $`echo ${password} | sshfs ${args}`.nothrow();
+			logger.info(`Executing sshfs: sshfs ${args.join(" ")}`);
+			await runSshfs(args, password);
 		} else {
 			logger.info(`Executing sshfs: sshfs ${args.join(" ")}`);
-			result = await $`sshfs ${args}`.nothrow();
-		}
-
-		if (result.exitCode !== 0) {
-			const errorMsg = result.stderr.toString() || result.stdout.toString() || "Unknown error";
-			throw new Error(`Failed to mount SFTP volume: ${errorMsg}`);
+			await runSshfs(args);
 		}
 
 		logger.info(`SFTP volume at ${mountPath} mounted successfully.`);
