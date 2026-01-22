@@ -51,10 +51,12 @@ export interface MirrorEvent {
 export interface DoctorEvent {
 	repositoryId: string;
 	repositoryName: string;
+	error?: string;
 }
 
 export interface DoctorCompletedEvent extends DoctorEvent {
 	success: boolean;
+	completedAt: number;
 	steps: Array<{
 		step: string;
 		success: boolean;

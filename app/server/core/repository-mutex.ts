@@ -87,9 +87,7 @@ class RepositoryMutex {
 			}
 		});
 
-		if (onAbort) {
-			signal?.removeEventListener("abort", onAbort);
-		}
+		signal?.removeEventListener("abort", onAbort);
 
 		if (signal?.aborted) {
 			this.releaseShared(repositoryId, lockId);
@@ -138,9 +136,7 @@ class RepositoryMutex {
 			}
 		});
 
-		if (onAbort) {
-			signal?.removeEventListener("abort", onAbort);
-		}
+		signal?.removeEventListener("abort", onAbort);
 
 		if (signal?.aborted) {
 			this.releaseExclusive(repositoryId, lockId);
