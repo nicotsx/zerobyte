@@ -746,6 +746,11 @@ const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal;
 	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
+	if (options?.signal?.aborted) {
+		logger.warn("Restic unlock was aborted by signal.");
+		return { success: false, message: "Operation aborted" };
+	}
+
 	if (res.exitCode !== 0) {
 		logger.error(`Restic unlock failed: ${res.stderr}`);
 		throw new ResticError(res.exitCode, res.stderr);
@@ -771,8 +776,12 @@ const check = async (
 	addCommonArgs(args, env, config);
 
 	const res = await exec({ command: "restic", args, env, signal: options?.signal });
-
 	await cleanupTemporaryKeys(env);
+
+	if (options?.signal?.aborted) {
+		logger.warn("Restic check was aborted by signal.");
+		return { success: false, hasErrors: true, output: "", error: "Operation aborted" };
+	}
 
 	const { stdout, stderr } = res;
 
@@ -806,6 +815,11 @@ const repairIndex = async (config: RepositoryConfig, options: { signal?: AbortSi
 
 	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
+
+	if (options?.signal?.aborted) {
+		logger.warn("Restic repair index was aborted by signal.");
+		return { success: false, message: "Operation aborted", output: "" };
+	}
 
 	const { stdout, stderr } = res;
 
