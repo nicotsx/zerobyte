@@ -1,1 +1,0 @@
-ALTER TABLE `repositories_table` ADD `doctor_result` text;
