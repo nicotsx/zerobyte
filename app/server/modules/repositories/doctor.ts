@@ -9,13 +9,15 @@ import { type } from "arktype";
 import { serverEvents } from "../../core/events";
 import { logger } from "../../utils/logger";
 import { safeJsonParse } from "../../utils/json";
+import { getOrganizationId } from "~/server/core/request-context";
 
 class AbortError extends Error {
 	name = "AbortError";
 }
 
 const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => {
-	const result = await restic.unlock(config, { signal }).then(
+	const orgId = getOrganizationId();
+	const result = await restic.unlock(config, { signal, organizationId: orgId }).then(
 		(result) => ({ success: true, message: result.message, error: null }),
 		(error) => ({ success: false, message: null, error: toMessage(error) }),
 	);
@@ -29,7 +31,8 @@ const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => 
 };
 
 const runCheckStep = async (config: RepositoryConfig, signal: AbortSignal) => {
-	const result = await restic.check(config, { readData: true, signal }).then(
+	const orgId = getOrganizationId();
+	const result = await restic.check(config, { readData: true, signal, organizationId: orgId }).then(
 		(result) => result,
 		(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
 	);
@@ -43,7 +46,8 @@ const runCheckStep = async (config: RepositoryConfig, signal: AbortSignal) => {
 };
 
 const runRepairIndexStep = async (config: RepositoryConfig, signal: AbortSignal) => {
-	const result = await restic.repairIndex(config, { signal }).then(
+	const orgId = getOrganizationId();
+	const result = await restic.repairIndex(config, { signal, organizationId: orgId }).then(
 		(result) => ({ success: true, output: result.output, error: null }),
 		(error) => ({ success: false, output: null, error: toMessage(error) }),
 	);

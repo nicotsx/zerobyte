@@ -927,7 +927,7 @@ export type ListRepositoriesResponses = {
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "doctor" | "error" | "healthy" | "unknown" | null;
+		status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	}>;
@@ -1365,7 +1365,7 @@ export type GetRepositoryResponses = {
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "doctor" | "error" | "healthy" | "unknown" | null;
+		status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -1585,7 +1585,7 @@ export type UpdateRepositoryResponses = {
 		lastError: string | null;
 		name: string;
 		shortId: string;
-		status: "doctor" | "error" | "healthy" | "unknown" | null;
+		status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 		type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 		updatedAt: number;
 	};
@@ -2051,7 +2051,7 @@ export type ListBackupSchedulesResponses = {
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "doctor" | "error" | "healthy" | "unknown" | null;
+			status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2433,7 +2433,7 @@ export type GetBackupScheduleResponses = {
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "doctor" | "error" | "healthy" | "unknown" | null;
+			status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -2796,7 +2796,7 @@ export type GetBackupScheduleForVolumeResponses = {
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "doctor" | "error" | "healthy" | "unknown" | null;
+			status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -3367,7 +3367,7 @@ export type GetScheduleMirrorsResponses = {
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "doctor" | "error" | "healthy" | "unknown" | null;
+			status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};
@@ -3587,7 +3587,7 @@ export type UpdateScheduleMirrorsResponses = {
 			lastError: string | null;
 			name: string;
 			shortId: string;
-			status: "doctor" | "error" | "healthy" | "unknown" | null;
+			status: "cancelled" | "doctor" | "error" | "healthy" | "unknown" | null;
 			type: "azure" | "gcs" | "local" | "r2" | "rclone" | "rest" | "s3" | "sftp";
 			updatedAt: number;
 		};

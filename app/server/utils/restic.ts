@@ -736,7 +736,7 @@ const ls = async (config: RepositoryConfig, snapshotId: string, organizationId: 
 	return { snapshot, nodes };
 };
 
-const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal, organizationId: string }) => {
+const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal; organizationId: string }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
@@ -755,7 +755,10 @@ const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal,
 	return { success: true, message: "Repository unlocked successfully" };
 };
 
-const check = async (config: RepositoryConfig, options?: { readData?: boolean; signal?: AbortSignal }) => {
+const check = async (
+	config: RepositoryConfig,
+	options: { readData?: boolean; signal?: AbortSignal; organizationId: string },
+) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
@@ -794,9 +797,9 @@ const check = async (config: RepositoryConfig, options?: { readData?: boolean; s
 	};
 };
 
-const repairIndex = async (config: RepositoryConfig, options?: { signal?: AbortSignal }) => {
+const repairIndex = async (config: RepositoryConfig, options: { signal?: AbortSignal; organizationId: string }) => {
 	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, organizationId);
+	const env = await buildEnv(config, options.organizationId);
 
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);

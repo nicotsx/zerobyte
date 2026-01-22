@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { and, eq, or } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -17,6 +17,11 @@ import {
 	type RepositoryConfig,
 } from "~/schemas/restic";
 import { getOrganizationId } from "~/server/core/request-context";
+import { serverEvents } from "~/server/core/events";
+import { executeDoctor } from "./doctor";
+import { logger } from "~/server/utils/logger";
+
+const runningDoctors = new Map<string, AbortController>();
 
 const findRepository = async (idOrShortId: string) => {
 	const organizationId = getOrganizationId();
@@ -345,7 +350,6 @@ const checkHealth = async (repositoryId: string) => {
 };
 
 const startDoctor = async (id: string) => {
-	const organizationId = getOrganizationId();
 	const repository = await findRepository(id);
 
 	if (!repository) {
