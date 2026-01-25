@@ -118,7 +118,7 @@
 	},
 	"overrides": {
 		"esbuild": "^0.27.2",
-		"hono": "^4.11.4"
+		"hono": "^4.11.5"
 	},
 	"packageManager": "bun@1.3.6"
 }
