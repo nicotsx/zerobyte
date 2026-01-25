@@ -133,6 +133,11 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 		case "s3":
 			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
 			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(config.secretAccessKey);
+
+			// Huawei OBS requires virtual-hosted style access
+			if (config.endpoint.includes("myhuaweicloud")) {
+				env.AWS_S3_BUCKET_LOOKUP = "dns";
+			}
 			break;
 		case "r2":
 			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
@@ -953,6 +958,10 @@ export const addCommonArgs = (
 
 	if (env._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
+	}
+
+	if (env.AWS_S3_BUCKET_LOOKUP === "dns") {
+		args.push("-o", "s3.bucket-lookup=dns");
 	}
 
 	if (env._INSECURE_TLS === "true") {
