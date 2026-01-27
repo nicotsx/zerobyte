@@ -90,8 +90,7 @@ const execute = async () => {
 	const legacyPassword = (await Bun.file(RESTIC_PASS_FILE).text()).trim();
 
 	if (!legacyPassword) {
-		logger.info("No legacy restic passfile found, skipping migration");
-		return { success: true, errors: [] };
+		throw new Error("Legacy restic passfile is empty");
 	}
 
 	// Step 2: Assign restic passwords to all existing organizations

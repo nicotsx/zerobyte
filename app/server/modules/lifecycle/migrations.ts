@@ -1,6 +1,7 @@
 import { logger } from "../../utils/logger";
 import { v00001 } from "./migrations/00001-retag-snapshots";
 import { v00002 } from "./migrations/00002-isolate-restic-passwords";
+import { v00003 } from "./migrations/00003-fix-missing-org-memberships";
 import { sql } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import { appMetadataTable, usersTable } from "../../db/schema";
@@ -38,7 +39,7 @@ type MigrationEntity = {
 	dependsOn?: string[];
 };
 
-const registry: MigrationEntity[] = [v00001, v00002];
+const registry: MigrationEntity[] = [v00001, v00002, v00003];
 
 export const runMigrations = async () => {
 	const userCount = await db.select({ count: sql<number>`count(*)` }).from(usersTable);
