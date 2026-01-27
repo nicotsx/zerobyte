@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession } from "~/test/helpers/auth";
+import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 
 const app = createApp();
 
@@ -14,9 +14,7 @@ describe("events security", () => {
 
 	test("should return 401 if session is invalid", async () => {
 		const res = await app.request("/api/v1/events", {
-			headers: {
-				Cookie: "better-auth.session_token=invalid-session",
-			},
+			headers: getAuthHeaders("invalid-session"),
 		});
 		expect(res.status).toBe(401);
 		const body = await res.json();
@@ -27,9 +25,7 @@ describe("events security", () => {
 		const { token } = await createTestSession();
 
 		const res = await app.request("/api/v1/events", {
-			headers: {
-				Cookie: `better-auth.session_token=${token}`,
-			},
+			headers: getAuthHeaders(token),
 		});
 
 		expect(res.status).toBe(200);

@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession } from "~/test/helpers/auth";
+import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 
 const app = createApp();
 
@@ -14,9 +14,7 @@ describe("repositories security", () => {
 
 	test("should return 401 if session is invalid", async () => {
 		const res = await app.request("/api/v1/repositories", {
-			headers: {
-				Cookie: "better-auth.session_token=invalid-session",
-			},
+			headers: getAuthHeaders("invalid-session"),
 		});
 		expect(res.status).toBe(401);
 		const body = await res.json();
@@ -27,9 +25,7 @@ describe("repositories security", () => {
 		const { token } = await createTestSession();
 
 		const res = await app.request("/api/v1/repositories", {
-			headers: {
-				Cookie: `better-auth.session_token=${token}`,
-			},
+			headers: getAuthHeaders(token),
 		});
 
 		expect(res.status).toBe(200);
@@ -75,9 +71,7 @@ describe("repositories security", () => {
 		test("should return 404 for non-existent repository", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo", {
-				headers: {
-					Cookie: `better-auth.session_token=${token}`,
-				},
+				headers: getAuthHeaders(token),
 			});
 
 			expect(res.status).toBe(404);
@@ -90,7 +84,7 @@ describe("repositories security", () => {
 			const res = await app.request("/api/v1/repositories", {
 				method: "POST",
 				headers: {
-					Cookie: `better-auth.session_token=${token}`,
+					...getAuthHeaders(token),
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

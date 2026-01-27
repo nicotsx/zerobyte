@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession } from "~/test/helpers/auth";
+import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 
 const app = createApp();
 
@@ -14,9 +14,7 @@ describe("backups security", () => {
 
 	test("should return 401 if session is invalid", async () => {
 		const res = await app.request("/api/v1/backups", {
-			headers: {
-				Cookie: "better-auth.session_token=invalid-session",
-			},
+			headers: getAuthHeaders("invalid-session"),
 		});
 		expect(res.status).toBe(401);
 		const body = await res.json();
@@ -27,9 +25,7 @@ describe("backups security", () => {
 		const { token } = await createTestSession();
 
 		const res = await app.request("/api/v1/backups", {
-			headers: {
-				Cookie: `better-auth.session_token=${token}`,
-			},
+			headers: getAuthHeaders(token),
 		});
 
 		expect(res.status).toBe(200);
@@ -84,9 +80,7 @@ describe("backups security", () => {
 		test("should return 404 for malformed schedule ID", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/backups/not-a-number", {
-				headers: {
-					Cookie: `better-auth.session_token=${token}`,
-				},
+				headers: getAuthHeaders(token),
 			});
 
 			expect(res.status).toBe(404);
@@ -95,9 +89,7 @@ describe("backups security", () => {
 		test("should return 404 for non-existent schedule ID", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/backups/999999", {
-				headers: {
-					Cookie: `better-auth.session_token=${token}`,
-				},
+				headers: getAuthHeaders(token),
 			});
 
 			expect(res.status).toBe(404);
@@ -110,7 +102,7 @@ describe("backups security", () => {
 			const res = await app.request("/api/v1/backups", {
 				method: "POST",
 				headers: {
-					Cookie: `better-auth.session_token=${token}`,
+					...getAuthHeaders(token),
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

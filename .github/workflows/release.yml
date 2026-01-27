@@ -39,7 +39,7 @@ jobs:
 
   build-images:
     timeout-minutes: 15
-    needs: [determine-release-type]
+    needs: [determine-release-type, checks, e2e-tests]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code

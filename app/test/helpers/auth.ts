@@ -3,6 +3,14 @@ import { sessionsTable, usersTable, account, organization, member } from "~/serv
 import { hashPassword } from "better-auth/crypto";
 import { createHmac } from "node:crypto";
 
+export const COOKIE_PREFIX = "zerobyte";
+
+export function getAuthHeaders(token: string): { Cookie: string } {
+	return {
+		Cookie: `${COOKIE_PREFIX}.session_token=${token}`,
+	};
+}
+
 export async function createTestSession() {
 	const userId = crypto.randomUUID();
 	const user = {

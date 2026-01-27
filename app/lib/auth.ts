@@ -25,6 +25,7 @@ const createBetterAuth = (secret: string) =>
 		trustedOrigins: config.trustedOrigins ?? ["*"],
 		advanced: {
 			cookiePrefix: "zerobyte",
+			useSecureCookies: false,
 		},
 		onAPIError: {
 			throw: true,
