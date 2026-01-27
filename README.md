@@ -51,6 +51,7 @@ services:
       - /dev/fuse:/dev/fuse
     environment:
       - TZ=Europe/Paris # Set your timezone here
+      - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -76,14 +77,15 @@ Zerobyte can be customized using environment variables. Below are the available 
 
 ### Environment Variables
 
-| Variable              | Description                                                                                                        | Default    |
-| :-------------------- | :----------------------------------------------------------------------------------------------------------------- | :--------- |
-| `PORT`                | The port the web interface and API will listen on.                                                                 | `4096`     |
-| `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
-| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                     | `UTC`      |
-| `TRUSTED_ORIGINS`     | Comma-separated list of trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).               | (none)     |
-| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                      | `info`     |
-| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                            | `60`       |
+| Variable              | Description                                                                                                                 | Default    |
+| :-------------------- | :-------------------------------------------------------------------------------------------------------------------------- | :--------- |
+| `BASE_URL`            | The base URL of your Zerobyte instance (e.g., `https://zerobyte.example.com`). See [Authentication](#authentication) below. | (none)     |
+| `PORT`                | The port the web interface and API will listen on.                                                                          | `4096`     |
+| `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.          | `zerobyte` |
+| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                              | `UTC`      |
+| `TRUSTED_ORIGINS`     | Comma-separated list of trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                        | (none)     |
+| `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                               | `info`     |
+| `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                     | `60`       |
 
 ### Secret References
 
@@ -109,6 +111,7 @@ services:
       - "4096:4096"
     environment:
       - TZ=Europe/Paris # Set your timezone here
+      - BASE_URL=http://localhost:4096 # Change this to your actual URL (use https:// for secure cookies)
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -150,6 +153,7 @@ services:
       - /dev/fuse:/dev/fuse
     environment:
       - TZ=Europe/Paris
+      - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
@@ -223,6 +227,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
          - /dev/fuse:/dev/fuse
        environment:
          - TZ=Europe/Paris
+         - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
        volumes:
          - /etc/localtime:/etc/localtime:ro
          - /var/lib/zerobyte:/var/lib/zerobyte
@@ -263,6 +268,30 @@ You can monitor the progress and status of your backup jobs in the "Backups" sec
 Zerobyte allows you to easily restore your data from backups. To restore data, navigate to the "Backups" section and select the backup job from which you want to restore data. You can then choose a specific backup snapshot and select the files or directories you wish to restore. The data you select will be restored to their original location.
 
 ![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
+
+## Authentication
+
+Zerobyte uses [better-auth](https://github.com/better-auth/better-auth) for authentication and session management. The authentication system automatically adapts to your deployment scenario:
+
+### Cookie Security
+
+- **IP Address / HTTP access**: Set `BASE_URL=http://192.168.1.50:4096` (or your IP). Cookies will use `Secure: false`, allowing immediate login without SSL.
+- **Domain / HTTPS access**: Set `BASE_URL=https://zerobyte.example.com`. Cookies will automatically use `Secure: true` for protected sessions.
+
+### Reverse Proxy Setup
+
+If you're running Zerobyte behind a reverse proxy (Nginx, Traefik, Caddy, etc.):
+
+1. **Set `BASE_URL`** to your HTTPS domain (e.g., `https://zerobyte.example.com`)
+2. The app will automatically enable secure cookies based on the `https://` prefix
+3. Ensure your proxy passes the `X-Forwarded-Proto` header
+
+### Important Notes
+
+- The `BASE_URL` must start with `https://` for secure cookies to be enabled
+- Local IP addresses (e.g., `http://192.168.x.x`) are **not** treated as secure contexts by browsers, so secure cookies are disabled automatically
+- `localhost` is treated as a secure context by browsers even over HTTP, but we still recommend using `BASE_URL` for consistency
+- If you don't set `BASE_URL`, the app will work but may have issues with callback URLs in certain authentication flows. All cookies will be set with `Secure: false`.
 
 ## Troubleshooting
 
@@ -305,6 +334,7 @@ RESTIC_PASS_FILE=./data/restic.pass
 RESTIC_CACHE_DIR=./data/restic/cache
 ZEROBYTE_REPOSITORIES_DIR=./data/repositories
 ZEROBYTE_VOLUMES_DIR=./data/volumes
+BASE_URL=http://localhost:4096
 ```
 
 Notes:

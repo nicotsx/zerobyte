@@ -35,6 +35,7 @@ const envSchema = type({
 	TRUSTED_ORIGINS: "string?",
 	DISABLE_RATE_LIMITING: 'string = "false"',
 	APP_SECRET: "32 <= string <= 256",
+	BASE_URL: "string",
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
@@ -47,6 +48,8 @@ const envSchema = type({
 	trustedOrigins: s.TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()),
 	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
 	appSecret: s.APP_SECRET,
+	baseUrl: s.BASE_URL,
+	isSecure: s.BASE_URL?.startsWith("https://") ?? false,
 }));
 
 const parseConfig = (env: unknown) => {
