@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession } from "~/test/helpers/auth";
+import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { db } from "~/server/db/db";
 import {
 	repositoriesTable,
@@ -46,9 +46,7 @@ describe("multi-organization isolation", () => {
 			.where(eq(sessionsTable.id, rawSessionToken));
 
 		const res = await app.request("/api/v1/repositories", {
-			headers: {
-				Cookie: `better-auth.session_token=${session.token}`,
-			},
+			headers: getAuthHeaders(session.token),
 		});
 
 		expect(res.status).toBe(403);
@@ -74,9 +72,7 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res = await app.request(`/api/v1/repositories/${repoId}`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
-			},
+			headers: getAuthHeaders(session2.token),
 		});
 
 		expect(res.status).toBe(404);
@@ -84,9 +80,7 @@ describe("multi-organization isolation", () => {
 		expect(body.message).toBe("Repository not found");
 
 		const resOk = await app.request(`/api/v1/repositories/${repoId}`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session1.token}`,
-			},
+			headers: getAuthHeaders(session1.token),
 		});
 		expect(resOk.status).toBe(200);
 	});
@@ -114,9 +108,7 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res1 = await app.request("/api/v1/repositories", {
-			headers: {
-				Cookie: `better-auth.session_token=${session1.token}`,
-			},
+			headers: getAuthHeaders(session1.token),
 		});
 		const list1 = await res1.json();
 
@@ -124,9 +116,7 @@ describe("multi-organization isolation", () => {
 		expect(list1.some((r: any) => r.name === "Org 2 Repo")).toBe(false);
 
 		const res2 = await app.request("/api/v1/repositories", {
-			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
-			},
+			headers: getAuthHeaders(session2.token),
 		});
 		const list2 = await res2.json();
 		expect(list2.some((r: any) => r.name === "Org 1 Repo")).toBe(false);
@@ -149,9 +139,7 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res = await app.request(`/api/v1/volumes/${volumeId}`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
-			},
+			headers: getAuthHeaders(session2.token),
 		});
 
 		expect(res.status).toBe(404);
@@ -185,7 +173,7 @@ describe("multi-organization isolation", () => {
 		const res = await app.request("/api/v1/backups", {
 			method: "POST",
 			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
+				...getAuthHeaders(session2.token),
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -237,17 +225,13 @@ describe("multi-organization isolation", () => {
 			.returning();
 
 		const res = await app.request(`/api/v1/backups/${schedule.id}`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
-			},
+			headers: getAuthHeaders(session2.token),
 		});
 
 		expect(res.status).toBe(404);
 
 		const resOk = await app.request(`/api/v1/backups/${schedule.id}`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session1.token}`,
-			},
+			headers: getAuthHeaders(session1.token),
 		});
 		expect(resOk.status).toBe(200);
 	});
@@ -310,16 +294,14 @@ describe("multi-organization isolation", () => {
 		});
 
 		const resGet = await app.request(`/api/v1/backups/${schedule.id}/notifications`, {
-			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
-			},
+			headers: getAuthHeaders(session2.token),
 		});
 		expect(resGet.status).toBe(404);
 
 		const resPut = await app.request(`/api/v1/backups/${schedule.id}/notifications`, {
 			method: "PUT",
 			headers: {
-				Cookie: `better-auth.session_token=${session2.token}`,
+				...getAuthHeaders(session2.token),
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({

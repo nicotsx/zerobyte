@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession } from "~/test/helpers/auth";
+import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 
 const app = createApp();
 
@@ -14,9 +14,7 @@ describe("notifications security", () => {
 
 	test("should return 401 if session is invalid", async () => {
 		const res = await app.request("/api/v1/notifications/destinations", {
-			headers: {
-				Cookie: "better-auth.session_token=invalid-session",
-			},
+			headers: getAuthHeaders("invalid-session"),
 		});
 		expect(res.status).toBe(401);
 		const body = await res.json();
@@ -27,9 +25,7 @@ describe("notifications security", () => {
 		const { token } = await createTestSession();
 
 		const res = await app.request("/api/v1/notifications/destinations", {
-			headers: {
-				Cookie: `better-auth.session_token=${token}`,
-			},
+			headers: getAuthHeaders(token),
 		});
 
 		expect(res.status).toBe(200);
@@ -68,9 +64,7 @@ describe("notifications security", () => {
 		test("should return 404 for malformed destination ID", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/not-a-number", {
-				headers: {
-					Cookie: `better-auth.session_token=${token}`,
-				},
+				headers: getAuthHeaders(token),
 			});
 
 			expect(res.status).toBe(404);
@@ -79,9 +73,7 @@ describe("notifications security", () => {
 		test("should return 404 for non-existent destination ID", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/999999", {
-				headers: {
-					Cookie: `better-auth.session_token=${token}`,
-				},
+				headers: getAuthHeaders(token),
 			});
 
 			expect(res.status).toBe(404);
@@ -95,7 +87,7 @@ describe("notifications security", () => {
 			const res = await app.request("/api/v1/notifications/destinations", {
 				method: "POST",
 				headers: {
-					Cookie: `better-auth.session_token=${token}`,
+					...getAuthHeaders(token),
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
