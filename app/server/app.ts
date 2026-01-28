@@ -37,10 +37,14 @@ export const scalarDescriptor = Scalar({
 });
 
 export const createApp = () => {
-	const app = new Hono().use(secureHeaders());
+	const app = new Hono();
 
 	if (config.trustedOrigins) {
 		app.use(cors({ origin: config.trustedOrigins }));
+	}
+
+	if (config.environment === "production") {
+		app.use(secureHeaders());
 	}
 
 	if (config.environment !== "test") {
