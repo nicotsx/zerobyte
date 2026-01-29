@@ -2988,6 +2988,7 @@ export type GetScheduleNotificationsResponses = {
 						to: Array<string>;
 						type: "email";
 						useTLS: boolean;
+						fromName?: string;
 						password?: string;
 						username?: string;
 				  }
@@ -3099,6 +3100,7 @@ export type UpdateScheduleNotificationsResponses = {
 						to: Array<string>;
 						type: "email";
 						useTLS: boolean;
+						fromName?: string;
 						password?: string;
 						username?: string;
 				  }
@@ -3675,6 +3677,7 @@ export type ListNotificationDestinationsResponses = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
@@ -3757,6 +3760,7 @@ export type CreateNotificationDestinationData = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
@@ -3837,6 +3841,7 @@ export type CreateNotificationDestinationResponses = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
@@ -3966,6 +3971,7 @@ export type GetNotificationDestinationResponses = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
@@ -4048,6 +4054,7 @@ export type UpdateNotificationDestinationData = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
@@ -4138,6 +4145,7 @@ export type UpdateNotificationDestinationResponses = {
 					to: Array<string>;
 					type: "email";
 					useTLS: boolean;
+					fromName?: string;
 					password?: string;
 					username?: string;
 			  }
