@@ -43,36 +43,37 @@ const mount = async (config: BackendConfig, path: string) => {
 
 		const credentialsDir = await fs.mkdtemp(`${os.tmpdir()}/zerobyte-smb-`);
 		const credentialsPath = `${credentialsDir}/credentials`;
-		const credentialsLines: string[] = [];
-
-		if (config.guest) {
-			credentialsLines.push("username=guest", "password=");
-		} else {
-			const password = await cryptoUtils.resolveSecret(config.password ?? "");
-			credentialsLines.push(`username=${config.username ?? ""}`, `password=${password}`);
-		}
-
-		if (config.domain) {
-			credentialsLines.push(`domain=${config.domain}`);
-		}
-
-		await fs.writeFile(credentialsPath, credentialsLines.join("\n"), { mode: 0o600 });
-		options.push(`credentials=${credentialsPath}`);
-
-		if (config.vers && config.vers !== "auto") {
-			options.push(`vers=${config.vers}`);
-		}
-
-		if (config.readOnly) {
-			options.push("ro");
-		}
-
-		const args = ["-t", "cifs", "-o", options.join(","), source, path];
-
-		logger.debug(`Mounting SMB volume ${path}...`);
-		logger.info(`Executing mount: mount ${args.join(" ")}`);
 
 		try {
+			const credentialsLines: string[] = [];
+
+			if (config.guest) {
+				credentialsLines.push("username=guest", "password=");
+			} else {
+				const password = await cryptoUtils.resolveSecret(config.password ?? "");
+				credentialsLines.push(`username=${config.username ?? ""}`, `password=${password}`);
+			}
+
+			if (config.domain) {
+				credentialsLines.push(`domain=${config.domain}`);
+			}
+
+			await fs.writeFile(credentialsPath, credentialsLines.join("\n"), { mode: 0o600 });
+			options.push(`credentials=${credentialsPath}`);
+
+			if (config.vers && config.vers !== "auto") {
+				options.push(`vers=${config.vers}`);
+			}
+
+			if (config.readOnly) {
+				options.push("ro");
+			}
+
+			const args = ["-t", "cifs", "-o", options.join(","), source, path];
+
+			logger.debug(`Mounting SMB volume ${path}...`);
+			logger.info(`Executing mount: mount ${args.join(" ")}`);
+
 			try {
 				await executeMount(args);
 			} catch (error) {
@@ -81,7 +82,7 @@ const mount = async (config: BackendConfig, path: string) => {
 			}
 		} finally {
 			await fs.rm(credentialsPath, { force: true });
-			await fs.rmdir(credentialsDir).catch(() => {});
+			await fs.rm(credentialsDir, { force: true, recursive: true });
 		}
 
 		logger.info(`SMB volume at ${path} mounted successfully.`);
