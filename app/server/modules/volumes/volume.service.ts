@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { and, eq } from "drizzle-orm";
-import { InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
@@ -65,6 +65,10 @@ const findVolume = async (idOrShortId: string | number) => {
 const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	const organizationId = getOrganizationId();
 	const trimmedName = name.trim();
+
+	if (trimmedName.length === 0) {
+		throw new BadRequestError("Volume name cannot be empty");
+	}
 
 	const shortId = generateShortId();
 	const encryptedConfig = await encryptSensitiveFields(backendConfig);
@@ -184,6 +188,10 @@ const updateVolume = async (idOrShortId: string | number, volumeData: UpdateVolu
 
 	const newName = volumeData.name !== undefined ? volumeData.name.trim() : existing.name;
 
+	if (newName.length === 0) {
+		throw new BadRequestError("Volume name cannot be empty");
+	}
+
 	const configChanged =
 		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;
 
@@ -195,7 +203,7 @@ const updateVolume = async (idOrShortId: string | number, volumeData: UpdateVolu
 
 	const newConfig = volumeConfigSchema(volumeData.config || existing.config);
 	if (newConfig instanceof type.errors) {
-		throw new InternalServerError("Invalid volume configuration");
+		throw new BadRequestError("Invalid volume configuration");
 	}
 
 	const encryptedConfig = await encryptSensitiveFields(newConfig);
@@ -306,7 +314,7 @@ const listFiles = async (idOrShortId: string | number, subPath?: string) => {
 	const relative = path.relative(volumePath, normalizedPath);
 
 	if (relative.startsWith("..") || path.isAbsolute(relative)) {
-		throw new InternalServerError("Invalid path");
+		throw new BadRequestError("Invalid path");
 	}
 
 	try {

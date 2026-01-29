@@ -87,7 +87,7 @@ export const createApp = () => {
 
 		const { status, message } = handleServiceError(err);
 
-		return c.json({ message }, status);
+		return c.json({ message }, status as 500);
 	});
 
 	return app;

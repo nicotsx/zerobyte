@@ -1,5 +1,5 @@
 import { eq, and, inArray } from "drizzle-orm";
-import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import {
 	notificationDestinationsTable,
@@ -144,7 +144,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 	const trimmedName = name.trim();
 
 	if (trimmedName.length === 0) {
-		throw new InternalServerError("Name cannot be empty or whitespace-only");
+		throw new BadRequestError("Name cannot be empty");
 	}
 
 	const encryptedConfig = await encryptSensitiveFields(config);
@@ -184,7 +184,7 @@ const updateDestination = async (
 	if (updates.name !== undefined) {
 		const trimmedName = updates.name.trim();
 		if (trimmedName.length === 0) {
-			throw new InternalServerError("Name cannot be empty or whitespace-only");
+			throw new BadRequestError("Name cannot be empty");
 		}
 		updateData.name = trimmedName;
 	}
@@ -195,7 +195,7 @@ const updateDestination = async (
 
 	const newConfig = notificationConfigSchema(updates.config || existing.config);
 	if (newConfig instanceof type.errors) {
-		throw new InternalServerError("Invalid notification configuration");
+		throw new BadRequestError("Invalid notification configuration");
 	}
 
 	const encryptedConfig = await encryptSensitiveFields(newConfig);
