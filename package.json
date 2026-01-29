@@ -50,7 +50,7 @@
 		"@scalar/hono-api-reference": "^0.9.38",
 		"@tanstack/react-query": "^5.90.20",
 		"arktype": "^2.1.28",
-		"better-auth": "^1.4.17",
+		"better-auth": "^1.4.18",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"commander": "^14.0.2",
@@ -89,7 +89,7 @@
 	"devDependencies": {
 		"@faker-js/faker": "^10.2.0",
 		"@happy-dom/global-registrator": "^20.4.0",
-		"@hey-api/openapi-ts": "^0.90.10",
+		"@hey-api/openapi-ts": "^0.91.0",
 		"@libsql/client": "^0.17.0",
 		"@playwright/test": "^1.58.0",
 		"@react-router/dev": "^7.13.0",
