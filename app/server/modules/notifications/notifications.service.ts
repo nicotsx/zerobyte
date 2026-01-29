@@ -1,4 +1,4 @@
-import { eq, and, ne, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import {
@@ -28,7 +28,10 @@ const listDestinations = async () => {
 const getDestination = async (id: number) => {
 	const organizationId = getOrganizationId();
 	const destination = await db.query.notificationDestinationsTable.findFirst({
-		where: and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
+		where: and(
+			eq(notificationDestinationsTable.id, id),
+			eq(notificationDestinationsTable.organizationId, organizationId),
+		),
 	});
 
 	if (!destination) {
@@ -194,7 +197,9 @@ const updateDestination = async (
 	const [updated] = await db
 		.update(notificationDestinationsTable)
 		.set(updateData)
-		.where(eq(notificationDestinationsTable.id, id))
+		.where(
+			and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
+		)
 		.returning();
 
 	if (!updated) {
@@ -209,7 +214,9 @@ const deleteDestination = async (id: number) => {
 	await getDestination(id);
 	await db
 		.delete(notificationDestinationsTable)
-		.where(and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)));
+		.where(
+			and(eq(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
+		);
 };
 
 const testDestination = async (id: number) => {
