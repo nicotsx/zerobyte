@@ -17,6 +17,8 @@ type Props = {
 };
 
 export const SMBForm = ({ form }: Props) => {
+	const guest = form.watch("guest");
+
 	return (
 		<>
 			<FormField
@@ -49,12 +51,44 @@ export const SMBForm = ({ form }: Props) => {
 			/>
 			<FormField
 				control={form.control}
+				name="guest"
+				defaultValue={false}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Guest Mode</FormLabel>
+						<FormControl>
+							<div className="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									checked={field.value ?? false}
+									onChange={(e) => {
+										field.onChange(e.target.checked);
+									}}
+									className="rounded border-gray-300"
+								/>
+								<span className="text-sm">Connect as guest (no authentication)</span>
+							</div>
+						</FormControl>
+						<FormDescription>
+							Connect to the SMB share without credentials. Username and password fields will be disabled.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
 				name="username"
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Username</FormLabel>
 						<FormControl>
-							<Input placeholder="admin" value={field.value} onChange={field.onChange} />
+							<Input
+								placeholder="admin"
+								value={field.value}
+								onChange={field.onChange}
+								disabled={guest}
+							/>
 						</FormControl>
 						<FormDescription>Username for SMB authentication.</FormDescription>
 						<FormMessage />
@@ -68,7 +102,12 @@ export const SMBForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password</FormLabel>
 						<FormControl>
-							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
+							<SecretInput
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+								disabled={guest}
+							/>
 						</FormControl>
 						<FormDescription>Password for SMB authentication.</FormDescription>
 						<FormMessage />

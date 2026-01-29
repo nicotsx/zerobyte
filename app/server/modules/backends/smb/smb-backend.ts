@@ -36,21 +36,28 @@ const mount = async (config: BackendConfig, path: string) => {
 	const run = async () => {
 		await fs.mkdir(path, { recursive: true });
 
-		const password = await cryptoUtils.resolveSecret(config.password);
-
 		const source = `//${config.server}/${config.share}`;
 		const { uid, gid } = os.userInfo();
+
+		const options = [`port=${config.port}`, `uid=${uid}`, `gid=${gid}`];
+
 		const credentialsDir = await fs.mkdtemp(`${os.tmpdir()}/zerobyte-smb-`);
 		const credentialsPath = `${credentialsDir}/credentials`;
-		const credentialsLines = [`username=${config.username}`, `password=${password}`];
+		const credentialsLines: string[] = [];
+
+		if (config.guest) {
+			credentialsLines.push("username=guest", "password=");
+		} else {
+			const password = await cryptoUtils.resolveSecret(config.password ?? "");
+			credentialsLines.push(`username=${config.username ?? ""}`, `password=${password}`);
+		}
 
 		if (config.domain) {
 			credentialsLines.push(`domain=${config.domain}`);
 		}
 
 		await fs.writeFile(credentialsPath, credentialsLines.join("\n"), { mode: 0o600 });
-
-		const options = [`credentials=${credentialsPath}`, `port=${config.port}`, `uid=${uid}`, `gid=${gid}`];
+		options.push(`credentials=${credentialsPath}`);
 
 		if (config.vers && config.vers !== "auto") {
 			options.push(`vers=${config.vers}`);

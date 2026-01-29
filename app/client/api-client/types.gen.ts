@@ -97,14 +97,15 @@ export type ListVolumesResponses = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -166,14 +167,15 @@ export type CreateVolumeData = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -232,14 +234,15 @@ export type CreateVolumeResponses = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -301,14 +304,15 @@ export type TestConnectionData = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -420,14 +424,15 @@ export type GetVolumeResponses = {
 				  }
 				| {
 						backend: "smb";
-						password: string;
 						server: string;
 						share: string;
-						username: string;
 						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 						port?: number;
 						domain?: string;
+						guest?: boolean;
+						password?: string;
 						readOnly?: boolean;
+						username?: string;
 				  }
 				| {
 						backend: "webdav";
@@ -491,14 +496,15 @@ export type UpdateVolumeData = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -566,14 +572,15 @@ export type UpdateVolumeResponses = {
 			  }
 			| {
 					backend: "smb";
-					password: string;
 					server: string;
 					share: string;
-					username: string;
 					vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 					port?: number;
 					domain?: string;
+					guest?: boolean;
+					password?: string;
 					readOnly?: boolean;
+					username?: string;
 			  }
 			| {
 					backend: "webdav";
@@ -2103,14 +2110,15 @@ export type ListBackupSchedulesResponses = {
 				  }
 				| {
 						backend: "smb";
-						password: string;
 						server: string;
 						share: string;
-						username: string;
 						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 						port?: number;
 						domain?: string;
+						guest?: boolean;
+						password?: string;
 						readOnly?: boolean;
+						username?: string;
 				  }
 				| {
 						backend: "webdav";
@@ -2485,14 +2493,15 @@ export type GetBackupScheduleResponses = {
 				  }
 				| {
 						backend: "smb";
-						password: string;
 						server: string;
 						share: string;
-						username: string;
 						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 						port?: number;
 						domain?: string;
+						guest?: boolean;
+						password?: string;
 						readOnly?: boolean;
+						username?: string;
 				  }
 				| {
 						backend: "webdav";
@@ -2848,14 +2857,15 @@ export type GetBackupScheduleForVolumeResponses = {
 				  }
 				| {
 						backend: "smb";
-						password: string;
 						server: string;
 						share: string;
-						username: string;
 						vers?: "1.0" | "2.0" | "2.1" | "3.0" | "auto";
 						port?: number;
 						domain?: string;
+						guest?: boolean;
+						password?: string;
 						readOnly?: boolean;
+						username?: string;
 				  }
 				| {
 						backend: "webdav";
