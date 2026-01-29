@@ -143,6 +143,10 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 	const organizationId = getOrganizationId();
 	const trimmedName = name.trim();
 
+	if (trimmedName.length === 0) {
+		throw new InternalServerError("Name cannot be empty or whitespace-only");
+	}
+
 	const encryptedConfig = await encryptSensitiveFields(config);
 
 	const [created] = await db
@@ -178,7 +182,11 @@ const updateDestination = async (
 	};
 
 	if (updates.name !== undefined) {
-		updateData.name = updates.name.trim();
+		const trimmedName = updates.name.trim();
+		if (trimmedName.length === 0) {
+			throw new InternalServerError("Name cannot be empty or whitespace-only");
+		}
+		updateData.name = trimmedName;
 	}
 
 	if (updates.enabled !== undefined) {
