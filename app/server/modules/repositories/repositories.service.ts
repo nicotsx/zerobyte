@@ -314,6 +314,8 @@ const getSnapshotDetails = async (id: string, snapshotId: string) => {
 	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
 
 	if (!snapshot) {
+		void refreshSnapshots(id).catch(() => {});
+
 		throw new NotFoundError("Snapshot not found");
 	}
 
@@ -477,6 +479,32 @@ const tagSnapshots = async (
 	}
 };
 
+const refreshSnapshots = async (id: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	cache.delByPrefix(`snapshots:${repository.id}:`);
+	cache.delByPrefix(`ls:${repository.id}:`);
+
+	const releaseLock = await repoMutex.acquireShared(repository.id, "refresh");
+	try {
+		const snapshots = await restic.snapshots(repository.config, { organizationId });
+		const cacheKey = `snapshots:${repository.id}:all`;
+		cache.set(cacheKey, snapshots);
+
+		return {
+			message: "Snapshot cache cleared and refreshed",
+			count: snapshots.length,
+		};
+	} finally {
+		releaseLock();
+	}
+};
+
 const updateRepository = async (id: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
 	const existing = await findRepository(id);
 
@@ -530,4 +558,5 @@ export const repositoriesService = {
 	deleteSnapshot,
 	deleteSnapshots,
 	tagSnapshots,
+	refreshSnapshots,
 };

@@ -1,13 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
-import { Database, X } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Database, X, RefreshCw } from "lucide-react";
 import { useState } from "react";
-import { listBackupSchedulesOptions, listSnapshotsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	listBackupSchedulesOptions,
+	listSnapshotsOptions,
+	refreshSnapshotsMutation,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { SnapshotsTable } from "~/client/components/snapshots-table";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
 import { Table, TableBody, TableCell, TableRow } from "~/client/components/ui/table";
 import type { Repository, Snapshot } from "~/client/lib/types";
+import { toast } from "sonner";
 
 type Props = {
 	repository: Repository;
@@ -24,6 +29,20 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	const schedules = useQuery({
 		...listBackupSchedulesOptions(),
 	});
+
+	const refreshMutation = useMutation({
+		...refreshSnapshotsMutation(),
+		onSuccess: (data) => {
+			toast.success(`Snapshot cache refreshed. Found ${data.count} snapshots.`);
+		},
+		onError: (error) => {
+			toast.error(`Failed to refresh snapshots: ${error.message}`);
+		},
+	});
+
+	const handleRefresh = () => {
+		refreshMutation.mutate({ path: { id: repository.id } });
+	};
 
 	const filteredSnapshots = data.filter((snapshot: Snapshot) => {
 		if (!searchQuery) return true;
@@ -122,6 +141,14 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
+						<Button
+							onClick={handleRefresh}
+							variant="outline"
+							disabled={refreshMutation.isPending}
+							title="Refresh snapshot list"
+						>
+							<RefreshCw className={refreshMutation.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+						</Button>
 					</div>
 				</div>
 			</CardHeader>

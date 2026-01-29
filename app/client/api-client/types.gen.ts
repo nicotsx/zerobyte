@@ -1841,6 +1841,27 @@ export type TagSnapshotsResponses = {
 
 export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
 
+export type RefreshSnapshotsData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/snapshots/refresh";
+};
+
+export type RefreshSnapshotsResponses = {
+	/**
+	 * Snapshot cache cleared and refreshed
+	 */
+	200: {
+		message: string;
+		count: number;
+	};
+};
+
+export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSnapshotsResponses];
+
 export type ListBackupSchedulesData = {
 	body?: never;
 	path?: never;

@@ -11,6 +11,7 @@ import {
 	cancelDoctorDto,
 	getRepositoryDto,
 	getSnapshotDetailsDto,
+	refreshSnapshotsDto,
 	listRcloneRemotesDto,
 	listRepositoriesDto,
 	listSnapshotFilesDto,
@@ -30,6 +31,7 @@ import {
 	type CancelDoctorDto,
 	type GetRepositoryDto,
 	type GetSnapshotDetailsDto,
+	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
 	type ListSnapshotFilesDto,
 	type ListSnapshotsDto,
@@ -106,6 +108,12 @@ export const repositoriesController = new Hono()
 		});
 
 		return c.json<ListSnapshotsDto>(snapshots, 200);
+	})
+	.post("/:id/snapshots/refresh", refreshSnapshotsDto, async (c) => {
+		const { id } = c.req.param();
+		const result = await repositoriesService.refreshSnapshots(id);
+
+		return c.json<RefreshSnapshotsDto>(result, 200);
 	})
 	.get("/:id/snapshots/:snapshotId", getSnapshotDetailsDto, async (c) => {
 		const { id, snapshotId } = c.req.param();

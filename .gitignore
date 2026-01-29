@@ -33,3 +33,6 @@ playwright/.auth
 playwright/temp
 
 .idea/
+
+# OpenAPI error logs
+openapi-ts-error-*.log

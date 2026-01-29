@@ -487,3 +487,29 @@ export const tagSnapshotsDto = describeRoute({
 		},
 	},
 });
+
+/**
+ * Refresh snapshots cache
+ */
+export const refreshSnapshotsResponse = type({
+	message: "string",
+	count: "number",
+});
+
+export type RefreshSnapshotsDto = typeof refreshSnapshotsResponse.infer;
+
+export const refreshSnapshotsDto = describeRoute({
+	description: "Clear snapshot cache and force refresh from repository",
+	tags: ["Repositories"],
+	operationId: "refreshSnapshots",
+	responses: {
+		200: {
+			description: "Snapshot cache cleared and refreshed",
+			content: {
+				"application/json": {
+					schema: resolver(refreshSnapshotsResponse),
+				},
+			},
+		},
+	},
+});

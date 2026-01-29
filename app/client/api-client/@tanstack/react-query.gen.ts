@@ -31,6 +31,7 @@ import {
 	getUpdates,
 	getUserDeletionImpact,
 	getVolume,
+	refreshSnapshots,
 	healthCheckVolume,
 	listBackupSchedules,
 	listFiles,
@@ -115,6 +116,8 @@ import type {
 	GetUserDeletionImpactResponse,
 	GetVolumeData,
 	GetVolumeResponse,
+	RefreshSnapshotsData,
+	RefreshSnapshotsResponse,
 	HealthCheckVolumeData,
 	HealthCheckVolumeResponse,
 	ListBackupSchedulesData,
@@ -768,6 +771,26 @@ export const tagSnapshotsMutation = (
 	const mutationOptions: UseMutationOptions<TagSnapshotsResponse, DefaultError, Options<TagSnapshotsData>> = {
 		mutationFn: async (fnOptions) => {
 			const { data } = await tagSnapshots({
+				...options,
+				...fnOptions,
+				throwOnError: true,
+			});
+			return data;
+		},
+	};
+	return mutationOptions;
+};
+
+export const refreshSnapshotsMutation = (
+	options?: Partial<Options<RefreshSnapshotsData>>,
+): UseMutationOptions<RefreshSnapshotsResponse, DefaultError, Options<RefreshSnapshotsData>> => {
+	const mutationOptions: UseMutationOptions<
+		RefreshSnapshotsResponse,
+		DefaultError,
+		Options<RefreshSnapshotsData>
+	> = {
+		mutationFn: async (fnOptions) => {
+			const { data } = await refreshSnapshots({
 				...options,
 				...fnOptions,
 				throwOnError: true,

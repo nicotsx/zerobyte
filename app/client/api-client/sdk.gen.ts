@@ -61,6 +61,8 @@ import type {
 	GetVolumeData,
 	GetVolumeErrors,
 	GetVolumeResponses,
+	RefreshSnapshotsData,
+	RefreshSnapshotsResponses,
 	HealthCheckVolumeData,
 	HealthCheckVolumeErrors,
 	HealthCheckVolumeResponses,
@@ -454,6 +456,17 @@ export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Opti
 			"Content-Type": "application/json",
 			...options.headers,
 		},
+	});
+
+/**
+ * Clear snapshot cache and force refresh from repository
+ */
+export const refreshSnapshots = <ThrowOnError extends boolean = false>(
+	options: Options<RefreshSnapshotsData, ThrowOnError>,
+) =>
+	(options.client ?? client).post<RefreshSnapshotsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/snapshots/refresh",
+		...options,
 	});
 
 /**
