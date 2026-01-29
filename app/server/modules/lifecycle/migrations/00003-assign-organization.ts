@@ -46,7 +46,7 @@ const execute = async () => {
 		logger.info(`Assigning user ${user.username} to organization ${org.name}`);
 
 		await db.insert(member).values({
-			id: crypto.randomUUID(),
+			id: Bun.randomUUIDv7(),
 			organizationId: org.id,
 			userId: user.id,
 			role: "owner",
