@@ -2,7 +2,7 @@ import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { type } from "arktype";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { cn, slugify } from "~/client/lib/utils";
+import { cn } from "~/client/lib/utils";
 import { deepClean } from "~/utils/object";
 import {
 	Form,
@@ -141,7 +141,6 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 								<Input
 									{...field}
 									placeholder="My notification"
-									onChange={(e) => field.onChange(slugify(e.target.value))}
 									max={32}
 									min={2}
 								/>

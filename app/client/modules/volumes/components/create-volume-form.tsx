@@ -4,7 +4,7 @@ import { type } from "arktype";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import { cn, slugify } from "~/client/lib/utils";
+import { cn } from "~/client/lib/utils";
 import { deepClean } from "~/utils/object";
 import { Button } from "../../../components/ui/button";
 import {
@@ -122,7 +122,6 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 								<Input
 									{...field}
 									placeholder="Volume name"
-									onChange={(e) => field.onChange(slugify(e.target.value))}
 									maxLength={32}
 									minLength={2}
 								/>

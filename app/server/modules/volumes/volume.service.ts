@@ -3,7 +3,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { and, eq, ne } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
-import slugify from "slugify";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
@@ -65,15 +64,7 @@ const findVolume = async (idOrShortId: string | number) => {
 
 const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	const organizationId = getOrganizationId();
-	const slug = slugify(name, { lower: true, strict: true });
-
-	const existing = await db.query.volumesTable.findFirst({
-		where: and(eq(volumesTable.name, slug), eq(volumesTable.organizationId, organizationId)),
-	});
-
-	if (existing) {
-		throw new ConflictError("Volume already exists");
-	}
+	const trimmedName = name.trim();
 
 	const shortId = generateShortId();
 	const encryptedConfig = await encryptSensitiveFields(backendConfig);
@@ -82,7 +73,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		.insert(volumesTable)
 		.values({
 			shortId,
-			name: slug,
+			name: trimmedName,
 			config: encryptedConfig,
 			type: backendConfig.backend,
 			organizationId,
@@ -191,24 +182,7 @@ const updateVolume = async (idOrShortId: string | number, volumeData: UpdateVolu
 		throw new NotFoundError("Volume not found");
 	}
 
-	let newName = existing.name;
-	if (volumeData.name !== undefined && volumeData.name !== existing.name) {
-		const newSlug = slugify(volumeData.name, { lower: true, strict: true });
-
-		const conflict = await db.query.volumesTable.findFirst({
-			where: and(
-				eq(volumesTable.name, newSlug),
-				ne(volumesTable.id, existing.id),
-				eq(volumesTable.organizationId, organizationId),
-			),
-		});
-
-		if (conflict) {
-			throw new ConflictError("A volume with this name already exists");
-		}
-
-		newName = newSlug;
-	}
+	const newName = volumeData.name !== undefined ? volumeData.name.trim() : existing.name;
 
 	const configChanged =
 		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;

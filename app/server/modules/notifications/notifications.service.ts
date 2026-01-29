@@ -1,6 +1,5 @@
 import { eq, and, ne, inArray } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
-import slugify from "slugify";
 import { db } from "../../db/db";
 import {
 	notificationDestinationsTable,
@@ -139,22 +138,14 @@ async function decryptSensitiveFields(config: NotificationConfig): Promise<Notif
 
 const createDestination = async (name: string, config: NotificationConfig) => {
 	const organizationId = getOrganizationId();
-	const slug = slugify(name, { lower: true, strict: true });
-
-	const existing = await db.query.notificationDestinationsTable.findFirst({
-		where: and(eq(notificationDestinationsTable.name, slug), eq(notificationDestinationsTable.organizationId, organizationId)),
-	});
-
-	if (existing) {
-		throw new ConflictError("Notification destination with this name already exists");
-	}
+	const trimmedName = name.trim();
 
 	const encryptedConfig = await encryptSensitiveFields(config);
 
 	const [created] = await db
 		.insert(notificationDestinationsTable)
 		.values({
-			name: slug,
+			name: trimmedName,
 			type: config.type,
 			config: encryptedConfig,
 			organizationId,
@@ -184,16 +175,7 @@ const updateDestination = async (
 	};
 
 	if (updates.name !== undefined) {
-		const slug = slugify(updates.name, { lower: true, strict: true });
-
-		const conflict = await db.query.notificationDestinationsTable.findFirst({
-			where: and(eq(notificationDestinationsTable.name, slug), ne(notificationDestinationsTable.id, id), eq(notificationDestinationsTable.organizationId, organizationId)),
-		});
-
-		if (conflict) {
-			throw new ConflictError("Notification destination with this name already exists");
-		}
-		updateData.name = slug;
+		updateData.name = updates.name.trim();
 	}
 
 	if (updates.enabled !== undefined) {
