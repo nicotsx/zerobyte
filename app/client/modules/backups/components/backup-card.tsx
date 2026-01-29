@@ -21,11 +21,11 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 							isInProgress={schedule.lastBackupStatus === "in_progress"}
 						/>
 					</div>
-					<CardDescription className="ml-0.5 flex items-center gap-2 text-xs">
-						<HardDrive className="h-3.5 w-3.5" />
+					<CardDescription className="ml-0.5 flex items-center gap-2 text-xs min-w-0">
+						<HardDrive className="h-3.5 w-3.5 shrink-0" />
 						<span className="truncate">{schedule.volume.name}</span>
-						<span className="text-muted-foreground">→</span>
-						<Database className="h-3.5 w-3.5 text-strong-accent" />
+						<span className="text-muted-foreground shrink-0">→</span>
+						<Database className="h-3.5 w-3.5 text-strong-accent shrink-0" />
 						<span className="truncate text-strong-accent">{schedule.repository.name}</span>
 					</CardDescription>
 				</CardHeader>
