@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { RCLONE_CONF_DIR } from "./constants";
 import { logger } from "../utils/logger";
 
 export type SystemCapabilities = {
@@ -34,14 +35,14 @@ async function detectCapabilities(): Promise<SystemCapabilities> {
 
 /**
  * Checks if rclone is available by:
- * 1. Checking if /root/.config/rclone directory exists and is accessible
+ * 1. Checking if the rclone config directory exists and is accessible
  */
 async function detectRclone(): Promise<boolean> {
 	try {
-		await fs.access("/root/.config/rclone");
+		await fs.access(RCLONE_CONF_DIR);
 
 		// Make sure the folder is not empty
-		const files = await fs.readdir("/root/.config/rclone");
+		const files = await fs.readdir(RCLONE_CONF_DIR);
 		if (files.length === 0) {
 			throw new Error("rclone config directory is empty");
 		}
@@ -49,7 +50,9 @@ async function detectRclone(): Promise<boolean> {
 		logger.info("rclone capability: enabled");
 		return true;
 	} catch (_) {
-		logger.warn("rclone capability: disabled. " + "To enable: mount /root/.config/rclone in docker-compose.yml");
+		logger.warn(
+			`rclone capability: disabled. ` + `To enable: mount rclone config at ${RCLONE_CONF_DIR} in docker-compose.yml`,
+		);
 		return false;
 	}
 }
