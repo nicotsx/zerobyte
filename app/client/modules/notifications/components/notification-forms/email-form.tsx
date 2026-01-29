@@ -84,6 +84,20 @@ export const EmailForm = ({ form }: Props) => {
 			/>
 			<FormField
 				control={form.control}
+				name="fromName"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>From Name (Optional)</FormLabel>
+						<FormControl>
+							<Input {...field} placeholder="Zerobyte Backup" />
+						</FormControl>
+						<FormDescription>The display name shown in the email client.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
 				name="to"
 				render={({ field }) => (
 					<FormItem>

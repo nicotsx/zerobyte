@@ -8,6 +8,7 @@ export const buildEmailShoutrrrUrl = (config: Extract<NotificationConfig, { type
 	const host = `${config.smtpHost}:${config.smtpPort}`;
 	const toRecipients = config.to.map((email) => encodeURIComponent(email)).join(",");
 	const useStartTLS = config.useTLS ? "yes" : "no";
+	const fromNameParam = config.fromName ? `&fromname=${encodeURIComponent(config.fromName)}` : "";
 
-	return `smtp://${auth}${host}/?from=${encodeURIComponent(config.from)}&to=${toRecipients}&starttls=${useStartTLS}`;
+	return `smtp://${auth}${host}/?from=${encodeURIComponent(config.from)}${fromNameParam}&to=${toRecipients}&starttls=${useStartTLS}`;
 };

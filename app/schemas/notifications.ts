@@ -21,6 +21,7 @@ export const emailNotificationConfigSchema = type({
 	username: "string?",
 	password: "string?",
 	from: "string",
+	fromName: "string?",
 	to: "string[]",
 	useTLS: "boolean",
 });
