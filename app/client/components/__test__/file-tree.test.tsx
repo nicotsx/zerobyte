@@ -3,6 +3,114 @@ import { expect, test, describe } from "bun:test";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { FileTree, type FileEntry } from "../file-tree";
 
+describe("FileTree Pagination", () => {
+	const testFiles: FileEntry[] = [
+		{ name: "root", path: "/root", type: "folder" },
+		{ name: "file1", path: "/root/file1", type: "file" },
+		{ name: "file2", path: "/root/file2", type: "file" },
+	];
+
+	test("shows load more button when hasMore is true", () => {
+		render(
+			<FileTree
+				files={testFiles}
+				expandedFolders={new Set(["/root"])}
+				getFolderPagination={() => ({ hasMore: true, isLoadingMore: false })}
+			/>,
+		);
+
+		expect(screen.getByText("Load more files")).toBeTruthy();
+	});
+
+	test("does not show load more button when hasMore is false", () => {
+		render(
+			<FileTree
+				files={testFiles}
+				expandedFolders={new Set(["/root"])}
+				getFolderPagination={() => ({ hasMore: false, isLoadingMore: false })}
+			/>,
+		);
+
+		expect(screen.queryByText("Load more files")).toBeNull();
+	});
+
+	test("calls onLoadMore with folder path when load more button is clicked", () => {
+		let loadMoreCalled = false;
+		let loadMorePath = "";
+
+		render(
+			<FileTree
+				files={testFiles}
+				expandedFolders={new Set(["/root"])}
+				getFolderPagination={(path) => {
+					if (path === "/root") {
+						return { hasMore: true, isLoadingMore: false };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
+				onLoadMore={(path) => {
+					loadMoreCalled = true;
+					loadMorePath = path;
+				}}
+			/>,
+		);
+
+		const loadMoreButton = screen.getByText("Load more files");
+		fireEvent.click(loadMoreButton);
+
+		expect(loadMoreCalled).toBe(true);
+		expect(loadMorePath).toBe("/root");
+	});
+
+	test("shows loading state when isLoadingMore is true", () => {
+		render(
+			<FileTree
+				files={testFiles}
+				expandedFolders={new Set(["/root"])}
+				getFolderPagination={() => ({ hasMore: true, isLoadingMore: true })}
+			/>,
+		);
+
+		expect(screen.getByText("Loading more...")).toBeTruthy();
+	});
+
+	test("load more button appears for nested folders with hasMore", () => {
+		const nestedFiles: FileEntry[] = [
+			{ name: "root", path: "/root", type: "folder" },
+			{ name: "child", path: "/root/child", type: "folder" },
+			{ name: "file1", path: "/root/child/file1", type: "file" },
+		];
+
+		render(
+			<FileTree
+				files={nestedFiles}
+				expandedFolders={new Set(["/root", "/root/child"])}
+				getFolderPagination={(path) => {
+					if (path === "/root/child") {
+						return { hasMore: true, isLoadingMore: false };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
+				onLoadMore={() => {}}
+			/>,
+		);
+
+		expect(screen.getByText("Load more files")).toBeTruthy();
+	});
+
+	test("load more button does not appear when folder is collapsed", () => {
+		render(
+			<FileTree
+				files={testFiles}
+				expandedFolders={new Set([])}
+				getFolderPagination={() => ({ hasMore: true, isLoadingMore: false })}
+			/>,
+		);
+
+		expect(screen.queryByText("Load more files")).toBeNull();
+	});
+});
+
 describe("FileTree Selection Logic", () => {
 	const testFiles: FileEntry[] = [
 		{ name: "root", path: "/root", type: "folder" },

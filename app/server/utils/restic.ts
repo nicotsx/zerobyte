@@ -701,7 +701,13 @@ const lsSnapshotInfoSchema = type({
 	message_type: "'snapshot'",
 });
 
-const ls = async (config: RepositoryConfig, snapshotId: string, organizationId: string, path?: string) => {
+const ls = async (
+	config: RepositoryConfig,
+	snapshotId: string,
+	organizationId: string,
+	path?: string,
+	options?: { offset?: number; limit?: number },
+) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, organizationId);
 
@@ -713,48 +719,76 @@ const ls = async (config: RepositoryConfig, snapshotId: string, organizationId: 
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	let snapshot: typeof lsSnapshotInfoSchema.infer | null = null;
+	const nodes: Array<typeof lsNodeSchema.infer> = [];
+	let totalNodes = 0;
+	let isFirstLine = true;
+	let hasMore = false;
+
+	const offset = Math.max(options?.offset ?? 0, 0);
+	const limit = Math.min(Math.max(options?.limit ?? 500, 1), 500);
+
+	const res = await safeSpawn({
+		command: "restic",
+		args,
+		env,
+		onStdout: (line) => {
+			const trimmedLine = line.trim();
+			if (!trimmedLine) return;
+
+			try {
+				const data = JSON.parse(trimmedLine);
+
+				if (isFirstLine) {
+					isFirstLine = false;
+					const snapshotValidation = lsSnapshotInfoSchema(data);
+					if (!(snapshotValidation instanceof type.errors)) {
+						snapshot = snapshotValidation;
+					}
+					return;
+				}
+
+				const nodeValidation = lsNodeSchema(data);
+				if (nodeValidation instanceof type.errors) {
+					logger.warn(`Skipping invalid node: ${nodeValidation.summary}`);
+					return;
+				}
+
+				if (totalNodes >= offset && totalNodes < offset + limit) {
+					nodes.push(nodeValidation);
+				}
+				totalNodes++;
+
+				if (totalNodes >= offset + limit + 1) {
+					hasMore = true;
+				}
+			} catch (_) {
+				// Ignore JSON parse errors for non-JSON lines
+			}
+		},
+	});
+
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
-		logger.error(`Restic ls failed: ${res.stderr}`);
-		throw new ResticError(res.exitCode, res.stderr);
+		logger.error(`Restic ls failed: ${res.error}`);
+		throw new ResticError(res.exitCode, res.error);
 	}
 
-	// The output is a stream of JSON objects, first is snapshot info, rest are file/dir nodes
-	const stdout = res.stdout;
-	const lines = stdout
-		.trim()
-		.split("\n")
-		.filter((line) => line.trim());
-
-	if (lines.length === 0) {
-		return { snapshot: null, nodes: [] };
+	if (totalNodes > offset + limit) {
+		hasMore = true;
 	}
 
-	// First line is snapshot info
-	const snapshotLine = JSON.parse(lines[0] ?? "{}");
-	const snapshot = lsSnapshotInfoSchema(snapshotLine);
-
-	if (snapshot instanceof type.errors) {
-		logger.error(`Restic ls snapshot info validation failed: ${snapshot.summary}`);
-		throw new Error(`Restic ls snapshot info validation failed: ${snapshot.summary}`);
-	}
-
-	const nodes: Array<typeof lsNodeSchema.infer> = [];
-	for (let i = 1; i < lines.length; i++) {
-		const nodeLine = JSON.parse(lines[i] ?? "{}");
-		const nodeValidation = lsNodeSchema(nodeLine);
-
-		if (nodeValidation instanceof type.errors) {
-			logger.warn(`Skipping invalid node: ${nodeValidation.summary}`);
-			continue;
-		}
-
-		nodes.push(nodeValidation);
-	}
-
-	return { snapshot, nodes };
+	return {
+		snapshot: snapshot as typeof lsSnapshotInfoSchema.infer | null,
+		nodes,
+		pagination: {
+			offset,
+			limit,
+			total: totalNodes,
+			hasMore,
+		},
+	};
 };
 
 const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal; organizationId: string }) => {

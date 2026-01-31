@@ -252,12 +252,18 @@ export const listSnapshotFilesResponse = type({
 		paths: "string[]",
 	}),
 	files: snapshotFileNodeSchema.array(),
+	offset: "number",
+	limit: "number",
+	total: "number",
+	hasMore: "boolean",
 });
 
 export type ListSnapshotFilesDto = typeof listSnapshotFilesResponse.infer;
 
 export const listSnapshotFilesQuery = type({
 	path: "string?",
+	offset: "string.integer?",
+	limit: "string.integer?",
 });
 
 export const listSnapshotFilesDto = describeRoute({

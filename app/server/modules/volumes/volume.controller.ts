@@ -21,6 +21,7 @@ import {
 	type ListFilesDto,
 	browseFilesystemDto,
 	type BrowseFilesystemDto,
+	listFilesQuery,
 } from "./volume.dto";
 import { volumeService } from "./volume.service";
 import { getVolumePath } from "./helpers";
@@ -104,14 +105,22 @@ export const volumeController = new Hono()
 
 		return c.json({ error, status }, 200);
 	})
-	.get("/:id/files", listFilesDto, async (c) => {
+	.get("/:id/files", validator("query", listFilesQuery), listFilesDto, async (c) => {
 		const { id } = c.req.param();
-		const subPath = c.req.query("path");
-		const result = await volumeService.listFiles(id, subPath);
+		const { path, ...query } = c.req.valid("query");
+
+		const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
+		const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
+
+		const result = await volumeService.listFiles(id, path, offset, limit);
 
 		const response = {
 			files: result.files,
 			path: result.path,
+			offset: result.offset,
+			limit: result.limit,
+			total: result.total,
+			hasMore: result.hasMore,
 		};
 
 		c.header("Cache-Control", "public, max-age=10, stale-while-revalidate=60");

@@ -682,9 +682,8 @@ export type ListFilesData = {
 		id: string;
 	};
 	query?: {
-		/**
-		 * Subdirectory path to list (relative to volume root)
-		 */
+		limit?: string;
+		offset?: string;
 		path?: string;
 	};
 	url: "/api/v1/volumes/{id}/files";
@@ -702,7 +701,11 @@ export type ListFilesResponses = {
 			modifiedAt?: number;
 			size?: number;
 		}>;
+		hasMore: boolean;
+		limit: number;
+		offset: number;
 		path: string;
+		total: number;
 	};
 };
 
@@ -1649,6 +1652,27 @@ export type ListSnapshotsResponses = {
 
 export type ListSnapshotsResponse = ListSnapshotsResponses[keyof ListSnapshotsResponses];
 
+export type RefreshSnapshotsData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/snapshots/refresh";
+};
+
+export type RefreshSnapshotsResponses = {
+	/**
+	 * Snapshot cache cleared and refreshed
+	 */
+	200: {
+		count: number;
+		message: string;
+	};
+};
+
+export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSnapshotsResponses];
+
 export type DeleteSnapshotData = {
 	body?: never;
 	path: {
@@ -1703,6 +1727,8 @@ export type ListSnapshotFilesData = {
 		snapshotId: string;
 	};
 	query?: {
+		limit?: string;
+		offset?: string;
 		path?: string;
 	};
 	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files";
@@ -1725,6 +1751,9 @@ export type ListSnapshotFilesResponses = {
 			size?: number;
 			uid?: number;
 		}>;
+		hasMore: boolean;
+		limit: number;
+		offset: number;
 		snapshot: {
 			hostname: string;
 			id: string;
@@ -1732,6 +1761,7 @@ export type ListSnapshotFilesResponses = {
 			short_id: string;
 			time: string;
 		};
+		total: number;
 	};
 };
 
@@ -1847,27 +1877,6 @@ export type TagSnapshotsResponses = {
 };
 
 export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
-
-export type RefreshSnapshotsData = {
-	body?: never;
-	path: {
-		id: string;
-	};
-	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/refresh";
-};
-
-export type RefreshSnapshotsResponses = {
-	/**
-	 * Snapshot cache cleared and refreshed
-	 */
-	200: {
-		message: string;
-		count: number;
-	};
-};
-
-export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSnapshotsResponses];
 
 export type ListBackupSchedulesData = {
 	body?: never;

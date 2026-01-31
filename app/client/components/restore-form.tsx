@@ -74,11 +74,11 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 	const fileBrowser = useFileBrowser({
 		initialData: filesData,
 		isLoading: filesLoading,
-		fetchFolder: async (path) => {
+		fetchFolder: async (path, offset = 0) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { id: repository.id, snapshotId },
-					query: { path },
+					query: { path, offset: offset.toString(), limit: "500" },
 				}),
 			);
 		},
@@ -86,7 +86,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repository.id, snapshotId },
-					query: { path },
+					query: { path, offset: "0", limit: "500" },
 				}),
 			);
 		},
@@ -306,6 +306,8 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 									onFolderHover={fileBrowser.handleFolderHover}
 									expandedFolders={fileBrowser.expandedFolders}
 									loadingFolders={fileBrowser.loadingFolders}
+									onLoadMore={fileBrowser.handleLoadMore}
+									getFolderPagination={fileBrowser.getFolderPagination}
 									className="px-2 py-2"
 									withCheckboxes={true}
 									selectedPaths={selectedPaths}

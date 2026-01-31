@@ -18,6 +18,7 @@ import { serverEvents } from "../../core/events";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
+import { isNodeJSErrnoException } from "~/server/utils/fs";
 
 async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
 	switch (config.backend) {
@@ -294,7 +295,15 @@ const checkHealth = async (idOrShortId: string | number) => {
 	return { status, error };
 };
 
-const listFiles = async (idOrShortId: string | number, subPath?: string) => {
+const DEFAULT_PAGE_SIZE = 500;
+const MAX_PAGE_SIZE = 500;
+
+const listFiles = async (
+	idOrShortId: string | number,
+	subPath?: string,
+	offset: number = 0,
+	limit: number = DEFAULT_PAGE_SIZE,
+) => {
 	const volume = await findVolume(idOrShortId);
 
 	if (!volume) {
@@ -305,11 +314,8 @@ const listFiles = async (idOrShortId: string | number, subPath?: string) => {
 		throw new InternalServerError("Volume is not mounted");
 	}
 
-	// For directory volumes, use the configured path directly
 	const volumePath = getVolumePath(volume);
-
 	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
-
 	const normalizedPath = path.normalize(requestedPath);
 	const relative = path.relative(volumePath, normalizedPath);
 
@@ -317,45 +323,60 @@ const listFiles = async (idOrShortId: string | number, subPath?: string) => {
 		throw new BadRequestError("Invalid path");
 	}
 
+	const pageSize = Math.min(Math.max(limit, 1), MAX_PAGE_SIZE);
+	const startOffset = Math.max(offset, 0);
+
 	try {
-		const entries = await fs.readdir(normalizedPath, { withFileTypes: true });
+		const dirents = await fs.readdir(normalizedPath, { withFileTypes: true });
 
-		const files = await Promise.all(
-			entries.map(async (entry) => {
-				const fullPath = path.join(normalizedPath, entry.name);
-				const relativePath = path.relative(volumePath, fullPath);
+		dirents.sort((a, b) => {
+			const aIsDir = a.isDirectory();
+			const bIsDir = b.isDirectory();
 
-				try {
-					const stats = await fs.stat(fullPath);
-					return {
-						name: entry.name,
-						path: `/${relativePath}`,
-						type: entry.isDirectory() ? ("directory" as const) : ("file" as const),
-						size: entry.isFile() ? stats.size : undefined,
-						modifiedAt: stats.mtimeMs,
-					};
-				} catch {
-					return {
-						name: entry.name,
-						path: `/${relativePath}`,
-						type: entry.isDirectory() ? ("directory" as const) : ("file" as const),
-						size: undefined,
-						modifiedAt: undefined,
-					};
-				}
-			}),
-		);
+			if (aIsDir === bIsDir) {
+				return a.name.localeCompare(b.name);
+			}
+			return aIsDir ? -1 : 1;
+		});
+
+		const total = dirents.length;
+		const paginatedDirents = dirents.slice(startOffset, startOffset + pageSize);
+
+		const entries = (
+			await Promise.all(
+				paginatedDirents.map(async (dirent) => {
+					const fullPath = path.join(normalizedPath, dirent.name);
+
+					try {
+						const stats = await fs.stat(fullPath);
+						const relativePath = path.relative(volumePath, fullPath);
+
+						return {
+							name: dirent.name,
+							path: `/${relativePath}`,
+							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
+							size: dirent.isFile() ? stats.size : undefined,
+							modifiedAt: stats.mtimeMs,
+						};
+					} catch {
+						return null;
+					}
+				}),
+			)
+		).filter((e) => e !== null);
 
 		return {
-			files: files.sort((a, b) => {
-				if (a.type !== b.type) {
-					return a.type === "directory" ? -1 : 1;
-				}
-				return a.name.localeCompare(b.name);
-			}),
+			files: entries,
 			path: subPath || "/",
+			offset: startOffset,
+			limit: pageSize,
+			total,
+			hasMore: startOffset + pageSize < total,
 		};
 	} catch (error) {
+		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {
+			throw new NotFoundError("Directory not found");
+		}
 		throw new InternalServerError(`Failed to list files: ${toMessage(error)}`);
 	}
 };

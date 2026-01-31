@@ -276,24 +276,23 @@ const fileEntrySchema = type({
 export const listFilesResponse = type({
 	files: fileEntrySchema.array(),
 	path: "string",
+	offset: "number",
+	limit: "number",
+	total: "number",
+	hasMore: "boolean",
 });
 export type ListFilesDto = typeof listFilesResponse.infer;
+
+export const listFilesQuery = type({
+	path: "string?",
+	offset: "string.integer?",
+	limit: "string.integer?",
+});
 
 export const listFilesDto = describeRoute({
 	description: "List files in a volume directory",
 	operationId: "listFiles",
 	tags: ["Volumes"],
-	parameters: [
-		{
-			in: "query",
-			name: "path",
-			required: false,
-			schema: {
-				type: "string",
-			},
-			description: "Subdirectory path to list (relative to volume root)",
-		},
-	],
 	responses: {
 		200: {
 			description: "List of files in the volume",
