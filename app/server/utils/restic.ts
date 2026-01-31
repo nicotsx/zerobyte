@@ -945,7 +945,8 @@ const formatBandwidthLimit = (limit?: BandwidthLimit): string => {
 			return "";
 	}
 
-	return `${Math.floor(kibibytesPerSecond)}`;
+	const limitValue = Math.max(1, Math.floor(kibibytesPerSecond));
+	return `${limitValue}`;
 };
 
 export const addCommonArgs = (

@@ -40,6 +40,7 @@ process.on("SIGINT", async () => {
 export default await createHonoServer({
 	app,
 	port: config.port,
+	defaultLogger: false,
 	customBunServer: {
 		idleTimeout: config.serverIdleTimeout,
 		error(err) {

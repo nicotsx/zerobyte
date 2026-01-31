@@ -34,21 +34,10 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 		};
 	}, [addEventListener, scheduleId]);
 
-	if (!progress) {
-		return (
-			<Card className="p-4">
-				<div className="flex items-center gap-2">
-					<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-					<span className="font-medium">Backup in progress</span>
-				</div>
-			</Card>
-		);
-	}
-
-	const percentDone = Math.round(progress.percent_done * 100);
-	const currentFile = progress.current_files[0] || "";
+	const percentDone = progress ? Math.round(progress.percent_done * 100) : 0;
+	const currentFile = progress?.current_files[0] || "";
 	const fileName = currentFile.split("/").pop() || currentFile;
-	const speed = formatBytes(progress.bytes_done / progress.seconds_elapsed);
+	const speed = progress ? formatBytes(progress.bytes_done / progress.seconds_elapsed) : null;
 
 	return (
 		<Card className="p-4">
@@ -57,7 +46,7 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 					<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
 					<span className="font-medium">Backup in progress</span>
 				</div>
-				<span className="text-sm font-medium text-primary">{percentDone}%</span>
+				<span className="text-sm font-medium text-primary">{progress ? `${percentDone}%` : "—"}</span>
 			</div>
 
 			<Progress value={percentDone} className="h-2" />
@@ -66,35 +55,45 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Files</p>
 					<p className="font-medium">
-						{progress.files_done.toLocaleString()} / {progress.total_files.toLocaleString()}
+						{progress ? (
+							<>
+								{progress.files_done.toLocaleString()} / {progress.total_files.toLocaleString()}
+							</>
+						) : (
+							"—"
+						)}
 					</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Data</p>
 					<p className="font-medium">
-						<ByteSize bytes={progress.bytes_done} /> / <ByteSize bytes={progress.total_bytes} />
+						{progress ? (
+							<>
+								<ByteSize bytes={progress.bytes_done} /> / <ByteSize bytes={progress.total_bytes} />
+							</>
+						) : (
+							"—"
+						)}
 					</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Elapsed</p>
-					<p className="font-medium">{formatDuration(progress.seconds_elapsed)}</p>
+					<p className="font-medium">{progress ? formatDuration(progress.seconds_elapsed) : "—"}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Speed</p>
 					<p className="font-medium">
-						{progress.seconds_elapsed > 0 ? `${speed.text} ${speed.unit}/s` : "Calculating..."}
+						{progress ? (progress.seconds_elapsed > 0 ? `${speed?.text} ${speed?.unit}/s` : "Calculating...") : "—"}
 					</p>
 				</div>
 			</div>
 
-			{fileName && (
-				<div className="pt-2 border-t border-border">
-					<p className="text-xs uppercase text-muted-foreground mb-1">Current file</p>
-					<p className="text-xs font-mono text-muted-foreground truncate" title={currentFile}>
-						{fileName}
-					</p>
-				</div>
-			)}
+			<div className="pt-2 border-t border-border">
+				<p className="text-xs uppercase text-muted-foreground mb-1">Current file</p>
+				<p className="text-xs font-mono text-muted-foreground truncate" title={currentFile || undefined}>
+					{fileName || "—"}
+				</p>
+			</div>
 		</Card>
 	);
 };

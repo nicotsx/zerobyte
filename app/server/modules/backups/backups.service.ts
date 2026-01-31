@@ -20,7 +20,7 @@ import { getOrganizationId } from "~/server/core/request-context";
 
 const runningBackups = new Map<number, AbortController>();
 
-const calculateNextRun = (cronExpression: string): number => {
+const calculateNextRun = (cronExpression: string) => {
 	try {
 		const interval = CronExpressionParser.parse(cronExpression, {
 			currentDate: new Date(),
@@ -36,7 +36,7 @@ const calculateNextRun = (cronExpression: string): number => {
 	}
 };
 
-const processPattern = (pattern: string, volumePath: string): string => {
+const processPattern = (pattern: string, volumePath: string) => {
 	let isNegated = false;
 	let p = pattern;
 
@@ -161,7 +161,11 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	if (data.name) {
 		const existingName = await db.query.backupSchedulesTable.findFirst({
-			where: and(eq(backupSchedulesTable.name, data.name), ne(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
+			where: and(
+				eq(backupSchedulesTable.name, data.name),
+				ne(backupSchedulesTable.id, scheduleId),
+				eq(backupSchedulesTable.organizationId, organizationId),
+			),
 		});
 
 		if (existingName) {
@@ -310,7 +314,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			backupOptions.include = schedule.includePatterns.map((p) => processPattern(p, volumePath));
 		}
 
-		const releaseBackupLock = await repoMutex.acquireShared(repository.id, `backup:${volume.name}`, abortController.signal);
+		const releaseBackupLock = await repoMutex.acquireShared(
+			repository.id,
+			`backup:${volume.name}`,
+			abortController.signal,
+		);
 		let exitCode: number;
 		try {
 			const result = await restic.backup(repository.config, volumePath, {
@@ -318,13 +326,14 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				compressionMode: repository.compressionMode ?? "auto",
 				organizationId,
 				onProgress: (progress) => {
-					serverEvents.emit("backup:progress", {
+					const progressData = {
 						organizationId,
 						scheduleId,
 						volumeName: volume.name,
 						repositoryName: repository.name,
 						...progress,
-					});
+					};
+					serverEvents.emit("backup:progress", progressData);
 				},
 			});
 			exitCode = result.exitCode;
@@ -501,7 +510,10 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	}
 
 	const repository = await db.query.repositoriesTable.findFirst({
-		where: and(eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId), eq(repositoriesTable.organizationId, organizationId)),
+		where: and(
+			eq(repositoriesTable.id, repositoryId ?? schedule.repositoryId),
+			eq(repositoriesTable.organizationId, organizationId),
+		),
 	});
 
 	if (!repository) {

@@ -68,7 +68,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 
 COPY . .
 
-EXPOSE 4096
+EXPOSE 3000
 
 CMD ["bun", "run", "dev"]
 

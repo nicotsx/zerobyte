@@ -46,9 +46,6 @@ export const createApp = () => {
 
 	if (config.environment === "production") {
 		app.use(secureHeaders());
-	}
-
-	if (config.environment !== "test") {
 		app.use(honoLogger());
 	}
 
