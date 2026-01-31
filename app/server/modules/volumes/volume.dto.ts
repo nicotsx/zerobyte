@@ -276,6 +276,10 @@ const fileEntrySchema = type({
 export const listFilesResponse = type({
 	files: fileEntrySchema.array(),
 	path: "string",
+	offset: "number",
+	limit: "number",
+	total: "number",
+	hasMore: "boolean",
 });
 export type ListFilesDto = typeof listFilesResponse.infer;
 
@@ -292,6 +296,26 @@ export const listFilesDto = describeRoute({
 				type: "string",
 			},
 			description: "Subdirectory path to list (relative to volume root)",
+		},
+		{
+			in: "query",
+			name: "offset",
+			required: false,
+			schema: {
+				type: "integer",
+				default: 0,
+			},
+			description: "Offset for pagination (default: 0)",
+		},
+		{
+			in: "query",
+			name: "limit",
+			required: false,
+			schema: {
+				type: "integer",
+				default: 100,
+			},
+			description: "Maximum number of files to return (default: 100, max: 1000)",
 		},
 	],
 	responses: {

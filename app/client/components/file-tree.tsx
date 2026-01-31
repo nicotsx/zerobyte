@@ -8,7 +8,7 @@
  * Original source: https://github.com/stackblitz/bolt.new
  */
 
-import { ChevronDown, ChevronRight, File as FileIcon, Folder as FolderIcon, FolderOpen, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, File as FileIcon, Folder as FolderIcon, FolderOpen, Loader2, MoreHorizontal } from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "~/client/lib/utils";
 import { Checkbox } from "~/client/components/ui/checkbox";
@@ -24,12 +24,19 @@ export interface FileEntry {
 	modifiedAt?: number;
 }
 
+interface PaginationState {
+	hasMore: boolean;
+	isLoadingMore: boolean;
+}
+
 interface Props {
 	files?: FileEntry[];
 	selectedFile?: string;
 	onFileSelect?: (filePath: string) => void;
 	onFolderExpand?: (folderPath: string) => void;
 	onFolderHover?: (folderPath: string) => void;
+	onLoadMore?: (folderPath: string) => void;
+	getFolderPagination?: (folderPath: string) => PaginationState;
 	expandedFolders?: Set<string>;
 	loadingFolders?: Set<string>;
 	className?: string;
@@ -49,6 +56,8 @@ export const FileTree = memo((props: Props) => {
 		selectedFile,
 		onFolderExpand,
 		onFolderHover,
+		onLoadMore,
+		getFolderPagination,
 		expandedFolders = new Set(),
 		loadingFolders = new Set(),
 		className,
@@ -292,12 +301,35 @@ export const FileTree = memo((props: Props) => {
 		[selectedPaths],
 	);
 
+	// Build a map of folder paths that need pagination to their last child's index
+	const folderPaginationMap = useMemo(() => {
+		const map = new Map<string, number>();
+		
+		for (let i = 0; i < filteredFileList.length; i++) {
+			const item = filteredFileList[i];
+			const parentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/")) || "/";
+			
+			if (parentPath !== "/") {
+				const pagination = getFolderPagination?.(parentPath);
+				if (pagination?.hasMore && !collapsedFolders.has(parentPath)) {
+					// Update the last index for this parent
+					map.set(parentPath, i);
+				}
+			}
+		}
+		
+		return map;
+	}, [filteredFileList, getFolderPagination, collapsedFolders]);
+
 	return (
 		<div className={cn("text-sm", className)}>
-			{filteredFileList.map((fileOrFolder) => {
+			{filteredFileList.map((fileOrFolder, index) => {
+				const elements: React.ReactNode[] = [];
+
+				// Render the current file or folder
 				switch (fileOrFolder.kind) {
 					case "file": {
-						return (
+						elements.push(
 							<File
 								key={fileOrFolder.id}
 								selected={selectedFile === fileOrFolder.fullPath}
@@ -306,11 +338,12 @@ export const FileTree = memo((props: Props) => {
 								withCheckbox={withCheckboxes}
 								checked={isPathSelected(fileOrFolder.fullPath)}
 								onCheckboxChange={handleSelectionChange}
-							/>
+							/>,
 						);
+						break;
 					}
 					case "folder": {
-						return (
+						elements.push(
 							<Folder
 								key={fileOrFolder.id}
 								folder={fileOrFolder}
@@ -325,13 +358,31 @@ export const FileTree = memo((props: Props) => {
 								selectableMode={selectableFolders}
 								onFolderSelect={handleFolderSelect}
 								selected={selectedFolder === fileOrFolder.fullPath}
-							/>
+							/>,
 						);
-					}
-					default: {
-						return undefined;
+						break;
 					}
 				}
+
+				// Check if this is the last child of any folder with more files to load
+				for (const [folderPath, lastIndex] of folderPaginationMap.entries()) {
+					if (lastIndex === index) {
+						// This is the last loaded child of folderPath
+						const pagination = getFolderPagination?.(folderPath);
+						if (pagination?.hasMore) {
+							elements.push(
+								<LoadMoreButton
+									key={`load-more-${folderPath}`}
+									depth={fileOrFolder.depth}
+									onClick={() => onLoadMore?.(folderPath)}
+									isLoading={pagination.isLoadingMore}
+								/>,
+							);
+						}
+					}
+				}
+
+				return elements;
 			})}
 		</div>
 	);
@@ -473,6 +524,25 @@ const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onChec
 					<ByteSize bytes={size} />
 				</span>
 			)}
+		</NodeButton>
+	);
+});
+
+interface LoadMoreButtonProps {
+	depth: number;
+	onClick: () => void;
+	isLoading?: boolean;
+}
+
+const LoadMoreButton = memo(({ depth, onClick, isLoading }: LoadMoreButtonProps) => {
+	return (
+		<NodeButton
+			depth={depth}
+			className="text-muted-foreground hover:bg-accent/50 cursor-pointer"
+			icon={isLoading ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <MoreHorizontal className="w-4 h-4 shrink-0" />}
+			onClick={onClick}
+		>
+			<span className="text-xs">{isLoading ? "Loading more..." : "Load more files"}</span>
 		</NodeButton>
 	);
 });
@@ -621,5 +691,5 @@ function compareNodes(a: Node, b: Node): number {
 		return a.kind === "folder" ? -1 : 1;
 	}
 
-	return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+	return a.name.localeCompare(b.name);
 }

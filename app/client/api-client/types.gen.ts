@@ -686,6 +686,14 @@ export type ListFilesData = {
 		 * Subdirectory path to list (relative to volume root)
 		 */
 		path?: string;
+		/**
+		 * Offset for pagination (default: 0)
+		 */
+		offset?: number;
+		/**
+		 * Maximum number of files to return (default: 100, max: 1000)
+		 */
+		limit?: number;
 	};
 	url: "/api/v1/volumes/{id}/files";
 };
@@ -702,7 +710,11 @@ export type ListFilesResponses = {
 			modifiedAt?: number;
 			size?: number;
 		}>;
+		hasMore: boolean;
+		limit: number;
+		offset: number;
 		path: string;
+		total: number;
 	};
 };
 
@@ -1649,6 +1661,27 @@ export type ListSnapshotsResponses = {
 
 export type ListSnapshotsResponse = ListSnapshotsResponses[keyof ListSnapshotsResponses];
 
+export type RefreshSnapshotsData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/snapshots/refresh";
+};
+
+export type RefreshSnapshotsResponses = {
+	/**
+	 * Snapshot cache cleared and refreshed
+	 */
+	200: {
+		count: number;
+		message: string;
+	};
+};
+
+export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSnapshotsResponses];
+
 export type DeleteSnapshotData = {
 	body?: never;
 	path: {
@@ -1847,27 +1880,6 @@ export type TagSnapshotsResponses = {
 };
 
 export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
-
-export type RefreshSnapshotsData = {
-	body?: never;
-	path: {
-		id: string;
-	};
-	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/refresh";
-};
-
-export type RefreshSnapshotsResponses = {
-	/**
-	 * Snapshot cache cleared and refreshed
-	 */
-	200: {
-		message: string;
-		count: number;
-	};
-};
-
-export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSnapshotsResponses];
 
 export type ListBackupSchedulesData = {
 	body?: never;

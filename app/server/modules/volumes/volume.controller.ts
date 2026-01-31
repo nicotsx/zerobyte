@@ -107,11 +107,20 @@ export const volumeController = new Hono()
 	.get("/:id/files", listFilesDto, async (c) => {
 		const { id } = c.req.param();
 		const subPath = c.req.query("path");
-		const result = await volumeService.listFiles(id, subPath);
+		const offsetParam = c.req.query("offset");
+		const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+		const limitParam = c.req.query("limit");
+		const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+
+		const result = await volumeService.listFiles(id, subPath, offset, limit);
 
 		const response = {
 			files: result.files,
 			path: result.path,
+			offset: result.offset,
+			limit: result.limit,
+			total: result.total,
+			hasMore: result.hasMore,
 		};
 
 		c.header("Cache-Control", "public, max-age=10, stale-while-revalidate=60");
