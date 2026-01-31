@@ -252,6 +252,10 @@ export const listSnapshotFilesResponse = type({
 		paths: "string[]",
 	}),
 	files: snapshotFileNodeSchema.array(),
+	offset: "number",
+	limit: "number",
+	total: "number",
+	hasMore: "boolean",
 });
 
 export type ListSnapshotFilesDto = typeof listSnapshotFilesResponse.infer;
@@ -264,6 +268,37 @@ export const listSnapshotFilesDto = describeRoute({
 	description: "List files and directories in a snapshot",
 	tags: ["Repositories"],
 	operationId: "listSnapshotFiles",
+	parameters: [
+		{
+			in: "query",
+			name: "path",
+			required: false,
+			schema: {
+				type: "string",
+			},
+			description: "Subdirectory path to list",
+		},
+		{
+			in: "query",
+			name: "offset",
+			required: false,
+			schema: {
+				type: "integer",
+				default: 0,
+			},
+			description: "Offset for pagination (default: 0)",
+		},
+		{
+			in: "query",
+			name: "limit",
+			required: false,
+			schema: {
+				type: "integer",
+				default: 500,
+			},
+			description: "Maximum number of files to return (default: 500, max: 1000)",
+		},
+	],
 	responses: {
 		200: {
 			description: "List of files and directories in the snapshot",

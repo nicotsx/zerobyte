@@ -1737,6 +1737,14 @@ export type ListSnapshotFilesData = {
 	};
 	query?: {
 		path?: string;
+		/**
+		 * Offset for pagination (default: 0)
+		 */
+		offset?: number;
+		/**
+		 * Maximum number of files to return (default: 500, max: 1000)
+		 */
+		limit?: number;
 	};
 	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files";
 };
@@ -1758,6 +1766,9 @@ export type ListSnapshotFilesResponses = {
 			size?: number;
 			uid?: number;
 		}>;
+		hasMore: boolean;
+		limit: number;
+		offset: number;
 		snapshot: {
 			hostname: string;
 			id: string;
@@ -1765,6 +1776,7 @@ export type ListSnapshotFilesResponses = {
 			short_id: string;
 			time: string;
 		};
+		total: number;
 	};
 };
 

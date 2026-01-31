@@ -60,11 +60,11 @@ export const SnapshotFileBrowser = (props: Props) => {
 	const fileBrowser = useFileBrowser({
 		initialData: filesData,
 		isLoading: filesLoading,
-		fetchFolder: async (path) => {
+		fetchFolder: async (path, offset = 0) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { id: repositoryId, snapshotId: snapshot.short_id },
-					query: { path },
+					query: { path, offset, limit: 500 },
 				}),
 			);
 		},
@@ -72,7 +72,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repositoryId, snapshotId: snapshot.short_id },
-					query: { path },
+					query: { path, offset: 0, limit: 500 },
 				}),
 			);
 		},
@@ -142,6 +142,8 @@ export const SnapshotFileBrowser = (props: Props) => {
 								onFolderHover={fileBrowser.handleFolderHover}
 								expandedFolders={fileBrowser.expandedFolders}
 								loadingFolders={fileBrowser.loadingFolders}
+								onLoadMore={fileBrowser.handleLoadMore}
+								getFolderPagination={fileBrowser.getFolderPagination}
 								className="px-2 py-2"
 							/>
 						</div>

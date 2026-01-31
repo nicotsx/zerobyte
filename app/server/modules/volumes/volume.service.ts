@@ -18,7 +18,6 @@ import { serverEvents } from "../../core/events";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
-import { exec } from "../../utils/spawn";
 
 async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
 	switch (config.backend) {
@@ -322,11 +321,8 @@ const listFiles = async (
 		throw new InternalServerError("Volume is not mounted");
 	}
 
-	// For directory volumes, use the configured path directly
 	const volumePath = getVolumePath(volume);
-
 	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
-
 	const normalizedPath = path.normalize(requestedPath);
 	const relative = path.relative(volumePath, normalizedPath);
 
@@ -338,58 +334,43 @@ const listFiles = async (
 	const startOffset = Math.max(offset, 0);
 
 	try {
-		const endLine = startOffset + pageSize;
-		const listScript = `
-			find "${normalizedPath.replace(/"/g, '\\"')}" -maxdepth 1 -mindepth 1 | while IFS= read -r line; do
-				name=$(basename "$line")
-				if [ -d "$line" ]; then
-					echo "0|$name|$line"
-				else
-					echo "1|$name|$line"
-				fi
-			done | sort -t'|' -k1,1n -k2,2 | cut -d'|' -f3- | sed -n '${startOffset + 1},${endLine}p'
-		`;
+		const dirents = await fs.readdir(normalizedPath, { withFileTypes: true });
 
-		const { exitCode: listExitCode, stdout: listStdout } = await exec({
-			command: "sh",
-			args: ["-c", listScript],
-			timeout: 30000,
-			maxBuffer: 1024 * 1024 * 10,
-		});
+		dirents.sort((a, b) => {
+			const aIsDir = a.isDirectory();
+			const bIsDir = b.isDirectory();
 
-		if (listExitCode !== 0) {
-			throw new Error(`Failed to list directory: ${normalizedPath}`);
-		}
-
-		const filePaths = listStdout.split("\n").filter((p) => p.length > 0);
-
-		const entries: DirEntry[] = [];
-		for (const fullPath of filePaths) {
-			try {
-				const stats = await fs.stat(fullPath);
-				const relativePath = path.relative(volumePath, fullPath);
-				const name = path.basename(fullPath);
-
-				entries.push({
-					name,
-					path: `/${relativePath}`,
-					type: stats.isDirectory() ? "directory" : "file",
-					size: stats.isFile() ? stats.size : undefined,
-					modifiedAt: stats.mtimeMs,
-				});
-			} catch {
-				// File may have been deleted between listing and stat
+			if (aIsDir === bIsDir) {
+				return a.name.localeCompare(b.name);
 			}
-		}
-
-		const countScript = `find "${normalizedPath.replace(/"/g, '\\"')}" -maxdepth 1 -mindepth 1 | wc -l`;
-		const { exitCode: countExitCode, stdout: countStdout } = await exec({
-			command: "sh",
-			args: ["-c", countScript],
-			timeout: 10000,
+			return aIsDir ? -1 : 1;
 		});
 
-		const total = countExitCode === 0 ? parseInt(countStdout.trim(), 10) || 0 : entries.length;
+		const total = dirents.length;
+		const paginatedDirents = dirents.slice(startOffset, startOffset + pageSize);
+
+		const entries = (
+			await Promise.all(
+				paginatedDirents.map(async (dirent) => {
+					const fullPath = path.join(normalizedPath, dirent.name);
+
+					try {
+						const stats = await fs.stat(fullPath);
+						const relativePath = path.relative(volumePath, fullPath);
+
+						return {
+							name: dirent.name,
+							path: `/${relativePath}`,
+							type: dirent.isDirectory() ? "directory" : "file",
+							size: dirent.isFile() ? stats.size : undefined,
+							modifiedAt: stats.mtimeMs,
+						};
+					} catch {
+						return null;
+					}
+				}),
+			)
+		).filter((e) => e !== null);
 
 		return {
 			files: entries,
@@ -400,6 +381,9 @@ const listFiles = async (
 			hasMore: startOffset + entries.length < total,
 		};
 	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			throw new NotFoundError("Directory not found");
+		}
 		throw new InternalServerError(`Failed to list files: ${toMessage(error)}`);
 	}
 };

@@ -210,7 +210,12 @@ const listSnapshots = async (id: string, backupId?: string) => {
 	}
 };
 
-const listSnapshotFiles = async (id: string, snapshotId: string, path?: string) => {
+const listSnapshotFiles = async (
+	id: string,
+	snapshotId: string,
+	path?: string,
+	options?: { offset?: number; limit?: number },
+) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(id);
 
@@ -218,18 +223,30 @@ const listSnapshotFiles = async (id: string, snapshotId: string, path?: string) 
 		throw new NotFoundError("Repository not found");
 	}
 
-	const cacheKey = `ls:${repository.id}:${snapshotId}:${path || "root"}`;
-	const cached = cache.get<Awaited<ReturnType<typeof restic.ls>>>(cacheKey);
+	const offset = options?.offset ?? 0;
+	const limit = options?.limit ?? 500;
+
+	const cacheKey = `ls:${repository.id}:${snapshotId}:${path || "root"}:${offset}:${limit}`;
+	type LsResult = {
+		snapshot: { id: string; short_id: string; time: string; hostname: string; paths: string[] } | null;
+		nodes: { name: string; type: string; path: string; size?: number; mode?: number }[];
+		pagination: { offset: number; limit: number; total: number; hasMore: boolean };
+	};
+	const cached = cache.get<LsResult>(cacheKey);
 	if (cached?.snapshot) {
 		return {
 			snapshot: cached.snapshot,
 			files: cached.nodes,
+			offset: cached.pagination.offset,
+			limit: cached.pagination.limit,
+			total: cached.pagination.total,
+			hasMore: cached.pagination.hasMore,
 		};
 	}
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
 	try {
-		const result = await restic.ls(repository.config, snapshotId, organizationId, path);
+		const result = await restic.ls(repository.config, snapshotId, organizationId, path, { offset, limit });
 
 		if (!result.snapshot) {
 			throw new NotFoundError("Snapshot not found or empty");
@@ -244,6 +261,10 @@ const listSnapshotFiles = async (id: string, snapshotId: string, path?: string) 
 				paths: result.snapshot.paths,
 			},
 			files: result.nodes,
+			offset: result.pagination.offset,
+			limit: result.pagination.limit,
+			total: result.pagination.total,
+			hasMore: result.pagination.hasMore,
 		};
 
 		cache.set(cacheKey, result);
