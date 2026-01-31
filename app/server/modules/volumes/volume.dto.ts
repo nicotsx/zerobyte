@@ -283,41 +283,16 @@ export const listFilesResponse = type({
 });
 export type ListFilesDto = typeof listFilesResponse.infer;
 
+export const listFilesQuery = type({
+	path: "string?",
+	offset: "string.integer?",
+	limit: "string.integer?",
+});
+
 export const listFilesDto = describeRoute({
 	description: "List files in a volume directory",
 	operationId: "listFiles",
 	tags: ["Volumes"],
-	parameters: [
-		{
-			in: "query",
-			name: "path",
-			required: false,
-			schema: {
-				type: "string",
-			},
-			description: "Subdirectory path to list (relative to volume root)",
-		},
-		{
-			in: "query",
-			name: "offset",
-			required: false,
-			schema: {
-				type: "integer",
-				default: 0,
-			},
-			description: "Offset for pagination (default: 0)",
-		},
-		{
-			in: "query",
-			name: "limit",
-			required: false,
-			schema: {
-				type: "integer",
-				default: 100,
-			},
-			description: "Maximum number of files to return (default: 100, max: 1000)",
-		},
-	],
 	responses: {
 		200: {
 			description: "List of files in the volume",

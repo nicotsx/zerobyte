@@ -143,11 +143,10 @@ export const repositoriesController = new Hono()
 		validator("query", listSnapshotFilesQuery),
 		async (c) => {
 			const { id, snapshotId } = c.req.param();
-			const { path } = c.req.valid("query");
+			const { path, ...query } = c.req.valid("query");
 
 			const decodedPath = path ? decodeURIComponent(path) : undefined;
 
-			const query = c.req.query();
 			const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
 			const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
 

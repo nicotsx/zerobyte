@@ -18,6 +18,7 @@ import { serverEvents } from "../../core/events";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
+import { isNodeJSErrnoException } from "~/server/utils/fs";
 
 async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
 	switch (config.backend) {
@@ -373,7 +374,7 @@ const listFiles = async (
 			hasMore: startOffset + entries.length < total,
 		};
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {
 			throw new NotFoundError("Directory not found");
 		}
 		throw new InternalServerError(`Failed to list files: ${toMessage(error)}`);

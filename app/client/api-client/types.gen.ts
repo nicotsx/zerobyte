@@ -682,18 +682,9 @@ export type ListFilesData = {
 		id: string;
 	};
 	query?: {
-		/**
-		 * Subdirectory path to list (relative to volume root)
-		 */
+		limit?: string;
+		offset?: string;
 		path?: string;
-		/**
-		 * Offset for pagination (default: 0)
-		 */
-		offset?: number;
-		/**
-		 * Maximum number of files to return (default: 100, max: 1000)
-		 */
-		limit?: number;
 	};
 	url: "/api/v1/volumes/{id}/files";
 };
@@ -1736,15 +1727,9 @@ export type ListSnapshotFilesData = {
 		snapshotId: string;
 	};
 	query?: {
+		limit?: string;
+		offset?: string;
 		path?: string;
-		/**
-		 * Offset for pagination (default: 0)
-		 */
-		offset?: number;
-		/**
-		 * Maximum number of files to return (default: 500, max: 1000)
-		 */
-		limit?: number;
 	};
 	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files";
 };

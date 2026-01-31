@@ -497,7 +497,7 @@ export const listFilesInfiniteOptions = (options: Options<ListFilesData>) =>
 		DefaultError,
 		InfiniteData<ListFilesResponse>,
 		QueryKey<Options<ListFilesData>>,
-		number | Pick<QueryKey<Options<ListFilesData>>[0], "body" | "headers" | "path" | "query">
+		string | Pick<QueryKey<Options<ListFilesData>>[0], "body" | "headers" | "path" | "query">
 	>(
 		// @ts-ignore
 		{
@@ -814,7 +814,7 @@ export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFi
 		DefaultError,
 		InfiniteData<ListSnapshotFilesResponse>,
 		QueryKey<Options<ListSnapshotFilesData>>,
-		number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], "body" | "headers" | "path" | "query">
+		string | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], "body" | "headers" | "path" | "query">
 	>(
 		// @ts-ignore
 		{
