@@ -297,14 +297,6 @@ const checkHealth = async (idOrShortId: string | number) => {
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
 
-interface DirEntry {
-	name: string;
-	path: string;
-	type: "directory" | "file";
-	size?: number;
-	modifiedAt?: number;
-}
-
 const listFiles = async (
 	idOrShortId: string | number,
 	subPath?: string,
@@ -361,7 +353,7 @@ const listFiles = async (
 						return {
 							name: dirent.name,
 							path: `/${relativePath}`,
-							type: dirent.isDirectory() ? "directory" : "file",
+							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
 							size: dirent.isFile() ? stats.size : undefined,
 							modifiedAt: stats.mtimeMs,
 						};

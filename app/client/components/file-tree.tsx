@@ -8,7 +8,15 @@
  * Original source: https://github.com/stackblitz/bolt.new
  */
 
-import { ChevronDown, ChevronRight, File as FileIcon, Folder as FolderIcon, FolderOpen, Loader2, MoreHorizontal } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronRight,
+	File as FileIcon,
+	Folder as FolderIcon,
+	FolderOpen,
+	Loader2,
+	MoreHorizontal,
+} from "lucide-react";
 import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "~/client/lib/utils";
 import { Checkbox } from "~/client/components/ui/checkbox";
@@ -304,11 +312,11 @@ export const FileTree = memo((props: Props) => {
 	// Build a map of folder paths that need pagination to their last child's index
 	const folderPaginationMap = useMemo(() => {
 		const map = new Map<string, number>();
-		
+
 		for (let i = 0; i < filteredFileList.length; i++) {
 			const item = filteredFileList[i];
 			const parentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/")) || "/";
-			
+
 			if (parentPath !== "/") {
 				const pagination = getFolderPagination?.(parentPath);
 				if (pagination?.hasMore && !collapsedFolders.has(parentPath)) {
@@ -317,7 +325,7 @@ export const FileTree = memo((props: Props) => {
 				}
 			}
 		}
-		
+
 		return map;
 	}, [filteredFileList, getFolderPagination, collapsedFolders]);
 
@@ -539,7 +547,13 @@ const LoadMoreButton = memo(({ depth, onClick, isLoading }: LoadMoreButtonProps)
 		<NodeButton
 			depth={depth}
 			className="text-muted-foreground hover:bg-accent/50 cursor-pointer"
-			icon={isLoading ? <Loader2 className="w-4 h-4 shrink-0 animate-spin" /> : <MoreHorizontal className="w-4 h-4 shrink-0" />}
+			icon={
+				isLoading ? (
+					<Loader2 className="w-4 h-4 shrink-0 animate-spin" />
+				) : (
+					<MoreHorizontal className="w-4 h-4 shrink-0" />
+				)
+			}
 			onClick={onClick}
 		>
 			<span className="text-xs">{isLoading ? "Loading more..." : "Load more files"}</span>
