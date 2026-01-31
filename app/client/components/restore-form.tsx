@@ -78,7 +78,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { id: repository.id, snapshotId },
-					query: { path, offset, limit: 500 },
+					query: { path, offset: offset.toString(), limit: "500" },
 				}),
 			);
 		},
@@ -86,7 +86,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repository.id, snapshotId },
-					query: { path, offset: 0, limit: 500 },
+					query: { path, offset: "0", limit: "500" },
 				}),
 			);
 		},

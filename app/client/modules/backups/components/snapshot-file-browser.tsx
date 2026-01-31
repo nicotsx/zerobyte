@@ -64,7 +64,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { id: repositoryId, snapshotId: snapshot.short_id },
-					query: { path, offset, limit: 500 },
+					query: { path, offset: offset.toString(), limit: "500" },
 				}),
 			);
 		},
@@ -72,7 +72,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { id: repositoryId, snapshotId: snapshot.short_id },
-					query: { path, offset: 0, limit: 500 },
+					query: { path, offset: "0", limit: "500" },
 				}),
 			);
 		},

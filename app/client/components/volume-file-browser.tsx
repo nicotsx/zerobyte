@@ -42,7 +42,7 @@ export const VolumeFileBrowser = ({
 			return await queryClient.ensureQueryData(
 				listFilesOptions({
 					path: { id: volumeId },
-					query: { path, offset },
+					query: { path, offset: offset?.toString() },
 				}),
 			);
 		},
