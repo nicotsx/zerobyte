@@ -371,7 +371,7 @@ const listFiles = async (
 			offset: startOffset,
 			limit: pageSize,
 			total,
-			hasMore: startOffset + entries.length < total,
+			hasMore: startOffset + pageSize < total,
 		};
 	} catch (error) {
 		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {

@@ -725,10 +725,10 @@ const ls = async (
 	let isFirstLine = true;
 	let hasMore = false;
 
-	const offset = options?.offset ?? 0;
-	const limit = options?.limit ?? 500;
+	const offset = Math.max(options?.offset ?? 0, 0);
+	const limit = Math.min(Math.max(options?.limit ?? 500, 1), 500);
 
-	await safeSpawn({
+	const res = await safeSpawn({
 		command: "restic",
 		args,
 		env,
@@ -769,6 +769,11 @@ const ls = async (
 	});
 
 	await cleanupTemporaryKeys(env);
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic ls failed: ${res.error}`);
+		throw new ResticError(res.exitCode, res.error);
+	}
 
 	if (totalNodes > offset + limit) {
 		hasMore = true;
