@@ -266,7 +266,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	excludeIfPresent: text("exclude_if_present", { mode: "json" }).$type<string[]>().default([]),
 	includePatterns: text("include_patterns", { mode: "json" }).$type<string[]>().default([]),
 	lastBackupAt: int("last_backup_at", { mode: "number" }),
-	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning">(),
+	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning" | null>(),
 	lastBackupError: text("last_backup_error"),
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),

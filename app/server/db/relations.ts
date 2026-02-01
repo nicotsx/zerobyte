@@ -30,9 +30,14 @@ export const relations = defineRelations(schema, (r) => ({
 	},
 	backupSchedulesTable: {
 		mirrors: r.many.repositoriesTable({
+			from: r.backupSchedulesTable.id.through(r.backupScheduleMirrorsTable.scheduleId),
+			to: r.repositoriesTable.id.through(r.backupScheduleMirrorsTable.repositoryId),
 			alias: "repositoriesTable_id_backupSchedulesTable_id_via_backupScheduleMirrorsTable",
 		}),
-		notificationDestinationsTables: r.many.notificationDestinationsTable(),
+		notificationDestinationsTables: r.many.notificationDestinationsTable({
+			from: r.backupSchedulesTable.id.through(r.backupScheduleNotificationsTable.scheduleId),
+			to: r.notificationDestinationsTable.id.through(r.backupScheduleNotificationsTable.destinationId),
+		}),
 		organization: r.one.organization({
 			from: r.backupSchedulesTable.organizationId,
 			to: r.organization.id,

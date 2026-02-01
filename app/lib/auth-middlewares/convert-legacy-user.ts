@@ -15,7 +15,11 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 
 	const legacyUser = await db.query.usersTable.findFirst({
 		where: {
-			AND: [{ username: body.username.trim().toLowerCase() }, { passwordHash: { NOT: "" } }],
+			AND: [
+				{ username: body.username.trim().toLowerCase() },
+				{ passwordHash: { NOT: "" } },
+				{ passwordHash: { isNotNull: true } },
+			],
 		},
 	});
 
