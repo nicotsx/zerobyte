@@ -8,7 +8,7 @@ import { formatDateTime } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import type { Route } from "./+types/snapshot-details";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { Database } from "lucide-react";
 
 export const handle = {
@@ -51,6 +51,8 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 		id: string;
 		snapshotId: string;
 	}>();
+
+	const [showAllPaths, setShowAllPaths] = useState(false);
 
 	const { data } = useQuery({
 		...listSnapshotFilesOptions({
@@ -178,11 +180,20 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 							<div className="col-span-2">
 								<span className="text-muted-foreground">Paths:</span>
 								<div className="space-y-1 mt-1">
-									{data.snapshot.paths.map((path) => (
+									{data.snapshot.paths.slice(0, showAllPaths ? undefined : 20).map((path) => (
 										<p key={path} className="font-mono text-xs bg-muted px-2 py-1 rounded break-all">
 											{path}
 										</p>
 									))}
+									{data.snapshot.paths.length > 20 && (
+										<button
+											type="button"
+											onClick={() => setShowAllPaths(!showAllPaths)}
+											className="text-xs text-primary hover:underline mt-1"
+										>
+											{showAllPaths ? "Show less" : `+ ${data.snapshot.paths.length - 20} more`}
+										</button>
+									)}
 								</div>
 							</div>
 						</div>
