@@ -10,12 +10,12 @@ import { admin, createAuthMiddleware, twoFactor, username, organization } from "
 import { UnauthorizedError } from "http-errors-enhanced";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
 import { eq } from "drizzle-orm";
-import { config } from "../server/core/config";
-import { db } from "../server/db/db";
-import { cryptoUtils } from "../server/utils/crypto";
-import { organization as organizationTable, member, usersTable } from "../server/db/schema";
+import { config } from "../core/config";
+import { db } from "../db/db";
+import { cryptoUtils } from "../utils/crypto";
+import { organization as organizationTable, member, usersTable } from "../db/schema";
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
-import { authService } from "../server/modules/auth/auth.service";
+import { authService } from "../modules/auth/auth.service";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 

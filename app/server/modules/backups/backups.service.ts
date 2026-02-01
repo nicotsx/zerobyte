@@ -67,10 +67,24 @@ const listSchedules = async () => {
 	return schedules;
 };
 
-const getSchedule = async (scheduleId: number) => {
+const getScheduleById = async (scheduleId: number) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: { AND: [{ id: scheduleId }, { organizationId }] },
+		with: { volume: true, repository: true },
+	});
+
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	return schedule;
+};
+
+const getScheduleByShortId = async (shortId: string) => {
+	const organizationId = getOrganizationId();
+	const schedule = await db.query.backupSchedulesTable.findFirst({
+		where: { AND: [{ shortId }, { organizationId }] },
 		with: { volume: true, repository: true },
 	});
 
@@ -775,7 +789,7 @@ const reorderSchedules = async (scheduleIds: number[]) => {
 
 export const backupsService = {
 	listSchedules,
-	getSchedule,
+	getScheduleById,
 	createSchedule,
 	updateSchedule,
 	deleteSchedule,
@@ -788,4 +802,5 @@ export const backupsService = {
 	updateMirrors,
 	getMirrorCompatibility,
 	reorderSchedules,
+	getScheduleByShortId,
 };

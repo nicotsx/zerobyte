@@ -40,8 +40,12 @@ import {
 	type UpdateRepositoryDto,
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
+import { backupsService } from "../backups/backups.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
 import { requireAuth } from "../auth/auth.middleware";
+import { computeRetentionCategories } from "../../utils/retention-categories";
+import { logger } from "~/server/utils/logger";
+import { toMessage } from "~/server/utils/errors";
 
 export const repositoriesController = new Hono()
 	.use(requireAuth)
@@ -88,6 +92,22 @@ export const repositoriesController = new Hono()
 		const { backupId } = c.req.valid("query");
 		const res = await repositoriesService.listSnapshots(id, backupId);
 
+		let retentionCategories: Map<string, string[]> = new Map();
+		if (backupId) {
+			try {
+				const schedule = await backupsService.getScheduleByShortId(backupId);
+				if (schedule?.retentionPolicy) {
+					const snapshotsForCategories = res.map((snapshot) => ({
+						short_id: snapshot.short_id,
+						time: new Date(snapshot.time).getTime(),
+					}));
+					retentionCategories = computeRetentionCategories(snapshotsForCategories, schedule.retentionPolicy);
+				}
+			} catch (error) {
+				logger.warn(`Failed to fetch retention policy for backup ID ${backupId}`, toMessage(error));
+			}
+		}
+
 		const snapshots = res.map((snapshot) => {
 			const { summary } = snapshot;
 
@@ -104,6 +124,7 @@ export const repositoriesController = new Hono()
 				tags: snapshot.tags ?? [],
 				size: summary?.total_bytes_processed || 0,
 				time: new Date(snapshot.time).getTime(),
+				retentionCategories: retentionCategories.get(snapshot.short_id) ?? [],
 			};
 		});
 
@@ -132,6 +153,7 @@ export const repositoriesController = new Hono()
 			paths: snapshot.paths,
 			size: snapshot.summary?.total_bytes_processed || 0,
 			tags: snapshot.tags ?? [],
+			retentionCategories: [],
 			summary: snapshot.summary,
 		};
 

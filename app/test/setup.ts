@@ -4,7 +4,7 @@ import path from "node:path";
 import { cwd } from "node:process";
 import * as schema from "~/server/db/schema";
 import { db, setSchema } from "~/server/db/db";
-import { initAuth } from "~/lib/auth";
+import { initAuth } from "~/server/lib/auth";
 
 setSchema(schema);
 

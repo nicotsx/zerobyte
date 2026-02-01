@@ -17,7 +17,7 @@ import { notificationsController } from "./modules/notifications/notifications.c
 import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { config } from "./core/config";
-import { auth } from "~/lib/auth";
+import { auth } from "~/server/lib/auth";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {

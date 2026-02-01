@@ -41,7 +41,7 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
 		expect(updatedSchedule.nextBackupAt).not.toBeNull();
 
 		const nextBackupAt = new Date(updatedSchedule.nextBackupAt ?? 0);
@@ -129,7 +129,7 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 	});
 
@@ -150,7 +150,7 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getSchedule(schedule.id);
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 	});
 });

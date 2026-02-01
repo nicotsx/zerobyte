@@ -12,7 +12,7 @@ import { repositoriesService } from "../repositories/repositories.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { cache } from "~/server/utils/cache";
-import { initAuth } from "~/lib/auth";
+import { initAuth } from "~/server/lib/auth";
 import { toMessage } from "~/server/utils/errors";
 import { withContext } from "~/server/core/request-context";
 

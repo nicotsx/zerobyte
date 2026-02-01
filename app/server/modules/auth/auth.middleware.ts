@@ -1,5 +1,5 @@
 import { createMiddleware } from "hono/factory";
-import { auth } from "~/lib/auth";
+import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { withContext } from "~/server/core/request-context";
 
