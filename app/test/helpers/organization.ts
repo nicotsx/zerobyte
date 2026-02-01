@@ -19,7 +19,7 @@ export const createTestOrganization = async (overrides: Partial<typeof organizat
 	};
 
 	const existing = await db.query.organization.findFirst({
-		where: (o, { eq }) => eq(o.id, org.id ?? TEST_ORG_ID),
+		where: { id: org.id },
 	});
 
 	if (existing) {

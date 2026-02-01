@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { relations } from "./relations";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
@@ -13,7 +14,7 @@ import type * as schemaTypes from "./schema";
  * to isolate the db initialization code from the rest of the server code.
  */
 let _sqlite: Database | undefined;
-let _db: ReturnType<typeof drizzle<typeof schemaTypes>> | undefined;
+let _db: ReturnType<typeof initDb> | undefined;
 let _schema: typeof schemaTypes | undefined;
 
 /**
@@ -35,7 +36,7 @@ const initDb = () => {
 	}
 
 	_sqlite = new Database(DATABASE_URL);
-	return drizzle({ client: _sqlite, schema: _schema });
+	return drizzle({ client: _sqlite, relations, schema: _schema });
 };
 
 /**
@@ -51,7 +52,7 @@ export const db = new Proxy(
 			return Reflect.get(_db, prop, receiver);
 		},
 	},
-) as ReturnType<typeof drizzle<typeof schemaTypes>>;
+) as ReturnType<typeof initDb>;
 
 export const runDbMigrations = () => {
 	let migrationsFolder: string;

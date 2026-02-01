@@ -1,8 +1,6 @@
 import { db } from "~/server/db/db";
 import type { AuthMiddlewareContext } from "../auth";
 import { logger } from "~/server/utils/logger";
-import { eq } from "drizzle-orm";
-import { appMetadataTable } from "~/server/db/schema";
 import { ForbiddenError } from "http-errors-enhanced";
 import { REGISTRATION_ENABLED_KEY } from "~/client/lib/constants";
 
@@ -15,7 +13,7 @@ export const ensureOnlyOneUser = async (ctx: AuthMiddlewareContext) => {
 	}
 
 	const result = await db.query.appMetadataTable.findFirst({
-		where: eq(appMetadataTable.key, REGISTRATION_ENABLED_KEY),
+		where: { key: REGISTRATION_ENABLED_KEY },
 	});
 
 	if (result?.value !== "true" && existingUser) {

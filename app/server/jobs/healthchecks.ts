@@ -2,8 +2,6 @@ import { Job } from "../core/scheduler";
 import { volumeService } from "../modules/volumes/volume.service";
 import { logger } from "../utils/logger";
 import { db } from "../db/db";
-import { eq, or } from "drizzle-orm";
-import { volumesTable } from "../db/schema";
 import { withContext } from "../core/request-context";
 
 export class VolumeHealthCheckJob extends Job {
@@ -11,7 +9,9 @@ export class VolumeHealthCheckJob extends Job {
 		logger.debug("Running health check for all volumes...");
 
 		const volumes = await db.query.volumesTable.findMany({
-			where: or(eq(volumesTable.status, "mounted"), eq(volumesTable.status, "error")),
+			where: {
+				OR: [{ status: "mounted" }, { status: "error" }],
+			},
 		});
 
 		for (const volume of volumes) {

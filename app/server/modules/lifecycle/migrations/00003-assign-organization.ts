@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
 import { db } from "../../../db/db";
-import { member, usersTable } from "../../../db/schema";
+import { member } from "../../../db/schema";
 import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
 
@@ -8,7 +7,9 @@ const execute = async () => {
 	const errors: Array<{ name: string; error: string }> = [];
 
 	try {
-		const allUsers = await db.query.usersTable.findMany({ where: eq(usersTable.role, "admin") });
+		const allUsers = await db.query.usersTable.findMany({
+			where: { role: "admin" },
+		});
 		const allOrganizations = await db.query.organization.findMany({});
 
 		if (allUsers.length === 0) {
@@ -35,7 +36,7 @@ const execute = async () => {
 		const org = allOrganizations[0];
 
 		const existingMembers = await db.query.member.findMany({
-			where: (memberTable, { eq }) => eq(memberTable.userId, user.id),
+			where: { userId: user.id },
 		});
 
 		if (existingMembers.length > 0) {
