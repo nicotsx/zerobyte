@@ -4,7 +4,6 @@ import path from "node:path";
 import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
-import { eq } from "drizzle-orm";
 import { REPOSITORY_BASE, RESTIC_PASS_FILE, DEFAULT_EXCLUDES, RESTIC_CACHE_DIR } from "../core/constants";
 import { config as appConfig } from "../core/config";
 import { logger } from "./logger";
@@ -14,7 +13,6 @@ import { safeSpawn, exec } from "./spawn";
 import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
 import { ResticError } from "./errors";
 import { db } from "../db/db";
-import { organization } from "../db/schema";
 
 const backupOutputSchema = type({
 	message_type: "'summary'",
@@ -110,9 +108,7 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 		await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
 		env.RESTIC_PASSWORD_FILE = passwordFilePath;
 	} else {
-		const org = await db.query.organization.findFirst({
-			where: eq(organization.id, organizationId),
-		});
+		const org = await db.query.organization.findFirst({ where: { id: organizationId } });
 
 		if (!org) {
 			throw new Error(`Organization ${organizationId} not found`);

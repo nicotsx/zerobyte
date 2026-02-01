@@ -46,7 +46,7 @@ async function encryptSensitiveFields(config: BackendConfig): Promise<BackendCon
 const listVolumes = async () => {
 	const organizationId = getOrganizationId();
 	const volumes = await db.query.volumesTable.findMany({
-		where: eq(volumesTable.organizationId, organizationId),
+		where: { organizationId: organizationId },
 	});
 
 	return volumes;
@@ -56,10 +56,12 @@ const findVolume = async (idOrShortId: string | number) => {
 	const organizationId = getOrganizationId();
 	const isNumeric = typeof idOrShortId === "number" || /^\d+$/.test(String(idOrShortId));
 	return await db.query.volumesTable.findFirst({
-		where: and(
-			isNumeric ? eq(volumesTable.id, Number(idOrShortId)) : eq(volumesTable.shortId, idOrShortId),
-			eq(volumesTable.organizationId, organizationId),
-		),
+		where: {
+			AND: [
+				isNumeric ? { id: Number(idOrShortId) } : { shortId: String(idOrShortId) },
+				{ organizationId: organizationId },
+			],
+		},
 	});
 };
 

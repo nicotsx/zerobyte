@@ -2,8 +2,6 @@ import { Job } from "../core/scheduler";
 import { volumeService } from "../modules/volumes/volume.service";
 import { logger } from "../utils/logger";
 import { db } from "../db/db";
-import { eq } from "drizzle-orm";
-import { volumesTable } from "../db/schema";
 import { withContext } from "../core/request-context";
 
 export class VolumeAutoRemountJob extends Job {
@@ -11,7 +9,7 @@ export class VolumeAutoRemountJob extends Job {
 		logger.debug("Running auto-remount for all errored volumes...");
 
 		const volumes = await db.query.volumesTable.findMany({
-			where: eq(volumesTable.status, "error"),
+			where: { status: "error" },
 		});
 
 		for (const volume of volumes) {

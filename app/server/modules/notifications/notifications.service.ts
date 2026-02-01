@@ -1,10 +1,9 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import {
 	notificationDestinationsTable,
 	backupScheduleNotificationsTable,
-	backupSchedulesTable,
 	type NotificationDestination,
 } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
@@ -19,8 +18,8 @@ import { getOrganizationId } from "~/server/core/request-context";
 const listDestinations = async () => {
 	const organizationId = getOrganizationId();
 	const destinations = await db.query.notificationDestinationsTable.findMany({
-		where: eq(notificationDestinationsTable.organizationId, organizationId),
-		orderBy: (destinations, { asc }) => [asc(destinations.name)],
+		where: { organizationId },
+		orderBy: { name: "asc" },
 	});
 	return destinations;
 };
@@ -28,10 +27,7 @@ const listDestinations = async () => {
 const getDestination = async (id: number) => {
 	const organizationId = getOrganizationId();
 	const destination = await db.query.notificationDestinationsTable.findFirst({
-		where: and(
-			eq(notificationDestinationsTable.id, id),
-			eq(notificationDestinationsTable.organizationId, organizationId),
-		),
+		where: { AND: [{ id }, { organizationId }] },
 	});
 
 	if (!destination) {
@@ -256,7 +252,7 @@ const testDestination = async (id: number) => {
 const getScheduleNotifications = async (scheduleId: number) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
+		where: { AND: [{ id: scheduleId }, { organizationId }] },
 	});
 
 	if (!schedule) {
@@ -264,7 +260,7 @@ const getScheduleNotifications = async (scheduleId: number) => {
 	}
 
 	const assignments = await db.query.backupScheduleNotificationsTable.findMany({
-		where: eq(backupScheduleNotificationsTable.scheduleId, scheduleId),
+		where: { scheduleId },
 		with: {
 			destination: true,
 		},
@@ -285,7 +281,7 @@ const updateScheduleNotifications = async (
 ) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
+		where: { AND: [{ id: scheduleId }, { organizationId }] },
 	});
 
 	if (!schedule) {
@@ -295,10 +291,9 @@ const updateScheduleNotifications = async (
 	const destinationIds = [...new Set(assignments.map((a) => a.destinationId))];
 	if (destinationIds.length > 0) {
 		const destinations = await db.query.notificationDestinationsTable.findMany({
-			where: and(
-				inArray(notificationDestinationsTable.id, destinationIds),
-				eq(notificationDestinationsTable.organizationId, organizationId),
-			),
+			where: {
+				AND: [{ id: { in: destinationIds } }, { organizationId }],
+			},
 		});
 
 		if (destinations.length !== destinationIds.length) {
@@ -338,7 +333,7 @@ const sendBackupNotification = async (
 		const organizationId = getOrganizationId();
 
 		const assignments = await db.query.backupScheduleNotificationsTable.findMany({
-			where: eq(backupScheduleNotificationsTable.scheduleId, scheduleId),
+			where: { scheduleId },
 			with: {
 				destination: true,
 			},

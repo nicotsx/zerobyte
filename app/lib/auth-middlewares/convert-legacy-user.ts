@@ -1,5 +1,5 @@
 import { hashPassword } from "better-auth/crypto";
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, usersTable, member, organization } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "../auth";
@@ -14,7 +14,9 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 	}
 
 	const legacyUser = await db.query.usersTable.findFirst({
-		where: and(eq(usersTable.username, body.username.trim().toLowerCase()), ne(usersTable.passwordHash, "")),
+		where: {
+			AND: [{ username: body.username.trim().toLowerCase() }, { passwordHash: { NOT: "" } }],
+		},
 	});
 
 	if (legacyUser) {
@@ -26,7 +28,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 				const accountId = crypto.randomUUID();
 
 				const oldMembership = await tx.query.member.findFirst({
-					where: eq(member.userId, legacyUser.id),
+					where: { userId: legacyUser.id },
 					with: {
 						organization: true,
 					},

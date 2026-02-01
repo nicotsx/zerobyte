@@ -15,7 +15,7 @@ const listOrganizations = () => {
 
 const getUserCurrentOrganization = async (userId: string) => {
 	const membership = await db.query.member.findFirst({
-		where: eq(member.userId, userId),
+		where: { userId },
 		with: {
 			organization: true,
 		},
@@ -36,9 +36,7 @@ const assignUserToOrganization = async (userId: string, organizationId: string) 
 		throw new Error("Organization not found");
 	}
 
-	const existingMembership = await db.query.member.findFirst({
-		where: eq(member.userId, userId),
-	});
+	const existingMembership = await db.query.member.findFirst({ where: { userId } });
 
 	await db.transaction(async (tx) => {
 		if (existingMembership) {

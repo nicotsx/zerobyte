@@ -1,8 +1,6 @@
 import { createMiddleware } from "hono/factory";
 import { auth } from "~/lib/auth";
 import { db } from "~/server/db/db";
-import { member } from "~/server/db/schema";
-import { eq, and } from "drizzle-orm";
 import { withContext } from "~/server/core/request-context";
 
 declare module "hono" {
@@ -34,7 +32,9 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	}
 
 	const membership = await db.query.member.findFirst({
-		where: and(eq(member.userId, user.id), eq(member.organizationId, activeOrganizationId)),
+		where: {
+			AND: [{ userId: user.id }, { organizationId: activeOrganizationId }],
+		},
 	});
 
 	if (!membership) {
@@ -58,7 +58,9 @@ export const requireOrgAdmin = createMiddleware(async (c, next) => {
 	const organizationId = c.get("organizationId");
 
 	const membership = await db.query.member.findFirst({
-		where: and(eq(member.userId, user.id), eq(member.organizationId, organizationId)),
+		where: {
+			AND: [{ userId: user.id }, { organizationId: organizationId }],
+		},
 	});
 
 	if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {

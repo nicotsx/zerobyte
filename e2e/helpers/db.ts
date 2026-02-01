@@ -2,11 +2,11 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import path from "node:path";
 import { DATABASE_URL } from "~/server/core/constants";
-import * as schema from "~/server/db/schema";
+import { relations } from "~/server/db/relations";
 
 const sqlite = createClient({ url: `file:${path.join(process.cwd(), "playwright", DATABASE_URL)}` });
 
-export const db = drizzle({ client: sqlite, schema: schema });
+export const db = drizzle({ client: sqlite, relations: relations });
 
 export const resetDatabase = async () => {
 	const cursor = await sqlite.execute("SELECT name FROM sqlite_master WHERE type='table'");

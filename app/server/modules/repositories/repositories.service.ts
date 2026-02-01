@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
@@ -26,18 +26,15 @@ const runningDoctors = new Map<string, AbortController>();
 const findRepository = async (idOrShortId: string) => {
 	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
-		where: and(
-			or(eq(repositoriesTable.id, idOrShortId), eq(repositoriesTable.shortId, idOrShortId)),
-			eq(repositoriesTable.organizationId, organizationId),
-		),
+		where: {
+			AND: [{ OR: [{ id: idOrShortId }, { shortId: idOrShortId }] }, { organizationId }],
+		},
 	});
 };
 
 const listRepositories = async () => {
 	const organizationId = getOrganizationId();
-	const repositories = await db.query.repositoriesTable.findMany({
-		where: eq(repositoriesTable.organizationId, organizationId),
-	});
+	const repositories = await db.query.repositoriesTable.findMany({ where: { organizationId } });
 	return repositories;
 };
 

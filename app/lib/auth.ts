@@ -98,7 +98,7 @@ const createBetterAuth = (secret: string) => {
 				create: {
 					before: async (session) => {
 						const orgMembership = await db.query.member.findFirst({
-							where: eq(member.userId, session.userId),
+							where: { userId: session.userId },
 						});
 
 						if (!orgMembership) {

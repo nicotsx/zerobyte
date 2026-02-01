@@ -6,7 +6,6 @@ import { cache } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
-import { eq } from "drizzle-orm";
 import { REGISTRATION_ENABLED_KEY } from "~/client/lib/constants";
 
 const CACHE_TTL = 60 * 60;
@@ -91,7 +90,7 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 
 const isRegistrationEnabled = async () => {
 	const result = await db.query.appMetadataTable.findFirst({
-		where: eq(appMetadataTable.key, REGISTRATION_ENABLED_KEY),
+		where: { key: REGISTRATION_ENABLED_KEY },
 	});
 
 	return result?.value === "true";

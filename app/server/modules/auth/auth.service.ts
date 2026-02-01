@@ -24,7 +24,9 @@ export class AuthService {
 	 */
 	async getUserDeletionImpact(userId: string): Promise<UserDeletionImpactDto> {
 		const userMemberships = await db.query.member.findMany({
-			where: and(eq(member.userId, userId), eq(member.role, "owner")),
+			where: {
+				AND: [{ userId: userId }, { role: "owner" }],
+			},
 		});
 
 		const impacts: UserDeletionImpactDto["organizations"] = [];
@@ -43,7 +45,7 @@ export class AuthService {
 
 			if (otherOwners[0].count === 0) {
 				const org = await db.query.organization.findFirst({
-					where: eq(organization.id, membership.organizationId),
+					where: { id: membership.organizationId },
 				});
 
 				if (org) {

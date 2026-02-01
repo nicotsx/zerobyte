@@ -15,7 +15,7 @@ import {
 import { systemService } from "./system.service";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { db } from "../../db/db";
-import { organization, usersTable } from "../../db/schema";
+import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
@@ -78,9 +78,7 @@ export const systemController = new Hono()
 			}
 
 			try {
-				const org = await db.query.organization.findFirst({
-					where: eq(organization.id, organizationId),
-				});
+				const org = await db.query.organization.findFirst({ where: { id: organizationId } });
 
 				if (!org?.metadata?.resticPassword) {
 					return c.json({ message: "Organization Restic password not found" }, 404);

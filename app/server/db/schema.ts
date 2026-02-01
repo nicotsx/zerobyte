@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type {
 	CompressionMode,
@@ -175,29 +175,33 @@ export const invitation = sqliteTable(
 /**
  * Volumes Table
  */
-export const volumesTable = sqliteTable("volumes_table", {
-	id: int().primaryKey({ autoIncrement: true }),
-	shortId: text("short_id").notNull().unique(),
-	name: text().notNull(),
-	type: text().$type<BackendType>().notNull(),
-	status: text().$type<BackendStatus>().notNull().default("unmounted"),
-	lastError: text("last_error"),
-	lastHealthCheck: integer("last_health_check", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	createdAt: integer("created_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	updatedAt: integer("updated_at", { mode: "number" })
-		.notNull()
-		.$onUpdate(() => Date.now())
-		.default(sql`(unixepoch() * 1000)`),
-	config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
-	autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
-	organizationId: text("organization_id")
-		.notNull()
-		.references(() => organization.id, { onDelete: "cascade" }),
-}, (table) => [unique().on(table.name, table.organizationId)]);
+export const volumesTable = sqliteTable(
+	"volumes_table",
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		shortId: text("short_id").notNull().unique(),
+		name: text().notNull(),
+		type: text().$type<BackendType>().notNull(),
+		status: text().$type<BackendStatus>().notNull().default("unmounted"),
+		lastError: text("last_error"),
+		lastHealthCheck: integer("last_health_check", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		createdAt: integer("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: integer("updated_at", { mode: "number" })
+			.notNull()
+			.$onUpdate(() => Date.now())
+			.default(sql`(unixepoch() * 1000)`),
+		config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
+		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+	},
+	(table) => [unique().on(table.name, table.organizationId)],
+);
 export type Volume = typeof volumesTable.$inferSelect;
 export type VolumeInsert = typeof volumesTable.$inferInsert;
 
@@ -381,102 +385,3 @@ export const twoFactor = sqliteTable(
 	},
 	(table) => [index("twoFactor_secret_idx").on(table.secret), index("twoFactor_userId_idx").on(table.userId)],
 );
-
-export const userRelations = relations(usersTable, ({ many }) => ({
-	sessions: many(sessionsTable),
-	accounts: many(account),
-	members: many(member),
-	invitations: many(invitation),
-	twoFactors: many(twoFactor),
-}));
-
-export const sessionRelations = relations(sessionsTable, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [sessionsTable.userId],
-		references: [usersTable.id],
-	}),
-	activeOrganization: one(organization, {
-		fields: [sessionsTable.activeOrganizationId],
-		references: [organization.id],
-	}),
-}));
-
-export const accountRelations = relations(account, ({ one }) => ({
-	user: one(usersTable, {
-		fields: [account.userId],
-		references: [usersTable.id],
-	}),
-}));
-
-export const organizationRelations = relations(organization, ({ many }) => ({
-	members: many(member),
-	invitations: many(invitation),
-}));
-
-export const memberRelations = relations(member, ({ one }) => ({
-	organization: one(organization, {
-		fields: [member.organizationId],
-		references: [organization.id],
-	}),
-	usersTable: one(usersTable, {
-		fields: [member.userId],
-		references: [usersTable.id],
-	}),
-}));
-
-export const invitationRelations = relations(invitation, ({ one }) => ({
-	organization: one(organization, {
-		fields: [invitation.organizationId],
-		references: [organization.id],
-	}),
-	usersTable: one(usersTable, {
-		fields: [invitation.inviterId],
-		references: [usersTable.id],
-	}),
-}));
-
-export const twoFactorRelations = relations(twoFactor, ({ one }) => ({
-	usersTable: one(usersTable, {
-		fields: [twoFactor.userId],
-		references: [usersTable.id],
-	}),
-}));
-
-export const backupScheduleMirrorRelations = relations(backupScheduleMirrorsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleMirrorsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupScheduleMirrorsTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-}));
-
-export const backupScheduleRelations = relations(backupSchedulesTable, ({ one, many }) => ({
-	volume: one(volumesTable, {
-		fields: [backupSchedulesTable.volumeId],
-		references: [volumesTable.id],
-	}),
-	repository: one(repositoriesTable, {
-		fields: [backupSchedulesTable.repositoryId],
-		references: [repositoriesTable.id],
-	}),
-	notifications: many(backupScheduleNotificationsTable),
-	mirrors: many(backupScheduleMirrorsTable),
-}));
-
-export const notificationDestinationRelations = relations(notificationDestinationsTable, ({ many }) => ({
-	schedules: many(backupScheduleNotificationsTable),
-}));
-
-export const backupScheduleNotificationRelations = relations(backupScheduleNotificationsTable, ({ one }) => ({
-	schedule: one(backupSchedulesTable, {
-		fields: [backupScheduleNotificationsTable.scheduleId],
-		references: [backupSchedulesTable.id],
-	}),
-	destination: one(notificationDestinationsTable, {
-		fields: [backupScheduleNotificationsTable.destinationId],
-		references: [notificationDestinationsTable.id],
-	}),
-}));
