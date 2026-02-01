@@ -107,7 +107,7 @@ export default function SnapshotDetailsPage({ loaderData }: Route.ComponentProps
 				fallback={
 					<SnapshotFileBrowser
 						repositoryId={id}
-						snapshot={{ duration: 0, paths: [], short_id: "", size: 0, tags: [], time: 0 }}
+						snapshot={{ duration: 0, paths: [], short_id: "", size: 0, tags: [], time: 0, retentionCategories: [] }}
 					/>
 				}
 			>

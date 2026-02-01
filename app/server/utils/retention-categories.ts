@@ -19,7 +19,7 @@ const RETENTION_RULES = [
 export const computeRetentionCategories = (snapshots: SnapshotInfo[], policy: RetentionPolicy | null) => {
 	const categories = new Map<string, RetentionCategory[]>();
 
-	if (!policy || snapshots.length === 0) return categories;
+	if (snapshots.length === 0) return categories;
 
 	const sorted = [...snapshots].sort((a, b) => b.time - a.time);
 
@@ -27,10 +27,9 @@ export const computeRetentionCategories = (snapshots: SnapshotInfo[], policy: Re
 		const tags = categories.get(id) ?? [];
 		if (!tags.includes(tag)) categories.set(id, [...tags, tag]);
 	};
+	addTag(sorted[0].short_id, "latest");
 
-	if (policy.keepLast && policy.keepLast > 0) {
-		sorted.slice(0, 1).forEach((s) => addTag(s.short_id, "latest"));
-	}
+	if (!policy) return categories;
 
 	for (const { prop, tag, fmt } of RETENTION_RULES) {
 		const limit = policy[prop];

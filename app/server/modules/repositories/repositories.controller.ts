@@ -96,13 +96,11 @@ export const repositoriesController = new Hono()
 		if (backupId) {
 			try {
 				const schedule = await backupsService.getScheduleByShortId(backupId);
-				if (schedule?.retentionPolicy) {
-					const snapshotsForCategories = res.map((snapshot) => ({
-						short_id: snapshot.short_id,
-						time: new Date(snapshot.time).getTime(),
-					}));
-					retentionCategories = computeRetentionCategories(snapshotsForCategories, schedule.retentionPolicy);
-				}
+				const snapshotsForCategories = res.map((snapshot) => ({
+					short_id: snapshot.short_id,
+					time: new Date(snapshot.time).getTime(),
+				}));
+				retentionCategories = computeRetentionCategories(snapshotsForCategories, schedule.retentionPolicy);
 			} catch (error) {
 				logger.warn(`Failed to fetch retention policy for backup ID ${backupId}`, toMessage(error));
 			}
