@@ -71,9 +71,11 @@ export const PushoverForm = ({ form }: Props) => {
 								</SelectTrigger>
 							</FormControl>
 							<SelectContent>
+								<SelectItem value="-2">Lowest (-2)</SelectItem>
 								<SelectItem value="-1">Low (-1)</SelectItem>
 								<SelectItem value="0">Normal (0)</SelectItem>
 								<SelectItem value="1">High (1)</SelectItem>
+								<SelectItem value="2">Emergency (2)</SelectItem>
 							</SelectContent>
 						</Select>
 						<FormDescription>Message priority level.</FormDescription>
