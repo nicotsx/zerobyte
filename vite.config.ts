@@ -1,23 +1,29 @@
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { reactRouterHonoServer } from "react-router-hono-server/dev";
+import viteReact from "@vitejs/plugin-react";
 import babel from "vite-plugin-babel";
 
 export default defineConfig({
 	plugins: [
-		reactRouterHonoServer({ runtime: "bun" }),
-		reactRouter(),
-		babel({
-			filter: /\.[jt]sx?$/,
-			babelConfig: {
-				presets: ["@babel/preset-typescript"],
-				plugins: [["babel-plugin-react-compiler"]],
-			},
-		}),
 		tailwindcss(),
 		tsconfigPaths(),
+		// babel({
+		// 	filter: /\.[jt]sx?$/,
+		// 	babelConfig: {
+		// 		presets: ["@babel/preset-typescript"],
+		// 		plugins: [["babel-plugin-react-compiler"]],
+		// 	},
+		// }),
+		tanstackStart({
+			srcDirectory: "app",
+			router: {
+				routesDirectory: "routes",
+			},
+		}),
+		viteReact(),
 	],
 	build: {
 		outDir: "dist",

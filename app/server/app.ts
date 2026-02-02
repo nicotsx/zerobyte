@@ -18,6 +18,7 @@ import { handleServiceError } from "./utils/errors";
 import { logger } from "./utils/logger";
 import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
+import { createStartHandler, defaultStreamHandler, defineHandlerCallback } from "@tanstack/react-start/server";
 
 export const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -82,6 +83,13 @@ export const createApp = () => {
 	app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 	app.get("/api/v1/openapi.json", generalDescriptor(app));
 	app.get("/api/v1/docs", requireAuth, scalarDescriptor);
+
+	const customHandler = defineHandlerCallback((ctx) => {
+		return defaultStreamHandler(ctx);
+	});
+	const fetch = createStartHandler(customHandler);
+
+	app.all("*", (ctx) => fetch(ctx.req.raw));
 
 	app.onError((err, c) => {
 		logger.error(`${c.req.url}: ${err.message}`);

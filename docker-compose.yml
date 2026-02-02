@@ -14,8 +14,6 @@ services:
       - .env.local
     environment:
       - NODE_ENV=development
-      - APP_SECRET=${APP_SECRET}
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
     ports:
       - "${PORT:-3000}:3000"
     volumes:

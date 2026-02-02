@@ -1,27 +1,31 @@
-import { redirect, type MiddlewareFunction } from "react-router";
 import { getStatus } from "~/client/api-client";
-import { authClient } from "~/client/lib/auth-client";
-import { appContext } from "~/context";
+import { createMiddleware } from "@tanstack/react-start";
+import { redirect } from "@tanstack/react-router";
+import { auth } from "~/server/lib/auth";
+import { getRequestHeaders } from "@tanstack/react-start/server";
 
-export const authMiddleware: MiddlewareFunction = async ({ context, request }) => {
-	const { data: session } = await authClient.getSession();
+export const authMiddleware = createMiddleware().server(async ({ next, request }) => {
+	const headers = getRequestHeaders();
+	const session = await auth.api.getSession({ headers });
 
 	const isAuthRoute = ["/login", "/onboarding"].includes(new URL(request.url).pathname);
 
 	if (!session?.user?.id && !isAuthRoute) {
 		const status = await getStatus();
 		if (!status.data?.hasUsers) {
-			throw redirect("/onboarding");
+			throw redirect({ to: "/onboarding" });
 		}
 
-		throw redirect("/login");
+		throw redirect({ to: "/login" });
 	}
 
 	if (session?.user?.id) {
-		context.set(appContext, { user: session.user, hasUsers: true });
+		// context.set(appContext, { user: session.user, hasUsers: true });
 
 		if (isAuthRoute) {
-			throw redirect("/");
+			throw redirect({ to: "/" });
 		}
 	}
-};
+
+	return next();
+});

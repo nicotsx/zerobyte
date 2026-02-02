@@ -16,13 +16,14 @@ import { cryptoUtils } from "../utils/crypto";
 import { organization as organizationTable, member, usersTable } from "../db/schema";
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 import { authService } from "../modules/auth/auth.service";
+import { tanstackStartCookies } from "better-auth/tanstack-start";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
 const createBetterAuth = (secret: string) => {
 	return betterAuth({
 		secret,
-		baseURL: config.baseUrl,
+		baseURL: "http://localhost:3000",
 		trustedOrigins: config.trustedOrigins,
 		advanced: {
 			cookiePrefix: "zerobyte",
@@ -149,6 +150,7 @@ const createBetterAuth = (secret: string) => {
 					amount: 5,
 				},
 			}),
+			tanstackStartCookies(),
 		],
 	});
 };
