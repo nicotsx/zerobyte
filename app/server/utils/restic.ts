@@ -252,6 +252,8 @@ const init = async (config: RepositoryConfig, organizationId: string, options?: 
 	const env = await buildEnv(config, organizationId);
 
 	const args = ["init", "--repo", repoUrl];
+
+	args.push("--host", appConfig.resticHostname);
 	addCommonArgs(args, env, config);
 
 	const res = await exec({ command: "restic", args, env, timeout: options?.timeoutMs ?? 20000 });
@@ -303,9 +305,7 @@ const backup = async (
 		args.push("--one-file-system");
 	}
 
-	if (appConfig.resticHostname) {
-		args.push("--host", appConfig.resticHostname);
-	}
+	args.push("--host", appConfig.resticHostname);
 
 	if (options?.tags && options.tags.length > 0) {
 		for (const tag of options.tags) {
