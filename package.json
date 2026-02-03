@@ -117,7 +117,8 @@
 		"vite": "^7.3.1",
 		"vite-bundle-analyzer": "^1.2.3",
 		"vite-plugin-babel": "^1.4.1",
-		"vite-tsconfig-paths": "^6.0.5"
+		"vite-tsconfig-paths": "^6.0.5",
+		"wait-for-expect": "^4.0.0"
 	},
 	"overrides": {
 		"esbuild": "^0.27.2"

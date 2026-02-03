@@ -1,3 +1,4 @@
+import waitForExpect from "wait-for-expect";
 import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -106,7 +107,11 @@ describe("execute backup", () => {
 
 		// act
 		void backupsExecutionService.executeBackup(schedule.id);
-		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		await waitForExpect(() => {
+			expect(resticBackupMock).toHaveBeenCalledTimes(1);
+		});
+
 		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert

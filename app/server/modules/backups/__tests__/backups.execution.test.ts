@@ -1,3 +1,4 @@
+import waitForExpect from "wait-for-expect";
 import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { backupsService } from "../backups.service";
 import { backupsExecutionService } from "../backups.execution";
@@ -122,7 +123,11 @@ describe("stop backup", () => {
 		});
 
 		void backupsExecutionService.executeBackup(schedule.id);
-		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		await waitForExpect(async () => {
+			const runningSchedule = await backupsService.getScheduleById(schedule.id);
+			expect(runningSchedule.lastBackupStatus).toBe("in_progress");
+		});
 
 		// act
 		await backupsExecutionService.stopBackup(schedule.id);
@@ -335,7 +340,9 @@ describe("mirror operations", () => {
 		// act
 		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
 
-		await new Promise((resolve) => setTimeout(resolve, 100));
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalled();
+		});
 
 		// assert
 		expect(resticForgetMock).toHaveBeenCalledWith(
@@ -363,7 +370,9 @@ describe("mirror operations", () => {
 		// act
 		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
 
-		await new Promise((resolve) => setTimeout(resolve, 100));
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalled();
+		});
 
 		// assert
 		expect(resticForgetMock).not.toHaveBeenCalled();

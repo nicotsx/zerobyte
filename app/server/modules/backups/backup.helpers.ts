@@ -23,7 +23,10 @@ export const processPattern = (pattern: string, volumePath: string) => {
 	const isNegated = pattern.startsWith("!");
 	const p = isNegated ? pattern.slice(1) : pattern;
 
-	if (p.startsWith(volumePath) || !p.startsWith("/")) {
+	const relative = path.relative(volumePath, p);
+	const isInsideVolume = !relative.startsWith("..") && !path.isAbsolute(relative);
+
+	if (isInsideVolume || !p.startsWith("/")) {
 		return pattern;
 	}
 

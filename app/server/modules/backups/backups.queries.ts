@@ -19,7 +19,7 @@ export const scheduleQueries = {
 			where: {
 				AND: [
 					{ enabled: true },
-					{ OR: [{ lastBackupStatus: { NOT: "in_progress" } }, { lastBackupStatus: { isNull: true } }] },
+					{ OR: [{ lastBackupStatus: { ne: "in_progress" } }, { lastBackupStatus: { isNull: true } }] },
 					{ organizationId },
 				],
 			},
@@ -47,11 +47,10 @@ export const scheduleQueries = {
 
 export const mirrorQueries = {
 	findEnabledBySchedule: async (scheduleId: number) => {
-		const mirrors = await db.query.backupScheduleMirrorsTable.findMany({
-			where: { scheduleId },
+		return db.query.backupScheduleMirrorsTable.findMany({
+			where: { scheduleId, enabled: true },
 			with: { repository: true },
 		});
-		return mirrors.filter((m) => m.enabled);
 	},
 
 	updateStatus: async (
