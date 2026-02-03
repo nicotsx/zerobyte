@@ -1,5 +1,5 @@
 import { Job } from "../core/scheduler";
-import { backupsService } from "../modules/backups/backups.service";
+import { backupsExecutionService } from "../modules/backups/backups.execution";
 import { logger } from "../utils/logger";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
@@ -14,7 +14,7 @@ export class BackupExecutionJob extends Job {
 
 		for (const org of organizations) {
 			await withContext({ organizationId: org.id }, async () => {
-				const scheduleIds = await backupsService.getSchedulesToExecute();
+				const scheduleIds = await backupsExecutionService.getSchedulesToExecute();
 
 				if (scheduleIds.length === 0) {
 					return;
@@ -23,7 +23,7 @@ export class BackupExecutionJob extends Job {
 				logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute for organization ${org.name}`);
 
 				for (const scheduleId of scheduleIds) {
-					backupsService.executeBackup(scheduleId).catch((err) => {
+					backupsExecutionService.executeBackup(scheduleId).catch((err: Error) => {
 						logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
 					});
 				}
