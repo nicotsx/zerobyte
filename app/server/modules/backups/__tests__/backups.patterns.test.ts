@@ -1,5 +1,4 @@
 import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
@@ -9,6 +8,7 @@ import { restic } from "~/server/utils/restic";
 import path from "node:path";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
+import { backupsExecutionService } from "../backups.execution";
 
 const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: JSON.parse(generateBackupOutput()) }));
 
@@ -39,7 +39,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -70,7 +70,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
@@ -124,15 +124,15 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(backupMock).toHaveBeenCalledWith(
 			expect.anything(),
 			getVolumePath(volume),
-			expect.not.objectContaining({
-				include: expect.anything(),
-				exclude: expect.anything(),
+			expect.objectContaining({
+				include: [],
+				exclude: [],
 			}),
 		);
 	});

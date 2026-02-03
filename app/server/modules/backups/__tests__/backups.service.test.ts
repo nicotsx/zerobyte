@@ -8,6 +8,7 @@ import { faker } from "@faker-js/faker";
 import * as spawnModule from "~/server/utils/spawn";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
+import { backupsExecutionService } from "../backups.execution";
 
 const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
 
@@ -38,7 +39,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
@@ -62,7 +63,7 @@ describe("execute backup", () => {
 		});
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).not.toHaveBeenCalled();
@@ -83,7 +84,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id, true);
+		await backupsExecutionService.executeBackup(schedule.id, true);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalled();
@@ -104,9 +105,9 @@ describe("execute backup", () => {
 		});
 
 		// act
-		void backupsService.executeBackup(schedule.id);
+		void backupsExecutionService.executeBackup(schedule.id);
 		await new Promise((resolve) => setTimeout(resolve, 10));
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalledTimes(1);
@@ -126,7 +127,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
@@ -147,7 +148,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsService.executeBackup(schedule.id);
+		await backupsExecutionService.executeBackup(schedule.id);
 
 		// assert
 		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
@@ -171,7 +172,7 @@ describe("getSchedulesToExecute", () => {
 		});
 
 		// act
-		const schedulesToExecute = await backupsService.getSchedulesToExecute();
+		const schedulesToExecute = await backupsExecutionService.getSchedulesToExecute();
 
 		// assert
 		expect(schedulesToExecute).toContain(schedule.id);
