@@ -2,7 +2,6 @@ import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { type } from "arktype";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Button } from "~/client/components/ui/button";
@@ -11,21 +10,8 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
-import { authMiddleware } from "~/middleware/auth";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
-import type { Route } from "./+types/login";
-
-export const clientMiddleware = [authMiddleware];
-
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Login" },
-		{
-			name: "description",
-			content: "Sign in to your Zerobyte account.",
-		},
-	];
-}
+import { useNavigate } from "@tanstack/react-router";
 
 const loginSchema = type({
 	username: "2<=string<=50",
@@ -34,7 +20,7 @@ const loginSchema = type({
 
 type LoginFormValues = typeof loginSchema.inferIn;
 
-export default function LoginPage() {
+export function LoginPage() {
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -78,9 +64,9 @@ export default function LoginPage() {
 
 		const d = await authClient.getSession();
 		if (data.user && !d.data?.user.hasDownloadedResticPassword) {
-			void navigate("/download-recovery-key");
+			void navigate({ to: "/download-recovery-key" });
 		} else {
-			void navigate("/volumes");
+			void navigate({ to: "/volumes" });
 		}
 	};
 
@@ -114,9 +100,9 @@ export default function LoginPage() {
 			toast.success("Login successful");
 			const session = await authClient.getSession();
 			if (session.data?.user && !session.data.user.hasDownloadedResticPassword) {
-				void navigate("/download-recovery-key");
+				void navigate({ to: "/download-recovery-key" });
 			} else {
-				void navigate("/volumes");
+				void navigate({ to: "/volumes" });
 			}
 		}
 	};

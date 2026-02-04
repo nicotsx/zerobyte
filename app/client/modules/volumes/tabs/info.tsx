@@ -1,6 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
@@ -20,6 +19,7 @@ import { HealthchecksCard } from "../components/healthchecks-card";
 import { StorageChart } from "../components/storage-chart";
 import { updateVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { UpdateVolumeResponse } from "~/client/api-client/types.gen";
+import { useNavigate } from "@tanstack/react-router";
 
 type Props = {
 	volume: Volume;
@@ -37,7 +37,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 			setPendingValues(null);
 
 			if (data.name !== volume.name) {
-				void navigate(`/volumes/${data.shortId}`);
+				void navigate({ to: `/volumes/${data.shortId}` });
 			}
 		},
 		onError: (error) => {

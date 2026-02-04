@@ -1,10 +1,13 @@
-import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
 import appCss from "../app.css?url";
-import { authMiddleware } from "~/middleware/auth";
+import { apiClientMiddleware } from "~/middleware/api-client";
+import type { QueryClient } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
-		middleware: [authMiddleware],
+		middleware: [apiClientMiddleware],
 	},
 	head: () => ({
 		meta: [
@@ -48,6 +51,8 @@ function RootLayout() {
 			</head>
 			<body className="dark">
 				<Outlet />
+				<TanStackRouterDevtools position="bottom-right" />
+				<ReactQueryDevtools buttonPosition="bottom-left" />
 				<Scripts />
 			</body>
 		</html>

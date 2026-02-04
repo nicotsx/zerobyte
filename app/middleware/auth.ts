@@ -20,8 +20,6 @@ export const authMiddleware = createMiddleware().server(async ({ next, request }
 	}
 
 	if (session?.user?.id) {
-		// context.set(appContext, { user: session.user, hasUsers: true });
-
 		if (isAuthRoute) {
 			throw redirect({ to: "/" });
 		}

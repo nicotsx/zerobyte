@@ -1,5 +1,4 @@
 import { Bell, CalendarClock, Database, HardDrive, Settings } from "lucide-react";
-import { Link, NavLink } from "react-router";
 import { useState } from "react";
 import {
 	Sidebar,
@@ -19,6 +18,7 @@ import { cn } from "~/client/lib/utils";
 import { APP_VERSION, RCLONE_VERSION, RESTIC_VERSION, SHOUTRRR_VERSION } from "~/client/lib/version";
 import { useUpdates } from "~/client/hooks/use-updates";
 import { ReleaseNotesDialog } from "./release-notes-dialog";
+import { Link } from "@tanstack/react-router";
 
 const items = [
 	{
@@ -83,14 +83,14 @@ export function AppSidebar() {
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<SidebarMenuButton asChild>
-													<NavLink to={item.url}>
+													<Link to={item.url}>
 														{({ isActive }) => (
 															<>
 																<item.icon className={cn({ "text-strong-accent": isActive })} />
 																<span className={cn({ "text-strong-accent": isActive })}>{item.title}</span>
 															</>
 														)}
-													</NavLink>
+													</Link>
 												</SidebarMenuButton>
 											</TooltipTrigger>
 											<TooltipContent side="right" className={cn({ hidden: state !== "collapsed" })}>

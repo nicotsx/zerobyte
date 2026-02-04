@@ -9,30 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VolumesRouteImport } from './routes/volumes'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as DownloadRecoveryKeyRouteImport } from './routes/download-recovery-key'
+import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/download-recovery-key'
+import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
+import { Route as dashboardVolumesVolumeIdRouteImport } from './routes/(dashboard)/volumes/$volumeId'
 
-const VolumesRoute = VolumesRouteImport.update({
-  id: '/volumes',
-  path: '/volumes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DownloadRecoveryKeyRoute = DownloadRecoveryKeyRouteImport.update({
-  id: '/download-recovery-key',
-  path: '/download-recovery-key',
+const dashboardRouteRoute = dashboardRouteRouteImport.update({
+  id: '/(dashboard)',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -40,28 +26,58 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const authOnboardingRoute = authOnboardingRouteImport.update({
+  id: '/(auth)/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authLoginRoute = authLoginRouteImport.update({
+  id: '/(auth)/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authDownloadRecoveryKeyRoute = authDownloadRecoveryKeyRouteImport.update({
+  id: '/(auth)/download-recovery-key',
+  path: '/download-recovery-key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const dashboardVolumesIndexRoute = dashboardVolumesIndexRouteImport.update({
+  id: '/volumes/',
+  path: '/volumes/',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardVolumesVolumeIdRoute =
+  dashboardVolumesVolumeIdRouteImport.update({
+    id: '/volumes/$volumeId',
+    path: '/volumes/$volumeId',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/download-recovery-key': typeof DownloadRecoveryKeyRoute
-  '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
-  '/volumes': typeof VolumesRoute
+  '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
+  '/login': typeof authLoginRoute
+  '/onboarding': typeof authOnboardingRoute
+  '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/volumes/': typeof dashboardVolumesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/download-recovery-key': typeof DownloadRecoveryKeyRoute
-  '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
-  '/volumes': typeof VolumesRoute
+  '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
+  '/login': typeof authLoginRoute
+  '/onboarding': typeof authOnboardingRoute
+  '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/volumes': typeof dashboardVolumesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/download-recovery-key': typeof DownloadRecoveryKeyRoute
-  '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
-  '/volumes': typeof VolumesRoute
+  '/(dashboard)': typeof dashboardRouteRouteWithChildren
+  '/(auth)/download-recovery-key': typeof authDownloadRecoveryKeyRoute
+  '/(auth)/login': typeof authLoginRoute
+  '/(auth)/onboarding': typeof authOnboardingRoute
+  '/(dashboard)/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/(dashboard)/volumes/': typeof dashboardVolumesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -70,54 +86,42 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
-    | '/volumes'
+    | '/volumes/$volumeId'
+    | '/volumes/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/download-recovery-key' | '/login' | '/onboarding' | '/volumes'
-  id:
-    | '__root__'
+  to:
     | '/'
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/volumes/$volumeId'
     | '/volumes'
+  id:
+    | '__root__'
+    | '/'
+    | '/(dashboard)'
+    | '/(auth)/download-recovery-key'
+    | '/(auth)/login'
+    | '/(auth)/onboarding'
+    | '/(dashboard)/volumes/$volumeId'
+    | '/(dashboard)/volumes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DownloadRecoveryKeyRoute: typeof DownloadRecoveryKeyRoute
-  LoginRoute: typeof LoginRoute
-  OnboardingRoute: typeof OnboardingRoute
-  VolumesRoute: typeof VolumesRoute
+  dashboardRouteRoute: typeof dashboardRouteRouteWithChildren
+  authDownloadRecoveryKeyRoute: typeof authDownloadRecoveryKeyRoute
+  authLoginRoute: typeof authLoginRoute
+  authOnboardingRoute: typeof authOnboardingRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/volumes': {
-      id: '/volumes'
-      path: '/volumes'
-      fullPath: '/volumes'
-      preLoaderRoute: typeof VolumesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/download-recovery-key': {
-      id: '/download-recovery-key'
-      path: '/download-recovery-key'
-      fullPath: '/download-recovery-key'
-      preLoaderRoute: typeof DownloadRecoveryKeyRouteImport
+    '/(dashboard)': {
+      id: '/(dashboard)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof dashboardRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -127,15 +131,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/(auth)/onboarding': {
+      id: '/(auth)/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof authOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/login': {
+      id: '/(auth)/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof authLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)/download-recovery-key': {
+      id: '/(auth)/download-recovery-key'
+      path: '/download-recovery-key'
+      fullPath: '/download-recovery-key'
+      preLoaderRoute: typeof authDownloadRecoveryKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(dashboard)/volumes/': {
+      id: '/(dashboard)/volumes/'
+      path: '/volumes'
+      fullPath: '/volumes/'
+      preLoaderRoute: typeof dashboardVolumesIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/volumes/$volumeId': {
+      id: '/(dashboard)/volumes/$volumeId'
+      path: '/volumes/$volumeId'
+      fullPath: '/volumes/$volumeId'
+      preLoaderRoute: typeof dashboardVolumesVolumeIdRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
   }
 }
 
+interface dashboardRouteRouteChildren {
+  dashboardVolumesVolumeIdRoute: typeof dashboardVolumesVolumeIdRoute
+  dashboardVolumesIndexRoute: typeof dashboardVolumesIndexRoute
+}
+
+const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
+  dashboardVolumesVolumeIdRoute: dashboardVolumesVolumeIdRoute,
+  dashboardVolumesIndexRoute: dashboardVolumesIndexRoute,
+}
+
+const dashboardRouteRouteWithChildren = dashboardRouteRoute._addFileChildren(
+  dashboardRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DownloadRecoveryKeyRoute: DownloadRecoveryKeyRoute,
-  LoginRoute: LoginRoute,
-  OnboardingRoute: OnboardingRoute,
-  VolumesRoute: VolumesRoute,
+  dashboardRouteRoute: dashboardRouteRouteWithChildren,
+  authDownloadRecoveryKeyRoute: authDownloadRecoveryKeyRoute,
+  authLoginRoute: authLoginRoute,
+  authOnboardingRoute: authOnboardingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

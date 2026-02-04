@@ -1,30 +1,16 @@
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Download } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
-import { authMiddleware } from "~/middleware/auth";
-import type { Route } from "./+types/download-recovery-key";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { useNavigate } from "@tanstack/react-router";
 
-export const clientMiddleware = [authMiddleware];
-
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Download Recovery Key" },
-		{
-			name: "description",
-			content: "Download your backup recovery key to ensure you can restore your data.",
-		},
-	];
-}
-
-export default function DownloadRecoveryKeyPage() {
+export function DownloadRecoveryKeyPage() {
 	const navigate = useNavigate();
 	const [password, setPassword] = useState("");
 
@@ -42,14 +28,14 @@ export default function DownloadRecoveryKeyPage() {
 			window.URL.revokeObjectURL(url);
 
 			toast.success("Recovery key downloaded successfully!");
-			void navigate("/volumes", { replace: true });
+			void navigate({ to: "/volumes", replace: true });
 		},
 		onError: (error) => {
 			toast.error("Failed to download recovery key", { description: error.message });
 		},
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
 		if (!password) {

@@ -9,7 +9,7 @@ type User = {
 	role?: string | null | undefined;
 };
 
-type AppContext = {
+export type AppContext = {
 	user: User | null;
 	hasUsers: boolean;
 };
