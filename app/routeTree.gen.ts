@@ -15,7 +15,10 @@ import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/download-recovery-key'
 import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
+import { Route as dashboardRepositoriesIndexRouteImport } from './routes/(dashboard)/repositories/index'
 import { Route as dashboardVolumesVolumeIdRouteImport } from './routes/(dashboard)/volumes/$volumeId'
+import { Route as dashboardRepositoriesRepositoryIdRouteImport } from './routes/(dashboard)/repositories/$repositoryId'
+import { Route as dashboardRepositoriesRepoIdSnapshotIdRouteImport } from './routes/(dashboard)/repositories/$repoId.$snapshotId'
 
 const dashboardRouteRoute = dashboardRouteRouteImport.update({
   id: '/(dashboard)',
@@ -46,10 +49,28 @@ const dashboardVolumesIndexRoute = dashboardVolumesIndexRouteImport.update({
   path: '/volumes/',
   getParentRoute: () => dashboardRouteRoute,
 } as any)
+const dashboardRepositoriesIndexRoute =
+  dashboardRepositoriesIndexRouteImport.update({
+    id: '/repositories/',
+    path: '/repositories/',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 const dashboardVolumesVolumeIdRoute =
   dashboardVolumesVolumeIdRouteImport.update({
     id: '/volumes/$volumeId',
     path: '/volumes/$volumeId',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardRepositoriesRepositoryIdRoute =
+  dashboardRepositoriesRepositoryIdRouteImport.update({
+    id: '/repositories/$repositoryId',
+    path: '/repositories/$repositoryId',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardRepositoriesRepoIdSnapshotIdRoute =
+  dashboardRepositoriesRepoIdSnapshotIdRouteImport.update({
+    id: '/repositories/$repoId/$snapshotId',
+    path: '/repositories/$repoId/$snapshotId',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 
@@ -58,16 +79,22 @@ export interface FileRoutesByFullPath {
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/repositories/': typeof dashboardRepositoriesIndexRoute
   '/volumes/': typeof dashboardVolumesIndexRoute
+  '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/repositories': typeof dashboardRepositoriesIndexRoute
   '/volumes': typeof dashboardVolumesIndexRoute
+  '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -76,8 +103,11 @@ export interface FileRoutesById {
   '/(auth)/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/onboarding': typeof authOnboardingRoute
+  '/(dashboard)/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/(dashboard)/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/(dashboard)/repositories/': typeof dashboardRepositoriesIndexRoute
   '/(dashboard)/volumes/': typeof dashboardVolumesIndexRoute
+  '/(dashboard)/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -86,16 +116,22 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/repositories/$repositoryId'
     | '/volumes/$volumeId'
+    | '/repositories/'
     | '/volumes/'
+    | '/repositories/$repoId/$snapshotId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/repositories/$repositoryId'
     | '/volumes/$volumeId'
+    | '/repositories'
     | '/volumes'
+    | '/repositories/$repoId/$snapshotId'
   id:
     | '__root__'
     | '/'
@@ -103,8 +139,11 @@ export interface FileRouteTypes {
     | '/(auth)/download-recovery-key'
     | '/(auth)/login'
     | '/(auth)/onboarding'
+    | '/(dashboard)/repositories/$repositoryId'
     | '/(dashboard)/volumes/$volumeId'
+    | '/(dashboard)/repositories/'
     | '/(dashboard)/volumes/'
+    | '/(dashboard)/repositories/$repoId/$snapshotId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -159,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardVolumesIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/repositories/': {
+      id: '/(dashboard)/repositories/'
+      path: '/repositories'
+      fullPath: '/repositories/'
+      preLoaderRoute: typeof dashboardRepositoriesIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/volumes/$volumeId': {
       id: '/(dashboard)/volumes/$volumeId'
       path: '/volumes/$volumeId'
@@ -166,17 +212,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardVolumesVolumeIdRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/repositories/$repositoryId': {
+      id: '/(dashboard)/repositories/$repositoryId'
+      path: '/repositories/$repositoryId'
+      fullPath: '/repositories/$repositoryId'
+      preLoaderRoute: typeof dashboardRepositoriesRepositoryIdRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/repositories/$repoId/$snapshotId': {
+      id: '/(dashboard)/repositories/$repoId/$snapshotId'
+      path: '/repositories/$repoId/$snapshotId'
+      fullPath: '/repositories/$repoId/$snapshotId'
+      preLoaderRoute: typeof dashboardRepositoriesRepoIdSnapshotIdRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
   }
 }
 
 interface dashboardRouteRouteChildren {
+  dashboardRepositoriesRepositoryIdRoute: typeof dashboardRepositoriesRepositoryIdRoute
   dashboardVolumesVolumeIdRoute: typeof dashboardVolumesVolumeIdRoute
+  dashboardRepositoriesIndexRoute: typeof dashboardRepositoriesIndexRoute
   dashboardVolumesIndexRoute: typeof dashboardVolumesIndexRoute
+  dashboardRepositoriesRepoIdSnapshotIdRoute: typeof dashboardRepositoriesRepoIdSnapshotIdRoute
 }
 
 const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
+  dashboardRepositoriesRepositoryIdRoute:
+    dashboardRepositoriesRepositoryIdRoute,
   dashboardVolumesVolumeIdRoute: dashboardVolumesVolumeIdRoute,
+  dashboardRepositoriesIndexRoute: dashboardRepositoriesIndexRoute,
   dashboardVolumesIndexRoute: dashboardVolumesIndexRoute,
+  dashboardRepositoriesRepoIdSnapshotIdRoute:
+    dashboardRepositoriesRepoIdSnapshotIdRoute,
 }
 
 const dashboardRouteRouteWithChildren = dashboardRouteRoute._addFileChildren(

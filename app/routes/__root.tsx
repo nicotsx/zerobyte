@@ -4,6 +4,7 @@ import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { Toaster } from "~/client/components/ui/sonner";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -33,6 +34,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 		],
 	}),
 	component: RootLayout,
+	errorComponent: (e) => <div>{e.error.message}</div>,
 });
 
 function RootLayout() {
@@ -53,6 +55,7 @@ function RootLayout() {
 				<Outlet />
 				<TanStackRouterDevtools position="bottom-right" />
 				<ReactQueryDevtools buttonPosition="bottom-left" />
+				<Toaster />
 				<Scripts />
 			</body>
 		</html>

@@ -30,7 +30,7 @@ import {
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 import { DoctorReport } from "../components/doctor-report";
 import { parseError } from "~/client/lib/errors";
-import { useNavigate } from "react-router";
+import { useNavigate } from "@tanstack/react-router";
 
 type Props = {
 	repository: Repository;
@@ -73,7 +73,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 		...deleteRepositoryMutation(),
 		onSuccess: () => {
 			toast.success("Repository deleted successfully");
-			void navigate("/repositories");
+			void navigate({ to: "/repositories" });
 		},
 		onError: (error) => {
 			toast.error("Failed to delete repository", {
@@ -115,7 +115,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 		},
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
+	const handleSubmit = (e: React.SubmitEvent) => {
 		e.preventDefault();
 		setShowConfirmDialog(true);
 	};

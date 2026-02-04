@@ -315,6 +315,8 @@ const getSnapshotDetails = async (id: string, snapshotId: string) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(id);
 
+	console.log("Getting snapshot details for:", id, snapshotId);
+
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}

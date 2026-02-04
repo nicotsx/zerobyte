@@ -4,6 +4,7 @@ import { VolumesPage } from "~/client/modules/volumes/routes/volumes";
 
 export const Route = createFileRoute("/(dashboard)/volumes/")({
 	component: VolumesPage,
+	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(listVolumesOptions());
 	},
@@ -16,5 +17,4 @@ export const Route = createFileRoute("/(dashboard)/volumes/")({
 			},
 		],
 	}),
-	errorComponent: (err) => <div>Failed to load volumes {JSON.stringify(err.error)}</div>,
 });

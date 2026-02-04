@@ -11,6 +11,11 @@ client.setConfig({
 
 export function getRouter() {
 	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: {
+				retry: false,
+			},
+		},
 		mutationCache: new MutationCache({
 			onSuccess: () => {
 				void queryClient.invalidateQueries();

@@ -15,6 +15,7 @@ const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 
 export const Route = createFileRoute("/(dashboard)")({
 	component: PathlessLayoutComponent,
+	errorComponent: (e) => <div>{e.error.message}</div>,
 	server: {
 		middleware: [authMiddleware],
 	},

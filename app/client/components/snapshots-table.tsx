@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar, Clock, Database, HardDrive, Tag, Trash2, X } from "lucide-react";
-import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
@@ -32,6 +31,7 @@ import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-clie
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 type Props = {
 	snapshots: Snapshot[];
@@ -40,8 +40,8 @@ type Props = {
 };
 
 export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
@@ -71,7 +71,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	});
 
 	const handleRowClick = (snapshotId: string) => {
-		void navigate(`/repositories/${repositoryId}/${snapshotId}`);
+		void navigate({ to: `/repositories/${repositoryId}/${snapshotId}` });
 	};
 
 	const toggleSelectAll = () => {
@@ -172,7 +172,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 										<div className="flex items-center gap-2">
 											<Link
 												hidden={!backup}
-												to={backup ? `/backups/${backup.id}` : "#"}
+												to={backup ? `/backups/${backup.id}` : "."}
 												onClick={(e) => e.stopPropagation()}
 												className="hover:underline"
 											>

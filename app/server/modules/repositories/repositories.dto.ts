@@ -179,6 +179,7 @@ export const snapshotSchema = type({
 	duration: "number",
 	tags: "string[]",
 	retentionCategories: "string[]",
+	hostname: "string?",
 });
 
 const listSnapshotsResponse = snapshotSchema.array();

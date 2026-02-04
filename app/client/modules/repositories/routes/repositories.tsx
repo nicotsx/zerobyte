@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Database, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
-import { listRepositories } from "~/client/api-client/sdk.gen";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { Button } from "~/client/components/ui/button";
@@ -10,31 +8,15 @@ import { Card } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import type { Route } from "./+types/repositories";
 import { cn } from "~/client/lib/utils";
 import { EmptyState } from "~/client/components/empty-state";
+import { useNavigate } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Repositories" }],
 };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Repositories" },
-		{
-			name: "description",
-			content: "Manage your backup repositories with encryption and compression.",
-		},
-	];
-}
-
-export const clientLoader = async () => {
-	const repositories = await listRepositories();
-	if (repositories.data) return repositories.data;
-	return [];
-};
-
-export default function Repositories({ loaderData }: Route.ComponentProps) {
+export function RepositoriesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [backendFilter, setBackendFilter] = useState("");
@@ -47,20 +29,18 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 
 	const navigate = useNavigate();
 
-	const { data } = useQuery({
+	const { data } = useSuspenseQuery({
 		...listRepositoriesOptions(),
-		initialData: loaderData,
 	});
 
-	const filteredRepositories =
-		data?.filter((repository) => {
-			const matchesSearch = repository.name.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesStatus = !statusFilter || repository.status === statusFilter;
-			const matchesBackend = !backendFilter || repository.type === backendFilter;
-			return matchesSearch && matchesStatus && matchesBackend;
-		}) || [];
+	const filteredRepositories = data.filter((repository) => {
+		const matchesSearch = repository.name.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesStatus = !statusFilter || repository.status === statusFilter;
+		const matchesBackend = !backendFilter || repository.type === backendFilter;
+		return matchesSearch && matchesStatus && matchesBackend;
+	});
 
-	const hasNoRepositories = data?.length === 0;
+	const hasNoRepositories = data.length === 0;
 	const hasNoFilteredRepositories = filteredRepositories.length === 0 && !hasNoRepositories;
 
 	if (hasNoRepositories) {
@@ -70,7 +50,7 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 				title="No repository"
 				description="Repositories are remote storage locations where you can backup your volumes securely. Encrypted and optimized for storage efficiency."
 				button={
-					<Button onClick={() => navigate("/repositories/create")}>
+					<Button onClick={() => navigate({ to: "/repositories/create" })}>
 						<Plus size={16} className="mr-2" />
 						Create repository
 					</Button>
@@ -117,7 +97,7 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 						</Button>
 					)}
 				</span>
-				<Button onClick={() => navigate("/repositories/create")}>
+				<Button onClick={() => navigate({ to: "/repositories/create" })}>
 					<Plus size={16} className="mr-2" />
 					Create Repository
 				</Button>
@@ -126,7 +106,7 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 				<Table className="border-t">
 					<TableHeader className="bg-card-header">
 						<TableRow>
-							<TableHead className="w-[100px] uppercase">Name</TableHead>
+							<TableHead className="w-25 uppercase">Name</TableHead>
 							<TableHead className="uppercase text-left">Backend</TableHead>
 							<TableHead className="uppercase hidden sm:table-cell">Compression</TableHead>
 							<TableHead className="uppercase text-center">Status</TableHead>
@@ -150,7 +130,7 @@ export default function Repositories({ loaderData }: Route.ComponentProps) {
 								<TableRow
 									key={repository.id}
 									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate(`/repositories/${repository.shortId}`)}
+									onClick={() => navigate({ to: `/repositories/${repository.shortId}` })}
 								>
 									<TableCell className="font-medium text-strong-accent">{repository.name}</TableCell>
 									<TableCell>
