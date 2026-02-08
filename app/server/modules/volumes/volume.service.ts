@@ -54,11 +54,10 @@ const listVolumes = async () => {
 
 const findVolume = async (idOrShortId: string | number) => {
 	const organizationId = getOrganizationId();
-	const isNumeric = typeof idOrShortId === "number" || /^\d+$/.test(String(idOrShortId));
 	return await db.query.volumesTable.findFirst({
 		where: {
 			AND: [
-				isNumeric ? { id: Number(idOrShortId) } : { shortId: String(idOrShortId) },
+				{ OR: [{ id: Number(idOrShortId) }, { shortId: String(idOrShortId) }] },
 				{ organizationId: organizationId },
 			],
 		},
