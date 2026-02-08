@@ -1,13 +1,13 @@
 import { CalendarClock, Database, HardDrive } from "lucide-react";
-import { Link } from "react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupStatusDot } from "./backup-status-dot";
 import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
+import { Link } from "@tanstack/react-router";
 
 export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 	return (
-		<Link key={schedule.id} to={`/backups/${schedule.id}`}>
+		<Link key={schedule.id} to="/backups/$scheduleId" params={{ scheduleId: schedule.id.toString() }}>
 			<Card key={schedule.id} className="flex flex-col h-full">
 				<CardHeader className="pb-3 overflow-hidden">
 					<div className="flex items-center justify-between gap-2 w-full">

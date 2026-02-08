@@ -1,7 +1,6 @@
 import { useId, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Database, HardDrive, Plus } from "lucide-react";
-import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
 import {
 	createBackupScheduleMutation,
@@ -15,50 +14,30 @@ import { parseError } from "~/client/lib/errors";
 import { EmptyState } from "~/client/components/empty-state";
 import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
-import type { Route } from "./+types/create-backup";
-import { listRepositories, listVolumes } from "~/client/api-client";
+import { Link, useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Backups", href: "/backups" }, { label: "Create" }],
-};
+// export const handle = {
+// 	breadcrumb: () => [{ label: "Backups", href: "/backups" }, { label: "Create" }],
+// };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Create Backup Job" },
-		{
-			name: "description",
-			content: "Create a new automated backup job for your volumes.",
-		},
-	];
-}
-
-export const clientLoader = async () => {
-	const [volumes, repositories] = await Promise.all([listVolumes(), listRepositories()]);
-
-	if (volumes.data && repositories.data) return { volumes: volumes.data, repositories: repositories.data };
-	return { volumes: [], repositories: [] };
-};
-
-export default function CreateBackup({ loaderData }: Route.ComponentProps) {
+export function CreateBackupPage() {
 	const navigate = useNavigate();
 	const formId = useId();
 	const [selectedVolumeId, setSelectedVolumeId] = useState<number | undefined>();
 
-	const { data: volumesData, isLoading: loadingVolumes } = useQuery({
+	const { data: volumesData, isLoading: loadingVolumes } = useSuspenseQuery({
 		...listVolumesOptions(),
-		initialData: loaderData.volumes,
 	});
 
-	const { data: repositoriesData } = useQuery({
+	const { data: repositoriesData } = useSuspenseQuery({
 		...listRepositoriesOptions(),
-		initialData: loaderData.repositories,
 	});
 
 	const createSchedule = useMutation({
 		...createBackupScheduleMutation(),
 		onSuccess: (data) => {
 			toast.success("Backup job created successfully");
-			void navigate(`/backups/${data.id}`);
+			void navigate({ to: `/backups/${data.id}` });
 		},
 		onError: (error) => {
 			toast.error("Failed to create backup job", {

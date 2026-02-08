@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { Database, Plus } from "lucide-react";
 import { useId } from "react";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import {
@@ -11,24 +10,14 @@ import {
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
-import type { Route } from "./+types/create-repository";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
+import { useNavigate } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Repositories", href: "/repositories" }, { label: "Create" }],
 };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Create Repository" },
-		{
-			name: "description",
-			content: "Create a new backup repository with encryption and compression.",
-		},
-	];
-}
-
-export default function CreateRepository() {
+export function CreateRepositoryPage() {
 	const navigate = useNavigate();
 	const formId = useId();
 
@@ -36,7 +25,7 @@ export default function CreateRepository() {
 		...createRepositoryMutation(),
 		onSuccess: (data) => {
 			toast.success("Repository created successfully");
-			void navigate(`/repositories/${data.repository.shortId}`);
+			void navigate({ to: `/repositories/${data.repository.shortId}` });
 		},
 	});
 
@@ -78,7 +67,7 @@ export default function CreateRepository() {
 						loading={createRepository.isPending}
 					/>
 					<div className="flex justify-end gap-2 pt-4 border-t">
-						<Button type="button" variant="secondary" onClick={() => navigate("/repositories")}>
+						<Button type="button" variant="secondary" onClick={() => navigate({ to: "/repositories" })}>
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={createRepository.isPending}>

@@ -16,8 +16,12 @@ import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/download-recovery-key'
 import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
 import { Route as dashboardRepositoriesIndexRouteImport } from './routes/(dashboard)/repositories/index'
+import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
 import { Route as dashboardVolumesVolumeIdRouteImport } from './routes/(dashboard)/volumes/$volumeId'
+import { Route as dashboardRepositoriesCreateRouteImport } from './routes/(dashboard)/repositories/create'
 import { Route as dashboardRepositoriesRepositoryIdRouteImport } from './routes/(dashboard)/repositories/$repositoryId'
+import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
+import { Route as dashboardBackupsScheduleIdRouteImport } from './routes/(dashboard)/backups/$scheduleId'
 import { Route as dashboardRepositoriesRepoIdSnapshotIdRouteImport } from './routes/(dashboard)/repositories/$repoId.$snapshotId'
 
 const dashboardRouteRoute = dashboardRouteRouteImport.update({
@@ -55,16 +59,38 @@ const dashboardRepositoriesIndexRoute =
     path: '/repositories/',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
+const dashboardBackupsIndexRoute = dashboardBackupsIndexRouteImport.update({
+  id: '/backups/',
+  path: '/backups/',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
 const dashboardVolumesVolumeIdRoute =
   dashboardVolumesVolumeIdRouteImport.update({
     id: '/volumes/$volumeId',
     path: '/volumes/$volumeId',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
+const dashboardRepositoriesCreateRoute =
+  dashboardRepositoriesCreateRouteImport.update({
+    id: '/repositories/create',
+    path: '/repositories/create',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 const dashboardRepositoriesRepositoryIdRoute =
   dashboardRepositoriesRepositoryIdRouteImport.update({
     id: '/repositories/$repositoryId',
     path: '/repositories/$repositoryId',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardBackupsCreateRoute = dashboardBackupsCreateRouteImport.update({
+  id: '/backups/create',
+  path: '/backups/create',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardBackupsScheduleIdRoute =
+  dashboardBackupsScheduleIdRouteImport.update({
+    id: '/backups/$scheduleId',
+    path: '/backups/$scheduleId',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardRepositoriesRepoIdSnapshotIdRoute =
@@ -79,8 +105,12 @@ export interface FileRoutesByFullPath {
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
+  '/backups/create': typeof dashboardBackupsCreateRoute
   '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
+  '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/backups/': typeof dashboardBackupsIndexRoute
   '/repositories/': typeof dashboardRepositoriesIndexRoute
   '/volumes/': typeof dashboardVolumesIndexRoute
   '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
@@ -90,8 +120,12 @@ export interface FileRoutesByTo {
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
+  '/backups/create': typeof dashboardBackupsCreateRoute
   '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
+  '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/backups': typeof dashboardBackupsIndexRoute
   '/repositories': typeof dashboardRepositoriesIndexRoute
   '/volumes': typeof dashboardVolumesIndexRoute
   '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
@@ -103,8 +137,12 @@ export interface FileRoutesById {
   '/(auth)/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/onboarding': typeof authOnboardingRoute
+  '/(dashboard)/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
+  '/(dashboard)/backups/create': typeof dashboardBackupsCreateRoute
   '/(dashboard)/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
+  '/(dashboard)/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/(dashboard)/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/(dashboard)/backups/': typeof dashboardBackupsIndexRoute
   '/(dashboard)/repositories/': typeof dashboardRepositoriesIndexRoute
   '/(dashboard)/volumes/': typeof dashboardVolumesIndexRoute
   '/(dashboard)/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
@@ -116,8 +154,12 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/backups/$scheduleId'
+    | '/backups/create'
     | '/repositories/$repositoryId'
+    | '/repositories/create'
     | '/volumes/$volumeId'
+    | '/backups/'
     | '/repositories/'
     | '/volumes/'
     | '/repositories/$repoId/$snapshotId'
@@ -127,8 +169,12 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/backups/$scheduleId'
+    | '/backups/create'
     | '/repositories/$repositoryId'
+    | '/repositories/create'
     | '/volumes/$volumeId'
+    | '/backups'
     | '/repositories'
     | '/volumes'
     | '/repositories/$repoId/$snapshotId'
@@ -139,8 +185,12 @@ export interface FileRouteTypes {
     | '/(auth)/download-recovery-key'
     | '/(auth)/login'
     | '/(auth)/onboarding'
+    | '/(dashboard)/backups/$scheduleId'
+    | '/(dashboard)/backups/create'
     | '/(dashboard)/repositories/$repositoryId'
+    | '/(dashboard)/repositories/create'
     | '/(dashboard)/volumes/$volumeId'
+    | '/(dashboard)/backups/'
     | '/(dashboard)/repositories/'
     | '/(dashboard)/volumes/'
     | '/(dashboard)/repositories/$repoId/$snapshotId'
@@ -205,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardRepositoriesIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/backups/': {
+      id: '/(dashboard)/backups/'
+      path: '/backups'
+      fullPath: '/backups/'
+      preLoaderRoute: typeof dashboardBackupsIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/volumes/$volumeId': {
       id: '/(dashboard)/volumes/$volumeId'
       path: '/volumes/$volumeId'
@@ -212,11 +269,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardVolumesVolumeIdRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/repositories/create': {
+      id: '/(dashboard)/repositories/create'
+      path: '/repositories/create'
+      fullPath: '/repositories/create'
+      preLoaderRoute: typeof dashboardRepositoriesCreateRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/repositories/$repositoryId': {
       id: '/(dashboard)/repositories/$repositoryId'
       path: '/repositories/$repositoryId'
       fullPath: '/repositories/$repositoryId'
       preLoaderRoute: typeof dashboardRepositoriesRepositoryIdRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/backups/create': {
+      id: '/(dashboard)/backups/create'
+      path: '/backups/create'
+      fullPath: '/backups/create'
+      preLoaderRoute: typeof dashboardBackupsCreateRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/backups/$scheduleId': {
+      id: '/(dashboard)/backups/$scheduleId'
+      path: '/backups/$scheduleId'
+      fullPath: '/backups/$scheduleId'
+      preLoaderRoute: typeof dashboardBackupsScheduleIdRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/repositories/$repoId/$snapshotId': {
@@ -230,17 +308,25 @@ declare module '@tanstack/react-router' {
 }
 
 interface dashboardRouteRouteChildren {
+  dashboardBackupsScheduleIdRoute: typeof dashboardBackupsScheduleIdRoute
+  dashboardBackupsCreateRoute: typeof dashboardBackupsCreateRoute
   dashboardRepositoriesRepositoryIdRoute: typeof dashboardRepositoriesRepositoryIdRoute
+  dashboardRepositoriesCreateRoute: typeof dashboardRepositoriesCreateRoute
   dashboardVolumesVolumeIdRoute: typeof dashboardVolumesVolumeIdRoute
+  dashboardBackupsIndexRoute: typeof dashboardBackupsIndexRoute
   dashboardRepositoriesIndexRoute: typeof dashboardRepositoriesIndexRoute
   dashboardVolumesIndexRoute: typeof dashboardVolumesIndexRoute
   dashboardRepositoriesRepoIdSnapshotIdRoute: typeof dashboardRepositoriesRepoIdSnapshotIdRoute
 }
 
 const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
+  dashboardBackupsScheduleIdRoute: dashboardBackupsScheduleIdRoute,
+  dashboardBackupsCreateRoute: dashboardBackupsCreateRoute,
   dashboardRepositoriesRepositoryIdRoute:
     dashboardRepositoriesRepositoryIdRoute,
+  dashboardRepositoriesCreateRoute: dashboardRepositoriesCreateRoute,
   dashboardVolumesVolumeIdRoute: dashboardVolumesVolumeIdRoute,
+  dashboardBackupsIndexRoute: dashboardBackupsIndexRoute,
   dashboardRepositoriesIndexRoute: dashboardRepositoriesIndexRoute,
   dashboardVolumesIndexRoute: dashboardVolumesIndexRoute,
   dashboardRepositoriesRepoIdSnapshotIdRoute:

@@ -1,6 +1,8 @@
 import type {
 	GetBackupScheduleResponse,
 	GetRepositoryResponse,
+	GetScheduleMirrorsResponse,
+	GetScheduleNotificationsResponse,
 	GetVolumeResponse,
 	ListNotificationDestinationsResponse,
 	ListSnapshotsResponse,
@@ -17,3 +19,6 @@ export type BackupSchedule = GetBackupScheduleResponse;
 export type Snapshot = ListSnapshotsResponse[number];
 
 export type NotificationDestination = ListNotificationDestinationsResponse[number];
+
+export type ScheduleNotification = GetScheduleNotificationsResponse[number];
+export type ScheduleMirror = GetScheduleMirrorsResponse[number];

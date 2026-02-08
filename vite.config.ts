@@ -1,4 +1,3 @@
-import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -10,13 +9,13 @@ export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		tsconfigPaths(),
-		// babel({
-		// 	filter: /\.[jt]sx?$/,
-		// 	babelConfig: {
-		// 		presets: ["@babel/preset-typescript"],
-		// 		plugins: [["babel-plugin-react-compiler"]],
-		// 	},
-		// }),
+		babel({
+			filter: /\.[jt]sx?$/,
+			babelConfig: {
+				presets: ["@babel/preset-typescript"],
+				plugins: [["babel-plugin-react-compiler"]],
+			},
+		}),
 		tanstackStart({
 			srcDirectory: "app",
 			router: {

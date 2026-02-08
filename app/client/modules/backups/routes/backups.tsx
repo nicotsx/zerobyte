@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import {
 	DndContext,
 	closestCenter,
@@ -10,12 +10,10 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CalendarClock, Plus } from "lucide-react";
-import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { EmptyState } from "~/client/components/empty-state";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent } from "~/client/components/ui/card";
-import type { Route } from "./+types/backups";
 import { listBackupSchedules } from "~/client/api-client";
 import {
 	listBackupSchedulesOptions,
@@ -23,20 +21,11 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { SortableCard } from "~/client/components/sortable-card";
 import { BackupCard } from "../components/backup-card";
+import { Link } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Backups" }],
 };
-
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Backup Jobs" },
-		{
-			name: "description",
-			content: "Automate volume backups with scheduled jobs and retention policies.",
-		},
-	];
-}
 
 export const clientLoader = async () => {
 	const jobs = await listBackupSchedules();
@@ -44,10 +33,9 @@ export const clientLoader = async () => {
 	return [];
 };
 
-export default function Backups({ loaderData }: Route.ComponentProps) {
-	const { data: schedules, isLoading } = useQuery({
+export function BackupsPage() {
+	const { data: schedules, isLoading } = useSuspenseQuery({
 		...listBackupSchedulesOptions(),
-		initialData: loaderData,
 	});
 
 	const [items, setItems] = useState(schedules?.map((s) => s.id) ?? []);

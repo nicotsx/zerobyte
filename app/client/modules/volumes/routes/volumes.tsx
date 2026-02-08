@@ -76,13 +76,13 @@ export function VolumesPage() {
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
 				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-0 flex-wrap ">
 					<Input
-						className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px"
+						className="w-full lg:w-45 min-w-45 -mr-px -mt-px"
 						placeholder="Search volumes…"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 					<Select value={statusFilter} onValueChange={setStatusFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45 -mr-px -mt-px">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
@@ -92,7 +92,7 @@ export function VolumesPage() {
 						</SelectContent>
 					</Select>
 					<Select value={backendFilter} onValueChange={setBackendFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45 -mt-px">
 							<SelectValue placeholder="All backends" />
 						</SelectTrigger>
 						<SelectContent>

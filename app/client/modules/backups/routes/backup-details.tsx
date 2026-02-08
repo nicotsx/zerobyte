@@ -1,6 +1,5 @@
 import { useId, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { redirect, useNavigate } from "react-router";
+import { useQuery, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Save, X } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
@@ -27,58 +26,40 @@ import { parseError, handleRepositoryError } from "~/client/lib/errors";
 import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { ScheduleSummary } from "../components/schedule-summary";
-import type { Route } from "./+types/backup-details";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
 import { SnapshotTimeline } from "../components/snapshot-timeline";
-import {
-	getBackupSchedule,
-	getScheduleMirrors,
-	getScheduleNotifications,
-	listNotificationDestinations,
-	listRepositories,
-} from "~/client/api-client";
 import { ScheduleNotificationsConfig } from "../components/schedule-notifications-config";
 import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
 import { cn } from "~/client/lib/utils";
+import type {
+	BackupSchedule,
+	NotificationDestination,
+	Repository,
+	ScheduleMirror,
+	ScheduleNotification,
+} from "~/client/lib/types";
+import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => {
-		const data = match.loaderData;
-		return [{ label: "Backups", href: "/backups" }, { label: data.schedule.name }];
-	},
-};
-
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Backup Job Details" },
-		{
-			name: "description",
-			content: "View and manage backup job configuration, schedule, and snapshots.",
-		},
-	];
-}
-
-export const clientLoader = async ({ params }: Route.LoaderArgs) => {
-	const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
-		getBackupSchedule({ path: { scheduleId: params.id } }),
-		listNotificationDestinations(),
-		listRepositories(),
-		getScheduleNotifications({ path: { scheduleId: params.id } }),
-		getScheduleMirrors({ path: { scheduleId: params.id } }),
-	]);
-
-	if (!schedule.data) return redirect("/backups");
-
-	return {
-		schedule: schedule.data,
-		notifs: notifs.data,
-		repos: repos.data,
-		scheduleNotifs: scheduleNotifs.data,
-		scheduleMirrors: mirrors.data,
+// export const handle = {
+// 	breadcrumb: (match: Route.MetaArgs) => {
+// 		const data = match.loaderData;
+// 		return [{ label: "Backups", href: "/backups" }, { label: data.schedule.name }];
+// 	},
+// };
+type Props = {
+	loaderData: {
+		schedule: BackupSchedule;
+		notifs: NotificationDestination[];
+		repos: Repository[];
+		scheduleNotifs: ScheduleNotification[];
+		mirrors: ScheduleMirror[];
 	};
+	scheduleId: string;
 };
 
-export default function ScheduleDetailsPage({ params, loaderData }: Route.ComponentProps) {
+export function ScheduleDetailsPage(props: Props) {
+	const { loaderData, scheduleId } = props;
+
 	const navigate = useNavigate();
 	const [isEditMode, setIsEditMode] = useState(false);
 	const formId = useId();
@@ -86,9 +67,8 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 
-	const { data: schedule } = useQuery({
-		...getBackupScheduleOptions({ path: { scheduleId: params.id } }),
-		initialData: loaderData.schedule,
+	const { data: schedule } = useSuspenseQuery({
+		...getBackupScheduleOptions({ path: { scheduleId } }),
 	});
 
 	const {
@@ -136,7 +116,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 		...deleteBackupScheduleMutation(),
 		onSuccess: () => {
 			toast.success("Backup schedule deleted successfully");
-			void navigate("/backups");
+			void navigate({ to: "/backups" });
 		},
 		onError: (error) => {
 			toast.error("Failed to delete backup schedule", { description: parseError(error)?.message });
@@ -267,7 +247,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 					scheduleId={schedule.id}
 					primaryRepositoryId={schedule.repositoryId}
 					repositories={loaderData.repos ?? []}
-					initialData={loaderData.scheduleMirrors ?? []}
+					initialData={loaderData.mirrors ?? []}
 				/>
 			</div>
 			<SnapshotTimeline
