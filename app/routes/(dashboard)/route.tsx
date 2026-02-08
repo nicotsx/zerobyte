@@ -6,7 +6,7 @@ import type { AppContext } from "~/context";
 import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
 
-const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
+export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
 	const session = await auth.api.getSession({ headers });
 

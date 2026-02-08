@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download, KeyRound, User, X, Users, Settings as SettingsIcon } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import {
 	downloadResticPasswordMutation,
@@ -24,31 +23,20 @@ import { Label } from "~/client/components/ui/label";
 import { Switch } from "~/client/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { authClient } from "~/client/lib/auth-client";
-import { appContext } from "~/context";
+import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { UserManagement } from "../components/user-management";
-import type { Route } from "./+types/settings";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Settings" }],
 };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Settings" },
-		{
-			name: "description",
-			content: "Manage your account settings and preferences.",
-		},
-	];
-}
+type Props = {
+	appContext: AppContext;
+};
 
-export async function clientLoader({ context }: Route.LoaderArgs) {
-	const ctx = context.get(appContext);
-	return ctx;
-}
-
-export default function Settings({ loaderData }: Route.ComponentProps) {
+export function SettingsPage({ appContext }: Props) {
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -56,11 +44,11 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-	const [searchParams, setSearchParams] = useSearchParams();
-	const activeTab = searchParams.get("tab") || "account";
+	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
+	const activeTab = tab || "account";
 
 	const navigate = useNavigate();
-	const isAdmin = loaderData.user?.role === "admin";
+	const isAdmin = appContext.user?.role === "admin";
 
 	const registrationStatusQuery = useQuery({
 		...getRegistrationStatusOptions(),
@@ -84,7 +72,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 		await authClient.signOut({
 			fetchOptions: {
 				onSuccess: () => {
-					void navigate("/login", { replace: true });
+					void navigate({ to: "/login", replace: true });
 				},
 				onError: ({ error }) => {
 					console.error(error);
@@ -118,7 +106,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleChangePassword = async (e: React.FormEvent) => {
+	const handleChangePassword = async (e: React.SubmitEvent) => {
 		e.preventDefault();
 
 		if (newPassword !== confirmPassword) {
@@ -157,7 +145,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 		});
 	};
 
-	const handleDownloadResticPassword = (e: React.FormEvent) => {
+	const handleDownloadResticPassword = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
 		if (!downloadPassword) {
@@ -173,7 +161,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 	};
 
 	const onTabChange = (value: string) => {
-		setSearchParams({ tab: value });
+		navigate({ to: ".", search: () => ({ tab: value }) });
 	};
 
 	return (
@@ -198,7 +186,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 							<CardContent className="p-6 space-y-4">
 								<div className="space-y-2">
 									<Label>Username</Label>
-									<Input value={loaderData.user?.username || ""} disabled className="max-w-md" />
+									<Input value={appContext.user?.username || ""} disabled className="max-w-md" />
 								</div>
 							</CardContent>
 
@@ -318,7 +306,7 @@ export default function Settings({ loaderData }: Route.ComponentProps) {
 								</Dialog>
 							</CardContent>
 
-							<TwoFactorSection twoFactorEnabled={loaderData.user?.twoFactorEnabled} />
+							<TwoFactorSection twoFactorEnabled={appContext.user?.twoFactorEnabled} />
 						</Card>
 					</TabsContent>
 
