@@ -65,9 +65,13 @@ export function RetentionCategoryBadges({ categories, className }: RetentionCate
 	return (
 		<HoverCard>
 			<HoverCardTrigger asChild>
-				<div className={cn("cursor-pointer", className)}>
+				<button
+					type="button"
+					className={cn("cursor-pointer bg-transparent p-0 border-0", className)}
+					aria-label={`View ${categories.length} retention categories`}
+				>
 					<Badge category={`${categories.length} tags`} />
-				</div>
+				</button>
 			</HoverCardTrigger>
 			<HoverCardContent className="w-auto p-2">
 				<div className="flex flex-wrap gap-1">
