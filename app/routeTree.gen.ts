@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/download-recovery-key'
@@ -38,6 +39,11 @@ const dashboardRouteRoute = dashboardRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authOnboardingRoute = authOnboardingRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/api/$': typeof ApiSplatRoute
   '/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/login': typeof authLoginRoute
   '/onboarding': typeof authOnboardingRoute
+  '/api/$': typeof ApiSplatRoute
   '/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/(auth)/download-recovery-key': typeof authDownloadRecoveryKeyRoute
   '/(auth)/login': typeof authLoginRoute
   '/(auth)/onboarding': typeof authOnboardingRoute
+  '/api/$': typeof ApiSplatRoute
   '/(dashboard)/backups/$scheduleId': typeof dashboardBackupsScheduleIdRoute
   '/(dashboard)/backups/create': typeof dashboardBackupsCreateRoute
   '/(dashboard)/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/api/$'
     | '/backups/$scheduleId'
     | '/backups/create'
     | '/notifications/$notificationId'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/download-recovery-key'
     | '/login'
     | '/onboarding'
+    | '/api/$'
     | '/backups/$scheduleId'
     | '/backups/create'
     | '/notifications/$notificationId'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/(auth)/download-recovery-key'
     | '/(auth)/login'
     | '/(auth)/onboarding'
+    | '/api/$'
     | '/(dashboard)/backups/$scheduleId'
     | '/(dashboard)/backups/create'
     | '/(dashboard)/notifications/$notificationId'
@@ -291,6 +303,7 @@ export interface RootRouteChildren {
   authDownloadRecoveryKeyRoute: typeof authDownloadRecoveryKeyRoute
   authLoginRoute: typeof authLoginRoute
   authOnboardingRoute: typeof authOnboardingRoute
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)/onboarding': {
@@ -498,6 +518,7 @@ const rootRouteChildren: RootRouteChildren = {
   authDownloadRecoveryKeyRoute: authDownloadRecoveryKeyRoute,
   authLoginRoute: authLoginRoute,
   authOnboardingRoute: authOnboardingRoute,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

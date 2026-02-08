@@ -3,6 +3,7 @@
 !turbo.json
 !bun.lock
 !package.json
+!server.ts
 
 !**/package.json
 !**/bun.lock
@@ -22,3 +23,4 @@
 !LICENSES/**
 
 node_modules/**
+dist/**

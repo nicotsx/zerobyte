@@ -46,7 +46,9 @@ const envSchema = type({
 	port: s.PORT,
 	migrationsPath: s.MIGRATIONS_PATH,
 	appVersion: s.APP_VERSION,
-	trustedOrigins: s.TRUSTED_ORIGINS?.split(",").map((origin) => origin.trim()),
+	trustedOrigins: s.TRUSTED_ORIGINS?.split(",")
+		.map((origin) => origin.trim())
+		.push(s.BASE_URL) ?? [s.BASE_URL],
 	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
 	appSecret: s.APP_SECRET,
 	baseUrl: s.BASE_URL,

@@ -1,11 +1,12 @@
 import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
+
+import appCss from "../app.css?url";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -15,7 +16,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "TanStack Start Starter" },
+			{ title: "Zerobyte - Open Source Backup Solution" },
 		],
 		links: [
 			{
