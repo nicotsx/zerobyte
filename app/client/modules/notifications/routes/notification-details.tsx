@@ -1,5 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { redirect, useNavigate } from "react-router";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState, useId } from "react";
 import {
@@ -20,53 +19,34 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import { parseError } from "~/client/lib/errors";
-import { getNotificationDestination } from "~/client/api-client/sdk.gen";
-import type { Route } from "./+types/notification-details";
 import { cn } from "~/client/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Bell, Save, TestTube2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
+import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => [
-		{ label: "Notifications", href: "/notifications" },
-		{ label: match.params.id },
-	],
-};
+// export const handle = {
+// 	breadcrumb: (match: Route.MetaArgs) => [
+// 		{ label: "Notifications", href: "/notifications" },
+// 		{ label: match.params.id },
+// 	],
+// };
 
-export function meta({ params }: Route.MetaArgs) {
-	return [
-		{ title: `Zerobyte - Notification ${params.id}` },
-		{
-			name: "description",
-			content: "View and edit notification destination settings.",
-		},
-	];
-}
-
-export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const destination = await getNotificationDestination({ path: { id: params.id ?? "" } });
-	if (destination.data) return destination.data;
-
-	return redirect("/notifications");
-};
-
-export default function NotificationDetailsPage({ loaderData }: Route.ComponentProps) {
+export function NotificationDetailsPage({ notificationId }: { notificationId: string }) {
 	const navigate = useNavigate();
 	const formId = useId();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	const { data } = useQuery({
-		...getNotificationDestinationOptions({ path: { id: String(loaderData.id) } }),
-		initialData: loaderData,
+	const { data } = useSuspenseQuery({
+		...getNotificationDestinationOptions({ path: { id: notificationId } }),
 	});
 
 	const deleteDestination = useMutation({
 		...deleteNotificationDestinationMutation(),
 		onSuccess: () => {
 			toast.success("Notification destination deleted successfully");
-			void navigate("/notifications");
+			void navigate({ to: "/notifications" });
 		},
 		onError: (error) => {
 			toast.error("Failed to delete notification destination", {

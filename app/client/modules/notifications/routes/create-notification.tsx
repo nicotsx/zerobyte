@@ -1,31 +1,20 @@
 import { useMutation } from "@tanstack/react-query";
 import { Bell, Plus } from "lucide-react";
 import { useId } from "react";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { createNotificationDestinationMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
-import type { Route } from "./+types/create-notification";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
+import { useNavigate } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Notifications", href: "/notifications" }, { label: "Create" }],
 };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Create Notification" },
-		{
-			name: "description",
-			content: "Create a new notification destination for backup alerts.",
-		},
-	];
-}
-
-export default function CreateNotification() {
+export function CreateNotificationPage() {
 	const navigate = useNavigate();
 	const formId = useId();
 
@@ -33,7 +22,7 @@ export default function CreateNotification() {
 		...createNotificationDestinationMutation(),
 		onSuccess: () => {
 			toast.success("Notification destination created successfully");
-			void navigate(`/notifications`);
+			void navigate({ to: `/notifications` });
 		},
 	});
 
@@ -64,7 +53,7 @@ export default function CreateNotification() {
 					)}
 					<CreateNotificationForm mode="create" formId={formId} onSubmit={handleSubmit} />
 					<div className="flex justify-end gap-2 pt-4 border-t">
-						<Button type="button" variant="secondary" onClick={() => navigate("/notifications")}>
+						<Button type="button" variant="secondary" onClick={() => navigate({ to: "/notifications" })}>
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={createNotification.isPending}>

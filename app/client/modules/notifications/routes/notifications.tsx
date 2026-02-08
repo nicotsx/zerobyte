@@ -1,7 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Bell, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import { EmptyState } from "~/client/components/empty-state";
 import { StatusDot } from "~/client/components/status-dot";
 import { Button } from "~/client/components/ui/button";
@@ -9,31 +8,14 @@ import { Card } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import type { Route } from "./+types/notifications";
-import { listNotificationDestinations } from "~/client/api-client";
 import { listNotificationDestinationsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { useNavigate } from "@tanstack/react-router";
 
 export const handle = {
 	breadcrumb: () => [{ label: "Notifications" }],
 };
 
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Notifications" },
-		{
-			name: "description",
-			content: "Manage notification destinations for backup alerts.",
-		},
-	];
-}
-
-export const clientLoader = async () => {
-	const result = await listNotificationDestinations();
-	if (result.data) return result.data;
-	return [];
-};
-
-export default function Notifications({ loaderData }: Route.ComponentProps) {
+export function NotificationsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [typeFilter, setTypeFilter] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
@@ -46,19 +28,16 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 
 	const navigate = useNavigate();
 
-	const { data } = useQuery({
+	const { data } = useSuspenseQuery({
 		...listNotificationDestinationsOptions(),
-		initialData: loaderData,
 	});
 
-	const filteredNotifications =
-		data?.filter((notification) => {
-			const matchesSearch = notification.name.toLowerCase().includes(searchQuery.toLowerCase());
-			const matchesType = !typeFilter || notification.type === typeFilter;
-			const matchesStatus =
-				!statusFilter || (statusFilter === "enabled" ? notification.enabled : !notification.enabled);
-			return matchesSearch && matchesType && matchesStatus;
-		}) || [];
+	const filteredNotifications = data.filter((notification) => {
+		const matchesSearch = notification.name.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesType = !typeFilter || notification.type === typeFilter;
+		const matchesStatus = !statusFilter || (statusFilter === "enabled" ? notification.enabled : !notification.enabled);
+		return matchesSearch && matchesType && matchesStatus;
+	});
 
 	const hasNoNotifications = data.length === 0;
 	const hasNoFilteredNotifications = filteredNotifications.length === 0 && !hasNoNotifications;
@@ -70,7 +49,7 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 				title="No notification destinations"
 				description="Set up notification channels to receive alerts when your backups complete or fail."
 				button={
-					<Button onClick={() => navigate("/notifications/create")}>
+					<Button onClick={() => navigate({ to: "/notifications/create" })}>
 						<Plus size={16} className="mr-2" />
 						Create Destination
 					</Button>
@@ -84,13 +63,13 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
 				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-0 flex-wrap ">
 					<Input
-						className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px"
+						className="w-full lg:w-45 min-w-45 -mr-px -mt-px"
 						placeholder="Search destinations…"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 					<Select value={typeFilter} onValueChange={setTypeFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45 -mr-px -mt-px">
 							<SelectValue placeholder="All types" />
 						</SelectTrigger>
 						<SelectContent>
@@ -105,7 +84,7 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 						</SelectContent>
 					</Select>
 					<Select value={statusFilter} onValueChange={setStatusFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45 -mt-px">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
@@ -120,7 +99,7 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 						</Button>
 					)}
 				</span>
-				<Button onClick={() => navigate("/notifications/create")}>
+				<Button onClick={() => navigate({ to: "/notifications/create" })}>
 					<Plus size={16} className="mr-2" />
 					Create Destination
 				</Button>
@@ -129,7 +108,7 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 				<Table className="border-t">
 					<TableHeader className="bg-card-header">
 						<TableRow>
-							<TableHead className="w-[100px] uppercase">Name</TableHead>
+							<TableHead className="w-25 uppercase">Name</TableHead>
 							<TableHead className="uppercase text-left">Type</TableHead>
 							<TableHead className="uppercase text-center">Status</TableHead>
 						</TableRow>
@@ -152,7 +131,7 @@ export default function Notifications({ loaderData }: Route.ComponentProps) {
 								<TableRow
 									key={notification.id}
 									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate(`/notifications/${notification.id}`)}
+									onClick={() => navigate({ to: `/notifications/${notification.id}` })}
 								>
 									<TableCell className="font-medium text-strong-accent">{notification.name}</TableCell>
 									<TableCell className="capitalize">{notification.type}</TableCell>
