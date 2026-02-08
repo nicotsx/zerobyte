@@ -12,7 +12,6 @@ import {
 	FormMessage,
 } from "~/client/components/ui/form";
 import { authMiddleware } from "~/middleware/auth";
-import type { Route } from "./+types/onboarding";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Input } from "~/client/components/ui/input";
 import { Button } from "~/client/components/ui/button";
@@ -21,16 +20,6 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 export const clientMiddleware = [authMiddleware];
-
-export function meta(_: Route.MetaArgs) {
-	return [
-		{ title: "Zerobyte - Onboarding" },
-		{
-			name: "description",
-			content: "Welcome to Zerobyte. Create your admin account to get started.",
-		},
-	];
-}
 
 const onboardingSchema = type({
 	username: type("2<=string<=30").pipe((str) => str.trim().toLowerCase()),

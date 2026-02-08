@@ -126,7 +126,11 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 								<div>
 									<span className="text-muted-foreground">Backup Schedule:</span>
 									<p>
-										<Link to={`/backups/$backupScheduleId`} className="text-primary hover:underline">
+										<Link
+											to="/backups/$scheduleId"
+											className="text-primary hover:underline"
+											params={{ scheduleId: backupSchedule?.shortId || "" }}
+										>
 											{backupSchedule?.name}
 										</Link>
 									</p>

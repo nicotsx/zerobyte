@@ -19,7 +19,6 @@ import {
 import { VolumeIcon } from "~/client/components/volume-icon";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
-import type { Route } from "./+types/volume-details";
 import { VolumeInfoTabContent } from "../tabs/info";
 import { FilesTabContent } from "../tabs/files";
 import type { VolumeStatus } from "~/client/lib/types";
