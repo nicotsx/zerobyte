@@ -7,7 +7,6 @@ import babel from "vite-plugin-babel";
 
 export default defineConfig({
 	plugins: [
-		tailwindcss(),
 		tsconfigPaths(),
 		babel({
 			filter: /\.[jt]sx?$/,
@@ -23,6 +22,7 @@ export default defineConfig({
 			},
 		}),
 		viteReact(),
+		tailwindcss(),
 	],
 	build: {
 		outDir: "dist",

@@ -5,8 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
-
-import appCss from "../app.css?url";
+import "../app.css";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -19,10 +18,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 			{ title: "Zerobyte - Open Source Backup Solution" },
 		],
 		links: [
-			{
-				rel: "stylesheet",
-				href: appCss,
-			},
 			{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 			{
 				rel: "preconnect",
