@@ -7,6 +7,9 @@ export const Route = createFileRoute("/(dashboard)/notifications/")({
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() });
 	},
+	staticData: {
+		breadcrumb: () => [{ label: "Notifications" }],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Notifications" },

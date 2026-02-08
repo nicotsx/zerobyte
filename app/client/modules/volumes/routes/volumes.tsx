@@ -23,10 +23,6 @@ const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "
 	return statusMap[status];
 };
 
-export const handle = {
-	breadcrumb: () => [{ label: "Volumes" }],
-};
-
 export function VolumesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");

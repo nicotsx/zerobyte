@@ -3,6 +3,12 @@ import { CreateRepositoryPage } from "~/client/modules/repositories/routes/creat
 
 export const Route = createFileRoute("/(dashboard)/repositories/create")({
 	component: RouteComponent,
+	staticData: {
+		breadcrumb: () => [
+			{ label: "Repositories", href: "/repositories" },
+			{ label: "Create" },
+		],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Create Repository" },

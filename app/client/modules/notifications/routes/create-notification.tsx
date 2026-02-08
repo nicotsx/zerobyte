@@ -10,10 +10,6 @@ import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
 import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Notifications", href: "/notifications" }, { label: "Create" }],
-};
-
 export function CreateNotificationPage() {
 	const navigate = useNavigate();
 	const formId = useId();

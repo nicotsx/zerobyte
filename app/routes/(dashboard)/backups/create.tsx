@@ -9,6 +9,12 @@ export const Route = createFileRoute("/(dashboard)/backups/create")({
 			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
 		]);
 	},
+	staticData: {
+		breadcrumb: () => [
+			{ label: "Backup Jobs", href: "/backups" },
+			{ label: "Create" },
+		],
+	},
 	component: RouteComponent,
 });
 

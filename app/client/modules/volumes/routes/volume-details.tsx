@@ -31,10 +31,6 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => [{ label: "Volumes", href: "/volumes" }, { label: match.params.id }],
-};
-
 const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "error" | "warning" => {
 	const statusMap = {
 		mounted: "success" as const,

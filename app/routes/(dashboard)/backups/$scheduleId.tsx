@@ -28,6 +28,12 @@ export const Route = createFileRoute("/(dashboard)/backups/$scheduleId")({
 
 		return { schedule, notifs, repos, scheduleNotifs, mirrors };
 	},
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Backup Jobs", href: "/backups" },
+			{ label: match.loaderData?.schedule.name || "Job Details" },
+		],
+	},
 	head: ({ loaderData }) => ({
 		meta: [
 			{ title: `Zerobyte - ${loaderData?.schedule.name || "Backup Job Details"}` },

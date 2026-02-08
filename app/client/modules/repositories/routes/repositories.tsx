@@ -12,10 +12,6 @@ import { cn } from "~/client/lib/utils";
 import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Repositories" }],
-};
-
 export function RepositoriesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");

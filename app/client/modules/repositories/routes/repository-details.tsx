@@ -6,13 +6,6 @@ import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-// export const handle = {
-// 	breadcrumb: (match: Route.MetaArgs) => [
-// 		{ label: "Repositories", href: "/repositories" },
-// 		{ label: match.loaderData?.name || match.params.id },
-// 	],
-// };
-
 export default function RepositoryDetailsPage({ repositoryId }: { repositoryId: string }) {
 	const queryClient = useQueryClient();
 

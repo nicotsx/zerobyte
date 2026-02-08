@@ -11,6 +11,12 @@ export const Route = createFileRoute("/(dashboard)/notifications/$notificationId
 
 		return res;
 	},
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Notifications", href: "/notifications" },
+			{ label: match.loaderData?.name || "Notification Details" },
+		],
+	},
 	head: ({ loaderData }) => ({
 		meta: [
 			{ title: `Zerobyte - ${loaderData?.name}` },

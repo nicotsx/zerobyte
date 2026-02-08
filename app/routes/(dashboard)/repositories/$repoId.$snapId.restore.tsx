@@ -15,6 +15,14 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repoId/$snapId/
 
 		return { snapshot, repository };
 	},
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Repositories", href: "/repositories" },
+			{ label: match.loaderData?.repository?.name || "Repository", href: `/repositories/${match.params.repoId}` },
+			{ label: match.params.snapId, href: `/repositories/${match.params.repoId}/${match.params.snapId}` },
+			{ label: "Restore" },
+		],
+	},
 	head: ({ params }) => ({
 		meta: [
 			{ title: `Zerobyte - Restore Snapshot ${params.snapId}` },

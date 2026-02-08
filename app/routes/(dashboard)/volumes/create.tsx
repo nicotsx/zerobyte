@@ -3,6 +3,9 @@ import { CreateVolumePage } from "~/client/modules/volumes/routes/create-volume"
 
 export const Route = createFileRoute("/(dashboard)/volumes/create")({
 	component: RouteComponent,
+	staticData: {
+		breadcrumb: () => [{ label: "Volumes", href: "/volumes" }, { label: "Create" }],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Create Volume" },

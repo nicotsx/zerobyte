@@ -14,6 +14,12 @@ export const Route = createFileRoute("/(dashboard)/volumes/$volumeId")({
 		return res;
 	},
 	validateSearch: type({ tab: "string?" }),
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Volumes", href: "/volumes" },
+			{ label: match.loaderData?.volume.name || "Volume Details" },
+		],
+	},
 	head: ({ loaderData }) => ({
 		meta: [
 			{ title: `Zerobyte - ${loaderData?.volume.name}` },

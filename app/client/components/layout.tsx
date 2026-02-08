@@ -8,6 +8,7 @@ import { AppSidebar } from "./app-sidebar";
 import { authClient } from "../lib/auth-client";
 import { DevPanelListener } from "./dev-panel-listener";
 import { Outlet, useNavigate } from "@tanstack/react-router";
+import { AppBreadcrumb } from "./app-breadcrumb";
 
 type Props = {
 	loaderData: AppContext;
@@ -37,7 +38,7 @@ export function Layout({ loaderData }: Props) {
 					<div className="flex items-center justify-between py-3 sm:py-4 px-2 sm:px-8 mx-auto container gap-4">
 						<div className="flex items-center gap-4 min-w-0">
 							<SidebarTrigger />
-							{/* <AppBreadcrumb /> */}
+							<AppBreadcrumb />
 						</div>
 						{loaderData.user && (
 							<div className="flex items-center gap-4">

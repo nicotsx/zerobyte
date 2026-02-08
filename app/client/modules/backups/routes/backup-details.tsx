@@ -40,12 +40,6 @@ import type {
 } from "~/client/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 
-// export const handle = {
-// 	breadcrumb: (match: Route.MetaArgs) => {
-// 		const data = match.loaderData;
-// 		return [{ label: "Backups", href: "/backups" }, { label: data.schedule.name }];
-// 	},
-// };
 type Props = {
 	loaderData: {
 		schedule: BackupSchedule;

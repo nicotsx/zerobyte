@@ -28,10 +28,6 @@ import { TwoFactorSection } from "../components/two-factor-section";
 import { UserManagement } from "../components/user-management";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Settings" }],
-};
-
 type Props = {
 	appContext: AppContext;
 };

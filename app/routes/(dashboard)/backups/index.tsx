@@ -9,6 +9,9 @@ export const Route = createFileRoute("/(dashboard)/backups/")({
 			...listBackupSchedulesOptions(),
 		});
 	},
+	staticData: {
+		breadcrumb: () => [{ label: "Backup Jobs" }],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Backup Jobs" },

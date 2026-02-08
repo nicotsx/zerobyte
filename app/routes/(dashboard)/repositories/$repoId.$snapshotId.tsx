@@ -10,7 +10,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repoId/$snapsho
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		await context.queryClient.ensureQueryData({
+		const res = await context.queryClient.ensureQueryData({
 			...getRepositoryOptions({ path: { id: params.repoId } }),
 		});
 
@@ -25,6 +25,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repoId/$snapsho
 				query: { path: "/" },
 			}),
 		});
+
+		return res;
+	},
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Repositories", href: "/repositories" },
+			{ label: match.loaderData?.name || "Repository", href: `/repositories/${match.params.repoId}` },
+			{ label: match.params.snapshotId },
+		],
 	},
 	head: ({ params }) => ({
 		meta: [

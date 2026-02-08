@@ -11,10 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { listNotificationDestinationsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Notifications" }],
-};
-
 export function NotificationsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [typeFilter, setTypeFilter] = useState("");

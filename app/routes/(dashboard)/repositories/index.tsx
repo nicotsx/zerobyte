@@ -10,6 +10,9 @@ export const Route = createFileRoute("/(dashboard)/repositories/")({
 		});
 	},
 	errorComponent: (e) => <div>{e.error.message}</div>,
+	staticData: {
+		breadcrumb: () => [{ label: "Repositories" }],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Repositories" },

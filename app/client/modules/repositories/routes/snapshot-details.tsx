@@ -12,14 +12,6 @@ import { useState } from "react";
 import { Database } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 
-// export const handle = {
-// 	breadcrumb: (match: Route.MetaArgs) => [
-// 		{ label: "Repositories", href: "/repositories" },
-// 		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
-// 		{ label: match.params.snapshotId },
-// 	],
-// };
-
 export const SnapshotError = () => {
 	const { repoId } = useParams({ from: "/(dashboard)/repositories/$repoId/$snapshotId" });
 

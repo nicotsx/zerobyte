@@ -3,6 +3,12 @@ import { CreateNotificationPage } from "~/client/modules/notifications/routes/cr
 
 export const Route = createFileRoute("/(dashboard)/notifications/create")({
 	component: RouteComponent,
+	staticData: {
+		breadcrumb: () => [
+			{ label: "Notifications", href: "/notifications" },
+			{ label: "Create" },
+		],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Create Notification" },

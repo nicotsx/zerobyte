@@ -3,6 +3,7 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { routeTree } from "./routeTree.gen";
 import { MutationCache, QueryClient } from "@tanstack/react-query";
 import { client } from "./client/api-client/client.gen";
+import type { BreadcrumbItemData } from "./client/components/app-breadcrumb";
 
 client.setConfig({
 	baseUrl: "/",
@@ -44,5 +45,8 @@ export function getRouter() {
 declare module "@tanstack/react-router" {
 	interface Register {
 		router: ReturnType<typeof getRouter>;
+	}
+	interface StaticDataRouteOption {
+		breadcrumb?: (match: any) => BreadcrumbItemData[] | null;
 	}
 }

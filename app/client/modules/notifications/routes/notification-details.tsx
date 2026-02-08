@@ -26,13 +26,6 @@ import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
 import { useNavigate } from "@tanstack/react-router";
 
-// export const handle = {
-// 	breadcrumb: (match: Route.MetaArgs) => [
-// 		{ label: "Notifications", href: "/notifications" },
-// 		{ label: match.params.id },
-// 	],
-// };
-
 export function NotificationDetailsPage({ notificationId }: { notificationId: string }) {
 	const navigate = useNavigate();
 	const formId = useId();

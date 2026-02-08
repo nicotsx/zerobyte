@@ -16,10 +16,6 @@ import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { Link, useNavigate } from "@tanstack/react-router";
 
-// export const handle = {
-// 	breadcrumb: () => [{ label: "Backups", href: "/backups" }, { label: "Create" }],
-// };
-
 export function CreateBackupPage() {
 	const navigate = useNavigate();
 	const formId = useId();

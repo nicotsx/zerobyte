@@ -11,6 +11,9 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 		const authContext = await fetchUser();
 		return authContext as AppContext;
 	},
+	staticData: {
+		breadcrumb: () => [{ label: "Settings" }],
+	},
 });
 
 function RouteComponent() {

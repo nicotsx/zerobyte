@@ -13,10 +13,6 @@ import { parseError } from "~/client/lib/errors";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { useNavigate } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Repositories", href: "/repositories" }, { label: "Create" }],
-};
-
 export function CreateRepositoryPage() {
 	const navigate = useNavigate();
 	const formId = useId();

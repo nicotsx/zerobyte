@@ -8,6 +8,9 @@ export const Route = createFileRoute("/(dashboard)/volumes/")({
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(listVolumesOptions());
 	},
+	staticData: {
+		breadcrumb: () => [{ label: "Volumes" }],
+	},
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Volumes" },

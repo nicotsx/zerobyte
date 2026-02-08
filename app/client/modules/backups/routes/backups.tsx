@@ -23,10 +23,6 @@ import { SortableCard } from "~/client/components/sortable-card";
 import { BackupCard } from "../components/backup-card";
 import { Link } from "@tanstack/react-router";
 
-export const handle = {
-	breadcrumb: () => [{ label: "Backups" }],
-};
-
 export const clientLoader = async () => {
 	const jobs = await listBackupSchedules();
 	if (jobs.data) return jobs.data;

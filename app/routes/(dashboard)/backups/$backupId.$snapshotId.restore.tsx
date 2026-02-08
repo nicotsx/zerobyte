@@ -19,7 +19,15 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { id: schedule.data?.repositoryId } }) }),
 		]);
 
-		return { snapshot, repository };
+		return { snapshot, repository, schedule: schedule.data };
+	},
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Backup Jobs", href: "/backups" },
+			{ label: match.loaderData?.schedule?.name || "Job", href: `/backups/${match.params.backupId}` },
+			{ label: match.params.snapshotId },
+			{ label: "Restore" },
+		],
 	},
 });
 

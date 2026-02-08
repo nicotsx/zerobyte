@@ -25,6 +25,12 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId")(
 		return res;
 	},
 	validateSearch: type({ tab: "string?" }),
+	staticData: {
+		breadcrumb: (match) => [
+			{ label: "Repositories", href: "/repositories" },
+			{ label: match.loaderData?.name || "Repository Details" },
+		],
+	},
 	head: ({ loaderData }) => ({
 		meta: [
 			{ title: `Zerobyte - ${loaderData?.name}` },
