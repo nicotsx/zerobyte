@@ -3012,7 +3012,7 @@ export type GetScheduleNotificationsResponses = {
 			config:
 				| {
 						apiToken: string;
-						priority: -1 | 0 | 1;
+						priority: -1 | -2 | 0 | 1 | 2;
 						type: "pushover";
 						userKey: string;
 						devices?: string;
@@ -3124,7 +3124,7 @@ export type UpdateScheduleNotificationsResponses = {
 			config:
 				| {
 						apiToken: string;
-						priority: -1 | 0 | 1;
+						priority: -1 | -2 | 0 | 1 | 2;
 						type: "pushover";
 						userKey: string;
 						devices?: string;
@@ -3701,7 +3701,7 @@ export type ListNotificationDestinationsResponses = {
 		config:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
@@ -3784,7 +3784,7 @@ export type CreateNotificationDestinationData = {
 		config:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
@@ -3865,7 +3865,7 @@ export type CreateNotificationDestinationResponses = {
 		config:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
@@ -3995,7 +3995,7 @@ export type GetNotificationDestinationResponses = {
 		config:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
@@ -4078,7 +4078,7 @@ export type UpdateNotificationDestinationData = {
 		config?:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
@@ -4169,7 +4169,7 @@ export type UpdateNotificationDestinationResponses = {
 		config:
 			| {
 					apiToken: string;
-					priority: -1 | 0 | 1;
+					priority: -1 | -2 | 0 | 1 | 2;
 					type: "pushover";
 					userKey: string;
 					devices?: string;
