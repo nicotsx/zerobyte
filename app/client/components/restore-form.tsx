@@ -1,6 +1,5 @@
 import { useCallback, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ChevronDown, FileIcon, FolderOpen, RotateCcw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
@@ -16,6 +15,7 @@ import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
 import type { Repository, Snapshot } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
+import { useNavigate } from "@tanstack/react-router";
 
 type RestoreLocation = "original" | "custom";
 
@@ -101,7 +101,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		...restoreSnapshotMutation(),
 		onSuccess: () => {
 			toast.success("Restore completed");
-			void navigate(returnPath);
+			void navigate({ to: returnPath });
 		},
 		onError: (error) => {
 			handleRepositoryError("Restore failed", error, repository.id);
@@ -156,7 +156,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 					</p>
 				</div>
 				<div className="flex gap-2">
-					<Button variant="outline" onClick={() => navigate(returnPath)}>
+					<Button variant="outline" onClick={() => navigate({ to: returnPath })}>
 						Cancel
 					</Button>
 					<Button variant="primary" onClick={handleRestore} disabled={isRestoring || !canRestore}>

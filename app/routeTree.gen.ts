@@ -17,12 +17,15 @@ import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/dow
 import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
 import { Route as dashboardRepositoriesIndexRouteImport } from './routes/(dashboard)/repositories/index'
 import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
+import { Route as dashboardVolumesCreateRouteImport } from './routes/(dashboard)/volumes/create'
 import { Route as dashboardVolumesVolumeIdRouteImport } from './routes/(dashboard)/volumes/$volumeId'
 import { Route as dashboardRepositoriesCreateRouteImport } from './routes/(dashboard)/repositories/create'
 import { Route as dashboardRepositoriesRepositoryIdRouteImport } from './routes/(dashboard)/repositories/$repositoryId'
 import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
 import { Route as dashboardBackupsScheduleIdRouteImport } from './routes/(dashboard)/backups/$scheduleId'
 import { Route as dashboardRepositoriesRepoIdSnapshotIdRouteImport } from './routes/(dashboard)/repositories/$repoId.$snapshotId'
+import { Route as dashboardRepositoriesRepoIdSnapIdRestoreRouteImport } from './routes/(dashboard)/repositories/$repoId.$snapId.restore'
+import { Route as dashboardBackupsBackupIdSnapshotIdRestoreRouteImport } from './routes/(dashboard)/backups/$backupId.$snapshotId.restore'
 
 const dashboardRouteRoute = dashboardRouteRouteImport.update({
   id: '/(dashboard)',
@@ -64,6 +67,11 @@ const dashboardBackupsIndexRoute = dashboardBackupsIndexRouteImport.update({
   path: '/backups/',
   getParentRoute: () => dashboardRouteRoute,
 } as any)
+const dashboardVolumesCreateRoute = dashboardVolumesCreateRouteImport.update({
+  id: '/volumes/create',
+  path: '/volumes/create',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
 const dashboardVolumesVolumeIdRoute =
   dashboardVolumesVolumeIdRouteImport.update({
     id: '/volumes/$volumeId',
@@ -99,6 +107,18 @@ const dashboardRepositoriesRepoIdSnapshotIdRoute =
     path: '/repositories/$repoId/$snapshotId',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
+const dashboardRepositoriesRepoIdSnapIdRestoreRoute =
+  dashboardRepositoriesRepoIdSnapIdRestoreRouteImport.update({
+    id: '/repositories/$repoId/$snapId/restore',
+    path: '/repositories/$repoId/$snapId/restore',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardBackupsBackupIdSnapshotIdRestoreRoute =
+  dashboardBackupsBackupIdSnapshotIdRestoreRouteImport.update({
+    id: '/backups/$backupId/$snapshotId/restore',
+    path: '/backups/$backupId/$snapshotId/restore',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,10 +130,13 @@ export interface FileRoutesByFullPath {
   '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/volumes/create': typeof dashboardVolumesCreateRoute
   '/backups/': typeof dashboardBackupsIndexRoute
   '/repositories/': typeof dashboardRepositoriesIndexRoute
   '/volumes/': typeof dashboardVolumesIndexRoute
   '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
+  '/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
+  '/repositories/$repoId/$snapId/restore': typeof dashboardRepositoriesRepoIdSnapIdRestoreRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -125,10 +148,13 @@ export interface FileRoutesByTo {
   '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/volumes/create': typeof dashboardVolumesCreateRoute
   '/backups': typeof dashboardBackupsIndexRoute
   '/repositories': typeof dashboardRepositoriesIndexRoute
   '/volumes': typeof dashboardVolumesIndexRoute
   '/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
+  '/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
+  '/repositories/$repoId/$snapId/restore': typeof dashboardRepositoriesRepoIdSnapIdRestoreRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -142,10 +168,13 @@ export interface FileRoutesById {
   '/(dashboard)/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdRoute
   '/(dashboard)/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/(dashboard)/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
+  '/(dashboard)/volumes/create': typeof dashboardVolumesCreateRoute
   '/(dashboard)/backups/': typeof dashboardBackupsIndexRoute
   '/(dashboard)/repositories/': typeof dashboardRepositoriesIndexRoute
   '/(dashboard)/volumes/': typeof dashboardVolumesIndexRoute
   '/(dashboard)/repositories/$repoId/$snapshotId': typeof dashboardRepositoriesRepoIdSnapshotIdRoute
+  '/(dashboard)/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
+  '/(dashboard)/repositories/$repoId/$snapId/restore': typeof dashboardRepositoriesRepoIdSnapIdRestoreRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,10 +188,13 @@ export interface FileRouteTypes {
     | '/repositories/$repositoryId'
     | '/repositories/create'
     | '/volumes/$volumeId'
+    | '/volumes/create'
     | '/backups/'
     | '/repositories/'
     | '/volumes/'
     | '/repositories/$repoId/$snapshotId'
+    | '/backups/$backupId/$snapshotId/restore'
+    | '/repositories/$repoId/$snapId/restore'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -174,10 +206,13 @@ export interface FileRouteTypes {
     | '/repositories/$repositoryId'
     | '/repositories/create'
     | '/volumes/$volumeId'
+    | '/volumes/create'
     | '/backups'
     | '/repositories'
     | '/volumes'
     | '/repositories/$repoId/$snapshotId'
+    | '/backups/$backupId/$snapshotId/restore'
+    | '/repositories/$repoId/$snapId/restore'
   id:
     | '__root__'
     | '/'
@@ -190,10 +225,13 @@ export interface FileRouteTypes {
     | '/(dashboard)/repositories/$repositoryId'
     | '/(dashboard)/repositories/create'
     | '/(dashboard)/volumes/$volumeId'
+    | '/(dashboard)/volumes/create'
     | '/(dashboard)/backups/'
     | '/(dashboard)/repositories/'
     | '/(dashboard)/volumes/'
     | '/(dashboard)/repositories/$repoId/$snapshotId'
+    | '/(dashboard)/backups/$backupId/$snapshotId/restore'
+    | '/(dashboard)/repositories/$repoId/$snapId/restore'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardBackupsIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/volumes/create': {
+      id: '/(dashboard)/volumes/create'
+      path: '/volumes/create'
+      fullPath: '/volumes/create'
+      preLoaderRoute: typeof dashboardVolumesCreateRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/volumes/$volumeId': {
       id: '/(dashboard)/volumes/$volumeId'
       path: '/volumes/$volumeId'
@@ -304,6 +349,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardRepositoriesRepoIdSnapshotIdRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/repositories/$repoId/$snapId/restore': {
+      id: '/(dashboard)/repositories/$repoId/$snapId/restore'
+      path: '/repositories/$repoId/$snapId/restore'
+      fullPath: '/repositories/$repoId/$snapId/restore'
+      preLoaderRoute: typeof dashboardRepositoriesRepoIdSnapIdRestoreRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/backups/$backupId/$snapshotId/restore': {
+      id: '/(dashboard)/backups/$backupId/$snapshotId/restore'
+      path: '/backups/$backupId/$snapshotId/restore'
+      fullPath: '/backups/$backupId/$snapshotId/restore'
+      preLoaderRoute: typeof dashboardBackupsBackupIdSnapshotIdRestoreRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
   }
 }
 
@@ -313,10 +372,13 @@ interface dashboardRouteRouteChildren {
   dashboardRepositoriesRepositoryIdRoute: typeof dashboardRepositoriesRepositoryIdRoute
   dashboardRepositoriesCreateRoute: typeof dashboardRepositoriesCreateRoute
   dashboardVolumesVolumeIdRoute: typeof dashboardVolumesVolumeIdRoute
+  dashboardVolumesCreateRoute: typeof dashboardVolumesCreateRoute
   dashboardBackupsIndexRoute: typeof dashboardBackupsIndexRoute
   dashboardRepositoriesIndexRoute: typeof dashboardRepositoriesIndexRoute
   dashboardVolumesIndexRoute: typeof dashboardVolumesIndexRoute
   dashboardRepositoriesRepoIdSnapshotIdRoute: typeof dashboardRepositoriesRepoIdSnapshotIdRoute
+  dashboardBackupsBackupIdSnapshotIdRestoreRoute: typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
+  dashboardRepositoriesRepoIdSnapIdRestoreRoute: typeof dashboardRepositoriesRepoIdSnapIdRestoreRoute
 }
 
 const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
@@ -326,11 +388,16 @@ const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
     dashboardRepositoriesRepositoryIdRoute,
   dashboardRepositoriesCreateRoute: dashboardRepositoriesCreateRoute,
   dashboardVolumesVolumeIdRoute: dashboardVolumesVolumeIdRoute,
+  dashboardVolumesCreateRoute: dashboardVolumesCreateRoute,
   dashboardBackupsIndexRoute: dashboardBackupsIndexRoute,
   dashboardRepositoriesIndexRoute: dashboardRepositoriesIndexRoute,
   dashboardVolumesIndexRoute: dashboardVolumesIndexRoute,
   dashboardRepositoriesRepoIdSnapshotIdRoute:
     dashboardRepositoriesRepoIdSnapshotIdRoute,
+  dashboardBackupsBackupIdSnapshotIdRestoreRoute:
+    dashboardBackupsBackupIdSnapshotIdRestoreRoute,
+  dashboardRepositoriesRepoIdSnapIdRestoreRoute:
+    dashboardRepositoriesRepoIdSnapIdRestoreRoute,
 }
 
 const dashboardRouteRouteWithChildren = dashboardRouteRoute._addFileChildren(

@@ -1,48 +1,24 @@
-import { redirect } from "react-router";
-import { getRepository, getSnapshotDetails } from "~/client/api-client";
 import { RestoreForm } from "~/client/components/restore-form";
-import type { Route } from "./+types/restore-snapshot";
+import type { Repository, Snapshot } from "~/client/lib/types";
 
-export const handle = {
-	breadcrumb: (match: Route.MetaArgs) => [
-		{ label: "Repositories", href: "/repositories" },
-		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
-		{ label: match.params.snapshotId, href: `/repositories/${match.params.id}/${match.params.snapshotId}` },
-		{ label: "Restore" },
-	],
+// export const handle = {
+// 	breadcrumb: (match: Route.MetaArgs) => [
+// 		{ label: "Repositories", href: "/repositories" },
+// 		{ label: match.loaderData?.repository.name || match.params.id, href: `/repositories/${match.params.id}` },
+// 		{ label: match.params.snapshotId, href: `/repositories/${match.params.id}/${match.params.snapshotId}` },
+// 		{ label: "Restore" },
+// 	],
+// };
+
+type Props = {
+	snapshot: Snapshot;
+	repository: Repository;
+	snapshotId: string;
+	returnPath: string;
 };
 
-export function meta({ params }: Route.MetaArgs) {
-	return [
-		{ title: `Zerobyte - Restore Snapshot ${params.snapshotId}` },
-		{
-			name: "description",
-			content: "Restore files from a backup snapshot.",
-		},
-	];
-}
+export function RestoreSnapshotPage(props: Props) {
+	const { snapshot, returnPath, snapshotId, repository } = props;
 
-export const clientLoader = async ({ params }: Route.ClientLoaderArgs) => {
-	const [snapshot, repository] = await Promise.all([
-		getSnapshotDetails({ path: { id: params.id, snapshotId: params.snapshotId } }),
-		getRepository({ path: { id: params.id } }),
-	]);
-
-	if (!snapshot.data) return redirect("/repositories");
-	if (!repository.data) return redirect(`/repositories`);
-
-	return { snapshot: snapshot.data, id: params.id, repository: repository.data, snapshotId: params.snapshotId };
-};
-
-export default function RestoreSnapshotPage({ loaderData }: Route.ComponentProps) {
-	const { snapshot, id, snapshotId, repository } = loaderData;
-
-	return (
-		<RestoreForm
-			snapshot={snapshot}
-			repository={repository}
-			snapshotId={snapshotId}
-			returnPath={`/repositories/${id}/${snapshotId}`}
-		/>
-	);
+	return <RestoreForm snapshot={snapshot} repository={repository} snapshotId={snapshotId} returnPath={returnPath} />;
 }

@@ -5,6 +5,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
+import { useServerEvents } from "~/client/hooks/use-server-events";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -38,6 +39,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootLayout() {
+	useServerEvents();
+
 	return (
 		<html lang="en">
 			<head>
