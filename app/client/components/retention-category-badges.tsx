@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "~/client/lib/utils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 
@@ -38,6 +39,8 @@ function Badge({ category }: { category: string }) {
 }
 
 export function RetentionCategoryBadges({ categories, className }: RetentionCategoryBadgesProps) {
+	const [open, setOpen] = useState(false);
+
 	if (categories.length === 0) {
 		return null;
 	}
@@ -63,12 +66,13 @@ export function RetentionCategoryBadges({ categories, className }: RetentionCate
 	}
 
 	return (
-		<HoverCard>
+		<HoverCard open={open} onOpenChange={setOpen}>
 			<HoverCardTrigger asChild>
 				<button
 					type="button"
 					className={cn("cursor-pointer bg-transparent p-0 border-0", className)}
 					aria-label={`View ${categories.length} retention categories`}
+					onClick={() => setOpen(true)}
 				>
 					<Badge category={`${categories.length} tags`} />
 				</button>
