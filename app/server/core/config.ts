@@ -36,6 +36,7 @@ const envSchema = type({
 	DISABLE_RATE_LIMITING: 'string = "false"',
 	APP_SECRET: "32 <= string <= 256",
 	BASE_URL: "string",
+	ENABLE_DEV_PANEL: 'string = "false"',
 }).pipe((s) => ({
 	__prod__: s.NODE_ENV === "production",
 	environment: s.NODE_ENV,
@@ -50,6 +51,7 @@ const envSchema = type({
 	appSecret: s.APP_SECRET,
 	baseUrl: s.BASE_URL,
 	isSecure: s.BASE_URL?.startsWith("https://") ?? false,
+	enableDevPanel: s.ENABLE_DEV_PANEL === "true",
 }));
 
 const parseConfig = (env: unknown) => {

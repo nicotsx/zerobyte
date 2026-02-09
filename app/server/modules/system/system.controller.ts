@@ -11,6 +11,8 @@ import {
 	getRegistrationStatusDto,
 	registrationStatusBody,
 	type RegistrationStatusDto,
+	getDevPanelDto,
+	type DevPanelDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
@@ -96,4 +98,9 @@ export const systemController = new Hono()
 				return c.json({ message: "Failed to retrieve Restic password" }, 500);
 			}
 		},
-	);
+	)
+	.get("/dev-panel", getDevPanelDto, async (c) => {
+		const enabled = systemService.isDevPanelEnabled();
+
+		return c.json<DevPanelDto>({ enabled }, 200);
+	});

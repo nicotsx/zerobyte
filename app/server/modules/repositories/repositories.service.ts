@@ -5,7 +5,8 @@ import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
-import { restic } from "../../utils/restic";
+import { restic, buildEnv, buildRepoUrl, addCommonArgs, cleanupTemporaryKeys } from "../../utils/restic";
+import { safeSpawn } from "../../utils/spawn";
 import { cryptoUtils } from "../../utils/crypto";
 import { cache } from "../../utils/cache";
 import { repoMutex } from "../../core/repository-mutex";
@@ -560,6 +561,37 @@ const updateRepository = async (id: string, updates: { name?: string; compressio
 	return { repository: updated };
 };
 
+const execResticCommand = async (
+	id: string,
+	command: string,
+	args: string[] | undefined,
+	onStdout: (line: string) => void,
+	onStderr: (line: string) => void,
+	signal?: AbortSignal,
+) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const repoUrl = buildRepoUrl(repository.config);
+	const env = await buildEnv(repository.config, organizationId);
+
+	const resticArgs: string[] = ["--repo", repoUrl, command];
+	if (args && args.length > 0) {
+		resticArgs.push(...args);
+	}
+	addCommonArgs(resticArgs, env, repository.config);
+
+	const result = await safeSpawn({ command: "restic", args: resticArgs, env, signal, onStdout, onStderr });
+
+	await cleanupTemporaryKeys(env);
+
+	return { exitCode: result.exitCode };
+};
+
 export const repositoriesService = {
 	listRepositories,
 	createRepository,
@@ -577,4 +609,5 @@ export const repositoriesService = {
 	deleteSnapshots,
 	tagSnapshots,
 	refreshSnapshots,
+	execResticCommand,
 };

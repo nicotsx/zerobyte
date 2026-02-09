@@ -29,12 +29,17 @@ import type {
 	DeleteSnapshotsResponses,
 	DeleteVolumeData,
 	DeleteVolumeResponses,
+	DevPanelExecData,
+	DevPanelExecErrors,
+	DevPanelExecResponses,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponses,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponses,
 	GetBackupScheduleResponses,
+	GetDevPanelData,
+	GetDevPanelResponses,
 	GetMirrorCompatibilityData,
 	GetMirrorCompatibilityResponses,
 	GetNotificationDestinationData,
@@ -470,6 +475,19 @@ export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Opti
 	});
 
 /**
+ * Execute a restic command against a repository (dev panel only)
+ */
+export const devPanelExec = <ThrowOnError extends boolean = false>(options: Options<DevPanelExecData, ThrowOnError>) =>
+	(options.client ?? client).sse.post<DevPanelExecResponses, DevPanelExecErrors, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/exec",
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			...options.headers,
+		},
+	});
+
+/**
  * List all backup schedules
  */
 export const listBackupSchedules = <ThrowOnError extends boolean = false>(
@@ -787,4 +805,13 @@ export const downloadResticPassword = <ThrowOnError extends boolean = false>(
 			"Content-Type": "application/json",
 			...options?.headers,
 		},
+	});
+
+/**
+ * Get the dev panel status
+ */
+export const getDevPanel = <ThrowOnError extends boolean = false>(options?: Options<GetDevPanelData, ThrowOnError>) =>
+	(options?.client ?? client).get<GetDevPanelResponses, unknown, ThrowOnError>({
+		url: "/api/v1/system/dev-panel",
+		...options,
 	});

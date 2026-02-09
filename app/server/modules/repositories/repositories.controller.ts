@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
+import { streamSSE } from "hono/streaming";
 import {
 	createRepositoryBody,
 	createRepositoryDto,
@@ -24,6 +25,8 @@ import {
 	tagSnapshotsDto,
 	updateRepositoryBody,
 	updateRepositoryDto,
+	devPanelExecBody,
+	devPanelExecDto,
 	type DeleteRepositoryDto,
 	type DeleteSnapshotDto,
 	type DeleteSnapshotsResponseDto,
@@ -42,10 +45,11 @@ import {
 import { repositoriesService } from "./repositories.service";
 import { backupsService } from "../backups/backups.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
-import { requireAuth } from "../auth/auth.middleware";
+import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { computeRetentionCategories } from "../../utils/retention-categories";
 import { logger } from "~/server/utils/logger";
 import { toMessage } from "~/server/utils/errors";
+import { requireDevPanel } from "../auth/dev-panel.middleware";
 
 export const repositoriesController = new Hono()
 	.use(requireAuth)
@@ -224,4 +228,39 @@ export const repositoriesController = new Hono()
 		const res = await repositoriesService.updateRepository(id, body);
 
 		return c.json<UpdateRepositoryDto>(res.repository, 200);
-	});
+	})
+	.post(
+		"/:id/exec",
+		requireDevPanel,
+		requireOrgAdmin,
+		devPanelExecDto,
+		validator("json", devPanelExecBody),
+		async (c) => {
+			const { id } = c.req.param();
+			const body = c.req.valid("json");
+
+			return streamSSE(c, async (stream) => {
+				const abortController = new AbortController();
+				stream.onAbort(() => abortController.abort());
+
+				const sendSSE = async (event: string, data: unknown) => {
+					await stream.writeSSE({ data: JSON.stringify(data), event });
+				};
+
+				try {
+					const result = await repositoriesService.execResticCommand(
+						id,
+						body.command,
+						body.args,
+						async (line) => sendSSE("output", { type: "stdout", line }),
+						async (line) => sendSSE("output", { type: "stderr", line }),
+						abortController.signal,
+					);
+
+					await sendSSE("done", { type: "done", exitCode: result.exitCode });
+				} catch (error) {
+					await sendSSE("error", { type: "error", message: toMessage(error) });
+				}
+			});
+		},
+	);

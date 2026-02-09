@@ -107,9 +107,12 @@ const setRegistrationEnabled = async (enabled: boolean) => {
 	logger.info(`Registration enabled set to: ${enabled}`);
 };
 
+const isDevPanelEnabled = () => config.enableDevPanel;
+
 export const systemService = {
 	getSystemInfo,
 	getUpdates,
 	isRegistrationEnabled,
 	setRegistrationEnabled,
+	isDevPanelEnabled,
 };

@@ -122,3 +122,25 @@ export const setRegistrationStatusDto = describeRoute({
 		},
 	},
 });
+
+export const devPanelResponse = type({
+	enabled: "boolean",
+});
+
+export type DevPanelDto = typeof devPanelResponse.infer;
+
+export const getDevPanelDto = describeRoute({
+	description: "Get the dev panel status",
+	tags: ["System"],
+	operationId: "getDevPanel",
+	responses: {
+		200: {
+			description: "Dev panel status",
+			content: {
+				"application/json": {
+					schema: resolver(devPanelResponse),
+				},
+			},
+		},
+	},
+});

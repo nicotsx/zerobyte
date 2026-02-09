@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 import { SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { authClient } from "../lib/auth-client";
+import { DevPanelListener } from "./dev-panel-listener";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -83,6 +84,7 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
 					</GridBackground>
 				</div>
 			</div>
+			<DevPanelListener />
 		</SidebarProvider>
 	);
 }

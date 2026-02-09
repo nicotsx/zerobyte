@@ -22,9 +22,11 @@ import {
 	deleteSnapshot,
 	deleteSnapshots,
 	deleteVolume,
+	devPanelExec,
 	downloadResticPassword,
 	getBackupSchedule,
 	getBackupScheduleForVolume,
+	getDevPanel,
 	getMirrorCompatibility,
 	getNotificationDestination,
 	getRegistrationStatus,
@@ -92,12 +94,16 @@ import type {
 	DeleteSnapshotsResponse,
 	DeleteVolumeData,
 	DeleteVolumeResponse,
+	DevPanelExecData,
+	DevPanelExecResponse,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponse,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponse,
 	GetBackupScheduleResponse,
+	GetDevPanelData,
+	GetDevPanelResponse,
 	GetMirrorCompatibilityData,
 	GetMirrorCompatibilityResponse,
 	GetNotificationDestinationData,
@@ -917,6 +923,25 @@ export const tagSnapshotsMutation = (
 	return mutationOptions;
 };
 
+/**
+ * Execute a restic command against a repository (dev panel only)
+ */
+export const devPanelExecMutation = (
+	options?: Partial<Options<DevPanelExecData>>,
+): UseMutationOptions<DevPanelExecResponse, DefaultError, Options<DevPanelExecData>> => {
+	const mutationOptions: UseMutationOptions<DevPanelExecResponse, DefaultError, Options<DevPanelExecData>> = {
+		mutationFn: async (fnOptions) => {
+			const { data } = await devPanelExec({
+				...options,
+				...fnOptions,
+				throwOnError: true,
+			});
+			return data;
+		},
+	};
+	return mutationOptions;
+};
+
 export const listBackupSchedulesQueryKey = (options?: Options<ListBackupSchedulesData>) =>
 	createQueryKey("listBackupSchedules", options);
 
@@ -1524,3 +1549,22 @@ export const downloadResticPasswordMutation = (
 	};
 	return mutationOptions;
 };
+
+export const getDevPanelQueryKey = (options?: Options<GetDevPanelData>) => createQueryKey("getDevPanel", options);
+
+/**
+ * Get the dev panel status
+ */
+export const getDevPanelOptions = (options?: Options<GetDevPanelData>) =>
+	queryOptions<GetDevPanelResponse, DefaultError, GetDevPanelResponse, ReturnType<typeof getDevPanelQueryKey>>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await getDevPanel({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: getDevPanelQueryKey(options),
+	});

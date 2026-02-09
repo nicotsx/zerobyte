@@ -520,3 +520,29 @@ export const refreshSnapshotsDto = describeRoute({
 		},
 	},
 });
+
+export const devPanelExecBody = type({
+	command: "string",
+	args: "string[]?",
+});
+
+export type DevPanelExecBody = typeof devPanelExecBody.infer;
+
+export const devPanelExecDto = describeRoute({
+	description: "Execute a restic command against a repository (dev panel only)",
+	tags: ["Repositories"],
+	operationId: "devPanelExec",
+	responses: {
+		200: {
+			description: "Command output stream (SSE)",
+			content: {
+				"text/event-stream": {
+					schema: { type: "string" },
+				},
+			},
+		},
+		403: {
+			description: "Dev panel not enabled",
+		},
+	},
+});
