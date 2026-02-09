@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Play, Loader2, Trash2, Terminal } from "lucide-react";
 import { Button } from "./ui/button";
+import { cn } from "~/client/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Label } from "./ui/label";
@@ -74,7 +75,6 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 		abortControllerRef.current = new AbortController();
 
-		// Parse command line: first word is command, rest are args
 		const trimmedLine = commandLine.trim();
 		const parts = trimmedLine.split(/\s+/);
 		const command = parts[0];
@@ -177,14 +177,14 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 						<div className="flex gap-2">
 							<Button onClick={handleRun} disabled={isRunning || !selectedRepoId || !commandLine.trim()}>
-								{isRunning ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-								{isRunning ? "Running..." : "Run"}
+								<Loader2 className={cn("h-4 w-4 animate-spin mr-2", { hidden: !isRunning })} />
+								<Play className={cn("h-4 w-4 mr-2", { hidden: isRunning })} />
+								<span className={cn({ hidden: !isRunning })}>Running...</span>
+								<span className={cn({ hidden: isRunning })}>Run</span>
 							</Button>
-							{isRunning && (
-								<Button variant="destructive" onClick={handleCancel}>
-									Cancel
-								</Button>
-							)}
+							<Button variant="destructive" onClick={handleCancel} className={cn({ hidden: !isRunning })}>
+								Cancel
+							</Button>
 							<Button variant="outline" onClick={handleClear} disabled={isRunning}>
 								<Trash2 className="h-4 w-4 mr-2" />
 								Clear
@@ -194,35 +194,32 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 					<div className="flex-1 min-h-0 border rounded-md bg-muted/30">
 						<div ref={outputRef} className="h-full overflow-auto p-3 font-mono text-xs">
-							{output.length === 0 ? (
-								<div className="text-muted-foreground">Output will appear here...</div>
-							) : (
-								<div className="space-y-0.5">
-									{output.map((line, i) => {
-										let displayLine = line;
-										let isJson = false;
-										try {
-											const parsed = JSON.parse(line);
-											displayLine = JSON.stringify(parsed, null, 2);
-											isJson = true;
-										} catch {
-											// Not valid JSON, display as-is
-										}
-										return (
-											<pre
-												key={`${i}-${line.slice(0, 20)}`}
-												className={
-													isJson
-														? "whitespace-pre wrap-break-word text-[10px] leading-tight"
-														: "whitespace-pre-wrap break-all text-xs"
-												}
-											>
-												{displayLine}
-											</pre>
-										);
-									})}
-								</div>
-							)}
+							<div className={cn("text-muted-foreground", { hidden: output.length > 0 })}>
+								Output will appear here...
+							</div>
+							<div className={cn("space-y-0.5", { hidden: output.length === 0 })}>
+								{output.map((line, i) => {
+									let displayLine = line;
+									let isJson = false;
+									try {
+										const parsed = JSON.parse(line);
+										displayLine = JSON.stringify(parsed, null, 2);
+										isJson = true;
+									} catch {
+										// Not valid JSON, display as-is
+									}
+									return (
+										<pre
+											key={`${i}-${line.slice(0, 20)}`}
+											className={cn("whitespace-pre-wrap break-all text-xs", {
+												"wrap-break-word text-[10px] leading-tight": isJson,
+											})}
+										>
+											{displayLine}
+										</pre>
+									);
+								})}
+							</div>
 						</div>
 					</div>
 				</div>
