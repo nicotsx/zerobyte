@@ -103,8 +103,7 @@ RUN bun install --production --frozen-lockfile && rm -rf $HOME/.bun/install/cach
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
 COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/server.ts ./server.ts
+COPY --from=builder /app/.output ./.output
 COPY --from=builder /app/app/drizzle ./assets/migrations
 
 # Include third-party licenses and attribution
@@ -114,5 +113,4 @@ COPY ./LICENSE ./LICENSE.md
 
 EXPOSE 4096
 
-CMD ["bun", "server.ts"]
-
+CMD ["bun", ".output/server/index.mjs"]

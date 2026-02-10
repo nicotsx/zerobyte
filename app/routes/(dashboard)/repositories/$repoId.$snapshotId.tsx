@@ -14,12 +14,12 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repoId/$snapsho
 			...getRepositoryOptions({ path: { id: params.repoId } }),
 		});
 
-		context.queryClient.prefetchQuery({
+		void context.queryClient.prefetchQuery({
 			...getSnapshotDetailsOptions({
 				path: { id: params.repoId, snapshotId: params.snapshotId },
 			}),
 		});
-		context.queryClient.prefetchQuery({
+		void context.queryClient.prefetchQuery({
 			...listSnapshotFilesOptions({
 				path: { id: params.repoId, snapshotId: params.snapshotId },
 				query: { path: "/" },

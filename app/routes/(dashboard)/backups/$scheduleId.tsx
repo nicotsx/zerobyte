@@ -22,7 +22,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$scheduleId")({
 			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { scheduleId } }) }),
 		]);
 
-		context.queryClient.prefetchQuery({
+		void context.queryClient.prefetchQuery({
 			...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } }),
 		});
 

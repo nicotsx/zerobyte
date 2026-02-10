@@ -10,10 +10,7 @@ export const Route = createFileRoute("/(dashboard)/backups/create")({
 		]);
 	},
 	staticData: {
-		breadcrumb: () => [
-			{ label: "Backup Jobs", href: "/backups" },
-			{ label: "Create" },
-		],
+		breadcrumb: () => [{ label: "Backup Jobs", href: "/backups" }, { label: "Create" }],
 	},
 	component: RouteComponent,
 });

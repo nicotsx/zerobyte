@@ -11,16 +11,16 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId")(
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		context.queryClient.prefetchQuery({
+		void context.queryClient.prefetchQuery({
 			...listSnapshotsOptions({ path: { id: params.repositoryId } }),
-		})
-		context.queryClient.prefetchQuery({
+		});
+		void context.queryClient.prefetchQuery({
 			...listBackupSchedulesOptions(),
-		})
+		});
 
 		const res = await context.queryClient.ensureQueryData({
 			...getRepositoryOptions({ path: { id: params.repositoryId } }),
-		})
+		});
 
 		return res;
 	},

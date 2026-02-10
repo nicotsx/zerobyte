@@ -157,7 +157,7 @@ export function SettingsPage({ appContext }: Props) {
 	};
 
 	const onTabChange = (value: string) => {
-		navigate({ to: ".", search: () => ({ tab: value }) });
+		void navigate({ to: ".", search: () => ({ tab: value }) });
 	};
 
 	return (

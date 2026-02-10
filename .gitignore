@@ -36,3 +36,4 @@ playwright/temp
 
 # OpenAPI error logs
 openapi-ts-error-*.log
+.output

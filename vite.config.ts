@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { nitro } from "nitro/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 import babel from "vite-plugin-babel";
@@ -21,6 +22,7 @@ export default defineConfig({
 				routesDirectory: "routes",
 			},
 		}),
+		nitro({ preset: "bun" }),
 		viteReact(),
 		tailwindcss(),
 	],

@@ -1,11 +1,11 @@
 import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
-import "../app.css";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -18,6 +18,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 			{ title: "Zerobyte - Open Source Backup Solution" },
 		],
 		links: [
+			{
+				rel: "stylesheet",
+				href: appCss,
+			},
 			{ rel: "preconnect", href: "https://fonts.googleapis.com" },
 			{
 				rel: "preconnect",
@@ -48,6 +52,7 @@ function RootLayout() {
 				<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon.png" />
 				<meta name="apple-mobile-web-app-title" content="Zerobyte" />
 				<link rel="manifest" href="/images/favicon/site.webmanifest" />
+				{/* <link rel="stylesheet" href={appCss} /> */}
 				<HeadContent />
 			</head>
 			<body className="dark">

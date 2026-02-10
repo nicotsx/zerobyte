@@ -18,8 +18,6 @@ import { runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleRepositoryError } from "~/client/lib/errors";
-import { Link } from "react-router";
-import { parseError } from "~/client/lib/errors";
 import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import { Link } from "@tanstack/react-router";
 
