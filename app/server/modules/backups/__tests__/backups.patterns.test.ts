@@ -15,7 +15,7 @@ const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: JSON.parse(
 beforeEach(() => {
 	backupMock.mockClear();
 	spyOn(restic, "backup").mockImplementation(backupMock);
-	spyOn(restic, "forget").mockImplementation(mock(() => Promise.resolve({ success: true })));
+	spyOn(restic, "forget").mockImplementation(mock(() => Promise.resolve({ success: true, data: null })));
 	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 });
 

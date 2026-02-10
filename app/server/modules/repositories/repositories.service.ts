@@ -629,7 +629,7 @@ const getRetentionCategories = async (repositoryId: string, scheduleId?: string)
 		}
 
 		const categories = parseRetentionCategories(dryRunResults.data);
-		cache.set(cacheKey, categories);
+		cache.set(cacheKey, Object.fromEntries(categories));
 
 		return categories;
 	} catch (error) {

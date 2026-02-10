@@ -14,7 +14,7 @@ import { restic } from "~/server/utils/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 
 const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
-const resticForgetMock = mock(() => Promise.resolve({ success: true }));
+const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
 const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
 
 beforeEach(() => {

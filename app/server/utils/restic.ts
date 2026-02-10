@@ -13,6 +13,7 @@ import { safeSpawn, exec } from "./spawn";
 import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
 import { ResticError } from "./errors";
 import { db } from "../db/db";
+import { safeJsonParse } from "./json";
 
 const backupOutputSchema = type({
 	message_type: "'summary'",
@@ -565,17 +566,17 @@ export interface ForgetGroup {
 
 export interface Snapshot {
 	time: string;
-	parent: string;
+	parent?: string;
 	tree: string;
 	paths: string[];
 	hostname: string;
-	username: string;
-	uid: number;
-	gid: number;
+	username?: string;
+	uid?: number;
+	gid?: number;
 	excludes?: string[] | null;
 	tags?: string[] | null;
-	program_version: string;
-	summary: SnapshotSummary;
+	program_version?: string;
+	summary?: SnapshotSummary;
 	id: string;
 	short_id: string;
 }
@@ -653,7 +654,7 @@ const forget = async (
 	}
 
 	const lines = res.stdout.split("\n").filter((line) => line.trim());
-	const result = extra.dryRun ? (JSON.parse(lines.at(-1) ?? "[]") as ResticForgetResponse) : null;
+	const result = extra.dryRun ? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]") : null;
 
 	return { success: true, data: result };
 };
