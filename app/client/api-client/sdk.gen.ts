@@ -113,6 +113,8 @@ import type {
 	TestNotificationDestinationData,
 	TestNotificationDestinationErrors,
 	TestNotificationDestinationResponses,
+	UnlockRepositoryData,
+	UnlockRepositoryResponses,
 	UnmountVolumeData,
 	UnmountVolumeResponses,
 	UpdateBackupScheduleData,
@@ -459,6 +461,17 @@ export const cancelDoctor = <ThrowOnError extends boolean = false>(options: Opti
 export const startDoctor = <ThrowOnError extends boolean = false>(options: Options<StartDoctorData, ThrowOnError>) =>
 	(options.client ?? client).post<StartDoctorResponses, StartDoctorErrors, ThrowOnError>({
 		url: "/api/v1/repositories/{id}/doctor",
+		...options,
+	});
+
+/**
+ * Unlock a repository by removing all stale locks
+ */
+export const unlockRepository = <ThrowOnError extends boolean = false>(
+	options: Options<UnlockRepositoryData, ThrowOnError>,
+) =>
+	(options.client ?? client).post<UnlockRepositoryResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{id}/unlock",
 		...options,
 	});
 

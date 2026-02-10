@@ -563,6 +563,23 @@ const updateRepository = async (id: string, updates: { name?: string; compressio
 	return { repository: updated };
 };
 
+const unlockRepository = async (id: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(id);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, "unlock");
+	try {
+		const result = await restic.unlock(repository.config, { organizationId });
+		return result;
+	} finally {
+		releaseLock();
+	}
+};
+
 const execResticCommand = async (
 	id: string,
 	command: string,
@@ -657,4 +674,5 @@ export const repositoriesService = {
 	refreshSnapshots,
 	execResticCommand,
 	getRetentionCategories,
+	unlockRepository,
 };

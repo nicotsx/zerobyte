@@ -1856,6 +1856,27 @@ export type StartDoctorResponses = {
 
 export type StartDoctorResponse = StartDoctorResponses[keyof StartDoctorResponses];
 
+export type UnlockRepositoryData = {
+	body?: never;
+	path: {
+		id: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{id}/unlock";
+};
+
+export type UnlockRepositoryResponses = {
+	/**
+	 * Repository unlocked successfully
+	 */
+	200: {
+		message: string;
+		success: boolean;
+	};
+};
+
+export type UnlockRepositoryResponse = UnlockRepositoryResponses[keyof UnlockRepositoryResponses];
+
 export type TagSnapshotsData = {
 	body?: {
 		snapshotIds: Array<string>;

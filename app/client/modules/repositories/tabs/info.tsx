@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Save, Square, Stethoscope, Trash2 } from "lucide-react";
+import { Check, Save, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
 import { Card } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
@@ -24,6 +24,7 @@ import {
 	cancelDoctorMutation,
 	deleteRepositoryMutation,
 	startDoctorMutation,
+	unlockRepositoryMutation,
 	updateRepositoryMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
@@ -102,6 +103,18 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 		},
 	});
 
+	const unlockRepo = useMutation({
+		...unlockRepositoryMutation(),
+		onSuccess: () => {
+			toast.success("Repository unlocked successfully");
+		},
+		onError: (error) => {
+			toast.error("Failed to unlock repository", {
+				description: parseError(error)?.message,
+			});
+		},
+	});
+
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
 		setShowConfirmDialog(true);
@@ -132,7 +145,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 						<div>
 							<span className="text-lg font-semibold mb-4">Repository Settings</span>
 						</div>
-						<div className="flex gap-4">
+						<div className="flex flex-wrap justify-end gap-2 sm:gap-4">
 							{repository.status === "doctor" ? (
 								<Button
 									type="button"
@@ -144,21 +157,30 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 									<span>Cancel doctor</span>
 								</Button>
 							) : (
-								<Button
-									type="button"
-									onClick={() => startDoctor.mutate({ path: { id: repository.id } })}
-									disabled={startDoctor.isPending}
-								>
-									<Stethoscope className="h-4 w-4 mr-2" />
-									Run doctor
-								</Button>
-							)}
 							<Button
 								type="button"
-								variant="destructive"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={deleteRepo.isPending}
+								onClick={() => startDoctor.mutate({ path: { id: repository.id } })}
+								disabled={startDoctor.isPending}
 							>
+								<Stethoscope className="h-4 w-4 mr-2" />
+								Run doctor
+							</Button>
+						)}
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => unlockRepo.mutate({ path: { id: repository.id } })}
+							loading={unlockRepo.isPending}
+						>
+							<Unlock className="h-4 w-4 mr-2" />
+							Unlock
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={() => setShowDeleteConfirm(true)}
+							disabled={deleteRepo.isPending}
+						>
 								<Trash2 className="h-4 w-4 mr-2" />
 								Delete
 							</Button>

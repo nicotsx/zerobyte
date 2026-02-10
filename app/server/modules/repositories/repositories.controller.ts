@@ -27,6 +27,7 @@ import {
 	updateRepositoryDto,
 	devPanelExecBody,
 	devPanelExecDto,
+	unlockRepositoryDto,
 	type DeleteRepositoryDto,
 	type DeleteSnapshotDto,
 	type DeleteSnapshotsResponseDto,
@@ -41,6 +42,7 @@ import {
 	type RestoreSnapshotDto,
 	type TagSnapshotsResponseDto,
 	type UpdateRepositoryDto,
+	type UnlockRepositoryDto,
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
@@ -188,6 +190,13 @@ export const repositoriesController = new Hono()
 		const result = await repositoriesService.cancelDoctor(id);
 
 		return c.json<CancelDoctorDto>(result, 200);
+	})
+	.post("/:id/unlock", unlockRepositoryDto, async (c) => {
+		const { id } = c.req.param();
+
+		const result = await repositoriesService.unlockRepository(id);
+
+		return c.json<UnlockRepositoryDto>(result, 200);
 	})
 	.delete("/:id/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
 		const { id, snapshotId } = c.req.param();

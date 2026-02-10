@@ -546,3 +546,29 @@ export const devPanelExecDto = describeRoute({
 		},
 	},
 });
+
+/**
+ * Unlock repository
+ */
+export const unlockRepositoryResponse = type({
+	success: "boolean",
+	message: "string",
+});
+
+export type UnlockRepositoryDto = typeof unlockRepositoryResponse.infer;
+
+export const unlockRepositoryDto = describeRoute({
+	description: "Unlock a repository by removing all stale locks",
+	tags: ["Repositories"],
+	operationId: "unlockRepository",
+	responses: {
+		200: {
+			description: "Repository unlocked successfully",
+			content: {
+				"application/json": {
+					schema: resolver(unlockRepositoryResponse),
+				},
+			},
+		},
+	},
+});

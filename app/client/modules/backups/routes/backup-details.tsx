@@ -23,7 +23,7 @@ import {
 	stopBackupMutation,
 	deleteSnapshotMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import { parseError } from "~/client/lib/errors";
+import { parseError, handleRepositoryError } from "~/client/lib/errors";
 import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { ScheduleSummary } from "../components/schedule-summary";
@@ -118,7 +118,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 			toast.success("Backup started successfully");
 		},
 		onError: (error) => {
-			toast.error("Failed to start backup", { description: parseError(error)?.message });
+			handleRepositoryError("Failed to start backup", error, schedule.repository.shortId);
 		},
 	});
 
@@ -219,7 +219,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				{
 					loading: "Deleting snapshot...",
 					success: "Snapshot deleted successfully",
-					error: (error) => parseError(error)?.message || "Failed to delete snapshot",
+					error: (error) => handleRepositoryError("Failed to delete snapshot", error, schedule.repository.shortId),
 				},
 			);
 		}

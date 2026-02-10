@@ -62,6 +62,7 @@ import {
 	tagSnapshots,
 	testConnection,
 	testNotificationDestination,
+	unlockRepository,
 	unmountVolume,
 	updateBackupSchedule,
 	updateNotificationDestination,
@@ -171,6 +172,8 @@ import type {
 	TestConnectionResponse,
 	TestNotificationDestinationData,
 	TestNotificationDestinationResponse,
+	UnlockRepositoryData,
+	UnlockRepositoryResponse,
 	UnmountVolumeData,
 	UnmountVolumeResponse,
 	UpdateBackupScheduleData,
@@ -895,6 +898,25 @@ export const startDoctorMutation = (
 	const mutationOptions: UseMutationOptions<StartDoctorResponse, DefaultError, Options<StartDoctorData>> = {
 		mutationFn: async (fnOptions) => {
 			const { data } = await startDoctor({
+				...options,
+				...fnOptions,
+				throwOnError: true,
+			});
+			return data;
+		},
+	};
+	return mutationOptions;
+};
+
+/**
+ * Unlock a repository by removing all stale locks
+ */
+export const unlockRepositoryMutation = (
+	options?: Partial<Options<UnlockRepositoryData>>,
+): UseMutationOptions<UnlockRepositoryResponse, DefaultError, Options<UnlockRepositoryData>> => {
+	const mutationOptions: UseMutationOptions<UnlockRepositoryResponse, DefaultError, Options<UnlockRepositoryData>> = {
+		mutationFn: async (fnOptions) => {
+			const { data } = await unlockRepository({
 				...options,
 				...fnOptions,
 				throwOnError: true,

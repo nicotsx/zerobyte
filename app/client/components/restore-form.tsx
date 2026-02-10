@@ -15,6 +15,7 @@ import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
 import type { Repository, Snapshot } from "~/client/lib/types";
+import { handleRepositoryError } from "~/client/lib/errors";
 
 type RestoreLocation = "original" | "custom";
 
@@ -103,7 +104,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 			void navigate(returnPath);
 		},
 		onError: (error) => {
-			toast.error("Restore failed", { description: error.message || "Failed to restore snapshot" });
+			handleRepositoryError("Restore failed", error, repository.id);
 		},
 	});
 

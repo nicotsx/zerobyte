@@ -17,7 +17,7 @@ import { BackupProgressCard } from "./backup-progress-card";
 import { runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { parseError } from "~/client/lib/errors";
+import { handleRepositoryError } from "~/client/lib/errors";
 import { Link } from "react-router";
 import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
 
@@ -43,7 +43,7 @@ export const ScheduleSummary = (props: Props) => {
 			toast.success("Retention policy applied successfully");
 		},
 		onError: (error) => {
-			toast.error("Failed to apply retention policy", { description: parseError(error)?.message });
+			handleRepositoryError("Failed to apply retention policy", error, schedule.repository.shortId);
 		},
 	});
 
