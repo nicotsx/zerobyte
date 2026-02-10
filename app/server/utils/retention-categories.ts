@@ -1,51 +1,38 @@
-import { format } from "date-fns";
-import type { RetentionPolicy } from "../modules/backups/backups.dto";
+import type { ResticForgetResponse } from "./restic";
 
-export type RetentionCategory = "latest" | "hourly" | "daily" | "weekly" | "monthly" | "yearly";
+export type RetentionCategory = "last" | "hourly" | "daily" | "weekly" | "monthly" | "yearly";
 
-interface SnapshotInfo {
-	short_id: string;
-	time: number;
-}
+const MATCH_TO_CATEGORY: Record<string, RetentionCategory> = {
+	"last snapshot": "last",
+	"hourly snapshot": "hourly",
+	"daily snapshot": "daily",
+	"weekly snapshot": "weekly",
+	"monthly snapshot": "monthly",
+	"yearly snapshot": "yearly",
+	"oldest hourly snapshot": "hourly",
+	"oldest daily snapshot": "daily",
+	"oldest weekly snapshot": "weekly",
+	"oldest monthly snapshot": "monthly",
+	"oldest yearly snapshot": "yearly",
+};
 
-const RETENTION_RULES = [
-	{ prop: "keepHourly", tag: "hourly", fmt: "yyyy-MM-dd-HH" },
-	{ prop: "keepDaily", tag: "daily", fmt: "yyyy-MM-dd" },
-	{ prop: "keepWeekly", tag: "weekly", fmt: "RRRR-'W'II" },
-	{ prop: "keepMonthly", tag: "monthly", fmt: "yyyy-MM" },
-	{ prop: "keepYearly", tag: "yearly", fmt: "yyyy" },
-] as const;
-
-export const computeRetentionCategories = (snapshots: SnapshotInfo[], policy: RetentionPolicy | null) => {
+export const parseRetentionCategories = (dryRunResults: ResticForgetResponse) => {
 	const categories = new Map<string, RetentionCategory[]>();
 
-	if (snapshots.length === 0) return categories;
+	for (const group of dryRunResults) {
+		for (const reason of group.reasons) {
+			const { short_id } = reason.snapshot;
+			const categoryList: RetentionCategory[] = [];
 
-	const sorted = [...snapshots].sort((a, b) => b.time - a.time);
+			for (const match of reason.matches) {
+				const category = MATCH_TO_CATEGORY[match];
+				if (category && !categoryList.includes(category)) {
+					categoryList.push(category);
+				}
+			}
 
-	const addTag = (id: string, tag: RetentionCategory) => {
-		const tags = categories.get(id) ?? [];
-		if (!tags.includes(tag)) categories.set(id, [...tags, tag]);
-	};
-	addTag(sorted[0].short_id, "latest");
-
-	if (!policy) return categories;
-
-	for (const { prop, tag, fmt } of RETENTION_RULES) {
-		const limit = policy[prop];
-		if (!limit || limit <= 0) continue;
-
-		const seenBuckets = new Set<string>();
-		let count = 0;
-
-		for (const snapshot of sorted) {
-			if (count >= limit) break;
-
-			const bucketKey = format(snapshot.time, fmt);
-			if (!seenBuckets.has(bucketKey)) {
-				seenBuckets.add(bucketKey);
-				addTag(snapshot.short_id, tag);
-				count++;
+			if (categoryList.length > 0) {
+				categories.set(short_id, categoryList);
 			}
 		}
 	}

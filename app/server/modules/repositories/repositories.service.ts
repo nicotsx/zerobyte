@@ -21,6 +21,8 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { serverEvents } from "~/server/core/events";
 import { executeDoctor } from "./doctor";
 import { logger } from "~/server/utils/logger";
+import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
+import { backupsService } from "../backups/backups.service";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -592,6 +594,50 @@ const execResticCommand = async (
 	return { exitCode: result.exitCode };
 };
 
+const getRetentionCategories = async (repositoryId: string, scheduleId?: string) => {
+	if (!scheduleId) {
+		return new Map<string, RetentionCategory[]>();
+	}
+
+	const cacheKey = `retention:${scheduleId}`;
+	const cached = cache.get<Record<string, RetentionCategory[]>>(cacheKey);
+
+	if (cached && Object.keys(cached).length > 0) {
+		return new Map(Object.entries(cached));
+	}
+
+	try {
+		const [schedule, repositoryResult] = await Promise.all([
+			backupsService.getScheduleByShortId(scheduleId),
+			repositoriesService.getRepository(repositoryId),
+		]);
+
+		if (!schedule?.retentionPolicy) {
+			return new Map<string, RetentionCategory[]>();
+		}
+
+		const { repository } = repositoryResult;
+
+		const dryRunResults = await restic.forget(repository.config, schedule.retentionPolicy, {
+			tag: scheduleId,
+			organizationId: getOrganizationId(),
+			dryRun: true,
+		});
+
+		if (!dryRunResults.data) {
+			return new Map<string, RetentionCategory[]>();
+		}
+
+		const categories = parseRetentionCategories(dryRunResults.data);
+		cache.set(cacheKey, categories);
+
+		return categories;
+	} catch (error) {
+		logger.error(`Failed to get retention categories: ${toMessage(error)}`);
+		return new Map<string, RetentionCategory[]>();
+	}
+};
+
 export const repositoriesService = {
 	listRepositories,
 	createRepository,
@@ -610,4 +656,5 @@ export const repositoriesService = {
 	tagSnapshots,
 	refreshSnapshots,
 	execResticCommand,
+	getRetentionCategories,
 };

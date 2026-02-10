@@ -43,11 +43,8 @@ import {
 	type UpdateRepositoryDto,
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
-import { backupsService } from "../backups/backups.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
-import { computeRetentionCategories } from "../../utils/retention-categories";
-import { logger } from "~/server/utils/logger";
 import { toMessage } from "~/server/utils/errors";
 import { requireDevPanel } from "../auth/dev-panel.middleware";
 
@@ -94,21 +91,11 @@ export const repositoriesController = new Hono()
 	.get("/:id/snapshots", listSnapshotsDto, validator("query", listSnapshotsFilters), async (c) => {
 		const { id } = c.req.param();
 		const { backupId } = c.req.valid("query");
-		const res = await repositoriesService.listSnapshots(id, backupId);
 
-		let retentionCategories: Map<string, string[]> = new Map();
-		if (backupId) {
-			try {
-				const schedule = await backupsService.getScheduleByShortId(backupId);
-				const snapshotsForCategories = res.map((snapshot) => ({
-					short_id: snapshot.short_id,
-					time: new Date(snapshot.time).getTime(),
-				}));
-				retentionCategories = computeRetentionCategories(snapshotsForCategories, schedule.retentionPolicy);
-			} catch (error) {
-				logger.warn(`Failed to fetch retention policy for backup ID ${backupId}`, toMessage(error));
-			}
-		}
+		const [res, retentionCategories] = await Promise.all([
+			repositoriesService.listSnapshots(id, backupId),
+			repositoriesService.getRetentionCategories(id, backupId),
+		]);
 
 		const snapshots = res.map((snapshot) => {
 			const { summary } = snapshot;

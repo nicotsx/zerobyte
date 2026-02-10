@@ -145,6 +145,7 @@ const finalizeSuccessfulBackup = async (ctx: BackupContext, scheduleId: number, 
 	});
 
 	cache.delByPrefix(`snapshots:${ctx.repository.id}:`);
+	cache.del(`retention:${ctx.schedule.shortId}`);
 
 	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
@@ -320,6 +321,7 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	try {
 		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId });
 		cache.delByPrefix(`snapshots:${repository.id}:`);
+		cache.del(`retention:${schedule.shortId}`);
 	} finally {
 		releaseLock();
 	}
