@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { formatDuration } from "~/utils/utils";
 import { formatDateTime } from "~/client/lib/datetime";
 import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { handleRepositoryError } from "~/client/lib/errors";
+import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
 
@@ -91,7 +91,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 			{
 				loading: `Deleting ${selectedIds.size} snapshots...`,
 				success: "Snapshots deleted successfully",
-				error: (error) => handleRepositoryError("Failed to delete snapshots", error, repositoryId),
+				error: (error) => parseError(error)?.message || "Failed to delete snapshots",
 			},
 		);
 	};
@@ -111,7 +111,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 			{
 				loading: `Re-tagging ${selectedIds.size} snapshots...`,
 				success: `Snapshots re-tagged to ${schedule.name}`,
-				error: (error) => handleRepositoryError("Failed to re-tag snapshots", error, repositoryId),
+				error: (error) => parseError(error)?.message || "Failed to re-tag snapshots",
 			},
 		);
 	};

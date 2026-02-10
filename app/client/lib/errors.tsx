@@ -62,6 +62,7 @@ export const showLockErrorToast = (repositoryId: string, title: string) => {
 export const handleRepositoryError = (title: string, error: unknown, repositoryId: string) => {
 	if (isLockError(error)) {
 		showLockErrorToast(repositoryId, title);
+		return null;
 	}
 
 	toast.error(parseError(error)?.message || "An unexpected error occurred");

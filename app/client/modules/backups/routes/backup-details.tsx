@@ -219,7 +219,7 @@ export default function ScheduleDetailsPage({ params, loaderData }: Route.Compon
 				{
 					loading: "Deleting snapshot...",
 					success: "Snapshot deleted successfully",
-					error: (error) => handleRepositoryError("Failed to delete snapshot", error, schedule.repository.shortId),
+					error: (error) => parseError(error)?.message || "Failed to delete snapshot",
 				},
 			);
 		}
