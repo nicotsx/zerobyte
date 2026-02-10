@@ -4,6 +4,7 @@
 !bun.lock
 !package.json
 !server.ts
+!.gitignore
 
 !**/package.json
 !**/bun.lock
@@ -24,3 +25,4 @@
 
 node_modules/**
 dist/**
+.output/**

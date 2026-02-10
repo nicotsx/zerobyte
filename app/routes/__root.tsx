@@ -52,7 +52,6 @@ function RootLayout() {
 				<link rel="apple-touch-icon" sizes="180x180" href="/images/favicon/apple-touch-icon.png" />
 				<meta name="apple-mobile-web-app-title" content="Zerobyte" />
 				<link rel="manifest" href="/images/favicon/site.webmanifest" />
-				{/* <link rel="stylesheet" href={appCss} /> */}
 				<HeadContent />
 			</head>
 			<body className="dark">

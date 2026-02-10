@@ -58,6 +58,7 @@
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"commander": "^14.0.2",
+		"consola": "^3.4.2",
 		"cron-parser": "^5.5.0",
 		"date-fns": "^4.1.0",
 		"dither-plugin": "^1.1.1",
@@ -85,7 +86,6 @@
 		"sonner": "^2.0.7",
 		"tailwind-merge": "^3.4.0",
 		"tiny-typed-emitter": "^2.1.0",
-		"winston": "^3.18.3",
 		"yaml": "^2.8.2"
 	},
 	"devDependencies": {
