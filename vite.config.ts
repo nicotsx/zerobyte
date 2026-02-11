@@ -4,18 +4,10 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
-import babel from "vite-plugin-babel";
 
 export default defineConfig({
 	plugins: [
 		tsconfigPaths(),
-		babel({
-			filter: /\.[jt]sx?$/,
-			babelConfig: {
-				presets: ["@babel/preset-typescript"],
-				plugins: [["babel-plugin-react-compiler"]],
-			},
-		}),
 		tanstackStart({
 			srcDirectory: "app",
 			router: {
@@ -23,7 +15,11 @@ export default defineConfig({
 			},
 		}),
 		nitro({ preset: "bun" }),
-		viteReact(),
+		viteReact({
+			babel: {
+				plugins: ["babel-plugin-react-compiler"],
+			},
+		}),
 		tailwindcss(),
 	],
 	build: {

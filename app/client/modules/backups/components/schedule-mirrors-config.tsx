@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -38,9 +38,9 @@ type MirrorAssignment = {
 	lastCopyError: string | null;
 };
 
-export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, repositories, initialData }: Props) => {
+const buildAssignments = (mirrors: GetScheduleMirrorsResponse) => {
 	const map = new Map<string, MirrorAssignment>();
-	for (const mirror of initialData) {
+	for (const mirror of mirrors) {
 		map.set(mirror.repositoryId, {
 			repositoryId: mirror.repositoryId,
 			enabled: mirror.enabled,
@@ -49,14 +49,23 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 			lastCopyError: mirror.lastCopyError,
 		});
 	}
+	return map;
+};
 
-	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(map);
+export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, repositories, initialData }: Props) => {
+	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(() => buildAssignments(initialData));
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 
 	const { data: currentMirrors } = useSuspenseQuery({
 		...getScheduleMirrorsOptions({ path: { scheduleId: scheduleId.toString() } }),
 	});
+
+	useEffect(() => {
+		if (!hasChanges) {
+			setAssignments(buildAssignments(currentMirrors));
+		}
+	}, [currentMirrors, hasChanges]);
 
 	const { data: compatibility } = useQuery({
 		...getMirrorCompatibilityOptions({ path: { scheduleId: scheduleId.toString() } }),

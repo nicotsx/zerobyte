@@ -30,7 +30,7 @@ export const clientLoader = async () => {
 };
 
 export function BackupsPage() {
-	const { data: schedules, isLoading } = useSuspenseQuery({
+	const { data: schedules } = useSuspenseQuery({
 		...listBackupSchedulesOptions(),
 	});
 
@@ -68,14 +68,6 @@ export function BackupsPage() {
 			});
 		}
 	};
-
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center h-full">
-				<p className="text-muted-foreground">Loading backup schedules...</p>
-			</div>
-		);
-	}
 
 	if (!schedules || schedules.length === 0) {
 		return (

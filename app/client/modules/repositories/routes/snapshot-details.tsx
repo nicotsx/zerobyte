@@ -122,32 +122,34 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 								<span className="text-muted-foreground">Time:</span>
 								<p>{formatDateTime(data.time)}</p>
 							</div>
-							<>
-								<div>
-									<span className="text-muted-foreground">Backup Schedule:</span>
-									<p>
-										<Link
-											to="/backups/$scheduleId"
-											className="text-primary hover:underline"
-											params={{ scheduleId: backupSchedule?.shortId || "" }}
-										>
-											{backupSchedule?.name}
-										</Link>
-									</p>
-								</div>
-								<div>
-									<span className="text-muted-foreground">Volume:</span>
-									<p>
-										<Link
-											to={`/volumes/$volumeId`}
-											className="text-primary hover:underline"
-											params={{ volumeId: backupSchedule?.volume.shortId || "" }}
-										>
-											{backupSchedule?.volume.name}
-										</Link>
-									</p>
-								</div>
-							</>
+							{backupSchedule && (
+								<>
+									<div>
+										<span className="text-muted-foreground">Backup Schedule:</span>
+										<p>
+											<Link
+												to="/backups/$scheduleId"
+												className="text-primary hover:underline"
+												params={{ scheduleId: backupSchedule.shortId }}
+											>
+												{backupSchedule?.name}
+											</Link>
+										</p>
+									</div>
+									<div>
+										<span className="text-muted-foreground">Volume:</span>
+										<p>
+											<Link
+												to={`/volumes/$volumeId`}
+												className="text-primary hover:underline"
+												params={{ volumeId: backupSchedule.volume.shortId }}
+											>
+												{backupSchedule?.volume.name}
+											</Link>
+										</p>
+									</div>
+								</>
+							)}
 
 							<div className="col-span-2">
 								<span className="text-muted-foreground">Paths:</span>

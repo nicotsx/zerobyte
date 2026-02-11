@@ -11,7 +11,7 @@ export const authMiddleware = createMiddleware().server(async ({ next, request }
 	const isAuthRoute = ["/login", "/onboarding"].includes(new URL(request.url).pathname);
 
 	if (!session?.user?.id && !isAuthRoute) {
-		const status = await getStatus();
+		const status = await getStatus().catch(() => ({ data: { hasUsers: false } }));
 		if (!status.data?.hasUsers) {
 			throw redirect({ to: "/onboarding" });
 		}

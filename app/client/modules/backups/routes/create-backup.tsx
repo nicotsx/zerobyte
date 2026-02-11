@@ -21,7 +21,7 @@ export function CreateBackupPage() {
 	const formId = useId();
 	const [selectedVolumeId, setSelectedVolumeId] = useState<number | undefined>();
 
-	const { data: volumesData, isLoading: loadingVolumes } = useSuspenseQuery({
+	const { data: volumesData } = useSuspenseQuery({
 		...listVolumesOptions(),
 	});
 
@@ -78,14 +78,6 @@ export function CreateBackupPage() {
 	};
 
 	const selectedVolume = volumesData.find((v) => v.id === selectedVolumeId);
-
-	if (loadingVolumes) {
-		return (
-			<div className="flex items-center justify-center h-full">
-				<p className="text-muted-foreground">Loading...</p>
-			</div>
-		);
-	}
 
 	if (!volumesData.length) {
 		return (
