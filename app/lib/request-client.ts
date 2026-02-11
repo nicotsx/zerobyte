@@ -14,6 +14,7 @@ type AsyncLocalStorageConstructor = new <T>() => {
 };
 
 let requestClientStore: RequestClientStore | undefined;
+let requestClientStorePromise: Promise<RequestClientStore | undefined> | undefined;
 
 const ASYNC_HOOKS_MODULE = "node:async_hooks";
 
@@ -22,14 +23,17 @@ const loadRequestClientStore = async (): Promise<RequestClientStore | undefined>
 		return undefined;
 	}
 
-	if (!requestClientStore) {
-		const asyncHooksModule = (await import(/* @vite-ignore */ ASYNC_HOOKS_MODULE)) as {
-			AsyncLocalStorage: AsyncLocalStorageConstructor;
-		};
-		requestClientStore = new asyncHooksModule.AsyncLocalStorage<RequestClient>();
+	if (!requestClientStorePromise) {
+		requestClientStorePromise = (async () => {
+			const asyncHooksModule = (await import(/* @vite-ignore */ ASYNC_HOOKS_MODULE)) as {
+				AsyncLocalStorage: AsyncLocalStorageConstructor;
+			};
+			requestClientStore = new asyncHooksModule.AsyncLocalStorage<RequestClient>();
+			return requestClientStore;
+		})();
 	}
 
-	return requestClientStore;
+	return requestClientStorePromise;
 };
 
 export function getRequestClient(): RequestClient {

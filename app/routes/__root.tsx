@@ -12,11 +12,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 		middleware: [apiClientMiddleware],
 	},
 	head: () => ({
-		meta: [
-			{ charSet: "utf-8" },
-			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "Zerobyte - Open Source Backup Solution" },
-		],
+		meta: [{ title: "Zerobyte - Open Source Backup Solution" }],
 		links: [
 			{
 				rel: "stylesheet",

@@ -14,7 +14,6 @@ import { useState, useEffect } from "react";
 import { EmptyState } from "~/client/components/empty-state";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent } from "~/client/components/ui/card";
-import { listBackupSchedules } from "~/client/api-client";
 import {
 	listBackupSchedulesOptions,
 	reorderBackupSchedulesMutation,
@@ -22,12 +21,6 @@ import {
 import { SortableCard } from "~/client/components/sortable-card";
 import { BackupCard } from "../components/backup-card";
 import { Link } from "@tanstack/react-router";
-
-export const clientLoader = async () => {
-	const jobs = await listBackupSchedules();
-	if (jobs.data) return jobs.data;
-	return [];
-};
 
 export function BackupsPage() {
 	const { data: schedules } = useSuspenseQuery({

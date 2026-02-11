@@ -32,12 +32,22 @@ export default createServerEntry({
 
 process.on("SIGTERM", async () => {
 	logger.info("SIGTERM received, starting graceful shutdown...");
-	await shutdown();
-	process.exit(0);
+	try {
+		await shutdown();
+	} catch (err) {
+		logger.error("Error during shutdown", err);
+	} finally {
+		process.exit(0);
+	}
 });
 
 process.on("SIGINT", async () => {
 	logger.info("SIGINT received, starting graceful shutdown...");
-	await shutdown();
-	process.exit(0);
+	try {
+		await shutdown();
+	} catch (err) {
+		logger.error("Error during shutdown", err);
+	} finally {
+		process.exit(0);
+	}
 });

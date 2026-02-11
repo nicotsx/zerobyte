@@ -6,6 +6,9 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 
 export default defineConfig({
+	define: {
+		"process.env.NODE_ENV": "production",
+	},
 	plugins: [
 		tsconfigPaths(),
 		tanstackStart({

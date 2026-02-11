@@ -111,10 +111,6 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 								<p className="font-mono break-all">{data.short_id}</p>
 							</div>
 							<div>
-								<span className="text-muted-foreground">Short ID:</span>
-								<p className="font-mono break-all">{data.short_id}</p>
-							</div>
-							<div>
 								<span className="text-muted-foreground">Hostname:</span>
 								<p>{data.hostname}</p>
 							</div>

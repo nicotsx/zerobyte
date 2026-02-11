@@ -1,8 +1,8 @@
-import { getStatus } from "~/client/api-client";
 import { createMiddleware } from "@tanstack/react-start";
 import { redirect } from "@tanstack/react-router";
 import { auth } from "~/server/lib/auth";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { authService } from "~/server/modules/auth/auth.service";
 
 export const authMiddleware = createMiddleware().server(async ({ next, request }) => {
 	const headers = getRequestHeaders();
@@ -11,8 +11,8 @@ export const authMiddleware = createMiddleware().server(async ({ next, request }
 	const isAuthRoute = ["/login", "/onboarding"].includes(new URL(request.url).pathname);
 
 	if (!session?.user?.id && !isAuthRoute) {
-		const status = await getStatus().catch(() => ({ data: { hasUsers: false } }));
-		if (!status.data?.hasUsers) {
+		const hasUsers = await authService.hasUsers();
+		if (!hasUsers) {
 			throw redirect({ to: "/onboarding" });
 		}
 

@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { createConsola, type ConsolaReporter } from "consola";
 import { formatWithOptions } from "node:util";
 import { sanitizeSensitiveData } from "./sanitize";
@@ -50,17 +51,18 @@ const reporter: ConsolaReporter = {
 	log(logObj, ctx) {
 		const level = resolveLevel(logObj.type);
 
+		const timestamp = colorize("\x1b[90m", format(new Date(), "HH:mm:ss"));
 		const style = levelStyles[level];
 		const prefix = colorize(style.color, style.label);
 		const tag = logObj.tag ? `[${logObj.tag}]` : "";
 		const message = formatWithOptions(
 			{
-				colors: useColor,
 				...ctx.options.formatOptions,
+				colors: useColor,
 			},
 			...logObj.args,
 		);
-		const line = [prefix, tag, message].filter(Boolean).join(" ");
+		const line = [timestamp, prefix, tag, message].filter(Boolean).join(" ");
 		const stream = logObj.level < 2 ? (ctx.options.stderr ?? process.stderr) : (ctx.options.stdout ?? process.stdout);
 		stream.write(line + "\n");
 	},

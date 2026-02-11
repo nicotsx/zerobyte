@@ -21,6 +21,15 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 		return { snapshot, repository, schedule: schedule.data };
 	},
+	head: ({ params }) => ({
+		meta: [
+			{ title: `Zerobyte - Restore Snapshot ${params.snapshotId}` },
+			{
+				name: "description",
+				content: "Restore files from a backup snapshot.",
+			},
+		],
+	}),
 	staticData: {
 		breadcrumb: (match) => [
 			{ label: "Backup Jobs", href: "/backups" },
