@@ -3,7 +3,13 @@ import { db } from "../../db/db";
 import { backupSchedulesTable, backupScheduleMirrorsTable } from "../../db/schema";
 
 export type BackupStatusType = "in_progress" | "success" | "warning" | "error";
-export type MirrorStatusType = "success" | "error";
+export type MirrorStatusType = "in_progress" | "success" | "error";
+
+type MirrorStatusUpdate = {
+	lastCopyAt?: number | null;
+	lastCopyStatus?: MirrorStatusType;
+	lastCopyError?: string | null;
+};
 
 export const scheduleQueries = {
 	findById: async (scheduleId: number, organizationId: string) => {
@@ -53,14 +59,7 @@ export const mirrorQueries = {
 		});
 	},
 
-	updateStatus: async (
-		mirrorId: number,
-		status: {
-			lastCopyAt: number;
-			lastCopyStatus: MirrorStatusType;
-			lastCopyError: string | null;
-		},
-	) => {
+	updateStatus: async (mirrorId: number, status: MirrorStatusUpdate) => {
 		return db.update(backupScheduleMirrorsTable).set(status).where(eq(backupScheduleMirrorsTable.id, mirrorId));
 	},
 };

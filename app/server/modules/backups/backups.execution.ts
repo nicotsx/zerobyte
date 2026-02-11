@@ -384,6 +384,11 @@ const copyToSingleMirror = async (
 			repositoryName: mirror.repository.name,
 		});
 
+		await mirrorQueries.updateStatus(mirror.id, {
+			lastCopyStatus: "in_progress",
+			lastCopyError: null,
+		});
+
 		const releaseSource = await repoMutex.acquireShared(sourceRepository.id, `mirror_source:${scheduleId}`);
 		const releaseMirror = await repoMutex.acquireShared(mirror.repository.id, `mirror:${scheduleId}`);
 

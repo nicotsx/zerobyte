@@ -2,7 +2,7 @@ import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { useMutation } from "@tanstack/react-query";
 import { type } from "arktype";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "~/client/lib/utils";
 import { deepClean } from "~/utils/object";
@@ -62,19 +62,10 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 		},
 	});
 
-	const { watch, getValues } = form;
+	const { getValues, watch } = form;
 
 	const { capabilities } = useSystemInfo();
 	const watchedBackend = watch("backend");
-
-	useEffect(() => {
-		if (mode === "create") {
-			form.reset({
-				name: form.getValues().name,
-				...defaultValuesForType[watchedBackend as keyof typeof defaultValuesForType],
-			});
-		}
-	}, [watchedBackend, form, mode]);
 
 	const [testMessage, setTestMessage] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -119,12 +110,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 						<FormItem>
 							<FormLabel>Name</FormLabel>
 							<FormControl>
-								<Input
-									{...field}
-									placeholder="Volume name"
-									maxLength={32}
-									minLength={2}
-								/>
+								<Input {...field} placeholder="Volume name" maxLength={32} minLength={2} />
 							</FormControl>
 							<FormDescription>Unique identifier for the volume.</FormDescription>
 							<FormMessage />
@@ -138,7 +124,18 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Backend</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
+							<Select
+								onValueChange={(value) => {
+									field.onChange(value);
+									if (mode === "create") {
+										form.reset({
+											name: form.getValues().name,
+											...defaultValuesForType[value as keyof typeof defaultValuesForType],
+										});
+									}
+								}}
+								value={field.value}
+							>
 								<FormControl>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a backend" />

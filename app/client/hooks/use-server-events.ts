@@ -29,7 +29,7 @@ export interface MirrorEvent {
 	scheduleId: number;
 	repositoryId: string;
 	repositoryName: string;
-	status?: "success" | "error";
+	status?: "success" | "error" | "in_progress";
 	error?: string;
 }
 

@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CalendarClock, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { EmptyState } from "~/client/components/empty-state";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent } from "~/client/components/ui/card";
@@ -27,12 +27,8 @@ export function BackupsPage() {
 		...listBackupSchedulesOptions(),
 	});
 
-	const [items, setItems] = useState(schedules?.map((s) => s.id) ?? []);
-	useEffect(() => {
-		if (schedules) {
-			setItems(schedules.map((s) => s.id));
-		}
-	}, [schedules]);
+	const [localItems, setLocalItems] = useState<number[] | null>(null);
+	const items = localItems ?? schedules?.map((s) => s.id) ?? [];
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
@@ -51,10 +47,11 @@ export function BackupsPage() {
 		const { active, over } = event;
 
 		if (over && active.id !== over.id) {
-			setItems((items) => {
-				const oldIndex = items.indexOf(active.id as number);
-				const newIndex = items.indexOf(over.id as number);
-				const newItems = arrayMove(items, oldIndex, newIndex);
+			setLocalItems((currentItems) => {
+				const baseItems = currentItems ?? schedules?.map((s) => s.id) ?? [];
+				const oldIndex = baseItems.indexOf(active.id as number);
+				const newIndex = baseItems.indexOf(over.id as number);
+				const newItems = arrayMove(baseItems, oldIndex, newIndex);
 				reorderMutation.mutate({ body: { scheduleIds: newItems } });
 
 				return newItems;

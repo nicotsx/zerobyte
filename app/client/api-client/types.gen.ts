@@ -3311,7 +3311,7 @@ export type GetScheduleMirrorsResponses = {
 		enabled: boolean;
 		lastCopyAt: number | null;
 		lastCopyError: string | null;
-		lastCopyStatus: "error" | "success" | null;
+		lastCopyStatus: "error" | "in_progress" | "success" | null;
 		repository: {
 			compressionMode: "auto" | "max" | "off" | null;
 			config:
@@ -3531,7 +3531,7 @@ export type UpdateScheduleMirrorsResponses = {
 		enabled: boolean;
 		lastCopyAt: number | null;
 		lastCopyError: string | null;
-		lastCopyStatus: "error" | "success" | null;
+		lastCopyStatus: "error" | "in_progress" | "success" | null;
 		repository: {
 			compressionMode: "auto" | "max" | "off" | null;
 			config:
