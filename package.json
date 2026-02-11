@@ -9,7 +9,7 @@
 		"start": "bun run .output/server/index.mjs",
 		"preview": "bunx --bun vite preview",
 		"cli:dev": "bun run app/server/cli/main.ts",
-		"cli": "ZEROBYTE_CLI=1 bun ./dist/server/index.js",
+		"cli": "ZEROBYTE_CLI=1 bun .output/server/_ssr/index.mjs",
 		"tsc": "tsc --noEmit",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",

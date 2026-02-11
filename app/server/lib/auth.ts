@@ -23,7 +23,7 @@ export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthCon
 const createBetterAuth = (secret: string) => {
 	return betterAuth({
 		secret,
-		baseURL: "http://localhost:3000",
+		baseURL: config.baseUrl,
 		trustedOrigins: config.trustedOrigins,
 		advanced: {
 			cookiePrefix: "zerobyte",
