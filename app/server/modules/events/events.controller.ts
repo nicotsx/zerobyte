@@ -162,10 +162,13 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 		serverEvents.on("doctor:cancelled", onDoctorCancelled);
 
 		let keepAlive = true;
+		let cleanedUp = false;
 
-		stream.onAbort(() => {
-			logger.info("Client disconnected from SSE endpoint");
-			keepAlive = false;
+		function cleanup() {
+			if (cleanedUp) return;
+			cleanedUp = true;
+
+			c.req.raw.signal.removeEventListener("abort", onRequestAbort);
 			serverEvents.off("backup:started", onBackupStarted);
 			serverEvents.off("backup:progress", onBackupProgress);
 			serverEvents.off("backup:completed", onBackupCompleted);
@@ -177,14 +180,33 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			serverEvents.off("doctor:started", onDoctorStarted);
 			serverEvents.off("doctor:completed", onDoctorCompleted);
 			serverEvents.off("doctor:cancelled", onDoctorCancelled);
-		});
+		}
 
-		while (keepAlive) {
-			await stream.writeSSE({
-				data: JSON.stringify({ timestamp: Date.now() }),
-				event: "heartbeat",
-			});
-			await stream.sleep(5000);
+		function handleDisconnect() {
+			if (!keepAlive) return;
+			logger.info("Client disconnected from SSE endpoint");
+			keepAlive = false;
+			cleanup();
+		}
+
+		function onRequestAbort() {
+			handleDisconnect();
+			stream.abort();
+		}
+
+		stream.onAbort(handleDisconnect);
+		c.req.raw.signal.addEventListener("abort", onRequestAbort, { once: true });
+
+		try {
+			while (keepAlive && !c.req.raw.signal.aborted && !stream.aborted) {
+				await stream.writeSSE({
+					data: JSON.stringify({ timestamp: Date.now() }),
+					event: "heartbeat",
+				});
+				await stream.sleep(5000);
+			}
+		} finally {
+			cleanup();
 		}
 	});
 });
