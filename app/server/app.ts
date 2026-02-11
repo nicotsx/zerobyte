@@ -70,7 +70,7 @@ export const createApp = () => {
 	);
 
 	app
-		.get("healthcheck", (c) => c.json({ status: "ok" }))
+		.get("/api/healthcheck", (c) => c.json({ status: "ok" }))
 		.route("/api/v1/auth", authController)
 		.route("/api/v1/volumes", volumeController)
 		.route("/api/v1/repositories", repositoriesController)
