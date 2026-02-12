@@ -11,7 +11,7 @@ export const createTestRepository = async (overrides: Partial<RepositoryInsert> 
 		name: faker.string.alphanumeric(10),
 		shortId: faker.string.alphanumeric(6),
 		config: {
-			name: "test-repo",
+			path: `/var/lib/zerobyte/repositories/${faker.string.alphanumeric(8)}`,
 			backend: "local",
 		},
 		type: "local",

@@ -14,7 +14,7 @@ import { Database } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 
 export const SnapshotError = () => {
-	const { repoId } = useParams({ from: "/(dashboard)/repositories/$repoId/$snapshotId" });
+	const { repositoryId } = useParams({ from: "/(dashboard)/repositories/$repositoryId/$snapshotId/" });
 
 	return (
 		<Card>
@@ -27,7 +27,7 @@ export const SnapshotError = () => {
 					<Link
 						to={`/repositories/$repositoryId`}
 						search={() => ({ tab: "snapshots" })}
-						params={{ repositoryId: repoId }}
+						params={{ repositoryId }}
 					>
 						<Button variant="outline">Back to repository</Button>
 					</Link>
@@ -125,9 +125,9 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 										<span className="text-muted-foreground">Backup Schedule:</span>
 										<p>
 											<Link
-												to="/backups/$scheduleId"
+												to="/backups/$backupId"
 												className="text-primary hover:underline"
-												params={{ scheduleId: backupSchedule.shortId }}
+												params={{ backupId: backupSchedule.shortId }}
 											>
 												{backupSchedule?.name}
 											</Link>

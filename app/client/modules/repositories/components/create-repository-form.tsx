@@ -33,6 +33,7 @@ import {
 	SftpRepositoryForm,
 	AdvancedForm,
 } from "./repository-forms";
+import { REPOSITORY_BASE } from "~/client/lib/constants";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -52,7 +53,7 @@ type Props = {
 };
 
 const defaultValuesForType = {
-	local: { backend: "local" as const, compressionMode: "auto" as const },
+	local: { backend: "local" as const, compressionMode: "auto" as const, path: REPOSITORY_BASE },
 	s3: { backend: "s3" as const, compressionMode: "auto" as const },
 	r2: { backend: "r2" as const, compressionMode: "auto" as const },
 	gcs: { backend: "gcs" as const, compressionMode: "auto" as const },
@@ -128,6 +129,7 @@ export const CreateRepositoryForm = ({
 									});
 								}}
 								value={field.value}
+								disabled={mode === "update"}
 							>
 								<FormControl>
 									<SelectTrigger>
@@ -192,6 +194,7 @@ export const CreateRepositoryForm = ({
 							<FormControl>
 								<Checkbox
 									checked={field.value}
+									disabled={mode === "update"}
 									onCheckedChange={(checked) => {
 										field.onChange(checked);
 										if (!checked) {

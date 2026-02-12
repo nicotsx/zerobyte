@@ -95,11 +95,11 @@ export const SnapshotFileBrowser = (props: Props) => {
 						</div>
 						<div className="flex gap-2">
 							<Link
-								to={backupId ? "/backups/$backupId/$snapshotId/restore" : "/repositories/$repoId/$snapId/restore"}
+								to={backupId ? "/backups/$backupId/$snapshotId/restore" : "/repositories/$repositoryId/$snapshotId/restore"}
 								params={
 									backupId
 										? { backupId, snapshotId: snapshot.short_id }
-										: { repoId: repositoryId, snapId: snapshot.short_id }
+										: { repositoryId: repositoryId, snapshotId: snapshot.short_id }
 								}
 								className={buttonVariants({ variant: "primary", size: "sm" })}
 							>

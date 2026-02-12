@@ -9,22 +9,22 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-details";
 
-export const Route = createFileRoute("/(dashboard)/backups/$scheduleId")({
+export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	component: RouteComponent,
 	loader: async ({ params, context }) => {
-		const { scheduleId } = params;
+		const { backupId } = params;
 
 		const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
-			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { scheduleId } }) }),
+			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { scheduleId: backupId } }) }),
 			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
 			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
-			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { scheduleId } }) }),
-			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { scheduleId } }) }),
-		]);
+			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { scheduleId: backupId } }) }),
+			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { scheduleId: backupId } }) }),
+		])
 
 		void context.queryClient.prefetchQuery({
 			...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } }),
-		});
+		})
 
 		return { schedule, notifs, repos, scheduleNotifs, mirrors };
 	},
@@ -47,7 +47,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$scheduleId")({
 
 function RouteComponent() {
 	const loaderData = Route.useLoaderData();
-	const { scheduleId } = Route.useParams();
+	const { backupId } = Route.useParams();
 
-	return <ScheduleDetailsPage loaderData={loaderData} scheduleId={scheduleId} />;
+	return <ScheduleDetailsPage loaderData={loaderData} scheduleId={backupId} />;
 }

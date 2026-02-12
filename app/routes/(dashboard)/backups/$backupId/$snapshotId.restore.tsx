@@ -17,7 +17,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 				...getSnapshotDetailsOptions({ path: { id: schedule.data?.repositoryId, snapshotId: params.snapshotId } }),
 			}),
 			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { id: schedule.data?.repositoryId } }) }),
-		]);
+		])
 
 		return { snapshot, repository, schedule: schedule.data };
 	},
@@ -51,5 +51,5 @@ function RouteComponent() {
 			snapshot={snapshot}
 			repository={repository}
 		/>
-	);
+	)
 }

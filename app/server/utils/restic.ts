@@ -4,7 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { throttle } from "es-toolkit";
 import { type } from "arktype";
-import { REPOSITORY_BASE, RESTIC_PASS_FILE, DEFAULT_EXCLUDES, RESTIC_CACHE_DIR } from "../core/constants";
+import { RESTIC_PASS_FILE, DEFAULT_EXCLUDES, RESTIC_CACHE_DIR } from "../core/constants";
 import { config as appConfig } from "../core/config";
 import { logger } from "./logger";
 import { cryptoUtils } from "./crypto";
@@ -42,12 +42,7 @@ const snapshotInfoSchema = type({
 export const buildRepoUrl = (config: RepositoryConfig): string => {
 	switch (config.backend) {
 		case "local":
-			if (config.isExistingRepository) {
-				if (!config.path) throw new Error("Path is required for existing local repositories");
-				return config.path;
-			}
-
-			return config.path ? `${config.path}/${config.name}` : `${REPOSITORY_BASE}/${config.name}`;
+			return config.path;
 		case "s3":
 			return `s3:${config.endpoint}/${config.bucket}`;
 		case "r2": {

@@ -140,6 +140,7 @@ export const deleteRepositoryDto = describeRoute({
 export const updateRepositoryBody = type({
 	name: "string?",
 	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+	config: repositoryConfigSchema.optional(),
 });
 
 export type UpdateRepositoryBody = typeof updateRepositoryBody.infer;
@@ -159,6 +160,9 @@ export const updateRepositoryDto = describeRoute({
 					schema: resolver(updateRepositoryResponse),
 				},
 			},
+		},
+		400: {
+			description: "Invalid repository update payload",
 		},
 		404: {
 			description: "Repository not found",

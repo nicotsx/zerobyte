@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -23,6 +23,7 @@ import { executeDoctor } from "./doctor";
 import { logger } from "~/server/utils/logger";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { backupsService } from "../backups/backups.service";
+import type { UpdateRepositoryBody } from "./repositories.dto";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -80,16 +81,51 @@ const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig
 	return encryptedConfig as RepositoryConfig;
 };
 
+const decryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
+	const decryptedConfig: Record<string, unknown> = { ...config };
+
+	if (config.customPassword) {
+		decryptedConfig.customPassword = await cryptoUtils.resolveSecret(config.customPassword);
+	}
+
+	if (config.cacert) {
+		decryptedConfig.cacert = await cryptoUtils.resolveSecret(config.cacert);
+	}
+
+	switch (config.backend) {
+		case "s3":
+		case "r2":
+			decryptedConfig.accessKeyId = await cryptoUtils.resolveSecret(config.accessKeyId);
+			decryptedConfig.secretAccessKey = await cryptoUtils.resolveSecret(config.secretAccessKey);
+			break;
+		case "gcs":
+			decryptedConfig.credentialsJson = await cryptoUtils.resolveSecret(config.credentialsJson);
+			break;
+		case "azure":
+			decryptedConfig.accountKey = await cryptoUtils.resolveSecret(config.accountKey);
+			break;
+		case "rest":
+			if (config.username) {
+				decryptedConfig.username = await cryptoUtils.resolveSecret(config.username);
+			}
+			if (config.password) {
+				decryptedConfig.password = await cryptoUtils.resolveSecret(config.password);
+			}
+			break;
+		case "sftp":
+			decryptedConfig.privateKey = await cryptoUtils.resolveSecret(config.privateKey);
+			break;
+	}
+
+	return decryptedConfig as RepositoryConfig;
+};
+
 const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
 	const organizationId = getOrganizationId();
 	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 
 	let processedConfig = config;
-	if (config.backend === "local" && !config.isExistingRepository) {
-		processedConfig = { ...config, name: shortId };
-	}
-
 	const encryptedConfig = await encryptConfig(processedConfig);
 
 	const [created] = await db
@@ -526,38 +562,74 @@ const refreshSnapshots = async (id: string) => {
 	}
 };
 
-const updateRepository = async (id: string, updates: { name?: string; compressionMode?: CompressionMode }) => {
+const updateRepository = async (id: string, updates: UpdateRepositoryBody) => {
 	const existing = await findRepository(id);
 
 	if (!existing) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const newConfig = repositoryConfigSchema(existing.config);
-	if (newConfig instanceof type.errors) {
+	const existingConfig = repositoryConfigSchema(existing.config);
+	if (existingConfig instanceof type.errors) {
 		throw new InternalServerError("Invalid repository configuration");
 	}
 
-	const encryptedConfig = await encryptConfig(newConfig);
-
 	let newName = existing.name;
-	if (updates.name !== undefined && updates.name !== existing.name) {
+	if (updates.name) {
 		newName = updates.name.trim();
+		if (newName.length === 0) {
+			throw new BadRequestError("Repository name cannot be empty");
+		}
 	}
+
+	let parsedConfig = existingConfig;
+	if (updates.config) {
+		const nextConfig = repositoryConfigSchema(updates.config);
+		if (nextConfig instanceof type.errors) {
+			throw new BadRequestError("Invalid repository configuration");
+		}
+
+		if (nextConfig.backend !== existing.type) {
+			throw new BadRequestError("Repository backend cannot be changed");
+		}
+
+		parsedConfig = nextConfig;
+	}
+
+	const decryptedExisting = existingConfig ? await decryptConfig(existingConfig) : null;
+	const configChanged =
+		updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
+	const encryptedConfig = updates.config ? await encryptConfig(parsedConfig) : existingConfig;
+
+	const updatedAt = Date.now();
+	const updatePayload = {
+		name: newName,
+		compressionMode: updates.compressionMode ?? existing.compressionMode,
+		updatedAt,
+		config: encryptedConfig,
+		...(configChanged
+			? {
+					status: "unknown" as const,
+					lastChecked: null,
+					lastError: null,
+					doctorResult: null,
+				}
+			: {}),
+	};
 
 	const [updated] = await db
 		.update(repositoriesTable)
-		.set({
-			name: newName,
-			compressionMode: updates.compressionMode ?? existing.compressionMode,
-			updatedAt: Date.now(),
-			config: encryptedConfig,
-		})
-		.where(eq(repositoriesTable.id, existing.id))
+		.set(updatePayload)
+		.where(and(eq(repositoriesTable.id, existing.id), eq(repositoriesTable.organizationId, existing.organizationId)))
 		.returning();
 
 	if (!updated) {
 		throw new InternalServerError("Failed to update repository");
+	}
+
+	if (configChanged) {
+		cache.delByPrefix(`snapshots:${existing.id}:`);
+		cache.delByPrefix(`ls:${existing.id}:`);
 	}
 
 	return { repository: updated };

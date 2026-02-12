@@ -172,8 +172,8 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 										<div className="flex items-center gap-2">
 											<Link
 												hidden={!backup}
-												to={backup ? `/backups/$scheduleId` : "."}
-												params={backup ? { scheduleId: String(backup.id) } : {}}
+												to={backup ? `/backups/$backupId` : "."}
+												params={backup ? { backupId: String(backup.id) } : {}}
 												onClick={(e) => e.stopPropagation()}
 												className="hover:underline"
 											>

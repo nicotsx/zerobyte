@@ -8,7 +8,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 
 export default function RepositoryDetailsPage({ repositoryId }: { repositoryId: string }) {
 	const navigate = useNavigate();
-	const { tab } = useSearch({ from: "/(dashboard)/repositories/$repositoryId" });
+	const { tab } = useSearch({ from: "/(dashboard)/repositories/$repositoryId/" });
 	const activeTab = tab || "info";
 
 	const { data } = useSuspenseQuery({

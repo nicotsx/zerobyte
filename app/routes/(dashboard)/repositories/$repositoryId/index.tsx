@@ -7,20 +7,20 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import RepositoryDetailsPage from "~/client/modules/repositories/routes/repository-details";
 
-export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId")({
+export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")({
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
 		void context.queryClient.prefetchQuery({
 			...listSnapshotsOptions({ path: { id: params.repositoryId } }),
-		});
+		})
 		void context.queryClient.prefetchQuery({
 			...listBackupSchedulesOptions(),
-		});
+		})
 
 		const res = await context.queryClient.ensureQueryData({
 			...getRepositoryOptions({ path: { id: params.repositoryId } }),
-		});
+		})
 
 		return res;
 	},
