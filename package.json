@@ -63,7 +63,7 @@
 		"date-fns": "^4.1.0",
 		"dither-plugin": "^1.1.1",
 		"dotenv": "^17.2.4",
-		"drizzle-orm": "^1.0.0-beta.12-a5629fb",
+		"drizzle-orm": "^1.0.0-beta.15-859cf75",
 		"es-toolkit": "^1.44.0",
 		"hono": "^4.11.9",
 		"hono-openapi": "^1.2.0",
