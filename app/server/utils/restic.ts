@@ -26,6 +26,7 @@ const backupOutputSchema = type({
 	data_blobs: "number",
 	tree_blobs: "number",
 	data_added: "number",
+	data_added_packed: "number?",
 	total_files_processed: "number",
 	total_bytes_processed: "number",
 	total_duration: "number",

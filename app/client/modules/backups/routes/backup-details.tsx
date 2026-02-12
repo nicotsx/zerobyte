@@ -30,6 +30,7 @@ import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
 import { SnapshotTimeline } from "../components/snapshot-timeline";
 import { ScheduleNotificationsConfig } from "../components/schedule-notifications-config";
 import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
+import { BackupSummaryCard } from "~/client/components/backup-summary-card";
 import { cn } from "~/client/lib/utils";
 import type {
 	BackupSchedule,
@@ -251,6 +252,7 @@ export function ScheduleDetailsPage(props: Props) {
 				error={failureReason?.message}
 				onSnapshotSelect={setSelectedSnapshotId}
 			/>
+			<BackupSummaryCard summary={selectedSnapshot?.summary} />
 			{selectedSnapshot && (
 				<SnapshotFileBrowser
 					key={selectedSnapshot?.short_id}

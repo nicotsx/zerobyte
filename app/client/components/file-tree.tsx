@@ -529,7 +529,7 @@ const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onChec
 			<span className="truncate">{name}</span>
 			{typeof size === "number" && (
 				<span className="ml-auto shrink-0 text-xs text-muted-foreground">
-					<ByteSize bytes={size} />
+					<ByteSize bytes={size} base={1024} />
 				</span>
 			)}
 		</NodeButton>

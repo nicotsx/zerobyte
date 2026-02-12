@@ -116,6 +116,7 @@ export const repositoriesController = new Hono()
 				size: summary?.total_bytes_processed || 0,
 				time: new Date(snapshot.time).getTime(),
 				retentionCategories: retentionCategories.get(snapshot.short_id) ?? [],
+				summary: summary,
 			};
 		});
 

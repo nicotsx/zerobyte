@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { ByteSize, formatBytes } from "~/client/components/bytes-size";
+import { ByteSize } from "~/client/components/bytes-size";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
 import { type BackupProgressEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { formatDuration } from "~/utils/utils";
+import { formatBytes } from "../../../../utils/format-bytes";
 
 type Props = {
 	scheduleId: number;
@@ -69,7 +70,7 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 					<p className="font-medium">
 						{progress ? (
 							<>
-								<ByteSize bytes={progress.bytes_done} /> / <ByteSize bytes={progress.total_bytes} />
+								<ByteSize bytes={progress.bytes_done} base={1024} /> / <ByteSize bytes={progress.total_bytes} base={1024} />
 							</>
 						) : (
 							"—"

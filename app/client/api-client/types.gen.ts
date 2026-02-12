@@ -1650,6 +1650,22 @@ export type ListSnapshotsResponses = {
 		tags: Array<string>;
 		time: number;
 		hostname?: string;
+		summary?: {
+			backup_end: string;
+			backup_start: string;
+			data_added: number;
+			data_blobs: number;
+			dirs_changed: number;
+			dirs_new: number;
+			dirs_unmodified: number;
+			files_changed: number;
+			files_new: number;
+			files_unmodified: number;
+			total_bytes_processed: number;
+			total_files_processed: number;
+			tree_blobs: number;
+			data_added_packed?: number;
+		};
 	}>;
 };
 
@@ -1720,6 +1736,22 @@ export type GetSnapshotDetailsResponses = {
 		tags: Array<string>;
 		time: number;
 		hostname?: string;
+		summary?: {
+			backup_end: string;
+			backup_start: string;
+			data_added: number;
+			data_blobs: number;
+			dirs_changed: number;
+			dirs_new: number;
+			dirs_unmodified: number;
+			files_changed: number;
+			files_new: number;
+			files_unmodified: number;
+			total_bytes_processed: number;
+			total_files_processed: number;
+			tree_blobs: number;
+			data_added_packed?: number;
+		};
 	};
 };
 

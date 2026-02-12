@@ -8,6 +8,7 @@ import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
 import { formatDateTime } from "~/client/lib/datetime";
+import { BackupSummaryCard } from "~/client/components/backup-summary-card";
 import { useState } from "react";
 import { Database } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
@@ -170,6 +171,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 					</CardContent>
 				</Card>
 			)}
+			{data && <BackupSummaryCard summary={data.summary} />}
 		</div>
 	);
 }

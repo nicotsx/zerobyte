@@ -1,6 +1,6 @@
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
-import { restic } from "../../utils/restic";
+import { restic, type BackupOutput } from "../../utils/restic";
 import { logger } from "../../utils/logger";
 import { cache } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
@@ -125,14 +125,25 @@ const runBackupOperation = async (ctx: BackupContext, signal: AbortSignal) => {
 				});
 			},
 		});
-		return result.exitCode;
+		return result;
 	} finally {
 		releaseBackupLock();
 	}
 };
 
-const finalizeSuccessfulBackup = async (ctx: BackupContext, scheduleId: number, exitCode: number) => {
+const buildBackupSummary = (result: BackupOutput | null | undefined) => {
+	if (!result) return undefined;
+	return result;
+};
+
+const finalizeSuccessfulBackup = async (
+	ctx: BackupContext,
+	scheduleId: number,
+	exitCode: number,
+	result: BackupOutput | null,
+) => {
 	const finalStatus = exitCode === 0 ? "success" : "warning";
+	const summary = buildBackupSummary(result);
 
 	if (ctx.schedule.retentionPolicy) {
 		void runForget(scheduleId).catch((error) => {
@@ -171,6 +182,7 @@ const finalizeSuccessfulBackup = async (ctx: BackupContext, scheduleId: number, 
 		volumeName: ctx.volume.name,
 		repositoryName: ctx.repository.name,
 		status: finalStatus,
+		summary,
 	});
 
 	notificationsService
@@ -178,6 +190,7 @@ const finalizeSuccessfulBackup = async (ctx: BackupContext, scheduleId: number, 
 			volumeName: ctx.volume.name,
 			repositoryName: ctx.repository.name,
 			scheduleName: ctx.schedule.name,
+			summary,
 		})
 		.catch((error) => {
 			logger.error(`Failed to send backup success notification: ${toMessage(error)}`);
@@ -259,8 +272,8 @@ const executeBackup = async (scheduleId: number, manual = false): Promise<void> 
 	runningBackups.set(scheduleId, abortController);
 
 	try {
-		const exitCode = await runBackupOperation(ctx, abortController.signal);
-		await finalizeSuccessfulBackup(ctx, scheduleId, exitCode);
+		const backupResult = await runBackupOperation(ctx, abortController.signal);
+		await finalizeSuccessfulBackup(ctx, scheduleId, backupResult.exitCode, backupResult.result);
 	} catch (error) {
 		await handleBackupFailure(scheduleId, ctx.organizationId, error, ctx);
 	} finally {

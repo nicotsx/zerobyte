@@ -26,6 +26,22 @@ interface ServerEvents {
 		volumeName: string;
 		repositoryName: string;
 		status: "success" | "error" | "stopped" | "warning";
+		summary?: {
+			files_new: number;
+			files_changed: number;
+			files_unmodified: number;
+			dirs_new: number;
+			dirs_changed: number;
+			dirs_unmodified: number;
+			data_blobs: number;
+			tree_blobs: number;
+			data_added: number;
+			data_added_packed?: number;
+			total_files_processed: number;
+			total_bytes_processed: number;
+			total_duration: number;
+			snapshot_id: string;
+		};
 	}) => void;
 	"mirror:started": (data: {
 		organizationId: string;
