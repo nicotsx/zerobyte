@@ -59,8 +59,16 @@ export const mirrorQueries = {
 		});
 	},
 
-	updateStatus: async (mirrorId: number, status: MirrorStatusUpdate) => {
-		return db.update(backupScheduleMirrorsTable).set(status).where(eq(backupScheduleMirrorsTable.id, mirrorId));
+	updateStatus: async (scheduleId: number, repositoryId: string, status: MirrorStatusUpdate) => {
+		return db
+			.update(backupScheduleMirrorsTable)
+			.set(status)
+			.where(
+				and(
+					eq(backupScheduleMirrorsTable.scheduleId, scheduleId),
+					eq(backupScheduleMirrorsTable.repositoryId, repositoryId),
+				),
+			);
 	},
 };
 

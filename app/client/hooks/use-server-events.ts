@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type {
 	BackupCompletedEventDto,
@@ -205,7 +205,7 @@ export function useServerEvents() {
 		};
 	}, [queryClient]);
 
-	const addEventListener = (event: ServerEventType, handler: EventHandler) => {
+	const addEventListener = useCallback((event: ServerEventType, handler: EventHandler) => {
 		if (!handlersRef.current.has(event)) {
 			handlersRef.current.set(event, new Set());
 		}
@@ -214,7 +214,7 @@ export function useServerEvents() {
 		return () => {
 			handlersRef.current.get(event)?.delete(handler);
 		};
-	};
+	}, []);
 
 	return { addEventListener };
 }

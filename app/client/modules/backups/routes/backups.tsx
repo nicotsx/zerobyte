@@ -49,8 +49,25 @@ export function BackupsPage() {
 		if (over && active.id !== over.id) {
 			setLocalItems((currentItems) => {
 				const baseItems = currentItems ?? schedules?.map((s) => s.id) ?? [];
-				const oldIndex = baseItems.indexOf(active.id as number);
-				const newIndex = baseItems.indexOf(over.id as number);
+				const activeId = active.id as number;
+				const overId = over.id as number;
+				let oldIndex = baseItems.indexOf(activeId);
+				let newIndex = baseItems.indexOf(overId);
+
+				if (oldIndex === -1 || newIndex === -1) {
+					const freshItems = schedules?.map((s) => s.id) ?? [];
+					oldIndex = freshItems.indexOf(activeId);
+					newIndex = freshItems.indexOf(overId);
+
+					if (oldIndex === -1 || newIndex === -1) {
+						return currentItems;
+					}
+
+					const newItems = arrayMove(freshItems, oldIndex, newIndex);
+					reorderMutation.mutate({ body: { scheduleIds: newItems } });
+					return newItems;
+				}
+
 				const newItems = arrayMove(baseItems, oldIndex, newIndex);
 				reorderMutation.mutate({ body: { scheduleIds: newItems } });
 

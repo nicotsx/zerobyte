@@ -356,7 +356,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 													<StatusDot
 														variant={getStatusVariant(assignment.lastCopyStatus)}
 														label={getStatusLabel(assignment)}
-														animated={isSyncing(assignment) ? true : undefined}
+														animated={isSyncing(assignment)}
 													/>
 													<span className="text-sm text-muted-foreground">{getLabel(assignment)}</span>
 												</div>
