@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardContent } from "~/client/components/ui/card";
@@ -16,12 +15,6 @@ interface Props {
 
 export const SnapshotTimeline = (props: Props) => {
 	const { snapshots, snapshotId, loading, onSnapshotSelect, error } = props;
-
-	useEffect(() => {
-		if (!snapshotId && snapshots.length > 0) {
-			onSnapshotSelect(snapshots[snapshots.length - 1].short_id);
-		}
-	}, [snapshotId, snapshots, onSnapshotSelect]);
 
 	if (error) {
 		return (

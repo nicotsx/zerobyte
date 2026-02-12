@@ -46,7 +46,7 @@ const scheduleMirrorSchema = type({
 	repositoryId: "string",
 	enabled: "boolean",
 	lastCopyAt: "number | null",
-	lastCopyStatus: "'success' | 'error' | null",
+	lastCopyStatus: "'success' | 'error' | 'in_progress' | null",
 	lastCopyError: "string | null",
 	createdAt: "number",
 	repository: repositorySchema,

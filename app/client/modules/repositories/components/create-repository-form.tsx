@@ -1,6 +1,6 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { type } from "arktype";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Save } from "lucide-react";
 import { cn } from "~/client/lib/utils";
@@ -88,15 +88,6 @@ export const CreateRepositoryForm = ({
 
 	const { capabilities } = useSystemInfo();
 
-	useEffect(() => {
-		form.reset({
-			name: form.getValues().name,
-			isExistingRepository: form.getValues().isExistingRepository,
-			customPassword: form.getValues().customPassword,
-			...defaultValuesForType[watchedBackend as keyof typeof defaultValuesForType],
-		});
-	}, [watchedBackend, form]);
-
 	return (
 		<Form {...form}>
 			<form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", className)}>
@@ -126,7 +117,18 @@ export const CreateRepositoryForm = ({
 					render={({ field }) => (
 						<FormItem>
 							<FormLabel>Backend</FormLabel>
-							<Select onValueChange={field.onChange} value={field.value}>
+							<Select
+								onValueChange={(value) => {
+									field.onChange(value);
+									form.reset({
+										name: form.getValues().name,
+										isExistingRepository: form.getValues().isExistingRepository,
+										customPassword: form.getValues().customPassword,
+										...defaultValuesForType[value as keyof typeof defaultValuesForType],
+									});
+								}}
+								value={field.value}
+							>
 								<FormControl>
 									<SelectTrigger>
 										<SelectValue placeholder="Select a backend" />

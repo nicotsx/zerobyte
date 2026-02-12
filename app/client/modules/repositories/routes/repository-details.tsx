@@ -1,14 +1,12 @@
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useEffect } from "react";
-import { getRepositoryOptions, listSnapshotsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense } from "react";
+import { getRepositoryOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 
 export default function RepositoryDetailsPage({ repositoryId }: { repositoryId: string }) {
-	const queryClient = useQueryClient();
-
 	const navigate = useNavigate();
 	const { tab } = useSearch({ from: "/(dashboard)/repositories/$repositoryId" });
 	const activeTab = tab || "info";
@@ -16,10 +14,6 @@ export default function RepositoryDetailsPage({ repositoryId }: { repositoryId: 
 	const { data } = useSuspenseQuery({
 		...getRepositoryOptions({ path: { id: repositoryId } }),
 	});
-
-	useEffect(() => {
-		void queryClient.prefetchQuery(listSnapshotsOptions({ path: { id: data.id } }));
-	}, [queryClient, data.id]);
 
 	return (
 		<>

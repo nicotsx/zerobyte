@@ -296,6 +296,37 @@ describe("mirror operations", () => {
 		expect(updatedMirror?.lastCopyAt).not.toBeNull();
 	});
 
+	test("should finalize mirror status when mirror settings are updated during copy", async () => {
+		// arrange
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+
+		const originalMirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		resticCopyMock.mockImplementationOnce(async () => {
+			await backupsService.updateMirrors(schedule.id, {
+				mirrors: [{ repositoryId: mirrorRepository.id, enabled: true }],
+			});
+			return { success: true, output: "" };
+		});
+
+		// act
+		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+
+		// assert
+		const mirrors = await backupsService.getMirrors(schedule.id);
+		expect(mirrors).toHaveLength(1);
+		expect(mirrors[0]?.id).not.toBe(originalMirror.id);
+		expect(mirrors[0]?.lastCopyStatus).toBe("success");
+		expect(mirrors[0]?.lastCopyError).toBeNull();
+		expect(mirrors[0]?.lastCopyAt).not.toBeNull();
+	});
+
 	test("should update mirror status on failure", async () => {
 		// arrange
 		const volume = await createTestVolume();

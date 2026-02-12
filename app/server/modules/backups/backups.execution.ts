@@ -367,7 +367,6 @@ const copyToSingleMirror = async (
 	schedule: BackupSchedule,
 	sourceRepository: Repository,
 	mirror: {
-		id: number;
 		repositoryId: string;
 		repository: Repository;
 	},
@@ -382,6 +381,11 @@ const copyToSingleMirror = async (
 			scheduleId,
 			repositoryId: mirror.repositoryId,
 			repositoryName: mirror.repository.name,
+		});
+
+		await mirrorQueries.updateStatus(scheduleId, mirror.repositoryId, {
+			lastCopyStatus: "in_progress",
+			lastCopyError: null,
 		});
 
 		const releaseSource = await repoMutex.acquireShared(sourceRepository.id, `mirror_source:${scheduleId}`);
@@ -403,7 +407,7 @@ const copyToSingleMirror = async (
 			});
 		}
 
-		await mirrorQueries.updateStatus(mirror.id, {
+		await mirrorQueries.updateStatus(scheduleId, mirror.repositoryId, {
 			lastCopyAt: Date.now(),
 			lastCopyStatus: "success",
 			lastCopyError: null,
@@ -422,7 +426,7 @@ const copyToSingleMirror = async (
 		const errorMessage = toMessage(error);
 		logger.error(`[Background] Failed to copy to mirror repository ${mirror.repository.name}: ${errorMessage}`);
 
-		await mirrorQueries.updateStatus(mirror.id, {
+		await mirrorQueries.updateStatus(scheduleId, mirror.repositoryId, {
 			lastCopyAt: Date.now(),
 			lastCopyStatus: "error",
 			lastCopyError: errorMessage,

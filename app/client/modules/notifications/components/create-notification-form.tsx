@@ -1,6 +1,5 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { type } from "arktype";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "~/client/lib/utils";
 import { deepClean } from "~/utils/object";
@@ -119,15 +118,6 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 	const { watch } = form;
 	const watchedType = watch("type");
 
-	useEffect(() => {
-		if (!initialValues) {
-			form.reset({
-				name: form.getValues().name || "",
-				...defaultValuesForType[watchedType as keyof typeof defaultValuesForType],
-			});
-		}
-	}, [watchedType, form, initialValues]);
-
 	return (
 		<Form {...form}>
 			<form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", className)}>
@@ -138,12 +128,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 						<FormItem>
 							<FormLabel>Name</FormLabel>
 							<FormControl>
-								<Input
-									{...field}
-									placeholder="My notification"
-									max={32}
-									min={2}
-								/>
+								<Input {...field} placeholder="My notification" max={32} min={2} />
 							</FormControl>
 							<FormDescription>Unique identifier for this notification destination.</FormDescription>
 							<FormMessage />
@@ -158,7 +143,15 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 						<FormItem>
 							<FormLabel>Type</FormLabel>
 							<Select
-								onValueChange={field.onChange}
+								onValueChange={(value) => {
+									field.onChange(value);
+									if (!initialValues) {
+										form.reset({
+											name: form.getValues().name || "",
+											...defaultValuesForType[value as keyof typeof defaultValuesForType],
+										});
+									}
+								}}
 								value={field.value}
 								disabled={mode === "update"}
 							>
