@@ -9,10 +9,10 @@ import {
 import { cryptoUtils } from "../../utils/crypto";
 import { logger } from "../../utils/logger";
 import { sendNotification } from "../../utils/shoutrrr";
-import type { BackupOutput } from "../../utils/restic";
 import { formatDuration } from "~/utils/utils";
 import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
+import type { ResticBackupRunSummaryDto } from "~/schemas/restic-dto";
 import { toMessage } from "../../utils/errors";
 import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
@@ -318,8 +318,6 @@ const updateScheduleNotifications = async (
 	return getScheduleNotifications(scheduleId);
 };
 
-type BackupSummary = Omit<BackupOutput, "message_type">;
-
 const formatBytesText = (bytes: number) => {
 	const { text, unit } = formatBytes(bytes, {
 		base: 1024,
@@ -330,7 +328,7 @@ const formatBytesText = (bytes: number) => {
 	return unit ? `${text} ${unit}` : text;
 };
 
-const buildBackupSummaryLines = (summary?: BackupSummary) => {
+const buildBackupSummaryLines = (summary?: ResticBackupRunSummaryDto) => {
 	if (!summary) return [];
 
 	const safeNumber = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
@@ -374,7 +372,7 @@ const sendBackupNotification = async (
 		filesProcessed?: number;
 		bytesProcessed?: string;
 		snapshotId?: string;
-		summary?: BackupSummary;
+		summary?: ResticBackupRunSummaryDto;
 	},
 ) => {
 	try {
@@ -454,7 +452,7 @@ function buildNotificationMessage(
 		filesProcessed?: number;
 		bytesProcessed?: string;
 		snapshotId?: string;
-		summary?: BackupSummary;
+		summary?: ResticBackupRunSummaryDto;
 	},
 ) {
 	const backupName = context.scheduleName ?? "backup";

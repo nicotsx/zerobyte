@@ -1,6 +1,6 @@
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
-import { restic, type BackupOutput } from "../../utils/restic";
+import { restic } from "../../utils/restic";
 import { logger } from "../../utils/logger";
 import { cache } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
@@ -11,6 +11,7 @@ import { repoMutex } from "../../core/repository-mutex";
 import { getOrganizationId } from "~/server/core/request-context";
 import { scheduleQueries, mirrorQueries, repositoryQueries } from "./backups.queries";
 import { calculateNextRun, createBackupOptions } from "./backup.helpers";
+import type { ResticBackupOutputDto } from "~/schemas/restic-dto";
 
 const runningBackups = new Map<number, AbortController>();
 
@@ -131,7 +132,7 @@ const runBackupOperation = async (ctx: BackupContext, signal: AbortSignal) => {
 	}
 };
 
-const buildBackupSummary = (result: BackupOutput | null | undefined) => {
+const buildBackupSummary = (result: ResticBackupOutputDto | null | undefined) => {
 	if (!result) return undefined;
 	return result;
 };
@@ -140,7 +141,7 @@ const finalizeSuccessfulBackup = async (
 	ctx: BackupContext,
 	scheduleId: number,
 	exitCode: number,
-	result: BackupOutput | null,
+	result: ResticBackupOutputDto | null,
 ) => {
 	const finalStatus = exitCode === 0 ? "success" : "warning";
 	const summary = buildBackupSummary(result);

@@ -11,28 +11,18 @@ import { cryptoUtils } from "./crypto";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { safeSpawn, exec } from "./spawn";
 import type { CompressionMode, RepositoryConfig, OverwriteMode, BandwidthLimit } from "~/schemas/restic";
+import {
+	resticBackupOutputSchema,
+	resticBackupProgressSchema,
+	resticRestoreOutputSchema,
+	resticSnapshotSummarySchema,
+	type ResticBackupProgressDto,
+	type ResticRestoreOutputDto,
+	type ResticSnapshotSummaryDto,
+} from "~/schemas/restic-dto";
 import { ResticError } from "./errors";
 import { db } from "../db/db";
 import { safeJsonParse } from "./json";
-
-const backupOutputSchema = type({
-	message_type: "'summary'",
-	files_new: "number",
-	files_changed: "number",
-	files_unmodified: "number",
-	dirs_new: "number",
-	dirs_changed: "number",
-	dirs_unmodified: "number",
-	data_blobs: "number",
-	tree_blobs: "number",
-	data_added: "number",
-	data_added_packed: "number?",
-	total_files_processed: "number",
-	total_bytes_processed: "number",
-	total_duration: "number",
-	snapshot_id: "string",
-});
-export type BackupOutput = typeof backupOutputSchema.infer;
 
 const snapshotInfoSchema = type({
 	gid: "number?",
@@ -46,22 +36,7 @@ const snapshotInfoSchema = type({
 	uid: "number?",
 	username: "string?",
 	tags: "string[]?",
-	summary: type({
-		backup_end: "string",
-		backup_start: "string",
-		data_added: "number",
-		data_added_packed: "number",
-		data_blobs: "number",
-		dirs_changed: "number",
-		dirs_new: "number",
-		dirs_unmodified: "number",
-		files_changed: "number",
-		files_new: "number",
-		files_unmodified: "number",
-		total_bytes_processed: "number",
-		total_files_processed: "number",
-		tree_blobs: "number",
-	}).optional(),
+	summary: resticSnapshotSummarySchema.optional(),
 });
 
 export const buildRepoUrl = (config: RepositoryConfig): string => {
@@ -268,19 +243,6 @@ const init = async (config: RepositoryConfig, organizationId: string, options?: 
 	return { success: true, error: null };
 };
 
-const backupProgressSchema = type({
-	message_type: "'status'",
-	seconds_elapsed: "number",
-	percent_done: "number",
-	total_files: "number",
-	files_done: "number",
-	total_bytes: "number",
-	bytes_done: "number",
-	current_files: "string[]",
-});
-
-export type BackupProgress = typeof backupProgressSchema.infer;
-
 const backup = async (
 	config: RepositoryConfig,
 	source: string,
@@ -293,7 +255,7 @@ const backup = async (
 		oneFileSystem?: boolean;
 		compressionMode?: CompressionMode;
 		signal?: AbortSignal;
-		onProgress?: (progress: BackupProgress) => void;
+		onProgress?: (progress: ResticBackupProgressDto) => void;
 	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
@@ -357,7 +319,7 @@ const backup = async (
 		if (options?.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
-				const progress = backupProgressSchema(jsonData);
+				const progress = resticBackupProgressSchema(jsonData);
 				if (!(progress instanceof type.errors)) {
 					options.onProgress(progress);
 				}
@@ -412,7 +374,7 @@ const backup = async (
 	}
 
 	logger.debug(`Restic backup output last line: ${summaryLine}`);
-	const result = backupOutputSchema(summaryLine);
+	const result = resticBackupOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
 		logger.error(`Restic backup output validation failed: ${result.summary}`);
@@ -421,16 +383,6 @@ const backup = async (
 
 	return { result, exitCode: res.exitCode };
 };
-
-const restoreOutputSchema = type({
-	message_type: "'summary'",
-	total_files: "number?",
-	files_restored: "number",
-	files_skipped: "number",
-	total_bytes: "number?",
-	bytes_restored: "number?",
-	bytes_skipped: "number",
-});
 
 const restore = async (
 	config: RepositoryConfig,
@@ -499,18 +451,20 @@ const restore = async (
 	}
 
 	logger.debug(`Restic restore output last line: ${summaryLine}`);
-	const result = restoreOutputSchema(summaryLine);
+	const result = resticRestoreOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
 		logger.warn(`Restic restore output validation failed: ${result.summary}`);
 		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
-		return {
+		const fallback: ResticRestoreOutputDto = {
 			message_type: "summary" as const,
 			total_files: 0,
 			files_restored: 0,
 			files_skipped: 0,
 			bytes_skipped: 0,
 		};
+
+		return fallback;
 	}
 
 	logger.info(
@@ -577,26 +531,9 @@ export interface Snapshot {
 	excludes?: string[] | null;
 	tags?: string[] | null;
 	program_version?: string;
-	summary?: SnapshotSummary;
+	summary?: ResticSnapshotSummaryDto;
 	id: string;
 	short_id: string;
-}
-
-export interface SnapshotSummary {
-	backup_start: string;
-	backup_end: string;
-	files_new: number;
-	files_changed: number;
-	files_unmodified: number;
-	dirs_new: number;
-	dirs_changed: number;
-	dirs_unmodified: number;
-	data_blobs: number;
-	tree_blobs: number;
-	data_added: number;
-	data_added_packed: number;
-	total_files_processed: number;
-	total_bytes_processed: number;
 }
 
 export interface ForgetReason {

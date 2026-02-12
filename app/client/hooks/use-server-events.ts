@@ -1,5 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type {
+	BackupCompletedEventDto,
+	BackupProgressEventDto,
+	BackupStartedEventDto,
+} from "~/schemas/events-dto";
 
 type ServerEventType =
 	| "connected"
@@ -15,42 +20,6 @@ type ServerEventType =
 	| "doctor:started"
 	| "doctor:completed"
 	| "doctor:cancelled";
-
-export interface BackupEvent {
-	scheduleId: number;
-	volumeName: string;
-	repositoryName: string;
-	status?: "success" | "error";
-	summary?: {
-		files_new: number;
-		files_changed: number;
-		files_unmodified: number;
-		dirs_new: number;
-		dirs_changed: number;
-		dirs_unmodified: number;
-		data_blobs: number;
-		tree_blobs: number;
-		data_added: number;
-		data_added_packed?: number;
-		total_files_processed: number;
-		total_bytes_processed: number;
-		total_duration: number;
-		snapshot_id: string;
-	};
-}
-
-export interface BackupProgressEvent {
-	scheduleId: number;
-	volumeName: string;
-	repositoryName: string;
-	seconds_elapsed: number;
-	percent_done: number;
-	total_files: number;
-	files_done: number;
-	total_bytes: number;
-	bytes_done: number;
-	current_files: string[];
-}
 
 export interface VolumeEvent {
 	volumeName: string;
@@ -103,7 +72,7 @@ export function useServerEvents() {
 		eventSource.addEventListener("heartbeat", () => {});
 
 		eventSource.addEventListener("backup:started", (e) => {
-			const data = JSON.parse(e.data) as BackupEvent;
+			const data = JSON.parse(e.data) as BackupStartedEventDto;
 			console.info("[SSE] Backup started:", data);
 
 			handlersRef.current.get("backup:started")?.forEach((handler) => {
@@ -112,7 +81,7 @@ export function useServerEvents() {
 		});
 
 		eventSource.addEventListener("backup:progress", (e) => {
-			const data = JSON.parse(e.data) as BackupProgressEvent;
+			const data = JSON.parse(e.data) as BackupProgressEventDto;
 
 			handlersRef.current.get("backup:progress")?.forEach((handler) => {
 				handler(data);
@@ -120,7 +89,7 @@ export function useServerEvents() {
 		});
 
 		eventSource.addEventListener("backup:completed", (e) => {
-			const data = JSON.parse(e.data) as BackupEvent;
+			const data = JSON.parse(e.data) as BackupCompletedEventDto;
 			console.info("[SSE] Backup completed:", data);
 
 			void queryClient.invalidateQueries();

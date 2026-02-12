@@ -1,48 +1,19 @@
 import { EventEmitter } from "node:events";
 import type { TypedEmitter } from "tiny-typed-emitter";
 import type { DoctorResult } from "~/schemas/restic";
+import type {
+	ServerBackupCompletedEventDto,
+	ServerBackupProgressEventDto,
+	ServerBackupStartedEventDto,
+} from "~/schemas/events-dto";
 
 /**
  * Event payloads for the SSE system
  */
 interface ServerEvents {
-	"backup:started": (data: { organizationId: string; scheduleId: number; volumeName: string; repositoryName: string }) => void;
-	"backup:progress": (data: {
-		organizationId: string;
-		scheduleId: number;
-		volumeName: string;
-		repositoryName: string;
-		seconds_elapsed: number;
-		percent_done: number;
-		total_files: number;
-		files_done: number;
-		total_bytes: number;
-		bytes_done: number;
-		current_files: string[];
-	}) => void;
-	"backup:completed": (data: {
-		organizationId: string;
-		scheduleId: number;
-		volumeName: string;
-		repositoryName: string;
-		status: "success" | "error" | "stopped" | "warning";
-		summary?: {
-			files_new: number;
-			files_changed: number;
-			files_unmodified: number;
-			dirs_new: number;
-			dirs_changed: number;
-			dirs_unmodified: number;
-			data_blobs: number;
-			tree_blobs: number;
-			data_added: number;
-			data_added_packed?: number;
-			total_files_processed: number;
-			total_bytes_processed: number;
-			total_duration: number;
-			snapshot_id: string;
-		};
-	}) => void;
+	"backup:started": (data: ServerBackupStartedEventDto) => void;
+	"backup:progress": (data: ServerBackupProgressEventDto) => void;
+	"backup:completed": (data: ServerBackupCompletedEventDto) => void;
 	"mirror:started": (data: {
 		organizationId: string;
 		scheduleId: number;

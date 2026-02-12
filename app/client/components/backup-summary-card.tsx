@@ -1,26 +1,10 @@
 import { Card, CardContent } from "~/client/components/ui/card";
 import { ByteSize } from "~/client/components/bytes-size";
+import type { ResticSnapshotSummaryDto } from "~/schemas/restic-dto";
 import { formatDuration } from "~/utils/utils";
 
-type BackupSummary = {
-	backup_start: string;
-	backup_end: string;
-	files_new: number;
-	files_changed: number;
-	files_unmodified: number;
-	dirs_new: number;
-	dirs_changed: number;
-	dirs_unmodified: number;
-	data_blobs: number;
-	tree_blobs: number;
-	data_added: number;
-	data_added_packed?: number | null;
-	total_files_processed: number;
-	total_bytes_processed: number;
-};
-
 type Props = {
-	summary?: BackupSummary | null;
+	summary?: ResticSnapshotSummaryDto | null;
 };
 
 const formatCount = (value: number) => value.toLocaleString();

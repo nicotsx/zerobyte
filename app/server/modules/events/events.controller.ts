@@ -4,6 +4,11 @@ import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
 import { requireAuth } from "../auth/auth.middleware";
 import type { DoctorResult } from "~/schemas/restic";
+import type {
+	ServerBackupCompletedEventDto,
+	ServerBackupProgressEventDto,
+	ServerBackupStartedEventDto,
+} from "~/schemas/events-dto";
 
 export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 	logger.info("Client connected to SSE endpoint");
@@ -15,12 +20,7 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			event: "connected",
 		});
 
-		const onBackupStarted = async (data: {
-			organizationId: string;
-			scheduleId: number;
-			volumeName: string;
-			repositoryName: string;
-		}) => {
+		const onBackupStarted = async (data: ServerBackupStartedEventDto) => {
 			if (data.organizationId !== organizationId) return;
 			await stream.writeSSE({
 				data: JSON.stringify(data),
@@ -28,19 +28,7 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			});
 		};
 
-		const onBackupProgress = async (data: {
-			organizationId: string;
-			scheduleId: number;
-			volumeName: string;
-			repositoryName: string;
-			seconds_elapsed: number;
-			percent_done: number;
-			total_files: number;
-			files_done: number;
-			total_bytes: number;
-			bytes_done: number;
-			current_files: string[];
-		}) => {
+		const onBackupProgress = async (data: ServerBackupProgressEventDto) => {
 			if (data.organizationId !== organizationId) return;
 			await stream.writeSSE({
 				data: JSON.stringify(data),
@@ -48,29 +36,7 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			});
 		};
 
-		const onBackupCompleted = async (data: {
-			organizationId: string;
-			scheduleId: number;
-			volumeName: string;
-			repositoryName: string;
-			status: "success" | "error" | "stopped" | "warning";
-			summary?: {
-				files_new: number;
-				files_changed: number;
-				files_unmodified: number;
-				dirs_new: number;
-				dirs_changed: number;
-				dirs_unmodified: number;
-				data_blobs: number;
-				tree_blobs: number;
-				data_added: number;
-				data_added_packed?: number;
-				total_files_processed: number;
-				total_bytes_processed: number;
-				total_duration: number;
-				snapshot_id: string;
-			};
-		}) => {
+		const onBackupCompleted = async (data: ServerBackupCompletedEventDto) => {
 			if (data.organizationId !== organizationId) return;
 			await stream.writeSSE({
 				data: JSON.stringify(data),
