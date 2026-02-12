@@ -328,7 +328,7 @@ const formatBytesText = (bytes: number) => {
 	return unit ? `${text} ${unit}` : text;
 };
 
-const buildBackupSummaryLines = (summary?: ResticBackupRunSummaryDto) => {
+const buildBackupNotificationLines = (summary?: ResticBackupRunSummaryDto) => {
 	if (!summary) return [];
 
 	const safeNumber = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
@@ -336,6 +336,28 @@ const buildBackupSummaryLines = (summary?: ResticBackupRunSummaryDto) => {
 	const safeBytesText = (value: number | undefined) => formatBytesText(safeNumber(value));
 	const safeDurationText = (value: number | undefined) =>
 		typeof value === "number" && Number.isFinite(value) ? formatDuration(Math.round(value)) : "N/A";
+
+	const hasDetailedStats = summary.files_new || summary.files_changed || summary.dirs_new || summary.data_blobs;
+
+	if (!hasDetailedStats) {
+		const lines: (string | null)[] = [];
+
+		if (summary.total_duration) {
+			lines.push(`Duration: ${Math.round(summary.total_duration)}s`);
+		}
+		if (summary.total_files_processed !== undefined) {
+			lines.push(`Files: ${summary.total_files_processed.toLocaleString()}`);
+		}
+		if (summary.total_bytes_processed !== undefined) {
+			lines.push(`Size: ${safeBytesText(summary.total_bytes_processed)}`);
+		}
+		if (summary.snapshot_id) {
+			lines.push(`Snapshot: ${summary.snapshot_id}`);
+		}
+
+		return lines.filter((line): line is string => Boolean(line));
+	}
+
 	const snapshotText = summary.snapshot_id ?? "N/A";
 
 	const lines = [
@@ -357,7 +379,7 @@ const buildBackupSummaryLines = (summary?: ResticBackupRunSummaryDto) => {
 		`- Snapshot: ${snapshotText}`,
 	];
 
-	return lines.filter((line): line is string => Boolean(line));
+	return lines.filter(Boolean);
 };
 
 const sendBackupNotification = async (
@@ -368,10 +390,6 @@ const sendBackupNotification = async (
 		repositoryName: string;
 		scheduleName?: string;
 		error?: string;
-		duration?: number;
-		filesProcessed?: number;
-		bytesProcessed?: string;
-		snapshotId?: string;
 		summary?: ResticBackupRunSummaryDto;
 	},
 ) => {
@@ -415,11 +433,7 @@ const sendBackupNotification = async (
 				const decryptedConfig = await decryptSensitiveFields(assignment.destination.config);
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
-				const result = await sendNotification({
-					shoutrrrUrl,
-					title,
-					body,
-				});
+				const result = await sendNotification({ shoutrrrUrl, title, body });
 
 				if (result.success) {
 					logger.info(
@@ -448,21 +462,11 @@ function buildNotificationMessage(
 		repositoryName: string;
 		scheduleName?: string;
 		error?: string;
-		duration?: number;
-		filesProcessed?: number;
-		bytesProcessed?: string;
-		snapshotId?: string;
 		summary?: ResticBackupRunSummaryDto;
 	},
 ) {
 	const backupName = context.scheduleName ?? "backup";
-	const derivedDuration =
-		context.duration ?? (context.summary?.total_duration ? context.summary.total_duration * 1000 : undefined);
-	const derivedFilesProcessed = context.filesProcessed ?? context.summary?.total_files_processed;
-	const derivedBytesProcessed =
-		context.bytesProcessed ?? (context.summary ? formatBytesText(context.summary.total_bytes_processed) : undefined);
-	const derivedSnapshotId = context.snapshotId ?? context.summary?.snapshot_id;
-	const summaryLines = buildBackupSummaryLines(context.summary);
+	const notificationLines = buildBackupNotificationLines(context.summary);
 
 	switch (event) {
 		case "start":
@@ -477,40 +481,34 @@ function buildNotificationMessage(
 					.join("\n"),
 			};
 
-		case "success":
+		case "success": {
+			const bodyLines = [
+				`Volume: ${context.volumeName}`,
+				`Repository: ${context.repositoryName}`,
+				context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
+				...notificationLines,
+			];
+
 			return {
 				title: `Zerobyte ${backupName} completed successfully`,
-				body: [
-					`Volume: ${context.volumeName}`,
-					`Repository: ${context.repositoryName}`,
-					context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-					derivedDuration ? `Duration: ${Math.round(derivedDuration / 1000)}s` : null,
-					derivedFilesProcessed !== undefined ? `Files: ${derivedFilesProcessed.toLocaleString()}` : null,
-					derivedBytesProcessed ? `Size: ${derivedBytesProcessed}` : null,
-					derivedSnapshotId ? `Snapshot: ${derivedSnapshotId}` : null,
-					...summaryLines,
-				]
-					.filter(Boolean)
-					.join("\n"),
+				body: bodyLines.filter(Boolean).join("\n"),
 			};
+		}
 
-		case "warning":
+		case "warning": {
+			const bodyLines = [
+				`Volume: ${context.volumeName}`,
+				`Repository: ${context.repositoryName}`,
+				context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
+				context.error ? `Warning: ${context.error}` : null,
+				...notificationLines,
+			];
+
 			return {
 				title: `Zerobyte ${backupName} completed with warnings`,
-				body: [
-					`Volume: ${context.volumeName}`,
-					`Repository: ${context.repositoryName}`,
-					context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-					derivedDuration ? `Duration: ${Math.round(derivedDuration / 1000)}s` : null,
-					derivedFilesProcessed !== undefined ? `Files: ${derivedFilesProcessed.toLocaleString()}` : null,
-					derivedBytesProcessed ? `Size: ${derivedBytesProcessed}` : null,
-					derivedSnapshotId ? `Snapshot: ${derivedSnapshotId}` : null,
-					context.error ? `Warning: ${context.error}` : null,
-					...summaryLines,
-				]
-					.filter(Boolean)
-					.join("\n"),
+				body: bodyLines.filter(Boolean).join("\n"),
 			};
+		}
 
 		case "failure":
 			return {

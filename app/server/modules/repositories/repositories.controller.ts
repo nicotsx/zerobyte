@@ -49,6 +49,7 @@ import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { toMessage } from "~/server/utils/errors";
 import { requireDevPanel } from "../auth/dev-panel.middleware";
+import { getSnapshotDuration } from "../../utils/snapshots";
 
 export const repositoriesController = new Hono()
 	.use(requireAuth)
@@ -102,18 +103,14 @@ export const repositoriesController = new Hono()
 		const snapshots = res.map((snapshot) => {
 			const { summary } = snapshot;
 
-			let duration = 0;
-			if (summary) {
-				const { backup_start, backup_end } = summary;
-				duration = new Date(backup_end).getTime() - new Date(backup_start).getTime();
-			}
+			const duration = getSnapshotDuration(summary);
 
 			return {
 				short_id: snapshot.short_id,
 				duration,
 				paths: snapshot.paths,
 				tags: snapshot.tags ?? [],
-				size: summary?.total_bytes_processed || 0,
+				size: summary?.total_bytes_processed ?? 0,
 				time: new Date(snapshot.time).getTime(),
 				retentionCategories: retentionCategories.get(snapshot.short_id) ?? [],
 				summary: summary,
@@ -132,11 +129,7 @@ export const repositoriesController = new Hono()
 		const { id, snapshotId } = c.req.param();
 		const snapshot = await repositoriesService.getSnapshotDetails(id, snapshotId);
 
-		let duration = 0;
-		if (snapshot.summary) {
-			const { backup_start, backup_end } = snapshot.summary;
-			duration = new Date(backup_end).getTime() - new Date(backup_start).getTime();
-		}
+		const duration = getSnapshotDuration(snapshot.summary);
 
 		const response = {
 			short_id: snapshot.short_id,
@@ -144,7 +137,7 @@ export const repositoriesController = new Hono()
 			time: new Date(snapshot.time).getTime(),
 			paths: snapshot.paths,
 			hostname: snapshot.hostname,
-			size: snapshot.summary?.total_bytes_processed || 0,
+			size: snapshot.summary?.total_bytes_processed ?? 0,
 			tags: snapshot.tags ?? [],
 			retentionCategories: [],
 			summary: snapshot.summary,

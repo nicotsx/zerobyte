@@ -5,7 +5,7 @@ import { Progress } from "~/client/components/ui/progress";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import type { BackupProgressEventDto } from "~/schemas/events-dto";
 import { formatDuration } from "~/utils/utils";
-import { formatBytes } from "../../../../utils/format-bytes";
+import { formatBytes } from "~/utils/format-bytes";
 
 type Props = {
 	scheduleId: number;
@@ -71,7 +71,9 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 					<p className="font-medium">
 						{progress ? (
 							<>
-								<ByteSize bytes={progress.bytes_done} base={1024} /> / <ByteSize bytes={progress.total_bytes} base={1024} />
+								<ByteSize bytes={progress.bytes_done} base={1024} />
+								&nbsp;/&nbsp;
+								<ByteSize bytes={progress.total_bytes} base={1024} />
 							</>
 						) : (
 							"—"

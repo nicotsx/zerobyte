@@ -132,11 +132,6 @@ const runBackupOperation = async (ctx: BackupContext, signal: AbortSignal) => {
 	}
 };
 
-const buildBackupSummary = (result: ResticBackupOutputDto | null | undefined) => {
-	if (!result) return undefined;
-	return result;
-};
-
 const finalizeSuccessfulBackup = async (
 	ctx: BackupContext,
 	scheduleId: number,
@@ -144,7 +139,6 @@ const finalizeSuccessfulBackup = async (
 	result: ResticBackupOutputDto | null,
 ) => {
 	const finalStatus = exitCode === 0 ? "success" : "warning";
-	const summary = buildBackupSummary(result);
 
 	if (ctx.schedule.retentionPolicy) {
 		void runForget(scheduleId).catch((error) => {
@@ -183,7 +177,7 @@ const finalizeSuccessfulBackup = async (
 		volumeName: ctx.volume.name,
 		repositoryName: ctx.repository.name,
 		status: finalStatus,
-		summary,
+		summary: result ?? undefined,
 	});
 
 	notificationsService
@@ -191,7 +185,7 @@ const finalizeSuccessfulBackup = async (
 			volumeName: ctx.volume.name,
 			repositoryName: ctx.repository.name,
 			scheduleName: ctx.schedule.name,
-			summary,
+			summary: result ?? undefined,
 		})
 		.catch((error) => {
 			logger.error(`Failed to send backup success notification: ${toMessage(error)}`);
