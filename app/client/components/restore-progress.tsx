@@ -49,7 +49,7 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 	}
 
 	const percentDone = Math.round(progress.percent_done * 100);
-	const speed = formatBytes(progress.bytes_done / progress.seconds_elapsed);
+	const speed = progress.seconds_elapsed > 0 ? formatBytes(progress.bytes_done / progress.seconds_elapsed) : null;
 
 	return (
 		<Card className="p-4">
@@ -82,9 +82,7 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Speed</p>
-					<p className="font-medium">
-						{progress.seconds_elapsed > 0 ? `${speed.text} ${speed.unit}/s` : "Calculating..."}
-					</p>
+					<p className="font-medium">{speed ? `${speed.text} ${speed.unit}/s` : "Calculating..."}</p>
 				</div>
 			</div>
 		</Card>
