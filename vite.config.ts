@@ -14,7 +14,10 @@ export default defineConfig({
 				routesDirectory: "routes",
 			},
 		}),
-		nitro({ preset: "bun" }),
+		nitro({
+			preset: "bun",
+			plugins: ["./app/server/plugins/bootstrap.ts"],
+		}),
 		viteReact({
 			babel: {
 				plugins: ["babel-plugin-react-compiler"],
