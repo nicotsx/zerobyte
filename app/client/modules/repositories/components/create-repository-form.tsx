@@ -33,7 +33,9 @@ import {
 	SftpRepositoryForm,
 	AdvancedForm,
 } from "./repository-forms";
-import { REPOSITORY_BASE } from "~/client/lib/constants";
+import { useServerFn } from "@tanstack/react-start";
+import { getServerConstants } from "~/server/core/constants";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
 export const formSchema = type({
 	name: "2<=string<=32",
@@ -52,8 +54,8 @@ type Props = {
 	className?: string;
 };
 
-const defaultValuesForType = {
-	local: { backend: "local" as const, compressionMode: "auto" as const, path: REPOSITORY_BASE },
+const defaultValuesForType = (repoBase: string) => ({
+	local: { backend: "local" as const, compressionMode: "auto" as const, path: repoBase },
 	s3: { backend: "s3" as const, compressionMode: "auto" as const },
 	r2: { backend: "r2" as const, compressionMode: "auto" as const },
 	gcs: { backend: "gcs" as const, compressionMode: "auto" as const },
@@ -61,7 +63,7 @@ const defaultValuesForType = {
 	rclone: { backend: "rclone" as const, compressionMode: "auto" as const },
 	rest: { backend: "rest" as const, compressionMode: "auto" as const },
 	sftp: { backend: "sftp" as const, compressionMode: "auto" as const, port: 22, skipHostKeyCheck: false },
-};
+});
 
 export const CreateRepositoryForm = ({
 	onSubmit,
@@ -71,6 +73,12 @@ export const CreateRepositoryForm = ({
 	loading,
 	className,
 }: Props) => {
+	const getConstants = useServerFn(getServerConstants);
+	const { data: constants } = useSuspenseQuery({
+		queryKey: ["server-constants"],
+		queryFn: getConstants,
+	});
+
 	const form = useForm<RepositoryFormValues>({
 		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
 		defaultValues: initialValues,
@@ -125,7 +133,9 @@ export const CreateRepositoryForm = ({
 										name: form.getValues().name,
 										isExistingRepository: form.getValues().isExistingRepository,
 										customPassword: form.getValues().customPassword,
-										...defaultValuesForType[value as keyof typeof defaultValuesForType],
+										...defaultValuesForType(constants.REPOSITORY_BASE)[
+											value as keyof ReturnType<typeof defaultValuesForType>
+										],
 									});
 								}}
 								value={field.value}

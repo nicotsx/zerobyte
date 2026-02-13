@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { Check, Pencil, X, AlertTriangle } from "lucide-react";
-import { REPOSITORY_BASE } from "~/client/lib/constants";
 import { Button } from "../../../../components/ui/button";
 import { FormItem, FormLabel, FormDescription, FormField, FormControl } from "../../../../components/ui/form";
 import { DirectoryBrowser } from "../../../../components/directory-browser";
@@ -16,6 +15,9 @@ import {
 	AlertDialogTitle,
 } from "../../../../components/ui/alert-dialog";
 import type { RepositoryFormValues } from "../create-repository-form";
+import { useServerFn } from "@tanstack/react-start";
+import { getServerConstants } from "~/server/core/constants";
+import { useSuspenseQuery } from "@tanstack/react-query";
 
 type Props = {
 	form: UseFormReturn<RepositoryFormValues>;
@@ -24,6 +26,12 @@ type Props = {
 export const LocalRepositoryForm = ({ form }: Props) => {
 	const [showPathBrowser, setShowPathBrowser] = useState(false);
 	const [showPathWarning, setShowPathWarning] = useState(false);
+
+	const getConstants = useServerFn(getServerConstants);
+	const { data: constants } = useSuspenseQuery({
+		queryKey: ["server-constants"],
+		queryFn: getConstants,
+	});
 
 	return (
 		<FormField
@@ -36,7 +44,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 						<FormControl>
 							<div className="flex items-center gap-2">
 								<div className="flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border">
-									{field.value || REPOSITORY_BASE}
+									{field.value || constants.REPOSITORY_BASE}
 								</div>
 								<Button type="button" variant="outline" onClick={() => setShowPathWarning(true)} size="sm">
 									<Pencil className="h-4 w-4 mr-2" />
@@ -60,8 +68,8 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 										If the path is not a host mount, you will lose your repository data when the container restarts.
 									</p>
 									<p className="text-sm text-muted-foreground">
-										The default path <code className="bg-muted px-1 rounded">{REPOSITORY_BASE}</code> is safe to use if
-										you followed the recommended Docker Compose setup.
+										The default path <code className="bg-muted px-1 rounded">{constants.REPOSITORY_BASE}</code> is safe
+										to use if you followed the recommended Docker Compose setup.
 									</p>
 								</AlertDialogDescription>
 							</AlertDialogHeader>
@@ -92,7 +100,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 									onSelectPath={(path) => {
 										field.onChange(path);
 									}}
-									selectedPath={field.value || REPOSITORY_BASE}
+									selectedPath={field.value || constants.REPOSITORY_BASE}
 								/>
 							</div>
 							<AlertDialogFooter>

@@ -14,7 +14,6 @@ import {
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
-import { REPOSITORY_BASE } from "~/client/lib/constants";
 import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import {
 	cancelDoctorMutation,

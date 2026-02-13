@@ -6,7 +6,7 @@ import { cache } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
-import { REGISTRATION_ENABLED_KEY } from "~/client/lib/constants";
+import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
 
 const CACHE_TTL = 60 * 60;
 

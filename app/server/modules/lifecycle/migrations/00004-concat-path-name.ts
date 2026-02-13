@@ -3,8 +3,7 @@ import { db } from "../../../db/db";
 import { repositoriesTable } from "../../../db/schema";
 import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
-
-const DEFAULT_LOCAL_REPOSITORY_ROOT = "/var/lib/zerobyte/repositories";
+import { REPOSITORY_BASE } from "~/server/core/constants";
 
 type MigrationError = { name: string; error: string };
 
@@ -31,7 +30,7 @@ const isPathAlreadyMigrated = (path: string, name: string): boolean => {
 
 const buildPath = (path: string | null, name: string): string => {
 	if (path === null || path.trim() === "") {
-		return `${DEFAULT_LOCAL_REPOSITORY_ROOT}/${name}`;
+		return `${REPOSITORY_BASE}/${name}`;
 	}
 
 	return `${trimTrailingSlashes(path)}/${name}`;
