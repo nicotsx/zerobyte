@@ -43,6 +43,7 @@ services:
       - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
       - BASE_URL=http://localhost:4096
       - PORT=4096
+      - LOG_LEVEL=debug
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
