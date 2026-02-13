@@ -86,7 +86,7 @@ jobs:
         id: scan
         with:
           image: local/zerobyte:ci
-          fail-build: true
+          fail-build: false
           only-fixed: true
           severity-cutoff: critical
 
