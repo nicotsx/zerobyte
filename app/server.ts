@@ -3,21 +3,14 @@ import { shutdown } from "./server/modules/lifecycle/shutdown";
 import { runCLI } from "./server/cli";
 import { createStartHandler, defaultStreamHandler, defineHandlerCallback } from "@tanstack/react-start/server";
 import { createServerEntry } from "@tanstack/react-start/server-entry";
-import { initAuth } from "~/server/lib/auth";
-import { setSchema } from "./server/db/db";
-import * as schema from "./server/db/schema";
-import { toMessage } from "./server/utils/errors";
+import { initModules } from "./server/modules/lifecycle/bootstrap";
+
+await initModules();
 
 const cliRun = await runCLI(Bun.argv);
 if (cliRun) {
 	process.exit(0);
 }
-
-setSchema(schema);
-await initAuth().catch((err) => {
-	logger.error(`Error initializing auth: ${toMessage(err)}`);
-	throw err;
-});
 
 const customHandler = defineHandlerCallback((ctx) => {
 	return defaultStreamHandler(ctx);
