@@ -2,11 +2,9 @@ import { beforeAll, mock } from "bun:test";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import path from "node:path";
 import { cwd } from "node:process";
-import * as schema from "~/server/db/schema";
-import { db, setSchema } from "~/server/db/db";
-import { initAuth } from "~/server/lib/auth";
+import { db } from "~/server/db/db";
+import { initModules } from "../server/modules/lifecycle/bootstrap";
 
-setSchema(schema);
 
 void mock.module("~/server/utils/logger", () => ({
 	logger: {
@@ -27,7 +25,8 @@ void mock.module("~/server/utils/crypto", () => ({
 }));
 
 beforeAll(async () => {
+	await initModules();
+
 	const migrationsFolder = path.join(cwd(), "app", "drizzle");
 	migrate(db, { migrationsFolder });
-	await initAuth();
 });

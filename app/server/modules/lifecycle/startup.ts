@@ -12,8 +12,6 @@ import { repositoriesService } from "../repositories/repositories.service";
 import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { cache } from "~/server/utils/cache";
-import { initAuth } from "~/server/lib/auth";
-import { toMessage } from "~/server/utils/errors";
 import { withContext } from "~/server/core/request-context";
 
 const ensureLatestConfigurationSchema = async () => {
@@ -53,11 +51,6 @@ export const startup = async () => {
 
 	await Scheduler.start();
 	await Scheduler.clear();
-
-	await initAuth().catch((err) => {
-		logger.error(`Error initializing auth: ${toMessage(err)}`);
-		throw err;
-	});
 
 	await ensureLatestConfigurationSchema();
 
