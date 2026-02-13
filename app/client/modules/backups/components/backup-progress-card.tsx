@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { useServerEvents } from "~/client/hooks/use-server-events";
-import type { BackupProgressEventDto } from "~/schemas/events-dto";
+import { type BackupProgressEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { formatDuration } from "~/utils/utils";
 import { formatBytes } from "~/utils/format-bytes";
 
@@ -13,18 +12,16 @@ type Props = {
 
 export const BackupProgressCard = ({ scheduleId }: Props) => {
 	const { addEventListener } = useServerEvents();
-	const [progress, setProgress] = useState<BackupProgressEventDto | null>(null);
+	const [progress, setProgress] = useState<BackupProgressEvent | null>(null);
 
 	useEffect(() => {
-		const unsubscribe = addEventListener("backup:progress", (data) => {
-			const progressData = data as BackupProgressEventDto;
+		const unsubscribe = addEventListener("backup:progress", (progressData) => {
 			if (progressData.scheduleId === scheduleId) {
 				setProgress(progressData);
 			}
 		});
 
-		const unsubscribeComplete = addEventListener("backup:completed", (data) => {
-			const completedData = data as { scheduleId: number };
+		const unsubscribeComplete = addEventListener("backup:completed", (completedData) => {
 			if (completedData.scheduleId === scheduleId) {
 				setProgress(null);
 			}

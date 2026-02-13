@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, FileIcon, FolderOpen, RotateCcw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
@@ -20,9 +20,8 @@ import { FileTree } from "~/client/components/file-tree";
 import { RestoreProgress } from "~/client/components/restore-progress";
 import { listSnapshotFilesOptions, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
-import { useServerEvents } from "~/client/hooks/use-server-events";
+import { type RestoreCompletedEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
-import type { RestoreCompletedEventDto, RestoreProgressEventDto } from "~/schemas/events-dto";
 import type { Repository, Snapshot } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
@@ -49,34 +48,34 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 	const [showAdvanced, setShowAdvanced] = useState(false);
 	const [excludeXattr, setExcludeXattr] = useState("");
 	const [isRestoreActive, setIsRestoreActive] = useState(false);
-	const [restoreResult, setRestoreResult] = useState<RestoreCompletedEventDto | null>(null);
+	const [restoreResult, setRestoreResult] = useState<RestoreCompletedEvent | null>(null);
 	const [showRestoreResultAlert, setShowRestoreResultAlert] = useState(false);
+	const restoreCompletedRef = useRef(false);
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
 	useEffect(() => {
-		const unsubscribeStarted = addEventListener("restore:started", (data) => {
-			const startedData = data as {
-				repositoryId: string;
-				snapshotId: string;
-			};
+		const unsubscribeStarted = addEventListener("restore:started", (startedData) => {
 			if (startedData.repositoryId === repository.id && startedData.snapshotId === snapshotId) {
+				restoreCompletedRef.current = false;
 				setIsRestoreActive(true);
 				setRestoreResult(null);
 				setShowRestoreResultAlert(false);
 			}
 		});
 
-		const unsubscribeProgress = addEventListener("restore:progress", (data) => {
-			const progressData = data as RestoreProgressEventDto;
+		const unsubscribeProgress = addEventListener("restore:progress", (progressData) => {
 			if (progressData.repositoryId === repository.id && progressData.snapshotId === snapshotId) {
+				if (restoreCompletedRef.current) {
+					return;
+				}
 				setIsRestoreActive(true);
 			}
 		});
 
-		const unsubscribeCompleted = addEventListener("restore:completed", (data) => {
-			const completedData = data as RestoreCompletedEventDto;
+		const unsubscribeCompleted = addEventListener("restore:completed", (completedData) => {
 			if (completedData.repositoryId === repository.id && completedData.snapshotId === snapshotId) {
+				restoreCompletedRef.current = true;
 				setIsRestoreActive(false);
 				setRestoreResult(completedData);
 				setShowRestoreResultAlert(true);
@@ -149,6 +148,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 	const { mutate: restoreSnapshot, isPending: isRestoring } = useMutation({
 		...restoreSnapshotMutation(),
 		onError: (error) => {
+			restoreCompletedRef.current = true;
 			setIsRestoreActive(false);
 			handleRepositoryError("Restore failed", error, repository.id);
 		},
@@ -166,6 +166,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		const pathsArray = Array.from(selectedPaths);
 		const includePaths = pathsArray.map((path) => addBasePath(path));
 
+		restoreCompletedRef.current = false;
 		setIsRestoreActive(true);
 		setRestoreResult(null);
 		setShowRestoreResultAlert(false);

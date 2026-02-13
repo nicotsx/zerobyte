@@ -23,9 +23,9 @@ const restoreProgressMetricsSchema = type({
 	seconds_elapsed: "number",
 	percent_done: "number",
 	total_files: "number",
-	files_done: "number",
+	files_restored: "number",
 	total_bytes: "number",
-	bytes_done: "number",
+	bytes_restored: "number",
 });
 
 export const backupStartedEventSchema = backupEventBaseSchema;
@@ -44,10 +44,7 @@ export const restoreStartedEventSchema = restoreEventBaseSchema;
 export const restoreProgressEventSchema = restoreEventBaseSchema.and(restoreProgressMetricsSchema);
 
 export const restoreCompletedEventSchema = restoreEventBaseSchema.and(
-	type({
-		status: restoreEventStatusSchema,
-		error: "string?",
-	}),
+	type({ status: restoreEventStatusSchema, error: "string?" }),
 );
 
 export const serverBackupStartedEventSchema = organizationScopedSchema.and(backupStartedEventSchema);

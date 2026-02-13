@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { useServerEvents } from "~/client/hooks/use-server-events";
-import type { RestoreCompletedEventDto, RestoreProgressEventDto } from "~/schemas/events-dto";
+import { type RestoreProgressEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { formatBytes } from "~/utils/format-bytes";
 import { formatDuration } from "~/utils/utils";
 
@@ -14,18 +13,16 @@ type Props = {
 
 export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 	const { addEventListener } = useServerEvents();
-	const [progress, setProgress] = useState<RestoreProgressEventDto | null>(null);
+	const [progress, setProgress] = useState<RestoreProgressEvent | null>(null);
 
 	useEffect(() => {
-		const unsubscribe = addEventListener("restore:progress", (data) => {
-			const progressData = data as RestoreProgressEventDto;
+		const unsubscribe = addEventListener("restore:progress", (progressData) => {
 			if (progressData.repositoryId === repositoryId && progressData.snapshotId === snapshotId) {
 				setProgress(progressData);
 			}
 		});
 
-		const unsubscribeComplete = addEventListener("restore:completed", (data) => {
-			const completedData = data as RestoreCompletedEventDto;
+		const unsubscribeComplete = addEventListener("restore:completed", (completedData) => {
 			if (completedData.repositoryId === repositoryId && completedData.snapshotId === snapshotId) {
 				setProgress(null);
 			}
@@ -49,7 +46,7 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 	}
 
 	const percentDone = Math.round(progress.percent_done * 100);
-	const speed = progress.seconds_elapsed > 0 ? formatBytes(progress.bytes_done / progress.seconds_elapsed) : null;
+	const speed = progress.seconds_elapsed > 0 ? formatBytes(progress.bytes_restored / progress.seconds_elapsed) : null;
 
 	return (
 		<Card className="p-4">
@@ -67,13 +64,17 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Files</p>
 					<p className="font-medium">
-						{progress.files_done.toLocaleString()} / {progress.total_files.toLocaleString()}
+						{progress.files_restored.toLocaleString()}
+						&nbsp;/&nbsp;
+						{progress.total_files.toLocaleString()}
 					</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Data</p>
 					<p className="font-medium">
-						<ByteSize bytes={progress.bytes_done} /> / <ByteSize bytes={progress.total_bytes} />
+						<ByteSize bytes={progress.bytes_restored} base={1024} />
+						&nbsp;/&nbsp;
+						<ByteSize bytes={progress.total_bytes} base={1024} />
 					</p>
 				</div>
 				<div>

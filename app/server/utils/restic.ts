@@ -4,12 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { type } from "arktype";
 import { throttle } from "es-toolkit";
-import type {
-	BandwidthLimit,
-	CompressionMode,
-	OverwriteMode,
-	RepositoryConfig,
-} from "~/schemas/restic";
+import type { BandwidthLimit, CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 import {
 	type ResticBackupProgressDto,
 	type ResticRestoreOutputDto,
@@ -20,12 +15,7 @@ import {
 	resticSnapshotSummarySchema,
 } from "~/schemas/restic-dto";
 import { config as appConfig } from "../core/config";
-import {
-	DEFAULT_EXCLUDES,
-	REPOSITORY_BASE,
-	RESTIC_CACHE_DIR,
-	RESTIC_PASS_FILE,
-} from "../core/constants";
+import { DEFAULT_EXCLUDES, RESTIC_CACHE_DIR, RESTIC_PASS_FILE } from "../core/constants";
 import { db } from "../db/db";
 import type { RetentionPolicy } from "../modules/backups/backups.dto";
 import { cryptoUtils } from "./crypto";
@@ -72,37 +62,25 @@ export const buildRepoUrl = (config: RepositoryConfig): string => {
 		case "sftp":
 			return `sftp:${config.user}@${config.host}:${config.path}`;
 		default: {
-			throw new Error(
-				`Unsupported repository backend: ${JSON.stringify(config)}`,
-			);
+			throw new Error(`Unsupported repository backend: ${JSON.stringify(config)}`);
 		}
 	}
 };
 
-export const buildEnv = async (
-	config: RepositoryConfig,
-	organizationId: string,
-) => {
+export const buildEnv = async (config: RepositoryConfig, organizationId: string) => {
 	const env: Record<string, string> = {
 		RESTIC_CACHE_DIR,
 		PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
 	};
 
 	if (config.isExistingRepository && config.customPassword) {
-		const decryptedPassword = await cryptoUtils.resolveSecret(
-			config.customPassword,
-		);
-		const passwordFilePath = path.join(
-			"/tmp",
-			`zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`,
-		);
+		const decryptedPassword = await cryptoUtils.resolveSecret(config.customPassword);
+		const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
 
 		await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
 		env.RESTIC_PASSWORD_FILE = passwordFilePath;
 	} else {
-		const org = await db.query.organization.findFirst({
-			where: { id: organizationId },
-		});
+		const org = await db.query.organization.findFirst({ where: { id: organizationId } });
 
 		if (!org) {
 			throw new Error(`Organization ${organizationId} not found`);
@@ -110,17 +88,10 @@ export const buildEnv = async (
 
 		const metadata = org.metadata;
 		if (!metadata?.resticPassword) {
-			throw new Error(
-				`Restic password not configured for organization ${organizationId}`,
-			);
+			throw new Error(`Restic password not configured for organization ${organizationId}`);
 		} else {
-			const decryptedPassword = await cryptoUtils.resolveSecret(
-				metadata.resticPassword,
-			);
-			const passwordFilePath = path.join(
-				"/tmp",
-				`zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`,
-			);
+			const decryptedPassword = await cryptoUtils.resolveSecret(metadata.resticPassword);
+			const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
 			await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
 			env.RESTIC_PASSWORD_FILE = passwordFilePath;
 		}
@@ -128,12 +99,8 @@ export const buildEnv = async (
 
 	switch (config.backend) {
 		case "s3":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(
-				config.accessKeyId,
-			);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(
-				config.secretAccessKey,
-			);
+			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
+			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(config.secretAccessKey);
 
 			// Huawei OBS requires virtual-hosted style access
 			if (config.endpoint.includes("myhuaweicloud")) {
@@ -141,35 +108,22 @@ export const buildEnv = async (
 			}
 			break;
 		case "r2":
-			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(
-				config.accessKeyId,
-			);
-			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(
-				config.secretAccessKey,
-			);
+			env.AWS_ACCESS_KEY_ID = await cryptoUtils.resolveSecret(config.accessKeyId);
+			env.AWS_SECRET_ACCESS_KEY = await cryptoUtils.resolveSecret(config.secretAccessKey);
 			env.AWS_REGION = "auto";
 			env.AWS_S3_FORCE_PATH_STYLE = "true";
 			break;
 		case "gcs": {
-			const decryptedCredentials = await cryptoUtils.resolveSecret(
-				config.credentialsJson,
-			);
-			const credentialsPath = path.join(
-				"/tmp",
-				`zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`,
-			);
-			await fs.writeFile(credentialsPath, decryptedCredentials, {
-				mode: 0o600,
-			});
+			const decryptedCredentials = await cryptoUtils.resolveSecret(config.credentialsJson);
+			const credentialsPath = path.join("/tmp", `zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`);
+			await fs.writeFile(credentialsPath, decryptedCredentials, { mode: 0o600 });
 			env.GOOGLE_PROJECT_ID = config.projectId;
 			env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 			break;
 		}
 		case "azure": {
 			env.AZURE_ACCOUNT_NAME = config.accountName;
-			env.AZURE_ACCOUNT_KEY = await cryptoUtils.resolveSecret(
-				config.accountKey,
-			);
+			env.AZURE_ACCOUNT_KEY = await cryptoUtils.resolveSecret(config.accountKey);
 			if (config.endpointSuffix) {
 				env.AZURE_ENDPOINT_SUFFIX = config.endpointSuffix;
 			}
@@ -177,23 +131,16 @@ export const buildEnv = async (
 		}
 		case "rest": {
 			if (config.username) {
-				env.RESTIC_REST_USERNAME = await cryptoUtils.resolveSecret(
-					config.username,
-				);
+				env.RESTIC_REST_USERNAME = await cryptoUtils.resolveSecret(config.username);
 			}
 			if (config.password) {
-				env.RESTIC_REST_PASSWORD = await cryptoUtils.resolveSecret(
-					config.password,
-				);
+				env.RESTIC_REST_PASSWORD = await cryptoUtils.resolveSecret(config.password);
 			}
 			break;
 		}
 		case "sftp": {
 			const decryptedKey = await cryptoUtils.resolveSecret(config.privateKey);
-			const keyPath = path.join(
-				"/tmp",
-				`zerobyte-ssh-${crypto.randomBytes(8).toString("hex")}`,
-			);
+			const keyPath = path.join("/tmp", `zerobyte-ssh-${crypto.randomBytes(8).toString("hex")}`);
 
 			let normalizedKey = decryptedKey.replace(/\r\n/g, "\n");
 			if (!normalizedKey.endsWith("\n")) {
@@ -201,12 +148,8 @@ export const buildEnv = async (
 			}
 
 			if (normalizedKey.includes("ENCRYPTED")) {
-				logger.error(
-					"SFTP: Private key appears to be passphrase-protected. Please use an unencrypted key.",
-				);
-				throw new Error(
-					"Passphrase-protected SSH keys are not supported. Please provide an unencrypted private key.",
-				);
+				logger.error("SFTP: Private key appears to be passphrase-protected. Please use an unencrypted key.");
+				throw new Error("Passphrase-protected SSH keys are not supported. Please provide an unencrypted private key.");
 			}
 
 			await fs.writeFile(keyPath, normalizedKey, { mode: 0o600 });
@@ -241,25 +184,12 @@ export const buildEnv = async (
 			];
 
 			if (config.skipHostKeyCheck || !config.knownHosts) {
-				sshArgs.push(
-					"-o",
-					"StrictHostKeyChecking=no",
-					"-o",
-					"UserKnownHostsFile=/dev/null",
-				);
+				sshArgs.push("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null");
 			} else if (config.knownHosts) {
-				const knownHostsPath = path.join(
-					"/tmp",
-					`zerobyte-known-hosts-${crypto.randomBytes(8).toString("hex")}`,
-				);
+				const knownHostsPath = path.join("/tmp", `zerobyte-known-hosts-${crypto.randomBytes(8).toString("hex")}`);
 				await fs.writeFile(knownHostsPath, config.knownHosts, { mode: 0o600 });
 				env._SFTP_KNOWN_HOSTS_PATH = knownHostsPath;
-				sshArgs.push(
-					"-o",
-					"StrictHostKeyChecking=yes",
-					"-o",
-					`UserKnownHostsFile=${knownHostsPath}`,
-				);
+				sshArgs.push("-o", "StrictHostKeyChecking=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`);
 			}
 
 			if (config.port && config.port !== 22) {
@@ -274,10 +204,7 @@ export const buildEnv = async (
 
 	if (config.cacert) {
 		const decryptedCert = await cryptoUtils.resolveSecret(config.cacert);
-		const certPath = path.join(
-			"/tmp",
-			`zerobyte-cacert-${crypto.randomBytes(8).toString("hex")}.pem`,
-		);
+		const certPath = path.join("/tmp", `zerobyte-cacert-${crypto.randomBytes(8).toString("hex")}.pem`);
 		await fs.writeFile(certPath, decryptedCert, { mode: 0o600 });
 		env.RESTIC_CACERT = certPath;
 	}
@@ -289,11 +216,7 @@ export const buildEnv = async (
 	return env;
 };
 
-const init = async (
-	config: RepositoryConfig,
-	organizationId: string,
-	options?: { timeoutMs?: number },
-) => {
+const init = async (config: RepositoryConfig, organizationId: string, options?: { timeoutMs?: number }) => {
 	const repoUrl = buildRepoUrl(config);
 
 	logger.info(`Initializing restic repository at ${repoUrl}...`);
@@ -303,12 +226,7 @@ const init = async (
 	const args = ["init", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
-		command: "restic",
-		args,
-		env,
-		timeout: options?.timeoutMs ?? 20000,
-	});
+	const res = await exec({ command: "restic", args, env, timeout: options?.timeoutMs ?? 20000 });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -338,13 +256,7 @@ const backup = async (
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options?.organizationId);
 
-	const args: string[] = [
-		"--repo",
-		repoUrl,
-		"backup",
-		"--compression",
-		options?.compressionMode ?? "auto",
-	];
+	const args: string[] = ["--repo", repoUrl, "backup", "--compression", options?.compressionMode ?? "auto"];
 
 	if (options?.oneFileSystem) {
 		args.push("--one-file-system");
@@ -362,9 +274,7 @@ const backup = async (
 
 	let includeFile: string | null = null;
 	if (options?.include && options.include.length > 0) {
-		const tmp = await fs.mkdtemp(
-			path.join(os.tmpdir(), "zerobyte-restic-include-"),
-		);
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 		includeFile = path.join(tmp, `include.txt`);
 
 		await fs.writeFile(includeFile, options.include.join("\n"), "utf-8");
@@ -380,9 +290,7 @@ const backup = async (
 
 	let excludeFile: string | null = null;
 	if (options?.exclude && options.exclude.length > 0) {
-		const tmp = await fs.mkdtemp(
-			path.join(os.tmpdir(), "zerobyte-restic-exclude-"),
-		);
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-exclude-"));
 		excludeFile = path.join(tmp, `exclude.txt`);
 
 		await fs.writeFile(excludeFile, options.exclude.join("\n"), "utf-8");
@@ -409,6 +317,8 @@ const backup = async (
 				const progress = resticBackupProgressSchema(jsonData);
 				if (!(progress instanceof type.errors)) {
 					options.onProgress(progress);
+				} else {
+					logger.error(progress.summary);
 				}
 			} catch (_) {
 				// Ignore JSON parse errors for non-JSON lines
@@ -472,13 +382,13 @@ const backup = async (
 };
 
 const restoreProgressSchema = type({
-	message_type: "'status'",
+	message_type: "'status' | 'summary'",
 	seconds_elapsed: "number",
-	percent_done: "number",
+	percent_done: "number = 0",
 	total_files: "number",
-	files_done: "number",
-	total_bytes: "number",
-	bytes_done: "number",
+	files_restored: "number = 0",
+	total_bytes: "number = 0",
+	bytes_restored: "number = 0",
 });
 
 export type RestoreProgress = typeof restoreProgressSchema.infer;
@@ -500,21 +410,10 @@ const restore = async (
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
-	const args: string[] = [
-		"--repo",
-		repoUrl,
-		"restore",
-		snapshotId,
-		"--target",
-		target,
-	];
+	const args: string[] = ["--repo", repoUrl, "restore", snapshotId, "--target", target];
 
 	if (options?.overwrite) {
 		args.push("--overwrite", options.overwrite);
-	}
-
-	if (options?.delete) {
-		args.push("--delete");
 	}
 
 	if (options?.include?.length) {
@@ -544,6 +443,8 @@ const restore = async (
 				const progress = restoreProgressSchema(jsonData);
 				if (!(progress instanceof type.errors)) {
 					options.onProgress(progress);
+				} else {
+					logger.error(progress.summary);
 				}
 			} catch (_) {
 				// Ignore JSON parse errors for non-JSON lines
@@ -576,23 +477,16 @@ const restore = async (
 	try {
 		summaryLine = JSON.parse(lastLine ?? "{}");
 	} catch (_) {
-		logger.warn(
-			"Failed to parse restic restore output JSON summary.",
-			lastLine,
-		);
+		logger.warn("Failed to parse restic restore output JSON summary.", lastLine);
 		summaryLine = {};
 	}
 
-	logger.debug(
-		`Restic restore output last line: ${JSON.stringify(summaryLine)}`,
-	);
+	logger.debug(`Restic restore output last line: ${JSON.stringify(summaryLine)}`);
 	const result = resticRestoreOutputSchema(summaryLine);
 
 	if (result instanceof type.errors) {
 		logger.warn(`Restic restore output validation failed: ${result.summary}`);
-		logger.info(
-			`Restic restore completed for snapshot ${snapshotId} to target ${target}`,
-		);
+		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
 		const fallback: ResticRestoreOutputDto = {
 			message_type: "summary" as const,
 			total_files: 0,
@@ -611,10 +505,7 @@ const restore = async (
 	return result;
 };
 
-const snapshots = async (
-	config: RepositoryConfig,
-	options: { tags?: string[]; organizationId: string },
-) => {
+const snapshots = async (config: RepositoryConfig, options: { tags?: string[]; organizationId: string }) => {
 	const { tags, organizationId } = options;
 
 	const repoUrl = buildRepoUrl(config);
@@ -641,12 +532,8 @@ const snapshots = async (
 	const result = snapshotInfoSchema.array()(JSON.parse(res.stdout));
 
 	if (result instanceof type.errors) {
-		logger.error(
-			`Restic snapshots output validation failed: ${result.summary}`,
-		);
-		throw new Error(
-			`Restic snapshots output validation failed: ${result.summary}`,
-		);
+		logger.error(`Restic snapshots output validation failed: ${result.summary}`);
+		throw new Error(`Restic snapshots output validation failed: ${result.summary}`);
 	}
 
 	return result;
@@ -693,15 +580,7 @@ const forget = async (
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, extra.organizationId);
 
-	const args: string[] = [
-		"--repo",
-		repoUrl,
-		"forget",
-		"--group-by",
-		"tags",
-		"--tag",
-		extra.tag,
-	];
+	const args: string[] = ["--repo", repoUrl, "forget", "--group-by", "tags", "--tag", extra.tag];
 
 	if (extra.dryRun) {
 		args.push("--dry-run", "--no-lock");
@@ -744,18 +623,12 @@ const forget = async (
 	}
 
 	const lines = res.stdout.split("\n").filter((line) => line.trim());
-	const result = extra.dryRun
-		? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]")
-		: null;
+	const result = extra.dryRun ? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]") : null;
 
 	return { success: true, data: result };
 };
 
-const deleteSnapshots = async (
-	config: RepositoryConfig,
-	snapshotIds: string[],
-	organizationId: string,
-) => {
+const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[], organizationId: string) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, organizationId);
 
@@ -763,13 +636,7 @@ const deleteSnapshots = async (
 		throw new Error("No snapshot IDs provided for deletion.");
 	}
 
-	const args: string[] = [
-		"--repo",
-		repoUrl,
-		"forget",
-		...snapshotIds,
-		"--prune",
-	];
+	const args: string[] = ["--repo", repoUrl, "forget", ...snapshotIds, "--prune"];
 	addCommonArgs(args, env, config);
 
 	const res = await exec({ command: "restic", args, env });
@@ -783,11 +650,7 @@ const deleteSnapshots = async (
 	return { success: true };
 };
 
-const deleteSnapshot = async (
-	config: RepositoryConfig,
-	snapshotId: string,
-	organizationId: string,
-) => {
+const deleteSnapshot = async (config: RepositoryConfig, snapshotId: string, organizationId: string) => {
 	return deleteSnapshots(config, [snapshotId], organizationId);
 };
 
@@ -954,22 +817,14 @@ const ls = async (
 	};
 };
 
-const unlock = async (
-	config: RepositoryConfig,
-	options: { signal?: AbortSignal; organizationId: string },
-) => {
+const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal; organizationId: string }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
-		command: "restic",
-		args,
-		env,
-		signal: options?.signal,
-	});
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
@@ -1001,22 +856,12 @@ const check = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
-		command: "restic",
-		args,
-		env,
-		signal: options?.signal,
-	});
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
 		logger.warn("Restic check was aborted by signal.");
-		return {
-			success: false,
-			hasErrors: true,
-			output: "",
-			error: "Operation aborted",
-		};
+		return { success: false, hasErrors: true, output: "", error: "Operation aborted" };
 	}
 
 	const { stdout, stderr } = res;
@@ -1042,22 +887,14 @@ const check = async (
 	};
 };
 
-const repairIndex = async (
-	config: RepositoryConfig,
-	options: { signal?: AbortSignal; organizationId: string },
-) => {
+const repairIndex = async (config: RepositoryConfig, options: { signal?: AbortSignal; organizationId: string }) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
-		command: "restic",
-		args,
-		env,
-		signal: options?.signal,
-	});
+	const res = await exec({ command: "restic", args, env, signal: options?.signal });
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
@@ -1097,13 +934,7 @@ const copy = async (
 		RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE,
 	};
 
-	const args: string[] = [
-		"--repo",
-		destRepoUrl,
-		"copy",
-		"--from-repo",
-		sourceRepoUrl,
-	];
+	const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
 
 	if (options.tag) {
 		args.push("--tag", options.tag);
@@ -1232,12 +1063,7 @@ export const restic = {
 };
 
 export const cleanupTemporaryKeys = async (env: Record<string, string>) => {
-	const keysToClean = [
-		"_SFTP_KEY_PATH",
-		"_SFTP_KNOWN_HOSTS_PATH",
-		"RESTIC_CACERT",
-		"GOOGLE_APPLICATION_CREDENTIALS",
-	];
+	const keysToClean = ["_SFTP_KEY_PATH", "_SFTP_KNOWN_HOSTS_PATH", "RESTIC_CACERT", "GOOGLE_APPLICATION_CREDENTIALS"];
 
 	for (const key of keysToClean) {
 		if (env[key]) {
@@ -1246,10 +1072,7 @@ export const cleanupTemporaryKeys = async (env: Record<string, string>) => {
 	}
 
 	// Clean up custom password files
-	if (
-		env.RESTIC_PASSWORD_FILE &&
-		env.RESTIC_PASSWORD_FILE !== RESTIC_PASS_FILE
-	) {
+	if (env.RESTIC_PASSWORD_FILE && env.RESTIC_PASSWORD_FILE !== RESTIC_PASS_FILE) {
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	}
 };

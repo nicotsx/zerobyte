@@ -99,8 +99,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 	}, [compatibility]);
 
 	useEffect(() => {
-		const unsubscribeStarted = addEventListener("mirror:started", (data) => {
-			const event = data as { scheduleId: number; repositoryId: string };
+		const unsubscribeStarted = addEventListener("mirror:started", (event) => {
 			if (event.scheduleId !== scheduleId) return;
 			setAssignments((prev) => {
 				const next = new Map(prev);
@@ -111,8 +110,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 			});
 		});
 
-		const unsubscribeCompleted = addEventListener("mirror:completed", (data) => {
-			const event = data as { scheduleId: number; repositoryId: string; status?: "success" | "error"; error?: string };
+		const unsubscribeCompleted = addEventListener("mirror:completed", (event) => {
 			if (event.scheduleId !== scheduleId) return;
 			setAssignments((prev) => {
 				const next = new Map(prev);

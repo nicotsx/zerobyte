@@ -16,10 +16,7 @@ import {
 import { serverEvents } from "~/server/core/events";
 import { getOrganizationId } from "~/server/core/request-context";
 import { logger } from "~/server/utils/logger";
-import {
-	parseRetentionCategories,
-	type RetentionCategory,
-} from "~/server/utils/retention-categories";
+import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
@@ -27,13 +24,7 @@ import { cache } from "../../utils/cache";
 import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
-import {
-	addCommonArgs,
-	buildEnv,
-	buildRepoUrl,
-	cleanupTemporaryKeys,
-	restic,
-} from "../../utils/restic";
+import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } from "../../utils/restic";
 import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
 import type { UpdateRepositoryBody } from "./repositories.dto";
@@ -45,31 +36,22 @@ const findRepository = async (idOrShortId: string) => {
 	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [
-				{ OR: [{ id: idOrShortId }, { shortId: idOrShortId }] },
-				{ organizationId },
-			],
+			AND: [{ OR: [{ id: idOrShortId }, { shortId: idOrShortId }] }, { organizationId }],
 		},
 	});
 };
 
 const listRepositories = async () => {
 	const organizationId = getOrganizationId();
-	const repositories = await db.query.repositoriesTable.findMany({
-		where: { organizationId },
-	});
+	const repositories = await db.query.repositoriesTable.findMany({ where: { organizationId } });
 	return repositories;
 };
 
-const encryptConfig = async (
-	config: RepositoryConfig,
-): Promise<RepositoryConfig> => {
+const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
 	const encryptedConfig: Record<string, unknown> = { ...config };
 
 	if (config.customPassword) {
-		encryptedConfig.customPassword = await cryptoUtils.sealSecret(
-			config.customPassword,
-		);
+		encryptedConfig.customPassword = await cryptoUtils.sealSecret(config.customPassword);
 	}
 
 	if (config.cacert) {
@@ -79,39 +61,25 @@ const encryptConfig = async (
 	switch (config.backend) {
 		case "s3":
 		case "r2":
-			encryptedConfig.accessKeyId = await cryptoUtils.sealSecret(
-				config.accessKeyId,
-			);
-			encryptedConfig.secretAccessKey = await cryptoUtils.sealSecret(
-				config.secretAccessKey,
-			);
+			encryptedConfig.accessKeyId = await cryptoUtils.sealSecret(config.accessKeyId);
+			encryptedConfig.secretAccessKey = await cryptoUtils.sealSecret(config.secretAccessKey);
 			break;
 		case "gcs":
-			encryptedConfig.credentialsJson = await cryptoUtils.sealSecret(
-				config.credentialsJson,
-			);
+			encryptedConfig.credentialsJson = await cryptoUtils.sealSecret(config.credentialsJson);
 			break;
 		case "azure":
-			encryptedConfig.accountKey = await cryptoUtils.sealSecret(
-				config.accountKey,
-			);
+			encryptedConfig.accountKey = await cryptoUtils.sealSecret(config.accountKey);
 			break;
 		case "rest":
 			if (config.username) {
-				encryptedConfig.username = await cryptoUtils.sealSecret(
-					config.username,
-				);
+				encryptedConfig.username = await cryptoUtils.sealSecret(config.username);
 			}
 			if (config.password) {
-				encryptedConfig.password = await cryptoUtils.sealSecret(
-					config.password,
-				);
+				encryptedConfig.password = await cryptoUtils.sealSecret(config.password);
 			}
 			break;
 		case "sftp":
-			encryptedConfig.privateKey = await cryptoUtils.sealSecret(
-				config.privateKey,
-			);
+			encryptedConfig.privateKey = await cryptoUtils.sealSecret(config.privateKey);
 			break;
 	}
 
@@ -193,9 +161,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 		error = result.error;
 	} else {
-		const initResult = await restic.init(encryptedConfig, organizationId, {
-			timeoutMs: 20000,
-		});
+		const initResult = await restic.init(encryptedConfig, organizationId, { timeoutMs: 20000 });
 		error = initResult.error;
 	}
 
@@ -203,12 +169,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 		await db
 			.update(repositoriesTable)
 			.set({ status: "healthy", lastChecked: Date.now(), lastError: null })
-			.where(
-				and(
-					eq(repositoriesTable.id, id),
-					eq(repositoriesTable.organizationId, organizationId),
-				),
-			);
+			.where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
 		return { repository: created, status: 201 };
 	}
@@ -216,16 +177,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	const errorMessage = toMessage(error);
 	await db
 		.delete(repositoriesTable)
-		.where(
-			and(
-				eq(repositoriesTable.id, id),
-				eq(repositoriesTable.organizationId, organizationId),
-			),
-		);
+		.where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
-	throw new InternalServerError(
-		`Failed to initialize repository: ${errorMessage}`,
-	);
+	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
 
 const getRepository = async (id: string) => {
@@ -250,10 +204,7 @@ const deleteRepository = async (id: string) => {
 	await db
 		.delete(repositoriesTable)
 		.where(
-			and(
-				eq(repositoriesTable.id, repository.id),
-				eq(repositoriesTable.organizationId, repository.organizationId),
-			),
+			and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
 		);
 
 	cache.delByPrefix(`snapshots:${repository.id}:`);
@@ -277,8 +228,7 @@ const listSnapshots = async (id: string, backupId?: string) => {
 	}
 
 	const cacheKey = `snapshots:${repository.id}:${backupId || "all"}`;
-	const cached =
-		cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
+	const cached = cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
 	if (cached) {
 		return cached;
 	}
@@ -288,10 +238,7 @@ const listSnapshots = async (id: string, backupId?: string) => {
 		let snapshots = [];
 
 		if (backupId) {
-			snapshots = await restic.snapshots(repository.config, {
-				tags: [backupId],
-				organizationId,
-			});
+			snapshots = await restic.snapshots(repository.config, { tags: [backupId], organizationId });
 		} else {
 			snapshots = await restic.snapshots(repository.config, { organizationId });
 		}
@@ -322,26 +269,9 @@ const listSnapshotFiles = async (
 
 	const cacheKey = `ls:${repository.id}:${snapshotId}:${path || "root"}:${offset}:${limit}`;
 	type LsResult = {
-		snapshot: {
-			id: string;
-			short_id: string;
-			time: string;
-			hostname: string;
-			paths: string[];
-		} | null;
-		nodes: {
-			name: string;
-			type: string;
-			path: string;
-			size?: number;
-			mode?: number;
-		}[];
-		pagination: {
-			offset: number;
-			limit: number;
-			total: number;
-			hasMore: boolean;
-		};
+		snapshot: { id: string; short_id: string; time: string; hostname: string; paths: string[] } | null;
+		nodes: { name: string; type: string; path: string; size?: number; mode?: number }[];
+		pagination: { offset: number; limit: number; total: number; hasMore: boolean };
 	};
 	const cached = cache.get<LsResult>(cacheKey);
 	if (cached?.snapshot) {
@@ -355,18 +285,9 @@ const listSnapshotFiles = async (
 		};
 	}
 
-	const releaseLock = await repoMutex.acquireShared(
-		repository.id,
-		`ls:${snapshotId}`,
-	);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
 	try {
-		const result = await restic.ls(
-			repository.config,
-			snapshotId,
-			organizationId,
-			path,
-			{ offset, limit },
-		);
+		const result = await restic.ls(repository.config, snapshotId, organizationId, path, { offset, limit });
 
 		if (!result.snapshot) {
 			throw new NotFoundError("Snapshot not found or empty");
@@ -416,10 +337,7 @@ const restoreSnapshot = async (
 
 	const target = options?.targetPath || "/";
 
-	const releaseLock = await repoMutex.acquireShared(
-		repository.id,
-		`restore:${snapshotId}`,
-	);
+	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
 		serverEvents.emit("restore:started", {
 			organizationId,
@@ -431,25 +349,11 @@ const restoreSnapshot = async (
 			...options,
 			organizationId,
 			onProgress: (progress) => {
-				const {
-					seconds_elapsed,
-					percent_done,
-					total_files,
-					files_done,
-					total_bytes,
-					bytes_done,
-				} = progress;
-
 				serverEvents.emit("restore:progress", {
 					organizationId,
 					repositoryId: repository.id,
 					snapshotId,
-					seconds_elapsed,
-					percent_done,
-					total_files,
-					files_done,
-					total_bytes,
-					bytes_done,
+					...progress,
 				});
 			},
 		});
@@ -490,14 +394,10 @@ const getSnapshotDetails = async (id: string, snapshotId: string) => {
 	}
 
 	const cacheKey = `snapshots:${repository.id}:all`;
-	let snapshots =
-		cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
+	let snapshots = cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
 
 	if (!snapshots) {
-		const releaseLock = await repoMutex.acquireShared(
-			repository.id,
-			`snapshot_details:${snapshotId}`,
-		);
+		const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);
 		try {
 			snapshots = await restic.snapshots(repository.config, { organizationId });
 			cache.set(cacheKey, snapshots);
@@ -506,9 +406,7 @@ const getSnapshotDetails = async (id: string, snapshotId: string) => {
 		}
 	}
 
-	const snapshot = snapshots.find(
-		(snap) => snap.id === snapshotId || snap.short_id === snapshotId,
-	);
+	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
 
 	if (!snapshot) {
 		void refreshSnapshots(id).catch(() => {});
@@ -529,9 +427,7 @@ const checkHealth = async (repositoryId: string) => {
 
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, "check");
 	try {
-		const { hasErrors, error } = await restic.check(repository.config, {
-			organizationId,
-		});
+		const { hasErrors, error } = await restic.check(repository.config, { organizationId });
 
 		await db
 			.update(repositoriesTable)
@@ -541,10 +437,7 @@ const checkHealth = async (repositoryId: string) => {
 				lastError: error,
 			})
 			.where(
-				and(
-					eq(repositoriesTable.id, repository.id),
-					eq(repositoriesTable.organizationId, repository.organizationId),
-				),
+				and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
 			);
 
 		return { lastError: error };
@@ -567,10 +460,7 @@ const startDoctor = async (id: string) => {
 	const abortController = new AbortController();
 
 	try {
-		await db
-			.update(repositoriesTable)
-			.set({ status: "doctor" })
-			.where(eq(repositoriesTable.id, repository.id));
+		await db.update(repositoriesTable).set({ status: "doctor" }).where(eq(repositoriesTable.id, repository.id));
 
 		serverEvents.emit("doctor:started", {
 			organizationId: repository.organizationId,
@@ -584,12 +474,7 @@ const startDoctor = async (id: string) => {
 		throw error;
 	}
 
-	executeDoctor(
-		repository.id,
-		repository.config,
-		repository.name,
-		abortController.signal,
-	)
+	executeDoctor(repository.id, repository.config, repository.name, abortController.signal)
 		.catch((error) => {
 			logger.error(`Doctor background task failed: ${toMessage(error)}`);
 		})
@@ -609,20 +494,14 @@ const cancelDoctor = async (id: string) => {
 
 	const abortController = runningDoctors.get(repository.id);
 	if (!abortController) {
-		await db
-			.update(repositoriesTable)
-			.set({ status: "unknown" })
-			.where(eq(repositoriesTable.id, repository.id));
+		await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
 		throw new ConflictError("No doctor operation is currently running");
 	}
 
 	abortController.abort();
 	runningDoctors.delete(repository.id);
 
-	await db
-		.update(repositoriesTable)
-		.set({ status: "unknown" })
-		.where(eq(repositoriesTable.id, repository.id));
+	await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
 
 	serverEvents.emit("doctor:cancelled", {
 		organizationId: repository.organizationId,
@@ -641,10 +520,7 @@ const deleteSnapshot = async (id: string, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(
-		repository.id,
-		`delete:${snapshotId}`,
-	);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
 	try {
 		await restic.deleteSnapshot(repository.config, snapshotId, organizationId);
 		cache.delByPrefix(`snapshots:${repository.id}:`);
@@ -662,16 +538,9 @@ const deleteSnapshots = async (id: string, snapshotIds: string[]) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(
-		repository.id,
-		`delete:bulk`,
-	);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
 	try {
-		await restic.deleteSnapshots(
-			repository.config,
-			snapshotIds,
-			organizationId,
-		);
+		await restic.deleteSnapshots(repository.config, snapshotIds, organizationId);
 		cache.delByPrefix(`snapshots:${repository.id}:`);
 		for (const snapshotId of snapshotIds) {
 			cache.delByPrefix(`ls:${repository.id}:${snapshotId}:`);
@@ -693,17 +562,9 @@ const tagSnapshots = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(
-		repository.id,
-		`tag:bulk`,
-	);
+	const releaseLock = await repoMutex.acquireExclusive(repository.id, `tag:bulk`);
 	try {
-		await restic.tagSnapshots(
-			repository.config,
-			snapshotIds,
-			tags,
-			organizationId,
-		);
+		await restic.tagSnapshots(repository.config, snapshotIds, tags, organizationId);
 		cache.delByPrefix(`snapshots:${repository.id}:`);
 		for (const snapshotId of snapshotIds) {
 			cache.delByPrefix(`ls:${repository.id}:${snapshotId}:`);
@@ -726,9 +587,7 @@ const refreshSnapshots = async (id: string) => {
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, "refresh");
 	try {
-		const snapshots = await restic.snapshots(repository.config, {
-			organizationId,
-		});
+		const snapshots = await restic.snapshots(repository.config, { organizationId });
 		const cacheKey = `snapshots:${repository.id}:all`;
 		cache.set(cacheKey, snapshots);
 
@@ -855,24 +714,14 @@ const execResticCommand = async (
 	}
 	addCommonArgs(resticArgs, env, repository.config);
 
-	const result = await safeSpawn({
-		command: "restic",
-		args: resticArgs,
-		env,
-		signal,
-		onStdout,
-		onStderr,
-	});
+	const result = await safeSpawn({ command: "restic", args: resticArgs, env, signal, onStdout, onStderr });
 
 	await cleanupTemporaryKeys(env);
 
 	return { exitCode: result.exitCode };
 };
 
-const getRetentionCategories = async (
-	repositoryId: string,
-	scheduleId?: string,
-) => {
+const getRetentionCategories = async (repositoryId: string, scheduleId?: string) => {
 	if (!scheduleId) {
 		return new Map<string, RetentionCategory[]>();
 	}
@@ -896,15 +745,11 @@ const getRetentionCategories = async (
 
 		const { repository } = repositoryResult;
 
-		const dryRunResults = await restic.forget(
-			repository.config,
-			schedule.retentionPolicy,
-			{
-				tag: scheduleId,
-				organizationId: getOrganizationId(),
-				dryRun: true,
-			},
-		);
+		const dryRunResults = await restic.forget(repository.config, schedule.retentionPolicy, {
+			tag: scheduleId,
+			organizationId: getOrganizationId(),
+			dryRun: true,
+		});
 
 		if (!dryRunResults.data) {
 			return new Map<string, RetentionCategory[]>();

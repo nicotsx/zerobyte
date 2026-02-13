@@ -143,8 +143,6 @@ export const repositoriesController = new Hono()
 			summary: snapshot.summary,
 		};
 
-		c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
-
 		return c.json<GetSnapshotDetailsDto>(response, 200);
 	})
 	.get(
