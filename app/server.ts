@@ -1,11 +1,12 @@
 import { logger } from "./server/utils/logger";
 import { shutdown } from "./server/modules/lifecycle/shutdown";
 import { runCLI } from "./server/cli";
-import { createStartHandler, defaultStreamHandler, defineHandlerCallback } from "@tanstack/react-start/server";
+import {
+	createStartHandler,
+	defaultStreamHandler,
+	defineHandlerCallback,
+} from "@tanstack/react-start/server";
 import { createServerEntry } from "@tanstack/react-start/server-entry";
-import { initModules } from "./server/modules/lifecycle/bootstrap";
-
-await initModules();
 
 const cliRun = await runCLI(Bun.argv);
 if (cliRun) {
