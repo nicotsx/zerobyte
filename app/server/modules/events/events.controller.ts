@@ -1,17 +1,36 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import type {
-	ServerBackupCompletedEventDto,
-	ServerBackupProgressEventDto,
-	ServerBackupStartedEventDto,
-	ServerRestoreCompletedEventDto,
-	ServerRestoreProgressEventDto,
-	ServerRestoreStartedEventDto,
-} from "~/schemas/events-dto";
-import type { DoctorResult } from "~/schemas/restic";
 import { serverEvents } from "../../core/events";
 import { logger } from "../../utils/logger";
 import { requireAuth } from "../auth/auth.middleware";
+import type { ServerEventPayloadMap } from "~/schemas/server-events";
+
+type OrganizationScopedEvent = {
+	[EventName in keyof ServerEventPayloadMap]: ServerEventPayloadMap[EventName] extends {
+		organizationId: string;
+	}
+		? EventName
+		: never;
+}[keyof ServerEventPayloadMap];
+
+const broadcastEvents = [
+	"backup:started",
+	"backup:progress",
+	"backup:completed",
+	"volume:mounted",
+	"volume:unmounted",
+	"volume:updated",
+	"mirror:started",
+	"mirror:completed",
+	"restore:started",
+	"restore:progress",
+	"restore:completed",
+	"doctor:started",
+	"doctor:completed",
+	"doctor:cancelled",
+] as const satisfies OrganizationScopedEvent[];
+
+type BroadcastEvent = (typeof broadcastEvents)[number];
 
 export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 	logger.info("Client connected to SSE endpoint");
@@ -23,155 +42,27 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			event: "connected",
 		});
 
-		const onBackupStarted = async (data: ServerBackupStartedEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "backup:started",
-			});
+		const createOrganizationEventHandler = <EventName extends BroadcastEvent>(event: EventName) => {
+			return async (data: ServerEventPayloadMap[EventName]) => {
+				if (data.organizationId !== organizationId) return;
+				await stream.writeSSE({
+					data: JSON.stringify(data),
+					event,
+				});
+			};
 		};
 
-		const onBackupProgress = async (data: ServerBackupProgressEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "backup:progress",
-			});
-		};
+		const eventHandlers = broadcastEvents.reduce(
+			(handlers, event) => {
+				handlers[event] = createOrganizationEventHandler(event);
+				return handlers;
+			},
+			{} as { [EventName in BroadcastEvent]: (data: ServerEventPayloadMap[EventName]) => Promise<void> },
+		);
 
-		const onBackupCompleted = async (data: ServerBackupCompletedEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "backup:completed",
-			});
-		};
-
-		const onVolumeMounted = async (data: { organizationId: string; volumeName: string }) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "volume:mounted",
-			});
-		};
-
-		const onVolumeUnmounted = async (data: { organizationId: string; volumeName: string }) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "volume:unmounted",
-			});
-		};
-
-		const onVolumeUpdated = async (data: { organizationId: string; volumeName: string }) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "volume:updated",
-			});
-		};
-
-		const onMirrorStarted = async (data: {
-			organizationId: string;
-			scheduleId: number;
-			repositoryId: string;
-			repositoryName: string;
-		}) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "mirror:started",
-			});
-		};
-
-		const onMirrorCompleted = async (data: {
-			organizationId: string;
-			scheduleId: number;
-			repositoryId: string;
-			repositoryName: string;
-			status: "success" | "error";
-			error?: string;
-		}) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "mirror:completed",
-			});
-		};
-
-		const onRestoreStarted = async (data: ServerRestoreStartedEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "restore:started",
-			});
-		};
-
-		const onRestoreProgress = async (data: ServerRestoreProgressEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "restore:progress",
-			});
-		};
-
-		const onRestoreCompleted = async (data: ServerRestoreCompletedEventDto) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "restore:completed",
-			});
-		};
-
-		const onDoctorStarted = async (data: { organizationId: string; repositoryId: string; repositoryName: string }) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "doctor:started",
-			});
-		};
-
-		const onDoctorCompleted = async (
-			data: {
-				organizationId: string;
-				repositoryId: string;
-				repositoryName: string;
-			} & DoctorResult,
-		) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "doctor:completed",
-			});
-		};
-
-		const onDoctorCancelled = async (data: {
-			organizationId: string;
-			repositoryId: string;
-			repositoryName: string;
-			error?: string;
-		}) => {
-			if (data.organizationId !== organizationId) return;
-			await stream.writeSSE({
-				data: JSON.stringify(data),
-				event: "doctor:cancelled",
-			});
-		};
-
-		serverEvents.on("backup:started", onBackupStarted);
-		serverEvents.on("backup:progress", onBackupProgress);
-		serverEvents.on("backup:completed", onBackupCompleted);
-		serverEvents.on("volume:mounted", onVolumeMounted);
-		serverEvents.on("volume:unmounted", onVolumeUnmounted);
-		serverEvents.on("volume:updated", onVolumeUpdated);
-		serverEvents.on("mirror:started", onMirrorStarted);
-		serverEvents.on("mirror:completed", onMirrorCompleted);
-		serverEvents.on("restore:started", onRestoreStarted);
-		serverEvents.on("restore:progress", onRestoreProgress);
-		serverEvents.on("restore:completed", onRestoreCompleted);
-		serverEvents.on("doctor:started", onDoctorStarted);
-		serverEvents.on("doctor:completed", onDoctorCompleted);
-		serverEvents.on("doctor:cancelled", onDoctorCancelled);
+		for (const event of broadcastEvents) {
+			serverEvents.on(event, eventHandlers[event]);
+		}
 
 		let keepAlive = true;
 		let cleanedUp = false;
@@ -181,20 +72,10 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 			cleanedUp = true;
 
 			c.req.raw.signal.removeEventListener("abort", onRequestAbort);
-			serverEvents.off("backup:started", onBackupStarted);
-			serverEvents.off("backup:progress", onBackupProgress);
-			serverEvents.off("backup:completed", onBackupCompleted);
-			serverEvents.off("volume:mounted", onVolumeMounted);
-			serverEvents.off("volume:unmounted", onVolumeUnmounted);
-			serverEvents.off("volume:updated", onVolumeUpdated);
-			serverEvents.off("mirror:started", onMirrorStarted);
-			serverEvents.off("mirror:completed", onMirrorCompleted);
-			serverEvents.off("restore:started", onRestoreStarted);
-			serverEvents.off("restore:progress", onRestoreProgress);
-			serverEvents.off("restore:completed", onRestoreCompleted);
-			serverEvents.off("doctor:started", onDoctorStarted);
-			serverEvents.off("doctor:completed", onDoctorCompleted);
-			serverEvents.off("doctor:cancelled", onDoctorCancelled);
+
+			for (const event of broadcastEvents) {
+				serverEvents.off(event, eventHandlers[event]);
+			}
 		}
 
 		function handleDisconnect() {
@@ -214,10 +95,7 @@ export const eventsController = new Hono().use(requireAuth).get("/", (c) => {
 
 		try {
 			while (keepAlive && !c.req.raw.signal.aborted && !stream.aborted) {
-				await stream.writeSSE({
-					data: JSON.stringify({ timestamp: Date.now() }),
-					event: "heartbeat",
-				});
+				await stream.writeSSE({ data: JSON.stringify({ timestamp: Date.now() }), event: "heartbeat" });
 				await stream.sleep(5000);
 			}
 		} finally {
