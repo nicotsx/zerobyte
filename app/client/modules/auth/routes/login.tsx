@@ -10,9 +10,12 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/auth-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { getPublicSsoProvidersOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 const loginSchema = type({
 	username: "2<=string<=50",
@@ -21,7 +24,11 @@ const loginSchema = type({
 
 type LoginFormValues = typeof loginSchema.inferIn;
 
-export function LoginPage() {
+type LoginPageProps = {
+	error?: string;
+};
+
+export function LoginPage({ error }: LoginPageProps = {}) {
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -29,6 +36,13 @@ export function LoginPage() {
 	const [totpCode, setTotpCode] = useState("");
 	const [isVerifying2FA, setIsVerifying2FA] = useState(false);
 	const [trustDevice, setTrustDevice] = useState(false);
+	const [ssoLoadingProviderId, setSsoLoadingProviderId] = useState<string | null>(null);
+	const errorCode = decodeLoginError(error);
+	const errorDescription = getLoginErrorDescription(errorCode);
+
+	const { data: ssoProviders } = useSuspenseQuery({
+		...getPublicSsoProvidersOptions(),
+	});
 
 	const form = useForm<LoginFormValues>({
 		resolver: arktypeResolver(loginSchema),
@@ -115,6 +129,31 @@ export function LoginPage() {
 		form.reset();
 	};
 
+	const handleSsoLogin = async (providerId: string) => {
+		const callbackPath = "/login";
+		const { data, error } = await authClient.signIn.sso({
+			providerId: providerId,
+			callbackURL: callbackPath,
+			errorCallbackURL: callbackPath,
+			fetchOptions: {
+				onRequest: () => setSsoLoadingProviderId(providerId),
+				onResponse: () => setSsoLoadingProviderId(null),
+			},
+		});
+
+		if (error) {
+			toast.error("SSO login failed", { description: error.message });
+			return;
+		}
+
+		if (!data?.url) {
+			toast.error("SSO login failed", { description: "Missing authorization URL" });
+			return;
+		}
+
+		window.location.href = data.url;
+	};
+
 	if (requires2FA) {
 		return (
 			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
@@ -186,6 +225,10 @@ export function LoginPage() {
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+					{errorDescription ? (
+						<div className="rounded-md border border-destructive/50 p-3 text-sm">{errorDescription}</div>
+					) : null}
+
 					<FormField
 						control={form.control}
 						name="username"
@@ -226,6 +269,27 @@ export function LoginPage() {
 					</Button>
 				</form>
 			</Form>
+
+			{ssoProviders.providers.length > 0 && (
+				<div className="pt-4 border-t border-border/60 space-y-3">
+					<p className="text-sm font-medium">Alternative Sign-in</p>
+					<div className="flex flex-col gap-2">
+						{ssoProviders.providers.map((provider) => (
+							<Button
+								key={provider.providerId}
+								type="button"
+								variant="outline"
+								className="w-full"
+								loading={ssoLoadingProviderId === provider.providerId}
+								disabled={ssoLoadingProviderId !== null && ssoLoadingProviderId !== provider.providerId}
+								onClick={() => handleSsoLogin(provider.providerId)}
+							>
+								Log in with {provider.providerId}
+							</Button>
+						))}
+					</div>
+				</div>
+			)}
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

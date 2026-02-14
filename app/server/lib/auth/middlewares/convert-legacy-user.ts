@@ -2,7 +2,7 @@ import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, usersTable, member, organization } from "~/server/db/schema";
-import type { AuthMiddlewareContext } from "../auth";
+import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { UnauthorizedError } from "http-errors-enhanced";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { normalizeUsername } from "~/lib/username";

@@ -27,6 +27,7 @@ import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { UserManagement } from "../components/user-management";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { SsoSettingsSection } from "../components/sso/sso-settings-section";
 
 type Props = {
 	appContext: AppContext;
@@ -165,7 +166,7 @@ export function SettingsPage({ appContext }: Props) {
 			<Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 				<TabsList>
 					<TabsTrigger value="account">Account</TabsTrigger>
-					{isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
+					{isAdmin && <TabsTrigger value="users">Users & Authentication</TabsTrigger>}
 					{isAdmin && <TabsTrigger value="system">System</TabsTrigger>}
 				</TabsList>
 
@@ -307,7 +308,7 @@ export function SettingsPage({ appContext }: Props) {
 					</TabsContent>
 
 					{isAdmin && (
-						<TabsContent value="users" className="mt-0">
+						<TabsContent value="users" className="mt-0 space-y-4">
 							<Card className="p-0 gap-0">
 								<div className="border-b border-border/50 bg-card-header p-6">
 									<CardTitle className="flex items-center gap-2">
@@ -316,7 +317,20 @@ export function SettingsPage({ appContext }: Props) {
 									</CardTitle>
 									<CardDescription className="mt-1.5">Manage users, roles and permissions</CardDescription>
 								</div>
-								<UserManagement />
+								<UserManagement currentUser={appContext.user} />
+							</Card>
+
+							<Card className="p-0 gap-0">
+								<div className="border-b border-border/50 bg-card-header p-6">
+									<CardTitle className="flex items-center gap-2">
+										<SettingsIcon className="size-5" />
+										Single Sign-On
+									</CardTitle>
+									<CardDescription className="mt-1.5">Configure OIDC provider settings</CardDescription>
+								</div>
+								<CardContent className="p-6">
+									<SsoSettingsSection />
+								</CardContent>
 							</Card>
 						</TabsContent>
 					)}

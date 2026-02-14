@@ -44,7 +44,7 @@ export function Layout({ loaderData }: Props) {
 							<div className="flex items-center gap-4">
 								<span className="text-sm text-muted-foreground hidden md:inline-flex">
 									Welcome,&nbsp;
-									<span className="text-strong-accent">{loaderData.user?.username}</span>
+									<span className="text-strong-accent">{loaderData.user.name}</span>
 								</span>
 								<Button variant="default" size="sm" onClick={handleLogout}>
 									Logout

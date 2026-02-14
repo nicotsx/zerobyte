@@ -6,6 +6,7 @@ import {
 	organizationClient,
 	inferAdditionalFields,
 } from "better-auth/client/plugins";
+import { ssoClient } from "@better-auth/sso/client";
 import type { auth } from "~/server/lib/auth";
 
 export const authClient = createAuthClient({
@@ -14,6 +15,7 @@ export const authClient = createAuthClient({
 		usernameClient(),
 		adminClient(),
 		organizationClient(),
+		ssoClient(),
 		twoFactorClient(),
 	],
 });

@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Shield, ShieldAlert, UserMinus, UserCheck, Trash2, Search, AlertTriangle } from "lucide-react";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { Shield, ShieldAlert, UserCheck, Trash2, Search, AlertTriangle, Ban } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "~/client/lib/auth-client";
@@ -17,12 +17,9 @@ import {
 	DialogTitle,
 } from "~/client/components/ui/dialog";
 import { CreateUserDialog } from "./create-user-dialog";
-import { getUserDeletionImpactOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { getAdminUsersOptions, getUserDeletionImpactOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
-export function UserManagement() {
-	const { data: session } = authClient.useSession();
-	const currentUser = session?.user;
-
+export function UserManagement({ currentUser }: { currentUser: { id: string } | undefined | null }) {
 	const [search, setSearch] = useState("");
 	const [userToDelete, setUserToDelete] = useState<string | null>(null);
 	const [userToBan, setUserToBan] = useState<{ id: string; name: string; isBanned: boolean } | null>(null);
@@ -32,14 +29,7 @@ export function UserManagement() {
 		enabled: Boolean(userToDelete),
 	});
 
-	const { data, isLoading, refetch } = useQuery({
-		queryKey: ["admin-users"],
-		queryFn: async () => {
-			const { data, error } = await authClient.admin.listUsers({ query: { limit: 100 } });
-			if (error) throw error;
-			return data;
-		},
-	});
+	const { data } = useSuspenseQuery({ ...getAdminUsersOptions() });
 
 	const setRoleMutation = useMutation({
 		mutationFn: async ({ userId, role }: { userId: string; role: "user" | "admin" }) => {
@@ -48,10 +38,9 @@ export function UserManagement() {
 		},
 		onSuccess: () => {
 			toast.success("User role updated successfully");
-			void refetch();
 		},
-		onError: (err: any) => {
-			toast.error("Failed to update role", { description: err.message });
+		onError: (error) => {
+			toast.error("Failed to update role", { description: error.message });
 		},
 	});
 
@@ -62,36 +51,36 @@ export function UserManagement() {
 		},
 		onSuccess: () => {
 			toast.success("User ban status updated successfully");
-			void refetch();
 		},
 		onMutate: () => {
 			setUserToBan(null);
 		},
-		onError: (err: any) => {
-			toast.error("Failed to update ban status", { description: err.message });
+		onError: (error) => {
+			toast.error("Failed to update ban status", { description: error.message });
 		},
 	});
 
-	const filteredUsers = data?.users.filter(
-		(user) =>
-			user.name.toLowerCase().includes(search.toLowerCase()) ||
-			user.email.toLowerCase().includes(search.toLowerCase()) ||
-			(user as any).username?.toLowerCase().includes(search.toLowerCase()),
-	);
-
-	const handleDeleteUser = async () => {
-		if (!userToDelete) return;
-
-		try {
-			const { error } = await authClient.admin.removeUser({ userId: userToDelete });
+	const deleteUser = useMutation({
+		mutationFn: async (userId: string) => {
+			const { error } = await authClient.admin.removeUser({ userId });
 			if (error) throw error;
+		},
+		onSuccess: () => {
 			toast.success("User deleted successfully");
 			setUserToDelete(null);
-			void refetch();
-		} catch (err: any) {
-			toast.error("Failed to delete user", { description: err.message });
-		}
-	};
+		},
+		onError: (error) => {
+			toast.error("Failed to delete user", { description: error.message });
+		},
+	});
+
+	const normalizedSearch = search.toLowerCase();
+	const filteredUsers = data.users.filter((user) => {
+		const name = user.name?.toLowerCase() ?? "";
+		const email = user.email.toLowerCase();
+
+		return name.includes(normalizedSearch) || email.includes(normalizedSearch);
+	});
 
 	return (
 		<div className="space-y-4 p-6">
@@ -105,7 +94,7 @@ export function UserManagement() {
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 				</div>
-				<CreateUserDialog onUserCreated={() => void refetch()} />
+				<CreateUserDialog />
 			</div>
 
 			<div className="rounded-md border">
@@ -119,21 +108,18 @@ export function UserManagement() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						<TableRow className={cn({ hidden: !isLoading })}>
-							<TableCell colSpan={4} className="h-24 text-center">
-								Loading users...
-							</TableCell>
-						</TableRow>
-						<TableRow className={cn({ hidden: isLoading || (filteredUsers && filteredUsers.length > 0) })}>
-							<TableCell colSpan={4} className="h-24 text-center">
-								No users found.
-							</TableCell>
-						</TableRow>
-						{filteredUsers?.map((user) => (
+						{filteredUsers.length === 0 ? (
+							<TableRow>
+								<TableCell colSpan={4} className="h-24 text-center">
+									No users found.
+								</TableCell>
+							</TableRow>
+						) : null}
+						{filteredUsers.map((user) => (
 							<TableRow key={user.id}>
 								<TableCell>
 									<div className="flex flex-col">
-										<span className="font-medium">{user.name}</span>
+										<span className="font-medium">{user.name ?? user.email}</span>
 										<span className="text-sm text-muted-foreground">{user.email}</span>
 									</div>
 								</TableCell>
@@ -172,20 +158,20 @@ export function UserManagement() {
 										<Button
 											variant="ghost"
 											size="icon"
-											title="Unban User"
+											title="Unban user"
 											className={cn({ hidden: !user.banned })}
-											onClick={() => setUserToBan({ id: user.id, name: user.name, isBanned: true })}
+											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: true })}
 										>
 											<UserCheck className="h-4 w-4" />
 										</Button>
 										<Button
 											variant="ghost"
 											size="icon"
-											title="Ban User"
+											title="Ban user"
 											className={cn({ hidden: !!user.banned })}
-											onClick={() => setUserToBan({ id: user.id, name: user.name, isBanned: false })}
+											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: false })}
 										>
-											<UserMinus className="h-4 w-4" />
+											<Ban className="h-4 w-4" />
 										</Button>
 
 										<Button variant="ghost" size="icon" title="Delete User" onClick={() => setUserToDelete(user.id)}>
@@ -242,7 +228,7 @@ export function UserManagement() {
 						<Button variant="outline" onClick={() => setUserToDelete(null)}>
 							Cancel
 						</Button>
-						<Button variant="destructive" disabled={isLoadingImpact} onClick={handleDeleteUser}>
+						<Button variant="destructive" disabled={isLoadingImpact} onClick={() => deleteUser.mutate(userToDelete!)}>
 							Delete User
 						</Button>
 					</DialogFooter>
@@ -267,14 +253,14 @@ export function UserManagement() {
 						<Button
 							variant="default"
 							className={cn({ hidden: !userToBan?.isBanned })}
-							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan!.id, ban: false })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: false })}
 						>
 							Unban User
 						</Button>
 						<Button
 							variant="destructive"
 							className={cn({ hidden: !!userToBan?.isBanned })}
-							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan!.id, ban: true })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: true })}
 						>
 							Ban User
 						</Button>
