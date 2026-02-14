@@ -5,6 +5,7 @@ import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
+import type { RepositoryConfig } from "~/schemas/restic";
 
 const app = createApp();
 
@@ -168,10 +169,13 @@ describe("repositories updates", () => {
 		const updated = await db.query.repositoriesTable.findFirst({
 			where: { id: repository.id },
 		});
+
+		const config = updated?.config as Extract<RepositoryConfig, { backend: "local" }>;
+
 		expect(updated).toBeTruthy();
 		expect(updated?.name).toBe("Updated repository");
 		expect(updated?.compressionMode).toBe("max");
-		expect((updated?.config as { path?: string }).path).toBe(nextPath);
+		expect(config.path).toBe(nextPath);
 		expect(updated?.status).toBe("unknown");
 		expect(updated?.lastChecked).toBeNull();
 		expect(updated?.lastError).toBeNull();
