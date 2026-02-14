@@ -42,13 +42,15 @@ const assignUserToOrganization = async (userId: string, organizationId: string) 
 		if (existingMembership) {
 			tx.update(member).set({ organizationId }).where(eq(member.id, existingMembership.id)).run();
 		} else {
-			tx.insert(member).values({
-				id: Bun.randomUUIDv7(),
-				organizationId,
-				userId,
-				role: "member",
-				createdAt: new Date(),
-			}).run();
+			tx.insert(member)
+				.values({
+					id: Bun.randomUUIDv7(),
+					organizationId,
+					userId,
+					role: "member",
+					createdAt: new Date(),
+				})
+				.run();
 		}
 
 		tx.delete(sessionsTable).where(eq(sessionsTable.userId, userId)).run();

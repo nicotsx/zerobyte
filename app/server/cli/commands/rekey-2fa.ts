@@ -75,8 +75,7 @@ const rekeyTwoFactor = async (legacySecret: string) => {
 	db.transaction((tx) => {
 		for (const record of updates) {
 			try {
-				tx
-					.update(twoFactor)
+				tx.update(twoFactor)
 					.set({
 						secret: record.secret,
 						backupCodes: record.backupCodes,

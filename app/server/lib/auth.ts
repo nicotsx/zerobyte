@@ -6,32 +6,19 @@ import {
 	type MiddlewareOptions,
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import {
-	admin,
-	createAuthMiddleware,
-	twoFactor,
-	username,
-	organization,
-} from "better-auth/plugins";
+import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
 import { UnauthorizedError } from "http-errors-enhanced";
 import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
 import { eq } from "drizzle-orm";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
-import {
-	organization as organizationTable,
-	member,
-	usersTable,
-} from "../db/schema";
+import { organization as organizationTable, member, usersTable } from "../db/schema";
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 
-export type AuthMiddlewareContext = MiddlewareContext<
-	MiddlewareOptions,
-	AuthContext<BetterAuthOptions>
->;
+export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
 export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
@@ -72,45 +59,41 @@ export const auth = betterAuth({
 					return { data: user };
 				},
 				after: async (user) => {
-					const slug =
-						user.email.split("@")[0] +
-						"-" +
-						Math.random().toString(36).slice(-4);
+					const slug = user.email.split("@")[0] + "-" + Math.random().toString(36).slice(-4);
 
 					const resticPassword = cryptoUtils.generateResticPassword();
 					const metadata = {
-						resticPassword:
-							await cryptoUtils.sealSecret(resticPassword),
+						resticPassword: await cryptoUtils.sealSecret(resticPassword),
 					};
 
 					try {
 						db.transaction((tx) => {
 							const orgId = Bun.randomUUIDv7();
 
-							tx.insert(organizationTable).values({
-								name: `${user.name}'s Workspace`,
-								slug: slug,
-								id: orgId,
-								createdAt: new Date(),
-								metadata,
-							}).run();
+							tx.insert(organizationTable)
+								.values({
+									name: `${user.name}'s Workspace`,
+									slug: slug,
+									id: orgId,
+									createdAt: new Date(),
+									metadata,
+								})
+								.run();
 
-							tx.insert(member).values({
-								id: Bun.randomUUIDv7(),
-								userId: user.id,
-								role: "owner",
-								organizationId: orgId,
-								createdAt: new Date(),
-							}).run();
+							tx.insert(member)
+								.values({
+									id: Bun.randomUUIDv7(),
+									userId: user.id,
+									role: "owner",
+									organizationId: orgId,
+									createdAt: new Date(),
+								})
+								.run();
 						});
 					} catch {
-						await db
-							.delete(usersTable)
-							.where(eq(usersTable.id, user.id));
+						await db.delete(usersTable).where(eq(usersTable.id, user.id));
 
-						throw new Error(
-							`Failed to create organization for user ${user.id}`,
-						);
+						throw new Error(`Failed to create organization for user ${user.id}`);
 					}
 				},
 			},
@@ -123,9 +106,7 @@ export const auth = betterAuth({
 					});
 
 					if (!orgMembership) {
-						throw new UnauthorizedError(
-							"User does not belong to any organization",
-						);
+						throw new UnauthorizedError("User does not belong to any organization");
 					}
 
 					return {

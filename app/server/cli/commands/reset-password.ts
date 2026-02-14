@@ -21,8 +21,7 @@ const resetPassword = async (username: string, newPassword: string) => {
 	const legacyHash = user.passwordHash ? await Bun.password.hash(newPassword) : null;
 
 	db.transaction((tx) => {
-		tx
-			.update(account)
+		tx.update(account)
 			.set({ password: newPasswordHash })
 			.where(and(eq(account.userId, user.id), eq(account.providerId, "credential")))
 			.run();
