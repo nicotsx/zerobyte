@@ -3,6 +3,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"postinstall": "lefthook install",
 		"lint": "oxlint --type-aware",
 		"dev": "NODE_ENV=development bunx --bun vite",
 		"build": "vite build",
@@ -109,6 +110,7 @@
 		"bun-types": "^1.3.6",
 		"dotenv-cli": "^11.0.0",
 		"drizzle-kit": "^1.0.0-beta.15-859cf75",
+		"lefthook": "^2.1.1",
 		"lightningcss": "^1.31.1",
 		"nitro": "^3.0.1-alpha.2",
 		"oxfmt": "^0.31.0",
