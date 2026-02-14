@@ -44,7 +44,7 @@ export function Layout({ loaderData }: Props) {
 						{loaderData.user && (
 							<div className="flex items-center bg-muted/30 border border-border/50 px-2 py-1 rounded-full shadow-sm">
 								<span className="text-sm text-muted-foreground hidden md:inline-flex pl-2 mr-5">
-									<span className="text-foreground">{loaderData.user?.username}</span>
+									<span className="text-foreground">{loaderData.user.name}</span>
 								</span>
 								<Tooltip>
 									<TooltipTrigger asChild>

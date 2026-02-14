@@ -7,17 +7,17 @@ import {
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
-import { UnauthorizedError } from "http-errors-enhanced";
-import { convertLegacyUserOnFirstLogin } from "./auth-middlewares/convert-legacy-user";
-import { eq } from "drizzle-orm";
+import { sso } from "@better-auth/sso";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
-import { organization as organizationTable, member, usersTable } from "../db/schema";
-import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
+import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
+import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
+import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
+import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -49,7 +49,13 @@ export const auth = betterAuth({
 				},
 			},
 			create: {
-				before: async (user) => {
+				before: async (user, ctx) => {
+					await requireSsoInvitation(user.email, ctx);
+
+					if (isSsoCallbackRequest(ctx)) {
+						user.hasDownloadedResticPassword = true;
+					}
+
 					const anyUser = await db.query.usersTable.findFirst();
 					const isFirstUser = !anyUser;
 
@@ -57,71 +63,30 @@ export const auth = betterAuth({
 						user.role = "admin";
 					}
 
-					return { data: user };
-				},
-				after: async (user) => {
-					const slug = user.email.split("@")[0] + "-" + Math.random().toString(36).slice(-4);
-
-					const resticPassword = cryptoUtils.generateResticPassword();
-					const metadata = {
-						resticPassword: await cryptoUtils.sealSecret(resticPassword),
-					};
-
-					try {
-						db.transaction((tx) => {
-							const orgId = Bun.randomUUIDv7();
-
-							tx.insert(organizationTable)
-								.values({
-									name: `${user.name}'s Workspace`,
-									slug: slug,
-									id: orgId,
-									createdAt: new Date(),
-									metadata,
-								})
-								.run();
-
-							tx.insert(member)
-								.values({
-									id: Bun.randomUUIDv7(),
-									userId: user.id,
-									role: "owner",
-									organizationId: orgId,
-									createdAt: new Date(),
-								})
-								.run();
-						});
-					} catch {
-						await db.delete(usersTable).where(eq(usersTable.id, user.id));
-
-						throw new Error(`Failed to create organization for user ${user.id}`);
+					if (!user.username) {
+						user.username = Bun.randomUUIDv7();
 					}
+
+					return { data: user };
 				},
 			},
 		},
 		session: {
 			create: {
-				before: async (session) => {
-					const orgMembership = await db.query.member.findFirst({
-						where: { userId: session.userId },
-					});
-
-					if (!orgMembership) {
-						throw new UnauthorizedError("User does not belong to any organization");
-					}
-
-					return {
-						data: {
-							...session,
-							activeOrganizationId: orgMembership?.organizationId,
-						},
-					};
+				before: async (session, ctx) => {
+					const membership = await createUserDefaultOrg(session.userId, ctx);
+					return { data: { ...session, activeOrganizationId: membership.organizationId } };
 				},
 			},
 		},
 	},
 	emailAndPassword: {
 		enabled: true,
+	},
+	account: {
+		accountLinking: {
+			disableImplicitLinking: true,
+		},
 	},
 	user: {
 		modelName: "usersTable",
@@ -150,6 +115,13 @@ export const auth = betterAuth({
 		}),
 		organization({
 			allowUserToCreateOrganization: false,
+		}),
+		sso({
+			trustEmailVerified: true,
+			organizationProvisioning: {
+				disabled: false,
+				defaultRole: "member",
+			},
 		}),
 		twoFactor({
 			backupCodeOptions: {

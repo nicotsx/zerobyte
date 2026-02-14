@@ -2,7 +2,7 @@ import { test, describe, mock, beforeEach, afterEach, expect } from "bun:test";
 import { convertLegacyUserOnFirstLogin } from "../convert-legacy-user";
 import { db } from "~/server/db/db";
 import { usersTable, account, organization, member } from "~/server/db/schema";
-import type { AuthMiddlewareContext } from "../../auth";
+import type { AuthMiddlewareContext } from "~/server/lib/auth";
 
 describe("convertLegacyUserOnFirstLogin", () => {
 	beforeEach(async () => {

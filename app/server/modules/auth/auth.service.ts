@@ -6,9 +6,12 @@ import {
 	volumesTable,
 	repositoriesTable,
 	backupSchedulesTable,
+	ssoProvider,
+	account,
+	invitation,
 } from "../../db/schema";
 import { eq, ne, and, count, inArray } from "drizzle-orm";
-import type { UserDeletionImpactDto } from "./auth.dto";
+import type { PublicSsoProvidersDto, UserDeletionImpactDto } from "./auth.dto";
 
 export class AuthService {
 	/**
@@ -17,6 +20,21 @@ export class AuthService {
 	async hasUsers(): Promise<boolean> {
 		const [user] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
 		return !!user;
+	}
+
+	/**
+	 * Get public SSO providers for the instance
+	 */
+	async getPublicSsoProviders(): Promise<PublicSsoProvidersDto> {
+		const providers = await db
+			.select({
+				providerId: ssoProvider.providerId,
+				organizationSlug: organization.slug,
+			})
+			.from(ssoProvider)
+			.innerJoin(organization, eq(ssoProvider.organizationId, organization.id));
+
+		return { providers };
 	}
 
 	/**
@@ -84,6 +102,23 @@ export class AuthService {
 		if (orgIds.length > 0) {
 			await db.delete(organization).where(inArray(organization.id, orgIds));
 		}
+	}
+
+	/**
+	 * Delete an SSO provider and its associated accounts
+	 */
+	async deleteSsoProvider(providerId: string): Promise<void> {
+		await db.transaction(async (tx) => {
+			await tx.delete(account).where(eq(account.providerId, providerId));
+			await tx.delete(ssoProvider).where(eq(ssoProvider.providerId, providerId));
+		});
+	}
+
+	/**
+	 * Delete an invitation
+	 */
+	async deleteSsoInvitation(invitationId: string): Promise<void> {
+		await db.delete(invitation).where(eq(invitation.id, invitationId));
 	}
 }
 

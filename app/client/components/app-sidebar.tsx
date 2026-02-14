@@ -18,6 +18,7 @@ import { cn } from "~/client/lib/utils";
 import { APP_VERSION, RCLONE_VERSION, RESTIC_VERSION, SHOUTRRR_VERSION } from "~/client/lib/version";
 import { useUpdates } from "~/client/hooks/use-updates";
 import { ReleaseNotesDialog } from "./release-notes-dialog";
+import { OrganizationSwitcher } from "./organization-switcher";
 import { Link } from "@tanstack/react-router";
 
 const items = [
@@ -131,7 +132,8 @@ export function AppSidebar() {
 					</SidebarGroupContent>
 				</SidebarGroup>
 			</SidebarContent>
-			<SidebarFooter className="p-4 border-r border-t border-border/50">
+			<SidebarFooter className="p-4 border-r border-border/50">
+				<OrganizationSwitcher />
 				<div className="flex items-center justify-between gap-2">
 					<HoverCard openDelay={200}>
 						<HoverCardTrigger asChild>

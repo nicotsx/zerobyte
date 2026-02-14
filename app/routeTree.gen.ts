@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
+import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
@@ -22,12 +23,15 @@ import { Route as dashboardNotificationsIndexRouteImport } from './routes/(dashb
 import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
 import { Route as dashboardVolumesCreateRouteImport } from './routes/(dashboard)/volumes/create'
 import { Route as dashboardVolumesVolumeIdRouteImport } from './routes/(dashboard)/volumes/$volumeId'
+import { Route as dashboardSettingsSsoLinkRouteImport } from './routes/(dashboard)/settings/sso-link'
 import { Route as dashboardRepositoriesCreateRouteImport } from './routes/(dashboard)/repositories/create'
 import { Route as dashboardNotificationsCreateRouteImport } from './routes/(dashboard)/notifications/create'
 import { Route as dashboardNotificationsNotificationIdRouteImport } from './routes/(dashboard)/notifications/$notificationId'
 import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
+import { Route as authLoginErrorRouteImport } from './routes/(auth)/login.error'
 import { Route as dashboardRepositoriesRepositoryIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/index'
 import { Route as dashboardBackupsBackupIdIndexRouteImport } from './routes/(dashboard)/backups/$backupId/index'
+import { Route as dashboardSettingsSsoLinkErrorRouteImport } from './routes/(dashboard)/settings/sso-link.error'
 import { Route as dashboardRepositoriesRepositoryIdEditRouteImport } from './routes/(dashboard)/repositories/$repositoryId/edit'
 import { Route as dashboardRepositoriesRepositoryIdSnapshotIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/$snapshotId/index'
 import { Route as dashboardRepositoriesRepositoryIdSnapshotIdRestoreRouteImport } from './routes/(dashboard)/repositories/$repositoryId/$snapshotId/restore'
@@ -35,6 +39,10 @@ import { Route as dashboardBackupsBackupIdSnapshotIdRestoreRouteImport } from '.
 
 const dashboardRouteRoute = dashboardRouteRouteImport.update({
   id: '/(dashboard)',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const authRouteRoute = authRouteRouteImport.update({
+  id: '/(auth)',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -48,19 +56,19 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const authOnboardingRoute = authOnboardingRouteImport.update({
-  id: '/(auth)/onboarding',
+  id: '/onboarding',
   path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => authRouteRoute,
 } as any)
 const authLoginRoute = authLoginRouteImport.update({
-  id: '/(auth)/login',
+  id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => authRouteRoute,
 } as any)
 const authDownloadRecoveryKeyRoute = authDownloadRecoveryKeyRouteImport.update({
-  id: '/(auth)/download-recovery-key',
+  id: '/download-recovery-key',
   path: '/download-recovery-key',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => authRouteRoute,
 } as any)
 const dashboardVolumesIndexRoute = dashboardVolumesIndexRouteImport.update({
   id: '/volumes/',
@@ -100,6 +108,12 @@ const dashboardVolumesVolumeIdRoute =
     path: '/volumes/$volumeId',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
+const dashboardSettingsSsoLinkRoute =
+  dashboardSettingsSsoLinkRouteImport.update({
+    id: '/settings/sso-link',
+    path: '/settings/sso-link',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 const dashboardRepositoriesCreateRoute =
   dashboardRepositoriesCreateRouteImport.update({
     id: '/repositories/create',
@@ -123,6 +137,11 @@ const dashboardBackupsCreateRoute = dashboardBackupsCreateRouteImport.update({
   path: '/backups/create',
   getParentRoute: () => dashboardRouteRoute,
 } as any)
+const authLoginErrorRoute = authLoginErrorRouteImport.update({
+  id: '/error',
+  path: '/error',
+  getParentRoute: () => authLoginRoute,
+} as any)
 const dashboardRepositoriesRepositoryIdIndexRoute =
   dashboardRepositoriesRepositoryIdIndexRouteImport.update({
     id: '/repositories/$repositoryId/',
@@ -134,6 +153,12 @@ const dashboardBackupsBackupIdIndexRoute =
     id: '/backups/$backupId/',
     path: '/backups/$backupId/',
     getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardSettingsSsoLinkErrorRoute =
+  dashboardSettingsSsoLinkErrorRouteImport.update({
+    id: '/error',
+    path: '/error',
+    getParentRoute: () => dashboardSettingsSsoLinkRoute,
   } as any)
 const dashboardRepositoriesRepositoryIdEditRoute =
   dashboardRepositoriesRepositoryIdEditRouteImport.update({
@@ -163,13 +188,15 @@ const dashboardBackupsBackupIdSnapshotIdRestoreRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
-  '/login': typeof authLoginRoute
+  '/login': typeof authLoginRouteWithChildren
   '/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/login/error': typeof authLoginErrorRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
   '/notifications/create': typeof dashboardNotificationsCreateRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
+  '/settings/sso-link': typeof dashboardSettingsSsoLinkRouteWithChildren
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
   '/volumes/create': typeof dashboardVolumesCreateRoute
   '/backups/': typeof dashboardBackupsIndexRoute
@@ -178,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof dashboardSettingsIndexRoute
   '/volumes/': typeof dashboardVolumesIndexRoute
   '/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/settings/sso-link/error': typeof dashboardSettingsSsoLinkErrorRoute
   '/backups/$backupId/': typeof dashboardBackupsBackupIdIndexRoute
   '/repositories/$repositoryId/': typeof dashboardRepositoriesRepositoryIdIndexRoute
   '/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
@@ -187,13 +215,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/download-recovery-key': typeof authDownloadRecoveryKeyRoute
-  '/login': typeof authLoginRoute
+  '/login': typeof authLoginRouteWithChildren
   '/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/login/error': typeof authLoginErrorRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
   '/notifications/create': typeof dashboardNotificationsCreateRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
+  '/settings/sso-link': typeof dashboardSettingsSsoLinkRouteWithChildren
   '/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
   '/volumes/create': typeof dashboardVolumesCreateRoute
   '/backups': typeof dashboardBackupsIndexRoute
@@ -202,6 +232,7 @@ export interface FileRoutesByTo {
   '/settings': typeof dashboardSettingsIndexRoute
   '/volumes': typeof dashboardVolumesIndexRoute
   '/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/settings/sso-link/error': typeof dashboardSettingsSsoLinkErrorRoute
   '/backups/$backupId': typeof dashboardBackupsBackupIdIndexRoute
   '/repositories/$repositoryId': typeof dashboardRepositoriesRepositoryIdIndexRoute
   '/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
@@ -211,15 +242,18 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/(auth)': typeof authRouteRouteWithChildren
   '/(dashboard)': typeof dashboardRouteRouteWithChildren
   '/(auth)/download-recovery-key': typeof authDownloadRecoveryKeyRoute
-  '/(auth)/login': typeof authLoginRoute
+  '/(auth)/login': typeof authLoginRouteWithChildren
   '/(auth)/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/(auth)/login/error': typeof authLoginErrorRoute
   '/(dashboard)/backups/create': typeof dashboardBackupsCreateRoute
   '/(dashboard)/notifications/$notificationId': typeof dashboardNotificationsNotificationIdRoute
   '/(dashboard)/notifications/create': typeof dashboardNotificationsCreateRoute
   '/(dashboard)/repositories/create': typeof dashboardRepositoriesCreateRoute
+  '/(dashboard)/settings/sso-link': typeof dashboardSettingsSsoLinkRouteWithChildren
   '/(dashboard)/volumes/$volumeId': typeof dashboardVolumesVolumeIdRoute
   '/(dashboard)/volumes/create': typeof dashboardVolumesCreateRoute
   '/(dashboard)/backups/': typeof dashboardBackupsIndexRoute
@@ -228,6 +262,7 @@ export interface FileRoutesById {
   '/(dashboard)/settings/': typeof dashboardSettingsIndexRoute
   '/(dashboard)/volumes/': typeof dashboardVolumesIndexRoute
   '/(dashboard)/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/(dashboard)/settings/sso-link/error': typeof dashboardSettingsSsoLinkErrorRoute
   '/(dashboard)/backups/$backupId/': typeof dashboardBackupsBackupIdIndexRoute
   '/(dashboard)/repositories/$repositoryId/': typeof dashboardRepositoriesRepositoryIdIndexRoute
   '/(dashboard)/backups/$backupId/$snapshotId/restore': typeof dashboardBackupsBackupIdSnapshotIdRestoreRoute
@@ -242,10 +277,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/api/$'
+    | '/login/error'
     | '/backups/create'
     | '/notifications/$notificationId'
     | '/notifications/create'
     | '/repositories/create'
+    | '/settings/sso-link'
     | '/volumes/$volumeId'
     | '/volumes/create'
     | '/backups/'
@@ -254,6 +291,7 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/volumes/'
     | '/repositories/$repositoryId/edit'
+    | '/settings/sso-link/error'
     | '/backups/$backupId/'
     | '/repositories/$repositoryId/'
     | '/backups/$backupId/$snapshotId/restore'
@@ -266,10 +304,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/api/$'
+    | '/login/error'
     | '/backups/create'
     | '/notifications/$notificationId'
     | '/notifications/create'
     | '/repositories/create'
+    | '/settings/sso-link'
     | '/volumes/$volumeId'
     | '/volumes/create'
     | '/backups'
@@ -278,6 +318,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/volumes'
     | '/repositories/$repositoryId/edit'
+    | '/settings/sso-link/error'
     | '/backups/$backupId'
     | '/repositories/$repositoryId'
     | '/backups/$backupId/$snapshotId/restore'
@@ -286,15 +327,18 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/(auth)'
     | '/(dashboard)'
     | '/(auth)/download-recovery-key'
     | '/(auth)/login'
     | '/(auth)/onboarding'
     | '/api/$'
+    | '/(auth)/login/error'
     | '/(dashboard)/backups/create'
     | '/(dashboard)/notifications/$notificationId'
     | '/(dashboard)/notifications/create'
     | '/(dashboard)/repositories/create'
+    | '/(dashboard)/settings/sso-link'
     | '/(dashboard)/volumes/$volumeId'
     | '/(dashboard)/volumes/create'
     | '/(dashboard)/backups/'
@@ -303,6 +347,7 @@ export interface FileRouteTypes {
     | '/(dashboard)/settings/'
     | '/(dashboard)/volumes/'
     | '/(dashboard)/repositories/$repositoryId/edit'
+    | '/(dashboard)/settings/sso-link/error'
     | '/(dashboard)/backups/$backupId/'
     | '/(dashboard)/repositories/$repositoryId/'
     | '/(dashboard)/backups/$backupId/$snapshotId/restore'
@@ -312,10 +357,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  authRouteRoute: typeof authRouteRouteWithChildren
   dashboardRouteRoute: typeof dashboardRouteRouteWithChildren
-  authDownloadRecoveryKeyRoute: typeof authDownloadRecoveryKeyRoute
-  authLoginRoute: typeof authLoginRoute
-  authOnboardingRoute: typeof authOnboardingRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
@@ -326,6 +369,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: ''
       preLoaderRoute: typeof dashboardRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/(auth)': {
+      id: '/(auth)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof authRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -347,21 +397,21 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof authOnboardingRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof authRouteRoute
     }
     '/(auth)/login': {
       id: '/(auth)/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof authLoginRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof authRouteRoute
     }
     '/(auth)/download-recovery-key': {
       id: '/(auth)/download-recovery-key'
       path: '/download-recovery-key'
       fullPath: '/download-recovery-key'
       preLoaderRoute: typeof authDownloadRecoveryKeyRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof authRouteRoute
     }
     '/(dashboard)/volumes/': {
       id: '/(dashboard)/volumes/'
@@ -412,6 +462,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardVolumesVolumeIdRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/settings/sso-link': {
+      id: '/(dashboard)/settings/sso-link'
+      path: '/settings/sso-link'
+      fullPath: '/settings/sso-link'
+      preLoaderRoute: typeof dashboardSettingsSsoLinkRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/repositories/create': {
       id: '/(dashboard)/repositories/create'
       path: '/repositories/create'
@@ -440,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardBackupsCreateRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(auth)/login/error': {
+      id: '/(auth)/login/error'
+      path: '/error'
+      fullPath: '/login/error'
+      preLoaderRoute: typeof authLoginErrorRouteImport
+      parentRoute: typeof authLoginRoute
+    }
     '/(dashboard)/repositories/$repositoryId/': {
       id: '/(dashboard)/repositories/$repositoryId/'
       path: '/repositories/$repositoryId'
@@ -453,6 +517,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/backups/$backupId/'
       preLoaderRoute: typeof dashboardBackupsBackupIdIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/settings/sso-link/error': {
+      id: '/(dashboard)/settings/sso-link/error'
+      path: '/error'
+      fullPath: '/settings/sso-link/error'
+      preLoaderRoute: typeof dashboardSettingsSsoLinkErrorRouteImport
+      parentRoute: typeof dashboardSettingsSsoLinkRoute
     }
     '/(dashboard)/repositories/$repositoryId/edit': {
       id: '/(dashboard)/repositories/$repositoryId/edit'
@@ -485,11 +556,54 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface authLoginRouteChildren {
+  authLoginErrorRoute: typeof authLoginErrorRoute
+}
+
+const authLoginRouteChildren: authLoginRouteChildren = {
+  authLoginErrorRoute: authLoginErrorRoute,
+}
+
+const authLoginRouteWithChildren = authLoginRoute._addFileChildren(
+  authLoginRouteChildren,
+)
+
+interface authRouteRouteChildren {
+  authDownloadRecoveryKeyRoute: typeof authDownloadRecoveryKeyRoute
+  authLoginRoute: typeof authLoginRouteWithChildren
+  authOnboardingRoute: typeof authOnboardingRoute
+}
+
+const authRouteRouteChildren: authRouteRouteChildren = {
+  authDownloadRecoveryKeyRoute: authDownloadRecoveryKeyRoute,
+  authLoginRoute: authLoginRouteWithChildren,
+  authOnboardingRoute: authOnboardingRoute,
+}
+
+const authRouteRouteWithChildren = authRouteRoute._addFileChildren(
+  authRouteRouteChildren,
+)
+
+interface dashboardSettingsSsoLinkRouteChildren {
+  dashboardSettingsSsoLinkErrorRoute: typeof dashboardSettingsSsoLinkErrorRoute
+}
+
+const dashboardSettingsSsoLinkRouteChildren: dashboardSettingsSsoLinkRouteChildren =
+  {
+    dashboardSettingsSsoLinkErrorRoute: dashboardSettingsSsoLinkErrorRoute,
+  }
+
+const dashboardSettingsSsoLinkRouteWithChildren =
+  dashboardSettingsSsoLinkRoute._addFileChildren(
+    dashboardSettingsSsoLinkRouteChildren,
+  )
+
 interface dashboardRouteRouteChildren {
   dashboardBackupsCreateRoute: typeof dashboardBackupsCreateRoute
   dashboardNotificationsNotificationIdRoute: typeof dashboardNotificationsNotificationIdRoute
   dashboardNotificationsCreateRoute: typeof dashboardNotificationsCreateRoute
   dashboardRepositoriesCreateRoute: typeof dashboardRepositoriesCreateRoute
+  dashboardSettingsSsoLinkRoute: typeof dashboardSettingsSsoLinkRouteWithChildren
   dashboardVolumesVolumeIdRoute: typeof dashboardVolumesVolumeIdRoute
   dashboardVolumesCreateRoute: typeof dashboardVolumesCreateRoute
   dashboardBackupsIndexRoute: typeof dashboardBackupsIndexRoute
@@ -511,6 +625,7 @@ const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
     dashboardNotificationsNotificationIdRoute,
   dashboardNotificationsCreateRoute: dashboardNotificationsCreateRoute,
   dashboardRepositoriesCreateRoute: dashboardRepositoriesCreateRoute,
+  dashboardSettingsSsoLinkRoute: dashboardSettingsSsoLinkRouteWithChildren,
   dashboardVolumesVolumeIdRoute: dashboardVolumesVolumeIdRoute,
   dashboardVolumesCreateRoute: dashboardVolumesCreateRoute,
   dashboardBackupsIndexRoute: dashboardBackupsIndexRoute,
@@ -537,10 +652,8 @@ const dashboardRouteRouteWithChildren = dashboardRouteRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  authRouteRoute: authRouteRouteWithChildren,
   dashboardRouteRoute: dashboardRouteRouteWithChildren,
-  authDownloadRecoveryKeyRoute: authDownloadRecoveryKeyRoute,
-  authLoginRoute: authLoginRoute,
-  authOnboardingRoute: authOnboardingRoute,
   ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
