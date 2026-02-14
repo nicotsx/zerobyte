@@ -43,10 +43,12 @@ export const buildRepoUrl = (config: RepositoryConfig): string => {
 	switch (config.backend) {
 		case "local":
 			return config.path;
-		case "s3":
-			return `s3:${config.endpoint}/${config.bucket}`;
+		case "s3": {
+			const endpoint = config.endpoint.trim().replace(/\/$/, "");
+			return `s3:${endpoint}/${config.bucket}`;
+		}
 		case "r2": {
-			const endpoint = config.endpoint.replace(/^https?:\/\//, "");
+			const endpoint = config.endpoint.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
 			return `s3:${endpoint}/${config.bucket}`;
 		}
 		case "gcs":
