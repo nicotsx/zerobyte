@@ -320,16 +320,15 @@ const reorderSchedules = async (scheduleIds: number[]) => {
 		}
 	}
 
-	await db.transaction(async (tx) => {
+	db.transaction((tx) => {
 		const now = Date.now();
-		await Promise.all(
-			scheduleIds.map((scheduleId, index) =>
-				tx
-					.update(backupSchedulesTable)
-					.set({ sortOrder: index, updatedAt: now })
-					.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId))),
-			),
-		);
+		for (const [index, scheduleId] of scheduleIds.entries()) {
+		tx
+				.update(backupSchedulesTable)
+				.set({ sortOrder: index, updatedAt: now })
+				.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)))
+				.run();
+		}
 	});
 };
 

@@ -18,19 +18,20 @@ const resetPassword = async (username: string, newPassword: string) => {
 	}
 
 	const newPasswordHash = await hashPassword(newPassword);
+	const legacyHash = user.passwordHash ? await Bun.password.hash(newPassword) : null;
 
-	await db.transaction(async (tx) => {
-		await tx
+	db.transaction((tx) => {
+		tx
 			.update(account)
 			.set({ password: newPasswordHash })
-			.where(and(eq(account.userId, user.id), eq(account.providerId, "credential")));
+			.where(and(eq(account.userId, user.id), eq(account.providerId, "credential")))
+			.run();
 
-		if (user.passwordHash) {
-			const legacyHash = await Bun.password.hash(newPassword);
-			await tx.update(usersTable).set({ passwordHash: legacyHash }).where(eq(usersTable.id, user.id));
+		if (legacyHash) {
+			tx.update(usersTable).set({ passwordHash: legacyHash }).where(eq(usersTable.id, user.id)).run();
 		}
 
-		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
+		tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id)).run();
 	});
 };
 

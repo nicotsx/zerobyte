@@ -20,9 +20,9 @@ const disable2FA = async (username: string) => {
 		throw new Error(`User "${username}" does not have 2FA enabled`);
 	}
 
-	await db.transaction(async (tx) => {
-		await tx.update(usersTable).set({ twoFactorEnabled: false }).where(eq(usersTable.id, user.id));
-		await tx.delete(twoFactor).where(eq(twoFactor.userId, user.id));
+	db.transaction((tx) => {
+		tx.update(usersTable).set({ twoFactorEnabled: false }).where(eq(usersTable.id, user.id)).run();
+		tx.delete(twoFactor).where(eq(twoFactor.userId, user.id)).run();
 	});
 };
 

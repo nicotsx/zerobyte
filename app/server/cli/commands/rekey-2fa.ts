@@ -47,36 +47,51 @@ const resolveLegacySecret = async (options: { legacySecret?: string; legacySecre
 const rekeyTwoFactor = async (legacySecret: string) => {
 	const legacyAuthSecret = await deriveSecretFromBase(legacySecret, "better-auth");
 	const currentAuthSecret = await cryptoUtils.deriveSecret("better-auth");
+	const records = await db.query.twoFactor.findMany({});
+	const errors: Array<{ userId: string; error: string }> = [];
+	const updates: Array<{ id: string; userId: string; secret: string; backupCodes: string }> = [];
 
-	return db.transaction(async (tx) => {
-		const records = await tx.query.twoFactor.findMany({});
-		const errors: Array<{ userId: string; error: string }> = [];
-		let updated = 0;
+	for (const record of records) {
+		try {
+			const decryptedSecret = await symmetricDecrypt({ key: legacyAuthSecret, data: record.secret });
+			const decryptedBackupCodes = await symmetricDecrypt({
+				key: legacyAuthSecret,
+				data: record.backupCodes,
+			});
 
-		for (const record of records) {
+			updates.push({
+				id: record.id,
+				userId: record.userId,
+				secret: await symmetricEncrypt({ key: currentAuthSecret, data: decryptedSecret }),
+				backupCodes: await symmetricEncrypt({ key: currentAuthSecret, data: decryptedBackupCodes }),
+			});
+		} catch (error) {
+			errors.push({ userId: record.userId, error: toMessage(error) });
+		}
+	}
+
+	let updated = 0;
+
+	db.transaction((tx) => {
+		for (const record of updates) {
 			try {
-				const decryptedSecret = await symmetricDecrypt({ key: legacyAuthSecret, data: record.secret });
-				const decryptedBackupCodes = await symmetricDecrypt({
-					key: legacyAuthSecret,
-					data: record.backupCodes,
-				});
-
-				await tx
+				tx
 					.update(twoFactor)
 					.set({
-						secret: await symmetricEncrypt({ key: currentAuthSecret, data: decryptedSecret }),
-						backupCodes: await symmetricEncrypt({ key: currentAuthSecret, data: decryptedBackupCodes }),
+						secret: record.secret,
+						backupCodes: record.backupCodes,
 					})
-					.where(eq(twoFactor.id, record.id));
+					.where(eq(twoFactor.id, record.id))
+					.run();
 
 				updated += 1;
 			} catch (error) {
 				errors.push({ userId: record.userId, error: toMessage(error) });
 			}
 		}
-
-		return { total: records.length, updated, errors };
 	});
+
+	return { total: records.length, updated, errors };
 };
 
 export const rekey2FACommand = new Command("rekey-2fa")

@@ -38,20 +38,20 @@ const assignUserToOrganization = async (userId: string, organizationId: string) 
 
 	const existingMembership = await db.query.member.findFirst({ where: { userId } });
 
-	await db.transaction(async (tx) => {
+	db.transaction((tx) => {
 		if (existingMembership) {
-			await tx.update(member).set({ organizationId }).where(eq(member.id, existingMembership.id));
+			tx.update(member).set({ organizationId }).where(eq(member.id, existingMembership.id)).run();
 		} else {
-			await tx.insert(member).values({
+			tx.insert(member).values({
 				id: Bun.randomUUIDv7(),
 				organizationId,
 				userId,
 				role: "member",
 				createdAt: new Date(),
-			});
+			}).run();
 		}
 
-		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, userId));
+		tx.delete(sessionsTable).where(eq(sessionsTable.userId, userId)).run();
 	});
 };
 

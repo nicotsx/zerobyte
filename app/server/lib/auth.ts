@@ -84,24 +84,24 @@ export const auth = betterAuth({
 					};
 
 					try {
-						await db.transaction(async (tx) => {
+						db.transaction((tx) => {
 							const orgId = Bun.randomUUIDv7();
 
-							await tx.insert(organizationTable).values({
+							tx.insert(organizationTable).values({
 								name: `${user.name}'s Workspace`,
 								slug: slug,
 								id: orgId,
 								createdAt: new Date(),
 								metadata,
-							});
+							}).run();
 
-							await tx.insert(member).values({
+							tx.insert(member).values({
 								id: Bun.randomUUIDv7(),
 								userId: user.id,
 								role: "owner",
 								organizationId: orgId,
 								createdAt: new Date(),
-							});
+							}).run();
 						});
 					} catch {
 						await db

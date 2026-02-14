@@ -30,9 +30,9 @@ const changeUsername = async (oldUsername: string, newUsername: string) => {
 		);
 	}
 
-	await db.transaction(async (tx) => {
-		await tx.update(usersTable).set({ username: normalizedUsername }).where(eq(usersTable.id, user.id));
-		await tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id));
+	db.transaction((tx) => {
+		tx.update(usersTable).set({ username: normalizedUsername }).where(eq(usersTable.id, user.id)).run();
+		tx.delete(sessionsTable).where(eq(sessionsTable.userId, user.id)).run();
 	});
 };
 
