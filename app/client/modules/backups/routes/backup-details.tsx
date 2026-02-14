@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
-import { useQuery, useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Save, X } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
@@ -18,6 +19,7 @@ import {
 	runBackupNowMutation,
 	deleteBackupScheduleMutation,
 	listSnapshotsOptions,
+	listSnapshotsQueryKey,
 	updateBackupScheduleMutation,
 	stopBackupMutation,
 	deleteSnapshotMutation,
@@ -38,6 +40,7 @@ import type {
 	Repository,
 	ScheduleMirror,
 	ScheduleNotification,
+	Snapshot,
 } from "~/client/lib/types";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -50,15 +53,18 @@ type Props = {
 		mirrors: ScheduleMirror[];
 	};
 	scheduleId: string;
+	initialSnapshotId?: string;
 };
 
 export function ScheduleDetailsPage(props: Props) {
-	const { loaderData, scheduleId } = props;
+	const { loaderData, scheduleId, initialSnapshotId } = props;
 
+	const queryClient = useQueryClient();
 	const navigate = useNavigate();
+	const searchParams = useSearch({ from: "/(dashboard)/backups/$backupId/" });
 	const [isEditMode, setIsEditMode] = useState(false);
 	const formId = useId();
-	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string>();
+	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(initialSnapshotId);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 
@@ -118,13 +124,25 @@ export function ScheduleDetailsPage(props: Props) {
 		},
 	});
 
+	const listSnapshotsQueryOptions = { path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } };
+
 	const deleteSnapshot = useMutation({
 		...deleteSnapshotMutation(),
-		onSuccess: () => {
+		onSuccess: (_data, variables) => {
+			const snapshotId = variables.path.snapshotId;
+			const queryKey = listSnapshotsQueryKey(listSnapshotsQueryOptions);
+
+			queryClient.setQueryData<Snapshot[]>(queryKey, (old) => {
+				if (!old) return old;
+				return old.filter((snapshot) => snapshot.short_id !== snapshotId);
+			});
+
+			void queryClient.invalidateQueries({ queryKey });
 			setShowDeleteConfirm(false);
 			setSnapshotToDelete(null);
-			if (selectedSnapshotId === snapshotToDelete) {
+			if (selectedSnapshotId === snapshotId) {
 				setSelectedSnapshotId(undefined);
+				void navigate({ to: ".", search: () => ({ snapshot: undefined }) });
 			}
 		},
 	});
@@ -200,6 +218,14 @@ export function ScheduleDetailsPage(props: Props) {
 		}
 	};
 
+	const handleSnapshotSelect = (snapshotId: string) => {
+		setSelectedSnapshotId(snapshotId);
+		void navigate({
+			to: ".",
+			search: () => ({ ...searchParams, snapshot: snapshotId }),
+		});
+	};
+
 	if (isEditMode) {
 		return (
 			<div>
@@ -250,7 +276,7 @@ export function ScheduleDetailsPage(props: Props) {
 				snapshots={snapshots ?? []}
 				snapshotId={selectedSnapshot?.short_id}
 				error={failureReason?.message}
-				onSnapshotSelect={setSelectedSnapshotId}
+				onSnapshotSelect={handleSnapshotSelect}
 			/>
 			<BackupSummaryCard summary={selectedSnapshot?.summary} />
 			{selectedSnapshot && (

@@ -27,19 +27,26 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { formatDuration } from "~/utils/utils";
 import { formatDateTime } from "~/client/lib/datetime";
-import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	deleteSnapshotsMutation,
+	listSnapshotsQueryKey,
+	tagSnapshotsMutation,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
+import type { ListSnapshotsData } from "~/client/api-client/types.gen";
+import type { Options } from "~/client/api-client/client/types.gen";
 
 type Props = {
 	snapshots: Snapshot[];
 	backups: BackupSchedule[];
 	repositoryId: string;
+	listSnapshotsQueryOptions: Options<ListSnapshotsData>;
 };
 
-export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
+export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshotsQueryOptions }: Props) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 
@@ -50,8 +57,16 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 
 	const deleteSnapshots = useMutation({
 		...deleteSnapshotsMutation(),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
+		onSuccess: (_data, variables) => {
+			const snapshotIds = variables.body?.snapshotIds ?? [];
+			const queryKey = listSnapshotsQueryKey(listSnapshotsQueryOptions);
+
+			queryClient.setQueryData<Snapshot[]>(queryKey, (old) => {
+				if (!old) return old;
+				return old.filter((snapshot) => !snapshotIds.includes(snapshot.short_id));
+			});
+
+			void queryClient.invalidateQueries({ queryKey });
 			setShowBulkDeleteConfirm(false);
 			setSelectedIds(new Set());
 		},
@@ -63,7 +78,6 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 			setShowReTagDialog(false);
 		},
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["listSnapshots"] });
 			setShowReTagDialog(false);
 			setSelectedIds(new Set());
 			setTargetScheduleId("");

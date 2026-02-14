@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { type } from "arktype";
 import {
 	getBackupScheduleOptions,
 	getScheduleMirrorsOptions,
@@ -11,6 +12,7 @@ import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-deta
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	component: RouteComponent,
+	validateSearch: type({ snapshot: "string?" }),
 	loader: async ({ params, context }) => {
 		const { backupId } = params;
 
@@ -48,6 +50,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 function RouteComponent() {
 	const loaderData = Route.useLoaderData();
 	const { backupId } = Route.useParams();
+	const search = Route.useSearch();
 
-	return <ScheduleDetailsPage loaderData={loaderData} scheduleId={backupId} />;
+	return <ScheduleDetailsPage loaderData={loaderData} scheduleId={backupId} initialSnapshotId={search.snapshot} />;
 }

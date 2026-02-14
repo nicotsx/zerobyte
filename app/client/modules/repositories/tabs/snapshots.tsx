@@ -173,6 +173,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 					snapshots={filteredSnapshots}
 					repositoryId={repository.shortId}
 					backups={schedules.data ?? []}
+					listSnapshotsQueryOptions={{ path: { id: repository.id } }}
 				/>
 			)}
 			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-between border-t">
