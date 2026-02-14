@@ -1,5 +1,3 @@
-import { createServerFn } from "@tanstack/react-start";
-
 export const OPERATION_TIMEOUT = 5000;
 
 export const VOLUME_MOUNT_BASE = process.env.ZEROBYTE_VOLUMES_DIR || "/var/lib/zerobyte/volumes";
@@ -15,10 +13,3 @@ export const RCLONE_CONFIG_DIR = process.env.RCLONE_CONFIG_DIR || "/root/.config
 export const DEFAULT_EXCLUDES = [DATABASE_URL, RESTIC_PASS_FILE, REPOSITORY_BASE];
 
 export const REGISTRATION_ENABLED_KEY = "registrations_enabled";
-
-export const getServerConstants = createServerFn({ method: "GET" }).handler(() => {
-	return {
-		REPOSITORY_BASE,
-		REGISTRATION_ENABLED_KEY,
-	};
-});

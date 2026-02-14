@@ -34,7 +34,7 @@ import {
 	AdvancedForm,
 } from "./repository-forms";
 import { useServerFn } from "@tanstack/react-start";
-import { getServerConstants } from "~/server/core/constants";
+import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 export const formSchema = type({

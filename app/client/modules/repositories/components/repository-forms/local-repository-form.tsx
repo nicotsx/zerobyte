@@ -16,7 +16,7 @@ import {
 } from "../../../../components/ui/alert-dialog";
 import type { RepositoryFormValues } from "../create-repository-form";
 import { useServerFn } from "@tanstack/react-start";
-import { getServerConstants } from "~/server/core/constants";
+import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 type Props = {
