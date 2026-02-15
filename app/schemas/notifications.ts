@@ -65,7 +65,7 @@ export const pushoverNotificationConfigSchema = type({
 	userKey: "string",
 	apiToken: "string",
 	devices: "string?",
-	priority: "-1 | 0 | 1",
+	priority: "-2 | -1 | 0 | 1 | 2",
 });
 
 export const telegramNotificationConfigSchema = type({
