@@ -94,14 +94,6 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 		deleteVol.mutate({ path: { id: volumeId } });
 	};
 
-	if (!volumeId) {
-		return <div>Volume not found</div>;
-	}
-
-	if (!data) {
-		return <div>Loading...</div>;
-	}
-
 	const { volume, statfs } = data;
 
 	return (
@@ -164,6 +156,9 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 						<AlertDialogTitle>Delete volume?</AlertDialogTitle>
 						<AlertDialogDescription>
 							Are you sure you want to delete the volume <strong>{volume.name}</strong>? This action cannot be undone.
+							<br />
+							<br />
+							All backup schedules associated with this volume will also be removed.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<div className="flex gap-3 justify-end">

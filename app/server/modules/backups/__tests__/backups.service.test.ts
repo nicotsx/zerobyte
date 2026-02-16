@@ -1,5 +1,6 @@
 import waitForExpect from "wait-for-expect";
 import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { eq } from "drizzle-orm";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
@@ -7,6 +8,8 @@ import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
 import * as spawnModule from "~/server/utils/spawn";
+import { db } from "~/server/db/db";
+import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
 import { backupsExecutionService } from "../backups.execution";
@@ -181,5 +184,102 @@ describe("getSchedulesToExecute", () => {
 
 		// assert
 		expect(schedulesToExecute).toContain(schedule.id);
+	});
+});
+
+describe("listSchedules", () => {
+	test("should ignore schedules with missing relations", async () => {
+		const healthyVolume = await createTestVolume();
+		const healthyRepository = await createTestRepository();
+		const healthySchedule = await createTestBackupSchedule({
+			volumeId: healthyVolume.id,
+			repositoryId: healthyRepository.id,
+		});
+
+		const orphanVolume = await createTestVolume();
+		const orphanRepository = await createTestRepository();
+		const orphanSchedule = await createTestBackupSchedule({
+			volumeId: orphanVolume.id,
+			repositoryId: orphanRepository.id,
+		});
+
+		await db.delete(volumesTable).where(eq(volumesTable.id, orphanVolume.id));
+
+		const schedules = await backupsService.listSchedules();
+
+		expect(schedules.map((schedule) => schedule.id)).toContain(healthySchedule.id);
+		expect(schedules.map((schedule) => schedule.id)).not.toContain(orphanSchedule.id);
+	});
+
+	test("should ignore schedules with missing repository relation", async () => {
+		const healthyVolume = await createTestVolume();
+		const healthyRepository = await createTestRepository();
+		const healthySchedule = await createTestBackupSchedule({
+			volumeId: healthyVolume.id,
+			repositoryId: healthyRepository.id,
+		});
+
+		const orphanVolume = await createTestVolume();
+		const orphanRepository = await createTestRepository();
+		const orphanSchedule = await createTestBackupSchedule({
+			volumeId: orphanVolume.id,
+			repositoryId: orphanRepository.id,
+		});
+
+		await db.delete(repositoriesTable).where(eq(repositoriesTable.id, orphanRepository.id));
+
+		const schedules = await backupsService.listSchedules();
+
+		expect(schedules.map((schedule) => schedule.id)).toContain(healthySchedule.id);
+		expect(schedules.map((schedule) => schedule.id)).not.toContain(orphanSchedule.id);
+	});
+});
+
+describe("cleanupOrphanedSchedules", () => {
+	test("should delete orphaned schedules and their mirror assignments", async () => {
+		const healthyVolume = await createTestVolume();
+		const healthyRepository = await createTestRepository();
+		const healthySchedule = await createTestBackupSchedule({
+			volumeId: healthyVolume.id,
+			repositoryId: healthyRepository.id,
+		});
+
+		const orphanVolume = await createTestVolume();
+		const orphanRepository = await createTestRepository();
+		const orphanSchedule = await createTestBackupSchedule({
+			volumeId: orphanVolume.id,
+			repositoryId: orphanRepository.id,
+		});
+
+		const mirrorRepository = await createTestRepository();
+		await db.insert(backupScheduleMirrorsTable).values({
+			scheduleId: orphanSchedule.id,
+			repositoryId: mirrorRepository.id,
+			enabled: true,
+		});
+
+		await db.delete(volumesTable).where(eq(volumesTable.id, orphanVolume.id));
+
+		const cleanupResult = await backupsService.cleanupOrphanedSchedules();
+
+		expect(cleanupResult.deletedSchedules).toBeGreaterThanOrEqual(1);
+
+		const deletedSchedule = await db.query.backupSchedulesTable.findFirst({
+			where: { id: orphanSchedule.id },
+			columns: { id: true },
+		});
+		expect(deletedSchedule).toBeUndefined();
+
+		const remainingHealthySchedule = await db.query.backupSchedulesTable.findFirst({
+			where: { id: healthySchedule.id },
+			columns: { id: true },
+		});
+		expect(remainingHealthySchedule?.id).toBe(healthySchedule.id);
+
+		const orphanMirrors = await db.query.backupScheduleMirrorsTable.findMany({
+			where: { scheduleId: orphanSchedule.id },
+			columns: { id: true },
+		});
+		expect(orphanMirrors).toHaveLength(0);
 	});
 });

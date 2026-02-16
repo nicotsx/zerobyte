@@ -13,6 +13,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { cache } from "~/server/utils/cache";
 import { withContext } from "~/server/core/request-context";
+import { backupsService } from "../backups/backups.service";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -53,6 +54,15 @@ export const startup = async () => {
 	await Scheduler.clear();
 
 	await ensureLatestConfigurationSchema();
+
+	const { deletedSchedules } = await backupsService.cleanupOrphanedSchedules().catch((err) => {
+		logger.error(`Failed to cleanup orphaned backup schedules on startup: ${err.message}`);
+		return { deletedSchedules: 0 };
+	});
+
+	if (deletedSchedules > 0) {
+		logger.warn(`Removed ${deletedSchedules} orphaned backup schedule(s) during startup`);
+	}
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: {

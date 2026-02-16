@@ -5,7 +5,7 @@ import { startup } from "./startup";
 let bootstrapPromise: Promise<void> | undefined;
 
 const runBootstrap = async () => {
-	runDbMigrations();
+	await runDbMigrations();
 	await runMigrations();
 	await startup();
 };

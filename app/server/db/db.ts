@@ -17,7 +17,9 @@ if (fs.existsSync(path.join(path.dirname(DATABASE_URL), "ironmount.db")) && !fs.
 const sqlite = new Database(DATABASE_URL);
 export const db = drizzle({ client: sqlite, relations, schema });
 
-export const runDbMigrations = () => {
+let migrationsPromise: Promise<void> | undefined;
+
+const runMigrations = async () => {
 	let migrationsFolder: string;
 
 	if (config.migrationsPath) {
@@ -31,4 +33,13 @@ export const runDbMigrations = () => {
 	migrate(db, { migrationsFolder });
 
 	sqlite.run("PRAGMA foreign_keys = ON;");
+};
+
+export const runDbMigrations = () => {
+	if (migrationsPromise) {
+		return migrationsPromise;
+	}
+
+	migrationsPromise = runMigrations();
+	return migrationsPromise;
 };

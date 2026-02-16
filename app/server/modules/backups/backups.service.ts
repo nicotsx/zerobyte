@@ -1,8 +1,8 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import cron from "node-cron";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import { db } from "../../db/db";
-import { backupSchedulesTable, backupScheduleMirrorsTable } from "../../db/schema";
+import { backupScheduleMirrorsTable, backupScheduleNotificationsTable, backupSchedulesTable } from "../../db/schema";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
 
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
@@ -17,7 +17,7 @@ const listSchedules = async () => {
 		with: { volume: true, repository: true },
 		orderBy: { sortOrder: "asc", id: "asc" },
 	});
-	return schedules;
+	return schedules.filter((schedule) => schedule.volume && schedule.repository);
 };
 
 const getScheduleById = async (scheduleId: number) => {
@@ -28,6 +28,10 @@ const getScheduleById = async (scheduleId: number) => {
 	});
 
 	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	if (!schedule.volume || !schedule.repository) {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
@@ -42,6 +46,10 @@ const getScheduleByShortId = async (shortId: string) => {
 	});
 
 	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	if (!schedule.volume || !schedule.repository) {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
@@ -190,6 +198,10 @@ const getScheduleForVolume = async (volumeId: number) => {
 		with: { volume: true, repository: true },
 	});
 
+	if (schedule && (!schedule.volume || !schedule.repository)) {
+		return null;
+	}
+
 	return schedule ?? null;
 };
 
@@ -331,6 +343,35 @@ const reorderSchedules = async (scheduleIds: number[]) => {
 	});
 };
 
+const cleanupOrphanedSchedules = async () => {
+	const schedules = await db.query.backupSchedulesTable.findMany({
+		with: { volume: true, repository: true },
+		columns: { id: true },
+	});
+
+	const orphanScheduleIds = schedules
+		.filter((schedule) => schedule.volume === null || schedule.repository === null)
+		.map((schedule) => schedule.id);
+
+	if (orphanScheduleIds.length === 0) {
+		return { deletedSchedules: 0 };
+	}
+
+	db.transaction((tx) => {
+		tx.delete(backupScheduleNotificationsTable)
+			.where(inArray(backupScheduleNotificationsTable.scheduleId, orphanScheduleIds))
+			.run();
+
+		tx.delete(backupScheduleMirrorsTable)
+			.where(inArray(backupScheduleMirrorsTable.scheduleId, orphanScheduleIds))
+			.run();
+
+		tx.delete(backupSchedulesTable).where(inArray(backupSchedulesTable.id, orphanScheduleIds)).run();
+	});
+
+	return { deletedSchedules: orphanScheduleIds.length };
+};
+
 export const backupsService = {
 	listSchedules,
 	getScheduleById,
@@ -343,4 +384,5 @@ export const backupsService = {
 	getMirrorCompatibility,
 	reorderSchedules,
 	getScheduleByShortId,
+	cleanupOrphanedSchedules,
 };
