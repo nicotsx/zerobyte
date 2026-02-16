@@ -18,11 +18,12 @@ import { Button } from "~/client/components/ui/button";
 import { authClient } from "~/client/lib/auth-client";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import { normalizeUsername } from "~/lib/username";
 
 export const clientMiddleware = [authMiddleware];
 
 const onboardingSchema = type({
-	username: type("2<=string<=30").pipe((str) => str.trim().toLowerCase()),
+	username: type("2<=string<=30").pipe(normalizeUsername),
 	email: type("string.email").pipe((str) => str.trim().toLowerCase()),
 	password: "string>=8",
 	confirmPassword: "string>=1",
@@ -54,7 +55,7 @@ export function OnboardingPage() {
 		}
 
 		const { data, error } = await authClient.signUp.email({
-			username: values.username.toLowerCase().trim(),
+			username: normalizeUsername(values.username),
 			password: values.password,
 			email: values.email.toLowerCase().trim(),
 			name: values.username,

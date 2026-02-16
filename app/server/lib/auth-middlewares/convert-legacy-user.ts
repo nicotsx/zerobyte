@@ -5,6 +5,7 @@ import { account, usersTable, member, organization } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "../auth";
 import { UnauthorizedError } from "http-errors-enhanced";
 import { cryptoUtils } from "~/server/utils/crypto";
+import { normalizeUsername } from "~/lib/username";
 
 export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) => {
 	const { path, body } = ctx;
@@ -16,7 +17,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 	const legacyUser = await db.query.usersTable.findFirst({
 		where: {
 			AND: [
-				{ username: body.username.trim().toLowerCase() },
+				{ username: normalizeUsername(body.username) },
 				{ passwordHash: { NOT: "" } },
 				{ passwordHash: { isNotNull: true } },
 			],

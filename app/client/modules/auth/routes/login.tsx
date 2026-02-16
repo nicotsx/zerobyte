@@ -12,6 +12,7 @@ import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
+import { normalizeUsername } from "~/lib/username";
 
 const loginSchema = type({
 	username: "2<=string<=50",
@@ -39,7 +40,7 @@ export function LoginPage() {
 
 	const onSubmit = async (values: LoginFormValues) => {
 		const { data, error } = await authClient.signIn.username({
-			username: values.username.toLowerCase().trim(),
+			username: normalizeUsername(values.username),
 			password: values.password,
 			fetchOptions: {
 				onRequest: () => {

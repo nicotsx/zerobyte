@@ -17,6 +17,7 @@ import { organization as organizationTable, member, usersTable } from "../db/sch
 import { ensureOnlyOneUser } from "./auth-middlewares/only-one-user";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
+import { isValidUsername, normalizeUsername } from "~/lib/username";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -140,7 +141,10 @@ export const auth = betterAuth({
 		modelName: "sessionsTable",
 	},
 	plugins: [
-		username(),
+		username({
+			usernameValidator: isValidUsername,
+			usernameNormalization: normalizeUsername,
+		}),
 		admin({
 			defaultRole: "user",
 		}),
