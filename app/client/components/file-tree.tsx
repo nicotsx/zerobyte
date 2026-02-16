@@ -316,13 +316,10 @@ export const FileTree = memo((props: Props) => {
 		for (let i = 0; i < filteredFileList.length; i++) {
 			const item = filteredFileList[i];
 			const parentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/")) || "/";
-
-			if (parentPath !== "/") {
-				const pagination = getFolderPagination?.(parentPath);
-				if (pagination?.hasMore && !collapsedFolders.has(parentPath)) {
-					// Update the last index for this parent
-					map.set(parentPath, i);
-				}
+			const pagination = getFolderPagination?.(parentPath);
+			if (pagination?.hasMore && !collapsedFolders.has(parentPath)) {
+				// Update the last index for this parent
+				map.set(parentPath, i);
 			}
 		}
 

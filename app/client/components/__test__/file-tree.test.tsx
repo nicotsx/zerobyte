@@ -15,7 +15,12 @@ describe("FileTree Pagination", () => {
 			<FileTree
 				files={testFiles}
 				expandedFolders={new Set(["/root"])}
-				getFolderPagination={() => ({ hasMore: true, isLoadingMore: false })}
+				getFolderPagination={(path) => {
+					if (path === "/root") {
+						return { hasMore: true, isLoadingMore: false };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
 			/>,
 		);
 
@@ -67,11 +72,37 @@ describe("FileTree Pagination", () => {
 			<FileTree
 				files={testFiles}
 				expandedFolders={new Set(["/root"])}
-				getFolderPagination={() => ({ hasMore: true, isLoadingMore: true })}
+				getFolderPagination={(path) => {
+					if (path === "/root") {
+						return { hasMore: true, isLoadingMore: true };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
 			/>,
 		);
 
 		expect(screen.getByText("Loading more...")).toBeTruthy();
+	});
+
+	test("shows load more button for root-level files when root has more", () => {
+		const rootFiles: FileEntry[] = [
+			{ name: "file1", path: "/file1", type: "file" },
+			{ name: "file2", path: "/file2", type: "file" },
+		];
+
+		render(
+			<FileTree
+				files={rootFiles}
+				getFolderPagination={(path) => {
+					if (path === "/") {
+						return { hasMore: true, isLoadingMore: false };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
+			/>,
+		);
+
+		expect(screen.getByText("Load more files")).toBeTruthy();
 	});
 
 	test("load more button appears for nested folders with hasMore", () => {
@@ -103,7 +134,12 @@ describe("FileTree Pagination", () => {
 			<FileTree
 				files={testFiles}
 				expandedFolders={new Set([])}
-				getFolderPagination={() => ({ hasMore: true, isLoadingMore: false })}
+				getFolderPagination={(path) => {
+					if (path === "/root") {
+						return { hasMore: true, isLoadingMore: false };
+					}
+					return { hasMore: false, isLoadingMore: false };
+				}}
 			/>,
 		);
 
