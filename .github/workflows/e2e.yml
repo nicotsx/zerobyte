@@ -49,7 +49,7 @@ jobs:
           chmod -R 777 playwright/temp
           touch .env.local
           echo "SERVER_IP=localhost" >> .env.local
-          echo "DATABASE_URL=./data/zerobyte.db" >> .env.local
+          echo "ZEROBYTE_DATABASE_URL=./data/zerobyte.db" >> .env.local
           echo "BASE_URL=http://localhost:4096" >> .env.local
 
       - name: Start zerobyte-e2e service

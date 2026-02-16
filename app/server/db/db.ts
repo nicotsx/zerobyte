@@ -10,14 +10,8 @@ import * as schema from "./schema";
 
 fs.mkdirSync(path.dirname(DATABASE_URL), { recursive: true });
 
-if (
-	fs.existsSync(path.join(path.dirname(DATABASE_URL), "ironmount.db")) &&
-	!fs.existsSync(DATABASE_URL)
-) {
-	fs.renameSync(
-		path.join(path.dirname(DATABASE_URL), "ironmount.db"),
-		DATABASE_URL,
-	);
+if (fs.existsSync(path.join(path.dirname(DATABASE_URL), "ironmount.db")) && !fs.existsSync(DATABASE_URL)) {
+	fs.renameSync(path.join(path.dirname(DATABASE_URL), "ironmount.db"), DATABASE_URL);
 }
 
 const sqlite = new Database(DATABASE_URL);

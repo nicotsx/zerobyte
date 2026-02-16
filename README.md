@@ -352,7 +352,7 @@ For local development, create a `.env.local` file at the repo root and override 
 
 ```bash
 # Example
-DATABASE_URL=./data/zerobyte.db
+ZEROBYTE_DATABASE_URL=./data/zerobyte.db
 APP_SECRET=your_app_secret_here
 RESTIC_PASS_FILE=./data/restic.pass
 RESTIC_CACHE_DIR=./data/restic/cache
