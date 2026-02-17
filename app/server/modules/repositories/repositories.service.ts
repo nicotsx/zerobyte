@@ -1,12 +1,7 @@
 import crypto from "node:crypto";
 import { type } from "arktype";
 import { and, eq } from "drizzle-orm";
-import {
-	BadRequestError,
-	ConflictError,
-	InternalServerError,
-	NotFoundError,
-} from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import {
 	type CompressionMode,
 	type OverwriteMode,
@@ -29,6 +24,7 @@ import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
 import type { UpdateRepositoryBody } from "./repositories.dto";
 import { executeDoctor } from "./doctor";
+import { REPOSITORY_BASE } from "~/server/core/constants";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -130,8 +126,11 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 
-	let processedConfig = config;
-	const encryptedConfig = await encryptConfig(processedConfig);
+	if (config.backend === "local" && config.path === REPOSITORY_BASE) {
+		config.path = `${REPOSITORY_BASE}/${shortId}`;
+	}
+
+	const encryptedConfig = await encryptConfig(config);
 
 	const [created] = await db
 		.insert(repositoriesTable)
@@ -635,8 +634,7 @@ const updateRepository = async (id: string, updates: UpdateRepositoryBody) => {
 	}
 
 	const decryptedExisting = existingConfig ? await decryptConfig(existingConfig) : null;
-	const configChanged =
-		updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
+	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptConfig(parsedConfig) : existingConfig;
 
 	const updatedAt = Date.now();

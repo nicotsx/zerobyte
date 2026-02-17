@@ -13,6 +13,7 @@ import * as spawnModule from "~/server/utils/spawn";
 import { restic } from "~/server/utils/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";
+import { fromAny } from "@total-typescript/shoehorn";
 
 const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
 const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
@@ -66,10 +67,10 @@ describe("backup execution - validation failures", () => {
 		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
 		expect(hydratedSchedule).toBeDefined();
 		const scheduleWithoutVolume = {
-			...hydratedSchedule!,
+			...hydratedSchedule,
 			volume: null,
-		} as unknown as NonNullable<Awaited<ReturnType<typeof scheduleQueries.findById>>>;
-		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(scheduleWithoutVolume);
+		};
+		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutVolume));
 
 		// act
 		const result = await backupsExecutionService.validateBackupExecution(schedule.id);
@@ -95,10 +96,10 @@ describe("backup execution - validation failures", () => {
 		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
 		expect(hydratedSchedule).toBeDefined();
 		const scheduleWithoutRepository = {
-			...hydratedSchedule!,
+			...hydratedSchedule,
 			repository: null,
-		} as unknown as NonNullable<Awaited<ReturnType<typeof scheduleQueries.findById>>>;
-		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(scheduleWithoutRepository);
+		};
+		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutRepository));
 
 		// act
 		const result = await backupsExecutionService.validateBackupExecution(schedule.id);
