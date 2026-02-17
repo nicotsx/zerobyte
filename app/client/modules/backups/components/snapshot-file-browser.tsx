@@ -86,16 +86,20 @@ export const SnapshotFileBrowser = (props: Props) => {
 		<div className="space-y-4">
 			<Card className="h-150 flex flex-col">
 				<CardHeader>
-					<div className="flex items-start justify-between">
+					<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div>
 							<CardTitle>File Browser</CardTitle>
 							<CardDescription
 								className={cn({ hidden: !snapshot.time })}
 							>{`Viewing snapshot from ${formatDateTime(snapshot?.time)}`}</CardDescription>
 						</div>
-						<div className="flex gap-2">
+						<div className="flex gap-2 flex-wrap sm:flex-nowrap">
 							<Link
-								to={backupId ? "/backups/$backupId/$snapshotId/restore" : "/repositories/$repositoryId/$snapshotId/restore"}
+								to={
+									backupId
+										? "/backups/$backupId/$snapshotId/restore"
+										: "/repositories/$repositoryId/$snapshotId/restore"
+								}
 								params={
 									backupId
 										? { backupId, snapshotId: snapshot.short_id }

@@ -10,4 +10,5 @@ type User = {
 export type AppContext = {
 	user: User | null;
 	hasUsers: boolean;
+	sidebarOpen: boolean;
 };

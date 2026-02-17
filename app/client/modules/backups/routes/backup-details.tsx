@@ -223,6 +223,7 @@ export function ScheduleDetailsPage(props: Props) {
 		void navigate({
 			to: ".",
 			search: () => ({ ...searchParams, snapshot: snapshotId }),
+			resetScroll: false,
 		});
 	};
 

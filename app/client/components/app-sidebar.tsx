@@ -49,7 +49,7 @@ const items = [
 ];
 
 export function AppSidebar() {
-	const { state } = useSidebar();
+	const { state, isMobile, setOpenMobile } = useSidebar();
 	const { updates, hasUpdate } = useUpdates();
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
@@ -83,7 +83,7 @@ export function AppSidebar() {
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<SidebarMenuButton asChild>
-													<Link to={item.url}>
+													<Link to={item.url} onClick={() => isMobile && setOpenMobile(false)}>
 														{({ isActive }) => (
 															<>
 																<item.icon className={cn({ "text-strong-accent": isActive })} />

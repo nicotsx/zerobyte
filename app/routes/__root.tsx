@@ -2,8 +2,6 @@ import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanst
 import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 
@@ -52,8 +50,6 @@ function RootLayout() {
 			</head>
 			<body className="dark">
 				<Outlet />
-				<TanStackRouterDevtools position="bottom-right" />
-				<ReactQueryDevtools buttonPosition="bottom-left" />
 				<Toaster />
 				<Scripts />
 			</body>

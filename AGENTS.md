@@ -4,6 +4,7 @@
 
 - Never create migration files manually. Always use the provided command to generate migrations
 - If you realize an automated migration is incorrect, make sure to remove all the associated entries from the `_journal.json` and the newly created files located in `app/drizzle/` before re-generating the migration
+- The dev server is running at http://localhost:3000. Username is `admin` and password is `password`
 
 ## Project Overview
 

@@ -110,7 +110,7 @@ export function CreateBackupPage() {
 	}
 
 	return (
-		<div className="container mx-auto space-y-6">
+		<div className="container mx-auto space-y-4">
 			<Card>
 				<CardContent>
 					<Select value={selectedVolumeId?.toString()} onValueChange={(v) => setSelectedVolumeId(Number(v))}>

@@ -97,10 +97,10 @@ export function BackupsPage() {
 	const scheduleMap = new Map(schedules.map((s) => [s.id, s]));
 
 	return (
-		<div className="container mx-auto space-y-6">
+		<div className="container @container mx-auto space-y-6">
 			<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
 				<SortableContext items={items} strategy={rectSortingStrategy}>
-					<div className="grid gap-4 @md:grid-cols-1 @lg:grid-cols-2 @2xl:grid-cols-3 auto-rows-fr">
+					<div className="grid gap-4 @narrow:grid-cols-1 @medium:grid-cols-2 @wide:grid-cols-3 auto-rows-fr">
 						{items.map((id) => {
 							const schedule = scheduleMap.get(id);
 							if (!schedule) return null;

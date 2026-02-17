@@ -5,7 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@custom-variant @narrow (@container (min-width: 28rem));
+@custom-variant @medium (@container (min-width: 40rem));
+@custom-variant @wide (@container (min-width: 60rem));
+@custom-variant @xwide (@container (min-width: 80rem));
+
 @theme {
+	--container-narrow: 28rem;
+	--container-medium: 40rem;
+	--container-wide: 60rem;
+	--container-xwide: 80rem;
 	--breakpoint-xs: 32rem;
 	--font-sans:
 		"Google Sans Code", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
@@ -17,8 +26,14 @@ body {
 	overflow-x: hidden;
 	width: 100%;
 	position: relative;
-	overscroll-behavior: none;
 	scrollbar-width: thin;
+}
+
+@media (min-width: 48rem) {
+	html,
+	body {
+		overscroll-behavior: none;
+	}
 }
 
 body {

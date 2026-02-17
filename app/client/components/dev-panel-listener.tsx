@@ -1,51 +1,18 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { getDevPanelOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { DevPanel } from "./dev-panel";
 
 export function DevPanelListener() {
 	const [isOpen, setIsOpen] = useState(false);
-	const pressedKeysRef = useRef<Set<string>>(new Set());
-
 	const { data: devPanelStatus } = useQuery({
 		...getDevPanelOptions(),
 	});
 
-	const isEnabled = devPanelStatus?.enabled ?? false;
+	useHotkey("Mod+Shift+D", () => setIsOpen(true), { enabled: !!devPanelStatus?.enabled, preventDefault: true });
 
-	const handleKeyDown = useCallback(
-		(e: KeyboardEvent) => {
-			if (!isEnabled) return;
-			pressedKeysRef.current.add(e.key.toLowerCase());
-
-			const keys = pressedKeysRef.current;
-			if (keys.has("d") && keys.has("e") && keys.has("v")) {
-				setIsOpen(true);
-				pressedKeysRef.current.clear();
-			}
-		},
-		[isEnabled],
-	);
-
-	const handleKeyUp = useCallback(
-		(e: KeyboardEvent) => {
-			if (!isEnabled) return;
-			pressedKeysRef.current.delete(e.key.toLowerCase());
-		},
-		[isEnabled],
-	);
-
-	useEffect(() => {
-		window.addEventListener("keydown", handleKeyDown);
-		window.addEventListener("keyup", handleKeyUp);
-
-		return () => {
-			window.removeEventListener("keydown", handleKeyDown);
-			window.removeEventListener("keyup", handleKeyUp);
-		};
-	}, [handleKeyDown, handleKeyUp]);
-
-	if (!isEnabled) {
+	if (!devPanelStatus?.enabled) {
 		return null;
 	}
 

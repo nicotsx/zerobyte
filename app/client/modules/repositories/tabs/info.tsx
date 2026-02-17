@@ -96,12 +96,12 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	return (
 		<>
-			<Card className="p-6 space-y-6">
-				<div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+			<Card className="p-6 @container">
+				<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4">
 					<div>
-						<span className="text-lg font-semibold mb-4">Repository Settings</span>
+						<span className="text-lg font-semibold">Repository Settings</span>
 					</div>
-					<div className="flex flex-wrap justify-end gap-2 sm:gap-4">
+					<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
 						<Button
 							type="button"
 							variant="outline"
