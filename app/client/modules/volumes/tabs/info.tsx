@@ -199,7 +199,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							All backup schedules associated with this volume will also be removed.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
-					<div className="flex gap-3 justify-end">
+					<AlertDialogFooter>
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmDelete}
@@ -209,7 +209,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							<Trash2 className="h-4 w-4 mr-2" />
 							Delete volume
 						</AlertDialogAction>
-					</div>
+					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
 		</>
