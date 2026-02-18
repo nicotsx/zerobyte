@@ -56,6 +56,26 @@ const getScheduleByShortId = async (shortId: string) => {
 	return schedule;
 };
 
+const getScheduleByIdOrShortId = async (idOrShortId: string | number) => {
+	const organizationId = getOrganizationId();
+	const schedule = await db.query.backupSchedulesTable.findFirst({
+		where: {
+			AND: [{ OR: [{ id: Number(idOrShortId) }, { shortId: String(idOrShortId) }] }, { organizationId }],
+		},
+		with: { volume: true, repository: true },
+	});
+
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	if (!schedule.volume || !schedule.repository) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	return schedule;
+};
+
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
 	if (!cron.validate(data.cronExpression)) {
@@ -375,6 +395,7 @@ const cleanupOrphanedSchedules = async () => {
 export const backupsService = {
 	listSchedules,
 	getScheduleById,
+	getScheduleByIdOrShortId,
 	createSchedule,
 	updateSchedule,
 	deleteSchedule,

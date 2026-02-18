@@ -1,9 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-	getRepositoryOptions,
-	getSnapshotDetailsOptions,
-	listSnapshotFilesOptions,
-} from "~/client/api-client/@tanstack/react-query.gen";
+import { getRepositoryOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { SnapshotDetailsPage } from "~/client/modules/repositories/routes/snapshot-details";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/")({
@@ -12,19 +8,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 	loader: async ({ params, context }) => {
 		const res = await context.queryClient.ensureQueryData({
 			...getRepositoryOptions({ path: { id: params.repositoryId } }),
-		})
-
-		void context.queryClient.prefetchQuery({
-			...getSnapshotDetailsOptions({
-				path: { id: params.repositoryId, snapshotId: params.snapshotId },
-			}),
-		})
-		void context.queryClient.prefetchQuery({
-			...listSnapshotFilesOptions({
-				path: { id: params.repositoryId, snapshotId: params.snapshotId },
-				query: { path: "/" },
-			}),
-		})
+		});
 
 		return res;
 	},

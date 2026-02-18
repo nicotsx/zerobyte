@@ -12,6 +12,7 @@ import { BackupSummaryCard } from "~/client/components/backup-summary-card";
 import { useState } from "react";
 import { Database } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
+import { getVolumeMountPath } from "~/client/lib/volume-path";
 
 export const SnapshotError = () => {
 	const { repositoryId } = useParams({ from: "/(dashboard)/repositories/$repositoryId/$snapshotId/" });
@@ -33,23 +34,20 @@ export const SnapshotError = () => {
 	);
 };
 
-const FilebrowserFallback = ({ repositoryId, snapshotId }: { repositoryId: string; snapshotId: string }) => {
-	return (
-		<SnapshotFileBrowser
-			repositoryId={repositoryId}
-			snapshot={{
-				duration: 0,
-				paths: [],
-				short_id: snapshotId,
-				size: 0,
-				tags: [],
-				time: 0,
-				hostname: "",
-				retentionCategories: [],
-			}}
-		/>
-	);
-};
+const SnapshotFileBrowserSkeleton = () => (
+	<div className="space-y-4">
+		<Card className="h-150 flex flex-col">
+			<CardHeader>
+				<CardTitle>File Browser</CardTitle>
+			</CardHeader>
+			<CardContent className="flex-1 overflow-hidden flex flex-col p-0">
+				<div className="overflow-auto flex-1 min-h-0 border border-border rounded-md bg-card m-4 flex flex-col items-center justify-center p-6 text-center">
+					<p className="text-muted-foreground">Loading snapshot...</p>
+				</div>
+			</CardContent>
+		</Card>
+	</div>
+);
 
 export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId: string; snapshotId: string }) {
 	const [showAllPaths, setShowAllPaths] = useState(false);
@@ -65,7 +63,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 	const { data, error } = useQuery({
 		...getSnapshotDetailsOptions({ path: { id: repositoryId, snapshotId: snapshotId } }),
 	});
-	const backupSchedule = schedules?.find((s) => data?.tags.includes(s.shortId));
+	const backupSchedule = schedules?.find((s) => data?.tags?.includes(s.shortId));
 
 	if (error) {
 		return (
@@ -91,9 +89,13 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 			</div>
 
 			{data ? (
-				<SnapshotFileBrowser repositoryId={repositoryId} snapshot={data} />
+				<SnapshotFileBrowser
+					repositoryId={repositoryId}
+					snapshot={data}
+					basePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
+				/>
 			) : (
-				<FilebrowserFallback repositoryId={repositoryId} snapshotId={snapshotId} />
+				<SnapshotFileBrowserSkeleton />
 			)}
 
 			{data && (

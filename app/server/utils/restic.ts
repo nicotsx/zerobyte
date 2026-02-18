@@ -23,6 +23,7 @@ import { ResticError } from "./errors";
 import { safeJsonParse } from "./json";
 import { logger } from "./logger";
 import { exec, safeSpawn } from "./spawn";
+import { findCommonAncestor } from "~/utils/common-ancestor";
 
 const snapshotInfoSchema = type({
 	gid: "number?",
@@ -48,7 +49,10 @@ export const buildRepoUrl = (config: RepositoryConfig): string => {
 			return `s3:${endpoint}/${config.bucket}`;
 		}
 		case "r2": {
-			const endpoint = config.endpoint.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+			const endpoint = config.endpoint
+				.trim()
+				.replace(/^https?:\/\//, "")
+				.replace(/\/$/, "");
 			return `s3:${endpoint}/${config.bucket}`;
 		}
 		case "gcs":
@@ -399,6 +403,7 @@ const restore = async (
 	snapshotId: string,
 	target: string,
 	options: {
+		basePath?: string;
 		organizationId: string;
 		include?: string[];
 		exclude?: string[];
@@ -412,7 +417,15 @@ const restore = async (
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 
-	const args: string[] = ["--repo", repoUrl, "restore", snapshotId, "--target", target];
+	let restoreArg = snapshotId;
+
+	const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
+	const commonAncestor = findCommonAncestor(includes);
+	if (target !== "/") {
+		restoreArg = `${snapshotId}:${commonAncestor}`;
+	}
+
+	const args = ["--repo", repoUrl, "restore", restoreArg, "--target", target];
 
 	if (options?.overwrite) {
 		args.push("--overwrite", options.overwrite);
@@ -420,7 +433,8 @@ const restore = async (
 
 	if (options?.include?.length) {
 		for (const pattern of options.include) {
-			args.push("--include", pattern);
+			const strippedPattern = target === "/" ? pattern : path.relative(commonAncestor, pattern);
+			args.push("--include", strippedPattern);
 		}
 	}
 

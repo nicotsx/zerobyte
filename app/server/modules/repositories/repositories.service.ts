@@ -25,6 +25,7 @@ import { backupsService } from "../backups/backups.service";
 import type { UpdateRepositoryBody } from "./repositories.dto";
 import { executeDoctor } from "./doctor";
 import { REPOSITORY_BASE } from "~/server/core/constants";
+import { findCommonAncestor } from "~/utils/common-ancestor";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -336,6 +337,9 @@ const restoreSnapshot = async (
 
 	const target = options?.targetPath || "/";
 
+	const { paths } = await getSnapshotDetails(repository.id, snapshotId);
+	const basePath = findCommonAncestor(paths);
+
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
 		serverEvents.emit("restore:started", {
@@ -345,6 +349,7 @@ const restoreSnapshot = async (
 		});
 
 		const result = await restic.restore(repository.config, snapshotId, target, {
+			basePath,
 			...options,
 			organizationId,
 			onProgress: (progress) => {

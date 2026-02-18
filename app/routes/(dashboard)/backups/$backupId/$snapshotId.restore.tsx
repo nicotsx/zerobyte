@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
+import { getVolumeMountPath } from "~/client/lib/volume-path";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -17,9 +18,14 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 				...getSnapshotDetailsOptions({ path: { id: schedule.data?.repositoryId, snapshotId: params.snapshotId } }),
 			}),
 			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { id: schedule.data?.repositoryId } }) }),
-		])
+		]);
 
-		return { snapshot, repository, schedule: schedule.data };
+		return {
+			snapshot,
+			repository,
+			schedule: schedule.data,
+			basePath: getVolumeMountPath(schedule.data.volume),
+		};
 	},
 	head: ({ params }) => ({
 		meta: [
@@ -42,14 +48,14 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId, snapshotId } = Route.useParams();
-	const { snapshot, repository } = Route.useLoaderData();
+	const { repository, basePath } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
 			returnPath={`/backups/${backupId}`}
 			snapshotId={snapshotId}
-			snapshot={snapshot}
 			repository={repository}
+			basePath={basePath}
 		/>
-	)
+	);
 }

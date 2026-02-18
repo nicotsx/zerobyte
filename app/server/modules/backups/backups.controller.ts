@@ -54,7 +54,7 @@ export const backupScheduleController = new Hono()
 	})
 	.get("/:scheduleId", getBackupScheduleDto, async (c) => {
 		const scheduleId = c.req.param("scheduleId");
-		const schedule = await backupsService.getScheduleById(Number(scheduleId));
+		const schedule = await backupsService.getScheduleByIdOrShortId(scheduleId);
 
 		return c.json<GetBackupScheduleDto>(schedule, 200);
 	})

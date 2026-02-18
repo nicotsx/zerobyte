@@ -1,6 +1,12 @@
 export const findCommonAncestor = (paths: string[]): string => {
+	for (const p of paths) {
+		if (!p.startsWith("/")) {
+			throw new Error(`Path "${p}" is not absolute.`);
+		}
+	}
+
 	if (paths.length === 0) return "/";
-	if (paths.length === 1) return paths[0];
+	if (paths.length === 1) return paths[0] || "/";
 
 	const splitPaths = paths.map((path) => path.split("/").filter(Boolean));
 	const minLength = Math.min(...splitPaths.map((parts) => parts.length));
