@@ -432,9 +432,21 @@ const restore = async (
 	}
 
 	if (options?.include?.length) {
-		for (const pattern of options.include) {
-			const strippedPattern = target === "/" ? pattern : path.relative(commonAncestor, pattern);
-			args.push("--include", strippedPattern);
+		if (target === "/") {
+			for (const pattern of options.include) {
+				args.push("--include", pattern);
+			}
+		} else {
+			const strippedIncludes = options.include.map((pattern) => path.relative(commonAncestor, pattern));
+			const includesCoverRestoreRoot = strippedIncludes.some((pattern) => pattern === "" || pattern === ".");
+
+			if (!includesCoverRestoreRoot) {
+				for (const pattern of strippedIncludes) {
+					if (pattern !== "" && pattern !== ".") {
+						args.push("--include", pattern);
+					}
+				}
+			}
 		}
 	}
 

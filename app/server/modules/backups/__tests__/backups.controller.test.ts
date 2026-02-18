@@ -1,6 +1,9 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
+import { createTestVolume } from "~/test/helpers/volume";
+import { createTestRepository } from "~/test/helpers/repository";
+import { createTestBackupSchedule } from "~/test/helpers/backup";
 
 const app = createApp();
 
@@ -77,6 +80,26 @@ describe("backups security", () => {
 	});
 
 	describe("input validation", () => {
+		test("should return a schedule when queried by short id", async () => {
+			const { token, organizationId } = await createTestSession();
+			const volume = await createTestVolume({ organizationId });
+			const repository = await createTestRepository({ organizationId });
+			const schedule = await createTestBackupSchedule({
+				organizationId,
+				volumeId: volume.id,
+				repositoryId: repository.id,
+			});
+
+			const res = await app.request(`/api/v1/backups/${schedule.shortId}`, {
+				headers: getAuthHeaders(token),
+			});
+
+			expect(res.status).toBe(200);
+			const body = await res.json();
+			expect(body.id).toBe(schedule.id);
+			expect(body.shortId).toBe(schedule.shortId);
+		});
+
 		test("should return 404 for malformed schedule ID", async () => {
 			const { token } = await createTestSession();
 			const res = await app.request("/api/v1/backups/not-a-number", {

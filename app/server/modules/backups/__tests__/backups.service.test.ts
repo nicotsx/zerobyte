@@ -187,6 +187,48 @@ describe("getSchedulesToExecute", () => {
 	});
 });
 
+describe("getScheduleByIdOrShortId", () => {
+	test("should resolve a schedule by numeric id string", async () => {
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const found = await backupsService.getScheduleByIdOrShortId(String(schedule.id));
+
+		expect(found.id).toBe(schedule.id);
+		expect(found.shortId).toBe(schedule.shortId);
+	});
+
+	test("should resolve a schedule by short id", async () => {
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const found = await backupsService.getScheduleByIdOrShortId(schedule.shortId);
+
+		expect(found.id).toBe(schedule.id);
+		expect(found.shortId).toBe(schedule.shortId);
+	});
+
+	test("should not return schedules from another organization", async () => {
+		const otherOrgId = faker.string.uuid();
+		const schedule = await createTestBackupSchedule({
+			organizationId: otherOrgId,
+		});
+
+		await expect(backupsService.getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow(
+			"Backup schedule not found",
+		);
+		await expect(backupsService.getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
+	});
+});
+
 describe("listSchedules", () => {
 	test("should ignore schedules with missing relations", async () => {
 		const healthyVolume = await createTestVolume();
