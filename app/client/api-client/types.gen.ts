@@ -346,10 +346,10 @@ export type TestConnectionResponse = TestConnectionResponses[keyof TestConnectio
 export type DeleteVolumeData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}";
+	url: "/api/v1/volumes/{shortId}";
 };
 
 export type DeleteVolumeResponses = {
@@ -366,10 +366,10 @@ export type DeleteVolumeResponse = DeleteVolumeResponses[keyof DeleteVolumeRespo
 export type GetVolumeData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}";
+	url: "/api/v1/volumes/{shortId}";
 };
 
 export type GetVolumeErrors = {
@@ -520,10 +520,10 @@ export type UpdateVolumeData = {
 		name?: string;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}";
+	url: "/api/v1/volumes/{shortId}";
 };
 
 export type UpdateVolumeErrors = {
@@ -610,10 +610,10 @@ export type UpdateVolumeResponse = UpdateVolumeResponses[keyof UpdateVolumeRespo
 export type MountVolumeData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}/mount";
+	url: "/api/v1/volumes/{shortId}/mount";
 };
 
 export type MountVolumeResponses = {
@@ -631,10 +631,10 @@ export type MountVolumeResponse = MountVolumeResponses[keyof MountVolumeResponse
 export type UnmountVolumeData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}/unmount";
+	url: "/api/v1/volumes/{shortId}/unmount";
 };
 
 export type UnmountVolumeResponses = {
@@ -652,10 +652,10 @@ export type UnmountVolumeResponse = UnmountVolumeResponses[keyof UnmountVolumeRe
 export type HealthCheckVolumeData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/volumes/{id}/health-check";
+	url: "/api/v1/volumes/{shortId}/health-check";
 };
 
 export type HealthCheckVolumeErrors = {
@@ -680,14 +680,14 @@ export type HealthCheckVolumeResponse = HealthCheckVolumeResponses[keyof HealthC
 export type ListFilesData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: {
 		limit?: string;
 		offset?: string;
 		path?: string;
 	};
-	url: "/api/v1/volumes/{id}/files";
+	url: "/api/v1/volumes/{shortId}/files";
 };
 
 export type ListFilesResponses = {
@@ -1159,10 +1159,10 @@ export type ListRcloneRemotesResponse = ListRcloneRemotesResponses[keyof ListRcl
 export type DeleteRepositoryData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}";
+	url: "/api/v1/repositories/{shortId}";
 };
 
 export type DeleteRepositoryResponses = {
@@ -1179,10 +1179,10 @@ export type DeleteRepositoryResponse = DeleteRepositoryResponses[keyof DeleteRep
 export type GetRepositoryData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}";
+	url: "/api/v1/repositories/{shortId}";
 };
 
 export type GetRepositoryResponses = {
@@ -1553,10 +1553,10 @@ export type UpdateRepositoryData = {
 		name?: string;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}";
+	url: "/api/v1/repositories/{shortId}";
 };
 
 export type UpdateRepositoryErrors = {
@@ -1775,10 +1775,10 @@ export type DeleteSnapshotsData = {
 		snapshotIds: Array<string>;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots";
+	url: "/api/v1/repositories/{shortId}/snapshots";
 };
 
 export type DeleteSnapshotsResponses = {
@@ -1795,12 +1795,12 @@ export type DeleteSnapshotsResponse = DeleteSnapshotsResponses[keyof DeleteSnaps
 export type ListSnapshotsData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: {
 		backupId?: string;
 	};
-	url: "/api/v1/repositories/{id}/snapshots";
+	url: "/api/v1/repositories/{shortId}/snapshots";
 };
 
 export type ListSnapshotsResponses = {
@@ -1840,10 +1840,10 @@ export type ListSnapshotsResponse = ListSnapshotsResponses[keyof ListSnapshotsRe
 export type RefreshSnapshotsData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/refresh";
+	url: "/api/v1/repositories/{shortId}/snapshots/refresh";
 };
 
 export type RefreshSnapshotsResponses = {
@@ -1861,11 +1861,11 @@ export type RefreshSnapshotsResponse = RefreshSnapshotsResponses[keyof RefreshSn
 export type DeleteSnapshotData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 		snapshotId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}";
+	url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}";
 };
 
 export type DeleteSnapshotResponses = {
@@ -1882,11 +1882,11 @@ export type DeleteSnapshotResponse = DeleteSnapshotResponses[keyof DeleteSnapsho
 export type GetSnapshotDetailsData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 		snapshotId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}";
+	url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}";
 };
 
 export type GetSnapshotDetailsResponses = {
@@ -1926,7 +1926,7 @@ export type GetSnapshotDetailsResponse = GetSnapshotDetailsResponses[keyof GetSn
 export type ListSnapshotFilesData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 		snapshotId: string;
 	};
 	query?: {
@@ -1934,7 +1934,7 @@ export type ListSnapshotFilesData = {
 		offset?: string;
 		path?: string;
 	};
-	url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files";
+	url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files";
 };
 
 export type ListSnapshotFilesResponses = {
@@ -1981,10 +1981,10 @@ export type RestoreSnapshotData = {
 		targetPath?: string;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/restore";
+	url: "/api/v1/repositories/{shortId}/restore";
 };
 
 export type RestoreSnapshotResponses = {
@@ -2004,10 +2004,10 @@ export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnap
 export type CancelDoctorData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/doctor";
+	url: "/api/v1/repositories/{shortId}/doctor";
 };
 
 export type CancelDoctorErrors = {
@@ -2031,10 +2031,10 @@ export type CancelDoctorResponse = CancelDoctorResponses[keyof CancelDoctorRespo
 export type StartDoctorData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/doctor";
+	url: "/api/v1/repositories/{shortId}/doctor";
 };
 
 export type StartDoctorErrors = {
@@ -2059,10 +2059,10 @@ export type StartDoctorResponse = StartDoctorResponses[keyof StartDoctorResponse
 export type UnlockRepositoryData = {
 	body?: never;
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/unlock";
+	url: "/api/v1/repositories/{shortId}/unlock";
 };
 
 export type UnlockRepositoryResponses = {
@@ -2085,10 +2085,10 @@ export type TagSnapshotsData = {
 		set?: Array<string>;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/snapshots/tag";
+	url: "/api/v1/repositories/{shortId}/snapshots/tag";
 };
 
 export type TagSnapshotsResponses = {
@@ -2108,10 +2108,10 @@ export type DevPanelExecData = {
 		args?: Array<string>;
 	};
 	path: {
-		id: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/repositories/{id}/exec";
+	url: "/api/v1/repositories/{shortId}/exec";
 };
 
 export type DevPanelExecErrors = {
@@ -2433,7 +2433,7 @@ export type CreateBackupScheduleData = {
 		enabled: boolean;
 		name: string;
 		repositoryId: string;
-		volumeId: number;
+		volumeId: number | string;
 		excludeIfPresent?: Array<string>;
 		excludePatterns?: Array<string>;
 		includePatterns?: Array<string>;
@@ -2493,10 +2493,10 @@ export type CreateBackupScheduleResponse = CreateBackupScheduleResponses[keyof C
 export type DeleteBackupScheduleData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}";
+	url: "/api/v1/backups/{shortId}";
 };
 
 export type DeleteBackupScheduleResponses = {
@@ -2513,10 +2513,10 @@ export type DeleteBackupScheduleResponse = DeleteBackupScheduleResponses[keyof D
 export type GetBackupScheduleData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}";
+	url: "/api/v1/backups/{shortId}";
 };
 
 export type GetBackupScheduleResponses = {
@@ -2831,10 +2831,10 @@ export type UpdateBackupScheduleData = {
 		tags?: Array<string>;
 	};
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}";
+	url: "/api/v1/backups/{shortId}";
 };
 
 export type UpdateBackupScheduleResponses = {
@@ -2876,10 +2876,10 @@ export type UpdateBackupScheduleResponse = UpdateBackupScheduleResponses[keyof U
 export type GetBackupScheduleForVolumeData = {
 	body?: never;
 	path: {
-		volumeId: string;
+		volumeShortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/volume/{volumeId}";
+	url: "/api/v1/backups/volume/{volumeShortId}";
 };
 
 export type GetBackupScheduleForVolumeResponses = {
@@ -3176,10 +3176,10 @@ export type GetBackupScheduleForVolumeResponse =
 export type RunBackupNowData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/run";
+	url: "/api/v1/backups/{shortId}/run";
 };
 
 export type RunBackupNowResponses = {
@@ -3196,10 +3196,10 @@ export type RunBackupNowResponse = RunBackupNowResponses[keyof RunBackupNowRespo
 export type StopBackupData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/stop";
+	url: "/api/v1/backups/{shortId}/stop";
 };
 
 export type StopBackupErrors = {
@@ -3223,10 +3223,10 @@ export type StopBackupResponse = StopBackupResponses[keyof StopBackupResponses];
 export type RunForgetData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/forget";
+	url: "/api/v1/backups/{shortId}/forget";
 };
 
 export type RunForgetResponses = {
@@ -3243,10 +3243,10 @@ export type RunForgetResponse = RunForgetResponses[keyof RunForgetResponses];
 export type GetScheduleNotificationsData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/notifications";
+	url: "/api/v1/backups/{shortId}/notifications";
 };
 
 export type GetScheduleNotificationsResponses = {
@@ -3355,10 +3355,10 @@ export type UpdateScheduleNotificationsData = {
 		}>;
 	};
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/notifications";
+	url: "/api/v1/backups/{shortId}/notifications";
 };
 
 export type UpdateScheduleNotificationsResponses = {
@@ -3459,10 +3459,10 @@ export type UpdateScheduleNotificationsResponse =
 export type GetScheduleMirrorsData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/mirrors";
+	url: "/api/v1/backups/{shortId}/mirrors";
 };
 
 export type GetScheduleMirrorsResponses = {
@@ -3664,7 +3664,7 @@ export type GetScheduleMirrorsResponses = {
 			updatedAt: number;
 		};
 		repositoryId: string;
-		scheduleId: number;
+		scheduleId: string;
 	}>;
 };
 
@@ -3678,10 +3678,10 @@ export type UpdateScheduleMirrorsData = {
 		}>;
 	};
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/mirrors";
+	url: "/api/v1/backups/{shortId}/mirrors";
 };
 
 export type UpdateScheduleMirrorsResponses = {
@@ -3883,7 +3883,7 @@ export type UpdateScheduleMirrorsResponses = {
 			updatedAt: number;
 		};
 		repositoryId: string;
-		scheduleId: number;
+		scheduleId: string;
 	}>;
 };
 
@@ -3892,10 +3892,10 @@ export type UpdateScheduleMirrorsResponse = UpdateScheduleMirrorsResponses[keyof
 export type GetMirrorCompatibilityData = {
 	body?: never;
 	path: {
-		scheduleId: string;
+		shortId: string;
 	};
 	query?: never;
-	url: "/api/v1/backups/{scheduleId}/mirrors/compatibility";
+	url: "/api/v1/backups/{shortId}/mirrors/compatibility";
 };
 
 export type GetMirrorCompatibilityResponses = {
@@ -3913,7 +3913,7 @@ export type GetMirrorCompatibilityResponse = GetMirrorCompatibilityResponses[key
 
 export type ReorderBackupSchedulesData = {
 	body?: {
-		scheduleIds: Array<number>;
+		scheduleShortIds: Array<string>;
 	};
 	path?: never;
 	query?: never;

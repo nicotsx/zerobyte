@@ -39,7 +39,7 @@ export const showLockErrorToast = (repositoryId: string, title: string) => {
 					toast.promise(
 						async () => {
 							const result = await unlockRepository({
-								path: { id: repositoryId },
+								path: { shortId: repositoryId },
 								throwOnError: true,
 							});
 							return result.data;

@@ -53,7 +53,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 	const [showAllPaths, setShowAllPaths] = useState(false);
 
 	const { data: repository } = useSuspenseQuery({
-		...getRepositoryOptions({ path: { id: repositoryId } }),
+		...getRepositoryOptions({ path: { shortId: repositoryId } }),
 	});
 
 	const { data: schedules } = useSuspenseQuery({
@@ -61,7 +61,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 	});
 
 	const { data, error } = useQuery({
-		...getSnapshotDetailsOptions({ path: { id: repositoryId, snapshotId: snapshotId } }),
+		...getSnapshotDetailsOptions({ path: { shortId: repositoryId, snapshotId: snapshotId } }),
 	});
 	const backupSchedule = schedules?.find((s) => data?.tags?.includes(s.shortId));
 

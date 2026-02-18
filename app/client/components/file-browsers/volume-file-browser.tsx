@@ -13,7 +13,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 	const queryClient = useQueryClient();
 
 	const { data, isLoading, error } = useQuery({
-		...listFilesOptions({ path: { id: volumeId } }),
+		...listFilesOptions({ path: { shortId: volumeId } }),
 		enabled,
 	});
 
@@ -23,7 +23,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 		fetchFolder: async (path, offset): Promise<FetchFolderResult> => {
 			return await queryClient.ensureQueryData(
 				listFilesOptions({
-					path: { id: volumeId },
+					path: { shortId: volumeId },
 					query: { path, offset: offset?.toString() },
 				}),
 			);
@@ -31,7 +31,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 		prefetchFolder: (path) => {
 			void queryClient.prefetchQuery(
 				listFilesOptions({
-					path: { id: volumeId },
+					path: { shortId: volumeId },
 					query: { path },
 				}),
 			);

@@ -222,10 +222,8 @@ describe("getScheduleByIdOrShortId", () => {
 			organizationId: otherOrgId,
 		});
 
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow(
-			"Backup schedule not found",
-		);
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
+		expect(backupsService.getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow("Backup schedule not found");
+		expect(backupsService.getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
 	});
 });
 

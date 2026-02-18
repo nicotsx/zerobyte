@@ -36,7 +36,7 @@ interface ScheduleAwareTreeBrowserProps {
 
 const ScheduleAwareTreeBrowser = ({ scheduleShortId, repositoryId, snapshotId }: ScheduleAwareTreeBrowserProps) => {
 	const { data: schedule, isPending } = useQuery({
-		...getBackupScheduleOptions({ path: { scheduleId: scheduleShortId } }),
+		...getBackupScheduleOptions({ path: { shortId: scheduleShortId } }),
 		retry: false,
 	});
 

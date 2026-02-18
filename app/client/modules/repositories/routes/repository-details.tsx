@@ -12,7 +12,7 @@ export default function RepositoryDetailsPage({ repositoryId }: { repositoryId: 
 	const activeTab = tab || "info";
 
 	const { data } = useSuspenseQuery({
-		...getRepositoryOptions({ path: { id: repositoryId } }),
+		...getRepositoryOptions({ path: { shortId: repositoryId } }),
 	});
 
 	return (

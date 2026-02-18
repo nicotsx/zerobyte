@@ -14,7 +14,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const activeTab = searchParams.tab || "info";
 
 	const { data } = useSuspenseQuery({
-		...getVolumeOptions({ path: { id: volumeId } }),
+		...getVolumeOptions({ path: { shortId: volumeId } }),
 	});
 
 	const { volume, statfs } = data;

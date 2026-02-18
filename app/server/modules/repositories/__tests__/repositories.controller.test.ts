@@ -186,7 +186,7 @@ describe("repositories updates", () => {
 		const { token, organizationId } = await createTestSession();
 		const repository = await createRepositoryRecord(organizationId);
 
-		const res = await app.request(`/api/v1/repositories/${repository.id}`, {
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
 				...getAuthHeaders(token),
@@ -212,7 +212,7 @@ describe("repositories updates", () => {
 		const { token, organizationId } = await createTestSession();
 		const repository = await createRepositoryRecord(organizationId);
 
-		const res = await app.request(`/api/v1/repositories/${repository.id}`, {
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
 				...getAuthHeaders(token),

@@ -49,7 +49,7 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 	const [pendingValues, setPendingValues] = useState<RepositoryFormValues | null>(null);
 
 	const { data: repository } = useSuspenseQuery({
-		...getRepositoryOptions({ path: { id: repositoryId } }),
+		...getRepositoryOptions({ path: { shortId: repositoryId } }),
 	});
 
 	const updateRepository = useMutation({
@@ -76,7 +76,7 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 
 	const submitUpdate = (values: RepositoryFormValues) => {
 		updateRepository.mutate({
-			path: { id: repositoryId },
+			path: { shortId: repositoryId },
 			body: {
 				name: values.name,
 				compressionMode: values.compressionMode,

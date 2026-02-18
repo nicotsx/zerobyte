@@ -60,7 +60,10 @@ export const HealthchecksCard = ({ volume }: Props) => {
 						<OnOff
 							isOn={volume.autoRemount}
 							toggle={() =>
-								toggleAutoRemount.mutate({ path: { id: volume.shortId }, body: { autoRemount: !volume.autoRemount } })
+								toggleAutoRemount.mutate({
+									path: { shortId: volume.shortId },
+									body: { autoRemount: !volume.autoRemount },
+								})
 							}
 							disabled={toggleAutoRemount.isPending}
 							enabledLabel="Enabled"
@@ -74,7 +77,7 @@ export const HealthchecksCard = ({ volume }: Props) => {
 							variant="outline"
 							className="mt-4"
 							loading={healthcheck.isPending}
-							onClick={() => healthcheck.mutate({ path: { id: volume.shortId } })}
+							onClick={() => healthcheck.mutate({ path: { shortId: volume.shortId } })}
 						>
 							<Activity className="h-4 w-4 mr-2" />
 							Run Health Check

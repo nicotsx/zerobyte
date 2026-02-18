@@ -103,7 +103,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const confirmUpdate = () => {
 		if (pendingValues) {
 			updateMutation.mutate({
-				path: { id: volume.shortId },
+				path: { shortId: volume.shortId },
 				body: { name: pendingValues.name, config: pendingValues },
 			});
 		}
@@ -111,7 +111,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);
-		deleteVol.mutate({ path: { id: volume.shortId } });
+		deleteVol.mutate({ path: { shortId: volume.shortId } });
 	};
 
 	return (
@@ -126,7 +126,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							{volume.status !== "mounted" ? (
 								<Button
 									type="button"
-									onClick={() => mountVol.mutate({ path: { id: volume.shortId } })}
+									onClick={() => mountVol.mutate({ path: { shortId: volume.shortId } })}
 									loading={mountVol.isPending}
 								>
 									<Plug className="h-4 w-4 mr-2" />
@@ -136,7 +136,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 								<Button
 									type="button"
 									variant="secondary"
-									onClick={() => unmountVol.mutate({ path: { id: volume.shortId } })}
+									onClick={() => unmountVol.mutate({ path: { shortId: volume.shortId } })}
 									loading={unmountVol.isPending}
 								>
 									<Unplug className="h-4 w-4 mr-2" />

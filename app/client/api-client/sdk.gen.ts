@@ -210,7 +210,7 @@ export const testConnection = <ThrowOnError extends boolean = false>(
  */
 export const deleteVolume = <ThrowOnError extends boolean = false>(options: Options<DeleteVolumeData, ThrowOnError>) =>
 	(options.client ?? client).delete<DeleteVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{id}",
+		url: "/api/v1/volumes/{shortId}",
 		...options,
 	});
 
@@ -219,7 +219,7 @@ export const deleteVolume = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const getVolume = <ThrowOnError extends boolean = false>(options: Options<GetVolumeData, ThrowOnError>) =>
 	(options.client ?? client).get<GetVolumeResponses, GetVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{id}",
+		url: "/api/v1/volumes/{shortId}",
 		...options,
 	});
 
@@ -228,7 +228,7 @@ export const getVolume = <ThrowOnError extends boolean = false>(options: Options
  */
 export const updateVolume = <ThrowOnError extends boolean = false>(options: Options<UpdateVolumeData, ThrowOnError>) =>
 	(options.client ?? client).put<UpdateVolumeResponses, UpdateVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{id}",
+		url: "/api/v1/volumes/{shortId}",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -241,7 +241,7 @@ export const updateVolume = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const mountVolume = <ThrowOnError extends boolean = false>(options: Options<MountVolumeData, ThrowOnError>) =>
 	(options.client ?? client).post<MountVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{id}/mount",
+		url: "/api/v1/volumes/{shortId}/mount",
 		...options,
 	});
 
@@ -252,7 +252,7 @@ export const unmountVolume = <ThrowOnError extends boolean = false>(
 	options: Options<UnmountVolumeData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<UnmountVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{id}/unmount",
+		url: "/api/v1/volumes/{shortId}/unmount",
 		...options,
 	});
 
@@ -263,7 +263,7 @@ export const healthCheckVolume = <ThrowOnError extends boolean = false>(
 	options: Options<HealthCheckVolumeData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<HealthCheckVolumeResponses, HealthCheckVolumeErrors, ThrowOnError>({
-		url: "/api/v1/volumes/{id}/health-check",
+		url: "/api/v1/volumes/{shortId}/health-check",
 		...options,
 	});
 
@@ -272,7 +272,7 @@ export const healthCheckVolume = <ThrowOnError extends boolean = false>(
  */
 export const listFiles = <ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>) =>
 	(options.client ?? client).get<ListFilesResponses, unknown, ThrowOnError>({
-		url: "/api/v1/volumes/{id}/files",
+		url: "/api/v1/volumes/{shortId}/files",
 		...options,
 	});
 
@@ -331,7 +331,7 @@ export const deleteRepository = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteRepositoryData, ThrowOnError>,
 ) =>
 	(options.client ?? client).delete<DeleteRepositoryResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}",
+		url: "/api/v1/repositories/{shortId}",
 		...options,
 	});
 
@@ -342,7 +342,7 @@ export const getRepository = <ThrowOnError extends boolean = false>(
 	options: Options<GetRepositoryData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetRepositoryResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}",
+		url: "/api/v1/repositories/{shortId}",
 		...options,
 	});
 
@@ -353,7 +353,7 @@ export const updateRepository = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateRepositoryData, ThrowOnError>,
 ) =>
 	(options.client ?? client).patch<UpdateRepositoryResponses, UpdateRepositoryErrors, ThrowOnError>({
-		url: "/api/v1/repositories/{id}",
+		url: "/api/v1/repositories/{shortId}",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -368,7 +368,7 @@ export const deleteSnapshots = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteSnapshotsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).delete<DeleteSnapshotsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots",
+		url: "/api/v1/repositories/{shortId}/snapshots",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -383,7 +383,7 @@ export const listSnapshots = <ThrowOnError extends boolean = false>(
 	options: Options<ListSnapshotsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots",
+		url: "/api/v1/repositories/{shortId}/snapshots",
 		...options,
 	});
 
@@ -394,7 +394,7 @@ export const refreshSnapshots = <ThrowOnError extends boolean = false>(
 	options: Options<RefreshSnapshotsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<RefreshSnapshotsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots/refresh",
+		url: "/api/v1/repositories/{shortId}/snapshots/refresh",
 		...options,
 	});
 
@@ -405,7 +405,7 @@ export const deleteSnapshot = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteSnapshotData, ThrowOnError>,
 ) =>
 	(options.client ?? client).delete<DeleteSnapshotResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}",
+		url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}",
 		...options,
 	});
 
@@ -416,7 +416,7 @@ export const getSnapshotDetails = <ThrowOnError extends boolean = false>(
 	options: Options<GetSnapshotDetailsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetSnapshotDetailsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}",
+		url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}",
 		...options,
 	});
 
@@ -427,7 +427,7 @@ export const listSnapshotFiles = <ThrowOnError extends boolean = false>(
 	options: Options<ListSnapshotFilesData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots/{snapshotId}/files",
+		url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files",
 		...options,
 	});
 
@@ -438,7 +438,7 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(
 	options: Options<RestoreSnapshotData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<RestoreSnapshotResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/restore",
+		url: "/api/v1/repositories/{shortId}/restore",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -451,7 +451,7 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(
  */
 export const cancelDoctor = <ThrowOnError extends boolean = false>(options: Options<CancelDoctorData, ThrowOnError>) =>
 	(options.client ?? client).delete<CancelDoctorResponses, CancelDoctorErrors, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/doctor",
+		url: "/api/v1/repositories/{shortId}/doctor",
 		...options,
 	});
 
@@ -460,7 +460,7 @@ export const cancelDoctor = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const startDoctor = <ThrowOnError extends boolean = false>(options: Options<StartDoctorData, ThrowOnError>) =>
 	(options.client ?? client).post<StartDoctorResponses, StartDoctorErrors, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/doctor",
+		url: "/api/v1/repositories/{shortId}/doctor",
 		...options,
 	});
 
@@ -471,7 +471,7 @@ export const unlockRepository = <ThrowOnError extends boolean = false>(
 	options: Options<UnlockRepositoryData, ThrowOnError>,
 ) =>
 	(options.client ?? client).post<UnlockRepositoryResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/unlock",
+		url: "/api/v1/repositories/{shortId}/unlock",
 		...options,
 	});
 
@@ -480,7 +480,7 @@ export const unlockRepository = <ThrowOnError extends boolean = false>(
  */
 export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Options<TagSnapshotsData, ThrowOnError>) =>
 	(options.client ?? client).post<TagSnapshotsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/snapshots/tag",
+		url: "/api/v1/repositories/{shortId}/snapshots/tag",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -493,7 +493,7 @@ export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const devPanelExec = <ThrowOnError extends boolean = false>(options: Options<DevPanelExecData, ThrowOnError>) =>
 	(options.client ?? client).sse.post<DevPanelExecResponses, DevPanelExecErrors, ThrowOnError>({
-		url: "/api/v1/repositories/{id}/exec",
+		url: "/api/v1/repositories/{shortId}/exec",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -534,7 +534,7 @@ export const deleteBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<DeleteBackupScheduleData, ThrowOnError>,
 ) =>
 	(options.client ?? client).delete<DeleteBackupScheduleResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}",
+		url: "/api/v1/backups/{shortId}",
 		...options,
 	});
 
@@ -545,7 +545,7 @@ export const getBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<GetBackupScheduleData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetBackupScheduleResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}",
+		url: "/api/v1/backups/{shortId}",
 		...options,
 	});
 
@@ -556,7 +556,7 @@ export const updateBackupSchedule = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateBackupScheduleData, ThrowOnError>,
 ) =>
 	(options.client ?? client).patch<UpdateBackupScheduleResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}",
+		url: "/api/v1/backups/{shortId}",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -571,7 +571,7 @@ export const getBackupScheduleForVolume = <ThrowOnError extends boolean = false>
 	options: Options<GetBackupScheduleForVolumeData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetBackupScheduleForVolumeResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/volume/{volumeId}",
+		url: "/api/v1/backups/volume/{volumeShortId}",
 		...options,
 	});
 
@@ -580,7 +580,7 @@ export const getBackupScheduleForVolume = <ThrowOnError extends boolean = false>
  */
 export const runBackupNow = <ThrowOnError extends boolean = false>(options: Options<RunBackupNowData, ThrowOnError>) =>
 	(options.client ?? client).post<RunBackupNowResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/run",
+		url: "/api/v1/backups/{shortId}/run",
 		...options,
 	});
 
@@ -589,7 +589,7 @@ export const runBackupNow = <ThrowOnError extends boolean = false>(options: Opti
  */
 export const stopBackup = <ThrowOnError extends boolean = false>(options: Options<StopBackupData, ThrowOnError>) =>
 	(options.client ?? client).post<StopBackupResponses, StopBackupErrors, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/stop",
+		url: "/api/v1/backups/{shortId}/stop",
 		...options,
 	});
 
@@ -598,7 +598,7 @@ export const stopBackup = <ThrowOnError extends boolean = false>(options: Option
  */
 export const runForget = <ThrowOnError extends boolean = false>(options: Options<RunForgetData, ThrowOnError>) =>
 	(options.client ?? client).post<RunForgetResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/forget",
+		url: "/api/v1/backups/{shortId}/forget",
 		...options,
 	});
 
@@ -609,7 +609,7 @@ export const getScheduleNotifications = <ThrowOnError extends boolean = false>(
 	options: Options<GetScheduleNotificationsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetScheduleNotificationsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/notifications",
+		url: "/api/v1/backups/{shortId}/notifications",
 		...options,
 	});
 
@@ -620,7 +620,7 @@ export const updateScheduleNotifications = <ThrowOnError extends boolean = false
 	options: Options<UpdateScheduleNotificationsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).put<UpdateScheduleNotificationsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/notifications",
+		url: "/api/v1/backups/{shortId}/notifications",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -635,7 +635,7 @@ export const getScheduleMirrors = <ThrowOnError extends boolean = false>(
 	options: Options<GetScheduleMirrorsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetScheduleMirrorsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/mirrors",
+		url: "/api/v1/backups/{shortId}/mirrors",
 		...options,
 	});
 
@@ -646,7 +646,7 @@ export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(
 	options: Options<UpdateScheduleMirrorsData, ThrowOnError>,
 ) =>
 	(options.client ?? client).put<UpdateScheduleMirrorsResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/mirrors",
+		url: "/api/v1/backups/{shortId}/mirrors",
 		...options,
 		headers: {
 			"Content-Type": "application/json",
@@ -661,12 +661,12 @@ export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(
 	options: Options<GetMirrorCompatibilityData, ThrowOnError>,
 ) =>
 	(options.client ?? client).get<GetMirrorCompatibilityResponses, unknown, ThrowOnError>({
-		url: "/api/v1/backups/{scheduleId}/mirrors/compatibility",
+		url: "/api/v1/backups/{shortId}/mirrors/compatibility",
 		...options,
 	});
 
 /**
- * Reorder backup schedules by providing an array of schedule IDs in the desired order
+ * Reorder backup schedules by providing an array of schedule short IDs in the desired order
  */
 export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(
 	options?: Options<ReorderBackupSchedulesData, ThrowOnError>,

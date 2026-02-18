@@ -22,7 +22,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	const [searchQuery, setSearchQuery] = useState("");
 
 	const { data, isFetching, failureReason } = useQuery({
-		...listSnapshotsOptions({ path: { id: repository.id } }),
+		...listSnapshotsOptions({ path: { shortId: repository.shortId } }),
 		initialData: [],
 	});
 
@@ -41,7 +41,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 	});
 
 	const handleRefresh = () => {
-		refreshMutation.mutate({ path: { id: repository.id } });
+		refreshMutation.mutate({ path: { shortId: repository.shortId } });
 	};
 
 	const filteredSnapshots = data.filter((snapshot: Snapshot) => {
@@ -173,7 +173,7 @@ export const RepositorySnapshotsTabContent = ({ repository }: Props) => {
 					snapshots={filteredSnapshots}
 					repositoryId={repository.shortId}
 					backups={schedules.data ?? []}
-					listSnapshotsQueryOptions={{ path: { id: repository.id } }}
+					listSnapshotsQueryOptions={{ path: { shortId: repository.shortId } }}
 				/>
 			)}
 			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-between border-t">

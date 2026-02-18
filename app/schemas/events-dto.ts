@@ -5,7 +5,7 @@ export const backupEventStatusSchema = type("'success' | 'error' | 'stopped' | '
 export const restoreEventStatusSchema = type("'success' | 'error'");
 
 const backupEventBaseSchema = type({
-	scheduleId: "number",
+	scheduleId: "string",
 	volumeName: "string",
 	repositoryName: "string",
 });

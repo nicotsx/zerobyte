@@ -7,8 +7,8 @@ import { Link } from "@tanstack/react-router";
 
 export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 	return (
-		<Link key={schedule.id} to="/backups/$backupId" params={{ backupId: schedule.id.toString() }}>
-			<Card key={schedule.id} className="flex flex-col h-full">
+		<Link key={schedule.shortId} to="/backups/$backupId" params={{ backupId: schedule.shortId }}>
+			<Card key={schedule.shortId} className="flex flex-col h-full">
 				<CardHeader className="pb-3 overflow-hidden">
 					<div className="flex items-center justify-between gap-2 w-full">
 						<div className="flex items-center gap-2 flex-1 min-w-0 w-0">

@@ -42,7 +42,7 @@ const backupScheduleSchema = type({
 );
 
 const scheduleMirrorSchema = type({
-	scheduleId: "number",
+	scheduleId: "string",
 	repositoryId: "string",
 	enabled: "boolean",
 	lastCopyAt: "number | null",
@@ -125,7 +125,7 @@ export const getBackupScheduleForVolumeDto = describeRoute({
  */
 export const createBackupScheduleBody = type({
 	name: "1 <= string <= 128",
-	volumeId: "number",
+	volumeId: "string | number",
 	repositoryId: "string",
 	enabled: "boolean",
 	cronExpression: "string",
@@ -376,7 +376,7 @@ export const getMirrorCompatibilityDto = describeRoute({
  * Reorder backup schedules
  */
 export const reorderBackupSchedulesBody = type({
-	scheduleIds: "number[]",
+	scheduleShortIds: "string[]",
 });
 
 export type ReorderBackupSchedulesBody = typeof reorderBackupSchedulesBody.infer;
@@ -388,7 +388,7 @@ export const reorderBackupSchedulesResponse = type({
 export type ReorderBackupSchedulesDto = typeof reorderBackupSchedulesResponse.infer;
 
 export const reorderBackupSchedulesDto = describeRoute({
-	description: "Reorder backup schedules by providing an array of schedule IDs in the desired order",
+	description: "Reorder backup schedules by providing an array of schedule short IDs in the desired order",
 	operationId: "reorderBackupSchedules",
 	tags: ["Backups"],
 	responses: {

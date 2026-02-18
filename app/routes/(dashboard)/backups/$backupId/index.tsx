@@ -17,16 +17,19 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 		const { backupId } = params;
 
 		const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
-			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { scheduleId: backupId } }) }),
+			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
 			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
 			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
-			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { scheduleId: backupId } }) }),
-			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { scheduleId: backupId } }) }),
-		])
+			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { shortId: backupId } }) }),
+			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
+		]);
 
 		void context.queryClient.prefetchQuery({
-			...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } }),
-		})
+			...listSnapshotsOptions({
+				path: { shortId: schedule.repository.shortId },
+				query: { backupId: schedule.shortId },
+			}),
+		});
 
 		return { schedule, notifs, repos, scheduleNotifs, mirrors };
 	},

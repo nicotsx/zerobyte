@@ -94,7 +94,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const volume = await db.query.volumesTable.findFirst({
 		where: {
-			AND: [{ id: data.volumeId }, { organizationId }],
+			AND: [{ OR: [{ id: Number(data.volumeId) }, { shortId: String(data.volumeId) }] }, { organizationId }],
 		},
 	});
 
@@ -104,7 +104,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ id: data.repositoryId }, { organizationId }],
+			AND: [{ OR: [{ id: data.repositoryId }, { shortId: data.repositoryId }] }, { organizationId }],
 		},
 	});
 
@@ -118,8 +118,8 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 		.insert(backupSchedulesTable)
 		.values({
 			name: data.name,
-			volumeId: data.volumeId,
-			repositoryId: data.repositoryId,
+			volumeId: volume.id,
+			repositoryId: repository.id,
 			enabled: data.enabled,
 			cronExpression: data.cronExpression,
 			retentionPolicy: data.retentionPolicy ?? null,
@@ -140,11 +140,14 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	return newSchedule;
 };
 
-const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody) => {
+const updateSchedule = async (scheduleIdOrShortId: number | string, data: UpdateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
-			AND: [{ id: scheduleId }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -159,7 +162,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 	if (data.name) {
 		const existingName = await db.query.backupSchedulesTable.findFirst({
 			where: {
-				AND: [{ name: data.name }, { NOT: { id: scheduleId } }, { organizationId }],
+				AND: [{ name: data.name }, { NOT: { id: schedule.id } }, { organizationId }],
 			},
 		});
 
@@ -170,7 +173,7 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ id: data.repositoryId }, { organizationId }],
+			AND: [{ OR: [{ id: data.repositoryId }, { shortId: data.repositoryId }] }, { organizationId }],
 		},
 	});
 
@@ -183,8 +186,8 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 
 	const [updated] = await db
 		.update(backupSchedulesTable)
-		.set({ ...data, nextBackupAt, updatedAt: Date.now() })
-		.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)))
+		.set({ ...data, repositoryId: repository.id, nextBackupAt, updatedAt: Date.now() })
+		.where(and(eq(backupSchedulesTable.id, schedule.id), eq(backupSchedulesTable.organizationId, organizationId)))
 		.returning();
 
 	if (!updated) {
@@ -194,11 +197,14 @@ const updateSchedule = async (scheduleId: number, data: UpdateBackupScheduleBody
 	return updated;
 };
 
-const deleteSchedule = async (scheduleId: number) => {
+const deleteSchedule = async (scheduleIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
-			AND: [{ id: scheduleId }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -208,13 +214,26 @@ const deleteSchedule = async (scheduleId: number) => {
 
 	await db
 		.delete(backupSchedulesTable)
-		.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
+		.where(and(eq(backupSchedulesTable.id, schedule.id), eq(backupSchedulesTable.organizationId, organizationId)));
 };
 
-const getScheduleForVolume = async (volumeId: number) => {
+const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
+	const volume = await db.query.volumesTable.findFirst({
+		where: {
+			AND: [{ OR: [{ id: Number(volumeIdOrShortId) }, { shortId: String(volumeIdOrShortId) }] }, { organizationId }],
+		},
+		columns: { id: true },
+	});
+
+	if (!volume) {
+		return null;
+	}
+
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: { AND: [{ volumeId }, { organizationId }] },
+		where: {
+			AND: [{ volumeId: volume.id }, { organizationId }],
+		},
 		with: { volume: true, repository: true },
 	});
 
@@ -225,11 +244,14 @@ const getScheduleForVolume = async (volumeId: number) => {
 	return schedule ?? null;
 };
 
-const getMirrors = async (scheduleId: number) => {
+const getMirrors = async (scheduleIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
-			AND: [{ id: scheduleId }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -239,18 +261,33 @@ const getMirrors = async (scheduleId: number) => {
 
 	const mirrors = await db.query.backupScheduleMirrorsTable.findMany({
 		where: {
-			scheduleId,
+			scheduleId: schedule.id,
 		},
 		with: { repository: true },
 	});
 
-	return mirrors;
+	return mirrors.map((mirror) => ({
+		id: mirror.id,
+		scheduleId: schedule.shortId,
+		repositoryId: mirror.repository.shortId,
+		enabled: mirror.enabled,
+		lastCopyAt: mirror.lastCopyAt,
+		lastCopyStatus: mirror.lastCopyStatus,
+		lastCopyError: mirror.lastCopyError,
+		createdAt: mirror.createdAt,
+		repository: mirror.repository,
+	}));
 };
 
-const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody) => {
+const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateScheduleMirrorsBody) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: { AND: [{ id: scheduleId }, { organizationId }] },
+		where: {
+			AND: [
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ organizationId },
+			],
+		},
 		with: { repository: true },
 	});
 
@@ -258,30 +295,36 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		throw new NotFoundError("Backup schedule not found");
 	}
 
-	for (const mirror of data.mirrors) {
-		if (mirror.repositoryId === schedule.repositoryId) {
-			throw new BadRequestError("Cannot add the primary repository as a mirror");
-		}
+	const normalizedMirrors = await Promise.all(
+		data.mirrors.map(async (mirror) => {
+			const repo = await db.query.repositoriesTable.findFirst({
+				where: {
+					AND: [{ OR: [{ id: mirror.repositoryId }, { shortId: mirror.repositoryId }] }, { organizationId }],
+				},
+			});
 
-		const repo = await db.query.repositoriesTable.findFirst({
-			where: { AND: [{ id: mirror.repositoryId }, { organizationId }] },
-		});
+			if (!repo) {
+				throw new NotFoundError(`Repository ${mirror.repositoryId} not found`);
+			}
 
-		if (!repo) {
-			throw new NotFoundError(`Repository ${mirror.repositoryId} not found`);
-		}
+			if (repo.id === schedule.repositoryId) {
+				throw new BadRequestError("Cannot add the primary repository as a mirror");
+			}
 
-		const compatibility = await checkMirrorCompatibility(schedule.repository.config, repo.config, repo.id);
+			const compatibility = await checkMirrorCompatibility(schedule.repository.config, repo.config, repo.id);
 
-		if (!compatibility.compatible) {
-			throw new BadRequestError(
-				getIncompatibleMirrorError(repo.name, schedule.repository.config.backend, repo.config.backend),
-			);
-		}
-	}
+			if (!compatibility.compatible) {
+				throw new BadRequestError(
+					getIncompatibleMirrorError(repo.name, schedule.repository.config.backend, repo.config.backend),
+				);
+			}
+
+			return { repositoryId: repo.id, enabled: mirror.enabled };
+		}),
+	);
 
 	const existingMirrors = await db.query.backupScheduleMirrorsTable.findMany({
-		where: { scheduleId },
+		where: { scheduleId: schedule.id },
 	});
 
 	const existingMirrorsMap = new Map(
@@ -291,14 +334,14 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		]),
 	);
 
-	await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, scheduleId));
+	await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, schedule.id));
 
-	if (data.mirrors.length > 0) {
+	if (normalizedMirrors.length > 0) {
 		await db.insert(backupScheduleMirrorsTable).values(
-			data.mirrors.map((mirror) => {
+			normalizedMirrors.map((mirror) => {
 				const existing = existingMirrorsMap.get(mirror.repositoryId);
 				return {
-					scheduleId,
+					scheduleId: schedule.id,
 					repositoryId: mirror.repositoryId,
 					enabled: mirror.enabled,
 					lastCopyAt: existing?.lastCopyAt ?? null,
@@ -309,13 +352,18 @@ const updateMirrors = async (scheduleId: number, data: UpdateScheduleMirrorsBody
 		);
 	}
 
-	return getMirrors(scheduleId);
+	return getMirrors(schedule.id);
 };
 
-const getMirrorCompatibility = async (scheduleId: number) => {
+const getMirrorCompatibility = async (scheduleIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: { AND: [{ id: scheduleId }, { organizationId }] },
+		where: {
+			AND: [
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ organizationId },
+			],
+		},
 		with: { repository: true },
 	});
 
@@ -327,29 +375,33 @@ const getMirrorCompatibility = async (scheduleId: number) => {
 	const repos = allRepositories.filter((repo) => repo.id !== schedule.repositoryId);
 
 	const compatibility = await Promise.all(
-		repos.map((repo) => checkMirrorCompatibility(schedule.repository.config, repo.config, repo.id)),
+		repos.map((repo) => checkMirrorCompatibility(schedule.repository.config, repo.config, repo.shortId)),
 	);
 
 	return compatibility;
 };
 
-const reorderSchedules = async (scheduleIds: number[]) => {
+const reorderSchedules = async (scheduleShortIds: string[]) => {
 	const organizationId = getOrganizationId();
-	const uniqueIds = new Set(scheduleIds);
-	if (uniqueIds.size !== scheduleIds.length) {
+	const uniqueIds = new Set(scheduleShortIds);
+	if (uniqueIds.size !== scheduleShortIds.length) {
 		throw new BadRequestError("Duplicate schedule IDs in reorder request");
 	}
 
 	const existingSchedules = await db.query.backupSchedulesTable.findMany({
 		where: { organizationId },
-		columns: { id: true },
+		columns: { id: true, shortId: true },
 	});
-	const existingIds = new Set(existingSchedules.map((s) => s.id));
 
-	for (const id of scheduleIds) {
-		if (!existingIds.has(id)) {
-			throw new NotFoundError(`Backup schedule with ID ${id} not found`);
+	const shortIdToId = new Map(existingSchedules.map((s) => [s.shortId, s.id]));
+
+	const scheduleIds: number[] = [];
+	for (const shortId of scheduleShortIds) {
+		const id = shortIdToId.get(shortId);
+		if (id === undefined) {
+			throw new NotFoundError(`Backup schedule with short ID ${shortId} not found`);
 		}
+		scheduleIds.push(id);
 	}
 
 	db.transaction((tx) => {

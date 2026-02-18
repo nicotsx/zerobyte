@@ -7,7 +7,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
 		const res = await context.queryClient.ensureQueryData({
-			...getRepositoryOptions({ path: { id: params.repositoryId } }),
+			...getRepositoryOptions({ path: { shortId: params.repositoryId } }),
 		});
 
 		return res;

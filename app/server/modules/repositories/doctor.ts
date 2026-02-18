@@ -116,6 +116,7 @@ const saveDoctorResults = async (repositoryId: string, steps: DoctorStep[], fina
 
 export const executeDoctor = async (
 	repositoryId: string,
+	repositoryShortId: string,
 	repositoryConfig: RepositoryConfig,
 	repositoryName: string,
 	signal: AbortSignal,
@@ -153,7 +154,7 @@ export const executeDoctor = async (
 
 		serverEvents.emit("doctor:completed", {
 			organizationId,
-			repositoryId,
+			repositoryId: repositoryShortId,
 			repositoryName,
 			success: steps.every((s) => s.success),
 			steps,
@@ -179,7 +180,7 @@ export const executeDoctor = async (
 
 			serverEvents.emit("doctor:cancelled", {
 				organizationId,
-				repositoryId,
+				repositoryId: repositoryShortId,
 				repositoryName,
 				error: toMessage(error),
 			});
@@ -192,7 +193,7 @@ export const executeDoctor = async (
 			steps.push({ step: "doctor", success: false, output: null, error: toMessage(error) });
 			serverEvents.emit("doctor:completed", {
 				organizationId,
-				repositoryId,
+				repositoryId: repositoryShortId,
 				repositoryName,
 				success: false,
 				steps,

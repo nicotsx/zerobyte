@@ -61,17 +61,17 @@ describe("multi-organization isolation", () => {
 		expect(session1.organizationId).not.toBe(session2.organizationId);
 
 		const repoId = crypto.randomUUID();
-		const shortId = generateShortId();
+		const repoShortId = generateShortId();
 		await db.insert(repositoriesTable).values({
 			id: repoId,
-			shortId,
+			shortId: repoShortId,
 			name: "Org 1 Repo",
 			type: "local",
 			config: { backend: "local", name: "org1repo", path: "/tmp/repo1" },
 			organizationId: session1.organizationId,
 		});
 
-		const res = await app.request(`/api/v1/repositories/${repoId}`, {
+		const res = await app.request(`/api/v1/repositories/${repoShortId}`, {
 			headers: getAuthHeaders(session2.token),
 		});
 
@@ -79,7 +79,7 @@ describe("multi-organization isolation", () => {
 		const body = await res.json();
 		expect(body.message).toBe("Repository not found");
 
-		const resOk = await app.request(`/api/v1/repositories/${repoId}`, {
+		const resOk = await app.request(`/api/v1/repositories/${repoShortId}`, {
 			headers: getAuthHeaders(session1.token),
 		});
 		expect(resOk.status).toBe(200);
@@ -128,9 +128,10 @@ describe("multi-organization isolation", () => {
 		const session2 = await createTestSession();
 
 		const volumeId = Math.floor(Math.random() * 1000000);
+		const volumeShortId = generateShortId();
 		await db.insert(volumesTable).values({
 			id: volumeId,
-			shortId: generateShortId(),
+			shortId: volumeShortId,
 			name: "Org 1 Volume",
 			type: "directory",
 			config: { backend: "directory", path: "/tmp/vol1" },
@@ -138,7 +139,7 @@ describe("multi-organization isolation", () => {
 			status: "unmounted",
 		});
 
-		const res = await app.request(`/api/v1/volumes/${volumeId}`, {
+		const res = await app.request(`/api/v1/volumes/${volumeShortId}`, {
 			headers: getAuthHeaders(session2.token),
 		});
 
@@ -224,13 +225,13 @@ describe("multi-organization isolation", () => {
 			})
 			.returning();
 
-		const res = await app.request(`/api/v1/backups/${schedule.id}`, {
+		const res = await app.request(`/api/v1/backups/${schedule.shortId}`, {
 			headers: getAuthHeaders(session2.token),
 		});
 
 		expect(res.status).toBe(404);
 
-		const resOk = await app.request(`/api/v1/backups/${schedule.id}`, {
+		const resOk = await app.request(`/api/v1/backups/${schedule.shortId}`, {
 			headers: getAuthHeaders(session1.token),
 		});
 		expect(resOk.status).toBe(200);
@@ -293,12 +294,12 @@ describe("multi-organization isolation", () => {
 			notifyOnFailure: true,
 		});
 
-		const resGet = await app.request(`/api/v1/backups/${schedule.id}/notifications`, {
+		const resGet = await app.request(`/api/v1/backups/${schedule.shortId}/notifications`, {
 			headers: getAuthHeaders(session2.token),
 		});
 		expect(resGet.status).toBe(404);
 
-		const resPut = await app.request(`/api/v1/backups/${schedule.id}/notifications`, {
+		const resPut = await app.request(`/api/v1/backups/${schedule.shortId}/notifications`, {
 			method: "PUT",
 			headers: {
 				...getAuthHeaders(session2.token),

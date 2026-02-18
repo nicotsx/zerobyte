@@ -29,11 +29,11 @@ import { findCommonAncestor } from "~/utils/common-ancestor";
 
 const runningDoctors = new Map<string, AbortController>();
 
-const findRepository = async (idOrShortId: string) => {
+const findRepository = async (shortId: string) => {
 	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: idOrShortId }, { shortId: idOrShortId }] }, { organizationId }],
+			AND: [{ shortId }, { organizationId }],
 		},
 	});
 };
@@ -182,8 +182,8 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
 
-const getRepository = async (id: string) => {
-	const repository = await findRepository(id);
+const getRepository = async (shortId: string) => {
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -192,8 +192,8 @@ const getRepository = async (id: string) => {
 	return { repository };
 };
 
-const deleteRepository = async (id: string) => {
-	const repository = await findRepository(id);
+const deleteRepository = async (shortId: string) => {
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -214,14 +214,14 @@ const deleteRepository = async (id: string) => {
 /**
  * List snapshots for a given repository
  * If backupId is provided, filter snapshots by that backup ID (tag)
- * @param id Repository ID
+ * @param shortId Repository short ID
  * @param backupId Optional backup ID to filter snapshots for a specific backup schedule
  *
  * @returns List of snapshots
  */
-const listSnapshots = async (id: string, backupId?: string) => {
+const listSnapshots = async (shortId: string, backupId?: string) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -252,13 +252,13 @@ const listSnapshots = async (id: string, backupId?: string) => {
 };
 
 const listSnapshotFiles = async (
-	id: string,
+	shortId: string,
 	snapshotId: string,
 	path?: string,
 	options?: { offset?: number; limit?: number },
 ) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -317,7 +317,7 @@ const listSnapshotFiles = async (
 };
 
 const restoreSnapshot = async (
-	id: string,
+	shortId: string,
 	snapshotId: string,
 	options?: {
 		include?: string[];
@@ -329,7 +329,7 @@ const restoreSnapshot = async (
 	},
 ) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -337,14 +337,14 @@ const restoreSnapshot = async (
 
 	const target = options?.targetPath || "/";
 
-	const { paths } = await getSnapshotDetails(repository.id, snapshotId);
+	const { paths } = await getSnapshotDetails(repository.shortId, snapshotId);
 	const basePath = findCommonAncestor(paths);
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
 		serverEvents.emit("restore:started", {
 			organizationId,
-			repositoryId: repository.id,
+			repositoryId: repository.shortId,
 			snapshotId,
 		});
 
@@ -355,7 +355,7 @@ const restoreSnapshot = async (
 			onProgress: (progress) => {
 				serverEvents.emit("restore:progress", {
 					organizationId,
-					repositoryId: repository.id,
+					repositoryId: repository.shortId,
 					snapshotId,
 					...progress,
 				});
@@ -364,7 +364,7 @@ const restoreSnapshot = async (
 
 		serverEvents.emit("restore:completed", {
 			organizationId,
-			repositoryId: repository.id,
+			repositoryId: repository.shortId,
 			snapshotId,
 			status: "success",
 		});
@@ -378,7 +378,7 @@ const restoreSnapshot = async (
 	} catch (error) {
 		serverEvents.emit("restore:completed", {
 			organizationId,
-			repositoryId: repository.id,
+			repositoryId: repository.shortId,
 			snapshotId,
 			status: "error",
 			error: toMessage(error),
@@ -389,9 +389,9 @@ const restoreSnapshot = async (
 	}
 };
 
-const getSnapshotDetails = async (id: string, snapshotId: string) => {
+const getSnapshotDetails = async (shortId: string, snapshotId: string) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -413,7 +413,7 @@ const getSnapshotDetails = async (id: string, snapshotId: string) => {
 	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
 
 	if (!snapshot) {
-		void refreshSnapshots(id).catch(() => {});
+		void refreshSnapshots(shortId).catch(() => {});
 
 		throw new NotFoundError("Snapshot not found");
 	}
@@ -450,8 +450,8 @@ const checkHealth = async (repositoryId: string) => {
 	}
 };
 
-const startDoctor = async (id: string) => {
-	const repository = await findRepository(id);
+const startDoctor = async (shortId: string) => {
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -468,7 +468,7 @@ const startDoctor = async (id: string) => {
 
 		serverEvents.emit("doctor:started", {
 			organizationId: repository.organizationId,
-			repositoryId: repository.id,
+			repositoryId: repository.shortId,
 			repositoryName: repository.name,
 		});
 
@@ -478,7 +478,7 @@ const startDoctor = async (id: string) => {
 		throw error;
 	}
 
-	executeDoctor(repository.id, repository.config, repository.name, abortController.signal)
+	executeDoctor(repository.id, repository.shortId, repository.config, repository.name, abortController.signal)
 		.catch((error) => {
 			logger.error(`Doctor background task failed: ${toMessage(error)}`);
 		})
@@ -486,11 +486,11 @@ const startDoctor = async (id: string) => {
 			runningDoctors.delete(repository.id);
 		});
 
-	return { message: "Doctor operation started", repositoryId: repository.id };
+	return { message: "Doctor operation started", repositoryId: repository.shortId };
 };
 
-const cancelDoctor = async (id: string) => {
-	const repository = await findRepository(id);
+const cancelDoctor = async (shortId: string) => {
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -509,16 +509,16 @@ const cancelDoctor = async (id: string) => {
 
 	serverEvents.emit("doctor:cancelled", {
 		organizationId: repository.organizationId,
-		repositoryId: repository.id,
+		repositoryId: repository.shortId,
 		repositoryName: repository.name,
 	});
 
 	return { message: "Doctor operation cancelled" };
 };
 
-const deleteSnapshot = async (id: string, snapshotId: string) => {
+const deleteSnapshot = async (shortId: string, snapshotId: string) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -534,9 +534,9 @@ const deleteSnapshot = async (id: string, snapshotId: string) => {
 	}
 };
 
-const deleteSnapshots = async (id: string, snapshotIds: string[]) => {
+const deleteSnapshots = async (shortId: string, snapshotIds: string[]) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -555,12 +555,12 @@ const deleteSnapshots = async (id: string, snapshotIds: string[]) => {
 };
 
 const tagSnapshots = async (
-	id: string,
+	shortId: string,
 	snapshotIds: string[],
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
 ) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -578,9 +578,9 @@ const tagSnapshots = async (
 	}
 };
 
-const refreshSnapshots = async (id: string) => {
+const refreshSnapshots = async (shortId: string) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -604,8 +604,8 @@ const refreshSnapshots = async (id: string) => {
 	}
 };
 
-const updateRepository = async (id: string, updates: UpdateRepositoryBody) => {
-	const existing = await findRepository(id);
+const updateRepository = async (shortId: string, updates: UpdateRepositoryBody) => {
+	const existing = await findRepository(shortId);
 
 	if (!existing) {
 		throw new NotFoundError("Repository not found");
@@ -676,9 +676,9 @@ const updateRepository = async (id: string, updates: UpdateRepositoryBody) => {
 	return { repository: updated };
 };
 
-const unlockRepository = async (id: string) => {
+const unlockRepository = async (shortId: string) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -694,7 +694,7 @@ const unlockRepository = async (id: string) => {
 };
 
 const execResticCommand = async (
-	id: string,
+	shortId: string,
 	command: string,
 	args: string[] | undefined,
 	onStdout: (line: string) => void,
@@ -702,7 +702,7 @@ const execResticCommand = async (
 	signal?: AbortSignal,
 ) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(id);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");

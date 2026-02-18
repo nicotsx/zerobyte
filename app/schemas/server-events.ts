@@ -23,13 +23,13 @@ export const serverEventPayloads = {
 	"restore:completed": payload<ServerRestoreCompletedEventDto>(),
 	"mirror:started": payload<{
 		organizationId: string;
-		scheduleId: number;
+		scheduleId: string;
 		repositoryId: string;
 		repositoryName: string;
 	}>(),
 	"mirror:completed": payload<{
 		organizationId: string;
-		scheduleId: number;
+		scheduleId: string;
 		repositoryId: string;
 		repositoryName: string;
 		status: "success" | "error";

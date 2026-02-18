@@ -89,7 +89,7 @@ const emitBackupStarted = (ctx: BackupContext, scheduleId: number) => {
 
 	serverEvents.emit("backup:started", {
 		organizationId: ctx.organizationId,
-		scheduleId,
+		scheduleId: ctx.schedule.shortId,
 		volumeName: ctx.volume.name,
 		repositoryName: ctx.repository.name,
 	});
@@ -119,7 +119,7 @@ const runBackupOperation = async (ctx: BackupContext, signal: AbortSignal) => {
 			onProgress: (progress) => {
 				serverEvents.emit("backup:progress", {
 					organizationId: ctx.organizationId,
-					scheduleId: ctx.schedule.id,
+					scheduleId: ctx.schedule.shortId,
 					volumeName: ctx.volume.name,
 					repositoryName: ctx.repository.name,
 					...progress,
@@ -173,7 +173,7 @@ const finalizeSuccessfulBackup = async (
 
 	serverEvents.emit("backup:completed", {
 		organizationId: ctx.organizationId,
-		scheduleId,
+		scheduleId: ctx.schedule.shortId,
 		volumeName: ctx.volume.name,
 		repositoryName: ctx.repository.name,
 		status: finalStatus,
@@ -226,7 +226,7 @@ const handleBackupFailure = async (
 
 		serverEvents.emit("backup:completed", {
 			organizationId,
-			scheduleId,
+			scheduleId: ctx.schedule.shortId,
 			volumeName: ctx.volume.name,
 			repositoryName: ctx.repository.name,
 			status: "error",
@@ -378,8 +378,8 @@ const copyToSingleMirror = async (
 
 		serverEvents.emit("mirror:started", {
 			organizationId,
-			scheduleId,
-			repositoryId: mirror.repositoryId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirror.repository.shortId,
 			repositoryName: mirror.repository.name,
 		});
 
@@ -417,8 +417,8 @@ const copyToSingleMirror = async (
 
 		serverEvents.emit("mirror:completed", {
 			organizationId,
-			scheduleId,
-			repositoryId: mirror.repositoryId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirror.repository.shortId,
 			repositoryName: mirror.repository.name,
 			status: "success",
 		});
@@ -434,8 +434,8 @@ const copyToSingleMirror = async (
 
 		serverEvents.emit("mirror:completed", {
 			organizationId,
-			scheduleId,
-			repositoryId: mirror.repositoryId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirror.repository.shortId,
 			repositoryName: mirror.repository.name,
 			status: "error",
 			error: errorMessage,

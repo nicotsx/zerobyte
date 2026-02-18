@@ -1288,7 +1288,7 @@ export const getMirrorCompatibilityOptions = (options: Options<GetMirrorCompatib
 	});
 
 /**
- * Reorder backup schedules by providing an array of schedule IDs in the desired order
+ * Reorder backup schedules by providing an array of schedule short IDs in the desired order
  */
 export const reorderBackupSchedulesMutation = (
 	options?: Partial<Options<ReorderBackupSchedulesData>>,

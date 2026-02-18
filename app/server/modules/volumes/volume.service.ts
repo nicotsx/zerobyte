@@ -52,14 +52,11 @@ const listVolumes = async () => {
 	return volumes;
 };
 
-const findVolume = async (idOrShortId: string | number) => {
+const findVolume = async (identifier: string | number) => {
 	const organizationId = getOrganizationId();
 	return await db.query.volumesTable.findFirst({
 		where: {
-			AND: [
-				{ OR: [{ id: Number(idOrShortId) }, { shortId: String(idOrShortId) }] },
-				{ organizationId: organizationId },
-			],
+			AND: [{ OR: [{ id: Number(identifier) }, { shortId: String(identifier) }] }, { organizationId: organizationId }],
 		},
 	});
 };
@@ -101,9 +98,9 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	return { volume: created, status: 201 };
 };
 
-const deleteVolume = async (idOrShortId: string | number) => {
+const deleteVolume = async (identifier: string | number) => {
 	const organizationId = getOrganizationId();
-	const volume = await findVolume(idOrShortId);
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -116,9 +113,9 @@ const deleteVolume = async (idOrShortId: string | number) => {
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 };
 
-const mountVolume = async (idOrShortId: string | number) => {
+const mountVolume = async (identifier: string | number) => {
 	const organizationId = getOrganizationId();
-	const volume = await findVolume(idOrShortId);
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -139,9 +136,9 @@ const mountVolume = async (idOrShortId: string | number) => {
 	return { error, status };
 };
 
-const unmountVolume = async (idOrShortId: string | number) => {
+const unmountVolume = async (identifier: string | number) => {
 	const organizationId = getOrganizationId();
-	const volume = await findVolume(idOrShortId);
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -162,8 +159,8 @@ const unmountVolume = async (idOrShortId: string | number) => {
 	return { error, status };
 };
 
-const getVolume = async (idOrShortId: string | number) => {
-	const volume = await findVolume(idOrShortId);
+const getVolume = async (identifier: string | number) => {
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -180,9 +177,9 @@ const getVolume = async (idOrShortId: string | number) => {
 	return { volume, statfs };
 };
 
-const updateVolume = async (idOrShortId: string | number, volumeData: UpdateVolumeBody) => {
+const updateVolume = async (identifier: string | number, volumeData: UpdateVolumeBody) => {
 	const organizationId = getOrganizationId();
-	const existing = await findVolume(idOrShortId);
+	const existing = await findVolume(identifier);
 
 	if (!existing) {
 		throw new NotFoundError("Volume not found");
@@ -273,9 +270,9 @@ const testConnection = async (backendConfig: BackendConfig) => {
 	};
 };
 
-const checkHealth = async (idOrShortId: string | number) => {
+const checkHealth = async (identifier: string | number) => {
 	const organizationId = getOrganizationId();
-	const volume = await findVolume(idOrShortId);
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
@@ -300,12 +297,12 @@ const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
 
 const listFiles = async (
-	idOrShortId: string | number,
+	identifier: string | number,
 	subPath?: string,
 	offset: number = 0,
 	limit: number = DEFAULT_PAGE_SIZE,
 ) => {
-	const volume = await findVolume(idOrShortId);
+	const volume = await findVolume(identifier);
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");

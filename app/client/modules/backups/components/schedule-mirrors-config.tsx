@@ -25,7 +25,7 @@ import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { Link } from "@tanstack/react-router";
 
 type Props = {
-	scheduleId: number;
+	scheduleShortId: string;
 	primaryRepositoryId: string;
 	repositories: Repository[];
 	initialData: GetScheduleMirrorsResponse;
@@ -55,14 +55,14 @@ const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 		]),
 	);
 
-export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, repositories, initialData }: Props) => {
+export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, repositories, initialData }: Props) => {
 	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(() => buildAssignments(initialData));
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isAddingNew, setIsAddingNew] = useState(false);
 	const { addEventListener } = useServerEvents();
 
 	const { data: currentMirrors } = useSuspenseQuery({
-		...getScheduleMirrorsOptions({ path: { scheduleId: scheduleId.toString() } }),
+		...getScheduleMirrorsOptions({ path: { shortId: scheduleShortId } }),
 	});
 
 	useEffect(() => {
@@ -72,7 +72,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 	}, [currentMirrors, hasChanges]);
 
 	const { data: compatibility } = useQuery({
-		...getMirrorCompatibilityOptions({ path: { scheduleId: scheduleId.toString() } }),
+		...getMirrorCompatibilityOptions({ path: { shortId: scheduleShortId } }),
 	});
 
 	const updateMirrors = useMutation({
@@ -100,7 +100,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 
 	useEffect(() => {
 		const unsubscribeStarted = addEventListener("mirror:started", (event) => {
-			if (event.scheduleId !== scheduleId) return;
+			if (event.scheduleId !== scheduleShortId) return;
 			setAssignments((prev) => {
 				const next = new Map(prev);
 				const existing = next.get(event.repositoryId);
@@ -111,7 +111,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 		});
 
 		const unsubscribeCompleted = addEventListener("mirror:completed", (event) => {
-			if (event.scheduleId !== scheduleId) return;
+			if (event.scheduleId !== scheduleShortId) return;
 			setAssignments((prev) => {
 				const next = new Map(prev);
 				const existing = next.get(event.repositoryId);
@@ -130,7 +130,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 			unsubscribeStarted();
 			unsubscribeCompleted();
 		};
-	}, [addEventListener, scheduleId]);
+	}, [addEventListener, scheduleShortId]);
 
 	const addRepository = (repositoryId: string) => {
 		const newAssignments = new Map(assignments);
@@ -174,7 +174,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 			enabled: a.enabled,
 		}));
 		updateMirrors.mutate({
-			path: { scheduleId: scheduleId.toString() },
+			path: { shortId: scheduleShortId },
 			body: {
 				mirrors: mirrorsList,
 			},
@@ -188,18 +188,18 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 
 	const selectableRepositories =
 		repositories?.filter((r) => {
-			if (r.id === primaryRepositoryId) return false;
-			if (assignments.has(r.id)) return false;
+			if (r.shortId === primaryRepositoryId) return false;
+			if (assignments.has(r.shortId)) return false;
 			return true;
 		}) || [];
 
 	const hasAvailableRepositories = selectableRepositories.some((r) => {
-		const compat = compatibilityMap.get(r.id);
+		const compat = compatibilityMap.get(r.shortId);
 		return compat?.compatible !== false;
 	});
 
 	const assignedRepositories = Array.from(assignments.keys())
-		.map((id) => repositories?.find((r) => r.id === id))
+		.map((id) => repositories?.find((r) => r.shortId === id))
 		.filter((r) => r !== undefined);
 
 	const getStatusVariant = (status: string | null) => {
@@ -262,13 +262,13 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 							</SelectTrigger>
 							<SelectContent>
 								{selectableRepositories.map((repository) => {
-									const compat = compatibilityMap.get(repository.id);
+									const compat = compatibilityMap.get(repository.shortId);
 
 									return (
-										<Tooltip key={repository.id}>
+										<Tooltip key={repository.shortId}>
 											<TooltipTrigger asChild>
 												<div>
-													<SelectItem value={repository.id} disabled={!compat?.compatible}>
+													<SelectItem value={repository.shortId} disabled={!compat?.compatible}>
 														<div className="flex items-center gap-2">
 															<RepositoryIcon backend={repository.type} className="h-4 w-4" />
 															<span>{repository.name}</span>
@@ -322,16 +322,16 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 							</TableHeader>
 							<TableBody>
 								{assignedRepositories.map((repository) => {
-									const assignment = assignments.get(repository.id);
+									const assignment = assignments.get(repository.shortId);
 									if (!assignment) return null;
 
 									return (
-										<TableRow key={repository.id}>
+										<TableRow key={repository.shortId}>
 											<TableCell>
 												<div className="flex items-center gap-2">
 													<Link
 														to="/repositories/$repositoryId"
-														params={{ repositoryId: repository.id }}
+														params={{ repositoryId: repository.shortId }}
 														className="hover:underline flex items-center gap-2"
 													>
 														<RepositoryIcon backend={repository.type} className="h-4 w-4" />
@@ -346,7 +346,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 												<Switch
 													className="align-middle"
 													checked={assignment.enabled}
-													onCheckedChange={() => toggleEnabled(repository.id)}
+													onCheckedChange={() => toggleEnabled(repository.shortId)}
 												/>
 											</TableCell>
 											<TableCell>
@@ -363,7 +363,7 @@ export const ScheduleMirrorsConfig = ({ scheduleId, primaryRepositoryId, reposit
 												<Button
 													variant="ghost"
 													size="icon"
-													onClick={() => removeRepository(repository.id)}
+													onClick={() => removeRepository(repository.shortId)}
 													className="h-8 w-8 text-muted-foreground hover:text-destructive align-baseline"
 												>
 													<Trash2 className="h-4 w-4" />

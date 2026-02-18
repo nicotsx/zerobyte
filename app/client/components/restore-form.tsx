@@ -92,7 +92,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		onError: (error) => {
 			restoreCompletedRef.current = true;
 			setIsRestoreActive(false);
-			handleRepositoryError("Restore failed", error, repository.id);
+			handleRepositoryError("Restore failed", error, repository.shortId);
 		},
 	});
 
@@ -113,7 +113,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		setShowRestoreResultAlert(false);
 
 		restoreSnapshot({
-			path: { id: repository.id },
+			path: { shortId: repository.shortId },
 			body: {
 				snapshotId,
 				include: includePaths.length > 0 ? includePaths : undefined,
@@ -123,7 +123,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 			},
 		});
 	}, [
-		repository.id,
+		repository.shortId,
 		snapshotId,
 		excludeXattr,
 		restoreLocation,
@@ -280,7 +280,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 					</CardHeader>
 					<CardContent className="flex-1 overflow-hidden flex flex-col p-0">
 						<SnapshotTreeBrowser
-							repositoryId={repository.id}
+							repositoryId={repository.shortId}
 							snapshotId={snapshotId}
 							basePath={volumeBasePath}
 							pageSize={500}

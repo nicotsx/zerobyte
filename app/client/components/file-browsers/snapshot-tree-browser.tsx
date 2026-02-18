@@ -34,7 +34,7 @@ export const SnapshotTreeBrowser = ({
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
-			path: { id: repositoryId, snapshotId },
+			path: { shortId: repositoryId, snapshotId },
 			query: { path: normalizedBasePath },
 		}),
 		enabled,
@@ -92,7 +92,7 @@ export const SnapshotTreeBrowser = ({
 		fetchFolder: async (path, offset = 0) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
-					path: { id: repositoryId, snapshotId },
+					path: { shortId: repositoryId, snapshotId },
 					query: {
 						path,
 						offset: offset.toString(),
@@ -104,7 +104,7 @@ export const SnapshotTreeBrowser = ({
 		prefetchFolder: (path) => {
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
-					path: { id: repositoryId, snapshotId },
+					path: { shortId: repositoryId, snapshotId },
 					query: {
 						path,
 						offset: "0",

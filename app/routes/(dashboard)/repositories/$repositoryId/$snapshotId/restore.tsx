@@ -10,15 +10,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 	loader: async ({ params, context }) => {
 		const [snapshot, repository] = await Promise.all([
 			context.queryClient.ensureQueryData({
-				...getSnapshotDetailsOptions({ path: { id: params.repositoryId, snapshotId: params.snapshotId } }),
+				...getSnapshotDetailsOptions({ path: { shortId: params.repositoryId, snapshotId: params.snapshotId } }),
 			}),
-			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { id: params.repositoryId } }) }),
+			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { shortId: params.repositoryId } }) }),
 		]);
 
 		let basePath: string | undefined;
 		const scheduleShortId = snapshot.tags?.[0];
 		if (scheduleShortId) {
-			const scheduleRes = await getBackupSchedule({ path: { scheduleId: scheduleShortId } });
+			const scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
 			if (scheduleRes.data) {
 				basePath = getVolumeMountPath(scheduleRes.data.volume);
 			}

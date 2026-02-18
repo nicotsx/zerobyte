@@ -82,7 +82,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 		try {
 			const result = await devPanelExec({
-				path: { id: selectedRepoId },
+				path: { shortId: selectedRepoId },
 				body: { command, args: argsArray.length > 0 ? argsArray : undefined },
 				signal: abortControllerRef.current.signal,
 			});
@@ -155,7 +155,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 								</SelectTrigger>
 								<SelectContent>
 									{repositories.map((repo) => (
-										<SelectItem key={repo.id} value={repo.id}>
+										<SelectItem key={repo.id} value={repo.shortId}>
 											{repo.name} ({repo.type})
 										</SelectItem>
 									))}

@@ -76,7 +76,7 @@ export const ScheduleSummary = (props: Props) => {
 
 	const handleConfirmForget = () => {
 		setShowForgetConfirm(false);
-		runForget.mutate({ path: { scheduleId: schedule.id.toString() } });
+		runForget.mutate({ path: { shortId: schedule.shortId } });
 	};
 
 	const handleConfirmStop = () => {
@@ -215,7 +215,7 @@ export const ScheduleSummary = (props: Props) => {
 				</CardContent>
 			</Card>
 
-			{schedule.lastBackupStatus === "in_progress" && <BackupProgressCard scheduleId={schedule.id} />}
+			{schedule.lastBackupStatus === "in_progress" && <BackupProgressCard scheduleShortId={schedule.shortId} />}
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>

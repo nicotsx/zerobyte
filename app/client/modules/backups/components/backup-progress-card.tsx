@@ -7,22 +7,22 @@ import { formatDuration } from "~/utils/utils";
 import { formatBytes } from "~/utils/format-bytes";
 
 type Props = {
-	scheduleId: number;
+	scheduleShortId: string;
 };
 
-export const BackupProgressCard = ({ scheduleId }: Props) => {
+export const BackupProgressCard = ({ scheduleShortId }: Props) => {
 	const { addEventListener } = useServerEvents();
 	const [progress, setProgress] = useState<BackupProgressEvent | null>(null);
 
 	useEffect(() => {
 		const unsubscribe = addEventListener("backup:progress", (progressData) => {
-			if (progressData.scheduleId === scheduleId) {
+			if (progressData.scheduleId === scheduleShortId) {
 				setProgress(progressData);
 			}
 		});
 
 		const unsubscribeComplete = addEventListener("backup:completed", (completedData) => {
-			if (completedData.scheduleId === scheduleId) {
+			if (completedData.scheduleId === scheduleShortId) {
 				setProgress(null);
 			}
 		});
@@ -31,7 +31,7 @@ export const BackupProgressCard = ({ scheduleId }: Props) => {
 			unsubscribe();
 			unsubscribeComplete();
 		};
-	}, [addEventListener, scheduleId]);
+	}, [addEventListener, scheduleShortId]);
 
 	const percentDone = progress ? Math.round(progress.percent_done * 100) : 0;
 	const currentFile = progress?.current_files[0] || "";

@@ -69,7 +69,7 @@ export function ScheduleDetailsPage(props: Props) {
 	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 
 	const { data: schedule } = useSuspenseQuery({
-		...getBackupScheduleOptions({ path: { scheduleId } }),
+		...getBackupScheduleOptions({ path: { shortId: scheduleId } }),
 	});
 
 	const {
@@ -77,7 +77,7 @@ export function ScheduleDetailsPage(props: Props) {
 		isLoading,
 		failureReason,
 	} = useQuery({
-		...listSnapshotsOptions({ path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } }),
+		...listSnapshotsOptions({ path: { shortId: schedule.repository.shortId }, query: { backupId: schedule.shortId } }),
 	});
 
 	const updateSchedule = useMutation({
@@ -124,7 +124,10 @@ export function ScheduleDetailsPage(props: Props) {
 		},
 	});
 
-	const listSnapshotsQueryOptions = { path: { id: schedule.repository.id }, query: { backupId: schedule.shortId } };
+	const listSnapshotsQueryOptions = {
+		path: { shortId: schedule.repository.shortId },
+		query: { backupId: schedule.shortId },
+	};
 
 	const deleteSnapshot = useMutation({
 		...deleteSnapshotMutation(),
@@ -167,7 +170,7 @@ export function ScheduleDetailsPage(props: Props) {
 		if (formValues.keepYearly) retentionPolicy.keepYearly = formValues.keepYearly;
 
 		updateSchedule.mutate({
-			path: { scheduleId: schedule.id.toString() },
+			path: { shortId: schedule.shortId },
 			body: {
 				name: formValues.name,
 				repositoryId: formValues.repositoryId,
@@ -184,7 +187,7 @@ export function ScheduleDetailsPage(props: Props) {
 
 	const handleToggleEnabled = (enabled: boolean) => {
 		updateSchedule.mutate({
-			path: { scheduleId: schedule.id.toString() },
+			path: { shortId: schedule.shortId },
 			body: {
 				repositoryId: schedule.repositoryId,
 				enabled,
@@ -207,7 +210,7 @@ export function ScheduleDetailsPage(props: Props) {
 		if (snapshotToDelete) {
 			toast.promise(
 				deleteSnapshot.mutateAsync({
-					path: { id: schedule.repository.shortId, snapshotId: snapshotToDelete },
+					path: { shortId: schedule.repository.shortId, snapshotId: snapshotToDelete },
 				}),
 				{
 					loading: "Deleting snapshot...",
@@ -251,23 +254,23 @@ export function ScheduleDetailsPage(props: Props) {
 		<div className="flex flex-col gap-6">
 			<ScheduleSummary
 				handleToggleEnabled={handleToggleEnabled}
-				handleRunBackupNow={() => runBackupNow.mutate({ path: { scheduleId: schedule.id.toString() } })}
-				handleStopBackup={() => stopBackup.mutate({ path: { scheduleId: schedule.id.toString() } })}
-				handleDeleteSchedule={() => deleteSchedule.mutate({ path: { scheduleId: schedule.id.toString() } })}
+				handleRunBackupNow={() => runBackupNow.mutate({ path: { shortId: schedule.shortId } })}
+				handleStopBackup={() => stopBackup.mutate({ path: { shortId: schedule.shortId } })}
+				handleDeleteSchedule={() => deleteSchedule.mutate({ path: { shortId: schedule.shortId } })}
 				setIsEditMode={setIsEditMode}
 				schedule={schedule}
 			/>
 			<div className={cn({ hidden: !loaderData.notifs?.length })}>
 				<ScheduleNotificationsConfig
-					scheduleId={schedule.id}
+					scheduleShortId={schedule.shortId}
 					destinations={loaderData.notifs ?? []}
 					initialData={loaderData.scheduleNotifs ?? []}
 				/>
 			</div>
 			<div className={cn({ hidden: !loaderData.repos?.length || loaderData.repos.length < 2 })}>
 				<ScheduleMirrorsConfig
-					scheduleId={schedule.id}
-					primaryRepositoryId={schedule.repositoryId}
+					scheduleShortId={schedule.shortId}
+					primaryRepositoryId={schedule.repository.shortId}
 					repositories={loaderData.repos ?? []}
 					initialData={loaderData.mirrors ?? []}
 				/>
@@ -285,7 +288,7 @@ export function ScheduleDetailsPage(props: Props) {
 					key={selectedSnapshot?.short_id}
 					snapshot={selectedSnapshot}
 					repositoryId={schedule.repository.shortId}
-					backupId={schedule.id.toString()}
+					backupId={schedule.shortId}
 					onDeleteSnapshot={handleDeleteSnapshot}
 					isDeletingSnapshot={deleteSnapshot.isPending}
 				/>

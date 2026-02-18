@@ -79,25 +79,25 @@ export const repositoriesController = new Hono()
 
 		return c.json(remotes);
 	})
-	.get("/:id", getRepositoryDto, async (c) => {
-		const { id } = c.req.param();
-		const res = await repositoriesService.getRepository(id);
+	.get("/:shortId", getRepositoryDto, async (c) => {
+		const { shortId } = c.req.param();
+		const res = await repositoriesService.getRepository(shortId);
 
 		return c.json<GetRepositoryDto>(res.repository, 200);
 	})
-	.delete("/:id", deleteRepositoryDto, async (c) => {
-		const { id } = c.req.param();
-		await repositoriesService.deleteRepository(id);
+	.delete("/:shortId", deleteRepositoryDto, async (c) => {
+		const { shortId } = c.req.param();
+		await repositoriesService.deleteRepository(shortId);
 
 		return c.json<DeleteRepositoryDto>({ message: "Repository deleted" }, 200);
 	})
-	.get("/:id/snapshots", listSnapshotsDto, validator("query", listSnapshotsFilters), async (c) => {
-		const { id } = c.req.param();
+	.get("/:shortId/snapshots", listSnapshotsDto, validator("query", listSnapshotsFilters), async (c) => {
+		const { shortId } = c.req.param();
 		const { backupId } = c.req.valid("query");
 
 		const [res, retentionCategories] = await Promise.all([
-			repositoriesService.listSnapshots(id, backupId),
-			repositoriesService.getRetentionCategories(id, backupId),
+			repositoriesService.listSnapshots(shortId, backupId),
+			repositoriesService.getRetentionCategories(shortId, backupId),
 		]);
 
 		const snapshots = res.map((snapshot) => {
@@ -119,15 +119,15 @@ export const repositoriesController = new Hono()
 
 		return c.json<ListSnapshotsDto>(snapshots, 200);
 	})
-	.post("/:id/snapshots/refresh", refreshSnapshotsDto, async (c) => {
-		const { id } = c.req.param();
-		const result = await repositoriesService.refreshSnapshots(id);
+	.post("/:shortId/snapshots/refresh", refreshSnapshotsDto, async (c) => {
+		const { shortId } = c.req.param();
+		const result = await repositoriesService.refreshSnapshots(shortId);
 
 		return c.json<RefreshSnapshotsDto>(result, 200);
 	})
-	.get("/:id/snapshots/:snapshotId", getSnapshotDetailsDto, async (c) => {
-		const { id, snapshotId } = c.req.param();
-		const snapshot = await repositoriesService.getSnapshotDetails(id, snapshotId);
+	.get("/:shortId/snapshots/:snapshotId", getSnapshotDetailsDto, async (c) => {
+		const { shortId, snapshotId } = c.req.param();
+		const snapshot = await repositoriesService.getSnapshotDetails(shortId, snapshotId);
 
 		const duration = getSnapshotDuration(snapshot.summary);
 
@@ -146,11 +146,11 @@ export const repositoriesController = new Hono()
 		return c.json<GetSnapshotDetailsDto>(response, 200);
 	})
 	.get(
-		"/:id/snapshots/:snapshotId/files",
+		"/:shortId/snapshots/:snapshotId/files",
 		listSnapshotFilesDto,
 		validator("query", listSnapshotFilesQuery),
 		async (c) => {
-			const { id, snapshotId } = c.req.param();
+			const { shortId, snapshotId } = c.req.param();
 			const { path, ...query } = c.req.valid("query");
 
 			const decodedPath = path ? decodeURIComponent(path) : undefined;
@@ -158,76 +158,76 @@ export const repositoriesController = new Hono()
 			const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
 			const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
 
-			const result = await repositoriesService.listSnapshotFiles(id, snapshotId, decodedPath, { offset, limit });
+			const result = await repositoriesService.listSnapshotFiles(shortId, snapshotId, decodedPath, { offset, limit });
 
 			c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
 
 			return c.json<ListSnapshotFilesDto>(result, 200);
 		},
 	)
-	.post("/:id/restore", restoreSnapshotDto, validator("json", restoreSnapshotBody), async (c) => {
-		const { id } = c.req.param();
+	.post("/:shortId/restore", restoreSnapshotDto, validator("json", restoreSnapshotBody), async (c) => {
+		const { shortId } = c.req.param();
 		const { snapshotId, ...options } = c.req.valid("json");
-		const result = await repositoriesService.restoreSnapshot(id, snapshotId, options);
+		const result = await repositoriesService.restoreSnapshot(shortId, snapshotId, options);
 
 		return c.json<RestoreSnapshotDto>(result, 200);
 	})
-	.post("/:id/doctor", startDoctorDto, async (c) => {
-		const { id } = c.req.param();
+	.post("/:shortId/doctor", startDoctorDto, async (c) => {
+		const { shortId } = c.req.param();
 
-		const result = await repositoriesService.startDoctor(id);
+		const result = await repositoriesService.startDoctor(shortId);
 
 		return c.json<StartDoctorDto>(result, 202);
 	})
-	.delete("/:id/doctor", cancelDoctorDto, async (c) => {
-		const { id } = c.req.param();
+	.delete("/:shortId/doctor", cancelDoctorDto, async (c) => {
+		const { shortId } = c.req.param();
 
-		const result = await repositoriesService.cancelDoctor(id);
+		const result = await repositoriesService.cancelDoctor(shortId);
 
 		return c.json<CancelDoctorDto>(result, 200);
 	})
-	.post("/:id/unlock", unlockRepositoryDto, async (c) => {
-		const { id } = c.req.param();
+	.post("/:shortId/unlock", unlockRepositoryDto, async (c) => {
+		const { shortId } = c.req.param();
 
-		const result = await repositoriesService.unlockRepository(id);
+		const result = await repositoriesService.unlockRepository(shortId);
 
 		return c.json<UnlockRepositoryDto>(result, 200);
 	})
-	.delete("/:id/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
-		const { id, snapshotId } = c.req.param();
-		await repositoriesService.deleteSnapshot(id, snapshotId);
+	.delete("/:shortId/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
+		const { shortId, snapshotId } = c.req.param();
+		await repositoriesService.deleteSnapshot(shortId, snapshotId);
 
 		return c.json<DeleteSnapshotDto>({ message: "Snapshot deleted" }, 200);
 	})
-	.delete("/:id/snapshots", deleteSnapshotsDto, validator("json", deleteSnapshotsBody), async (c) => {
-		const { id } = c.req.param();
+	.delete("/:shortId/snapshots", deleteSnapshotsDto, validator("json", deleteSnapshotsBody), async (c) => {
+		const { shortId } = c.req.param();
 		const { snapshotIds } = c.req.valid("json");
-		await repositoriesService.deleteSnapshots(id, snapshotIds);
+		await repositoriesService.deleteSnapshots(shortId, snapshotIds);
 
 		return c.json<DeleteSnapshotsResponseDto>({ message: "Snapshots deleted" }, 200);
 	})
-	.post("/:id/snapshots/tag", tagSnapshotsDto, validator("json", tagSnapshotsBody), async (c) => {
-		const { id } = c.req.param();
+	.post("/:shortId/snapshots/tag", tagSnapshotsDto, validator("json", tagSnapshotsBody), async (c) => {
+		const { shortId } = c.req.param();
 		const { snapshotIds, ...tags } = c.req.valid("json");
-		await repositoriesService.tagSnapshots(id, snapshotIds, tags);
+		await repositoriesService.tagSnapshots(shortId, snapshotIds, tags);
 
 		return c.json<TagSnapshotsResponseDto>({ message: "Snapshots tagged" }, 200);
 	})
-	.patch("/:id", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
-		const { id } = c.req.param();
+	.patch("/:shortId", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
+		const { shortId } = c.req.param();
 		const body = c.req.valid("json");
-		const res = await repositoriesService.updateRepository(id, body);
+		const res = await repositoriesService.updateRepository(shortId, body);
 
 		return c.json<UpdateRepositoryDto>(res.repository, 200);
 	})
 	.post(
-		"/:id/exec",
+		"/:shortId/exec",
 		requireDevPanel,
 		requireOrgAdmin,
 		devPanelExecDto,
 		validator("json", devPanelExecBody),
 		async (c) => {
-			const { id } = c.req.param();
+			const { shortId } = c.req.param();
 			const body = c.req.valid("json");
 
 			return streamSSE(c, async (stream) => {
@@ -240,7 +240,7 @@ export const repositoriesController = new Hono()
 
 				try {
 					const result = await repositoriesService.execResticCommand(
-						id,
+						shortId,
 						body.command,
 						body.args,
 						async (line) => sendSSE("output", { type: "stdout", line }),

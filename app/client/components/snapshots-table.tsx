@@ -99,7 +99,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const handleBulkDelete = () => {
 		toast.promise(
 			deleteSnapshots.mutateAsync({
-				path: { id: repositoryId },
+				path: { shortId: repositoryId },
 				body: { snapshotIds: Array.from(selectedIds) },
 			}),
 			{
@@ -111,12 +111,12 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	};
 
 	const handleBulkReTag = () => {
-		const schedule = backups.find((b) => String(b.id) === targetScheduleId);
+		const schedule = backups.find((b) => b.shortId === targetScheduleId);
 		if (!schedule) return;
 
 		toast.promise(
 			tagSnapshots.mutateAsync({
-				path: { id: repositoryId },
+				path: { shortId: repositoryId },
 				body: {
 					snapshotIds: Array.from(selectedIds),
 					set: [schedule.shortId],
@@ -187,7 +187,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 											<Link
 												hidden={!backup}
 												to={backup ? `/backups/$backupId` : "."}
-												params={backup ? { backupId: String(backup.id) } : {}}
+												params={backup ? { backupId: backup.shortId } : {}}
 												onClick={(e) => e.stopPropagation()}
 												className="hover:underline"
 											>
@@ -301,7 +301,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 							</SelectTrigger>
 							<SelectContent>
 								{backups.map((backup) => (
-									<SelectItem key={backup.id} value={String(backup.id)}>
+									<SelectItem key={backup.shortId} value={backup.shortId}>
 										{backup.name}
 									</SelectItem>
 								))}

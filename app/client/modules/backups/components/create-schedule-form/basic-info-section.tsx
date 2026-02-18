@@ -48,7 +48,7 @@ export const BasicInfoSection = ({ form, volume }: BasicInfoSectionProps) => {
 								</SelectTrigger>
 								<SelectContent>
 									{repositoriesData?.map((repo) => (
-										<SelectItem key={repo.id} value={repo.id}>
+										<SelectItem key={repo.shortId} value={repo.shortId}>
 											<span className="flex items-center gap-2">
 												<RepositoryIcon backend={repo.type} />
 												{repo.name}

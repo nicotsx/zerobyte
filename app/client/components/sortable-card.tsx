@@ -6,7 +6,7 @@ import type { PropsWithChildren } from "react";
 
 interface SortableBackupCardProps {
 	isDragging?: boolean;
-	uniqueId: number;
+	uniqueId: string | number;
 }
 
 export function SortableCard({ isDragging, uniqueId, children }: PropsWithChildren<SortableBackupCardProps>) {

@@ -27,8 +27,8 @@ export function BackupsPage() {
 		...listBackupSchedulesOptions(),
 	});
 
-	const [localItems, setLocalItems] = useState<number[] | null>(null);
-	const items = localItems ?? schedules?.map((s) => s.id) ?? [];
+	const [localItems, setLocalItems] = useState<string[] | null>(null);
+	const items = localItems ?? schedules?.map((s) => s.shortId) ?? [];
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
@@ -48,14 +48,14 @@ export function BackupsPage() {
 
 		if (over && active.id !== over.id) {
 			setLocalItems((currentItems) => {
-				const baseItems = currentItems ?? schedules?.map((s) => s.id) ?? [];
-				const activeId = active.id as number;
-				const overId = over.id as number;
+				const baseItems = currentItems ?? schedules?.map((s) => s.shortId) ?? [];
+				const activeId = String(active.id);
+				const overId = String(over.id);
 				let oldIndex = baseItems.indexOf(activeId);
 				let newIndex = baseItems.indexOf(overId);
 
 				if (oldIndex === -1 || newIndex === -1) {
-					const freshItems = schedules?.map((s) => s.id) ?? [];
+					const freshItems = schedules?.map((s) => s.shortId) ?? [];
 					oldIndex = freshItems.indexOf(activeId);
 					newIndex = freshItems.indexOf(overId);
 
@@ -64,12 +64,12 @@ export function BackupsPage() {
 					}
 
 					const newItems = arrayMove(freshItems, oldIndex, newIndex);
-					reorderMutation.mutate({ body: { scheduleIds: newItems } });
+					reorderMutation.mutate({ body: { scheduleShortIds: newItems } });
 					return newItems;
 				}
 
 				const newItems = arrayMove(baseItems, oldIndex, newIndex);
-				reorderMutation.mutate({ body: { scheduleIds: newItems } });
+				reorderMutation.mutate({ body: { scheduleShortIds: newItems } });
 
 				return newItems;
 			});
@@ -94,7 +94,7 @@ export function BackupsPage() {
 		);
 	}
 
-	const scheduleMap = new Map(schedules.map((s) => [s.id, s]));
+	const scheduleMap = new Map(schedules.map((s) => [s.shortId, s]));
 
 	return (
 		<div className="container @container mx-auto space-y-6">

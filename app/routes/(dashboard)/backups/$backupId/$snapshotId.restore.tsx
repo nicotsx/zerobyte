@@ -7,7 +7,7 @@ import { getVolumeMountPath } from "~/client/lib/volume-path";
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
 	loader: async ({ params, context }) => {
-		const schedule = await getBackupSchedule({ path: { scheduleId: params.backupId } });
+		const schedule = await getBackupSchedule({ path: { shortId: params.backupId } });
 
 		if (!schedule.data) {
 			throw new Response("Not Found", { status: 404 });
@@ -15,9 +15,13 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 		const [snapshot, repository] = await Promise.all([
 			context.queryClient.ensureQueryData({
-				...getSnapshotDetailsOptions({ path: { id: schedule.data?.repositoryId, snapshotId: params.snapshotId } }),
+				...getSnapshotDetailsOptions({
+					path: { shortId: schedule.data.repository.shortId, snapshotId: params.snapshotId },
+				}),
 			}),
-			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { id: schedule.data?.repositoryId } }) }),
+			context.queryClient.ensureQueryData({
+				...getRepositoryOptions({ path: { shortId: schedule.data.repository.shortId } }),
+			}),
 		]);
 
 		return {

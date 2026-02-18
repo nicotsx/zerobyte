@@ -19,7 +19,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 export function CreateBackupPage() {
 	const navigate = useNavigate();
 	const formId = useId();
-	const [selectedVolumeId, setSelectedVolumeId] = useState<number | undefined>();
+	const [selectedVolumeShortId, setSelectedVolumeShortId] = useState<string | undefined>();
 
 	const { data: volumesData } = useSuspenseQuery({
 		...listVolumesOptions(),
@@ -33,7 +33,7 @@ export function CreateBackupPage() {
 		...createBackupScheduleMutation(),
 		onSuccess: (data) => {
 			toast.success("Backup job created successfully");
-			void navigate({ to: `/backups/${data.id}` });
+			void navigate({ to: `/backups/${data.shortId}` });
 		},
 		onError: (error) => {
 			toast.error("Failed to create backup job", {
@@ -43,7 +43,7 @@ export function CreateBackupPage() {
 	});
 
 	const handleSubmit = (formValues: BackupScheduleFormValues) => {
-		if (!selectedVolumeId) return;
+		if (!selectedVolumeShortId) return;
 
 		const cronExpression = getCronExpression(
 			formValues.frequency,
@@ -64,7 +64,7 @@ export function CreateBackupPage() {
 		createSchedule.mutate({
 			body: {
 				name: formValues.name,
-				volumeId: selectedVolumeId,
+				volumeId: selectedVolumeShortId,
 				repositoryId: formValues.repositoryId,
 				enabled: true,
 				cronExpression,
@@ -77,7 +77,7 @@ export function CreateBackupPage() {
 		});
 	};
 
-	const selectedVolume = volumesData.find((v) => v.id === selectedVolumeId);
+	const selectedVolume = volumesData.find((v) => v.shortId === selectedVolumeShortId);
 
 	if (!volumesData.length) {
 		return (
@@ -113,13 +113,13 @@ export function CreateBackupPage() {
 		<div className="container mx-auto space-y-4">
 			<Card>
 				<CardContent>
-					<Select value={selectedVolumeId?.toString()} onValueChange={(v) => setSelectedVolumeId(Number(v))}>
+					<Select value={selectedVolumeShortId} onValueChange={setSelectedVolumeShortId}>
 						<SelectTrigger id="volume-select">
 							<SelectValue placeholder="Choose a volume to backup" />
 						</SelectTrigger>
 						<SelectContent>
 							{volumesData.map((volume) => (
-								<SelectItem key={volume.id} value={volume.id.toString()}>
+								<SelectItem key={volume.shortId} value={volume.shortId}>
 									<span className="flex items-center gap-2">
 										<HardDrive className="h-4 w-4" />
 										{volume.name}

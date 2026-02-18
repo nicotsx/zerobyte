@@ -34,7 +34,9 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Repository</p>
-					<p className="font-medium">{repositoriesData?.find((r) => r.id === formValues.repositoryId)?.name || "—"}</p>
+					<p className="font-medium">
+						{repositoriesData?.find((r) => r.shortId === formValues.repositoryId)?.name || "—"}
+					</p>
 				</div>
 				{(formValues.includePatterns && formValues.includePatterns.length > 0) || formValues.includePatternsText ? (
 					<div>

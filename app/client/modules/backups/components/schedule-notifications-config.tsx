@@ -17,7 +17,7 @@ import type { NotificationDestination } from "~/client/lib/types";
 import type { GetScheduleNotificationsResponse } from "~/client/api-client";
 
 type Props = {
-	scheduleId: number;
+	scheduleShortId: string;
 	destinations: NotificationDestination[];
 	initialData: GetScheduleNotificationsResponse;
 };
@@ -30,7 +30,7 @@ type NotificationAssignment = {
 	notifyOnFailure: boolean;
 };
 
-export const ScheduleNotificationsConfig = ({ scheduleId, destinations, initialData }: Props) => {
+export const ScheduleNotificationsConfig = ({ scheduleShortId, destinations, initialData }: Props) => {
 	const map = new Map<number, NotificationAssignment>();
 	for (const assignment of initialData) {
 		map.set(assignment.destinationId, {
@@ -47,7 +47,7 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations, initialD
 	const [isAddingNew, setIsAddingNew] = useState(false);
 
 	const { data: currentAssignments } = useQuery({
-		...getScheduleNotificationsOptions({ path: { scheduleId: scheduleId.toString() } }),
+		...getScheduleNotificationsOptions({ path: { shortId: scheduleShortId } }),
 		initialData,
 	});
 
@@ -107,7 +107,7 @@ export const ScheduleNotificationsConfig = ({ scheduleId, destinations, initialD
 	const handleSave = () => {
 		const assignmentsList = Array.from(assignments.values());
 		updateNotifications.mutate({
-			path: { scheduleId: scheduleId.toString() },
+			path: { shortId: scheduleShortId },
 			body: {
 				assignments: assignmentsList,
 			},

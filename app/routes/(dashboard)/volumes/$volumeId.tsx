@@ -8,7 +8,7 @@ export const Route = createFileRoute("/(dashboard)/volumes/$volumeId")({
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
 		const res = await context.queryClient.ensureQueryData({
-			...getVolumeOptions({ path: { id: params.volumeId } }),
+			...getVolumeOptions({ path: { shortId: params.volumeId } }),
 		});
 
 		return res;

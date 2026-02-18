@@ -89,7 +89,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);
-		deleteRepo.mutate({ path: { id: repository.id } });
+		deleteRepo.mutate({ path: { shortId: repository.shortId } });
 	};
 
 	const config = repository.config as RepositoryConfig;
@@ -115,7 +115,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 								type="button"
 								variant="destructive"
 								loading={cancelDoctor.isPending}
-								onClick={() => cancelDoctor.mutate({ path: { id: repository.id } })}
+								onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
 							>
 								<Square className="h-4 w-4 mr-2" />
 								<span>Cancel doctor</span>
@@ -123,7 +123,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 						) : (
 							<Button
 								type="button"
-								onClick={() => startDoctor.mutate({ path: { id: repository.id } })}
+								onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
 								disabled={startDoctor.isPending}
 							>
 								<Stethoscope className="h-4 w-4 mr-2" />
@@ -133,7 +133,7 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 						<Button
 							type="button"
 							variant="outline"
-							onClick={() => unlockRepo.mutate({ path: { id: repository.id } })}
+							onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
 							loading={unlockRepo.isPending}
 						>
 							<Unlock className="h-4 w-4 mr-2" />
