@@ -1,6 +1,7 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { Form } from "~/client/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import type { BackupSchedule, Volume } from "~/client/lib/types";
@@ -29,6 +30,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 		resolver: arktypeResolver(cleanSchema as unknown as typeof import("./types").internalFormSchema),
 		defaultValues: backupScheduleToFormValues(initialValues),
 	});
+
+	const scrollToFirstError = useScrollToFormError();
 
 	const handleSubmit = useCallback(
 		(data: InternalFormValues) => {
@@ -100,7 +103,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 	return (
 		<Form {...form}>
 			<form
-				onSubmit={form.handleSubmit(handleSubmit)}
+				onSubmit={form.handleSubmit(handleSubmit, scrollToFirstError)}
 				className="grid gap-4 xl:grid-cols-[minmax(0,2.3fr)_minmax(320px,1fr)]"
 				id={formId}
 			>

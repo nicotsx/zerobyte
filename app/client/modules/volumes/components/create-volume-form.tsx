@@ -22,6 +22,7 @@ import { volumeConfigSchemaBase } from "~/schemas/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
+import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm, SFTPForm } from "./volume-forms";
 
 export const formSchema = type({
@@ -65,6 +66,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 	const { getValues, watch } = form;
 
 	const { capabilities } = useSystemInfo();
+	const scrollToFirstError = useScrollToFormError();
 	const watchedBackend = watch("backend");
 
 	const [testMessage, setTestMessage] = useState<{ success: boolean; message: string } | null>(null);
@@ -102,7 +104,11 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 
 	return (
 		<Form {...form}>
-			<form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", className)}>
+			<form
+				id={formId}
+				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
+				className={cn("space-y-4", className)}
+			>
 				<FormField
 					control={form.control}
 					name="name"

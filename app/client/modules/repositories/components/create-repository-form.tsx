@@ -20,6 +20,7 @@ import { SecretInput } from "../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
+import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { COMPRESSION_MODES, repositoryConfigSchemaBase } from "~/schemas/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
 import {
@@ -96,10 +97,15 @@ export const CreateRepositoryForm = ({
 	const [passwordMode, setPasswordMode] = useState<"default" | "custom">("default");
 
 	const { capabilities } = useSystemInfo();
+	const scrollToFirstError = useScrollToFormError();
 
 	return (
 		<Form {...form}>
-			<form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", className)}>
+			<form
+				id={formId}
+				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
+				className={cn("space-y-4", className)}
+			>
 				<FormField
 					control={form.control}
 					name="name"

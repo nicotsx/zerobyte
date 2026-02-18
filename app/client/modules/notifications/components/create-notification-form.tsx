@@ -15,6 +15,7 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { notificationConfigSchemaBase } from "~/schemas/notifications";
+import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import {
 	CustomForm,
 	DiscordForm,
@@ -116,11 +117,16 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 	});
 
 	const { watch } = form;
+	const scrollToFirstError = useScrollToFormError();
 	const watchedType = watch("type");
 
 	return (
 		<Form {...form}>
-			<form id={formId} onSubmit={form.handleSubmit(onSubmit)} className={cn("space-y-4", className)}>
+			<form
+				id={formId}
+				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
+				className={cn("space-y-4", className)}
+			>
 				<FormField
 					control={form.control}
 					name="name"
