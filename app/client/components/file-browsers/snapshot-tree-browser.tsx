@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
@@ -28,6 +28,7 @@ export const SnapshotTreeBrowser = ({
 	enabled = true,
 	...uiProps
 }: SnapshotTreeBrowserProps) => {
+	const { selectedPaths, onSelectionChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
 	const normalizedBasePath = normalizeAbsolutePath(basePath);
 
@@ -58,6 +59,31 @@ export const SnapshotTreeBrowser = ({
 			return `${normalizedBasePath}${displayPath}`;
 		},
 		[normalizedBasePath],
+	);
+
+	const displaySelectedPaths = useMemo(() => {
+		if (!selectedPaths) return undefined;
+
+		const displayPaths = new Set<string>();
+		for (const fullPath of selectedPaths) {
+			displayPaths.add(stripBasePath(fullPath));
+		}
+
+		return displayPaths;
+	}, [selectedPaths, stripBasePath]);
+
+	const handleSelectionChange = useCallback(
+		(nextDisplayPaths: Set<string>) => {
+			if (!onSelectionChange) return;
+
+			const nextFullPaths = new Set<string>();
+			for (const displayPath of nextDisplayPaths) {
+				nextFullPaths.add(addBasePath(displayPath));
+			}
+
+			onSelectionChange(nextFullPaths);
+		},
+		[onSelectionChange, addBasePath],
 	);
 
 	const fileBrowser = useFileBrowser({
@@ -102,7 +128,7 @@ export const SnapshotTreeBrowser = ({
 
 	return (
 		<FileBrowser
-			{...uiProps}
+			{...fileBrowserUiProps}
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
@@ -113,7 +139,9 @@ export const SnapshotTreeBrowser = ({
 			isLoading={fileBrowser.isLoading}
 			isEmpty={fileBrowser.isEmpty}
 			errorMessage={errorMessage}
-			loadingMessage={uiProps.loadingMessage ?? "Loading files..."}
+			loadingMessage={fileBrowserUiProps.loadingMessage ?? "Loading files..."}
+			selectedPaths={displaySelectedPaths}
+			onSelectionChange={onSelectionChange ? handleSelectionChange : undefined}
 		/>
 	);
 };

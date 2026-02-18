@@ -1,7 +1,7 @@
 import { Pencil } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import type { FormValues } from "../create-volume-form";
-import { LocalFileBrowser } from "../../../../components/file-browsers/local-file-browser";
+import { DirectoryBrowser } from "../../../../components/file-browsers/directory-browser";
 import { Button } from "../../../../components/ui/button";
 import {
 	FormControl,
@@ -38,19 +38,7 @@ export const DirectoryForm = ({ form }: Props) => {
 									</Button>
 								</div>
 							) : (
-								<LocalFileBrowser
-									className="border rounded-lg overflow-hidden"
-									useScrollArea
-									scrollAreaClassName="h-64"
-									foldersOnly
-									selectableFolders
-									onFolderSelect={(path) => field.onChange(path)}
-									selectedFolder={field.value}
-									showSelectedPathFooter
-									selectedPath={field.value}
-									loadingMessage="Loading directories..."
-									emptyMessage="No subdirectories found"
-								/>
+								<DirectoryBrowser onSelectPath={field.onChange} selectedPath={field.value} />
 							)}
 						</FormControl>
 						<FormDescription>Browse and select a directory on the host filesystem to track.</FormDescription>

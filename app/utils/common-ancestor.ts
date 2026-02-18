@@ -5,7 +5,7 @@ export const findCommonAncestor = (paths: string[]): string => {
 	const splitPaths = paths.map((path) => path.split("/").filter(Boolean));
 	const minLength = Math.min(...splitPaths.map((parts) => parts.length));
 
-	let commonParts: string[] = [];
+	const commonParts: string[] = [];
 	for (let i = 0; i < minLength; i++) {
 		const partSet = new Set(splitPaths.map((parts) => parts[i]));
 		if (partSet.size === 1) {

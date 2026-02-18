@@ -88,17 +88,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		};
 	}, [addEventListener, repository.id, snapshotId]);
 
-	const addBasePath = useCallback(
-		(displayPath: string): string => {
-			const vbp = volumeBasePath === "/" ? "" : volumeBasePath;
-
-			if (!vbp) return displayPath;
-			if (displayPath === "/") return vbp;
-			return `${vbp}${displayPath}`;
-		},
-		[volumeBasePath],
-	);
-
 	const { mutate: restoreSnapshot, isPending: isRestoring } = useMutation({
 		...restoreSnapshotMutation(),
 		onError: (error) => {
@@ -117,8 +106,7 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		const isCustomLocation = restoreLocation === "custom";
 		const targetPath = isCustomLocation && customTargetPath.trim() ? customTargetPath.trim() : undefined;
 
-		const pathsArray = Array.from(selectedPaths);
-		const includePaths = pathsArray.map((path) => addBasePath(path));
+		const includePaths = Array.from(selectedPaths);
 
 		restoreCompletedRef.current = false;
 		setIsRestoreActive(true);
@@ -142,7 +130,6 @@ export function RestoreForm({ snapshot, repository, snapshotId, returnPath }: Re
 		restoreLocation,
 		customTargetPath,
 		selectedPaths,
-		addBasePath,
 		overwriteMode,
 		restoreSnapshot,
 	]);
