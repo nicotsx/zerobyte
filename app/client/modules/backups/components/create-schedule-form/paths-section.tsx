@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { VolumeFileBrowser } from "~/client/components/volume-file-browser";
+import { VolumeFileBrowser } from "~/client/components/file-browsers/volume-file-browser";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Textarea } from "~/client/components/ui/textarea";
 import type { Volume } from "~/client/lib/types";
@@ -32,9 +32,9 @@ export const PathsSection = ({
 				volumeId={volume.shortId}
 				selectedPaths={selectedPaths}
 				onSelectionChange={onSelectionChange}
-				withCheckboxes={true}
-				foldersOnly={false}
+				withCheckboxes
 				className="relative border rounded-md bg-card p-2 h-100 overflow-y-auto"
+				emptyMessage="This volume appears to be empty."
 			/>
 			{selectedPaths.size > 0 && (
 				<div className="mt-4">

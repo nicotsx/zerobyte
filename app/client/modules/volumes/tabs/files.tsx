@@ -1,5 +1,5 @@
 import { FolderOpen } from "lucide-react";
-import { VolumeFileBrowser } from "~/client/components/volume-file-browser";
+import { VolumeFileBrowser } from "~/client/components/file-browsers/volume-file-browser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import type { Volume } from "~/client/lib/types";
 

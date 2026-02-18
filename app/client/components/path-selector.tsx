@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DirectoryBrowser } from "./directory-browser";
+import { LocalFileBrowser } from "./file-browsers/local-file-browser";
 import { Button } from "./ui/button";
 
 type Props = {
@@ -14,12 +14,21 @@ export const PathSelector = ({ value, onChange }: Props) => {
 	if (showBrowser) {
 		return (
 			<div className="space-y-2">
-				<DirectoryBrowser
-					onSelectPath={(path) => {
+				<LocalFileBrowser
+					className="border rounded-lg overflow-hidden"
+					useScrollArea
+					scrollAreaClassName="h-64"
+					foldersOnly
+					selectableFolders
+					selectedFolder={value}
+					onFolderSelect={(path) => {
 						onChange(path);
 						setShowBrowser(false);
 					}}
+					showSelectedPathFooter
 					selectedPath={value}
+					loadingMessage="Loading directories..."
+					emptyMessage="No subdirectories found"
 				/>
 				<Button type="button" variant="ghost" size="sm" onClick={() => setShowBrowser(false)}>
 					Cancel

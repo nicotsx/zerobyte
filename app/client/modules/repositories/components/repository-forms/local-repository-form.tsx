@@ -3,7 +3,7 @@ import type { UseFormReturn } from "react-hook-form";
 import { Check, Pencil, X, AlertTriangle } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { FormItem, FormLabel, FormDescription, FormField, FormControl } from "../../../../components/ui/form";
-import { DirectoryBrowser } from "../../../../components/directory-browser";
+import { LocalFileBrowser } from "../../../../components/file-browsers/local-file-browser";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -96,11 +96,20 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 								</AlertDialogDescription>
 							</AlertDialogHeader>
 							<div className="py-4">
-								<DirectoryBrowser
-									onSelectPath={(path) => {
+								<LocalFileBrowser
+									className="border rounded-lg overflow-hidden"
+									useScrollArea
+									scrollAreaClassName="h-64"
+									foldersOnly
+									selectableFolders
+									onFolderSelect={(path) => {
 										field.onChange(path);
 									}}
+									selectedFolder={field.value || constants.REPOSITORY_BASE}
+									showSelectedPathFooter
 									selectedPath={field.value || constants.REPOSITORY_BASE}
+									loadingMessage="Loading directories..."
+									emptyMessage="No subdirectories found"
 								/>
 							</div>
 							<AlertDialogFooter>

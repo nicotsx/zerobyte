@@ -226,7 +226,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		handleFolderHover,
 		handleLoadMore,
 		getFolderPagination,
-		isLoading: isLoading && fileArray.length === 0,
+		isLoading: Boolean(isLoading) && fileArray.length === 0,
 		isEmpty: fileArray.length === 0 && !isLoading,
 	};
 };

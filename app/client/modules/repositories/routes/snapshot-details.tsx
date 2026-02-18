@@ -24,11 +24,7 @@ export const SnapshotError = () => {
 				<p className="text-sm text-muted-foreground mt-2">This snapshot does not exist in this repository</p>
 				<p className="text-sm text-muted-foreground mt-1">It may have been deleted manually outside of Zerobyte.</p>
 				<div className="mt-4">
-					<Link
-						to={`/repositories/$repositoryId`}
-						search={() => ({ tab: "snapshots" })}
-						params={{ repositoryId }}
-					>
+					<Link to={`/repositories/$repositoryId`} search={() => ({ tab: "snapshots" })} params={{ repositoryId }}>
 						<Button variant="outline">Back to repository</Button>
 					</Link>
 				</div>
