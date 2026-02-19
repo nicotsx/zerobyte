@@ -20,7 +20,7 @@ const ensureLatestConfigurationSchema = async () => {
 
 	for (const volume of volumes) {
 		await withContext({ organizationId: volume.organizationId }, async () => {
-			await volumeService.updateVolume(volume.id, volume).catch((err) => {
+			await volumeService.updateVolume(volume.shortId, volume).catch((err) => {
 				logger.error(`Failed to update volume ${volume.name}: ${err}`);
 			});
 		});
@@ -30,7 +30,7 @@ const ensureLatestConfigurationSchema = async () => {
 
 	for (const repo of repositories) {
 		await withContext({ organizationId: repo.organizationId }, async () => {
-			await repositoriesService.updateRepository(repo.id, {}).catch((err) => {
+			await repositoriesService.updateRepository(repo.shortId, {}).catch((err) => {
 				logger.error(`Failed to update repository ${repo.name}: ${err}`);
 			});
 		});
@@ -77,7 +77,7 @@ export const startup = async () => {
 
 	for (const volume of volumes) {
 		await withContext({ organizationId: volume.organizationId }, async () => {
-			await volumeService.mountVolume(volume.id).catch((err) => {
+			await volumeService.mountVolume(volume.shortId).catch((err) => {
 				logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
 			});
 		});

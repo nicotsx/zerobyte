@@ -13,6 +13,9 @@ export default defineConfig({
 			router: {
 				routesDirectory: "routes",
 			},
+			importProtection: {
+				behavior: "error",
+			},
 		}),
 		nitro({
 			preset: "bun",

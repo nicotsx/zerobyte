@@ -28,14 +28,15 @@ import { REPOSITORY_BASE } from "~/server/core/constants";
 import { findCommonAncestor } from "~/utils/common-ancestor";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
+import type { ShortId } from "~/server/utils/branded";
 
 const runningDoctors = new Map<string, AbortController>();
 
-const findRepository = async (shortId: string) => {
+const findRepository = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ shortId }, { organizationId }],
+			AND: [{ shortId: { eq: shortId } }, { organizationId }],
 		},
 	});
 };
@@ -184,7 +185,7 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	throw new InternalServerError(`Failed to initialize repository: ${errorMessage}`);
 };
 
-const getRepository = async (shortId: string) => {
+const getRepository = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
@@ -194,7 +195,7 @@ const getRepository = async (shortId: string) => {
 	return { repository };
 };
 
-const getRepositoryStats = async (shortId: string) => {
+const getRepositoryStats = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -218,7 +219,7 @@ const getRepositoryStats = async (shortId: string) => {
 	}
 };
 
-const deleteRepository = async (shortId: string) => {
+const deleteRepository = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
@@ -244,7 +245,7 @@ const deleteRepository = async (shortId: string) => {
  *
  * @returns List of snapshots
  */
-const listSnapshots = async (shortId: string, backupId?: string) => {
+const listSnapshots = async (shortId: ShortId, backupId?: ShortId) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -277,7 +278,7 @@ const listSnapshots = async (shortId: string, backupId?: string) => {
 };
 
 const listSnapshotFiles = async (
-	shortId: string,
+	shortId: ShortId,
 	snapshotId: string,
 	path?: string,
 	options?: { offset?: number; limit?: number },
@@ -342,7 +343,7 @@ const listSnapshotFiles = async (
 };
 
 const restoreSnapshot = async (
-	shortId: string,
+	shortId: ShortId,
 	snapshotId: string,
 	options?: {
 		include?: string[];
@@ -414,7 +415,7 @@ const restoreSnapshot = async (
 	}
 };
 
-const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string, kind?: DumpPathKind) => {
+const dumpSnapshot = async (shortId: ShortId, snapshotId: string, path?: string, kind?: DumpPathKind) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -474,7 +475,7 @@ const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string, 
 	}
 };
 
-const getSnapshotDetails = async (shortId: string, snapshotId: string) => {
+const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -506,9 +507,9 @@ const getSnapshotDetails = async (shortId: string, snapshotId: string) => {
 	return snapshot;
 };
 
-const checkHealth = async (repositoryId: string) => {
+const checkHealth = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
-	const repository = await findRepository(repositoryId);
+	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
@@ -535,7 +536,7 @@ const checkHealth = async (repositoryId: string) => {
 	}
 };
 
-const startDoctor = async (shortId: string) => {
+const startDoctor = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
@@ -574,7 +575,7 @@ const startDoctor = async (shortId: string) => {
 	return { message: "Doctor operation started", repositoryId: repository.shortId };
 };
 
-const cancelDoctor = async (shortId: string) => {
+const cancelDoctor = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
@@ -601,7 +602,7 @@ const cancelDoctor = async (shortId: string) => {
 	return { message: "Doctor operation cancelled" };
 };
 
-const deleteSnapshot = async (shortId: string, snapshotId: string) => {
+const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -618,7 +619,7 @@ const deleteSnapshot = async (shortId: string, snapshotId: string) => {
 	}
 };
 
-const deleteSnapshots = async (shortId: string, snapshotIds: string[]) => {
+const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -636,7 +637,7 @@ const deleteSnapshots = async (shortId: string, snapshotIds: string[]) => {
 };
 
 const tagSnapshots = async (
-	shortId: string,
+	shortId: ShortId,
 	snapshotIds: string[],
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
 ) => {
@@ -656,7 +657,7 @@ const tagSnapshots = async (
 	}
 };
 
-const refreshSnapshots = async (shortId: string) => {
+const refreshSnapshots = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -681,7 +682,7 @@ const refreshSnapshots = async (shortId: string) => {
 	}
 };
 
-const updateRepository = async (shortId: string, updates: UpdateRepositoryBody) => {
+const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody) => {
 	const existing = await findRepository(shortId);
 
 	if (!existing) {
@@ -752,7 +753,7 @@ const updateRepository = async (shortId: string, updates: UpdateRepositoryBody) 
 	return { repository: updated };
 };
 
-const unlockRepository = async (shortId: string) => {
+const unlockRepository = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
@@ -770,7 +771,7 @@ const unlockRepository = async (shortId: string) => {
 };
 
 const execResticCommand = async (
-	shortId: string,
+	shortId: ShortId,
 	command: string,
 	args: string[] | undefined,
 	onStdout: (line: string) => void,
@@ -800,7 +801,7 @@ const execResticCommand = async (
 	return { exitCode: result.exitCode };
 };
 
-const getRetentionCategories = async (repositoryId: string, scheduleId?: string) => {
+const getRetentionCategories = async (repositoryId: ShortId, scheduleId?: ShortId) => {
 	if (!scheduleId) {
 		return new Map<string, RetentionCategory[]>();
 	}

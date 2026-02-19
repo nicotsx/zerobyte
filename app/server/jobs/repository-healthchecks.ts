@@ -15,7 +15,7 @@ export class RepositoryHealthCheckJob extends Job {
 		for (const repository of repositories) {
 			try {
 				await withContext({ organizationId: repository.organizationId }, async () => {
-					await repositoriesService.checkHealth(repository.id);
+					await repositoriesService.checkHealth(repository.shortId);
 				});
 			} catch (error) {
 				logger.error(`Health check failed for repository ${repository.name}:`, error);

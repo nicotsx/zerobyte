@@ -9,6 +9,7 @@ import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/u
 import { generateShortId } from "~/server/utils/id";
 import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "./backup.helpers";
+import { asShortId, type ShortId } from "~/server/utils/branded";
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -38,10 +39,10 @@ const getScheduleById = async (scheduleId: number) => {
 	return schedule;
 };
 
-const getScheduleByShortId = async (shortId: string) => {
+const getScheduleByShortId = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
-		where: { AND: [{ shortId }, { organizationId }] },
+		where: { AND: [{ shortId: { eq: shortId } }, { organizationId }] },
 		with: { volume: true, repository: true },
 	});
 
@@ -60,7 +61,10 @@ const getScheduleByIdOrShortId = async (idOrShortId: string | number) => {
 	const organizationId = getOrganizationId();
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: Number(idOrShortId) }, { shortId: String(idOrShortId) }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(idOrShortId) }, { shortId: { eq: asShortId(String(idOrShortId)) } }] },
+				{ organizationId },
+			],
 		},
 		with: { volume: true, repository: true },
 	});
@@ -94,7 +98,10 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const volume = await db.query.volumesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: Number(data.volumeId) }, { shortId: String(data.volumeId) }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(data.volumeId) }, { shortId: { eq: asShortId(String(data.volumeId)) } }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -104,7 +111,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: data.repositoryId }] }, { organizationId }],
+			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
 		},
 	});
 
@@ -145,7 +152,7 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: { eq: asShortId(String(scheduleIdOrShortId)) } }] },
 				{ organizationId },
 			],
 		},
@@ -173,7 +180,7 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: data.repositoryId }] }, { organizationId }],
+			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
 		},
 	});
 
@@ -202,7 +209,7 @@ const deleteSchedule = async (scheduleIdOrShortId: number | string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: { eq: asShortId(String(scheduleIdOrShortId)) } }] },
 				{ organizationId },
 			],
 		},
@@ -221,7 +228,10 @@ const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
 	const volume = await db.query.volumesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: Number(volumeIdOrShortId) }, { shortId: String(volumeIdOrShortId) }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: Number(volumeIdOrShortId) }, { shortId: { eq: asShortId(String(volumeIdOrShortId)) } }] },
+				{ organizationId },
+			],
 		},
 		columns: { id: true },
 	});
@@ -249,7 +259,7 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: { eq: asShortId(String(scheduleIdOrShortId)) } }] },
 				{ organizationId },
 			],
 		},
@@ -284,7 +294,7 @@ const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateS
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: { eq: asShortId(String(scheduleIdOrShortId)) } }] },
 				{ organizationId },
 			],
 		},
@@ -299,7 +309,10 @@ const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateS
 		data.mirrors.map(async (mirror) => {
 			const repo = await db.query.repositoriesTable.findFirst({
 				where: {
-					AND: [{ OR: [{ id: mirror.repositoryId }, { shortId: mirror.repositoryId }] }, { organizationId }],
+					AND: [
+						{ OR: [{ id: mirror.repositoryId }, { shortId: { eq: asShortId(mirror.repositoryId) } }] },
+						{ organizationId },
+					],
 				},
 			});
 
@@ -360,7 +373,7 @@ const getMirrorCompatibility = async (scheduleIdOrShortId: number | string) => {
 	const schedule = await db.query.backupSchedulesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: String(scheduleIdOrShortId) }] },
+				{ OR: [{ id: Number(scheduleIdOrShortId) }, { shortId: { eq: asShortId(String(scheduleIdOrShortId)) } }] },
 				{ organizationId },
 			],
 		},
@@ -381,7 +394,7 @@ const getMirrorCompatibility = async (scheduleIdOrShortId: number | string) => {
 	return compatibility;
 };
 
-const reorderSchedules = async (scheduleShortIds: string[]) => {
+const reorderSchedules = async (scheduleShortIds: ShortId[]) => {
 	const organizationId = getOrganizationId();
 	const uniqueIds = new Set(scheduleShortIds);
 	if (uniqueIds.size !== scheduleShortIds.length) {

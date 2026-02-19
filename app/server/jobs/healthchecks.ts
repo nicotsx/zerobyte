@@ -16,9 +16,9 @@ export class VolumeHealthCheckJob extends Job {
 
 		for (const volume of volumes) {
 			await withContext({ organizationId: volume.organizationId }, async () => {
-				const { status } = await volumeService.checkHealth(volume.id);
+				const { status } = await volumeService.checkHealth(volume.shortId);
 				if (status === "error" && volume.autoRemount) {
-					await volumeService.mountVolume(volume.id);
+					await volumeService.mountVolume(volume.shortId);
 				}
 			});
 		}

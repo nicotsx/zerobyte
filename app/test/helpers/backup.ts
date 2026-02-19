@@ -4,6 +4,7 @@ import { backupSchedulesTable, type BackupScheduleInsert } from "~/server/db/sch
 import { createTestOrganization, ensureTestOrganization, TEST_ORG_ID } from "./organization";
 import { createTestVolume } from "./volume";
 import { createTestRepository } from "./repository";
+import { generateShortId } from "~/server/utils/id";
 
 export const createTestBackupSchedule = async (overrides: Partial<BackupScheduleInsert> = {}) => {
 	const organizationId = overrides.organizationId ?? TEST_ORG_ID;
@@ -22,7 +23,7 @@ export const createTestBackupSchedule = async (overrides: Partial<BackupSchedule
 		cronExpression: "0 0 * * *",
 		repositoryId,
 		volumeId,
-		shortId: faker.string.uuid(),
+		shortId: generateShortId(),
 		organizationId,
 		...overrides,
 	};

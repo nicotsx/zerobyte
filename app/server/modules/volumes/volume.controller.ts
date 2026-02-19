@@ -26,6 +26,7 @@ import {
 import { volumeService } from "./volume.service";
 import { getVolumePath } from "./helpers";
 import { requireAuth } from "../auth/auth.middleware";
+import { asShortId } from "~/server/utils/branded";
 
 export const volumeController = new Hono()
 	.use(requireAuth)
@@ -52,13 +53,13 @@ export const volumeController = new Hono()
 		return c.json(result, 200);
 	})
 	.delete("/:shortId", deleteVolumeDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		await volumeService.deleteVolume(shortId);
 
 		return c.json({ message: "Volume deleted" }, 200);
 	})
 	.get("/:shortId", getVolumeDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const res = await volumeService.getVolume(shortId);
 
 		const response = {
@@ -76,7 +77,7 @@ export const volumeController = new Hono()
 		return c.json<GetVolumeDto>(response, 200);
 	})
 	.put("/:shortId", updateVolumeDto, validator("json", updateVolumeBody), async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const body = c.req.valid("json");
 		const res = await volumeService.updateVolume(shortId, body);
 
@@ -88,25 +89,25 @@ export const volumeController = new Hono()
 		return c.json<UpdateVolumeDto>(response, 200);
 	})
 	.post("/:shortId/mount", mountVolumeDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const { error, status } = await volumeService.mountVolume(shortId);
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
 	.post("/:shortId/unmount", unmountVolumeDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const { error, status } = await volumeService.unmountVolume(shortId);
 
 		return c.json({ error, status }, error ? 500 : 200);
 	})
 	.post("/:shortId/health-check", healthCheckDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const { error, status } = await volumeService.checkHealth(shortId);
 
 		return c.json({ error, status }, 200);
 	})
 	.get("/:shortId/files", validator("query", listFilesQuery), listFilesDto, async (c) => {
-		const { shortId } = c.req.param();
+		const shortId = asShortId(c.req.param("shortId"));
 		const { path, ...query } = c.req.valid("query");
 
 		const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);

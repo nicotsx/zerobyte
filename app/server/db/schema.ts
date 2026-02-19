@@ -10,6 +10,7 @@ import type {
 } from "~/schemas/restic";
 import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
 import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
+import type { ShortId } from "~/server/utils/branded";
 
 /**
  * Users Table
@@ -179,7 +180,7 @@ export const volumesTable = sqliteTable(
 	"volumes_table",
 	{
 		id: int().primaryKey({ autoIncrement: true }),
-		shortId: text("short_id").notNull().unique(),
+		shortId: text("short_id").$type<ShortId>().notNull().unique(),
 		name: text().notNull(),
 		type: text().$type<BackendType>().notNull(),
 		status: text().$type<BackendStatus>().notNull().default("unmounted"),
@@ -210,7 +211,7 @@ export type VolumeInsert = typeof volumesTable.$inferInsert;
  */
 export const repositoriesTable = sqliteTable("repositories_table", {
 	id: text().primaryKey(),
-	shortId: text("short_id").notNull().unique(),
+	shortId: text("short_id").$type<ShortId>().notNull().unique(),
 	name: text().notNull(),
 	type: text().$type<RepositoryBackend>().notNull(),
 	config: text("config", { mode: "json" }).$type<typeof repositoryConfigSchema.inferOut>().notNull(),
@@ -243,7 +244,7 @@ export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
  */
 export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	id: int().primaryKey({ autoIncrement: true }),
-	shortId: text("short_id").notNull().unique(),
+	shortId: text("short_id").$type<ShortId>().notNull().unique(),
 	name: text().notNull(),
 	volumeId: int("volume_id")
 		.notNull()

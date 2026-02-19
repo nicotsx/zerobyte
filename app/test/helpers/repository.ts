@@ -2,6 +2,7 @@ import { db } from "~/server/db/db";
 import { faker } from "@faker-js/faker";
 import { repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
 import { ensureTestOrganization, TEST_ORG_ID } from "./organization";
+import { generateShortId } from "~/server/utils/id";
 
 export const createTestRepository = async (overrides: Partial<RepositoryInsert> = {}) => {
 	await ensureTestOrganization();
@@ -9,7 +10,7 @@ export const createTestRepository = async (overrides: Partial<RepositoryInsert> 
 	const repository: RepositoryInsert = {
 		id: faker.string.alphanumeric(6),
 		name: faker.string.alphanumeric(10),
-		shortId: faker.string.alphanumeric(6),
+		shortId: generateShortId(),
 		config: {
 			path: `/var/lib/zerobyte/repositories/${faker.string.alphanumeric(8)}`,
 			backend: "local",

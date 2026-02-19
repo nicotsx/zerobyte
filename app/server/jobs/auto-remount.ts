@@ -16,7 +16,7 @@ export class VolumeAutoRemountJob extends Job {
 			if (volume.autoRemount) {
 				try {
 					await withContext({ organizationId: volume.organizationId }, async () => {
-						await volumeService.mountVolume(volume.id);
+						await volumeService.mountVolume(volume.shortId);
 					});
 				} catch (err) {
 					logger.error(`Failed to auto-remount volume ${volume.name}:`, err);

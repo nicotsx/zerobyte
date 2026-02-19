@@ -8,16 +8,17 @@ import os from "node:os";
 import path from "node:path";
 import { createTestSession } from "~/test/helpers/auth";
 import { withContext } from "~/server/core/request-context";
+import { asShortId } from "~/server/utils/branded";
 
 describe("volumeService", () => {
 	describe("findVolume", () => {
-		test("should find volume by numeric id", async () => {
+		test("should find volume by shortId", async () => {
 			const { organizationId, user } = await createTestSession();
 
 			const [volume] = await db
 				.insert(volumesTable)
 				.values({
-					shortId: randomUUID().slice(0, 8),
+					shortId: asShortId(randomUUID().slice(0, 8)),
 					name: `test-vol-${randomUUID().slice(0, 8)}`,
 					type: "directory",
 					status: "mounted",
@@ -28,19 +29,19 @@ describe("volumeService", () => {
 				.returning();
 
 			await withContext({ organizationId, userId: user.id }, async () => {
-				const result = await volumeService.getVolume(String(volume.id));
+				const result = await volumeService.getVolume(volume.shortId);
 				expect(result.volume.id).toBe(volume.id);
 				expect(result.volume.shortId).toBe(volume.shortId);
 			});
 		});
 
-		test("should find volume by shortId", async () => {
+		test("should find volume by shortId from literal input", async () => {
 			const { organizationId, user } = await createTestSession();
 
 			const [volume] = await db
 				.insert(volumesTable)
 				.values({
-					shortId: "test1234",
+					shortId: asShortId("test1234"),
 					name: `test-vol-${randomUUID().slice(0, 8)}`,
 					type: "directory",
 					status: "mounted",
@@ -63,7 +64,7 @@ describe("volumeService", () => {
 			const [volume] = await db
 				.insert(volumesTable)
 				.values({
-					shortId: "499780",
+					shortId: asShortId("499780"),
 					name: `test-vol-${randomUUID().slice(0, 8)}`,
 					type: "directory",
 					status: "mounted",
@@ -74,9 +75,9 @@ describe("volumeService", () => {
 				.returning();
 
 			await withContext({ organizationId, userId: user.id }, async () => {
-				const result = await volumeService.getVolume("499780");
+				const result = await volumeService.getVolume(asShortId("499780"));
 				expect(result.volume.id).toBe(volume.id);
-				expect(result.volume.shortId).toBe("499780");
+				expect(result.volume.shortId).toBe(asShortId("499780"));
 			});
 		});
 
@@ -84,7 +85,7 @@ describe("volumeService", () => {
 			const { organizationId, user } = await createTestSession();
 
 			await withContext({ organizationId, userId: user.id }, async () => {
-				expect(volumeService.getVolume("nonexistent")).rejects.toThrow("Volume not found");
+				expect(volumeService.getVolume(asShortId("nonexistent"))).rejects.toThrow("Volume not found");
 			});
 		});
 	});
@@ -105,7 +106,7 @@ describe("volumeService security", () => {
 			const [volume] = await db
 				.insert(volumesTable)
 				.values({
-					shortId: randomUUID().slice(0, 8),
+					shortId: asShortId(randomUUID().slice(0, 8)),
 					name: `test-vol-${randomUUID().slice(0, 8)}`,
 					type: "directory",
 					status: "mounted",
@@ -119,7 +120,7 @@ describe("volumeService security", () => {
 				await withContext({ organizationId, userId: user.id }, async () => {
 					const traversalPath = `../${path.basename(secretPath)}`;
 
-					expect(volumeService.listFiles(volume.id, traversalPath)).rejects.toThrow("Invalid path");
+					expect(volumeService.listFiles(volume.shortId, traversalPath)).rejects.toThrow("Invalid path");
 				});
 			} finally {
 				await fs.rm(tempRoot, { recursive: true, force: true });
