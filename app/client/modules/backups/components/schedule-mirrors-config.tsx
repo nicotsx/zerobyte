@@ -67,7 +67,9 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 
 	useEffect(() => {
 		if (!hasChanges) {
-			setAssignments(buildAssignments(currentMirrors));
+			queueMicrotask(() => {
+				setAssignments(buildAssignments(currentMirrors));
+			});
 		}
 	}, [currentMirrors, hasChanges]);
 

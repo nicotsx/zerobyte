@@ -33,6 +33,32 @@ type SseErrorEvent = {
 
 type SseEvent = SseOutputEvent | SseDoneEvent | SseErrorEvent;
 
+async function processStream(
+	stream: AsyncIterable<unknown>,
+	appendOutput: (line: string) => void,
+	abortSignal: AbortSignal,
+): Promise<void> {
+	for await (const event of stream) {
+		if (abortSignal.aborted) {
+			break;
+		}
+		const data = event as unknown as SseEvent;
+
+		if (!data || typeof data !== "object") {
+			continue;
+		}
+
+		if (data.type === "stdout" || data.type === "stderr") {
+			appendOutput(data.line);
+		} else if (data.type === "done") {
+			appendOutput(`---`);
+			appendOutput(`Command finished with exit code: ${data.exitCode}`);
+		} else if (data.type === "error") {
+			appendOutput(`Error: ${data.message}`);
+		}
+	}
+}
+
 export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 	const { data: repositories = [] } = useQuery({
 		...listRepositoriesOptions(),
@@ -41,10 +67,11 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 	const [selectedRepoId, setSelectedRepoId] = useState<string>("");
 	const [commandLine, setCommandLine] = useState("snapshots");
-	const [output, setOutput] = useState<string[]>([]);
+	const [output, setOutput] = useState<Array<{ id: number; line: string }>>([]);
 	const [isRunning, setIsRunning] = useState(false);
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const outputRef = useRef<HTMLDivElement>(null);
+	const outputIdRef = useRef(0);
 
 	const scrollToBottom = useCallback(() => {
 		if (outputRef.current) {
@@ -55,7 +82,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 	const appendOutput = useCallback(
 		(line: string) => {
 			setOutput((prev) => {
-				const newOutput = [...prev, line];
+				const newOutput = [...prev, { id: outputIdRef.current++, line }];
 				setTimeout(scrollToBottom, 0);
 				return newOutput;
 			});
@@ -69,6 +96,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 		}
 
 		setOutput([]);
+		outputIdRef.current = 0;
 		setIsRunning(true);
 		appendOutput(`$ restic ${commandLine}`.trim());
 		appendOutput("---");
@@ -80,6 +108,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 		const command = parts[0];
 		const argsArray = parts.slice(1);
 
+		let success = false;
 		try {
 			const result = await devPanelExec({
 				path: { shortId: selectedRepoId },
@@ -87,25 +116,8 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 				signal: abortControllerRef.current.signal,
 			});
 
-			for await (const event of result.stream) {
-				if (abortControllerRef.current.signal.aborted) {
-					break;
-				}
-				const data = event as unknown as SseEvent;
-
-				if (!data || typeof data !== "object") {
-					continue;
-				}
-
-				if (data.type === "stdout" || data.type === "stderr") {
-					appendOutput(data.line);
-				} else if (data.type === "done") {
-					appendOutput(`---`);
-					appendOutput(`Command finished with exit code: ${data.exitCode}`);
-				} else if (data.type === "error") {
-					appendOutput(`Error: ${data.message}`);
-				}
-			}
+			await processStream(result.stream, appendOutput, abortControllerRef.current.signal);
+			success = true;
 		} catch (err) {
 			if (err instanceof Error && err.name === "AbortError") {
 				appendOutput("---");
@@ -113,7 +125,9 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 			} else {
 				appendOutput(`Error: ${parseError(err)?.message}`);
 			}
-		} finally {
+		}
+
+		if (success || !abortControllerRef.current?.signal.aborted) {
 			setIsRunning(false);
 			abortControllerRef.current = null;
 		}
@@ -125,6 +139,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 
 	const handleClear = () => {
 		setOutput([]);
+		outputIdRef.current = 0;
 	};
 
 	const handleClose = () => {
@@ -198,7 +213,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 								Output will appear here...
 							</div>
 							<div className={cn("space-y-0.5", { hidden: output.length === 0 })}>
-								{output.map((line, i) => {
+								{output.map(({ id, line }) => {
 									let displayLine = line;
 									let isJson = false;
 									try {
@@ -210,7 +225,7 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 									}
 									return (
 										<pre
-											key={`${i}-${line.slice(0, 20)}`}
+											key={id}
 											className={cn("whitespace-pre-wrap break-all text-xs", {
 												"wrap-break-word text-[10px] leading-tight": isJson,
 											})}
