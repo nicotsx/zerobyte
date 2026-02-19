@@ -291,6 +291,29 @@ export const listSnapshotFilesDto = describeRoute({
 });
 
 /**
+ * Download snapshot or a specific path as tar archive
+ */
+export const dumpSnapshotQuery = type({
+	path: "string?",
+});
+
+export const dumpSnapshotDto = describeRoute({
+	description: "Download a full snapshot or a single file/folder path as a tar archive",
+	tags: ["Repositories"],
+	operationId: "dumpSnapshot",
+	responses: {
+		200: {
+			description: "Snapshot archive stream",
+			content: {
+				"application/x-tar": {
+					schema: { type: "string", format: "binary" },
+				},
+			},
+		},
+	},
+});
+
+/**
  * Restore a snapshot
  */
 export const overwriteModeSchema = type.valueOf(OVERWRITE_MODES);

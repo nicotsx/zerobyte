@@ -1,9 +1,10 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
-import type * as React from "react";
+import * as React from "react";
 
 import { cn } from "~/client/lib/utils";
+import { useMinimumDuration } from "~/client/hooks/useMinimumDuration";
 
 const buttonVariants = cva(
 	"inline-flex cursor-pointer uppercase rounded-sm items-center justify-center gap-2 whitespace-nowrap text-xs font-semibold tracking-wide transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring border-0",
@@ -33,28 +34,32 @@ const buttonVariants = cva(
 	},
 );
 
+const MINIMUM_LOADING_DURATION = 300;
+
 function Button({
 	className,
 	variant,
 	size,
 	asChild = false,
 	loading,
+	disabled,
 	...props
 }: React.ComponentProps<"button"> &
 	VariantProps<typeof buttonVariants> & {
 		asChild?: boolean;
 	} & { loading?: boolean }) {
 	const Comp = asChild ? Slot : "button";
+	const isLoading = useMinimumDuration(loading ?? false, MINIMUM_LOADING_DURATION);
 
 	return (
 		<Comp
-			disabled={loading}
 			data-slot="button"
 			className={cn(buttonVariants({ variant, size, className }), "transition-all")}
+			disabled={disabled || loading || isLoading}
 			{...props}
 		>
-			<Loader2 className={cn("h-4 w-4 animate-spin absolute", { invisible: !loading })} />
-			<div className={cn("flex items-center justify-center", { invisible: loading })}>{props.children}</div>
+			<Loader2 className={cn("h-4 w-4 animate-spin absolute", { invisible: !isLoading })} />
+			<div className={cn("flex items-center justify-center", { invisible: isLoading })}>{props.children}</div>
 		</Comp>
 	);
 }

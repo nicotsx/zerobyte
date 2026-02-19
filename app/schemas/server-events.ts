@@ -2,6 +2,7 @@ import type {
 	ServerBackupCompletedEventDto,
 	ServerBackupProgressEventDto,
 	ServerBackupStartedEventDto,
+	ServerDumpStartedEventDto,
 	ServerRestoreCompletedEventDto,
 	ServerRestoreProgressEventDto,
 	ServerRestoreStartedEventDto,
@@ -21,6 +22,7 @@ export const serverEventPayloads = {
 	"restore:started": payload<ServerRestoreStartedEventDto>(),
 	"restore:progress": payload<ServerRestoreProgressEventDto>(),
 	"restore:completed": payload<ServerRestoreCompletedEventDto>(),
+	"dump:started": payload<ServerDumpStartedEventDto>(),
 	"mirror:started": payload<{
 		organizationId: string;
 		scheduleId: string;

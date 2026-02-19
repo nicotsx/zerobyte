@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import { streamSSE } from "hono/streaming";
@@ -19,6 +20,8 @@ import {
 	listSnapshotFilesQuery,
 	listSnapshotsDto,
 	listSnapshotsFilters,
+	dumpSnapshotDto,
+	dumpSnapshotQuery,
 	restoreSnapshotBody,
 	restoreSnapshotDto,
 	tagSnapshotsBody,
@@ -48,6 +51,7 @@ import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { toMessage } from "~/server/utils/errors";
+import { sanitizeContentDispositionFilename } from "~/server/utils/sanitize";
 import { requireDevPanel } from "../auth/dev-panel.middleware";
 import { getSnapshotDuration } from "../../utils/snapshots";
 
@@ -165,6 +169,32 @@ export const repositoriesController = new Hono()
 			return c.json<ListSnapshotFilesDto>(result, 200);
 		},
 	)
+	.get("/:shortId/snapshots/:snapshotId/dump", dumpSnapshotDto, validator("query", dumpSnapshotQuery), async (c) => {
+		const { shortId, snapshotId } = c.req.param();
+		const { path } = c.req.valid("query");
+
+		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path);
+		const signal = c.req.raw.signal;
+
+		if (signal.aborted) {
+			dumpStream.abort();
+		} else {
+			signal.addEventListener("abort", () => dumpStream.abort(), { once: true });
+		}
+
+		const safeFilename = sanitizeContentDispositionFilename(dumpStream.filename);
+
+		const webStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+
+		return new Response(webStream, {
+			status: 200,
+			headers: {
+				"Content-Type": "application/x-tar",
+				"Content-Disposition": `attachment; filename="${safeFilename}"`,
+				"X-Content-Type-Options": "nosniff",
+			},
+		});
+	})
 	.post("/:shortId/restore", restoreSnapshotDto, validator("json", restoreSnapshotBody), async (c) => {
 		const { shortId } = c.req.param();
 		const { snapshotId, ...options } = c.req.valid("json");

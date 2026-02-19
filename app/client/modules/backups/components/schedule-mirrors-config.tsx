@@ -99,37 +99,44 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	}, [compatibility]);
 
 	useEffect(() => {
-		const unsubscribeStarted = addEventListener("mirror:started", (event) => {
-			if (event.scheduleId !== scheduleShortId) return;
-			setAssignments((prev) => {
-				const next = new Map(prev);
-				const existing = next.get(event.repositoryId);
-				if (!existing) return prev;
-				next.set(event.repositoryId, { ...existing, lastCopyStatus: "in_progress", lastCopyError: null });
-				return next;
-			});
-		});
+		const abortController = new AbortController();
 
-		const unsubscribeCompleted = addEventListener("mirror:completed", (event) => {
-			if (event.scheduleId !== scheduleShortId) return;
-			setAssignments((prev) => {
-				const next = new Map(prev);
-				const existing = next.get(event.repositoryId);
-				if (!existing) return prev;
-				next.set(event.repositoryId, {
-					...existing,
-					lastCopyStatus: event.status ?? existing.lastCopyStatus,
-					lastCopyError: event.error ?? null,
-					lastCopyAt: Date.now(),
+		addEventListener(
+			"mirror:started",
+			(event) => {
+				if (event.scheduleId !== scheduleShortId) return;
+				setAssignments((prev) => {
+					const next = new Map(prev);
+					const existing = next.get(event.repositoryId);
+					if (!existing) return prev;
+					next.set(event.repositoryId, { ...existing, lastCopyStatus: "in_progress", lastCopyError: null });
+					return next;
 				});
-				return next;
-			});
-		});
+			},
+			{ signal: abortController.signal },
+		);
 
-		return () => {
-			unsubscribeStarted();
-			unsubscribeCompleted();
-		};
+		addEventListener(
+			"mirror:completed",
+			(event) => {
+				if (event.scheduleId !== scheduleShortId) return;
+				setAssignments((prev) => {
+					const next = new Map(prev);
+					const existing = next.get(event.repositoryId);
+					if (!existing) return prev;
+					next.set(event.repositoryId, {
+						...existing,
+						lastCopyStatus: event.status ?? existing.lastCopyStatus,
+						lastCopyError: event.error ?? null,
+						lastCopyAt: Date.now(),
+					});
+					return next;
+				});
+			},
+			{ signal: abortController.signal },
+		);
+
+		return () => abortController.abort();
 	}, [addEventListener, scheduleShortId]);
 
 	const addRepository = (repositoryId: string) => {

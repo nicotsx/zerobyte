@@ -20,3 +20,15 @@ export const sanitizeSensitiveData = (text: string): string => {
 
 	return sanitized;
 };
+
+/**
+ * Sanitizes a filename for use in HTTP Content-Disposition header
+ * Removes control characters and replaces special characters to prevent header injection
+ */
+export const sanitizeContentDispositionFilename = (filename: string): string => {
+	const sanitized = filename
+		.replace(/[\r\n]/g, "")
+		.replace(/["\\]/g, "_")
+		.trim();
+	return sanitized || "snapshot.tar";
+};

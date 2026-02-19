@@ -16,22 +16,29 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 	const [progress, setProgress] = useState<RestoreProgressEvent | null>(null);
 
 	useEffect(() => {
-		const unsubscribe = addEventListener("restore:progress", (progressData) => {
-			if (progressData.repositoryId === repositoryId && progressData.snapshotId === snapshotId) {
-				setProgress(progressData);
-			}
-		});
+		const abortController = new AbortController();
 
-		const unsubscribeComplete = addEventListener("restore:completed", (completedData) => {
-			if (completedData.repositoryId === repositoryId && completedData.snapshotId === snapshotId) {
-				setProgress(null);
-			}
-		});
+		addEventListener(
+			"restore:progress",
+			(progressData) => {
+				if (progressData.repositoryId === repositoryId && progressData.snapshotId === snapshotId) {
+					setProgress(progressData);
+				}
+			},
+			{ signal: abortController.signal },
+		);
 
-		return () => {
-			unsubscribe();
-			unsubscribeComplete();
-		};
+		addEventListener(
+			"restore:completed",
+			(completedData) => {
+				if (completedData.repositoryId === repositoryId && completedData.snapshotId === snapshotId) {
+					setProgress(null);
+				}
+			},
+			{ signal: abortController.signal },
+		);
+
+		return () => abortController.abort();
 	}, [addEventListener, repositoryId, snapshotId]);
 
 	if (!progress) {

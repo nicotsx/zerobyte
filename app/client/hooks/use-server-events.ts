@@ -98,20 +98,36 @@ export function useServerEvents() {
 		};
 	}, [emit, queryClient]);
 
-	const addEventListener = useCallback(<T extends ServerEventType>(eventName: T, handler: EventHandler<T>) => {
-		const existingHandlers = handlersRef.current[eventName] as EventHandlerSet<T> | undefined;
-		const eventHandlers = existingHandlers ?? new Set<EventHandler<T>>();
-		eventHandlers.add(handler);
-		handlersRef.current[eventName] = eventHandlers as EventHandlerMap[T];
-
-		return () => {
-			const handlers = handlersRef.current[eventName] as EventHandlerSet<T> | undefined;
-			handlers?.delete(handler);
-			if (handlers && handlers.size === 0) {
-				delete handlersRef.current[eventName];
+	const addEventListener = useCallback(
+		<T extends ServerEventType>(eventName: T, handler: EventHandler<T>, options?: { signal?: AbortSignal }) => {
+			if (options?.signal?.aborted) {
+				return () => {};
 			}
-		};
-	}, []);
+
+			const existingHandlers = handlersRef.current[eventName] as EventHandlerSet<T> | undefined;
+			const eventHandlers = existingHandlers ?? new Set<EventHandler<T>>();
+			eventHandlers.add(handler);
+			handlersRef.current[eventName] = eventHandlers as EventHandlerMap[T];
+
+			const unsubscribe = () => {
+				const handlers = handlersRef.current[eventName] as EventHandlerSet<T> | undefined;
+				handlers?.delete(handler);
+				if (handlers && handlers.size === 0) {
+					delete handlersRef.current[eventName];
+				}
+				if (options?.signal) {
+					options.signal.removeEventListener("abort", unsubscribe);
+				}
+			};
+
+			if (options?.signal) {
+				options.signal.addEventListener("abort", unsubscribe, { once: true });
+			}
+
+			return unsubscribe;
+		},
+		[],
+	);
 
 	return { addEventListener };
 }

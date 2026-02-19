@@ -14,7 +14,11 @@ export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps)
 	};
 
 	try {
-		const { stdout, stderr } = await promisify(execFile)(command, args, { ...options, ...rest, encoding: "utf8" });
+		const { stdout, stderr } = await promisify(execFile)(command, args, {
+			...options,
+			...rest,
+			encoding: "utf8",
+		});
 
 		return { exitCode: 0, stdout, stderr };
 	} catch (error) {
@@ -33,8 +37,10 @@ export interface SafeSpawnParams {
 	args: string[];
 	env?: NodeJS.ProcessEnv;
 	signal?: AbortSignal;
+	stdoutMode?: "lines" | "raw";
 	onStdout?: (line: string) => void;
 	onStderr?: (error: string) => void;
+	onSpawn?: (child: ReturnType<typeof spawn>) => void;
 }
 
 type SpawnResult = {
@@ -44,7 +50,7 @@ type SpawnResult = {
 };
 
 export const safeSpawn = (params: SafeSpawnParams) => {
-	const { command, args, env = {}, signal, onStdout, onStderr } = params;
+	const { command, args, env = {}, signal, stdoutMode = "lines", onStdout, onStderr, onSpawn } = params;
 
 	let lastStdout = "";
 	let lastStderr = "";
@@ -56,19 +62,25 @@ export const safeSpawn = (params: SafeSpawnParams) => {
 			stdio: ["ignore", "pipe", "pipe"],
 		});
 
-		child.stdout.setEncoding("utf8");
+		onSpawn?.(child);
+
 		child.stderr.setEncoding("utf8");
 
-		const rl = createInterface({ input: child.stdout });
 		const rlErr = createInterface({ input: child.stderr });
 
-		rl.on("line", (line) => {
-			if (onStdout) onStdout(line);
-			const trimmed = line.trim();
-			if (trimmed.length > 0) {
-				lastStdout = line;
-			}
-		});
+		if (stdoutMode === "lines") {
+			child.stdout.setEncoding("utf8");
+
+			const rl = createInterface({ input: child.stdout });
+
+			rl.on("line", (line) => {
+				if (onStdout) onStdout(line);
+				const trimmed = line.trim();
+				if (trimmed.length > 0) {
+					lastStdout = line;
+				}
+			});
+		}
 
 		rlErr.on("line", (line) => {
 			if (onStderr) onStderr(line);
@@ -79,11 +91,19 @@ export const safeSpawn = (params: SafeSpawnParams) => {
 		});
 
 		child.on("error", (err) => {
-			resolve({ exitCode: -1, summary: lastStdout, error: err.message || lastStderr });
+			resolve({
+				exitCode: -1,
+				summary: lastStdout,
+				error: err.message || lastStderr,
+			});
 		});
 
 		child.on("close", (code) => {
-			resolve({ exitCode: code ?? -1, summary: lastStdout, error: lastStderr });
+			resolve({
+				exitCode: code ?? -1,
+				summary: lastStdout,
+				error: lastStderr,
+			});
 		});
 	});
 };

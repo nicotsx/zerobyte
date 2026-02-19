@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronDown, FolderOpen, RotateCcw } from "lucide-react";
+import { ChevronDown, Download, FolderOpen, RotateCcw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
@@ -24,6 +25,7 @@ import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
 import type { Repository } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
+import { cn } from "~/client/lib/utils";
 
 type RestoreLocation = "original" | "custom";
 
@@ -40,6 +42,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 
 	const volumeBasePath = basePath ?? "/";
 
+	const [waitingForDownload, setWaitingForDownload] = useState(false);
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>("original");
 	const [customTargetPath, setCustomTargetPath] = useState("");
 	const [overwriteMode, setOverwriteMode] = useState<OverwriteMode>("always");
@@ -53,39 +56,52 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 
 	useEffect(() => {
-		const unsubscribeStarted = addEventListener("restore:started", (startedData) => {
-			if (startedData.repositoryId === repository.id && startedData.snapshotId === snapshotId) {
-				restoreCompletedRef.current = false;
-				setIsRestoreActive(true);
-				setRestoreResult(null);
-				setShowRestoreResultAlert(false);
-			}
-		});
+		const abortController = new AbortController();
+		const signal = abortController.signal;
 
-		const unsubscribeProgress = addEventListener("restore:progress", (progressData) => {
-			if (progressData.repositoryId === repository.id && progressData.snapshotId === snapshotId) {
-				if (restoreCompletedRef.current) {
-					return;
+		addEventListener(
+			"restore:started",
+			(startedData) => {
+				if (startedData.repositoryId === repository.shortId && startedData.snapshotId === snapshotId) {
+					restoreCompletedRef.current = false;
+					setIsRestoreActive(true);
+					setRestoreResult(null);
+					setShowRestoreResultAlert(false);
 				}
-				setIsRestoreActive(true);
-			}
-		});
+			},
+			{ signal },
+		);
 
-		const unsubscribeCompleted = addEventListener("restore:completed", (completedData) => {
-			if (completedData.repositoryId === repository.id && completedData.snapshotId === snapshotId) {
-				restoreCompletedRef.current = true;
-				setIsRestoreActive(false);
-				setRestoreResult(completedData);
-				setShowRestoreResultAlert(true);
-			}
-		});
+		addEventListener(
+			"restore:progress",
+			(progressData) => {
+				if (progressData.repositoryId === repository.shortId && progressData.snapshotId === snapshotId) {
+					if (restoreCompletedRef.current) {
+						return;
+					}
+					setIsRestoreActive(true);
+				}
+			},
+			{ signal },
+		);
+
+		addEventListener(
+			"restore:completed",
+			(completedData) => {
+				if (completedData.repositoryId === repository.shortId && completedData.snapshotId === snapshotId) {
+					restoreCompletedRef.current = true;
+					setIsRestoreActive(false);
+					setRestoreResult(completedData);
+					setShowRestoreResultAlert(true);
+				}
+			},
+			{ signal },
+		);
 
 		return () => {
-			unsubscribeStarted();
-			unsubscribeProgress();
-			unsubscribeCompleted();
+			abortController.abort();
 		};
-	}, [addEventListener, repository.id, snapshotId]);
+	}, [addEventListener, repository.shortId, snapshotId]);
 
 	const { mutate: restoreSnapshot, isPending: isRestoring } = useMutation({
 		...restoreSnapshotMutation(),
@@ -133,6 +149,33 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		restoreSnapshot,
 	]);
 
+	const handleDownload = useCallback(() => {
+		setWaitingForDownload(true);
+
+		if (selectedPaths.size > 1) {
+			return;
+		}
+
+		const dumpUrl = new URL(
+			`/api/v1/repositories/${repository.shortId}/snapshots/${snapshotId}/dump`,
+			window.location.origin,
+		);
+
+		if (selectedPaths.size === 1) {
+			const [selectedPath] = selectedPaths;
+			if (selectedPath) {
+				dumpUrl.searchParams.set("path", selectedPath);
+			}
+		}
+
+		const link = document.createElement("a");
+		link.href = dumpUrl.toString();
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		setWaitingForDownload(false);
+	}, [repository.shortId, snapshotId, selectedPaths]);
+
 	const acknowledgeRestoreResult = useCallback(() => {
 		setShowRestoreResultAlert(false);
 		setRestoreResult(null);
@@ -145,35 +188,62 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 	}, []);
 
 	const canRestore = restoreLocation === "original" || customTargetPath.trim();
+	const canDownload = selectedPaths.size <= 1;
 	const isRestoreRunning = isRestoring || isRestoreActive;
+
+	function getDownloadButtonText(): string {
+		if (selectedPaths.size > 0) {
+			return `Download ${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"}`;
+		}
+		return "Download All";
+	}
+
+	function getRestoreButtonText(): string {
+		if (isRestoreRunning) {
+			return "Restoring...";
+		}
+		if (selectedPaths.size > 0) {
+			return `Restore ${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"}`;
+		}
+		return "Restore All";
+	}
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 				<div>
 					<h1 className="text-2xl font-bold">Restore Snapshot</h1>
 					<p className="text-sm text-muted-foreground">
 						{repository.name} / {snapshotId}
 					</p>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
 					<Button variant="outline" onClick={() => navigate({ to: returnPath })}>
 						Cancel
 					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="inline-flex">
+								<Button variant="outline" onClick={handleDownload} disabled={!canDownload} loading={waitingForDownload}>
+									<Download className="h-4 w-4 mr-2" />
+									{getDownloadButtonText()}
+								</Button>
+							</span>
+						</TooltipTrigger>
+						<TooltipContent className={cn({ hidden: canDownload })}>
+							<p>Download is available only for one selected item, or with no selection to download everything.</p>
+						</TooltipContent>
+					</Tooltip>
 					<Button variant="primary" onClick={handleRestore} disabled={isRestoreRunning || !canRestore}>
 						<RotateCcw className="h-4 w-4 mr-2" />
-						{isRestoreRunning
-							? "Restoring..."
-							: selectedPaths.size > 0
-								? `Restore ${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"}`
-								: "Restore All"}
+						{getRestoreButtonText()}
 					</Button>
 				</div>
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="space-y-6">
-					{isRestoreRunning && <RestoreProgress repositoryId={repository.id} snapshotId={snapshotId} />}
+					{isRestoreRunning && <RestoreProgress repositoryId={repository.shortId} snapshotId={snapshotId} />}
 
 					<Card>
 						<CardHeader>

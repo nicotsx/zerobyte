@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import { type } from "arktype";
 import { throttle } from "es-toolkit";
 import type { BandwidthLimit, CompressionMode, OverwriteMode, RepositoryConfig } from "~/schemas/restic";
@@ -83,10 +84,14 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 		const decryptedPassword = await cryptoUtils.resolveSecret(config.customPassword);
 		const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
 
-		await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
+		await fs.writeFile(passwordFilePath, decryptedPassword, {
+			mode: 0o600,
+		});
 		env.RESTIC_PASSWORD_FILE = passwordFilePath;
 	} else {
-		const org = await db.query.organization.findFirst({ where: { id: organizationId } });
+		const org = await db.query.organization.findFirst({
+			where: { id: organizationId },
+		});
 
 		if (!org) {
 			throw new Error(`Organization ${organizationId} not found`);
@@ -98,7 +103,9 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 		} else {
 			const decryptedPassword = await cryptoUtils.resolveSecret(metadata.resticPassword);
 			const passwordFilePath = path.join("/tmp", `zerobyte-pass-${crypto.randomBytes(8).toString("hex")}.txt`);
-			await fs.writeFile(passwordFilePath, decryptedPassword, { mode: 0o600 });
+			await fs.writeFile(passwordFilePath, decryptedPassword, {
+				mode: 0o600,
+			});
 			env.RESTIC_PASSWORD_FILE = passwordFilePath;
 		}
 	}
@@ -122,7 +129,9 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 		case "gcs": {
 			const decryptedCredentials = await cryptoUtils.resolveSecret(config.credentialsJson);
 			const credentialsPath = path.join("/tmp", `zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`);
-			await fs.writeFile(credentialsPath, decryptedCredentials, { mode: 0o600 });
+			await fs.writeFile(credentialsPath, decryptedCredentials, {
+				mode: 0o600,
+			});
 			env.GOOGLE_PROJECT_ID = config.projectId;
 			env.GOOGLE_APPLICATION_CREDENTIALS = credentialsPath;
 			break;
@@ -193,7 +202,9 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 				sshArgs.push("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null");
 			} else if (config.knownHosts) {
 				const knownHostsPath = path.join("/tmp", `zerobyte-known-hosts-${crypto.randomBytes(8).toString("hex")}`);
-				await fs.writeFile(knownHostsPath, config.knownHosts, { mode: 0o600 });
+				await fs.writeFile(knownHostsPath, config.knownHosts, {
+					mode: 0o600,
+				});
 				env._SFTP_KNOWN_HOSTS_PATH = knownHostsPath;
 				sshArgs.push("-o", "StrictHostKeyChecking=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`);
 			}
@@ -232,7 +243,12 @@ const init = async (config: RepositoryConfig, organizationId: string, options?: 
 	const args = ["init", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env, timeout: options?.timeoutMs ?? 20000 });
+	const res = await exec({
+		command: "restic",
+		args,
+		env,
+		timeout: options?.timeoutMs ?? 20000,
+	});
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -398,6 +414,13 @@ const restoreProgressSchema = type({
 });
 
 export type RestoreProgress = typeof restoreProgressSchema.infer;
+
+export interface ResticDumpStream {
+	stream: Readable;
+	completion: Promise<void>;
+	abort: () => void;
+}
+
 const restore = async (
 	config: RepositoryConfig,
 	snapshotId: string,
@@ -531,6 +554,109 @@ const restore = async (
 	);
 
 	return result;
+};
+
+const normalizeDumpPath = (pathToDump?: string): string => {
+	const trimmedPath = pathToDump?.trim();
+	if (!trimmedPath) {
+		return "/";
+	}
+
+	const decodedPath = (() => {
+		try {
+			return decodeURIComponent(trimmedPath);
+		} catch {
+			return trimmedPath;
+		}
+	})();
+
+	const withLeadingSlash = decodedPath.startsWith("/") ? decodedPath : `/${decodedPath}`;
+	const normalizedPath = withLeadingSlash.replace(/\/+$/, "");
+
+	return normalizedPath || "/";
+};
+
+const dump = async (
+	config: RepositoryConfig,
+	snapshotRef: string,
+	options: {
+		organizationId: string;
+		path?: string;
+	},
+): Promise<ResticDumpStream> => {
+	const repoUrl = buildRepoUrl(config);
+	const env = await buildEnv(config, options.organizationId);
+	const pathToDump = normalizeDumpPath(options.path);
+
+	const args: string[] = ["--repo", repoUrl, "dump", snapshotRef, pathToDump, "--archive", "tar"];
+
+	addCommonArgs(args, env, config, { includeJson: false });
+
+	logger.debug(`Executing: restic ${args.join(" ")}`);
+
+	let didCleanup = false;
+	const cleanup = async () => {
+		if (didCleanup) {
+			return;
+		}
+
+		didCleanup = true;
+		await cleanupTemporaryKeys(env);
+	};
+
+	let stream: Readable | null = null;
+	let abortController: AbortController | null = new AbortController();
+
+	const MAX_STDERR_CHARS = 64 * 1024;
+	let stderrTail = "";
+
+	const completion = safeSpawn({
+		command: "restic",
+		args,
+		env,
+		signal: abortController.signal,
+		stdoutMode: "raw",
+		onSpawn: (child) => {
+			stream = child.stdout;
+		},
+		onStderr: (line) => {
+			const chunk = line.trim();
+			if (chunk) {
+				stderrTail += `${line}\n`;
+				if (stderrTail.length > MAX_STDERR_CHARS) {
+					stderrTail = stderrTail.slice(-MAX_STDERR_CHARS);
+				}
+			}
+		},
+	})
+		.then((result) => {
+			if (result.exitCode === 0) {
+				return;
+			}
+
+			const stderr = stderrTail.trim() || result.error;
+			logger.error(`Restic dump failed: ${stderr}`);
+			throw new ResticError(result.exitCode, stderr);
+		})
+		.finally(async () => {
+			abortController = null;
+			await cleanup();
+		});
+
+	if (!stream) {
+		await cleanup();
+		throw new Error("Failed to initialize restic dump stream");
+	}
+
+	return {
+		stream,
+		completion,
+		abort: () => {
+			if (abortController) {
+				abortController.abort();
+			}
+		},
+	};
 };
 
 const snapshots = async (config: RepositoryConfig, options: { tags?: string[]; organizationId: string }) => {
@@ -852,7 +978,12 @@ const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal;
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env, signal: options?.signal });
+	const res = await exec({
+		command: "restic",
+		args,
+		env,
+		signal: options?.signal,
+	});
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
@@ -871,7 +1002,11 @@ const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal;
 
 const check = async (
 	config: RepositoryConfig,
-	options: { readData?: boolean; signal?: AbortSignal; organizationId: string },
+	options: {
+		readData?: boolean;
+		signal?: AbortSignal;
+		organizationId: string;
+	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
@@ -884,12 +1019,22 @@ const check = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env, signal: options?.signal });
+	const res = await exec({
+		command: "restic",
+		args,
+		env,
+		signal: options?.signal,
+	});
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
 		logger.warn("Restic check was aborted by signal.");
-		return { success: false, hasErrors: true, output: "", error: "Operation aborted" };
+		return {
+			success: false,
+			hasErrors: true,
+			output: "",
+			error: "Operation aborted",
+		};
 	}
 
 	const { stdout, stderr } = res;
@@ -922,7 +1067,12 @@ const repairIndex = async (config: RepositoryConfig, options: { signal?: AbortSi
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env, signal: options?.signal });
+	const res = await exec({
+		command: "restic",
+		args,
+		env,
+		signal: options?.signal,
+	});
 	await cleanupTemporaryKeys(env);
 
 	if (options?.signal?.aborted) {
@@ -1041,9 +1191,11 @@ export const addCommonArgs = (
 	args: string[],
 	env: Record<string, string>,
 	config?: RepositoryConfig,
-	options?: { skipBandwidth?: boolean },
+	options?: { skipBandwidth?: boolean; includeJson?: boolean },
 ) => {
-	args.push("--json");
+	if (options?.includeJson !== false) {
+		args.push("--json");
+	}
 
 	if (env._SFTP_SSH_ARGS) {
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
@@ -1078,6 +1230,7 @@ export const restic = {
 	init,
 	backup,
 	restore,
+	dump,
 	snapshots,
 	forget,
 	deleteSnapshot,

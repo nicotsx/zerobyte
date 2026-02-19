@@ -15,22 +15,29 @@ export const BackupProgressCard = ({ scheduleShortId }: Props) => {
 	const [progress, setProgress] = useState<BackupProgressEvent | null>(null);
 
 	useEffect(() => {
-		const unsubscribe = addEventListener("backup:progress", (progressData) => {
-			if (progressData.scheduleId === scheduleShortId) {
-				setProgress(progressData);
-			}
-		});
+		const abortController = new AbortController();
 
-		const unsubscribeComplete = addEventListener("backup:completed", (completedData) => {
-			if (completedData.scheduleId === scheduleShortId) {
-				setProgress(null);
-			}
-		});
+		addEventListener(
+			"backup:progress",
+			(progressData) => {
+				if (progressData.scheduleId === scheduleShortId) {
+					setProgress(progressData);
+				}
+			},
+			{ signal: abortController.signal },
+		);
 
-		return () => {
-			unsubscribe();
-			unsubscribeComplete();
-		};
+		addEventListener(
+			"backup:completed",
+			(completedData) => {
+				if (completedData.scheduleId === scheduleShortId) {
+					setProgress(null);
+				}
+			},
+			{ signal: abortController.signal },
+		);
+
+		return () => abortController.abort();
 	}, [addEventListener, scheduleShortId]);
 
 	const percentDone = progress ? Math.round(progress.percent_done * 100) : 0;

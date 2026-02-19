@@ -122,4 +122,163 @@ describe("RepositoryMutex", () => {
 		release();
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
+
+	test("should allow concurrent shared locks", async () => {
+		const repoId = "concurrent-shared";
+		const release1 = await repoMutex.acquireShared(repoId, "op1");
+		const release2 = await repoMutex.acquireShared(repoId, "op2");
+		const release3 = await repoMutex.acquireShared(repoId, "op3");
+
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		release1();
+		release2();
+		release3();
+
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("should block exclusive lock until all shared locks are released", async () => {
+		const repoId = "shared-blocks-exclusive";
+		let exclusiveAcquired = false;
+
+		const releaseShared1 = await repoMutex.acquireShared(repoId, "s1");
+		const releaseShared2 = await repoMutex.acquireShared(repoId, "s2");
+
+		const exclusivePromise = repoMutex.acquireExclusive(repoId, "e1").then((release) => {
+			exclusiveAcquired = true;
+			return release;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(exclusiveAcquired).toBe(false);
+
+		releaseShared1();
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(exclusiveAcquired).toBe(false); // still waiting for s2
+
+		releaseShared2();
+		const releaseExclusive = await exclusivePromise;
+		expect(exclusiveAcquired).toBe(true);
+
+		releaseExclusive();
+	});
+
+	test("should block all locks while exclusive lock is held", async () => {
+		const repoId = "exclusive-blocks-all";
+		const results: string[] = [];
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		results.push("e1-acquired");
+
+		const s1Promise = repoMutex.acquireShared(repoId, "s1").then((release) => {
+			results.push("s1-acquired");
+			return release;
+		});
+		const e2Promise = repoMutex.acquireExclusive(repoId, "e2").then((release) => {
+			results.push("e2-acquired");
+			return release;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(results).toEqual(["e1-acquired"]);
+
+		releaseExclusive();
+
+		const releaseS1 = await s1Promise;
+		expect(results).toEqual(["e1-acquired", "s1-acquired"]);
+
+		releaseS1();
+
+		const releaseE2 = await e2Promise;
+		expect(results).toEqual(["e1-acquired", "s1-acquired", "e2-acquired"]);
+
+		releaseE2();
+	});
+
+	test("should grant all waiting shared locks at once when exclusive lock is released", async () => {
+		const repoId = "batch-shared";
+		const results: string[] = [];
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+
+		const s1Promise = repoMutex.acquireShared(repoId, "s1").then((release) => {
+			results.push("s1");
+			return release;
+		});
+		const s2Promise = repoMutex.acquireShared(repoId, "s2").then((release) => {
+			results.push("s2");
+			return release;
+		});
+		const s3Promise = repoMutex.acquireShared(repoId, "s3").then((release) => {
+			results.push("s3");
+			return release;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(results).toEqual([]);
+
+		releaseExclusive();
+
+		const [releaseS1, releaseS2, releaseS3] = await Promise.all([s1Promise, s2Promise, s3Promise]);
+
+		expect(results.length).toBe(3);
+		expect(results).toContain("s1");
+		expect(results).toContain("s2");
+		expect(results).toContain("s3");
+
+		releaseS1();
+		releaseS2();
+		releaseS3();
+	});
+
+	test("should safely handle multiple calls to the release function", async () => {
+		const repoId = "idempotent-release";
+
+		const releaseShared = await repoMutex.acquireShared(repoId, "s1");
+		releaseShared();
+		releaseShared(); // Should not throw or cause issues
+		releaseShared();
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		releaseExclusive();
+		releaseExclusive(); // Should not throw
+
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("should immediately throw if AbortSignal is already aborted", async () => {
+		const repoId = "already-aborted";
+		const controller = new AbortController();
+		controller.abort(new Error("pre-aborted"));
+
+		expect(repoMutex.acquireShared(repoId, "s1", controller.signal)).rejects.toThrow("pre-aborted");
+		expect(repoMutex.acquireExclusive(repoId, "e1", controller.signal)).rejects.toThrow("pre-aborted");
+
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("should accurately report isLocked status", async () => {
+		const repoId = "is-locked-status";
+
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+
+		const releaseShared1 = await repoMutex.acquireShared(repoId, "s1");
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		const releaseShared2 = await repoMutex.acquireShared(repoId, "s2");
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		releaseShared1();
+		expect(repoMutex.isLocked(repoId)).toBe(true); // still locked by s2
+
+		releaseShared2();
+		expect(repoMutex.isLocked(repoId)).toBe(false); // all shared released
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		releaseExclusive();
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
 });

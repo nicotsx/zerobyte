@@ -23,9 +23,10 @@ import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } f
 import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
 import type { UpdateRepositoryBody } from "./repositories.dto";
-import { executeDoctor } from "./doctor";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { findCommonAncestor } from "~/utils/common-ancestor";
+import { prepareSnapshotDump } from "./helpers/dump";
+import { executeDoctor } from "./helpers/doctor";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -386,6 +387,42 @@ const restoreSnapshot = async (
 		throw error;
 	} finally {
 		releaseLock();
+	}
+};
+
+const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(shortId);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const releaseLock = await repoMutex.acquireShared(repository.id, `dump:${snapshotId}`);
+
+	try {
+		const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
+		const preparedDump = prepareSnapshotDump({ snapshotId, snapshotPaths: snapshot.paths, requestedPath: path });
+		const dumpStream = await restic.dump(repository.config, preparedDump.snapshotRef, {
+			organizationId,
+			path: preparedDump.path,
+		});
+
+		serverEvents.emit("dump:started", {
+			organizationId,
+			repositoryId: repository.shortId,
+			snapshotId,
+			path: preparedDump.path,
+			filename: preparedDump.filename,
+		});
+
+		const completion = dumpStream.completion.finally(releaseLock);
+		void completion.catch(() => {});
+
+		return { ...dumpStream, completion, filename: preparedDump.filename };
+	} catch (error) {
+		releaseLock();
+		throw error;
 	}
 };
 
@@ -777,6 +814,7 @@ export const repositoriesService = {
 	listSnapshots,
 	listSnapshotFiles,
 	restoreSnapshot,
+	dumpSnapshot,
 	getSnapshotDetails,
 	checkHealth,
 	startDoctor,

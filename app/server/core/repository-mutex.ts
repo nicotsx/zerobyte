@@ -99,7 +99,7 @@ class RepositoryMutex {
 			throw signal.reason || new Error("Operation aborted");
 		}
 
-		return () => this.releaseShared(repositoryId, lockId!);
+		return this.createRelease("shared", repositoryId, lockId!);
 	}
 
 	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal): Promise<() => void> {
@@ -154,7 +154,8 @@ class RepositoryMutex {
 		}
 
 		logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation} (${lockId})`);
-		return () => this.releaseExclusive(repositoryId, lockId!);
+
+		return this.createRelease("exclusive", repositoryId, lockId!);
 	}
 
 	private releaseShared(repositoryId: string, lockId: string): void {
@@ -238,6 +239,19 @@ class RepositoryMutex {
 		const state = this.locks.get(repositoryId);
 		if (!state) return false;
 		return state.exclusiveHolder !== null || state.sharedHolders.size > 0;
+	}
+
+	private createRelease(type: LockType, repositoryId: string, lockId: string) {
+		let released = false;
+		return () => {
+			if (released) return;
+			released = true;
+			if (type === "shared") {
+				this.releaseShared(repositoryId, lockId);
+			} else {
+				this.releaseExclusive(repositoryId, lockId);
+			}
+		};
 	}
 }
 

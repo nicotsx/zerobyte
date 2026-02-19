@@ -76,6 +76,7 @@ describe("repositories security", () => {
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/files" },
+			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/dump" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/restore" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/doctor" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },

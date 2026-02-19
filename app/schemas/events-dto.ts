@@ -19,6 +19,13 @@ const restoreEventBaseSchema = type({
 	snapshotId: "string",
 });
 
+const dumpStartedEventSchema = type({
+	repositoryId: "string",
+	snapshotId: "string",
+	path: "string",
+	filename: "string",
+});
+
 const restoreProgressMetricsSchema = type({
 	seconds_elapsed: "number",
 	percent_done: "number",
@@ -59,6 +66,8 @@ export const serverRestoreProgressEventSchema = organizationScopedSchema.and(res
 
 export const serverRestoreCompletedEventSchema = organizationScopedSchema.and(restoreCompletedEventSchema);
 
+export const serverDumpStartedEventSchema = organizationScopedSchema.and(dumpStartedEventSchema);
+
 export type BackupEventStatusDto = typeof backupEventStatusSchema.infer;
 export type BackupStartedEventDto = typeof backupStartedEventSchema.infer;
 export type BackupProgressEventDto = typeof backupProgressEventSchema.infer;
@@ -66,9 +75,11 @@ export type BackupCompletedEventDto = typeof backupCompletedEventSchema.infer;
 export type RestoreStartedEventDto = typeof restoreStartedEventSchema.infer;
 export type RestoreProgressEventDto = typeof restoreProgressEventSchema.infer;
 export type RestoreCompletedEventDto = typeof restoreCompletedEventSchema.infer;
+export type DumpStartedEventDto = typeof dumpStartedEventSchema.infer;
 export type ServerBackupStartedEventDto = typeof serverBackupStartedEventSchema.infer;
 export type ServerBackupProgressEventDto = typeof serverBackupProgressEventSchema.infer;
 export type ServerBackupCompletedEventDto = typeof serverBackupCompletedEventSchema.infer;
 export type ServerRestoreStartedEventDto = typeof serverRestoreStartedEventSchema.infer;
 export type ServerRestoreProgressEventDto = typeof serverRestoreProgressEventSchema.infer;
 export type ServerRestoreCompletedEventDto = typeof serverRestoreCompletedEventSchema.infer;
+export type ServerDumpStartedEventDto = typeof serverDumpStartedEventSchema.infer;
