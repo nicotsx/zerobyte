@@ -1770,6 +1770,31 @@ export type UpdateRepositoryResponses = {
 
 export type UpdateRepositoryResponse = UpdateRepositoryResponses[keyof UpdateRepositoryResponses];
 
+export type GetRepositoryStatsData = {
+	body?: never;
+	path: {
+		shortId: string;
+	};
+	query?: never;
+	url: "/api/v1/repositories/{shortId}/stats";
+};
+
+export type GetRepositoryStatsResponses = {
+	/**
+	 * Repository statistics
+	 */
+	200: {
+		compression_progress?: number;
+		compression_ratio?: number;
+		compression_space_saving?: number;
+		snapshots_count?: number;
+		total_size?: number;
+		total_uncompressed_size?: number;
+	};
+};
+
+export type GetRepositoryStatsResponse = GetRepositoryStatsResponses[keyof GetRepositoryStatsResponses];
+
 export type DeleteSnapshotsData = {
 	body?: {
 		snapshotIds: Array<string>;

@@ -8,7 +8,7 @@ import {
 	repositoryConfigSchema,
 	doctorResultSchema,
 } from "~/schemas/restic";
-import { resticSnapshotSummarySchema } from "~/schemas/restic-dto";
+import { resticSnapshotSummarySchema, resticStatsSchema } from "~/schemas/restic-dto";
 
 export const repositorySchema = type({
 	id: "string",
@@ -103,6 +103,29 @@ export const getRepositoryDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(getRepositoryResponse),
+				},
+			},
+		},
+	},
+});
+
+/**
+ * Get repository stats
+ */
+export const repositoryStatsSchema = resticStatsSchema;
+export const getRepositoryStatsResponse = repositoryStatsSchema;
+export type GetRepositoryStatsDto = typeof getRepositoryStatsResponse.infer;
+
+export const getRepositoryStatsDto = describeRoute({
+	description: "Get repository storage and compression statistics",
+	tags: ["Repositories"],
+	operationId: "getRepositoryStats",
+	responses: {
+		200: {
+			description: "Repository statistics",
+			content: {
+				"application/json": {
+					schema: resolver(getRepositoryStatsResponse),
 				},
 			},
 		},

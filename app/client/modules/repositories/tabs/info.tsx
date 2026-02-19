@@ -25,6 +25,7 @@ import type { RepositoryConfig } from "~/schemas/restic";
 import { DoctorReport } from "../components/doctor-report";
 import { parseError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
+import { CompressionStatsChart } from "../components/compression-stats-chart";
 
 type Props = {
 	repository: Repository;
@@ -96,143 +97,148 @@ export const RepositoryInfoTabContent = ({ repository }: Props) => {
 
 	return (
 		<>
-			<Card className="p-6 @container">
-				<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4">
-					<div>
-						<span className="text-lg font-semibold">Repository Settings</span>
-					</div>
-					<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
-						>
-							<Pencil className="h-4 w-4 mr-2" />
-							Edit
-						</Button>
-						{repository.status === "doctor" ? (
+			<div className="grid gap-4">
+				<Card className="p-6 @container">
+					<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4">
+						<div>
+							<span className="text-lg font-semibold">Repository Settings</span>
+						</div>
+						<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
+							>
+								<Pencil className="h-4 w-4 mr-2" />
+								Edit
+							</Button>
+							{repository.status === "doctor" ? (
+								<Button
+									type="button"
+									variant="destructive"
+									loading={cancelDoctor.isPending}
+									onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
+								>
+									<Square className="h-4 w-4 mr-2" />
+									<span>Cancel doctor</span>
+								</Button>
+							) : (
+								<Button
+									type="button"
+									onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
+									disabled={startDoctor.isPending}
+								>
+									<Stethoscope className="h-4 w-4 mr-2" />
+									Run doctor
+								</Button>
+							)}
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
+								loading={unlockRepo.isPending}
+							>
+								<Unlock className="h-4 w-4 mr-2" />
+								Unlock
+							</Button>
 							<Button
 								type="button"
 								variant="destructive"
-								loading={cancelDoctor.isPending}
-								onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
+								onClick={() => setShowDeleteConfirm(true)}
+								disabled={deleteRepo.isPending}
 							>
-								<Square className="h-4 w-4 mr-2" />
-								<span>Cancel doctor</span>
+								<Trash2 className="h-4 w-4 mr-2" />
+								Delete
 							</Button>
-						) : (
-							<Button
-								type="button"
-								onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
-								disabled={startDoctor.isPending}
-							>
-								<Stethoscope className="h-4 w-4 mr-2" />
-								Run doctor
-							</Button>
-						)}
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
-							loading={unlockRepo.isPending}
-						>
-							<Unlock className="h-4 w-4 mr-2" />
-							Unlock
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							onClick={() => setShowDeleteConfirm(true)}
-							disabled={deleteRepo.isPending}
-						>
-							<Trash2 className="h-4 w-4 mr-2" />
-							Delete
-						</Button>
-					</div>
-				</div>
-
-				<div>
-					<h3 className="text-lg font-semibold mb-4">Current Configuration</h3>
-					<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Name</div>
-							<p className="mt-1 text-sm">{repository.name}</p>
-						</div>
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Compression mode</div>
-							<p className="mt-1 text-sm">{repository.compressionMode || "off"}</p>
 						</div>
 					</div>
-				</div>
 
-				<div>
-					<h3 className="text-lg font-semibold mb-4">Repository Information</h3>
-					<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Backend</div>
-							<p className="mt-1 text-sm">{repository.type}</p>
-						</div>
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Status</div>
-							<p className="mt-1 text-sm">{repository.status || "unknown"}</p>
-						</div>
-						{effectiveLocalPath && (
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Local path</div>
-								<p className="mt-1 text-sm font-mono">{effectiveLocalPath}</p>
-							</div>
-						)}
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Created at</div>
-							<p className="mt-1 text-sm">{formatDateTime(repository.createdAt)}</p>
-						</div>
-						<div>
-							<div className="text-sm font-medium text-muted-foreground">Last checked</div>
-							<p className="mt-1 text-sm">{formatTimeAgo(repository.lastChecked)}</p>
-						</div>
-						{config.cacert && (
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
-								<p className="mt-1 text-sm">
-									<span className="text-green-500">configured</span>
-								</p>
-							</div>
-						)}
-						{"insecureTls" in config && (
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
-								<p className="mt-1 text-sm">
-									{config.insecureTls ? (
-										<span className="text-red-500">disabled</span>
-									) : (
-										<span className="text-green-500">enabled</span>
-									)}
-								</p>
-							</div>
-						)}
-					</div>
-				</div>
-
-				{repository.lastError && (
 					<div>
-						<div className="flex items-center justify-between mb-4">
-							<h3 className="text-lg font-semibold text-red-500">Last Error</h3>
-						</div>
-						<div className="bg-red-500/10 border border-red-500/20 rounded-md p-4">
-							<p className="text-sm text-red-500 wrap-break-word">{repository.lastError}</p>
+						<h3 className="text-lg font-semibold mb-4">Current Configuration</h3>
+						<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Name</div>
+								<p className="mt-1 text-sm">{repository.name}</p>
+							</div>
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Compression mode</div>
+								<p className="mt-1 text-sm">{repository.compressionMode || "off"}</p>
+							</div>
 						</div>
 					</div>
-				)}
 
-				<div>
-					<h3 className="text-lg font-semibold mb-4">Configuration</h3>
-					<div className="bg-muted/50 rounded-md p-4">
-						<pre className="text-sm overflow-auto">{JSON.stringify(repository.config, null, 2)}</pre>
+					<div>
+						<h3 className="text-lg font-semibold mb-4">Repository Information</h3>
+						<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Backend</div>
+								<p className="mt-1 text-sm">{repository.type}</p>
+							</div>
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Status</div>
+								<p className="mt-1 text-sm">{repository.status || "unknown"}</p>
+							</div>
+							{effectiveLocalPath && (
+								<div>
+									<div className="text-sm font-medium text-muted-foreground">Local path</div>
+									<p className="mt-1 text-sm font-mono">{effectiveLocalPath}</p>
+								</div>
+							)}
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Created at</div>
+								<p className="mt-1 text-sm">{formatDateTime(repository.createdAt)}</p>
+							</div>
+							<div>
+								<div className="text-sm font-medium text-muted-foreground">Last checked</div>
+								<p className="mt-1 text-sm">{formatTimeAgo(repository.lastChecked)}</p>
+							</div>
+							{config.cacert && (
+								<div>
+									<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
+									<p className="mt-1 text-sm">
+										<span className="text-green-500">configured</span>
+									</p>
+								</div>
+							)}
+							{"insecureTls" in config && (
+								<div>
+									<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
+									<p className="mt-1 text-sm">
+										{config.insecureTls ? (
+											<span className="text-red-500">disabled</span>
+										) : (
+											<span className="text-green-500">enabled</span>
+										)}
+									</p>
+								</div>
+							)}
+						</div>
 					</div>
-				</div>
 
-				<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
-			</Card>
+					<div>
+						{repository.lastError && (
+							<div>
+								<div className="flex items-center justify-between mb-4">
+									<h3 className="text-lg font-semibold text-red-500">Last Error</h3>
+								</div>
+								<div className="bg-red-500/10 border border-red-500/20 rounded-md p-4">
+									<p className="text-sm text-red-500 wrap-break-word">{repository.lastError}</p>
+								</div>
+							</div>
+						)}
+
+						<div>
+							<h3 className="text-lg font-semibold mb-4">Configuration</h3>
+							<div className="bg-muted/50 rounded-md p-4">
+								<pre className="text-sm overflow-auto">{JSON.stringify(repository.config, null, 2)}</pre>
+							</div>
+						</div>
+					</div>
+
+					<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
+				</Card>
+				<CompressionStatsChart repositoryShortId={repository.shortId} />
+			</div>
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>

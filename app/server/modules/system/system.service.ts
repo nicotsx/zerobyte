@@ -2,7 +2,7 @@ import { getCapabilities } from "../../core/capabilities";
 import { config } from "../../core/config";
 import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
-import { cache } from "../../utils/cache";
+import { cache, cacheKeys } from "../../utils/cache";
 import { logger } from "~/server/utils/logger";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
@@ -24,7 +24,7 @@ interface GitHubRelease {
 }
 
 const getUpdates = async (): Promise<UpdateInfoDto> => {
-	const CACHE_KEY = `system:updates:${config.appVersion}`;
+	const CACHE_KEY = cacheKeys.system.githubReleases(config.appVersion);
 
 	const cached = cache.get<UpdateInfoDto>(CACHE_KEY);
 	if (cached) {

@@ -16,7 +16,7 @@ import { parseRetentionCategories, type RetentionCategory } from "~/server/utils
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
 import { repositoriesTable } from "../../db/schema";
-import { cache } from "../../utils/cache";
+import { cache, cacheKeys } from "../../utils/cache";
 import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
@@ -194,6 +194,30 @@ const getRepository = async (shortId: string) => {
 	return { repository };
 };
 
+const getRepositoryStats = async (shortId: string) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(shortId);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const cacheKey = cacheKeys.repository.stats(repository.id);
+	const cached = cache.get<Awaited<ReturnType<typeof restic.stats>>>(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
+	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
+	try {
+		const stats = await restic.stats(repository.config, { organizationId });
+		cache.set(cacheKey, stats);
+		return stats;
+	} finally {
+		releaseLock();
+	}
+};
+
 const deleteRepository = async (shortId: string) => {
 	const repository = await findRepository(shortId);
 
@@ -209,8 +233,7 @@ const deleteRepository = async (shortId: string) => {
 			and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
 		);
 
-	cache.delByPrefix(`snapshots:${repository.id}:`);
-	cache.delByPrefix(`ls:${repository.id}:`);
+	cache.delByPrefix(cacheKeys.repository.all(repository.id));
 };
 
 /**
@@ -229,7 +252,7 @@ const listSnapshots = async (shortId: string, backupId?: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const cacheKey = `snapshots:${repository.id}:${backupId || "all"}`;
+	const cacheKey = cacheKeys.repository.snapshots(repository.id, backupId);
 	const cached = cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
 	if (cached) {
 		return cached;
@@ -269,7 +292,7 @@ const listSnapshotFiles = async (
 	const offset = options?.offset ?? 0;
 	const limit = options?.limit ?? 500;
 
-	const cacheKey = `ls:${repository.id}:${snapshotId}:${path || "root"}:${offset}:${limit}`;
+	const cacheKey = cacheKeys.repository.ls(repository.id, snapshotId, path, offset, limit);
 	type LsResult = {
 		snapshot: { id: string; short_id: string; time: string; hostname: string; paths: string[] } | null;
 		nodes: { name: string; type: string; path: string; size?: number; mode?: number }[];
@@ -459,7 +482,7 @@ const getSnapshotDetails = async (shortId: string, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const cacheKey = `snapshots:${repository.id}:all`;
+	const cacheKey = cacheKeys.repository.snapshots(repository.id);
 	let snapshots = cache.get<Awaited<ReturnType<typeof restic.snapshots>>>(cacheKey);
 
 	if (!snapshots) {
@@ -589,8 +612,7 @@ const deleteSnapshot = async (shortId: string, snapshotId: string) => {
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
 	try {
 		await restic.deleteSnapshot(repository.config, snapshotId, organizationId);
-		cache.delByPrefix(`snapshots:${repository.id}:`);
-		cache.delByPrefix(`ls:${repository.id}:${snapshotId}:`);
+		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
 	}
@@ -607,10 +629,7 @@ const deleteSnapshots = async (shortId: string, snapshotIds: string[]) => {
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
 	try {
 		await restic.deleteSnapshots(repository.config, snapshotIds, organizationId);
-		cache.delByPrefix(`snapshots:${repository.id}:`);
-		for (const snapshotId of snapshotIds) {
-			cache.delByPrefix(`ls:${repository.id}:${snapshotId}:`);
-		}
+		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
 	}
@@ -631,10 +650,7 @@ const tagSnapshots = async (
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `tag:bulk`);
 	try {
 		await restic.tagSnapshots(repository.config, snapshotIds, tags, organizationId);
-		cache.delByPrefix(`snapshots:${repository.id}:`);
-		for (const snapshotId of snapshotIds) {
-			cache.delByPrefix(`ls:${repository.id}:${snapshotId}:`);
-		}
+		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
 	}
@@ -648,13 +664,12 @@ const refreshSnapshots = async (shortId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	cache.delByPrefix(`snapshots:${repository.id}:`);
-	cache.delByPrefix(`ls:${repository.id}:`);
+	cache.delByPrefix(cacheKeys.repository.all(repository.id));
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, "refresh");
 	try {
 		const snapshots = await restic.snapshots(repository.config, { organizationId });
-		const cacheKey = `snapshots:${repository.id}:all`;
+		const cacheKey = cacheKeys.repository.snapshots(repository.id);
 		cache.set(cacheKey, snapshots);
 
 		return {
@@ -731,8 +746,7 @@ const updateRepository = async (shortId: string, updates: UpdateRepositoryBody) 
 	}
 
 	if (configChanged) {
-		cache.delByPrefix(`snapshots:${existing.id}:`);
-		cache.delByPrefix(`ls:${existing.id}:`);
+		cache.delByPrefix(cacheKeys.repository.all(existing.id));
 	}
 
 	return { repository: updated };
@@ -791,7 +805,7 @@ const getRetentionCategories = async (repositoryId: string, scheduleId?: string)
 		return new Map<string, RetentionCategory[]>();
 	}
 
-	const cacheKey = `retention:${scheduleId}`;
+	const cacheKey = cacheKeys.repository.retention(repositoryId, scheduleId);
 	const cached = cache.get<Record<string, RetentionCategory[]>>(cacheKey);
 
 	if (cached && Object.keys(cached).length > 0) {
@@ -834,6 +848,7 @@ export const repositoriesService = {
 	listRepositories,
 	createRepository,
 	getRepository,
+	getRepositoryStats,
 	deleteRepository,
 	updateRepository,
 	listSnapshots,

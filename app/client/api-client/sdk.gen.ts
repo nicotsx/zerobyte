@@ -52,6 +52,8 @@ import type {
 	GetRegistrationStatusResponses,
 	GetRepositoryData,
 	GetRepositoryResponses,
+	GetRepositoryStatsData,
+	GetRepositoryStatsResponses,
 	GetScheduleMirrorsData,
 	GetScheduleMirrorsResponses,
 	GetScheduleNotificationsData,
@@ -361,6 +363,17 @@ export const updateRepository = <ThrowOnError extends boolean = false>(
 			"Content-Type": "application/json",
 			...options.headers,
 		},
+	});
+
+/**
+ * Get repository storage and compression statistics
+ */
+export const getRepositoryStats = <ThrowOnError extends boolean = false>(
+	options: Options<GetRepositoryStatsData, ThrowOnError>,
+) =>
+	(options.client ?? client).get<GetRepositoryStatsResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{shortId}/stats",
+		...options,
 	});
 
 /**

@@ -2,7 +2,7 @@ import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhan
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { restic } from "../../utils/restic";
 import { logger } from "../../utils/logger";
-import { cache } from "../../utils/cache";
+import { cache, cacheKeys } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
 import { toMessage } from "../../utils/errors";
 import { serverEvents } from "../../core/events";
@@ -150,8 +150,7 @@ const finalizeSuccessfulBackup = async (
 		logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
 	});
 
-	cache.delByPrefix(`snapshots:${ctx.repository.id}:`);
-	cache.del(`retention:${ctx.schedule.shortId}`);
+	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
 
 	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
@@ -328,8 +327,7 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 
 	try {
 		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId });
-		cache.delByPrefix(`snapshots:${repository.id}:`);
-		cache.del(`retention:${schedule.shortId}`);
+		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
 	}
@@ -393,7 +391,7 @@ const copyToSingleMirror = async (
 
 		try {
 			await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId, organizationId });
-			cache.delByPrefix(`snapshots:${mirror.repository.id}:`);
+			cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));
 		} finally {
 			releaseSource();
 			releaseMirror();

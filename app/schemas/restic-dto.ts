@@ -61,6 +61,15 @@ export const resticRestoreOutputSchema = type({
 	bytes_skipped: "number",
 });
 
+export const resticStatsSchema = type({
+	total_size: "number = 0",
+	total_uncompressed_size: "number = 0",
+	compression_ratio: "number = 0",
+	compression_progress: "number = 0",
+	compression_space_saving: "number = 0",
+	snapshots_count: "number = 0",
+});
+
 export type ResticSnapshotSummaryDto = typeof resticSnapshotSummarySchema.infer;
 export type ResticBackupRunSummaryDto = typeof resticBackupRunSummarySchema.infer;
 export type ResticBackupOutputDto = typeof resticBackupOutputSchema.infer;
@@ -68,3 +77,4 @@ export type ResticBackupProgressMetricsDto = typeof resticBackupProgressMetricsS
 export type ResticBackupProgressDto = typeof resticBackupProgressSchema.infer;
 
 export type ResticRestoreOutputDto = typeof resticRestoreOutputSchema.infer;
+export type ResticStatsDto = typeof resticStatsSchema.infer;

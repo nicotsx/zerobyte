@@ -33,6 +33,7 @@ import {
 	getNotificationDestination,
 	getRegistrationStatus,
 	getRepository,
+	getRepositoryStats,
 	getScheduleMirrors,
 	getScheduleNotifications,
 	getSnapshotDetails,
@@ -117,6 +118,8 @@ import type {
 	GetRegistrationStatusResponse,
 	GetRepositoryData,
 	GetRepositoryResponse,
+	GetRepositoryStatsData,
+	GetRepositoryStatsResponse,
 	GetScheduleMirrorsData,
 	GetScheduleMirrorsResponse,
 	GetScheduleNotificationsData,
@@ -687,6 +690,31 @@ export const updateRepositoryMutation = (
 	};
 	return mutationOptions;
 };
+
+export const getRepositoryStatsQueryKey = (options: Options<GetRepositoryStatsData>) =>
+	createQueryKey("getRepositoryStats", options);
+
+/**
+ * Get repository storage and compression statistics
+ */
+export const getRepositoryStatsOptions = (options: Options<GetRepositoryStatsData>) =>
+	queryOptions<
+		GetRepositoryStatsResponse,
+		DefaultError,
+		GetRepositoryStatsResponse,
+		ReturnType<typeof getRepositoryStatsQueryKey>
+	>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await getRepositoryStats({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: getRepositoryStatsQueryKey(options),
+	});
 
 /**
  * Delete multiple snapshots from a repository

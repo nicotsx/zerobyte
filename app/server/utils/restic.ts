@@ -11,10 +11,12 @@ import {
 	type ResticBackupProgressDto,
 	type ResticRestoreOutputDto,
 	type ResticSnapshotSummaryDto,
+	type ResticStatsDto,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
 	resticRestoreOutputSchema,
 	resticSnapshotSummarySchema,
+	resticStatsSchema,
 } from "~/schemas/restic-dto";
 import { config as appConfig } from "../core/config";
 import { DEFAULT_EXCLUDES, RESTIC_CACHE_DIR, RESTIC_PASS_FILE } from "../core/constants";
@@ -415,6 +417,7 @@ const restoreProgressSchema = type({
 });
 
 export type RestoreProgress = typeof restoreProgressSchema.infer;
+export type ResticStats = ResticStatsDto;
 
 export interface ResticDumpStream {
 	stream: Readable;
@@ -686,6 +689,32 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[]; o
 	if (result instanceof type.errors) {
 		logger.error(`Restic snapshots output validation failed: ${result.summary}`);
 		throw new Error(`Restic snapshots output validation failed: ${result.summary}`);
+	}
+
+	return result;
+};
+
+const stats = async (config: RepositoryConfig, options: { organizationId: string }) => {
+	const repoUrl = buildRepoUrl(config);
+	const env = await buildEnv(config, options.organizationId);
+
+	const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
+	addCommonArgs(args, env, config);
+
+	const res = await exec({ command: "restic", args, env });
+	await cleanupTemporaryKeys(env);
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic stats retrieval failed: ${res.stderr}`);
+		throw new ResticError(res.exitCode, res.stderr);
+	}
+
+	const parsedJson = safeJsonParse<unknown>(res.stdout);
+	const result = resticStatsSchema(parsedJson);
+
+	if (result instanceof type.errors) {
+		logger.error(`Restic stats output validation failed: ${result.summary}`);
+		throw new Error(`Restic stats output validation failed: ${result.summary}`);
 	}
 
 	return result;
@@ -1230,6 +1259,7 @@ export const restic = {
 	restore,
 	dump,
 	snapshots,
+	stats,
 	forget,
 	deleteSnapshot,
 	deleteSnapshots,
