@@ -42,7 +42,6 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 
 	const volumeBasePath = basePath ?? "/";
 
-	const [waitingForDownload, setWaitingForDownload] = useState(false);
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>("original");
 	const [customTargetPath, setCustomTargetPath] = useState("");
 	const [overwriteMode, setOverwriteMode] = useState<OverwriteMode>("always");
@@ -151,8 +150,6 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 	]);
 
 	const handleDownload = useCallback(() => {
-		setWaitingForDownload(true);
-
 		if (selectedPaths.size > 1) {
 			return;
 		}
@@ -177,7 +174,6 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
-		setWaitingForDownload(false);
 	}, [repository.shortId, snapshotId, selectedPathKind, selectedPaths]);
 
 	const acknowledgeRestoreResult = useCallback(() => {
@@ -228,7 +224,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<span className="inline-flex">
-								<Button variant="outline" onClick={handleDownload} disabled={!canDownload} loading={waitingForDownload}>
+								<Button variant="outline" onClick={handleDownload} disabled={!canDownload}>
 									<Download className="h-4 w-4 mr-2" />
 									{getDownloadButtonText()}
 								</Button>

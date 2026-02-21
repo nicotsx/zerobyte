@@ -563,15 +563,7 @@ const normalizeDumpPath = (pathToDump?: string): string => {
 		return "/";
 	}
 
-	const decodedPath = (() => {
-		try {
-			return decodeURIComponent(trimmedPath);
-		} catch {
-			return trimmedPath;
-		}
-	})();
-
-	return normalizeAbsolutePath(decodedPath);
+	return normalizeAbsolutePath(trimmedPath);
 };
 
 const dump = async (
