@@ -1,30 +1,7 @@
 import { BadRequestError } from "http-errors-enhanced";
 import path from "node:path";
 import { findCommonAncestor } from "~/utils/common-ancestor";
-
-const normalizeAbsolutePath = (value?: string): string => {
-	const trimmed = value?.trim();
-	if (!trimmed) return "/";
-
-	const normalizedInput = decodeURIComponent(trimmed).replace(/\\+/g, "/");
-	const withLeadingSlash = normalizedInput.startsWith("/") ? normalizedInput : `/${normalizedInput}`;
-	const normalized = path.posix.normalize(withLeadingSlash);
-
-	if (!normalized || normalized === "." || normalized.startsWith("..")) {
-		return "/";
-	}
-
-	const withoutTrailingSlash = normalized.replace(/\/+$/, "");
-	if (!withoutTrailingSlash) {
-		return "/";
-	}
-
-	const withSingleLeadingSlash = withoutTrailingSlash.startsWith("/")
-		? `/${withoutTrailingSlash.replace(/^\/+/, "")}`
-		: `/${withoutTrailingSlash}`;
-
-	return withSingleLeadingSlash || "/";
-};
+import { normalizeAbsolutePath } from "~/utils/path";
 
 const sanitizeFilenamePart = (value: string): string => {
 	const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/^_+|_+$/g, "");

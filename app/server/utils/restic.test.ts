@@ -11,7 +11,7 @@ const successfulRestoreSummary = JSON.stringify({
 
 let lastSafeSpawnArgs: string[] = [];
 
-const safeSpawnMock = mock((params: Parameters<typeof spawnModule.safeSpawn>[0]) => {
+const safeSpawnMock = mock((params: spawnModule.SafeSpawnParams) => {
 	lastSafeSpawnArgs = params.args;
 
 	return Promise.resolve({

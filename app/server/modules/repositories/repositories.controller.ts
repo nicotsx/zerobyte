@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import { streamSSE } from "hono/streaming";
+import contentDisposition from "content-disposition";
 import {
 	createRepositoryBody,
 	createRepositoryDto,
@@ -51,7 +52,6 @@ import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
 import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { toMessage } from "~/server/utils/errors";
-import { sanitizeContentDispositionFilename } from "~/server/utils/sanitize";
 import { requireDevPanel } from "../auth/dev-panel.middleware";
 import { getSnapshotDuration } from "../../utils/snapshots";
 
@@ -182,15 +182,13 @@ export const repositoriesController = new Hono()
 			signal.addEventListener("abort", () => dumpStream.abort(), { once: true });
 		}
 
-		const safeFilename = sanitizeContentDispositionFilename(dumpStream.filename);
-
 		const webStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
 
 		return new Response(webStream, {
 			status: 200,
 			headers: {
 				"Content-Type": "application/x-tar",
-				"Content-Disposition": `attachment; filename="${safeFilename}"`,
+				"Content-Disposition": contentDisposition(dumpStream.filename || "snapshot.tar"),
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

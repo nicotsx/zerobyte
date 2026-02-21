@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizeAbsolutePath } from "~/utils/path";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -570,10 +571,7 @@ const normalizeDumpPath = (pathToDump?: string): string => {
 		}
 	})();
 
-	const withLeadingSlash = decodedPath.startsWith("/") ? decodedPath : `/${decodedPath}`;
-	const normalizedPath = withLeadingSlash.replace(/\/+$/, "");
-
-	return normalizedPath || "/";
+	return normalizeAbsolutePath(decodedPath);
 };
 
 const dump = async (
@@ -643,6 +641,9 @@ const dump = async (
 			await cleanup();
 		});
 
+	completion.catch(() => {});
+	const completionPromise = new Promise<void>((res, rej) => completion.then(res, rej));
+
 	if (!stream) {
 		await cleanup();
 		throw new Error("Failed to initialize restic dump stream");
@@ -650,7 +651,7 @@ const dump = async (
 
 	return {
 		stream,
-		completion,
+		completion: completionPromise,
 		abort: () => {
 			if (abortController) {
 				abortController.abort();

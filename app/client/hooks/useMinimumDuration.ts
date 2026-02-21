@@ -13,7 +13,7 @@ export function useMinimumDuration(isActive: boolean, minimumDuration: number): 
 			}
 			startTimeRef.current = Date.now();
 			setDisplayActive(true);
-		} else if (!isActive && startTimeRef.current !== null) {
+		} else if (startTimeRef.current !== null) {
 			const elapsed = Date.now() - startTimeRef.current;
 			const remaining = Math.max(0, minimumDuration - elapsed);
 

@@ -399,11 +399,12 @@ const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string) 
 	}
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `dump:${snapshotId}`);
+	let dumpStream: Awaited<ReturnType<typeof restic.dump>> | undefined = undefined;
 
 	try {
 		const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
 		const preparedDump = prepareSnapshotDump({ snapshotId, snapshotPaths: snapshot.paths, requestedPath: path });
-		const dumpStream = await restic.dump(repository.config, preparedDump.snapshotRef, {
+		dumpStream = await restic.dump(repository.config, preparedDump.snapshotRef, {
 			organizationId,
 			path: preparedDump.path,
 		});
@@ -421,6 +422,9 @@ const dumpSnapshot = async (shortId: string, snapshotId: string, path?: string) 
 
 		return { ...dumpStream, completion, filename: preparedDump.filename };
 	} catch (error) {
+		if (dumpStream) {
+			dumpStream.abort();
+		}
 		releaseLock();
 		throw error;
 	}

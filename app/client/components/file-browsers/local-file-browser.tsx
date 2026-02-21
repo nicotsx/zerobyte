@@ -3,13 +3,7 @@ import { browseFilesystemOptions } from "~/client/api-client/@tanstack/react-que
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-
-const normalizeAbsolutePath = (path?: string): string => {
-	if (!path) return "/";
-	const withLeadingSlash = path.startsWith("/") ? path : `/${path}`;
-	const trimmed = withLeadingSlash.replace(/\/+$/, "");
-	return trimmed || "/";
-};
+import { normalizeAbsolutePath } from "~/utils/path";
 
 type LocalFileBrowserProps = FileBrowserUiProps & {
 	initialPath?: string;

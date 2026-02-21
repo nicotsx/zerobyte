@@ -32,25 +32,39 @@ export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps)
 	}
 };
 
-export interface SafeSpawnParams {
+export interface SafeSpawnParamsBase {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;
 	signal?: AbortSignal;
-	stdoutMode?: "lines" | "raw";
-	onStdout?: (line: string) => void;
 	onStderr?: (error: string) => void;
 	onSpawn?: (child: ReturnType<typeof spawn>) => void;
 }
 
-type SpawnResult = {
+export interface SafeSpawnParamsLines extends SafeSpawnParamsBase {
+	stdoutMode?: "lines";
+	onStdout?: (line: string) => void;
+}
+
+export interface SafeSpawnParamsRaw extends SafeSpawnParamsBase {
+	stdoutMode: "raw";
+	onStdout?: never;
+}
+
+export type SafeSpawnParams = SafeSpawnParamsLines | SafeSpawnParamsRaw;
+
+export type SpawnResult = {
 	exitCode: number;
 	summary: string;
 	error: string;
 };
 
-export const safeSpawn = (params: SafeSpawnParams) => {
-	const { command, args, env = {}, signal, stdoutMode = "lines", onStdout, onStderr, onSpawn } = params;
+export function safeSpawn(params: SafeSpawnParamsLines): Promise<SpawnResult>;
+export function safeSpawn(params: SafeSpawnParamsRaw): Promise<SpawnResult>;
+export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
+	const { command, args, env = {}, signal, onStderr, onSpawn } = params;
+	const stdoutMode = params.stdoutMode ?? "lines";
+	const onStdout = stdoutMode === "lines" ? params.onStdout : undefined;
 
 	let lastStdout = "";
 	let lastStderr = "";
@@ -106,4 +120,4 @@ export const safeSpawn = (params: SafeSpawnParams) => {
 			});
 		});
 	});
-};
+}
