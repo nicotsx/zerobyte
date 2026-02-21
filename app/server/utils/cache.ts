@@ -54,14 +54,20 @@ export const createCache = (options: CacheOptions = {}) => {
 		stmt.run(key);
 	};
 
+	const escapeLikePattern = (pattern: string): string => {
+		return pattern.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+	};
+
 	const delByPrefix = (prefix: string) => {
-		const stmt = db.prepare("DELETE FROM cache WHERE key LIKE ?");
-		stmt.run(`${prefix}%`);
+		const escapedPrefix = escapeLikePattern(prefix);
+		const stmt = db.prepare("DELETE FROM cache WHERE key LIKE ? ESCAPE '\\'");
+		stmt.run(`${escapedPrefix}%`);
 	};
 
 	const getByPrefix = <T>(prefix: string): { key: string; value: T }[] => {
-		const stmt = db.prepare("SELECT key, value, expiration FROM cache WHERE key LIKE ?");
-		const rows = stmt.all(`${prefix}%`) as { key: string; value: string; expiration: number }[];
+		const escapedPrefix = escapeLikePattern(prefix);
+		const stmt = db.prepare("SELECT key, value, expiration FROM cache WHERE key LIKE ? ESCAPE '\\'");
+		const rows = stmt.all(`${escapedPrefix}%`) as { key: string; value: string; expiration: number }[];
 
 		const now = Date.now();
 		const results: { key: string; value: T }[] = [];

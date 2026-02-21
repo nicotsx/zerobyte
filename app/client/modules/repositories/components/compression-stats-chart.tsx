@@ -35,7 +35,7 @@ export function CompressionStatsChart({ repositoryShortId }: Props) {
 	const rawCompressionProgress = toSafeNumber(stats?.compression_progress);
 	const compressionProgressPercent = Math.min(100, Math.max(0, rawCompressionProgress));
 
-	const spaceSavingPercent = toSafeNumber(stats?.compression_space_saving) * 100;
+	const spaceSavingPercent = toSafeNumber(stats?.compression_space_saving);
 	const snapshotsCount = Math.round(toSafeNumber(stats?.snapshots_count));
 
 	const hasStats = !!stats && (storedSize > 0 || uncompressedSize > 0 || snapshotsCount > 0);
@@ -82,7 +82,7 @@ export function CompressionStatsChart({ repositoryShortId }: Props) {
 							<span className="text-xs font-medium uppercase tracking-wider">Stored Size</span>
 						</div>
 						<div className="flex items-baseline gap-2">
-							<ByteSize bytes={storedSize} className="text-2xl font-bold font-mono text-foreground" />
+							<ByteSize base={1024} bytes={storedSize} className="text-2xl font-bold font-mono text-foreground" />
 						</div>
 					</div>
 
@@ -91,7 +91,7 @@ export function CompressionStatsChart({ repositoryShortId }: Props) {
 							<span className="text-xs font-medium uppercase tracking-wider">Uncompressed</span>
 						</div>
 						<div className="flex items-baseline gap-2">
-							<ByteSize bytes={uncompressedSize} className="text-2xl font-bold font-mono text-foreground" />
+							<ByteSize base={1024} bytes={uncompressedSize} className="text-2xl font-bold font-mono text-foreground" />
 						</div>
 					</div>
 
@@ -101,7 +101,7 @@ export function CompressionStatsChart({ repositoryShortId }: Props) {
 						</div>
 						<div className="flex items-baseline gap-2">
 							<span className="text-2xl font-bold font-mono text-foreground">{spaceSavingPercent.toFixed(1)}%</span>
-							<ByteSize bytes={savedSize} className="text-sm text-muted-foreground font-mono" base={1024} />
+							<ByteSize base={1024} bytes={savedSize} className="text-sm text-muted-foreground font-mono" />
 						</div>
 					</div>
 

@@ -244,7 +244,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 		);
 		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
 
-		await expect(
+		expect(
 			withContext({ organizationId, userId: user.id }, () =>
 				repositoriesService.dumpSnapshot(shortId, "snapshot-no-kind", `${basePath}/documents/report.txt`),
 			),

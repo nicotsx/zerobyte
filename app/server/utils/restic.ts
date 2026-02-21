@@ -11,7 +11,6 @@ import {
 	type ResticBackupProgressDto,
 	type ResticRestoreOutputDto,
 	type ResticSnapshotSummaryDto,
-	type ResticStatsDto,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
 	resticRestoreOutputSchema,
@@ -417,7 +416,6 @@ const restoreProgressSchema = type({
 });
 
 export type RestoreProgress = typeof restoreProgressSchema.infer;
-export type ResticStats = ResticStatsDto;
 
 export interface ResticDumpStream {
 	stream: Readable;
