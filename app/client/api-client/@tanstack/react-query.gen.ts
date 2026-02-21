@@ -25,6 +25,7 @@ import {
 	deleteVolume,
 	devPanelExec,
 	downloadResticPassword,
+	dumpSnapshot,
 	getBackupSchedule,
 	getBackupScheduleForVolume,
 	getDevPanel,
@@ -100,6 +101,8 @@ import type {
 	DevPanelExecResponse,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponse,
+	DumpSnapshotData,
+	DumpSnapshotResponse,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponse,
@@ -850,6 +853,25 @@ export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFi
 			queryKey: listSnapshotFilesInfiniteQueryKey(options),
 		},
 	);
+
+export const dumpSnapshotQueryKey = (options: Options<DumpSnapshotData>) => createQueryKey("dumpSnapshot", options);
+
+/**
+ * Download a snapshot path as a tar archive (folders) or raw file stream (single files)
+ */
+export const dumpSnapshotOptions = (options: Options<DumpSnapshotData>) =>
+	queryOptions<DumpSnapshotResponse, DefaultError, DumpSnapshotResponse, ReturnType<typeof dumpSnapshotQueryKey>>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await dumpSnapshot({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: dumpSnapshotQueryKey(options),
+	});
 
 /**
  * Restore a snapshot to a target path on the filesystem

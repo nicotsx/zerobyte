@@ -290,22 +290,34 @@ export const listSnapshotFilesDto = describeRoute({
 	},
 });
 
+const DUMP_PATH_KINDS = {
+	file: "file",
+	dir: "dir",
+} as const;
+
+export const dumpPathKindSchema = type.valueOf(DUMP_PATH_KINDS);
+export type DumpPathKind = typeof dumpPathKindSchema.infer;
+
 /**
- * Download snapshot or a specific path as tar archive
+ * Download snapshot paths as tar archives (folders) or raw file streams (single files)
  */
 export const dumpSnapshotQuery = type({
 	path: "string?",
+	kind: dumpPathKindSchema.optional(),
 });
 
 export const dumpSnapshotDto = describeRoute({
-	description: "Download a full snapshot or a single file/folder path as a tar archive",
+	description: "Download a snapshot path as a tar archive (folders) or raw file stream (single files)",
 	tags: ["Repositories"],
 	operationId: "dumpSnapshot",
 	responses: {
 		200: {
-			description: "Snapshot archive stream",
+			description: "Snapshot content stream",
 			content: {
 				"application/x-tar": {
+					schema: { type: "string", format: "binary" },
+				},
+				"application/octet-stream": {
 					schema: { type: "string", format: "binary" },
 				},
 			},

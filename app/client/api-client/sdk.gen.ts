@@ -35,6 +35,8 @@ import type {
 	DevPanelExecResponses,
 	DownloadResticPasswordData,
 	DownloadResticPasswordResponses,
+	DumpSnapshotData,
+	DumpSnapshotResponses,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponses,
@@ -428,6 +430,15 @@ export const listSnapshotFiles = <ThrowOnError extends boolean = false>(
 ) =>
 	(options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({
 		url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files",
+		...options,
+	});
+
+/**
+ * Download a snapshot path as a tar archive (folders) or raw file stream (single files)
+ */
+export const dumpSnapshot = <ThrowOnError extends boolean = false>(options: Options<DumpSnapshotData, ThrowOnError>) =>
+	(options.client ?? client).get<DumpSnapshotResponses, unknown, ThrowOnError>({
+		url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump",
 		...options,
 	});
 

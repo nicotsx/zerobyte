@@ -1970,6 +1970,28 @@ export type ListSnapshotFilesResponses = {
 
 export type ListSnapshotFilesResponse = ListSnapshotFilesResponses[keyof ListSnapshotFilesResponses];
 
+export type DumpSnapshotData = {
+	body?: never;
+	path: {
+		shortId: string;
+		snapshotId: string;
+	};
+	query?: {
+		kind?: "dir" | "file";
+		path?: string;
+	};
+	url: "/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump";
+};
+
+export type DumpSnapshotResponses = {
+	/**
+	 * Snapshot content stream
+	 */
+	200: Blob | File;
+};
+
+export type DumpSnapshotResponse = DumpSnapshotResponses[keyof DumpSnapshotResponses];
+
 export type RestoreSnapshotData = {
 	body?: {
 		snapshotId: string;

@@ -171,9 +171,9 @@ export const repositoriesController = new Hono()
 	)
 	.get("/:shortId/snapshots/:snapshotId/dump", dumpSnapshotDto, validator("query", dumpSnapshotQuery), async (c) => {
 		const { shortId, snapshotId } = c.req.param();
-		const { path } = c.req.valid("query");
+		const { path, kind } = c.req.valid("query");
 
-		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path);
+		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path, kind);
 		const signal = c.req.raw.signal;
 
 		if (signal.aborted) {
@@ -187,7 +187,7 @@ export const repositoriesController = new Hono()
 		return new Response(webStream, {
 			status: 200,
 			headers: {
-				"Content-Type": "application/x-tar",
+				"Content-Type": dumpStream.contentType,
 				"Content-Disposition": contentDisposition(dumpStream.filename || "snapshot.tar"),
 				"X-Content-Type-Options": "nosniff",
 			},

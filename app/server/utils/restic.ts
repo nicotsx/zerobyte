@@ -580,13 +580,18 @@ const dump = async (
 	options: {
 		organizationId: string;
 		path?: string;
+		archive?: false;
 	},
 ): Promise<ResticDumpStream> => {
 	const repoUrl = buildRepoUrl(config);
 	const env = await buildEnv(config, options.organizationId);
 	const pathToDump = normalizeDumpPath(options.path);
 
-	const args: string[] = ["--repo", repoUrl, "dump", snapshotRef, pathToDump, "--archive", "tar"];
+	const args: string[] = ["--repo", repoUrl, "dump", snapshotRef, pathToDump];
+
+	if (options.archive !== false) {
+		args.push("--archive", "tar");
+	}
 
 	addCommonArgs(args, env, config, { includeJson: false });
 

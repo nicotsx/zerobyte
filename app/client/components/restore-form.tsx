@@ -54,6 +54,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 	const restoreCompletedRef = useRef(false);
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
+	const [selectedPathKind, setSelectedPathKind] = useState<"file" | "dir" | null>(null);
 
 	useEffect(() => {
 		const abortController = new AbortController();
@@ -165,6 +166,9 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 			const [selectedPath] = selectedPaths;
 			if (selectedPath) {
 				dumpUrl.searchParams.set("path", selectedPath);
+				if (selectedPathKind) {
+					dumpUrl.searchParams.set("kind", selectedPathKind);
+				}
 			}
 		}
 
@@ -174,7 +178,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		link.click();
 		document.body.removeChild(link);
 		setWaitingForDownload(false);
-	}, [repository.shortId, snapshotId, selectedPaths]);
+	}, [repository.shortId, snapshotId, selectedPathKind, selectedPaths]);
 
 	const acknowledgeRestoreResult = useCallback(() => {
 		setShowRestoreResultAlert(false);
@@ -362,6 +366,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 							withCheckboxes
 							selectedPaths={selectedPaths}
 							onSelectionChange={setSelectedPaths}
+							onSingleSelectionKindChange={setSelectedPathKind}
 							stateClassName="flex-1 min-h-0"
 						/>
 					</CardContent>

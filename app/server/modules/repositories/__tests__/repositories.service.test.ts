@@ -131,7 +131,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 		const emitSpy = spyOn(serverEvents, "emit");
 
 		await withContext({ organizationId, userId: user.id }, () =>
-			repositoriesService.dumpSnapshot(shortId, "snapshot-123", `${basePath}/documents`),
+			repositoriesService.dumpSnapshot(shortId, "snapshot-123", `${basePath}/documents`, "dir"),
 		);
 
 		expect(dumpMock).toHaveBeenCalledTimes(1);
@@ -154,6 +154,101 @@ describe("repositoriesService.dumpSnapshot", () => {
 				path: "/documents",
 			}),
 		);
+	});
+
+	test("streams a single file directly when selected path is a file", async () => {
+		const { organizationId, user } = await createTestSession();
+		const shortId = generateShortId();
+		const basePath = "/var/lib/zerobyte/volumes/vol123/_data";
+
+		await db.insert(repositoriesTable).values({
+			id: randomUUID(),
+			shortId,
+			name: `Repository-${randomUUID()}`,
+			type: "local",
+			config: {
+				backend: "local",
+				path: `/tmp/repository-${randomUUID()}`,
+				isExistingRepository: true,
+			},
+			compressionMode: "off",
+			organizationId,
+		});
+
+		const snapshotsMock = mock(() =>
+			Promise.resolve([
+				{
+					id: "snapshot-file",
+					short_id: "snapshot-file",
+					time: new Date().toISOString(),
+					tree: "tree-file",
+					paths: [basePath],
+					hostname: "host",
+				},
+			]),
+		);
+		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
+
+		const dumpMock = mock(() =>
+			Promise.resolve({
+				stream: Readable.from([]),
+				completion: Promise.resolve(),
+				abort: () => {},
+			}),
+		);
+		spyOn(restic, "dump").mockImplementation(dumpMock);
+
+		const result = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.dumpSnapshot(shortId, "snapshot-file", `${basePath}/documents/report.txt`, "file"),
+		);
+
+		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-file:${basePath}`, {
+			organizationId,
+			path: "/documents/report.txt",
+			archive: false,
+		});
+		expect(result.filename).toBe("report.txt");
+		expect(result.contentType).toBe("application/octet-stream");
+	});
+
+	test("rejects path downloads without a kind", async () => {
+		const { organizationId, user } = await createTestSession();
+		const shortId = generateShortId();
+		const basePath = "/var/lib/zerobyte/volumes/vol123/_data";
+
+		await db.insert(repositoriesTable).values({
+			id: randomUUID(),
+			shortId,
+			name: `Repository-${randomUUID()}`,
+			type: "local",
+			config: {
+				backend: "local",
+				path: `/tmp/repository-${randomUUID()}`,
+				isExistingRepository: true,
+			},
+			compressionMode: "off",
+			organizationId,
+		});
+
+		const snapshotsMock = mock(() =>
+			Promise.resolve([
+				{
+					id: "snapshot-no-kind",
+					short_id: "snapshot-no-kind",
+					time: new Date().toISOString(),
+					tree: "tree-no-kind",
+					paths: [basePath],
+					hostname: "host",
+				},
+			]),
+		);
+		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
+
+		await expect(
+			withContext({ organizationId, userId: user.id }, () =>
+				repositoriesService.dumpSnapshot(shortId, "snapshot-no-kind", `${basePath}/documents/report.txt`),
+			),
+		).rejects.toThrow("Path kind is required when downloading a specific snapshot path");
 	});
 
 	test("downloads full snapshot relative to common ancestor when path is omitted", async () => {
