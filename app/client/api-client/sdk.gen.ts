@@ -197,6 +197,11 @@ export const deleteSsoInvitation = <ThrowOnError extends boolean = false>(option
 export const getAdminUsers = <ThrowOnError extends boolean = false>(options?: Options<GetAdminUsersData, ThrowOnError>) => (options?.client ?? client).get<GetAdminUsersResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/admin-users', ...options });
 
 /**
+ * Delete an account linked to a user
+ */
+export const deleteUserAccount = <ThrowOnError extends boolean = false>(options: Options<DeleteUserAccountData, ThrowOnError>) => (options.client ?? client).delete<DeleteUserAccountResponses, DeleteUserAccountErrors, ThrowOnError>({ url: '/api/v1/auth/admin-users/{userId}/accounts/{accountId}', ...options });
+
+/**
  * Get impact of deleting a user
  */
 export const getUserDeletionImpact = <ThrowOnError extends boolean = false>(options: Options<GetUserDeletionImpactData, ThrowOnError>) => (options.client ?? client).get<GetUserDeletionImpactResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/deletion-impact/{userId}', ...options });

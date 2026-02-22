@@ -73,6 +73,10 @@ export const adminUsersResponse = type({
 		email: "string",
 		role: "string",
 		banned: "boolean",
+		accounts: type({
+			id: "string",
+			providerId: "string",
+		}).array(),
 	}).array(),
 	total: "number",
 	limit: "number",
@@ -169,6 +173,23 @@ export const deleteSsoInvitationDto = describeRoute({
 		},
 		403: {
 			description: "Forbidden",
+		},
+	},
+});
+
+export const deleteUserAccountDto = describeRoute({
+	description: "Delete an account linked to a user",
+	operationId: "deleteUserAccount",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Account deleted successfully",
+		},
+		403: {
+			description: "Forbidden",
+		},
+		409: {
+			description: "Cannot delete the last account",
 		},
 	},
 });

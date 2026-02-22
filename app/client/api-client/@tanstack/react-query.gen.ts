@@ -349,6 +349,23 @@ export const getAdminUsersOptions = (options?: Options<GetAdminUsersData>) => qu
     queryKey: getAdminUsersQueryKey(options)
 });
 
+/**
+ * Delete an account linked to a user
+ */
+export const deleteUserAccountMutation = (options?: Partial<Options<DeleteUserAccountData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteUserAccountData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteUserAccountData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteUserAccount({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const getUserDeletionImpactQueryKey = (options: Options<GetUserDeletionImpactData>) => createQueryKey('getUserDeletionImpact', options);
 
 /**
