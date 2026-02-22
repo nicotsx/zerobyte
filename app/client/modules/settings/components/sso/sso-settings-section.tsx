@@ -1,9 +1,7 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { type } from "arktype";
-import { AlertTriangle, Ban, Trash2 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Ban, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
 	deleteSsoInvitationMutation,
@@ -22,68 +20,27 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "~/client/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
+import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "~/client/components/ui/dialog";
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import { authClient } from "~/client/lib/auth-client";
 import { parseError } from "~/client/lib/errors";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { formatDateWithMonth } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
+import { authClient } from "~/client/lib/auth-client";
 
-const ssoProviderSchema = type({
-	providerId: "string>=1",
-	issuer: "string>=1",
-	domain: "string>=1",
-	clientId: "string>=1",
-	clientSecret: "string>=1",
-	discoveryEndpoint: "string>=1",
-	linkMatchingEmails: "boolean",
-});
-
-type ProviderForm = typeof ssoProviderSchema.infer;
 type InvitationRole = "member" | "admin" | "owner";
 
 export function SsoSettingsSection() {
 	const origin = getOrigin();
+	const navigate = useNavigate();
 	const { activeOrganization } = useOrganizationContext();
-	const [isRegisterProviderDialogOpen, setIsRegisterProviderDialogOpen] = useState(false);
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<InvitationRole>("member");
-
-	const form = useForm<ProviderForm>({
-		resolver: arktypeResolver(ssoProviderSchema),
-		defaultValues: {
-			providerId: "",
-			issuer: "",
-			domain: "",
-			clientId: "",
-			clientSecret: "",
-			discoveryEndpoint: "",
-			linkMatchingEmails: true,
-		},
-	});
 
 	const { data } = useSuspenseQuery({
 		...getSsoSettingsOptions(),
@@ -94,48 +51,6 @@ export function SsoSettingsSection() {
 
 	const updateProviderAutoLinkingMutation = useMutation({
 		...updateSsoProviderAutoLinkingMutation(),
-	});
-
-	const registerProviderMutation = useMutation({
-		mutationFn: async (formData: ProviderForm) => {
-			if (!activeOrganization) {
-				throw new Error("No active organization found in session");
-			}
-
-			const { error } = await authClient.sso.register({
-				providerId: formData.providerId,
-				issuer: formData.issuer,
-				domain: formData.domain,
-				organizationId: activeOrganization.id,
-				oidcConfig: {
-					clientId: formData.clientId,
-					clientSecret: formData.clientSecret,
-					discoveryEndpoint: formData.discoveryEndpoint,
-					scopes: ["openid", "email", "profile"],
-				},
-			});
-
-			if (error) throw error;
-
-			await updateProviderAutoLinkingMutation
-				.mutateAsync({
-					path: { providerId: formData.providerId },
-					body: { enabled: formData.linkMatchingEmails },
-				})
-				.catch((updateError) => {
-					throw new Error(
-						`The provider was created, but we could not save the auto-link setting. ${parseError(updateError)?.message ?? ""}`,
-					);
-				});
-		},
-		onSuccess: () => {
-			toast.success("SSO provider registered successfully");
-			form.reset();
-			setIsRegisterProviderDialogOpen(false);
-		},
-		onError: (error: unknown) => {
-			toast.error("Failed to register provider", { description: parseError(error)?.message });
-		},
 	});
 
 	const deleteProviderMutation = useMutation({
@@ -213,172 +128,13 @@ export function SsoSettingsSection() {
 						<p className="text-xs text-muted-foreground">Manage identity providers used for organization sign-in.</p>
 					</div>
 
-					<Dialog open={isRegisterProviderDialogOpen} onOpenChange={setIsRegisterProviderDialogOpen}>
-						<DialogTrigger asChild>
-							<Button type="button" disabled={!activeOrganization}>
-								Register new
-							</Button>
-						</DialogTrigger>
-
-						<DialogContent className="sm:max-w-2xl">
-							<DialogHeader>
-								<DialogTitle>Register SSO provider</DialogTitle>
-								<DialogDescription>Connect an OIDC provider for the active organization.</DialogDescription>
-							</DialogHeader>
-
-							<Form {...form}>
-								<form
-									onSubmit={form.handleSubmit((values) => registerProviderMutation.mutate(values))}
-									className="space-y-4"
-								>
-									<div className="grid gap-4 @xl:grid-cols-2">
-										<FormField
-											control={form.control}
-											name="providerId"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Provider ID</FormLabel>
-													<FormControl>
-														<Input {...field} placeholder="acme-oidc" disabled={registerProviderMutation.isPending} />
-													</FormControl>
-													<FormDescription>Unique identifier used in callback URLs.</FormDescription>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name="domain"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Organization Domain</FormLabel>
-													<FormControl>
-														<Input {...field} placeholder="example.com" disabled={registerProviderMutation.isPending} />
-													</FormControl>
-													<FormDescription>Used to discover providers during login.</FormDescription>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name="issuer"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Issuer URL</FormLabel>
-													<FormControl>
-														<Input
-															{...field}
-															placeholder="https://idp.example.com"
-															disabled={registerProviderMutation.isPending}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name="discoveryEndpoint"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Discovery Endpoint</FormLabel>
-													<FormControl>
-														<Input
-															{...field}
-															placeholder="https://idp.example.com/.well-known/openid-configuration"
-															disabled={registerProviderMutation.isPending}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name="clientId"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Client ID</FormLabel>
-													<FormControl>
-														<Input
-															{...field}
-															placeholder="oidc-client-id"
-															disabled={registerProviderMutation.isPending}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-
-										<FormField
-											control={form.control}
-											name="clientSecret"
-											render={({ field }) => (
-												<FormItem>
-													<FormLabel>Client Secret</FormLabel>
-													<FormControl>
-														<Input
-															{...field}
-															type="password"
-															placeholder="oidc-client-secret"
-															disabled={registerProviderMutation.isPending}
-														/>
-													</FormControl>
-													<FormMessage />
-												</FormItem>
-											)}
-										/>
-									</div>
-
-									<FormField
-										control={form.control}
-										name="linkMatchingEmails"
-										render={({ field }) => (
-											<FormItem className="rounded-md border p-4">
-												<div className="flex items-start justify-between gap-4">
-													<div className="space-y-1">
-														<FormLabel>Link matching emails to existing accounts</FormLabel>
-														<FormDescription>
-															If enabled, users who sign in with this provider will automatically access their existing
-															account when the email address matches.
-														</FormDescription>
-													</div>
-													<FormControl>
-														<Switch
-															checked={field.value}
-															onCheckedChange={field.onChange}
-															disabled={registerProviderMutation.isPending}
-														/>
-													</FormControl>
-												</div>
-												<FormMessage />
-											</FormItem>
-										)}
-									/>
-
-									{!activeOrganization ? (
-										<Alert variant="destructive">
-											<AlertDescription>
-												No active organization found. Select an organization before registering an SSO provider.
-											</AlertDescription>
-										</Alert>
-									) : null}
-
-									<div className="flex justify-end">
-										<Button type="submit" loading={registerProviderMutation.isPending} disabled={!activeOrganization}>
-											Register SSO Provider
-										</Button>
-									</div>
-								</form>
-							</Form>
-						</DialogContent>
-					</Dialog>
+					<Button
+						type="button"
+						disabled={!activeOrganization}
+						onClick={() => void navigate({ to: "/settings/sso/new" })}
+					>
+						Register new
+					</Button>
 				</div>
 
 				<Alert variant="warning">
