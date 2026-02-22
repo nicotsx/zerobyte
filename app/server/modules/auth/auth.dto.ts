@@ -36,6 +36,7 @@ export const ssoSettingsResponse = type({
 		type: "string",
 		issuer: "string",
 		domain: "string",
+		autoLinkMatchingEmails: "boolean",
 		organizationId: "string | null",
 	}).array(),
 	invitations: type({
@@ -75,6 +76,7 @@ export const adminUsersResponse = type({
 	}).array(),
 	total: "number",
 	limit: "number",
+	offset: "number",
 });
 
 export type AdminUsersDto = typeof adminUsersResponse.infer;
@@ -167,6 +169,27 @@ export const deleteSsoInvitationDto = describeRoute({
 		},
 		403: {
 			description: "Forbidden",
+		},
+	},
+});
+
+export const updateSsoProviderAutoLinkingBody = type({
+	enabled: "boolean",
+});
+
+export const updateSsoProviderAutoLinkingDto = describeRoute({
+	description: "Update whether SSO sign-in can auto-link existing accounts by email",
+	operationId: "updateSsoProviderAutoLinking",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "SSO provider auto-linking setting updated successfully",
+		},
+		403: {
+			description: "Forbidden",
+		},
+		404: {
+			description: "Provider not found",
 		},
 	},
 });

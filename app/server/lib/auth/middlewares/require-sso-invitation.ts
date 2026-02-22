@@ -16,12 +16,16 @@ export function isSsoCallbackRequest(ctx: GenericEndpointContext | null) {
 
 export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpointContext | null) => {
 	if (!ctx) {
-		return;
+		throw new APIError("BAD_REQUEST", {
+			message: "Missing SSO context",
+		});
 	}
 
 	const providerId = extractProviderIdFromContext(ctx);
 	if (!providerId) {
-		return;
+		throw new APIError("BAD_REQUEST", {
+			message: "Missing providerId in context",
+		});
 	}
 
 	const provider = await db
@@ -31,7 +35,9 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 		.limit(1);
 
 	if (provider.length === 0) {
-		return;
+		throw new APIError("NOT_FOUND", {
+			message: "SSO provider not found",
+		});
 	}
 
 	const normalizedEmail = normalizeEmail(userEmail);

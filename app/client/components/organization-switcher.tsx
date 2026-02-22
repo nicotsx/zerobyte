@@ -42,7 +42,11 @@ export function OrganizationSwitcher() {
 		},
 	});
 
-	if (organizations && organizations.length <= 1) {
+	if (organizations === undefined) {
+		return null;
+	}
+
+	if (organizations.length <= 1) {
 		return null;
 	}
 
@@ -68,7 +72,7 @@ export function OrganizationSwitcher() {
 							</div>
 							<div className="grid flex-1 text-left text-sm leading-tight">
 								<span className="truncate font-medium">{activeOrganization?.name}</span>
-								<span className="truncate text-xs">{organizations?.length} organizations</span>
+								<span className="truncate text-xs">{organizations.length} organizations</span>
 							</div>
 							<ChevronsUpDown className="ml-auto" />
 						</SidebarMenuButton>
@@ -80,7 +84,7 @@ export function OrganizationSwitcher() {
 						sideOffset={4}
 					>
 						<DropdownMenuLabel className="text-muted-foreground text-xs">Organizations</DropdownMenuLabel>
-						{organizations?.map((organization) => (
+						{organizations.map((organization) => (
 							<DropdownMenuItem
 								key={organization.id}
 								onClick={() => switchOrganizationMutation.mutate(organization.id)}

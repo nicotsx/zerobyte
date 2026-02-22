@@ -1,7 +1,7 @@
 import { arktypeResolver } from "@hookform/resolvers/arktype";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { type } from "arktype";
-import { Ban, Trash2 } from "lucide-react";
+import { AlertTriangle, Ban, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -9,8 +9,8 @@ import {
 	deleteSsoInvitationMutation,
 	deleteSsoProviderMutation,
 	getSsoSettingsOptions,
+	updateSsoProviderAutoLinkingMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,7 +22,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "~/client/components/ui/alert-dialog";
-import { Badge } from "~/client/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import {
 	Dialog,
@@ -44,6 +44,7 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
+import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { authClient } from "~/client/lib/auth-client";
 import { parseError } from "~/client/lib/errors";
@@ -58,6 +59,7 @@ const ssoProviderSchema = type({
 	clientId: "string>=1",
 	clientSecret: "string>=1",
 	discoveryEndpoint: "string>=1",
+	linkMatchingEmails: "boolean",
 });
 
 type ProviderForm = typeof ssoProviderSchema.infer;
@@ -79,6 +81,7 @@ export function SsoSettingsSection() {
 			clientId: "",
 			clientSecret: "",
 			discoveryEndpoint: "",
+			linkMatchingEmails: true,
 		},
 	});
 
@@ -88,6 +91,10 @@ export function SsoSettingsSection() {
 
 	const providers = data.providers;
 	const invitations = data.invitations;
+
+	const updateProviderAutoLinkingMutation = useMutation({
+		...updateSsoProviderAutoLinkingMutation(),
+	});
 
 	const registerProviderMutation = useMutation({
 		mutationFn: async (formData: ProviderForm) => {
@@ -109,6 +116,17 @@ export function SsoSettingsSection() {
 			});
 
 			if (error) throw error;
+
+			await updateProviderAutoLinkingMutation
+				.mutateAsync({
+					path: { providerId: formData.providerId },
+					body: { enabled: formData.linkMatchingEmails },
+				})
+				.catch((updateError) => {
+					throw new Error(
+						`The provider was created, but we could not save the auto-link setting. ${parseError(updateError)?.message ?? ""}`,
+					);
+				});
 		},
 		onSuccess: () => {
 			toast.success("SSO provider registered successfully");
@@ -318,6 +336,32 @@ export function SsoSettingsSection() {
 										/>
 									</div>
 
+									<FormField
+										control={form.control}
+										name="linkMatchingEmails"
+										render={({ field }) => (
+											<FormItem className="rounded-md border p-4">
+												<div className="flex items-start justify-between gap-4">
+													<div className="space-y-1">
+														<FormLabel>Link matching emails to existing accounts</FormLabel>
+														<FormDescription>
+															If enabled, users who sign in with this provider will automatically access their existing
+															account when the email address matches.
+														</FormDescription>
+													</div>
+													<FormControl>
+														<Switch
+															checked={field.value}
+															onCheckedChange={field.onChange}
+															disabled={registerProviderMutation.isPending}
+														/>
+													</FormControl>
+												</div>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+
 									{!activeOrganization ? (
 										<Alert variant="destructive">
 											<AlertDescription>
@@ -337,6 +381,13 @@ export function SsoSettingsSection() {
 					</Dialog>
 				</div>
 
+				<Alert variant="warning">
+					<AlertDescription>
+						Only enable automatic account linking for identity providers you trust. You can change this per provider at
+						any time.
+					</AlertDescription>
+				</Alert>
+
 				<div className="rounded-md border">
 					<Table>
 						<TableHeader>
@@ -345,6 +396,7 @@ export function SsoSettingsSection() {
 								<TableHead>Domain</TableHead>
 								<TableHead>Issuer</TableHead>
 								<TableHead>Type</TableHead>
+								<TableHead>Auto-link existing account</TableHead>
 								<TableHead>Callback URL</TableHead>
 								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
@@ -358,9 +410,42 @@ export function SsoSettingsSection() {
 										<TableCell className="break-all">{provider.issuer}</TableCell>
 										<TableCell>
 											<div className="flex items-center gap-2">
-												<Badge variant="outline" className="uppercase">
+												<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">
 													{provider.type}
-												</Badge>
+												</span>
+											</div>
+										</TableCell>
+										<TableCell>
+											<div className="flex items-center gap-2">
+												<Switch
+													checked={provider.autoLinkMatchingEmails}
+													disabled={updateProviderAutoLinkingMutation.isPending}
+													onCheckedChange={(enabled) => {
+														updateProviderAutoLinkingMutation.mutate(
+															{
+																path: { providerId: provider.providerId },
+																body: { enabled },
+															},
+															{
+																onSuccess: () => {
+																	toast.success(
+																		enabled
+																			? "Automatic account linking enabled"
+																			: "Automatic account linking disabled",
+																	);
+																},
+																onError: (error) => {
+																	toast.error("Failed to update provider", {
+																		description: parseError(error)?.message,
+																	});
+																},
+															},
+														);
+													}}
+												/>
+												<span className="text-xs text-muted-foreground">
+													{provider.autoLinkMatchingEmails ? "On" : "Off"}
+												</span>
 											</div>
 										</TableCell>
 										<TableCell>
@@ -415,7 +500,7 @@ export function SsoSettingsSection() {
 								))
 							) : (
 								<TableRow>
-									<TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+									<TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
 										No providers registered yet.
 									</TableCell>
 								</TableRow>
@@ -494,9 +579,15 @@ export function SsoSettingsSection() {
 										<TableCell className="font-medium">{invitation.email}</TableCell>
 										<TableCell className="uppercase">{invitation.role}</TableCell>
 										<TableCell>
-											<Badge variant={invitation.status === "pending" ? "default" : "outline"}>
+											<span
+												className={`text-xs font-medium px-2 py-0.5 rounded border ${
+													invitation.status === "pending"
+														? "bg-primary/10 border-primary/20"
+														: "bg-muted border-muted-foreground/20"
+												}`}
+											>
 												{invitation.status}
-											</Badge>
+											</span>
 										</TableCell>
 										<TableCell>{formatDateWithMonth(invitation.expiresAt)}</TableCell>
 										<TableCell className="text-right">
