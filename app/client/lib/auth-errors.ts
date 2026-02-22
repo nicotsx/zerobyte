@@ -47,7 +47,7 @@ export function decodeLoginError(error?: string): LoginErrorCode | null {
 export function getLoginErrorDescription(errorCode: LoginErrorCode | null): string | null {
 	switch (errorCode) {
 		case "ACCOUNT_LINK_REQUIRED":
-			return "Your account exists but is not linked to this organization SSO provider. Sign in with username/password first, then link SSO from settings.";
+			return "Your account exists but is not linked to this SSO provider. Sign in with username/password first, then enable auto linking in your provider settings or contact your administrator.";
 		case "EMAIL_NOT_VERIFIED":
 			return "Your identity provider did not mark your email as verified.";
 		case "INVITE_REQUIRED":

@@ -167,6 +167,10 @@ export type GetAdminUsersResponses = {
         offset: number;
         total: number;
         users: Array<{
+            accounts: Array<{
+                id: string;
+                providerId: string;
+            }>;
             banned: boolean;
             email: string;
             id: string;
@@ -177,6 +181,34 @@ export type GetAdminUsersResponses = {
 };
 
 export type GetAdminUsersResponse = GetAdminUsersResponses[keyof GetAdminUsersResponses];
+
+export type DeleteUserAccountData = {
+    body?: never;
+    path: {
+        userId: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/admin-users/{userId}/accounts/{accountId}';
+};
+
+export type DeleteUserAccountErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Cannot delete the last account
+     */
+    409: unknown;
+};
+
+export type DeleteUserAccountResponses = {
+    /**
+     * Account deleted successfully
+     */
+    200: unknown;
+};
 
 export type GetUserDeletionImpactData = {
     body?: never;

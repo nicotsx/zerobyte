@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { Shield, ShieldAlert, UserCheck, Trash2, Search, AlertTriangle, Ban } from "lucide-react";
+import { Shield, ShieldAlert, UserCheck, Trash2, Search, AlertTriangle, Ban, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { authClient } from "~/client/lib/auth-client";
@@ -17,12 +17,21 @@ import {
 	DialogTitle,
 } from "~/client/components/ui/dialog";
 import { CreateUserDialog } from "./create-user-dialog";
-import { getAdminUsersOptions, getUserDeletionImpactOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getAdminUsersOptions,
+	getUserDeletionImpactOptions,
+	deleteUserAccountMutation,
+} from "~/client/api-client/@tanstack/react-query.gen";
 
 export function UserManagement({ currentUser }: { currentUser: { id: string } | undefined | null }) {
 	const [search, setSearch] = useState("");
 	const [userToDelete, setUserToDelete] = useState<string | null>(null);
 	const [userToBan, setUserToBan] = useState<{ id: string; name: string; isBanned: boolean } | null>(null);
+	const [userToManageAccounts, setUserToManageAccounts] = useState<{
+		id: string;
+		name: string;
+		accounts: { id: string; providerId: string }[];
+	} | null>(null);
 
 	const { data: deletionImpact, isLoading: isLoadingImpact } = useQuery({
 		...getUserDeletionImpactOptions({ path: { userId: userToDelete ?? "" } }),
@@ -71,6 +80,23 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 		},
 		onError: (error) => {
 			toast.error("Failed to delete user", { description: error.message });
+		},
+	});
+
+	const deleteAccount = useMutation({
+		...deleteUserAccountMutation(),
+		onSuccess: (_data, variables) => {
+			toast.success("Account removed successfully");
+			setUserToManageAccounts((prev) => {
+				if (!prev) return null;
+				return {
+					...prev,
+					accounts: prev.accounts.filter((a) => a.id !== variables.path.accountId),
+				};
+			});
+		},
+		onError: (error) => {
+			toast.error("Failed to remove account", { description: error.message });
 		},
 	});
 
@@ -135,12 +161,12 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 									</Badge>
 								</TableCell>
 								<TableCell className="text-right">
-									<div className={cn("flex justify-end gap-2", { hidden: user.id === currentUser?.id })}>
+									<div className={cn("flex justify-end gap-2")}>
 										<Button
 											variant="ghost"
 											size="icon"
 											title="Demote to User"
-											className={cn({ hidden: user.role !== "admin" })}
+											className={cn({ hidden: user.role !== "admin" || user.id === currentUser?.id })}
 											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "user" })}
 										>
 											<ShieldAlert className="h-4 w-4" />
@@ -149,7 +175,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 											variant="ghost"
 											size="icon"
 											title="Promote to Admin"
-											className={cn({ hidden: user.role === "admin" })}
+											className={cn({ hidden: user.role === "admin" || user.id === currentUser?.id })}
 											onClick={() => setRoleMutation.mutate({ userId: user.id, role: "admin" })}
 										>
 											<Shield className="h-4 w-4" />
@@ -159,7 +185,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 											variant="ghost"
 											size="icon"
 											title="Unban user"
-											className={cn({ hidden: !user.banned })}
+											className={cn({ hidden: !user.banned || user.id === currentUser?.id })}
 											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: true })}
 										>
 											<UserCheck className="h-4 w-4" />
@@ -168,14 +194,35 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 											variant="ghost"
 											size="icon"
 											title="Ban user"
-											className={cn({ hidden: !!user.banned })}
+											className={cn({ hidden: !!user.banned || user.id === currentUser?.id })}
 											onClick={() => setUserToBan({ id: user.id, name: user.name ?? user.email, isBanned: false })}
 										>
 											<Ban className="h-4 w-4" />
 										</Button>
 
-										<Button variant="ghost" size="icon" title="Delete User" onClick={() => setUserToDelete(user.id)}>
+										<Button
+											variant="ghost"
+											size="icon"
+											title="Delete User"
+											className={cn({ hidden: user.id === currentUser?.id })}
+											onClick={() => setUserToDelete(user.id)}
+										>
 											<Trash2 className="h-4 w-4 text-destructive" />
+										</Button>
+
+										<Button
+											variant="ghost"
+											size="icon"
+											title="Manage Accounts"
+											onClick={() =>
+												setUserToManageAccounts({
+													id: user.id,
+													name: user.name ?? user.email,
+													accounts: user.accounts,
+												})
+											}
+										>
+											<KeyRound className="h-4 w-4" />
 										</Button>
 									</div>
 								</TableCell>
@@ -267,6 +314,45 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: true })}
 						>
 							Ban User
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={Boolean(userToManageAccounts)} onOpenChange={(open) => !open && setUserToManageAccounts(null)}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Manage Accounts</DialogTitle>
+						<DialogDescription>Linked authentication accounts for {userToManageAccounts?.name}.</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-2">
+						{userToManageAccounts?.accounts.length === 0 ? (
+							<p className="text-sm text-muted-foreground text-center py-4">No accounts linked.</p>
+						) : null}
+						{userToManageAccounts?.accounts.map((account) => (
+							<div key={account.id} className="flex items-center justify-between p-3 border rounded-md">
+								<span className="text-sm font-medium">{account.providerId}</span>
+								<Button
+									variant="ghost"
+									size="icon"
+									title="Remove account"
+									disabled={deleteAccount.isPending}
+									onClick={() =>
+										deleteAccount.mutate({
+											path: { userId: userToManageAccounts.id, accountId: account.id },
+										})
+									}
+								>
+									<Trash2 className="h-4 w-4 text-destructive" />
+								</Button>
+							</div>
+						))}
+					</div>
+
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setUserToManageAccounts(null)}>
+							Close
 						</Button>
 					</DialogFooter>
 				</DialogContent>

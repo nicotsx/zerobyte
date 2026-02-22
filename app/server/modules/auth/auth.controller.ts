@@ -15,6 +15,7 @@ import {
 	deleteSsoInvitationDto,
 	updateSsoProviderAutoLinkingBody,
 	updateSsoProviderAutoLinkingDto,
+	deleteUserAccountDto,
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { requireAdmin, requireAuth } from "./auth.middleware";
@@ -100,6 +101,9 @@ export const authController = new Hono()
 			query: { limit: 100 },
 		});
 
+		const userIds = usersData.users.map((u) => u.id);
+		const accountsByUser = await authService.getUserAccounts(userIds);
+
 		return c.json<AdminUsersDto>({
 			users: usersData.users.map((adminUser) => ({
 				id: adminUser.id,
@@ -107,11 +111,24 @@ export const authController = new Hono()
 				email: adminUser.email,
 				role: adminUser.role ?? "user",
 				banned: Boolean(adminUser.banned),
+				accounts: accountsByUser[adminUser.id] ?? [],
 			})),
 			total: usersData.total,
 			limit: "limit" in usersData ? (usersData.limit ?? 100) : 100,
 			offset: "offset" in usersData ? (usersData.offset ?? 0) : 0,
 		});
+	})
+	.delete("/admin-users/:userId/accounts/:accountId", requireAuth, requireAdmin, deleteUserAccountDto, async (c) => {
+		const userId = c.req.param("userId");
+		const accountId = c.req.param("accountId");
+
+		const result = await authService.deleteUserAccount(userId, accountId);
+
+		if (result.lastAccount) {
+			return c.json({ message: "Cannot delete the last account of a user" }, 409);
+		}
+
+		return c.json({ success: true });
 	})
 	.get("/deletion-impact/:userId", requireAuth, requireAdmin, getUserDeletionImpactDto, async (c) => {
 		const userId = c.req.param("userId");

@@ -152,6 +152,41 @@ export class AuthService {
 	async deleteSsoInvitation(invitationId: string): Promise<void> {
 		await db.delete(invitation).where(eq(invitation.id, invitationId));
 	}
+
+	/**
+	 * Fetch accounts for a list of users, keyed by userId
+	 */
+	async getUserAccounts(userIds: string[]): Promise<Record<string, { id: string; providerId: string }[]>> {
+		if (userIds.length === 0) return {};
+
+		const accounts = await db
+			.select({ id: account.id, providerId: account.providerId, userId: account.userId })
+			.from(account)
+			.where(inArray(account.userId, userIds));
+
+		const grouped: Record<string, { id: string; providerId: string }[]> = {};
+		for (const row of accounts) {
+			if (!grouped[row.userId]) {
+				grouped[row.userId] = [];
+			}
+			grouped[row.userId].push({ id: row.id, providerId: row.providerId });
+		}
+		return grouped;
+	}
+
+	/**
+	 * Delete a single account for a user, refusing if it is the last one
+	 */
+	async deleteUserAccount(userId: string, accountId: string): Promise<{ lastAccount: boolean }> {
+		const userAccounts = await db.select({ id: account.id }).from(account).where(eq(account.userId, userId));
+
+		if (userAccounts.length <= 1) {
+			return { lastAccount: true };
+		}
+
+		await db.delete(account).where(and(eq(account.id, accountId), eq(account.userId, userId)));
+		return { lastAccount: false };
+	}
 }
 
 export const authService = new AuthService();
