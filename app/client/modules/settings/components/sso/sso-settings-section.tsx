@@ -32,6 +32,7 @@ import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { formatDateWithMonth } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
+import { cn } from "~/client/lib/utils";
 
 type InvitationRole = "member" | "admin" | "owner";
 
@@ -51,6 +52,14 @@ export function SsoSettingsSection() {
 
 	const updateProviderAutoLinkingMutation = useMutation({
 		...updateSsoProviderAutoLinkingMutation(),
+		onSuccess: (_, v) => {
+			toast.success(v.body?.enabled ? "Automatic account linking enabled" : "Automatic account linking disabled");
+		},
+		onError: (error) => {
+			toast.error("Failed to update provider", {
+				description: parseError(error)?.message,
+			});
+		},
 	});
 
 	const deleteProviderMutation = useMutation({
@@ -158,109 +167,83 @@ export function SsoSettingsSection() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{providers && providers.length > 0 ? (
-								providers.map((provider) => (
-									<TableRow key={provider.providerId}>
-										<TableCell className="font-medium">{provider.providerId}</TableCell>
-										<TableCell>{provider.domain}</TableCell>
-										<TableCell className="break-all">{provider.issuer}</TableCell>
-										<TableCell>
-											<div className="flex items-center gap-2">
-												<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">
-													{provider.type}
-												</span>
-											</div>
-										</TableCell>
-										<TableCell>
-											<div className="flex items-center gap-2">
-												<Switch
-													checked={provider.autoLinkMatchingEmails}
-													disabled={updateProviderAutoLinkingMutation.isPending}
-													onCheckedChange={(enabled) => {
-														updateProviderAutoLinkingMutation.mutate(
-															{
-																path: { providerId: provider.providerId },
-																body: { enabled },
-															},
-															{
-																onSuccess: () => {
-																	toast.success(
-																		enabled
-																			? "Automatic account linking enabled"
-																			: "Automatic account linking disabled",
-																	);
-																},
-																onError: (error) => {
-																	toast.error("Failed to update provider", {
-																		description: parseError(error)?.message,
-																	});
-																},
-															},
-														);
-													}}
-												/>
-												<span className="text-xs text-muted-foreground">
-													{provider.autoLinkMatchingEmails ? "On" : "Off"}
-												</span>
-											</div>
-										</TableCell>
-										<TableCell>
-											<Input
-												type="text"
-												readOnly
-												value={`${origin}/api/auth/sso/callback/${provider.providerId}`}
-												className="h-8 max-w-62.5 font-mono text-xs text-muted-foreground"
-												onClick={(e) => e.currentTarget.select()}
+							{providers.map((provider) => (
+								<TableRow key={provider.providerId}>
+									<TableCell className="font-medium">{provider.providerId}</TableCell>
+									<TableCell>{provider.domain}</TableCell>
+									<TableCell className="break-all">{provider.issuer}</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">{provider.type}</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<Switch
+												checked={provider.autoLinkMatchingEmails}
+												disabled={updateProviderAutoLinkingMutation.isPending}
+												onCheckedChange={(enabled) => {
+													updateProviderAutoLinkingMutation.mutate({
+														path: { providerId: provider.providerId },
+														body: { enabled },
+													});
+												}}
 											/>
-										</TableCell>
-										<TableCell className="text-right">
-											<AlertDialog>
-												<AlertDialogTrigger asChild>
-													<Button
-														type="button"
-														variant="ghost"
-														size="icon"
-														title="Delete provider"
-														loading={
-															deleteProviderMutation.isPending &&
-															deleteProviderMutation.variables?.path?.providerId === provider.providerId
-														}
-														disabled={deleteProviderMutation.isPending}
+											<span className="text-xs text-muted-foreground">
+												{provider.autoLinkMatchingEmails ? "On" : "Off"}
+											</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<Input
+											type="text"
+											readOnly
+											value={`${origin}/api/auth/sso/callback/${provider.providerId}`}
+											className="h-8 max-w-62.5 font-mono text-xs text-muted-foreground"
+											onClick={(e) => e.currentTarget.select()}
+										/>
+									</TableCell>
+									<TableCell className="text-right">
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<Button
+													type="button"
+													variant="ghost"
+													size="icon"
+													title="Delete provider"
+													loading={deleteProviderMutation.isPending}
+													disabled={deleteProviderMutation.isPending}
+												>
+													<Trash2 className="h-4 w-4 text-destructive" />
+												</Button>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Delete SSO provider</AlertDialogTitle>
+													<AlertDialogDescription>
+														Are you sure you want to delete the SSO provider <strong>{provider.providerId}</strong>?
+														This action cannot be undone.
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction
+														className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+														onClick={() => deleteProviderMutation.mutate({ path: { providerId: provider.providerId } })}
 													>
-														<Trash2 className="h-4 w-4 text-destructive" />
-													</Button>
-												</AlertDialogTrigger>
-												<AlertDialogContent>
-													<AlertDialogHeader>
-														<AlertDialogTitle>Delete SSO provider</AlertDialogTitle>
-														<AlertDialogDescription>
-															Are you sure you want to delete the SSO provider <strong>{provider.providerId}</strong>?
-															This action cannot be undone.
-														</AlertDialogDescription>
-													</AlertDialogHeader>
-													<AlertDialogFooter>
-														<AlertDialogCancel>Cancel</AlertDialogCancel>
-														<AlertDialogAction
-															className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-															onClick={() =>
-																deleteProviderMutation.mutate({ path: { providerId: provider.providerId } })
-															}
-														>
-															Delete
-														</AlertDialogAction>
-													</AlertDialogFooter>
-												</AlertDialogContent>
-											</AlertDialog>
-										</TableCell>
-									</TableRow>
-								))
-							) : (
-								<TableRow>
-									<TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
-										No providers registered yet.
+														Delete
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
 									</TableCell>
 								</TableRow>
-							)}
+							))}
+							<TableRow className={cn({ hidden: providers.length > 0 })}>
+								<TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
+									No providers registered yet.
+								</TableCell>
+							</TableRow>
 						</TableBody>
 					</Table>
 				</div>
@@ -329,64 +312,54 @@ export function SsoSettingsSection() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{invitations.length > 0 ? (
-								invitations.map((invitation) => (
-									<TableRow key={invitation.id}>
-										<TableCell className="font-medium">{invitation.email}</TableCell>
-										<TableCell className="uppercase">{invitation.role}</TableCell>
-										<TableCell>
-											<span
-												className={`text-xs font-medium px-2 py-0.5 rounded border ${
-													invitation.status === "pending"
-														? "bg-primary/10 border-primary/20"
-														: "bg-muted border-muted-foreground/20"
-												}`}
-											>
-												{invitation.status}
-											</span>
-										</TableCell>
-										<TableCell>{formatDateWithMonth(invitation.expiresAt)}</TableCell>
-										<TableCell className="text-right">
-											{invitation.status === "pending" ? (
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon"
-													title="Cancel invitation"
-													loading={
-														cancelInvitationMutation.isPending && cancelInvitationMutation.variables === invitation.id
-													}
-													disabled={cancelInvitationMutation.isPending}
-													onClick={() => cancelInvitationMutation.mutate(invitation.id)}
-												>
-													<Ban className="h-4 w-4" />
-												</Button>
-											) : (
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon"
-													title="Delete invitation"
-													loading={
-														deleteInvitationMutation.isPending &&
-														deleteInvitationMutation.variables?.path?.invitationId === invitation.id
-													}
-													disabled={deleteInvitationMutation.isPending}
-													onClick={() => deleteInvitationMutation.mutate({ path: { invitationId: invitation.id } })}
-												>
-													<Trash2 className="h-4 w-4 text-destructive" />
-												</Button>
-											)}
-										</TableCell>
-									</TableRow>
-								))
-							) : (
-								<TableRow>
-									<TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
-										No invitations yet.
+							{invitations.map((invitation) => (
+								<TableRow key={invitation.id}>
+									<TableCell className="font-medium">{invitation.email}</TableCell>
+									<TableCell className="uppercase">{invitation.role}</TableCell>
+									<TableCell>
+										<span
+											className={cn(`text-xs font-medium px-2 py-0.5 rounded border`, {
+												"bg-primary/10 border-primary/20": invitation.status === "pending",
+												"bg-muted border-muted-foreground/20": invitation.status !== "pending",
+											})}
+										>
+											{invitation.status}
+										</span>
+									</TableCell>
+									<TableCell>{formatDateWithMonth(invitation.expiresAt)}</TableCell>
+									<TableCell className="text-right">
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											title="Cancel invitation"
+											loading={cancelInvitationMutation.isPending}
+											disabled={cancelInvitationMutation.isPending}
+											onClick={() => cancelInvitationMutation.mutate(invitation.id)}
+											className={cn({ hidden: invitation.status !== "pending" })}
+										>
+											<Ban className="h-4 w-4" />
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="icon"
+											title="Delete invitation"
+											loading={deleteInvitationMutation.isPending}
+											disabled={deleteInvitationMutation.isPending}
+											onClick={() => deleteInvitationMutation.mutate({ path: { invitationId: invitation.id } })}
+											className={cn({ hidden: invitation.status === "pending" })}
+										>
+											<Trash2 className="h-4 w-4 text-destructive" />
+										</Button>
 									</TableCell>
 								</TableRow>
-							)}
+							))}
+							<TableRow className={cn({ hidden: invitations.length > 0 })}>
+								<TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+									No invitations yet.
+								</TableCell>
+							</TableRow>
 						</TableBody>
 					</Table>
 				</div>

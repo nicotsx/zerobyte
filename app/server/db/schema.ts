@@ -116,7 +116,6 @@ export const verification = sqliteTable(
 
 export type OrganizationMetadata = {
 	resticPassword: string;
-	passwordLoginEnabled?: boolean;
 };
 
 export const organization = sqliteTable(

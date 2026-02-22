@@ -14,8 +14,9 @@ import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/auth-er
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { getPublicSsoProvidersOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { cn } from "~/client/lib/utils";
 
 const loginSchema = type({
 	username: "2<=string<=50",
@@ -36,7 +37,6 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const [totpCode, setTotpCode] = useState("");
 	const [isVerifying2FA, setIsVerifying2FA] = useState(false);
 	const [trustDevice, setTrustDevice] = useState(false);
-	const [ssoLoadingProviderId, setSsoLoadingProviderId] = useState<string | null>(null);
 	const errorCode = decodeLoginError(error);
 	const errorDescription = getLoginErrorDescription(errorCode);
 
@@ -129,30 +129,26 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		form.reset();
 	};
 
-	const handleSsoLogin = async (providerId: string) => {
-		const callbackPath = "/login";
-		const { data, error } = await authClient.signIn.sso({
-			providerId: providerId,
-			callbackURL: callbackPath,
-			errorCallbackURL: callbackPath,
-			fetchOptions: {
-				onRequest: () => setSsoLoadingProviderId(providerId),
-				onResponse: () => setSsoLoadingProviderId(null),
-			},
-		});
+	const ssoLoginMutation = useMutation({
+		mutationFn: async (providerId: string) => {
+			const callbackPath = "/login";
+			const { data, error } = await authClient.signIn.sso({
+				providerId: providerId,
+				callbackURL: callbackPath,
+				errorCallbackURL: callbackPath,
+			});
+			if (error) throw error;
 
-		if (error) {
-			toast.error("SSO login failed", { description: error.message });
-			return;
-		}
-
-		if (!data?.url) {
-			toast.error("SSO login failed", { description: "Missing authorization URL" });
-			return;
-		}
-
-		window.location.href = data.url;
-	};
+			return data;
+		},
+		onSuccess: (data) => {
+			window.location.href = data.url;
+		},
+		onError: (error) => {
+			console.error(error);
+			toast.error("SSO Login failed", { description: error.message });
+		},
+	});
 
 	if (requires2FA) {
 		return (
@@ -225,10 +221,9 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-					{errorDescription ? (
-						<div className="rounded-md border border-destructive/50 p-3 text-sm">{errorDescription}</div>
-					) : null}
-
+					<div className={cn("rounded-md border border-destructive/50 p-3 text-sm", { hidden: !errorDescription })}>
+						{errorDescription}
+					</div>
 					<FormField
 						control={form.control}
 						name="username"
@@ -280,9 +275,9 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 								type="button"
 								variant="outline"
 								className="w-full"
-								loading={ssoLoadingProviderId === provider.providerId}
-								disabled={ssoLoadingProviderId !== null && ssoLoadingProviderId !== provider.providerId}
-								onClick={() => handleSsoLogin(provider.providerId)}
+								loading={ssoLoginMutation.isPending}
+								disabled={ssoLoginMutation.isPending}
+								onClick={() => ssoLoginMutation.mutate(provider.providerId)}
 							>
 								Log in with {provider.providerId}
 							</Button>
