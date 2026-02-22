@@ -10,10 +10,14 @@ export function extractProviderIdFromContext(ctx: GenericEndpointContext): strin
 	}
 
 	if (ctx.request?.url) {
-		const pathname = new URL(ctx.request.url).pathname;
-		const ssoCallbackMatch = pathname.match(/\/sso\/(?:saml2\/)?callback\/([^/]+)$/);
-		if (ssoCallbackMatch) {
-			return ssoCallbackMatch[1];
+		try {
+			const pathname = new URL(ctx.request.url, "http://localhost").pathname;
+			const ssoCallbackMatch = pathname.match(/\/sso\/(?:saml2\/)?callback\/([^/]+)$/);
+			if (ssoCallbackMatch) {
+				return ssoCallbackMatch[1];
+			}
+		} catch {
+			return null;
 		}
 	}
 

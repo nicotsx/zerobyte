@@ -115,6 +115,38 @@ export class AuthService {
 	}
 
 	/**
+	 * Get per-provider auto-linking setting for an organization
+	 */
+	async getSsoProviderAutoLinkingSettings(organizationId: string): Promise<Record<string, boolean>> {
+		const providers = await db.query.ssoProvider.findMany({
+			columns: { providerId: true, autoLinkMatchingEmails: true },
+			where: { organizationId },
+		});
+
+		return Object.fromEntries(providers.map((provider) => [provider.providerId, provider.autoLinkMatchingEmails]));
+	}
+
+	/**
+	 * Update per-provider auto-linking setting
+	 */
+	async updateSsoProviderAutoLinking(providerId: string, enabled: boolean): Promise<boolean> {
+		const existingProvider = await db
+			.select({ id: ssoProvider.id })
+			.from(ssoProvider)
+			.where(eq(ssoProvider.providerId, providerId))
+			.limit(1)
+			.then((result) => result[0]);
+
+		if (!existingProvider) {
+			return false;
+		}
+
+		await db.update(ssoProvider).set({ autoLinkMatchingEmails: enabled }).where(eq(ssoProvider.providerId, providerId));
+
+		return true;
+	}
+
+	/**
 	 * Delete an invitation
 	 */
 	async deleteSsoInvitation(invitationId: string): Promise<void> {

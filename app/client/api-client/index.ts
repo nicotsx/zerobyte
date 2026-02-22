@@ -67,6 +67,7 @@ export {
 	updateRepository,
 	updateScheduleMirrors,
 	updateScheduleNotifications,
+	updateSsoProviderAutoLinking,
 	updateVolume,
 } from "./sdk.gen";
 export type {
@@ -274,6 +275,9 @@ export type {
 	UpdateScheduleNotificationsData,
 	UpdateScheduleNotificationsResponse,
 	UpdateScheduleNotificationsResponses,
+	UpdateSsoProviderAutoLinkingData,
+	UpdateSsoProviderAutoLinkingErrors,
+	UpdateSsoProviderAutoLinkingResponses,
 	UpdateVolumeData,
 	UpdateVolumeErrors,
 	UpdateVolumeResponse,

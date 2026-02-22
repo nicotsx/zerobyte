@@ -6,11 +6,12 @@ import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
 
 export const ensureOnlyOneUser = async (ctx: AuthMiddlewareContext) => {
 	const { path } = ctx;
-	const existingUser = await db.query.usersTable.findFirst();
 
 	if (path !== "/sign-up/email") {
 		return;
 	}
+
+	const existingUser = await db.query.usersTable.findFirst();
 
 	const result = await db.query.appMetadataTable.findFirst({
 		where: { key: REGISTRATION_ENABLED_KEY },

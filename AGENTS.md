@@ -63,4 +63,7 @@ bunx oxfmt format --write <path>
 bun run lint
 ```
 
-The frontend has an automatic invalidation setup which runs after every mutation, do not write any invalidation logic in the frontend.
+### Invalidation
+
+The frontend has an automatic invalidation setup which runs after every mutation.
+Do not implement any invalidation logic in the frontend.

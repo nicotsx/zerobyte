@@ -18,6 +18,7 @@ import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
+import { ssoTrustedProviderLinkingPlugin } from "./auth/plugins/sso-trusted-provider-linking";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -50,9 +51,8 @@ export const auth = betterAuth({
 			},
 			create: {
 				before: async (user, ctx) => {
-					await requireSsoInvitation(user.email, ctx);
-
 					if (isSsoCallbackRequest(ctx)) {
+						await requireSsoInvitation(user.email, ctx);
 						user.hasDownloadedResticPassword = true;
 					}
 
@@ -85,7 +85,7 @@ export const auth = betterAuth({
 	},
 	account: {
 		accountLinking: {
-			disableImplicitLinking: true,
+			enabled: true,
 		},
 	},
 	user: {
@@ -123,6 +123,7 @@ export const auth = betterAuth({
 				defaultRole: "member",
 			},
 		}),
+		ssoTrustedProviderLinkingPlugin(),
 		twoFactor({
 			backupCodeOptions: {
 				storeBackupCodes: "encrypted",

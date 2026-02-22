@@ -10,8 +10,12 @@ export const getOrganizationContext = createServerFn({ method: "GET" }).handler(
 	});
 	const session = await auth.api.getSession({ headers: request.headers });
 
-	const activeOrganizationId = session?.session.activeOrganizationId;
+	const activeOrganizationId = session?.session?.activeOrganizationId;
 	const activeOrganization = data.find((org) => org.id === activeOrganizationId);
+
+	if (data.length === 0) {
+		throw new Error("No organizations found for user");
+	}
 
 	const member = await auth.api.getActiveMember({
 		headers: request.headers,

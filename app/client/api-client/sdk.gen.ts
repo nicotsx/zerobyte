@@ -175,6 +175,18 @@ export const getSsoSettings = <ThrowOnError extends boolean = false>(options?: O
 export const deleteSsoProvider = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoProviderData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoProviderResponses, DeleteSsoProviderErrors, ThrowOnError>({ url: '/api/v1/auth/sso-providers/{providerId}', ...options });
 
 /**
+ * Update whether SSO sign-in can auto-link existing accounts by email
+ */
+export const updateSsoProviderAutoLinking = <ThrowOnError extends boolean = false>(options: Options<UpdateSsoProviderAutoLinkingData, ThrowOnError>) => (options.client ?? client).patch<UpdateSsoProviderAutoLinkingResponses, UpdateSsoProviderAutoLinkingErrors, ThrowOnError>({
+    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * Delete an SSO invitation
  */
 export const deleteSsoInvitation = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoInvitationData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoInvitationResponses, DeleteSsoInvitationErrors, ThrowOnError>({ url: '/api/v1/auth/sso-invitations/{invitationId}', ...options });

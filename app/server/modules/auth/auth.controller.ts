@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { validator } from "hono-openapi";
 import {
 	type GetStatusDto,
 	getStatusDto,
@@ -12,6 +13,8 @@ import {
 	type AdminUsersDto,
 	deleteSsoProviderDto,
 	deleteSsoInvitationDto,
+	updateSsoProviderAutoLinkingBody,
+	updateSsoProviderAutoLinkingDto,
 } from "./auth.dto";
 import { authService } from "./auth.service";
 import { requireAdmin, requireAuth } from "./auth.middleware";
@@ -34,12 +37,10 @@ export const authController = new Hono()
 			return c.json<SsoSettingsDto>({ providers: [], invitations: [] });
 		}
 
-		const [providersData, invitationsData] = await Promise.all([
+		const [providersData, invitationsData, autoLinkingSettings] = await Promise.all([
 			auth.api.listSSOProviders({ headers }),
-			auth.api.listInvitations({
-				headers,
-				query: { organizationId: activeOrganizationId },
-			}),
+			auth.api.listInvitations({ headers, query: { organizationId: activeOrganizationId } }),
+			authService.getSsoProviderAutoLinkingSettings(activeOrganizationId),
 		]);
 
 		return c.json<SsoSettingsDto>({
@@ -48,6 +49,7 @@ export const authController = new Hono()
 				type: provider.type,
 				issuer: provider.issuer,
 				domain: provider.domain,
+				autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? true,
 				organizationId: provider.organizationId,
 			})),
 			invitations: invitationsData.map((invitation) => ({
@@ -65,6 +67,25 @@ export const authController = new Hono()
 
 		return c.json({ success: true });
 	})
+	.patch(
+		"/sso-providers/:providerId/auto-linking",
+		requireAuth,
+		requireAdmin,
+		updateSsoProviderAutoLinkingDto,
+		validator("json", updateSsoProviderAutoLinkingBody),
+		async (c) => {
+			const providerId = c.req.param("providerId");
+			const { enabled } = c.req.valid("json");
+
+			const updated = await authService.updateSsoProviderAutoLinking(providerId, enabled);
+
+			if (!updated) {
+				return c.json({ message: "Provider not found" }, 404);
+			}
+
+			return c.json({ success: true });
+		},
+	)
 	.delete("/sso-invitations/:invitationId", requireAuth, requireAdmin, deleteSsoInvitationDto, async (c) => {
 		const invitationId = c.req.param("invitationId");
 		await authService.deleteSsoInvitation(invitationId);
@@ -89,6 +110,7 @@ export const authController = new Hono()
 			})),
 			total: usersData.total,
 			limit: "limit" in usersData ? (usersData.limit ?? 100) : 100,
+			offset: "offset" in usersData ? (usersData.offset ?? 0) : 0,
 		});
 	})
 	.get("/deletion-impact/:userId", requireAuth, requireAdmin, getUserDeletionImpactDto, async (c) => {

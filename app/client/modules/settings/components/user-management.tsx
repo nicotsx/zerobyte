@@ -228,7 +228,11 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 						<Button variant="outline" onClick={() => setUserToDelete(null)}>
 							Cancel
 						</Button>
-						<Button variant="destructive" disabled={isLoadingImpact} onClick={() => deleteUser.mutate(userToDelete!)}>
+						<Button
+							variant="destructive"
+							disabled={isLoadingImpact || deleteUser.isPending}
+							onClick={() => deleteUser.mutate(userToDelete!)}
+						>
 							Delete User
 						</Button>
 					</DialogFooter>

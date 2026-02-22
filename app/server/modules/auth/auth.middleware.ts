@@ -7,6 +7,7 @@ declare module "hono" {
 	interface ContextVariableMap {
 		user: {
 			id: string;
+			email: string;
 			username: string;
 			hasDownloadedResticPassword: boolean;
 			role?: string | null | undefined;

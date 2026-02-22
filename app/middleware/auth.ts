@@ -27,10 +27,11 @@ export const authMiddleware = createMiddleware().server(async ({ next, request }
 	}
 
 	if (session?.user?.id) {
+		if (!session.user.hasDownloadedResticPassword && pathname !== "/download-recovery-key") {
+			throw redirect({ to: "/download-recovery-key" });
+		}
+
 		if (isAuthRoute(pathname)) {
-			if (!session.user.hasDownloadedResticPassword) {
-				throw redirect({ to: "/download-recovery-key" });
-			}
 			throw redirect({ to: "/volumes" });
 		}
 	}

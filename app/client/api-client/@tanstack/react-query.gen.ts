@@ -298,6 +298,23 @@ export const deleteSsoProviderMutation = (options?: Partial<Options<DeleteSsoPro
 };
 
 /**
+ * Update whether SSO sign-in can auto-link existing accounts by email
+ */
+export const updateSsoProviderAutoLinkingMutation = (options?: Partial<Options<UpdateSsoProviderAutoLinkingData>>): UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateSsoProviderAutoLinking({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
  * Delete an SSO invitation
  */
 export const deleteSsoInvitationMutation = (options?: Partial<Options<DeleteSsoInvitationData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteSsoInvitationData>> => {

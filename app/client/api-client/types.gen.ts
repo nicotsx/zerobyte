@@ -64,6 +64,7 @@ export type GetSsoSettingsResponses = {
             status: string;
         }>;
         providers: Array<{
+            autoLinkMatchingEmails: boolean;
             domain: string;
             issuer: string;
             organizationId: string | null;
@@ -94,6 +95,35 @@ export type DeleteSsoProviderErrors = {
 export type DeleteSsoProviderResponses = {
     /**
      * SSO provider deleted successfully
+     */
+    200: unknown;
+};
+
+export type UpdateSsoProviderAutoLinkingData = {
+    body?: {
+        enabled: boolean;
+    };
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking';
+};
+
+export type UpdateSsoProviderAutoLinkingErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Provider not found
+     */
+    404: unknown;
+};
+
+export type UpdateSsoProviderAutoLinkingResponses = {
+    /**
+     * SSO provider auto-linking setting updated successfully
      */
     200: unknown;
 };
@@ -134,6 +164,7 @@ export type GetAdminUsersResponses = {
      */
     200: {
         limit: number;
+        offset: number;
         total: number;
         users: Array<{
             banned: boolean;
