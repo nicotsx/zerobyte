@@ -7,7 +7,7 @@ import { getAdminUsersOptions, getSsoSettingsOptions } from "~/client/api-client
 
 export const Route = createFileRoute("/(dashboard)/settings/")({
 	component: RouteComponent,
-	validateSearch: type({ tab: "string?", ssoLinkStatus: "string?", ssoLinkMessage: "string?" }),
+	validateSearch: type({ tab: "string?" }),
 	loader: async ({ context }) => {
 		const authContext = await fetchUser();
 

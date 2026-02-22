@@ -31,7 +31,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 		id: string;
 		name: string;
 		accounts: { id: string; providerId: string }[];
-	} | null>(null);
+	}>();
 
 	const { data: deletionImpact, isLoading: isLoadingImpact } = useQuery({
 		...getUserDeletionImpactOptions({ path: { userId: userToDelete ?? "" } }),
@@ -88,7 +88,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 		onSuccess: (_data, variables) => {
 			toast.success("Account removed successfully");
 			setUserToManageAccounts((prev) => {
-				if (!prev) return null;
+				if (!prev) return prev;
 				return {
 					...prev,
 					accounts: prev.accounts.filter((a) => a.id !== variables.path.accountId),
@@ -134,13 +134,11 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{filteredUsers.length === 0 ? (
-							<TableRow>
-								<TableCell colSpan={4} className="h-24 text-center">
-									No users found.
-								</TableCell>
-							</TableRow>
-						) : null}
+						<TableRow className={cn({ hidden: search.length === 0 })}>
+							<TableCell colSpan={4} className="h-24 text-center">
+								No users found.
+							</TableCell>
+						</TableRow>
 						{filteredUsers.map((user) => (
 							<TableRow key={user.id}>
 								<TableCell>
@@ -303,14 +301,14 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 						</Button>
 						<Button
 							variant="default"
-							className={cn({ hidden: !userToBan?.isBanned })}
+							className={cn({ hidden: !Boolean(userToBan?.isBanned) })}
 							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: false })}
 						>
 							Unban User
 						</Button>
 						<Button
 							variant="destructive"
-							className={cn({ hidden: !!userToBan?.isBanned })}
+							className={cn({ hidden: Boolean(userToBan?.isBanned) })}
 							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: true })}
 						>
 							Ban User
@@ -319,7 +317,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={Boolean(userToManageAccounts)} onOpenChange={(open) => !open && setUserToManageAccounts(null)}>
+			<Dialog open={Boolean(userToManageAccounts)} onOpenChange={(open) => !open && setUserToManageAccounts(undefined)}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Manage Accounts</DialogTitle>
@@ -327,9 +325,13 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 					</DialogHeader>
 
 					<div className="space-y-2">
-						{userToManageAccounts?.accounts.length === 0 ? (
-							<p className="text-sm text-muted-foreground text-center py-4">No accounts linked.</p>
-						) : null}
+						<p
+							className={cn("text-sm text-muted-foreground text-center py-4", {
+								hidden: userToManageAccounts?.accounts.length,
+							})}
+						>
+							No accounts linked.
+						</p>
 						{userToManageAccounts?.accounts.map((account) => (
 							<div key={account.id} className="flex items-center justify-between p-3 border rounded-md">
 								<span className="text-sm font-medium">{account.providerId}</span>
@@ -339,9 +341,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 									title="Remove account"
 									disabled={deleteAccount.isPending}
 									onClick={() =>
-										deleteAccount.mutate({
-											path: { userId: userToManageAccounts.id, accountId: account.id },
-										})
+										deleteAccount.mutate({ path: { userId: userToManageAccounts.id, accountId: account.id } })
 									}
 								>
 									<Trash2 className="h-4 w-4 text-destructive" />
@@ -349,9 +349,8 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 							</div>
 						))}
 					</div>
-
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setUserToManageAccounts(null)}>
+						<Button variant="outline" onClick={() => setUserToManageAccounts(undefined)}>
 							Close
 						</Button>
 					</DialogFooter>

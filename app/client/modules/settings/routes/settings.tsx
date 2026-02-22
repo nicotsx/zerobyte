@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Download, KeyRound, User, X, Users, Settings as SettingsIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
 	downloadResticPasswordMutation,
@@ -41,33 +41,11 @@ export function SettingsPage({ appContext }: Props) {
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-	const { tab, ssoLinkStatus, ssoLinkMessage } = useSearch({ from: "/(dashboard)/settings/" });
+	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
 	const activeTab = tab || "account";
 
 	const navigate = useNavigate();
 	const isAdmin = appContext.user?.role === "admin";
-
-	useEffect(() => {
-		if (!ssoLinkStatus) {
-			return;
-		}
-
-		if (ssoLinkStatus === "success") {
-			toast.success("SSO account linked", {
-				description: ssoLinkMessage || "You can now sign in with this SSO provider.",
-			});
-		} else {
-			toast.error("SSO account linking failed", {
-				description: ssoLinkMessage || "Please try again.",
-			});
-		}
-
-		void navigate({
-			to: ".",
-			replace: true,
-			search: (prev) => ({ tab: prev.tab }),
-		});
-	}, [navigate, ssoLinkMessage, ssoLinkStatus]);
 
 	const registrationStatusQuery = useQuery({
 		...getRegistrationStatusOptions(),

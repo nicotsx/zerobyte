@@ -18,9 +18,7 @@ export const Route = createFileRoute("/(auth)/login")({
 
 function RouteComponent() {
 	const { error } = Route.useSearch();
-	const pathname = useRouterState({
-		select: (state) => state.location.pathname,
-	});
+	const pathname = useRouterState({ select: (state) => state.location.pathname });
 
 	if (pathname !== "/login") {
 		return <Outlet />;
