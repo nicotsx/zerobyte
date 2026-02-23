@@ -8,11 +8,7 @@ const handle = ({ request }: { request: Request }) => app.fetch(request.clone())
 export const Route = createFileRoute("/api/$")({
 	server: {
 		handlers: {
-			GET: handle,
-			POST: handle,
-			DELETE: handle,
-			PUT: handle,
-			PATCH: handle,
+			ANY: handle,
 		},
 	},
 });

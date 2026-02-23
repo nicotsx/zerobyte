@@ -134,7 +134,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						<TableRow className={cn({ hidden: search.length === 0 })}>
+						<TableRow className={cn({ hidden: filteredUsers.length > 0 })}>
 							<TableCell colSpan={4} className="h-24 text-center">
 								No users found.
 							</TableCell>

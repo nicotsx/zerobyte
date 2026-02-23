@@ -50,7 +50,7 @@ export function CreateSsoProviderPage() {
 			clientId: "",
 			clientSecret: "",
 			discoveryEndpoint: "",
-			linkMatchingEmails: true,
+			linkMatchingEmails: false,
 		},
 	});
 
