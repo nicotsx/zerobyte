@@ -23,8 +23,8 @@ export async function trustSsoProviderForLinking(ctx: GenericEndpointContext): P
 		return;
 	}
 
-	const provider = await db.query.ssoProvider.findFirst({ where: { providerId } });
-	if (!provider || !provider.autoLinkMatchingEmails) {
+	const provider = await db.query.ssoProvider.findFirst({ where: { providerId, autoLinkMatchingEmails: true } });
+	if (!provider) {
 		return;
 	}
 

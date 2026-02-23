@@ -19,6 +19,7 @@ import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 import { ssoTrustedProviderLinkingPlugin } from "./auth/plugins/sso-trusted-provider-linking";
+import { logger } from "../utils/logger";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -52,6 +53,7 @@ export const auth = betterAuth({
 			create: {
 				before: async (user, ctx) => {
 					if (isSsoCallbackRequest(ctx)) {
+						logger.debug("SSO callback detected, checking for pending invitations for user", user.email);
 						await requireSsoInvitation(user.email, ctx);
 						user.hasDownloadedResticPassword = true;
 					}
