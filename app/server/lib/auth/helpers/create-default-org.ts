@@ -1,25 +1,34 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { UnauthorizedError } from "http-errors-enhanced";
 import type { GenericEndpointContext } from "@better-auth/core";
 import { db } from "~/server/db/db";
-import { invitation, member, organization, type User } from "~/server/db/schema";
+import { invitation, member, organization, ssoProvider, usersTable, type User } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { APIError } from "better-auth";
 import { extractProviderIdFromContext, normalizeEmail } from "../utils/sso-context";
 import { logger } from "~/server/utils/logger";
 
-async function findMembershipWithOrganization(userId: string, organizationId?: string) {
+export async function findMembershipWithOrganization(userId: string, organizationId?: string) {
+	let membershipQuery = db.select().from(member).where(eq(member.userId, userId));
 	if (organizationId) {
-		return db.query.member.findFirst({
-			where: { AND: [{ userId }, { organizationId }] },
-			with: { organization: true },
-		});
+		membershipQuery = db.select().from(member).where(eq(member.userId, userId));
 	}
 
-	return db.query.member.findFirst({
-		where: { userId },
-		with: { organization: true },
-	});
+	const memberships = await membershipQuery.limit(1);
+	const membership = memberships[0];
+
+	if (!membership) {
+		return null;
+	}
+
+	const orgs = await db.select().from(organization).where(eq(organization.id, membership.organizationId)).limit(1);
+	const org = orgs[0];
+
+	if (!org) {
+		return null;
+	}
+
+	return { ...membership, organization: org };
 }
 
 function buildOrgSlug(email: string) {
@@ -31,34 +40,42 @@ async function tryCreateInvitedMembership(userId: string, email: string, ctx: Ge
 	logger.debug("Checking for pending invitations for user", userId, email);
 
 	const providerId = extractProviderIdFromContext(ctx);
-	const ssoProvider = await db.query.ssoProvider.findFirst({ where: { providerId } });
+	const ssoProviders = await db.select().from(ssoProvider).where(eq(ssoProvider.providerId, providerId)).limit(1);
+	const ssoProviderRecord = ssoProviders[0];
 
-	if (!ssoProvider) {
+	if (!ssoProviderRecord) {
 		logger.debug("No SSO provider found in context, skipping invitation check");
 		return null;
 	}
-	logger.debug("SSO provider found in context, checking for linked accounts", ssoProvider.providerId);
+	logger.debug("SSO provider found in context, checking for linked accounts", ssoProviderRecord.providerId);
 
 	const now = new Date();
 
-	const pendingInvitation = await db.query.invitation.findFirst({
-		where: {
-			AND: [
-				{ status: "pending" },
-				{ organizationId: ssoProvider.organizationId },
-				{ expiresAt: { gt: now } },
-				{ email: normalizeEmail(email) },
-			],
-		},
-		columns: { id: true, email: true, role: true, organizationId: true },
-	});
+	const pendingInvitations = await db
+		.select({
+			id: invitation.id,
+			email: invitation.email,
+			role: invitation.role,
+			organizationId: invitation.organizationId,
+		})
+		.from(invitation)
+		.where(
+			and(
+				eq(invitation.status, "pending"),
+				eq(invitation.organizationId, ssoProviderRecord.organizationId),
+				gt(invitation.expiresAt, now),
+				eq(invitation.email, normalizeEmail(email)),
+			),
+		)
+		.limit(1);
+	const pendingInvitation = pendingInvitations[0];
 
 	if (!pendingInvitation) {
 		logger.debug("No pending invitation found for user", { email });
 		throw new APIError("FORBIDDEN", { message: "SSO sign-in is invite-only for this organization" });
 	}
 
-	db.transaction((tx) => {
+	await db.transaction(async (tx) => {
 		tx.insert(member)
 			.values({
 				id: Bun.randomUUIDv7(),
@@ -90,7 +107,7 @@ async function createDefaultOrganizationMembership(user: User) {
 	const resticPassword = cryptoUtils.generateResticPassword();
 	const metadata = { resticPassword: await cryptoUtils.sealSecret(resticPassword) };
 
-	db.transaction((tx) => {
+	await db.transaction(async (tx) => {
 		const orgId = Bun.randomUUIDv7();
 		const slug = buildOrgSlug(user.email);
 
@@ -117,7 +134,8 @@ async function createDefaultOrganizationMembership(user: User) {
 }
 
 export async function createUserDefaultOrg(userId: string, ctx: GenericEndpointContext | null) {
-	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
+	const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+	const user = users[0];
 	if (!user) {
 		throw new UnauthorizedError("User not found");
 	}

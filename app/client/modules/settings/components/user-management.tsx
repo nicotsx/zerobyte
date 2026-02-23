@@ -301,15 +301,15 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 						</Button>
 						<Button
 							variant="default"
-							className={cn({ hidden: !Boolean(userToBan?.isBanned) })}
-							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: false })}
+							className={cn({ hidden: !userToBan?.isBanned })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id ?? "", ban: false })}
 						>
 							Unban User
 						</Button>
 						<Button
 							variant="destructive"
 							className={cn({ hidden: Boolean(userToBan?.isBanned) })}
-							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id!, ban: true })}
+							onClick={() => toggleBanUserMutation.mutate({ userId: userToBan?.id ?? "", ban: true })}
 						>
 							Ban User
 						</Button>

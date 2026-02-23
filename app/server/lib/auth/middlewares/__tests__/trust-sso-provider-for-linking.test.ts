@@ -47,23 +47,31 @@ function createMockContext(options: {
 	} as GenericEndpointContext;
 }
 
-async function createSsoProviderRecord(providerId: string, autoLinkMatchingEmails: boolean) {
-	const userId = randomId();
-	const organizationId = randomId();
+async function createSsoProviderRecord(
+	providerId: string,
+	autoLinkMatchingEmails: boolean,
+	options: { organizationId?: string; userId?: string } = {},
+) {
+	const userId = options.userId ?? randomId();
+	const organizationId = options.organizationId ?? randomId();
 
-	await db.insert(usersTable).values({
-		id: userId,
-		username: randomSlug("inviter"),
-		email: `${randomSlug("inviter")}@example.com`,
-		name: "Inviter",
-	});
+	if (!options.userId) {
+		await db.insert(usersTable).values({
+			id: userId,
+			username: randomSlug("inviter"),
+			email: `${randomSlug("inviter")}@example.com`,
+			name: "Inviter",
+		});
+	}
 
-	await db.insert(organization).values({
-		id: organizationId,
-		name: "Acme",
-		slug: randomSlug("acme"),
-		createdAt: new Date(),
-	});
+	if (!options.organizationId) {
+		await db.insert(organization).values({
+			id: organizationId,
+			name: "Acme",
+			slug: randomSlug("acme"),
+			createdAt: new Date(),
+		});
+	}
 
 	await db.insert(ssoProvider).values({
 		id: randomId(),
@@ -74,6 +82,8 @@ async function createSsoProviderRecord(providerId: string, autoLinkMatchingEmail
 		domain: "example.com",
 		autoLinkMatchingEmails,
 	});
+
+	return { organizationId, userId };
 }
 
 describe("isSsoCallbackPath", () => {
@@ -120,6 +130,20 @@ describe("trustSsoProviderForLinking", () => {
 		await trustSsoProviderForLinking(ctx);
 
 		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
+	});
+
+	test("replaces stale trusted providers with database state", async () => {
+		await createSsoProviderRecord("pocket-id", true);
+
+		const ctx = createMockContext({
+			path: "/sso/callback/pocket-id",
+			params: { providerId: "pocket-id" },
+			trustedProviders: ["stale-provider"],
+		});
+
+		await trustSsoProviderForLinking(ctx);
+
+		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
 	});
 
 	test("does not trust unknown providers", async () => {

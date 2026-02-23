@@ -13,7 +13,7 @@ function createMockContext(path: string, params: Record<string, string> = {}): G
 		request: new Request(`http://test.local${path}`),
 		params,
 		method: "POST",
-		context: {} as any,
+		context: {} as GenericEndpointContext["context"],
 	} as GenericEndpointContext;
 }
 
@@ -99,6 +99,24 @@ describe("requireSsoInvitation", () => {
 		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
 	});
 
+	test("blocks SSO callback when invitation is expired", async () => {
+		const { inviterId, organizationId } = await createSsoProvider("oidc-acme");
+
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId,
+			email: "user@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() - 1_000),
+			createdAt: new Date(),
+			inviterId,
+		});
+
+		const ctx = createMockSsoCallbackContext("oidc-acme");
+		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
+	});
+
 	test("allows SSO callback when a matching pending invitation exists", async () => {
 		const { inviterId, organizationId } = await createSsoProvider("oidc-acme");
 
@@ -114,7 +132,7 @@ describe("requireSsoInvitation", () => {
 		});
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
-		expect(requireSsoInvitation("user@example.com", ctx)).resolves.toBeUndefined();
+		expect(requireSsoInvitation("  USER@EXAMPLE.COM  ", ctx)).resolves.toBeUndefined();
 	});
 
 	test("throws when provider is not registered", async () => {
