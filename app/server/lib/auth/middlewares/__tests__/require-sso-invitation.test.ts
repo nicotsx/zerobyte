@@ -69,17 +69,17 @@ describe("requireSsoInvitation", () => {
 		await db.delete(usersTable);
 	});
 
-	test("returns early when context is null", async () => {
+	test("throws when context is null", async () => {
 		await createSsoProvider("oidc-acme");
 
-		expect(requireSsoInvitation("user@example.com", null)).resolves.toBeUndefined();
+		expect(requireSsoInvitation("user@example.com", null)).rejects.toThrow("Missing SSO context");
 	});
 
-	test("returns early when request is not an SSO callback", async () => {
+	test("throws when request is not an SSO callback", async () => {
 		await createSsoProvider("oidc-acme");
 
 		const ctx = createMockContext("/sign-up/email");
-		expect(requireSsoInvitation("user@example.com", ctx)).resolves.toBeUndefined();
+		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("Missing providerId");
 	});
 
 	test("detects whether current request is an SSO callback", async () => {
@@ -105,7 +105,7 @@ describe("requireSsoInvitation", () => {
 		await db.insert(invitation).values({
 			id: randomId(),
 			organizationId,
-			email: "User@Example.com",
+			email: "user@example.com",
 			role: "member",
 			status: "pending",
 			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
@@ -117,8 +117,8 @@ describe("requireSsoInvitation", () => {
 		expect(requireSsoInvitation("user@example.com", ctx)).resolves.toBeUndefined();
 	});
 
-	test("returns early when provider is not registered", async () => {
+	test("throws when provider is not registered", async () => {
 		const ctx = createMockSsoCallbackContext("missing-provider");
-		expect(requireSsoInvitation("user@example.com", ctx)).resolves.toBeUndefined();
+		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("SSO provider not found");
 	});
 });

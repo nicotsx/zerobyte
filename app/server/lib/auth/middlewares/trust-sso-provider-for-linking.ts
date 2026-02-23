@@ -23,15 +23,21 @@ export async function trustSsoProviderForLinking(ctx: GenericEndpointContext): P
 		return;
 	}
 
-	const provider = await db.query.ssoProvider.findFirst({ where: { providerId, autoLinkMatchingEmails: true } });
+	const provider = await db.query.ssoProvider.findFirst({
+		columns: { organizationId: true },
+		where: { providerId },
+	});
 	if (!provider) {
 		return;
 	}
 
-	const trustedProviders = accountLinking.trustedProviders ?? [];
-	if (trustedProviders.includes(providerId)) {
-		return;
-	}
+	const autoLinkingProviders = await db.query.ssoProvider.findMany({
+		columns: { providerId: true },
+		where: {
+			organizationId: provider.organizationId,
+			autoLinkMatchingEmails: true,
+		},
+	});
 
-	accountLinking.trustedProviders = [...trustedProviders, providerId];
+	accountLinking.trustedProviders = autoLinkingProviders.map((entry) => entry.providerId);
 }

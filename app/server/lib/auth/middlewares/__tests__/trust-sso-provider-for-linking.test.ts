@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { GenericEndpointContext } from "@better-auth/core";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
 import { isSsoCallbackPath, trustSsoProviderForLinking } from "../trust-sso-provider-for-linking";
@@ -144,6 +145,23 @@ describe("trustSsoProviderForLinking", () => {
 		await trustSsoProviderForLinking(ctx);
 
 		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
+	});
+
+	test("removes provider from trusted providers when auto-linking is disabled", async () => {
+		await createSsoProviderRecord("pocket-id", true);
+
+		const ctx = createMockContext({
+			path: "/sso/callback/pocket-id",
+			params: { providerId: "pocket-id" },
+		});
+
+		await trustSsoProviderForLinking(ctx);
+		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
+
+		await db.update(ssoProvider).set({ autoLinkMatchingEmails: false }).where(eq(ssoProvider.providerId, "pocket-id"));
+
+		await trustSsoProviderForLinking(ctx);
+		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
 	});
 
 	test("does nothing when account linking is disabled", async () => {

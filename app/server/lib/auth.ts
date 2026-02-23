@@ -4,6 +4,7 @@ import {
 	type BetterAuthOptions,
 	type MiddlewareContext,
 	type MiddlewareOptions,
+	type User,
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
@@ -16,10 +17,10 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
 import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
+import { validateSsoCallbackUrls } from "./auth/middlewares/validate-sso-callback-urls";
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 import { ssoTrustedProviderLinkingPlugin } from "./auth/plugins/sso-trusted-provider-linking";
-import { logger } from "../utils/logger";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -36,6 +37,7 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			await validateSsoCallbackUrls(ctx);
 			await ensureOnlyOneUser(ctx);
 			await convertLegacyUserOnFirstLogin(ctx);
 		}),
@@ -53,7 +55,6 @@ export const auth = betterAuth({
 			create: {
 				before: async (user, ctx) => {
 					if (isSsoCallbackRequest(ctx)) {
-						logger.debug("SSO callback detected, checking for pending invitations for user", user.email);
 						await requireSsoInvitation(user.email, ctx);
 						user.hasDownloadedResticPassword = true;
 					}
@@ -119,7 +120,15 @@ export const auth = betterAuth({
 			allowUserToCreateOrganization: false,
 		}),
 		sso({
-			trustEmailVerified: true,
+			trustEmailVerified: false,
+			providersLimit: async (user: User) => {
+				const existingUser = await db.query.usersTable.findFirst({
+					columns: { role: true },
+					where: { id: user.id },
+				});
+
+				return existingUser?.role === "admin" ? 10 : 0;
+			},
 			organizationProvisioning: {
 				disabled: false,
 				defaultRole: "member",
