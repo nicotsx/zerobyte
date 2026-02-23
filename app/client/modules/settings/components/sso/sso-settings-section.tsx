@@ -27,7 +27,6 @@ import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import { parseError } from "~/client/lib/errors";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { formatDateWithMonth } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
@@ -56,9 +55,7 @@ export function SsoSettingsSection() {
 			toast.success(v.body?.enabled ? "Automatic account linking enabled" : "Automatic account linking disabled");
 		},
 		onError: (error) => {
-			toast.error("Failed to update provider", {
-				description: parseError(error)?.message,
-			});
+			toast.error("Failed to update provider", { description: error.message });
 		},
 	});
 
@@ -68,7 +65,7 @@ export function SsoSettingsSection() {
 			toast.success("SSO provider deleted");
 		},
 		onError: (error) => {
-			toast.error("Failed to delete provider", { description: parseError(error)?.message });
+			toast.error("Failed to delete provider", { description: error.message });
 		},
 	});
 
@@ -98,8 +95,8 @@ export function SsoSettingsSection() {
 			setInviteEmail("");
 			setInviteRole("member");
 		},
-		onError: (error: unknown) => {
-			toast.error("Failed to create invitation", { description: parseError(error)?.message });
+		onError: (error) => {
+			toast.error("Failed to create invitation", { description: error.message });
 		},
 	});
 
@@ -113,8 +110,8 @@ export function SsoSettingsSection() {
 		onSuccess: () => {
 			toast.success("Invitation cancelled");
 		},
-		onError: (error: unknown) => {
-			toast.error("Failed to cancel invitation", { description: parseError(error)?.message });
+		onError: (error) => {
+			toast.error("Failed to cancel invitation", { description: error.message });
 		},
 	});
 
@@ -124,7 +121,7 @@ export function SsoSettingsSection() {
 			toast.success("Invitation deleted");
 		},
 		onError: (error) => {
-			toast.error("Failed to delete invitation", { description: parseError(error)?.message });
+			toast.error("Failed to delete invitation", { description: error.message });
 		},
 	});
 

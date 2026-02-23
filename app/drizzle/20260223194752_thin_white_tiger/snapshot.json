@@ -1,7 +1,7 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "ab028cd7-c0cb-44f4-843b-37e95ab3c667",
+	"id": "f1d1baed-4d81-40b5-86fb-56e9c173a27f",
 	"prevIds": ["3a308c54-d950-464f-9490-fee06985fbeb"],
 	"ddl": [
 		{
@@ -1180,7 +1180,7 @@
 		},
 		{
 			"type": "text",
-			"notNull": true,
+			"notNull": false,
 			"autoincrement": false,
 			"default": null,
 			"generated": null,
@@ -1205,6 +1205,16 @@
 			"default": null,
 			"generated": null,
 			"name": "domain",
+			"entityType": "columns",
+			"table": "sso_provider"
+		},
+		{
+			"type": "integer",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "false",
+			"generated": null,
+			"name": "auto_link_matching_emails",
 			"entityType": "columns",
 			"table": "sso_provider"
 		},
@@ -1809,7 +1819,7 @@
 			"tableTo": "users_table",
 			"columnsTo": ["id"],
 			"onUpdate": "NO ACTION",
-			"onDelete": "CASCADE",
+			"onDelete": "SET NULL",
 			"nameExplicit": false,
 			"name": "fk_sso_provider_user_id_users_table_id_fk",
 			"entityType": "fks",

@@ -90,8 +90,8 @@ export function CreateSsoProviderPage() {
 			toast.success("SSO provider registered successfully");
 			void navigate({ to: "/settings", search: { tab: "users" } });
 		},
-		onError: (error: unknown) => {
-			toast.error("Failed to register provider", { description: parseError(error)?.message });
+		onError: (error) => {
+			toast.error("Failed to register provider", { description: error.message });
 		},
 	});
 

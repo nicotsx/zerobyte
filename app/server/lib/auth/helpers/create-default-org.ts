@@ -27,24 +27,12 @@ function buildOrgSlug(email: string) {
 	return `${emailPrefix}-${Math.random().toString(36).slice(-4)}`;
 }
 
-async function getProviderFromContext(ctx: GenericEndpointContext | null) {
-	if (!ctx) {
-		return null;
-	}
-
-	const providerId = extractProviderIdFromContext(ctx);
-	if (!providerId) {
-		return null;
-	}
-
-	const provider = await db.query.ssoProvider.findFirst({ where: { providerId } });
-	return provider;
-}
-
 async function tryCreateInvitedMembership(userId: string, email: string, ctx: GenericEndpointContext | null) {
 	logger.debug("Checking for pending invitations for user", userId, email);
 
-	const ssoProvider = await getProviderFromContext(ctx);
+	const providerId = extractProviderIdFromContext(ctx);
+	const ssoProvider = await db.query.ssoProvider.findFirst({ where: { providerId } });
+
 	if (!ssoProvider) {
 		logger.debug("No SSO provider found in context, skipping invitation check");
 		return null;
