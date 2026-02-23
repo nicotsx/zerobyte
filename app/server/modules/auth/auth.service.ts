@@ -130,12 +130,10 @@ export class AuthService {
 	 * Update per-provider auto-linking setting
 	 */
 	async updateSsoProviderAutoLinking(providerId: string, enabled: boolean): Promise<boolean> {
-		const existingProvider = await db
-			.select({ id: ssoProvider.id })
-			.from(ssoProvider)
-			.where(eq(ssoProvider.providerId, providerId))
-			.limit(1)
-			.then((result) => result[0]);
+		const existingProvider = await db.query.ssoProvider.findFirst({
+			where: { providerId },
+			columns: { id: true },
+		});
 
 		if (!existingProvider) {
 			return false;
@@ -159,10 +157,10 @@ export class AuthService {
 	async getUserAccounts(userIds: string[]): Promise<Record<string, { id: string; providerId: string }[]>> {
 		if (userIds.length === 0) return {};
 
-		const accounts = await db
-			.select({ id: account.id, providerId: account.providerId, userId: account.userId })
-			.from(account)
-			.where(inArray(account.userId, userIds));
+		const accounts = await db.query.account.findMany({
+			where: { userId: { in: userIds } },
+			columns: { id: true, providerId: true, userId: true },
+		});
 
 		const grouped: Record<string, { id: string; providerId: string }[]> = {};
 		for (const row of accounts) {
@@ -178,7 +176,10 @@ export class AuthService {
 	 * Delete a single account for a user, refusing if it is the last one
 	 */
 	async deleteUserAccount(userId: string, accountId: string): Promise<{ lastAccount: boolean }> {
-		const userAccounts = await db.select({ id: account.id }).from(account).where(eq(account.userId, userId));
+		const userAccounts = await db.query.account.findMany({
+			where: { userId },
+			columns: { id: true },
+		});
 
 		if (userAccounts.length <= 1) {
 			return { lastAccount: true };

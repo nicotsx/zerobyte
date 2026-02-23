@@ -9,7 +9,9 @@ export const publicSsoProvidersDto = type({
 	providers: type({
 		providerId: "string",
 		organizationSlug: "string",
-	}).array(),
+	})
+		.onUndeclaredKey("delete")
+		.array(),
 });
 
 export type PublicSsoProvidersDto = typeof publicSsoProvidersDto.infer;

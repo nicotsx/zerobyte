@@ -4,7 +4,11 @@ export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
 
-export function extractProviderIdFromContext(ctx: GenericEndpointContext): string | null {
+export function extractProviderIdFromContext(ctx?: GenericEndpointContext | null) {
+	if (!ctx) {
+		return null;
+	}
+
 	if (ctx.params?.providerId) {
 		return ctx.params.providerId;
 	}
