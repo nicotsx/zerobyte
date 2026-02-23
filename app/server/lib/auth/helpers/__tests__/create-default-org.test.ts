@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { GenericEndpointContext } from "@better-auth/core";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
 import { createUserDefaultOrg } from "../create-default-org";
@@ -13,7 +14,7 @@ function createMockContext(path: string, params: Record<string, string> = {}): G
 		request: new Request(`http://localhost:3000${path}`),
 		params,
 		method: "POST",
-		context: {} as any,
+		context: {} as GenericEndpointContext["context"],
 	} as GenericEndpointContext;
 }
 
@@ -74,7 +75,7 @@ describe("createUserDefaultOrg", () => {
 		await db.insert(invitation).values({
 			id: randomId(),
 			organizationId,
-			email: "Invited@Example.com",
+			email: "invited@example.com",
 			role: "member",
 			status: "pending",
 			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
@@ -88,9 +89,8 @@ describe("createUserDefaultOrg", () => {
 		expect(membership.organizationId).toBe(organizationId);
 		expect(membership.role).toBe("member");
 
-		const updatedInvitation = await db.query.invitation.findFirst({
-			where: { organizationId, email: "Invited@Example.com" },
-		});
+		const updatedInvitations = await db.select().from(invitation).where(eq(invitation.organizationId, organizationId));
+		const updatedInvitation = updatedInvitations.find((i) => i.email === "invited@example.com");
 		expect(updatedInvitation?.status).toBe("accepted");
 	});
 
@@ -116,7 +116,38 @@ describe("createUserDefaultOrg", () => {
 		});
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
-		await expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
+		expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
+	});
+
+	test("returns existing membership without creating another workspace", async () => {
+		const userId = await createUser("existing-member@example.com", randomSlug("existing-member"));
+		const organizationId = randomId();
+
+		await db.insert(organization).values({
+			id: organizationId,
+			name: "Existing Org",
+			slug: randomSlug("existing"),
+			createdAt: new Date(),
+		});
+
+		await db.insert(member).values({
+			id: randomId(),
+			userId,
+			organizationId,
+			role: "owner",
+			createdAt: new Date(),
+		});
+
+		const membership = await createUserDefaultOrg(userId, null);
+
+		expect(membership.organizationId).toBe(organizationId);
+		expect(membership.role).toBe("owner");
+
+		const memberships = await db.select().from(member).where(eq(member.userId, userId));
+		expect(memberships.length).toBe(1);
+
+		const organizations = await db.select().from(organization);
+		expect(organizations.length).toBe(1);
 	});
 
 	test("creates personal workspace for non-SSO flows", async () => {

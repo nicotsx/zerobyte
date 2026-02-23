@@ -1,15 +1,19 @@
 import { describe, expect, mock, test } from "bun:test";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-mock.module("@tanstack/react-router", () => ({
+await mock.module("@tanstack/react-router", () => ({
 	useNavigate: () => mock(() => {}),
 }));
 
-mock.module("@tanstack/react-query", () => ({
-	useQuery: () => ({ data: { providers: [] as Array<{ providerId: string; organizationSlug: string }> } }),
+await mock.module("~/client/api-client/@tanstack/react-query.gen", () => ({
+	getPublicSsoProvidersOptions: () => ({
+		queryKey: ["public-sso-providers"],
+		queryFn: async () => ({ providers: [] }),
+	}),
 }));
 
-mock.module("~/client/lib/auth-client", () => ({
+await mock.module("~/client/lib/auth-client", () => ({
 	authClient: {
 		getSession: mock(async () => ({ data: null })),
 		signIn: {
@@ -24,16 +28,30 @@ mock.module("~/client/lib/auth-client", () => ({
 
 import { LoginPage } from "../login";
 
+const createTestQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const inviteOnlyMessage =
+	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
+
 describe("LoginPage", () => {
 	test("shows an invite-only message when SSO returns access_denied", async () => {
-		render(<LoginPage error="access_denied" />);
+		const queryClient = createTestQueryClient();
+		render(
+			<QueryClientProvider client={queryClient}>
+				<LoginPage error="access_denied" />
+			</QueryClientProvider>,
+		);
 
-		await waitFor(() => {
-			expect(
-				screen.getByText(
-					"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.",
-				),
-			).toBeTruthy();
-		});
+		expect(await screen.findByText(inviteOnlyMessage)).toBeTruthy();
+	});
+
+	test("shows an invite-only message for URL-encoded invitation errors", async () => {
+		const queryClient = createTestQueryClient();
+		render(
+			<QueryClientProvider client={queryClient}>
+				<LoginPage error="must%20be%20invited" />
+			</QueryClientProvider>,
+		);
+
+		expect(await screen.findByText(inviteOnlyMessage)).toBeTruthy();
 	});
 });
