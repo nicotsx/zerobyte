@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as npath from "node:path";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "../../../utils/logger";
-import { exec } from "~/server/utils/spawn";
+import { safeExec } from "~/server/utils/spawn";
 
 export const executeMount = async (args: string[]): Promise<void> => {
 	const shouldBeVerbose = process.env.LOG_LEVEL === "debug" || process.env.NODE_ENV !== "production";
@@ -10,7 +10,7 @@ export const executeMount = async (args: string[]): Promise<void> => {
 	const effectiveArgs = shouldBeVerbose && !hasVerboseFlag ? ["-v", ...args] : args;
 
 	logger.debug(`Executing mount ${effectiveArgs.join(" ")}`);
-	const result = await exec({ command: "mount", args: effectiveArgs, timeout: 10000 });
+	const result = await safeExec({ command: "mount", args: effectiveArgs, timeout: 10000 });
 
 	const stdout = result.stdout.toString().trim();
 	const stderr = result.stderr.toString().trim();
@@ -31,7 +31,7 @@ export const executeUnmount = async (path: string): Promise<void> => {
 	let stderr: string | undefined;
 
 	logger.debug(`Executing umount -l ${path}`);
-	const result = await exec({ command: "umount", args: ["-l", path], timeout: 10000 });
+	const result = await safeExec({ command: "umount", args: ["-l", path], timeout: 10000 });
 
 	stderr = result.stderr.toString();
 

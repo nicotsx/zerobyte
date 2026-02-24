@@ -25,7 +25,7 @@ import { cryptoUtils } from "./crypto";
 import { ResticError } from "./errors";
 import { safeJsonParse } from "./json";
 import { logger } from "./logger";
-import { exec, safeSpawn } from "./spawn";
+import { safeExec, safeSpawn } from "./spawn";
 import { findCommonAncestor } from "~/utils/common-ancestor";
 
 const snapshotInfoSchema = type({
@@ -245,12 +245,7 @@ const init = async (config: RepositoryConfig, organizationId: string, options?: 
 	const args = ["init", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
-		command: "restic",
-		args,
-		env,
-		timeout: options?.timeoutMs ?? 20000,
-	});
+	const res = await safeExec({ command: "restic", args, env, timeout: options?.timeoutMs ?? 60000 });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -674,7 +669,7 @@ const snapshots = async (config: RepositoryConfig, options: { tags?: string[]; o
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -699,7 +694,7 @@ const stats = async (config: RepositoryConfig, options: { organizationId: string
 	const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -793,7 +788,7 @@ const forget = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -818,7 +813,7 @@ const deleteSnapshots = async (config: RepositoryConfig, snapshotIds: string[], 
 	const args: string[] = ["--repo", repoUrl, "forget", ...snapshotIds, "--prune"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -868,7 +863,7 @@ const tagSnapshots = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 	await cleanupTemporaryKeys(env);
 
 	if (res.exitCode !== 0) {
@@ -1003,7 +998,7 @@ const unlock = async (config: RepositoryConfig, options: { signal?: AbortSignal;
 	const args = ["unlock", "--repo", repoUrl, "--remove-all"];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
+	const res = await safeExec({
 		command: "restic",
 		args,
 		env,
@@ -1044,7 +1039,7 @@ const check = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
+	const res = await safeExec({
 		command: "restic",
 		args,
 		env,
@@ -1092,7 +1087,7 @@ const repairIndex = async (config: RepositoryConfig, options: { signal?: AbortSi
 	const args = ["repair", "index", "--repo", repoUrl];
 	addCommonArgs(args, env, config);
 
-	const res = await exec({
+	const res = await safeExec({
 		command: "restic",
 		args,
 		env,
@@ -1166,7 +1161,7 @@ const copy = async (
 	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 	logger.debug(`Executing: restic ${args.join(" ")}`);
 
-	const res = await exec({ command: "restic", args, env });
+	const res = await safeExec({ command: "restic", args, env });
 
 	await cleanupTemporaryKeys(sourceEnv);
 	await cleanupTemporaryKeys(destEnv);

@@ -9,6 +9,7 @@ import {
 	type RepositoryConfig,
 	repositoryConfigSchema,
 } from "~/schemas/restic";
+import { config as appConfig } from "~/server/core/config";
 import { serverEvents } from "~/server/core/events";
 import { getOrganizationId } from "~/server/core/request-context";
 import { logger } from "~/server/utils/logger";
@@ -164,7 +165,9 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 
 		error = result.error;
 	} else {
-		const initResult = await restic.init(encryptedConfig, organizationId, { timeoutMs: 20000 });
+		const initResult = await restic.init(encryptedConfig, organizationId, {
+			timeoutMs: appConfig.serverIdleTimeout * 1000,
+		});
 		error = initResult.error;
 	}
 

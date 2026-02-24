@@ -8,7 +8,7 @@ type ExecProps = {
 	env?: NodeJS.ProcessEnv;
 } & ExecFileOptions;
 
-export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps) => {
+export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecProps) => {
 	const options = {
 		env: { ...process.env, ...env },
 	};
@@ -20,14 +20,16 @@ export const exec = async ({ command, args = [], env = {}, ...rest }: ExecProps)
 			encoding: "utf8",
 		});
 
-		return { exitCode: 0, stdout, stderr };
+		return { exitCode: 0, stdout, stderr, timedOut: false };
 	} catch (error) {
-		const execError = error as ExecException;
+		const execError = error as ExecException & { killed?: boolean };
+		const timedOut = execError.killed === true && execError.code === null;
 
 		return {
 			exitCode: typeof execError.code === "number" ? execError.code : 1,
 			stdout: execError.stdout || "",
-			stderr: execError.stderr || "",
+			stderr: timedOut ? "Command timed out before completing" : execError.stderr || "",
+			timedOut,
 		};
 	}
 };
