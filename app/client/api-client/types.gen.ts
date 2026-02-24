@@ -163,8 +163,6 @@ export type GetAdminUsersResponses = {
      * List of users with roles and status
      */
     200: {
-        limit: number;
-        offset: number;
         total: number;
         users: Array<{
             accounts: Array<{
@@ -4005,30 +4003,30 @@ export type ReorderBackupSchedulesResponses = {
 export type ReorderBackupSchedulesResponse = ReorderBackupSchedulesResponses[keyof ReorderBackupSchedulesResponses];
 
 export type GetBackupProgressData = {
-	body?: never;
-	path: {
-		shortId: string;
-	};
-	query?: never;
-	url: "/api/v1/backups/{shortId}/progress";
+    body?: never;
+    path: {
+        shortId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{shortId}/progress';
 };
 
 export type GetBackupProgressResponses = {
-	/**
-	 * Current backup progress or null if not yet available
-	 */
-	200: {
-		bytes_done: number;
-		files_done: number;
-		percent_done: number;
-		repositoryName: string;
-		scheduleId: string;
-		seconds_elapsed: number;
-		total_bytes: number;
-		total_files: number;
-		volumeName: string;
-		current_files?: Array<string>;
-	} | null;
+    /**
+     * Current backup progress or null if not yet available
+     */
+    200: {
+        bytes_done: number;
+        files_done: number;
+        percent_done: number;
+        repositoryName: string;
+        scheduleId: string;
+        seconds_elapsed: number;
+        total_bytes: number;
+        total_files: number;
+        volumeName: string;
+        current_files?: Array<string>;
+    } | null;
 };
 
 export type GetBackupProgressResponse = GetBackupProgressResponses[keyof GetBackupProgressResponses];

@@ -15,5 +15,5 @@ CREATE TABLE `sso_provider` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `sso_provider_provider_id_uidx` ON `sso_provider` (`provider_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `sso_provider_organization_id_uidx` ON `sso_provider` (`organization_id`);--> statement-breakpoint
+CREATE INDEX `sso_provider_organization_id_idx` ON `sso_provider` (`organization_id`);--> statement-breakpoint
 CREATE INDEX `sso_provider_domain_idx` ON `sso_provider` (`domain`);

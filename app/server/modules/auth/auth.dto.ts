@@ -81,8 +81,6 @@ export const adminUsersResponse = type({
 		}).array(),
 	}).array(),
 	total: "number",
-	limit: "number",
-	offset: "number",
 });
 
 export type AdminUsersDto = typeof adminUsersResponse.infer;

@@ -197,7 +197,7 @@ export const ssoProvider = sqliteTable(
 	},
 	(table) => [
 		uniqueIndex("sso_provider_provider_id_uidx").on(table.providerId),
-		uniqueIndex("sso_provider_organization_id_uidx").on(table.organizationId),
+		index("sso_provider_organization_id_idx").on(table.organizationId),
 		index("sso_provider_domain_idx").on(table.domain),
 	],
 );

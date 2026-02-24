@@ -60,28 +60,33 @@ export interface RequestOptions<
   ThrowOnError extends boolean = boolean,
   Url extends string = string,
 >
-	extends
-		Config<{
-			responseStyle: TResponseStyle;
-			throwOnError: ThrowOnError;
-		}>,
-		Pick<
-			ServerSentEventsOptions<TData>,
-			"onRequest" | "onSseError" | "onSseEvent" | "sseDefaultRetryDelay" | "sseMaxRetryAttempts" | "sseMaxRetryDelay"
-		> {
-	/**
-	 * Any body that you want to add to your request.
-	 *
-	 * {@link https://developer.mozilla.org/docs/Web/API/fetch#body}
-	 */
-	body?: unknown;
-	path?: Record<string, unknown>;
-	query?: Record<string, unknown>;
-	/**
-	 * Security mechanism(s) to use for the request.
-	 */
-	security?: ReadonlyArray<Auth>;
-	url: Url;
+  extends
+    Config<{
+      responseStyle: TResponseStyle;
+      throwOnError: ThrowOnError;
+    }>,
+    Pick<
+      ServerSentEventsOptions<TData>,
+      | 'onRequest'
+      | 'onSseError'
+      | 'onSseEvent'
+      | 'sseDefaultRetryDelay'
+      | 'sseMaxRetryAttempts'
+      | 'sseMaxRetryDelay'
+    > {
+  /**
+   * Any body that you want to add to your request.
+   *
+   * {@link https://developer.mozilla.org/docs/Web/API/fetch#body}
+   */
+  body?: unknown;
+  path?: Record<string, unknown>;
+  query?: Record<string, unknown>;
+  /**
+   * Security mechanism(s) to use for the request.
+   */
+  security?: ReadonlyArray<Auth>;
+  url: Url;
 }
 
 export interface ResolvedRequestOptions<

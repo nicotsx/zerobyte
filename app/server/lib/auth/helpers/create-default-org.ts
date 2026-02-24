@@ -9,12 +9,16 @@ import { extractProviderIdFromContext, normalizeEmail } from "../utils/sso-conte
 import { logger } from "~/server/utils/logger";
 
 export async function findMembershipWithOrganization(userId: string, organizationId?: string) {
-	let membershipQuery = db.select().from(member).where(eq(member.userId, userId));
-	if (organizationId) {
-		membershipQuery = db.select().from(member).where(eq(member.userId, userId));
-	}
+	const memberships = await db
+		.select()
+		.from(member)
+		.where(
+			organizationId
+				? and(eq(member.userId, userId), eq(member.organizationId, organizationId))
+				: eq(member.userId, userId),
+		)
+		.limit(1);
 
-	const memberships = await membershipQuery.limit(1);
 	const membership = memberships[0];
 
 	if (!membership) {
@@ -33,11 +37,17 @@ export async function findMembershipWithOrganization(userId: string, organizatio
 
 function buildOrgSlug(email: string) {
 	const [emailPrefix] = email.split("@");
-	return `${emailPrefix}-${Math.random().toString(36).slice(-4)}`;
+	const sanitized = emailPrefix
+		.toLowerCase()
+		.replace(/[^a-z0-9-]+/g, "-")
+		.replace(/-+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	const safePrefix = sanitized || "org";
+	return `${safePrefix}-${Math.random().toString(36).slice(-4)}`;
 }
 
 async function tryCreateInvitedMembership(userId: string, email: string, ctx: GenericEndpointContext | null) {
-	logger.debug("Checking for pending invitations for user", userId, email);
+	logger.debug("Checking for pending invitations for user", userId);
 
 	const providerId = extractProviderIdFromContext(ctx);
 	const ssoProviders = await db.select().from(ssoProvider).where(eq(ssoProvider.providerId, providerId)).limit(1);
@@ -71,7 +81,7 @@ async function tryCreateInvitedMembership(userId: string, email: string, ctx: Ge
 	const pendingInvitation = pendingInvitations[0];
 
 	if (!pendingInvitation) {
-		logger.debug("No pending invitation found for user", { email });
+		logger.debug("No pending invitation found for user");
 		throw new APIError("FORBIDDEN", { message: "SSO sign-in is invite-only for this organization" });
 	}
 

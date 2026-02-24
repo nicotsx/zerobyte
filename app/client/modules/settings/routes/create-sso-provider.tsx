@@ -81,9 +81,9 @@ export function CreateSsoProviderPage() {
 					body: { enabled: formData.linkMatchingEmails },
 				})
 				.catch((updateError) => {
-					throw new Error(
-						`The provider was created, but we could not save the auto-link setting. ${parseError(updateError)?.message ?? ""}`,
-					);
+					toast.warning("Auto-link setting could not be saved", {
+						description: parseError(updateError)?.message,
+					});
 				});
 		},
 		onSuccess: () => {

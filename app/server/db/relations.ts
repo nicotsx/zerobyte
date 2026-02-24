@@ -111,7 +111,7 @@ export const relations = defineRelations(schema, (r) => ({
 		user: r.one.usersTable({
 			from: r.ssoProvider.userId,
 			to: r.usersTable.id,
-			optional: false,
+			optional: true,
 		}),
 		organization: r.one.organization({
 			from: r.ssoProvider.organizationId,

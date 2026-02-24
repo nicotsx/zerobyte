@@ -18,7 +18,7 @@ export function decodeLoginError(error?: string): LoginErrorCode | null {
 		decoded = error;
 	}
 
-	decoded = decoded.toLowerCase().replace(/[_\s]+/g, "_");
+	decoded = decoded.toLowerCase().replace(/[-_\s]+/g, "_");
 
 	if (decoded.includes("account_not_linked")) {
 		return "ACCOUNT_LINK_REQUIRED";

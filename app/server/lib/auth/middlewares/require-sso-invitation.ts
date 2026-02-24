@@ -28,7 +28,7 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 	}
 
 	const normalizedEmail = normalizeEmail(userEmail);
-	logger.debug("Checking for pending invitations", normalizedEmail, provider.organizationId);
+	logger.debug("Checking for pending invitations", { organizationId: provider.organizationId });
 
 	const pendingInvitation = await db.query.invitation.findFirst({
 		where: {
@@ -39,10 +39,10 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 				{ email: normalizedEmail },
 			],
 		},
-		columns: { id: true, email: true },
+		columns: { id: true },
 	});
 
-	logger.debug("Pending invitation result", { pendingInvitation });
+	logger.debug("Pending invitation result", { found: !!pendingInvitation, invitationId: pendingInvitation?.id });
 
 	if (!pendingInvitation) {
 		throw new APIError("FORBIDDEN", {

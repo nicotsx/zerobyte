@@ -50,7 +50,7 @@ export const authController = new Hono()
 				type: provider.type,
 				issuer: provider.issuer,
 				domain: provider.domain,
-				autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? true,
+				autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? false,
 				organizationId: provider.organizationId,
 			})),
 			invitations: invitationsData.map((invitation) => ({
@@ -64,7 +64,9 @@ export const authController = new Hono()
 	})
 	.delete("/sso-providers/:providerId", requireAuth, requireAdmin, deleteSsoProviderDto, async (c) => {
 		const providerId = c.req.param("providerId");
-		await authService.deleteSsoProvider(providerId);
+		const organizationId = c.get("organizationId");
+
+		await authService.deleteSsoProvider(providerId, organizationId);
 
 		return c.json({ success: true });
 	})
@@ -76,9 +78,10 @@ export const authController = new Hono()
 		validator("json", updateSsoProviderAutoLinkingBody),
 		async (c) => {
 			const providerId = c.req.param("providerId");
+			const organizationId = c.get("organizationId");
 			const { enabled } = c.req.valid("json");
 
-			const updated = await authService.updateSsoProviderAutoLinking(providerId, enabled);
+			const updated = await authService.updateSsoProviderAutoLinking(providerId, organizationId, enabled);
 
 			if (!updated) {
 				return c.json({ message: "Provider not found" }, 404);
@@ -89,6 +92,13 @@ export const authController = new Hono()
 	)
 	.delete("/sso-invitations/:invitationId", requireAuth, requireAdmin, deleteSsoInvitationDto, async (c) => {
 		const invitationId = c.req.param("invitationId");
+		const organizationId = c.get("organizationId");
+
+		const invitation = await authService.getSsoInvitationById(invitationId);
+		if (!invitation || invitation.organizationId !== organizationId) {
+			return c.json({ message: "Invitation not found" }, 404);
+		}
+
 		await authService.deleteSsoInvitation(invitationId);
 
 		return c.json({ success: true });
@@ -114,15 +124,18 @@ export const authController = new Hono()
 				accounts: accountsByUser[adminUser.id] ?? [],
 			})),
 			total: usersData.total,
-			limit: "limit" in usersData ? (usersData.limit ?? 100) : 100,
-			offset: "offset" in usersData ? (usersData.offset ?? 0) : 0,
 		});
 	})
 	.delete("/admin-users/:userId/accounts/:accountId", requireAuth, requireAdmin, deleteUserAccountDto, async (c) => {
 		const userId = c.req.param("userId");
 		const accountId = c.req.param("accountId");
+		const organizationId = c.get("organizationId");
 
-		const result = await authService.deleteUserAccount(userId, accountId);
+		const result = await authService.deleteUserAccount(userId, accountId, organizationId);
+
+		if (result.forbidden) {
+			return c.json({ message: "User is not a member of this organization" }, 403);
+		}
 
 		if (result.lastAccount) {
 			return c.json({ message: "Cannot delete the last account of a user" }, 409);

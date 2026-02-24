@@ -3,195 +3,9 @@
 
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
-import { client } from "../client.gen";
-import {
-	browseFilesystem,
-	cancelDoctor,
-	createBackupSchedule,
-	createNotificationDestination,
-	createRepository,
-	createVolume,
-	deleteBackupSchedule,
-	deleteNotificationDestination,
-	deleteRepository,
-	deleteSnapshot,
-	deleteSnapshots,
-	deleteVolume,
-	devPanelExec,
-	downloadResticPassword,
-	dumpSnapshot,
-	getBackupProgress,
-	getBackupSchedule,
-	getBackupScheduleForVolume,
-	getDevPanel,
-	getMirrorCompatibility,
-	getNotificationDestination,
-	getRegistrationStatus,
-	getRepository,
-	getRepositoryStats,
-	getScheduleMirrors,
-	getScheduleNotifications,
-	getSnapshotDetails,
-	getStatus,
-	getSystemInfo,
-	getUpdates,
-	getUserDeletionImpact,
-	getVolume,
-	healthCheckVolume,
-	listBackupSchedules,
-	listFiles,
-	listNotificationDestinations,
-	listRcloneRemotes,
-	listRepositories,
-	listSnapshotFiles,
-	listSnapshots,
-	listVolumes,
-	mountVolume,
-	type Options,
-	refreshSnapshots,
-	reorderBackupSchedules,
-	restoreSnapshot,
-	runBackupNow,
-	runForget,
-	setRegistrationStatus,
-	startDoctor,
-	stopBackup,
-	tagSnapshots,
-	testConnection,
-	testNotificationDestination,
-	unlockRepository,
-	unmountVolume,
-	updateBackupSchedule,
-	updateNotificationDestination,
-	updateRepository,
-	updateScheduleMirrors,
-	updateScheduleNotifications,
-	updateVolume,
-} from "../sdk.gen";
-import type {
-	BrowseFilesystemData,
-	BrowseFilesystemResponse,
-	CancelDoctorData,
-	CancelDoctorResponse,
-	CreateBackupScheduleData,
-	CreateBackupScheduleResponse,
-	CreateNotificationDestinationData,
-	CreateNotificationDestinationResponse,
-	CreateRepositoryData,
-	CreateRepositoryResponse,
-	CreateVolumeData,
-	CreateVolumeResponse,
-	DeleteBackupScheduleData,
-	DeleteBackupScheduleResponse,
-	DeleteNotificationDestinationData,
-	DeleteNotificationDestinationResponse,
-	DeleteRepositoryData,
-	DeleteRepositoryResponse,
-	DeleteSnapshotData,
-	DeleteSnapshotResponse,
-	DeleteSnapshotsData,
-	DeleteSnapshotsResponse,
-	DeleteVolumeData,
-	DeleteVolumeResponse,
-	DevPanelExecData,
-	DevPanelExecResponse,
-	DownloadResticPasswordData,
-	DownloadResticPasswordResponse,
-	DumpSnapshotData,
-	DumpSnapshotResponse,
-	GetBackupProgressData,
-	GetBackupProgressResponse,
-	GetBackupScheduleData,
-	GetBackupScheduleForVolumeData,
-	GetBackupScheduleForVolumeResponse,
-	GetBackupScheduleResponse,
-	GetDevPanelData,
-	GetDevPanelResponse,
-	GetMirrorCompatibilityData,
-	GetMirrorCompatibilityResponse,
-	GetNotificationDestinationData,
-	GetNotificationDestinationResponse,
-	GetRegistrationStatusData,
-	GetRegistrationStatusResponse,
-	GetRepositoryData,
-	GetRepositoryResponse,
-	GetRepositoryStatsData,
-	GetRepositoryStatsResponse,
-	GetScheduleMirrorsData,
-	GetScheduleMirrorsResponse,
-	GetScheduleNotificationsData,
-	GetScheduleNotificationsResponse,
-	GetSnapshotDetailsData,
-	GetSnapshotDetailsResponse,
-	GetStatusData,
-	GetStatusResponse,
-	GetSystemInfoData,
-	GetSystemInfoResponse,
-	GetUpdatesData,
-	GetUpdatesResponse,
-	GetUserDeletionImpactData,
-	GetUserDeletionImpactResponse,
-	GetVolumeData,
-	GetVolumeResponse,
-	HealthCheckVolumeData,
-	HealthCheckVolumeResponse,
-	ListBackupSchedulesData,
-	ListBackupSchedulesResponse,
-	ListFilesData,
-	ListFilesResponse,
-	ListNotificationDestinationsData,
-	ListNotificationDestinationsResponse,
-	ListRcloneRemotesData,
-	ListRcloneRemotesResponse,
-	ListRepositoriesData,
-	ListRepositoriesResponse,
-	ListSnapshotFilesData,
-	ListSnapshotFilesResponse,
-	ListSnapshotsData,
-	ListSnapshotsResponse,
-	ListVolumesData,
-	ListVolumesResponse,
-	MountVolumeData,
-	MountVolumeResponse,
-	RefreshSnapshotsData,
-	RefreshSnapshotsResponse,
-	ReorderBackupSchedulesData,
-	ReorderBackupSchedulesResponse,
-	RestoreSnapshotData,
-	RestoreSnapshotResponse,
-	RunBackupNowData,
-	RunBackupNowResponse,
-	RunForgetData,
-	RunForgetResponse,
-	SetRegistrationStatusData,
-	SetRegistrationStatusResponse,
-	StartDoctorData,
-	StartDoctorResponse,
-	StopBackupData,
-	StopBackupResponse,
-	TagSnapshotsData,
-	TagSnapshotsResponse,
-	TestConnectionData,
-	TestConnectionResponse,
-	TestNotificationDestinationData,
-	TestNotificationDestinationResponse,
-	UnlockRepositoryData,
-	UnlockRepositoryResponse,
-	UnmountVolumeData,
-	UnmountVolumeResponse,
-	UpdateBackupScheduleData,
-	UpdateBackupScheduleResponse,
-	UpdateNotificationDestinationData,
-	UpdateNotificationDestinationResponse,
-	UpdateRepositoryData,
-	UpdateRepositoryResponse,
-	UpdateScheduleMirrorsData,
-	UpdateScheduleMirrorsResponse,
-	UpdateScheduleNotificationsData,
-	UpdateScheduleNotificationsResponse,
-	UpdateVolumeData,
-	UpdateVolumeResponse,
-} from "../types.gen";
+import { client } from '../client.gen';
+import { browseFilesystem, cancelDoctor, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, devPanelExec, downloadResticPassword, dumpSnapshot, getAdminUsers, getBackupProgress, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getNotificationDestination, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getUpdates, getUserDeletionImpact, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, mountVolume, type Options, refreshSnapshots, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setRegistrationStatus, startDoctor, stopBackup, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelDoctorData, CancelDoctorResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DevPanelExecData, DevPanelExecResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, GetAdminUsersData, GetAdminUsersResponse, GetBackupProgressData, GetBackupProgressResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StopBackupData, StopBackupResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1267,33 +1081,25 @@ export const reorderBackupSchedulesMutation = (options?: Partial<Options<Reorder
     return mutationOptions;
 };
 
-export const getBackupProgressQueryKey = (options: Options<GetBackupProgressData>) =>
-	createQueryKey("getBackupProgress", options);
+export const getBackupProgressQueryKey = (options: Options<GetBackupProgressData>) => createQueryKey('getBackupProgress', options);
 
 /**
  * Get the last known progress for a currently running backup. Returns null if no progress has been reported yet.
  */
-export const getBackupProgressOptions = (options: Options<GetBackupProgressData>) =>
-	queryOptions<
-		GetBackupProgressResponse,
-		DefaultError,
-		GetBackupProgressResponse,
-		ReturnType<typeof getBackupProgressQueryKey>
-	>({
-		queryFn: async ({ queryKey, signal }) => {
-			const { data } = await getBackupProgress({
-				...options,
-				...queryKey[0],
-				signal,
-				throwOnError: true,
-			});
-			return data;
-		},
-		queryKey: getBackupProgressQueryKey(options),
-	});
+export const getBackupProgressOptions = (options: Options<GetBackupProgressData>) => queryOptions<GetBackupProgressResponse, DefaultError, GetBackupProgressResponse, ReturnType<typeof getBackupProgressQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getBackupProgress({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getBackupProgressQueryKey(options)
+});
 
-export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) =>
-	createQueryKey("listNotificationDestinations", options);
+export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) => createQueryKey('listNotificationDestinations', options);
 
 /**
  * List all notification destinations

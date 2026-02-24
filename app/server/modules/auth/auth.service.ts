@@ -11,13 +11,13 @@ import {
 	invitation,
 } from "../../db/schema";
 import { eq, ne, and, count, inArray } from "drizzle-orm";
-import type { PublicSsoProvidersDto, UserDeletionImpactDto } from "./auth.dto";
+import type { UserDeletionImpactDto } from "./auth.dto";
 
 export class AuthService {
 	/**
 	 * Check if any users exist in the system
 	 */
-	async hasUsers(): Promise<boolean> {
+	async hasUsers() {
 		const [user] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
 		return !!user;
 	}
@@ -25,7 +25,7 @@ export class AuthService {
 	/**
 	 * Get public SSO providers for the instance
 	 */
-	async getPublicSsoProviders(): Promise<PublicSsoProvidersDto> {
+	async getPublicSsoProviders() {
 		const providers = await db
 			.select({
 				providerId: ssoProvider.providerId,
@@ -40,7 +40,7 @@ export class AuthService {
 	/**
 	 * Get the impact of deleting a user
 	 */
-	async getUserDeletionImpact(userId: string): Promise<UserDeletionImpactDto> {
+	async getUserDeletionImpact(userId: string) {
 		const userMemberships = await db.query.member.findMany({
 			where: {
 				AND: [{ userId: userId }, { role: "owner" }],
@@ -95,7 +95,7 @@ export class AuthService {
 	/**
 	 * Cleanup organizations where the user was the sole owner
 	 */
-	async cleanupUserOrganizations(userId: string): Promise<void> {
+	async cleanupUserOrganizations(userId: string) {
 		const impact = await this.getUserDeletionImpact(userId);
 		const orgIds = impact.organizations.map((o) => o.id);
 
@@ -107,17 +107,19 @@ export class AuthService {
 	/**
 	 * Delete an SSO provider and its associated accounts
 	 */
-	async deleteSsoProvider(providerId: string): Promise<void> {
+	async deleteSsoProvider(providerId: string, organizationId: string) {
 		await db.transaction(async (tx) => {
 			await tx.delete(account).where(eq(account.providerId, providerId));
-			await tx.delete(ssoProvider).where(eq(ssoProvider.providerId, providerId));
+			await tx
+				.delete(ssoProvider)
+				.where(and(eq(ssoProvider.providerId, providerId), eq(ssoProvider.organizationId, organizationId)));
 		});
 	}
 
 	/**
 	 * Get per-provider auto-linking setting for an organization
 	 */
-	async getSsoProviderAutoLinkingSettings(organizationId: string): Promise<Record<string, boolean>> {
+	async getSsoProviderAutoLinkingSettings(organizationId: string) {
 		const providers = await db.query.ssoProvider.findMany({
 			columns: { providerId: true, autoLinkMatchingEmails: true },
 			where: { organizationId },
@@ -129,9 +131,9 @@ export class AuthService {
 	/**
 	 * Update per-provider auto-linking setting
 	 */
-	async updateSsoProviderAutoLinking(providerId: string, enabled: boolean): Promise<boolean> {
+	async updateSsoProviderAutoLinking(providerId: string, organizationId: string, enabled: boolean) {
 		const existingProvider = await db.query.ssoProvider.findFirst({
-			where: { providerId },
+			where: { AND: [{ providerId }, { organizationId }] },
 			columns: { id: true },
 		});
 
@@ -139,22 +141,45 @@ export class AuthService {
 			return false;
 		}
 
-		await db.update(ssoProvider).set({ autoLinkMatchingEmails: enabled }).where(eq(ssoProvider.providerId, providerId));
+		await db
+			.update(ssoProvider)
+			.set({ autoLinkMatchingEmails: enabled })
+			.where(and(eq(ssoProvider.providerId, providerId), eq(ssoProvider.organizationId, organizationId)));
 
 		return true;
 	}
 
 	/**
+	 * Get an SSO invitation by ID
+	 */
+	async getSsoInvitationById(invitationId: string) {
+		return db.query.invitation.findFirst({
+			where: { id: invitationId },
+			columns: { id: true, organizationId: true },
+		});
+	}
+
+	/**
 	 * Delete an invitation
 	 */
-	async deleteSsoInvitation(invitationId: string): Promise<void> {
+	async deleteSsoInvitation(invitationId: string) {
 		await db.delete(invitation).where(eq(invitation.id, invitationId));
+	}
+
+	/**
+	 * Check if a user is a member of an organization
+	 */
+	async getUserMembership(userId: string, organizationId: string) {
+		return db.query.member.findFirst({
+			where: { AND: [{ userId }, { organizationId }] },
+			columns: { id: true },
+		});
 	}
 
 	/**
 	 * Fetch accounts for a list of users, keyed by userId
 	 */
-	async getUserAccounts(userIds: string[]): Promise<Record<string, { id: string; providerId: string }[]>> {
+	async getUserAccounts(userIds: string[]) {
 		if (userIds.length === 0) return {};
 
 		const accounts = await db.query.account.findMany({
@@ -175,18 +200,25 @@ export class AuthService {
 	/**
 	 * Delete a single account for a user, refusing if it is the last one
 	 */
-	async deleteUserAccount(userId: string, accountId: string): Promise<{ lastAccount: boolean }> {
-		const userAccounts = await db.query.account.findMany({
-			where: { userId },
-			columns: { id: true },
-		});
-
-		if (userAccounts.length <= 1) {
-			return { lastAccount: true };
+	async deleteUserAccount(userId: string, accountId: string, organizationId: string) {
+		const membership = await this.getUserMembership(userId, organizationId);
+		if (!membership) {
+			return { lastAccount: false, forbidden: true };
 		}
 
-		await db.delete(account).where(and(eq(account.id, accountId), eq(account.userId, userId)));
-		return { lastAccount: false };
+		return db.transaction(async (tx) => {
+			const userAccounts = await tx.query.account.findMany({
+				where: { userId },
+				columns: { id: true },
+			});
+
+			if (userAccounts.length <= 1) {
+				return { lastAccount: true, forbidden: false };
+			}
+
+			await tx.delete(account).where(and(eq(account.id, accountId), eq(account.userId, userId)));
+			return { lastAccount: false, forbidden: false };
+		});
 	}
 }
 

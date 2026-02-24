@@ -1,7 +1,7 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "f1d1baed-4d81-40b5-86fb-56e9c173a27f",
+	"id": "9fe017f6-0277-40aa-adbc-e165e20796fd",
 	"prevIds": ["3a308c54-d950-464f-9490-fee06985fbeb"],
 	"ddl": [
 		{
@@ -2096,10 +2096,10 @@
 					"isExpression": false
 				}
 			],
-			"isUnique": true,
+			"isUnique": false,
 			"where": null,
 			"origin": "manual",
-			"name": "sso_provider_organization_id_uidx",
+			"name": "sso_provider_organization_id_idx",
 			"entityType": "indexes",
 			"table": "sso_provider"
 		},
