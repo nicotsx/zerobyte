@@ -1,6 +1,10 @@
 {
 	"name": "zerobyte",
 	"private": true,
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
 	"type": "module",
 	"scripts": {
 		"lint": "oxlint --type-aware",
