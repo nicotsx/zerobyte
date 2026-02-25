@@ -1,20 +1,15 @@
 **
 
-!turbo.json
 !bun.lock
 !package.json
-!server.ts
 !.gitignore
 
 !**/package.json
 !**/bun.lock
 !**/tsconfig.json
 !**/vite.config.ts
-!**/react-router.config.ts
-!**/build.ts
 !**/components.json
 
-!src/**
 !app/**
 !public/**
 
