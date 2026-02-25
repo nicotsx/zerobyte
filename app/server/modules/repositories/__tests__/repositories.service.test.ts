@@ -10,6 +10,8 @@ import { repositoriesTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { restic } from "~/server/utils/restic";
 import { createTestSession } from "~/test/helpers/auth";
+import { createTestBackupSchedule } from "~/test/helpers/backup";
+import { cache, cacheKeys } from "~/server/utils/cache";
 import { repositoriesService } from "../repositories.service";
 
 describe("repositoriesService.createRepository", () => {
@@ -301,5 +303,71 @@ describe("repositoriesService.dumpSnapshot", () => {
 			organizationId,
 			path: "/",
 		});
+	});
+});
+
+describe("repositoriesService.getRetentionCategories", () => {
+	afterEach(() => {
+		mock.restore();
+	});
+
+	test("recomputes retention categories after repository cache invalidation", async () => {
+		const { organizationId, user } = await createTestSession();
+		const schedule = await createTestBackupSchedule({ organizationId, retentionPolicy: { keepLast: 1 } });
+
+		const repository = await db.query.repositoriesTable.findFirst({ where: { id: schedule.repositoryId } });
+
+		expect(repository).toBeTruthy();
+		if (!repository) {
+			throw new Error("Repository should exist");
+		}
+
+		const oldSnapshotId = "snapshot-old";
+		const newSnapshotId = "snapshot-new";
+		const buildForgetResponse = (snapshotId: string) => ({
+			success: true,
+			data: [
+				{
+					tags: [schedule.shortId],
+					host: "host",
+					paths: ["/data"],
+					keep: [],
+					remove: null,
+					reasons: [
+						{
+							snapshot: {
+								id: snapshotId,
+								short_id: snapshotId,
+								time: new Date().toISOString(),
+								tree: "tree",
+								paths: ["/data"],
+								hostname: "host",
+							},
+							matches: ["last snapshot"],
+						},
+					],
+				},
+			],
+		});
+
+		const forgetSpy = spyOn(restic, "forget");
+		forgetSpy.mockResolvedValueOnce(buildForgetResponse(oldSnapshotId));
+		forgetSpy.mockResolvedValueOnce(buildForgetResponse(newSnapshotId));
+
+		const firstCategories = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.getRetentionCategories(repository.shortId, schedule.shortId),
+		);
+
+		expect(firstCategories.get(oldSnapshotId)).toEqual(["last"]);
+
+		cache.delByPrefix(cacheKeys.repository.all(repository.id));
+
+		const secondCategories = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.getRetentionCategories(repository.shortId, schedule.shortId),
+		);
+
+		expect(secondCategories.get(newSnapshotId)).toEqual(["last"]);
+		expect(secondCategories.has(oldSnapshotId)).toBe(false);
+		expect(forgetSpy).toHaveBeenCalledTimes(2);
 	});
 });

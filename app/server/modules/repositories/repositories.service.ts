@@ -809,24 +809,24 @@ const getRetentionCategories = async (repositoryId: ShortId, scheduleId?: ShortI
 		return new Map<string, RetentionCategory[]>();
 	}
 
-	const cacheKey = cacheKeys.repository.retention(repositoryId, scheduleId);
-	const cached = cache.get<Record<string, RetentionCategory[]>>(cacheKey);
-
-	if (cached && Object.keys(cached).length > 0) {
-		return new Map(Object.entries(cached));
-	}
-
 	try {
-		const [schedule, repositoryResult] = await Promise.all([
-			backupsService.getScheduleByShortId(scheduleId),
-			repositoriesService.getRepository(repositoryId),
-		]);
+		const repository = await findRepository(repositoryId);
+		if (!repository) {
+			return new Map<string, RetentionCategory[]>();
+		}
+
+		const cacheKey = cacheKeys.repository.retention(repository.id, scheduleId);
+		const cached = cache.get<Record<string, RetentionCategory[]>>(cacheKey);
+
+		if (cached) {
+			return new Map(Object.entries(cached));
+		}
+
+		const schedule = await backupsService.getScheduleByShortId(scheduleId);
 
 		if (!schedule?.retentionPolicy) {
 			return new Map<string, RetentionCategory[]>();
 		}
-
-		const { repository } = repositoryResult;
 
 		const dryRunResults = await restic.forget(repository.config, schedule.retentionPolicy, {
 			tag: scheduleId,
