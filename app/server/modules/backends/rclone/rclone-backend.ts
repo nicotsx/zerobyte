@@ -9,6 +9,7 @@ import type { VolumeBackend } from "../backend";
 import { executeUnmount } from "../utils/backend-utils";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
 import { safeExec } from "~/server/utils/spawn";
+import { config as zbConfig } from "~/server/core/config";
 
 const mount = async (config: BackendConfig, path: string) => {
 	logger.debug(`Mounting rclone volume ${path}...`);
@@ -50,7 +51,7 @@ const mount = async (config: BackendConfig, path: string) => {
 		logger.debug(`Mounting rclone volume ${path}...`);
 		logger.info(`Executing rclone: rclone ${args.join(" ")}`);
 
-		const result = await safeExec({ command: "rclone", args });
+		const result = await safeExec({ command: "rclone", args, timeout: zbConfig.serverIdleTimeout * 1000 });
 
 		if (result.exitCode !== 0) {
 			const errorMsg = result.stderr.toString() || result.stdout.toString() || "Unknown error";
@@ -62,7 +63,7 @@ const mount = async (config: BackendConfig, path: string) => {
 	};
 
 	try {
-		return await withTimeout(run(), OPERATION_TIMEOUT, "Rclone mount");
+		return await withTimeout(run(), zbConfig.serverIdleTimeout, "Rclone mount");
 	} catch (error) {
 		const errorMsg = toMessage(error);
 
