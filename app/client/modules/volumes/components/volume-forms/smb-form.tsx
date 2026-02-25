@@ -1,4 +1,4 @@
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import type { FormValues } from "../create-volume-form";
 import {
 	FormControl,
@@ -17,7 +17,7 @@ type Props = {
 };
 
 export const SMBForm = ({ form }: Props) => {
-	const guest = form.watch("guest");
+	const guest = useWatch({ control: form.control, name: "guest" });
 
 	return (
 		<>
@@ -83,12 +83,7 @@ export const SMBForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Username</FormLabel>
 						<FormControl>
-							<Input
-								placeholder="admin"
-								value={field.value}
-								onChange={field.onChange}
-								disabled={guest}
-							/>
+							<Input placeholder="admin" value={field.value} onChange={field.onChange} disabled={guest} />
 						</FormControl>
 						<FormDescription>Username for SMB authentication.</FormDescription>
 						<FormMessage />

@@ -1,4 +1,4 @@
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import {
 	FormControl,
 	FormDescription,
@@ -22,10 +22,10 @@ type Props = {
 };
 
 export const AdvancedForm = ({ form }: Props) => {
-	const insecureTls = form.watch("insecureTls");
-	const cacert = form.watch("cacert");
-	const uploadLimitEnabled = form.watch("uploadLimit.enabled");
-	const downloadLimitEnabled = form.watch("downloadLimit.enabled");
+	const insecureTls = useWatch({ control: form.control, name: "insecureTls" });
+	const cacert = useWatch({ control: form.control, name: "cacert" });
+	const uploadLimitEnabled = useWatch({ control: form.control, name: "uploadLimit.enabled" });
+	const downloadLimitEnabled = useWatch({ control: form.control, name: "downloadLimit.enabled" });
 
 	return (
 		<Collapsible>

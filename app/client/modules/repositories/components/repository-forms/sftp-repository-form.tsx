@@ -1,4 +1,4 @@
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import {
 	FormControl,
 	FormDescription,
@@ -17,6 +17,8 @@ type Props = {
 };
 
 export const SftpRepositoryForm = ({ form }: Props) => {
+	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
+
 	return (
 		<>
 			<FormField
@@ -114,7 +116,7 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 					</FormItem>
 				)}
 			/>
-			{!form.watch("skipHostKeyCheck") && (
+			{!skipHostKeyCheck && (
 				<FormField
 					control={form.control}
 					name="knownHosts"

@@ -111,7 +111,7 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 			name: "",
 		},
 		resetOptions: {
-			keepDefaultValues: true,
+			keepDefaultValues: false,
 			keepDirtyValues: false,
 		},
 	});

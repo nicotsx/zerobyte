@@ -1,4 +1,4 @@
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
@@ -49,7 +49,8 @@ ${body}`;
 };
 
 export const GenericForm = ({ form }: Props) => {
-	const watchedValues = form.watch();
+	const watchedValues = useWatch({ control: form.control });
+	const useJson = useWatch({ control: form.control, name: "useJson" });
 
 	return (
 		<>
@@ -126,7 +127,7 @@ export const GenericForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem className="flex flex-row items-center space-x-3">
 						<FormControl>
-							<Checkbox checked={field.value} onCheckedChange={field.onChange} />
+							<Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked)} />
 						</FormControl>
 						<div className="space-y-1 leading-none">
 							<FormLabel>Use JSON Template</FormLabel>
@@ -135,7 +136,7 @@ export const GenericForm = ({ form }: Props) => {
 					</FormItem>
 				)}
 			/>
-			{form.watch("useJson") && (
+			{useJson && (
 				<>
 					<FormField
 						control={form.control}
