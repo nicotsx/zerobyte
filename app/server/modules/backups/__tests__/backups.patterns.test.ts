@@ -53,20 +53,23 @@ describe("executeBackup - include / exclude patterns", () => {
 		);
 	});
 
-	test("should not join with volume path if pattern already starts with it", async () => {
+	test("should handle the case where a subfolder has the exact same name as the volume name", async () => {
 		// arrange
-		const volume = await createTestVolume();
+		const volumeName = "SyncFolder";
+		const volume = await createTestVolume({
+			name: volumeName,
+			type: "directory",
+			config: { backend: "directory", path: `/${volumeName}` },
+		});
 		const volumePath = getVolumePath(volume);
 		const repository = await createTestRepository();
 
-		const alreadyJoinedInclude = path.join(volumePath, "already/joined");
-		const alreadyJoinedExclude = path.join(volumePath, "already/excluded");
+		const selectedPath = `/${volumeName}`; // Selection of the folder inside the volume
 
 		const schedule = await createTestBackupSchedule({
 			volumeId: volume.id,
 			repositoryId: repository.id,
-			includePatterns: [alreadyJoinedInclude],
-			excludePatterns: [alreadyJoinedExclude],
+			includePatterns: [selectedPath],
 		});
 
 		// act
@@ -77,8 +80,8 @@ describe("executeBackup - include / exclude patterns", () => {
 			expect.anything(),
 			volumePath,
 			expect.objectContaining({
-				include: [alreadyJoinedInclude],
-				exclude: [alreadyJoinedExclude],
+				// Should produce /SyncFolder/SyncFolder and not just /SyncFolder
+				include: [path.join(volumePath, volumeName)],
 			}),
 		);
 	});
@@ -89,14 +92,13 @@ describe("executeBackup - include / exclude patterns", () => {
 		const volumePath = getVolumePath(volume);
 		const repository = await createTestRepository();
 
-		const alreadyJoinedInclude = path.join(volumePath, "already/joined");
 		const relativeInclude = "relative/include";
 		const anchoredInclude = "/anchored/include";
 
 		const schedule = await createTestBackupSchedule({
 			volumeId: volume.id,
 			repositoryId: repository.id,
-			includePatterns: [alreadyJoinedInclude, relativeInclude, anchoredInclude],
+			includePatterns: [relativeInclude, anchoredInclude],
 		});
 
 		// act
@@ -107,7 +109,7 @@ describe("executeBackup - include / exclude patterns", () => {
 			expect.anything(),
 			volumePath,
 			expect.objectContaining({
-				include: [alreadyJoinedInclude, relativeInclude, path.join(volumePath, "anchored/include")],
+				include: [relativeInclude, path.join(volumePath, "anchored/include")],
 			}),
 		);
 	});
