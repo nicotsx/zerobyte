@@ -3,8 +3,6 @@ name: Checks
 on:
   workflow_call:
   pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -12,15 +10,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  checks:
-    timeout-minutes: 15
+  lint:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
@@ -30,13 +32,65 @@ jobs:
           config: .oxlintrc.json
           deny-warnings: true
 
+  typecheck:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
       - name: Run type checks
         shell: bash
         run: bun run tsc
 
-      - name: Run tests
+  test-server:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Run server tests
         shell: bash
-        run: bun run test --ci --coverage
+        run: bun run test:server
+
+  test-client:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Run client tests
+        shell: bash
+        run: bun run test:client
+
+  build:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
 
       - name: Build project
         shell: bash
