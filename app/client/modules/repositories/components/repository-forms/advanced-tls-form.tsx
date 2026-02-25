@@ -164,6 +164,7 @@ export const AdvancedForm = ({ form }: Props) => {
 												onValueChange={field.onChange}
 												defaultValue={field.value || "Mbps"}
 												value={field.value || "Mbps"}
+												disabled={!downloadLimitEnabled}
 											>
 												<FormControl>
 													<SelectTrigger className="text-xs">
