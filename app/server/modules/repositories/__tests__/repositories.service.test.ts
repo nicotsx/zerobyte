@@ -12,7 +12,27 @@ import { restic } from "~/server/utils/restic";
 import { createTestSession } from "~/test/helpers/auth";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { cache, cacheKeys } from "~/server/utils/cache";
+import { ResticError } from "~/server/utils/errors";
 import { repositoriesService } from "../repositories.service";
+
+const createTestRepository = async (organizationId: string) => {
+	const id = randomUUID();
+	const shortId = generateShortId();
+	const [repository] = await db
+		.insert(repositoriesTable)
+		.values({
+			id,
+			shortId,
+			name: `Test-${randomUUID()}`,
+			type: "local",
+			config: { backend: "local", path: "/tmp" },
+			compressionMode: "auto",
+			status: "healthy",
+			organizationId,
+		})
+		.returning();
+	return repository;
+};
 
 describe("repositoriesService.createRepository", () => {
 	const initMock = mock(() => Promise.resolve({ success: true, error: null }));
@@ -369,5 +389,29 @@ describe("repositoriesService.getRetentionCategories", () => {
 		expect(secondCategories.get(newSnapshotId)).toEqual(["last"]);
 		expect(secondCategories.has(oldSnapshotId)).toBe(false);
 		expect(forgetSpy).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("repositoriesService.deleteSnapshot", () => {
+	afterEach(() => {
+		mock.restore();
+	});
+
+	test("should throw original error when restic deleteSnapshot fails", async () => {
+		const { organizationId, user } = await createTestSession();
+		const repository = await createTestRepository(organizationId);
+
+		const originalDeleteSnapshot = restic.deleteSnapshot;
+		restic.deleteSnapshot = mock(async () => {
+			throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
+		});
+
+		await expect(
+			withContext({ organizationId, userId: user.id }, () =>
+				repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
+			),
+		).rejects.toThrow("Fatal: unexpected HTTP response");
+
+		restic.deleteSnapshot = originalDeleteSnapshot;
 	});
 });
