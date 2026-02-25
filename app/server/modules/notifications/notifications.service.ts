@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import {
 	notificationDestinationsTable,
@@ -228,10 +228,6 @@ const deleteDestination = async (id: number) => {
 
 const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
-
-	if (!destination.enabled) {
-		throw new ConflictError("Cannot test disabled notification destination");
-	}
 
 	const decryptedConfig = await decryptSensitiveFields(destination.config);
 

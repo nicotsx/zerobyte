@@ -13,6 +13,8 @@ export const buildDiscordShoutrrrUrl = (config: Extract<NotificationConfig, { ty
 	let shoutrrrUrl = `discord://${webhookToken}@${webhookId}`;
 
 	const params = new URLSearchParams();
+
+	params.append("splitLines", "false");
 	if (config.username) {
 		params.append("username", config.username);
 	}
