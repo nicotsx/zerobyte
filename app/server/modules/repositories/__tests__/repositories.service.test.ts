@@ -401,8 +401,7 @@ describe("repositoriesService.deleteSnapshot", () => {
 		const { organizationId, user } = await createTestSession();
 		const repository = await createTestRepository(organizationId);
 
-		const originalDeleteSnapshot = restic.deleteSnapshot;
-		restic.deleteSnapshot = mock(async () => {
+		spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
 			throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
 		});
 
@@ -411,7 +410,5 @@ describe("repositoriesService.deleteSnapshot", () => {
 				repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
 			),
 		).rejects.toThrow("Fatal: unexpected HTTP response");
-
-		restic.deleteSnapshot = originalDeleteSnapshot;
 	});
 });
