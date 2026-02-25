@@ -37,6 +37,8 @@ import type {
 	DownloadResticPasswordResponses,
 	DumpSnapshotData,
 	DumpSnapshotResponses,
+	GetBackupProgressData,
+	GetBackupProgressResponses,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponses,
@@ -702,6 +704,17 @@ export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(
 			"Content-Type": "application/json",
 			...options?.headers,
 		},
+	});
+
+/**
+ * Get the last known progress for a currently running backup. Returns null if no progress has been reported yet.
+ */
+export const getBackupProgress = <ThrowOnError extends boolean = false>(
+	options: Options<GetBackupProgressData, ThrowOnError>,
+) =>
+	(options.client ?? client).get<GetBackupProgressResponses, unknown, ThrowOnError>({
+		url: "/api/v1/backups/{shortId}/progress",
+		...options,
 	});
 
 /**

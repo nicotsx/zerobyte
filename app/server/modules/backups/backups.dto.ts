@@ -2,6 +2,7 @@ import { type } from "arktype";
 import { describeRoute, resolver } from "hono-openapi";
 import { volumeSchema } from "../volumes/volume.dto";
 import { repositorySchema } from "../repositories/repositories.dto";
+import { backupProgressEventSchema } from "~/schemas/events-dto";
 
 const retentionPolicySchema = type({
 	keepLast: "number?",
@@ -397,6 +398,29 @@ export const reorderBackupSchedulesDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(reorderBackupSchedulesResponse),
+				},
+			},
+		},
+	},
+});
+
+/**
+ * Get current backup progress for a running backup
+ */
+const getBackupProgressResponse = backupProgressEventSchema.or("null");
+export type GetBackupProgressDto = typeof getBackupProgressResponse.infer;
+
+export const getBackupProgressDto = describeRoute({
+	description:
+		"Get the last known progress for a currently running backup. Returns null if no progress has been reported yet.",
+	tags: ["Backup Schedules"],
+	operationId: "getBackupProgress",
+	responses: {
+		200: {
+			description: "Current backup progress or null if not yet available",
+			content: {
+				"application/json": {
+					schema: resolver(getBackupProgressResponse),
 				},
 			},
 		},

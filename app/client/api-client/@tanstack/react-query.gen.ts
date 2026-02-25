@@ -26,6 +26,7 @@ import {
 	devPanelExec,
 	downloadResticPassword,
 	dumpSnapshot,
+	getBackupProgress,
 	getBackupSchedule,
 	getBackupScheduleForVolume,
 	getDevPanel,
@@ -104,6 +105,8 @@ import type {
 	DownloadResticPasswordResponse,
 	DumpSnapshotData,
 	DumpSnapshotResponse,
+	GetBackupProgressData,
+	GetBackupProgressResponse,
 	GetBackupScheduleData,
 	GetBackupScheduleForVolumeData,
 	GetBackupScheduleForVolumeResponse,
@@ -1359,6 +1362,31 @@ export const reorderBackupSchedulesMutation = (
 	};
 	return mutationOptions;
 };
+
+export const getBackupProgressQueryKey = (options: Options<GetBackupProgressData>) =>
+	createQueryKey("getBackupProgress", options);
+
+/**
+ * Get the last known progress for a currently running backup. Returns null if no progress has been reported yet.
+ */
+export const getBackupProgressOptions = (options: Options<GetBackupProgressData>) =>
+	queryOptions<
+		GetBackupProgressResponse,
+		DefaultError,
+		GetBackupProgressResponse,
+		ReturnType<typeof getBackupProgressQueryKey>
+	>({
+		queryFn: async ({ queryKey, signal }) => {
+			const { data } = await getBackupProgress({
+				...options,
+				...queryKey[0],
+				signal,
+				throwOnError: true,
+			});
+			return data;
+		},
+		queryKey: getBackupProgressQueryKey(options),
+	});
 
 export const listNotificationDestinationsQueryKey = (options?: Options<ListNotificationDestinationsData>) =>
 	createQueryKey("listNotificationDestinations", options);

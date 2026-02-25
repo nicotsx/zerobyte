@@ -18,6 +18,7 @@ import {
 	getMirrorCompatibilityDto,
 	reorderBackupSchedulesDto,
 	reorderBackupSchedulesBody,
+	getBackupProgressDto,
 	type CreateBackupScheduleDto,
 	type DeleteBackupScheduleDto,
 	type GetBackupScheduleDto,
@@ -31,6 +32,7 @@ import {
 	type UpdateScheduleMirrorsDto,
 	type GetMirrorCompatibilityDto,
 	type ReorderBackupSchedulesDto,
+	type GetBackupProgressDto,
 } from "./backups.dto";
 import { backupsService } from "./backups.service";
 import {
@@ -161,4 +163,11 @@ export const backupScheduleController = new Hono()
 		await backupsService.reorderSchedules(body.scheduleShortIds.map(asShortId));
 
 		return c.json<ReorderBackupSchedulesDto>({ success: true }, 200);
+	})
+	.get("/:shortId/progress", getBackupProgressDto, async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const schedule = await backupsService.getScheduleByShortId(shortId);
+		const progress = backupsExecutionService.getBackupProgress(schedule.id);
+
+		return c.json<GetBackupProgressDto>(progress ?? null, 200);
 	});

@@ -2,17 +2,19 @@ import { useEffect, useState } from "react";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { type BackupProgressEvent, useServerEvents } from "~/client/hooks/use-server-events";
+import { useServerEvents } from "~/client/hooks/use-server-events";
+import type { GetBackupProgressResponse } from "~/client/api-client/types.gen";
 import { formatDuration } from "~/utils/utils";
 import { formatBytes } from "~/utils/format-bytes";
 
 type Props = {
 	scheduleShortId: string;
+	initialProgress: GetBackupProgressResponse;
 };
 
-export const BackupProgressCard = ({ scheduleShortId }: Props) => {
+export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) => {
 	const { addEventListener } = useServerEvents();
-	const [progress, setProgress] = useState<BackupProgressEvent | null>(null);
+	const [progress, setProgress] = useState<GetBackupProgressResponse>(initialProgress ?? null);
 
 	useEffect(() => {
 		const abortController = new AbortController();

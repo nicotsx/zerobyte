@@ -14,8 +14,8 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupProgressCard } from "./backup-progress-card";
-import { runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { useMutation } from "@tanstack/react-query";
+import { getBackupProgressOptions, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
@@ -36,6 +36,10 @@ export const ScheduleSummary = (props: Props) => {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
+
+	const { data: initialProgress } = useSuspenseQuery({
+		...getBackupProgressOptions({ path: { shortId: schedule.shortId } }),
+	});
 
 	const runForget = useMutation({
 		...runForgetMutation(),
@@ -215,7 +219,9 @@ export const ScheduleSummary = (props: Props) => {
 				</CardContent>
 			</Card>
 
-			{schedule.lastBackupStatus === "in_progress" && <BackupProgressCard scheduleShortId={schedule.shortId} />}
+			{schedule.lastBackupStatus === "in_progress" && (
+				<BackupProgressCard scheduleShortId={schedule.shortId} initialProgress={initialProgress} />
+			)}
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
