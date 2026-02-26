@@ -13,12 +13,12 @@ export const tagSnapshots = async (
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
 	organizationId: string,
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, organizationId);
-
 	if (snapshotIds.length === 0) {
 		throw new Error("No snapshot IDs provided for tagging.");
 	}
+
+	const repoUrl = buildRepoUrl(config);
+	const env = await buildEnv(config, organizationId);
 
 	const args: string[] = ["--repo", repoUrl, "tag", ...snapshotIds];
 
