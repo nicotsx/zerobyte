@@ -33,7 +33,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 				// Left bracket - vertical line
 				"before:absolute before:left-0 before:top-0 before:h-7 before:w-0.5 before:bg-[#5D6570] before:transition-colors data-[state=active]:before:bg-[#FF453A]",
 				// Left bracket - top tick
-				"after:absolute after:left-0 after:top-[-1px] after:w-2 after:h-0.5 after:bg-[#5D6570] after:transition-colors data-[state=active]:after:bg-[#FF453A]",
+				"after:absolute after:left-0 after:-top-px after:w-2 after:h-0.5 after:bg-[#5D6570] after:transition-colors data-[state=active]:after:bg-[#FF453A]",
 				className,
 			)}
 			{...props}

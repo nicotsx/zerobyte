@@ -125,7 +125,7 @@ export function NotificationsPage() {
 						{filteredNotifications.map((notification) => (
 							<TableRow
 								key={notification.id}
-								className="hover:bg-accent/50 hover:cursor-pointer"
+								className="hover:bg-accent/50 hover:cursor-pointer h-12"
 								onClick={() => navigate({ to: `/notifications/${notification.id}` })}
 							>
 								<TableCell className="font-medium text-strong-accent">{notification.name}</TableCell>

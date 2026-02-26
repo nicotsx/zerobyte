@@ -135,7 +135,7 @@ export function VolumesPage() {
 							filteredVolumes.map((volume) => (
 								<TableRow
 									key={volume.name}
-									className="hover:bg-white/2 hover:cursor-pointer transition-colors border-l-2 border-r-2 border-transparent hover:border-white/10"
+									className="hover:bg-white/2 hover:cursor-pointer transition-colors border-l-2 border-r-2 border-transparent hover:border-white/10 h-12"
 									onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
 								>
 									<TableCell className="font-medium font-mono text-strong-accent">{volume.name}</TableCell>
