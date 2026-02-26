@@ -6,6 +6,7 @@
 - If you realize an automated migration is incorrect, make sure to remove all the associated entries from the `_journal.json` and the newly created files located in `app/drizzle/` before re-generating the migration
 - The dev server is running at http://localhost:3000. Username is `admin` and password is `password`
 - The repo is https://github.com/nicotsx/zerobyte
+- If you need to run a specific restic command on a repository, you can open and use the dev panel with `Meta+Shift+D`
 
 ## Project Overview
 

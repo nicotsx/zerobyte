@@ -235,6 +235,41 @@ export const buildEnv = async (config: RepositoryConfig, organizationId: string)
 	return env;
 };
 
+const keyAdd = async (
+	config: RepositoryConfig,
+	organizationId: string,
+	options: { host: string; timeoutMs?: number },
+) => {
+	const repoUrl = buildRepoUrl(config);
+
+	logger.info(`Adding restic key with host "${options.host}" for repository at ${repoUrl}...`);
+
+	const env = await buildEnv(config, organizationId);
+
+	const args = [
+		"key",
+		"add",
+		"--repo",
+		repoUrl,
+		"--host",
+		options.host,
+		"--new-password-file",
+		env.RESTIC_PASSWORD_FILE,
+	];
+	addCommonArgs(args, env, config);
+
+	const res = await safeExec({ command: "restic", args, env, timeout: options.timeoutMs ?? 60000 });
+	await cleanupTemporaryKeys(env);
+
+	if (res.exitCode !== 0) {
+		logger.error(`Restic key add failed: ${res.stderr}`);
+		return { success: false, error: res.stderr };
+	}
+
+	logger.info(`Restic key added with host "${options.host}" for repository: ${repoUrl}`);
+	return { success: true, error: null };
+};
+
 const init = async (config: RepositoryConfig, organizationId: string, options?: { timeoutMs?: number }) => {
 	const repoUrl = buildRepoUrl(config);
 
@@ -254,6 +289,18 @@ const init = async (config: RepositoryConfig, organizationId: string, options?: 
 	}
 
 	logger.info(`Restic repository initialized: ${repoUrl}`);
+
+	if (appConfig.resticHostname) {
+		const keyResult = await keyAdd(config, organizationId, {
+			host: appConfig.resticHostname,
+			timeoutMs: options?.timeoutMs,
+		});
+
+		if (!keyResult.success) {
+			logger.warn(`Repository initialized but failed to add key with hostname: ${keyResult.error}`);
+		}
+	}
+
 	return { success: true, error: null };
 };
 
@@ -1248,6 +1295,7 @@ export const addCommonArgs = (
 
 export const restic = {
 	init,
+	keyAdd,
 	backup,
 	restore,
 	dump,
