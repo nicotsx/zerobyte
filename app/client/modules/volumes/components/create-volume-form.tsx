@@ -237,7 +237,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 							>
 								{testBackendConnection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
 								{!testBackendConnection.isPending && testMessage?.success && (
-									<CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+									<CheckCircle className="mr-2 h-4 w-4 text-emerald-500" />
 								)}
 								{!testBackendConnection.isPending && testMessage && !testMessage.success && (
 									<XCircle className="mr-2 h-4 w-4 text-red-500" />
@@ -255,7 +255,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 						{testMessage && (
 							<div
 								className={cn("text-xs p-2 rounded-md text-wrap wrap-anywhere", {
-									"bg-green-50 text-green-700 border border-green-200": testMessage.success,
+									"bg-green-50 text-emerald-700 border border-green-200": testMessage.success,
 									"bg-red-50 text-red-700 border border-red-200": !testMessage.success,
 								})}
 							>

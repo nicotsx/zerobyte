@@ -53,6 +53,8 @@ export function AppSidebar() {
 	const { updates, hasUpdate } = useUpdates();
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
 
+	const isCollapsed = state === "collapsed";
+
 	const displayVersion = APP_VERSION.startsWith("v") || APP_VERSION === "dev" ? APP_VERSION : `v${APP_VERSION}`;
 	const releaseUrl =
 		APP_VERSION === "dev"
@@ -66,7 +68,7 @@ export function AppSidebar() {
 					<img src="/images/zerobyte.png" alt="Zerobyte Logo" className={cn("h-8 w-8 shrink-0 object-contain -ml-2")} />
 					<span
 						className={cn("text-base transition-all duration-200 -ml-1", {
-							"opacity-0 w-0 overflow-hidden ": state === "collapsed",
+							"opacity-0 w-0 overflow-hidden ": isCollapsed,
 						})}
 					>
 						Zerobyte
@@ -82,18 +84,43 @@ export function AppSidebar() {
 									<TooltipProvider>
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<SidebarMenuButton asChild>
-													<Link to={item.url} onClick={() => isMobile && setOpenMobile(false)}>
+												<SidebarMenuButton asChild className="relative overflow-hidden">
+													<Link
+														to={item.url}
+														onClick={() => isMobile && setOpenMobile(false)}
+														activeProps={{ className: "bg-strong-accent/10" }}
+														className="w-full flex items-center gap-2"
+													>
 														{({ isActive }) => (
 															<>
-																<item.icon className={cn({ "text-strong-accent": isActive })} />
-																<span className={cn({ "text-strong-accent": isActive })}>{item.title}</span>
+																{isActive && (
+																	<div
+																		className={cn("absolute left-0 top-0 h-full w-0.75 bg-strong-accent mr-2", {
+																			hidden: isCollapsed,
+																		})}
+																	/>
+																)}
+																<item.icon
+																	className={cn("transition-all duration-200", {
+																		"text-strong-accent": isActive,
+																		"ml-1": isActive && !isCollapsed,
+																		"text-muted-foreground": !isActive,
+																	})}
+																/>
+																<span
+																	className={cn({
+																		"text-white font-medium": isActive,
+																		"text-muted-foreground": !isActive,
+																	})}
+																>
+																	{item.title}
+																</span>
 															</>
 														)}
 													</Link>
 												</SidebarMenuButton>
 											</TooltipTrigger>
-											<TooltipContent side="right" className={cn({ hidden: state !== "collapsed" })}>
+											<TooltipContent side="right" className={cn({ hidden: !isCollapsed })}>
 												<p>{item.title}</p>
 											</TooltipContent>
 										</Tooltip>

@@ -58,15 +58,15 @@ export function RepositoriesPage() {
 	return (
 		<Card className="p-0 gap-0">
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
-				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-0 flex-wrap ">
+				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-2 flex-wrap">
 					<Input
-						className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px"
-						placeholder="Search repositories…"
+						className="w-full lg:w-45 min-w-45"
+						placeholder="Search…"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 					<Select value={statusFilter} onValueChange={setStatusFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mr-px -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
@@ -76,7 +76,7 @@ export function RepositoriesPage() {
 						</SelectContent>
 					</Select>
 					<Select value={backendFilter} onValueChange={setBackendFilter}>
-						<SelectTrigger className="w-full lg:w-[180px] min-w-[180px] -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All backends" />
 						</SelectTrigger>
 						<SelectContent>
@@ -109,53 +109,50 @@ export function RepositoriesPage() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{hasNoFilteredRepositories ? (
-							<TableRow>
-								<TableCell colSpan={4} className="text-center py-12">
-									<div className="flex flex-col items-center gap-3">
-										<p className="text-muted-foreground">No repositories match your filters.</p>
-										<Button onClick={clearFilters} variant="outline" size="sm">
-											<RotateCcw className="h-4 w-4 mr-2" />
-											Clear filters
-										</Button>
-									</div>
+						<TableRow className={cn({ hidden: !hasNoFilteredRepositories })}>
+							<TableCell colSpan={4} className="text-center py-12">
+								<div className="flex flex-col items-center gap-3">
+									<p className="text-muted-foreground">No repositories match your filters.</p>
+									<Button onClick={clearFilters} variant="outline" size="sm">
+										<RotateCcw className="h-4 w-4 mr-2" />
+										Clear filters
+									</Button>
+								</div>
+							</TableCell>
+						</TableRow>
+						{filteredRepositories.map((repository) => (
+							<TableRow
+								key={repository.id}
+								className="hover:bg-accent/50 hover:cursor-pointer"
+								onClick={() => navigate({ to: `/repositories/${repository.shortId}` })}
+							>
+								<TableCell className="font-medium text-strong-accent">{repository.name}</TableCell>
+								<TableCell>
+									<span className="flex items-center gap-2 text-muted-foreground">
+										<RepositoryIcon backend={repository.type} />
+										{repository.type}
+									</span>
+								</TableCell>
+								<TableCell className="hidden sm:table-cell">
+									<span className="text-muted-foreground text-xs bg-primary/10 rounded-md px-2 py-1">
+										{repository.compressionMode || "off"}
+									</span>
+								</TableCell>
+								<TableCell className="text-center">
+									<span
+										className={cn(
+											"inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500",
+											{
+												"bg-green-500/10 text-emerald-500": repository.status === "healthy",
+												"bg-red-500/10 text-red-500": repository.status === "error",
+											},
+										)}
+									>
+										{repository.status || "unknown"}
+									</span>
 								</TableCell>
 							</TableRow>
-						) : (
-							filteredRepositories.map((repository) => (
-								<TableRow
-									key={repository.id}
-									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate({ to: `/repositories/${repository.shortId}` })}
-								>
-									<TableCell className="font-medium text-strong-accent">{repository.name}</TableCell>
-									<TableCell>
-										<span className="flex items-center gap-2">
-											<RepositoryIcon backend={repository.type} />
-											{repository.type}
-										</span>
-									</TableCell>
-									<TableCell className="hidden sm:table-cell">
-										<span className="text-muted-foreground text-xs bg-primary/10 rounded-md px-2 py-1">
-											{repository.compressionMode || "off"}
-										</span>
-									</TableCell>
-									<TableCell className="text-center">
-										<span
-											className={cn(
-												"inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500",
-												{
-													"bg-green-500/10 text-green-500": repository.status === "healthy",
-													"bg-red-500/10 text-red-500": repository.status === "error",
-												},
-											)}
-										>
-											{repository.status || "unknown"}
-										</span>
-									</TableCell>
-								</TableRow>
-							))
-						)}
+						))}
 					</TableBody>
 				</Table>
 			</div>

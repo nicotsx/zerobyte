@@ -97,7 +97,7 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 				<div className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
 					<span
 						className={cn("inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500", {
-							"bg-green-500/10 text-green-500": data.enabled,
+							"bg-green-500/10 text-emerald-500": data.enabled,
 							"bg-red-500/10 text-red-500": !data.enabled,
 						})}
 					>

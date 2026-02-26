@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { listNotificationDestinationsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { useNavigate } from "@tanstack/react-router";
+import { cn } from "~/client/lib/utils";
 
 export function NotificationsPage() {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -57,15 +58,15 @@ export function NotificationsPage() {
 	return (
 		<Card className="p-0 gap-0">
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
-				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-0 flex-wrap ">
+				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-2 flex-wrap">
 					<Input
-						className="w-full lg:w-45 min-w-45 -mr-px -mt-px"
-						placeholder="Search destinations…"
+						className="w-full lg:w-45 min-w-45"
+						placeholder="Search…"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 					<Select value={typeFilter} onValueChange={setTypeFilter}>
-						<SelectTrigger className="w-full lg:w-45 min-w-45 -mr-px -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All types" />
 						</SelectTrigger>
 						<SelectContent>
@@ -80,7 +81,7 @@ export function NotificationsPage() {
 						</SelectContent>
 					</Select>
 					<Select value={statusFilter} onValueChange={setStatusFilter}>
-						<SelectTrigger className="w-full lg:w-45 min-w-45 -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
@@ -110,36 +111,33 @@ export function NotificationsPage() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{hasNoFilteredNotifications ? (
-							<TableRow>
-								<TableCell colSpan={3} className="text-center py-12">
-									<div className="flex flex-col items-center gap-3">
-										<p className="text-muted-foreground">No destinations match your filters.</p>
-										<Button onClick={clearFilters} variant="outline" size="sm">
-											<RotateCcw className="h-4 w-4 mr-2" />
-											Clear filters
-										</Button>
-									</div>
+						<TableRow className={cn({ hidden: !hasNoFilteredNotifications })}>
+							<TableCell colSpan={3} className="text-center py-12">
+								<div className="flex flex-col items-center gap-3">
+									<p className="text-muted-foreground">No destinations match your filters.</p>
+									<Button onClick={clearFilters} variant="outline" size="sm">
+										<RotateCcw className="h-4 w-4 mr-2" />
+										Clear filters
+									</Button>
+								</div>
+							</TableCell>
+						</TableRow>
+						{filteredNotifications.map((notification) => (
+							<TableRow
+								key={notification.id}
+								className="hover:bg-accent/50 hover:cursor-pointer"
+								onClick={() => navigate({ to: `/notifications/${notification.id}` })}
+							>
+								<TableCell className="font-medium text-strong-accent">{notification.name}</TableCell>
+								<TableCell className="capitalize text-muted-foreground">{notification.type}</TableCell>
+								<TableCell className="text-center">
+									<StatusDot
+										variant={notification.enabled ? "success" : "neutral"}
+										label={notification.enabled ? "Enabled" : "Disabled"}
+									/>
 								</TableCell>
 							</TableRow>
-						) : (
-							filteredNotifications.map((notification) => (
-								<TableRow
-									key={notification.id}
-									className="hover:bg-accent/50 hover:cursor-pointer"
-									onClick={() => navigate({ to: `/notifications/${notification.id}` })}
-								>
-									<TableCell className="font-medium text-strong-accent">{notification.name}</TableCell>
-									<TableCell className="capitalize">{notification.type}</TableCell>
-									<TableCell className="text-center">
-										<StatusDot
-											variant={notification.enabled ? "success" : "neutral"}
-											label={notification.enabled ? "Enabled" : "Disabled"}
-										/>
-									</TableCell>
-								</TableRow>
-							))
-						)}
+						))}
 					</TableBody>
 				</Table>
 			</div>

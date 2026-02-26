@@ -12,7 +12,7 @@ interface StatusDotProps {
 export const StatusDot = ({ variant, label, animated }: StatusDotProps) => {
 	const statusMapping = {
 		success: {
-			color: "bg-green-500",
+			color: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]",
 			colorLight: "bg-emerald-400",
 			animated: animated ?? true,
 		},
@@ -45,7 +45,7 @@ export const StatusDot = ({ variant, label, animated }: StatusDotProps) => {
 					{statusMapping?.animated && (
 						<span
 							className={cn(
-								"absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+								"absolute inline-flex h-full w-full animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite] rounded-full opacity-50",
 								`${statusMapping.colorLight}`,
 							)}
 						/>

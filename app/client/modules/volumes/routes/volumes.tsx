@@ -70,15 +70,15 @@ export function VolumesPage() {
 	return (
 		<Card className="p-0 gap-0">
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
-				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-0 flex-wrap ">
+				<span className="flex flex-col sm:flex-row items-stretch md:items-center gap-2 flex-wrap">
 					<Input
-						className="w-full lg:w-45 min-w-45 -mr-px -mt-px"
-						placeholder="Search volumes…"
+						className="w-full lg:w-45 min-w-45"
+						placeholder="Search…"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 					/>
 					<Select value={statusFilter} onValueChange={setStatusFilter}>
-						<SelectTrigger className="w-full lg:w-45 min-w-45 -mr-px -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
@@ -88,7 +88,7 @@ export function VolumesPage() {
 						</SelectContent>
 					</Select>
 					<Select value={backendFilter} onValueChange={setBackendFilter}>
-						<SelectTrigger className="w-full lg:w-45 min-w-45 -mt-px">
+						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All backends" />
 						</SelectTrigger>
 						<SelectContent>
@@ -135,14 +135,14 @@ export function VolumesPage() {
 							filteredVolumes.map((volume) => (
 								<TableRow
 									key={volume.name}
-									className="hover:bg-accent/50 hover:cursor-pointer"
+									className="hover:bg-white/2 hover:cursor-pointer transition-colors border-l-2 border-r-2 border-transparent hover:border-white/10"
 									onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
 								>
-									<TableCell className="font-medium text-strong-accent">{volume.name}</TableCell>
-									<TableCell>
+									<TableCell className="font-medium font-mono text-strong-accent">{volume.name}</TableCell>
+									<TableCell className="font-mono text-muted-foreground">
 										<VolumeIcon backend={volume.type} />
 									</TableCell>
-									<TableCell className="text-center">
+									<TableCell className="text-center font-mono">
 										<StatusDot
 											variant={getVolumeStatusVariant(volume.status)}
 											label={volume.status[0].toUpperCase() + volume.status.slice(1)}
@@ -154,12 +154,12 @@ export function VolumesPage() {
 					</TableBody>
 				</Table>
 			</div>
-			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-end border-t">
+			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-end border-t font-mono">
 				{hasNoFilteredVolumes ? (
 					"No volumes match filters."
 				) : (
-					<span>
-						<span className="text-strong-accent">{filteredVolumes.length}</span> volume
+					<span className="font-mono">
+						<span className="text-strong-accent font-bold">{filteredVolumes.length}</span> volume
 						{filteredVolumes.length > 1 ? "s" : ""}
 					</span>
 				)}

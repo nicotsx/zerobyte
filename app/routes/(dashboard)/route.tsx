@@ -13,7 +13,7 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const hasUsers = await authService.hasUsers();
 
 	const sidebarCookie = getCookie(SIDEBAR_COOKIE_NAME);
-	const sidebarOpen = sidebarCookie === null ? true : sidebarCookie === "true";
+	const sidebarOpen = !sidebarCookie ? true : sidebarCookie === "true";
 
 	return { user: session?.user ?? null, hasUsers, sidebarOpen };
 });

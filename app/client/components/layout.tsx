@@ -1,4 +1,4 @@
-import { LifeBuoy } from "lucide-react";
+import { Dot, LifeBuoy, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { type AppContext } from "~/context";
 import { GridBackground } from "./grid-background";
@@ -9,6 +9,7 @@ import { authClient } from "../lib/auth-client";
 import { DevPanelListener } from "./dev-panel-listener";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { AppBreadcrumb } from "./app-breadcrumb";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type Props = {
 	loaderData: AppContext;
@@ -34,34 +35,49 @@ export function Layout({ loaderData }: Props) {
 		<SidebarProvider defaultOpen={loaderData.sidebarOpen}>
 			<AppSidebar />
 			<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">
-				<header className="z-50 bg-card-header border-b border-border/50 shrink-0">
-					<div className="flex items-center justify-between py-3 sm:py-4 px-2 sm:px-8 mx-auto container gap-4">
+				<header className="z-50 bg-card-header border-b border-border/50 shrink-0 h-16.25">
+					<div className="flex items-center h-full justify-between px-2 sm:px-8 mx-auto container gap-4">
 						<div className="flex items-center gap-4 min-w-0">
 							<SidebarTrigger />
 							<AppBreadcrumb />
 						</div>
 						{loaderData.user && (
-							<div className="flex items-center gap-4">
-								<span className="text-sm text-muted-foreground hidden md:inline-flex">
-									Welcome,&nbsp;
-									<span className="text-strong-accent">{loaderData.user?.username}</span>
+							<div className="flex items-center bg-muted/30 border border-border/50 px-2 py-1 rounded-full shadow-sm">
+								<span className="text-sm text-muted-foreground hidden md:inline-flex pl-2 mr-5">
+									<span className="text-foreground">{loaderData.user?.username}</span>
 								</span>
-								<Button variant="default" size="sm" onClick={handleLogout}>
-									Logout
-								</Button>
-								<Button variant="default" size="sm" className="relative overflow-hidden hidden lg:inline-flex">
-									<a
-										href="https://github.com/nicotsx/zerobyte/issues/new"
-										target="_blank"
-										rel="noreferrer"
-										className="flex items-center gap-2"
-									>
-										<span className="flex items-center gap-2">
-											<LifeBuoy />
-											<span>Report an issue</span>
-										</span>
-									</a>
-								</Button>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="rounded-full h-7 text-xs text-muted-foreground hover:text-white"
+											onClick={handleLogout}
+										>
+											<LogOut className="w-4 h-4" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Logout</TooltipContent>
+								</Tooltip>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-white"
+										>
+											<a
+												href="https://github.com/nicotsx/zerobyte/issues/new"
+												target="_blank"
+												rel="noreferrer"
+												className="flex items-center justify-center w-full h-full"
+											>
+												<LifeBuoy className="w-4 h-4" />
+											</a>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Report an issue</TooltipContent>
+								</Tooltip>
 							</div>
 						)}
 					</div>

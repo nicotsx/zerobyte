@@ -2,14 +2,25 @@ import type * as React from "react";
 
 import { cn } from "~/client/lib/utils";
 
-function Card({ className, children, ...props }: React.ComponentProps<"div">) {
+function Card({ className, children, interactive, ...props }: React.ComponentProps<"div"> & { interactive?: boolean }) {
 	return (
 		<div
 			data-slot="card"
-			className={cn("bg-card text-card-foreground relative flex flex-col gap-6 border-2 py-6 shadow-sm", className)}
+			className={cn(
+				"bg-card text-card-foreground group relative flex flex-col gap-6 border border-border/80 py-6 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.02)] transition-colors duration-300 ",
+				className,
+			)}
 			{...props}
 		>
-			<span aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 select-none">
+			<span
+				aria-hidden="true"
+				className={cn(
+					"pointer-events-none absolute inset-0 z-10 select-none opacity-30 transition-opacity duration-300 ",
+					{
+						"group-hover:opacity-100": interactive,
+					},
+				)}
+			>
 				<span className="absolute -left-0.5 -top-0.5 h-0.5 w-4 bg-white/80" />
 				<span className="absolute -left-0.5 -top-0.5 h-4 w-0.5 bg-white/80" />
 				<span className="absolute -right-0.5 -top-0.5 h-0.5 w-4 bg-white/80" />
