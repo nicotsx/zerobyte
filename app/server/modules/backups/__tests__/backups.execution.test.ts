@@ -1,5 +1,5 @@
 import waitForExpect from "wait-for-expect";
-import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { test, describe, mock, expect, afterEach, spyOn } from "bun:test";
 import { backupsService } from "../backups.service";
 import { backupsExecutionService } from "../backups.execution";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -15,19 +15,22 @@ import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";
 import { fromAny } from "@total-typescript/shoehorn";
 
-const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
-const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
-const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
+const setup = () => {
+	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
+	const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
+	const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
 
-beforeEach(() => {
-	resticBackupMock.mockClear();
-	resticForgetMock.mockClear();
-	resticCopyMock.mockClear();
 	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	spyOn(restic, "forget").mockImplementation(resticForgetMock);
 	spyOn(restic, "copy").mockImplementation(resticCopyMock);
 	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-});
+
+	return {
+		resticBackupMock,
+		resticForgetMock,
+		resticCopyMock,
+	};
+};
 
 afterEach(() => {
 	mock.restore();
@@ -36,6 +39,7 @@ afterEach(() => {
 describe("backup execution - validation failures", () => {
 	test("should fail backup when volume is not mounted", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume({ status: "unmounted" });
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -57,6 +61,7 @@ describe("backup execution - validation failures", () => {
 
 	test("should fail backup when volume does not exist", async () => {
 		// arrange
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -86,6 +91,7 @@ describe("backup execution - validation failures", () => {
 
 	test("should fail backup when repository does not exist", async () => {
 		// arrange
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -115,6 +121,7 @@ describe("backup execution - validation failures", () => {
 	});
 
 	test("should fail backup when schedule does not exist", async () => {
+		setup();
 		// act
 		const result = await backupsExecutionService.validateBackupExecution(99999);
 
@@ -130,6 +137,7 @@ describe("backup execution - validation failures", () => {
 describe("stop backup", () => {
 	test("should stop a running backup", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -160,6 +168,7 @@ describe("stop backup", () => {
 
 	test("should throw ConflictError when trying to stop non-running backup", async () => {
 		// arrange
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -174,6 +183,7 @@ describe("stop backup", () => {
 	});
 
 	test("should throw NotFoundError when schedule does not exist", async () => {
+		setup();
 		// act & assert
 		await expect(backupsExecutionService.stopBackup(99999)).rejects.toThrow("Backup schedule not found");
 	});
@@ -182,6 +192,7 @@ describe("stop backup", () => {
 describe("retention policy - runForget", () => {
 	test("should execute forget with retention policy", async () => {
 		// arrange
+		const { resticForgetMock } = setup();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
 			repositoryId: repository.id,
@@ -216,6 +227,7 @@ describe("retention policy - runForget", () => {
 
 	test("should throw BadRequestError if no retention policy configured", async () => {
 		// arrange
+		setup();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
 			repositoryId: repository.id,
@@ -229,12 +241,14 @@ describe("retention policy - runForget", () => {
 	});
 
 	test("should throw NotFoundError when schedule does not exist", async () => {
+		setup();
 		// act & assert
 		await expect(backupsExecutionService.runForget(99999)).rejects.toThrow("Backup schedule not found");
 	});
 
 	test("should throw NotFoundError when repository does not exist", async () => {
 		// arrange
+		setup();
 		const schedule = await createTestBackupSchedule({
 			retentionPolicy: {
 				keepHourly: 24,
@@ -251,6 +265,7 @@ describe("retention policy - runForget", () => {
 describe("mirror operations", () => {
 	test("should copy snapshots to mirror repositories", async () => {
 		// arrange
+		const { resticCopyMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -277,6 +292,7 @@ describe("mirror operations", () => {
 
 	test("should skip disabled mirrors", async () => {
 		// arrange
+		const { resticCopyMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -296,6 +312,7 @@ describe("mirror operations", () => {
 
 	test("should update mirror status on success", async () => {
 		// arrange
+		setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -319,6 +336,7 @@ describe("mirror operations", () => {
 
 	test("should finalize mirror status when mirror settings are updated during copy", async () => {
 		// arrange
+		const { resticCopyMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -350,6 +368,7 @@ describe("mirror operations", () => {
 
 	test("should update mirror status on failure", async () => {
 		// arrange
+		const { resticCopyMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -375,6 +394,7 @@ describe("mirror operations", () => {
 
 	test("should run forget on mirror after successful copy when retention policy exists", async () => {
 		// arrange
+		const { resticCopyMock, resticForgetMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -406,6 +426,7 @@ describe("mirror operations", () => {
 
 	test("should not run forget on mirror when no retention policy", async () => {
 		// arrange
+		const { resticCopyMock, resticForgetMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();

@@ -1,141 +1,94 @@
-import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
-import { createTestVolume } from "~/test/helpers/volume";
-import { createTestBackupSchedule } from "~/test/helpers/backup";
-import { createTestRepository } from "~/test/helpers/repository";
-import { generateBackupOutput } from "~/test/helpers/restic";
-import { getVolumePath } from "../../volumes/helpers";
-import { restic } from "~/server/utils/restic";
+import { test, describe, expect } from "bun:test";
 import path from "node:path";
-import { TEST_ORG_ID } from "~/test/helpers/organization";
-import * as context from "~/server/core/request-context";
-import { backupsExecutionService } from "../backups.execution";
+import { fromAny } from "@total-typescript/shoehorn";
+import { createBackupOptions, processPattern } from "../backup.helpers";
 
-const backupMock = mock(() => Promise.resolve({ exitCode: 0, result: JSON.parse(generateBackupOutput()) }));
+type BackupScheduleInput = Parameters<typeof createBackupOptions>[0];
 
-beforeEach(() => {
-	backupMock.mockClear();
-	spyOn(restic, "backup").mockImplementation(backupMock);
-	spyOn(restic, "forget").mockImplementation(mock(() => Promise.resolve({ success: true, data: null })));
-	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-});
-
-afterEach(() => {
-	mock.restore();
-});
+const createSchedule = (overrides: Partial<BackupScheduleInput> = {}): BackupScheduleInput =>
+	fromAny({
+		shortId: "sched-1234",
+		oneFileSystem: false,
+		includePatterns: [],
+		excludePatterns: [],
+		excludeIfPresent: [],
+		...overrides,
+	}) as BackupScheduleInput;
 
 describe("executeBackup - include / exclude patterns", () => {
-	test("should correctly build include and exclude patterns", async () => {
+	test("should correctly build include and exclude patterns", () => {
 		// arrange
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const volumePath = getVolumePath(volume);
-
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const schedule = createSchedule({
 			includePatterns: ["*.zip", "/Photos", "!/Temp", "!*.log"],
 			excludePatterns: [".DS_Store", "/Config", "!/Important", "!*.tmp"],
 			excludeIfPresent: [".nobackup"],
 		});
+		const signal = new AbortController().signal;
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(backupMock).toHaveBeenCalledWith(
-			expect.anything(),
-			volumePath,
-			expect.objectContaining({
-				include: ["*.zip", path.join(volumePath, "Photos"), `!${path.join(volumePath, "Temp")}`, "!*.log"],
-				exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
-				excludeIfPresent: [".nobackup"],
-			}),
-		);
+		expect(options).toMatchObject({
+			include: ["*.zip", path.join(volumePath, "Photos"), `!${path.join(volumePath, "Temp")}`, "!*.log"],
+			exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
+			excludeIfPresent: [".nobackup"],
+		});
 	});
 
-	test("should handle the case where a subfolder has the exact same name as the volume name", async () => {
+	test("should handle the case where a subfolder has the exact same name as the volume name", () => {
 		// arrange
 		const volumeName = "SyncFolder";
-		const volume = await createTestVolume({
-			name: volumeName,
-			type: "directory",
-			config: { backend: "directory", path: `/${volumeName}` },
-		});
-		const volumePath = getVolumePath(volume);
-		const repository = await createTestRepository();
-
-		const selectedPath = `/${volumeName}`; // Selection of the folder inside the volume
-
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
+		const volumePath = `/${volumeName}`;
+		const selectedPath = `/${volumeName}`;
+		const schedule = createSchedule({
 			includePatterns: [selectedPath],
 		});
+		const signal = new AbortController().signal;
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(backupMock).toHaveBeenCalledWith(
-			expect.anything(),
-			volumePath,
-			expect.objectContaining({
-				// Should produce /SyncFolder/SyncFolder and not just /SyncFolder
-				include: [path.join(volumePath, volumeName)],
-			}),
-		);
+		expect(options.include).toEqual([path.join(volumePath, volumeName)]);
 	});
 
-	test("should correctly mix relative and absolute patterns", async () => {
+	test("should correctly mix relative and absolute patterns", () => {
 		// arrange
-		const volume = await createTestVolume();
-		const volumePath = getVolumePath(volume);
-		const repository = await createTestRepository();
-
+		const volumePath = "/var/lib/zerobyte/volumes/vol456/_data";
 		const relativeInclude = "relative/include";
 		const anchoredInclude = "/anchored/include";
-
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
+		const schedule = createSchedule({
 			includePatterns: [relativeInclude, anchoredInclude],
 		});
+		const signal = new AbortController().signal;
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(backupMock).toHaveBeenCalledWith(
-			expect.anything(),
-			volumePath,
-			expect.objectContaining({
-				include: [relativeInclude, path.join(volumePath, "anchored/include")],
-			}),
-		);
+		expect(options.include).toEqual([relativeInclude, path.join(volumePath, "anchored/include")]);
 	});
 
-	test("should handle empty include and exclude patterns", async () => {
+	test("should handle empty include and exclude patterns", () => {
 		// arrange
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
+		const schedule = createSchedule({
 			includePatterns: [],
 			excludePatterns: [],
 		});
+		const signal = new AbortController().signal;
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		const options = createBackupOptions(schedule, "/var/lib/zerobyte/volumes/vol999/_data", signal);
 
 		// assert
-		expect(backupMock).toHaveBeenCalledWith(
-			expect.anything(),
-			getVolumePath(volume),
-			expect.objectContaining({
-				include: [],
-				exclude: [],
-			}),
-		);
+		expect(options.include).toEqual([]);
+		expect(options.exclude).toEqual([]);
+	});
+
+	test("processPattern keeps relative and negated relative patterns unchanged", () => {
+		expect(processPattern("relative/include", "/volume")).toBe("relative/include");
+		expect(processPattern("!*.log", "/volume")).toBe("!*.log");
 	});
 });

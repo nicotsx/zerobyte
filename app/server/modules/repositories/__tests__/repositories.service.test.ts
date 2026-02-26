@@ -140,10 +140,15 @@ describe("repositoriesService.dumpSnapshot", () => {
 		mock.restore();
 	});
 
-	test("calls restic.dump with common-ancestor selector and stripped path", async () => {
+	const createDumpResult = () => ({
+		stream: Readable.from([]),
+		completion: Promise.resolve(),
+		abort: () => {},
+	});
+
+	const setupDumpSnapshotScenario = async ({ snapshotId, basePath }: { snapshotId: string; basePath: string }) => {
 		const { organizationId, user } = await createTestSession();
 		const shortId = generateShortId();
-		const basePath = "/var/lib/zerobyte/volumes/vol123/_data";
 
 		await db.insert(repositoriesTable).values({
 			id: randomUUID(),
@@ -159,31 +164,36 @@ describe("repositoriesService.dumpSnapshot", () => {
 			organizationId,
 		});
 
-		const snapshotsMock = mock(() =>
-			Promise.resolve([
-				{
-					id: "snapshot-123",
-					short_id: "snapshot-123",
-					time: new Date().toISOString(),
-					tree: "tree-1",
-					paths: [basePath],
-					hostname: "host",
-				},
-			]),
-		);
-		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
+		spyOn(restic, "snapshots").mockResolvedValue([
+			{
+				id: snapshotId,
+				short_id: snapshotId,
+				time: new Date().toISOString(),
+				paths: [basePath],
+				hostname: "host",
+			},
+		]);
 
-		const dumpMock = mock(() =>
-			Promise.resolve({
-				stream: Readable.from([]),
-				completion: Promise.resolve(),
-				abort: () => {},
-			}),
-		);
+		const dumpMock = mock(() => Promise.resolve(createDumpResult()));
 		spyOn(restic, "dump").mockImplementation(dumpMock);
+
+		return {
+			organizationId,
+			userId: user.id,
+			shortId,
+			basePath,
+			dumpMock,
+		};
+	};
+
+	test("calls restic.dump with common-ancestor selector and stripped path", async () => {
+		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-123",
+			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+		});
 		const emitSpy = spyOn(serverEvents, "emit");
 
-		await withContext({ organizationId, userId: user.id }, () =>
+		await withContext({ organizationId, userId }, () =>
 			repositoriesService.dumpSnapshot(shortId, "snapshot-123", `${basePath}/documents`, "dir"),
 		);
 
@@ -210,48 +220,12 @@ describe("repositoriesService.dumpSnapshot", () => {
 	});
 
 	test("streams a single file directly when selected path is a file", async () => {
-		const { organizationId, user } = await createTestSession();
-		const shortId = generateShortId();
-		const basePath = "/var/lib/zerobyte/volumes/vol123/_data";
-
-		await db.insert(repositoriesTable).values({
-			id: randomUUID(),
-			shortId,
-			name: `Repository-${randomUUID()}`,
-			type: "local",
-			config: {
-				backend: "local",
-				path: `/tmp/repository-${randomUUID()}`,
-				isExistingRepository: true,
-			},
-			compressionMode: "off",
-			organizationId,
+		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-file",
+			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
 
-		const snapshotsMock = mock(() =>
-			Promise.resolve([
-				{
-					id: "snapshot-file",
-					short_id: "snapshot-file",
-					time: new Date().toISOString(),
-					tree: "tree-file",
-					paths: [basePath],
-					hostname: "host",
-				},
-			]),
-		);
-		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
-
-		const dumpMock = mock(() =>
-			Promise.resolve({
-				stream: Readable.from([]),
-				completion: Promise.resolve(),
-				abort: () => {},
-			}),
-		);
-		spyOn(restic, "dump").mockImplementation(dumpMock);
-
-		const result = await withContext({ organizationId, userId: user.id }, () =>
+		const result = await withContext({ organizationId, userId }, () =>
 			repositoriesService.dumpSnapshot(shortId, "snapshot-file", `${basePath}/documents/report.txt`, "file"),
 		);
 
@@ -265,90 +239,25 @@ describe("repositoriesService.dumpSnapshot", () => {
 	});
 
 	test("rejects path downloads without a kind", async () => {
-		const { organizationId, user } = await createTestSession();
-		const shortId = generateShortId();
-		const basePath = "/var/lib/zerobyte/volumes/vol123/_data";
-
-		await db.insert(repositoriesTable).values({
-			id: randomUUID(),
-			shortId,
-			name: `Repository-${randomUUID()}`,
-			type: "local",
-			config: {
-				backend: "local",
-				path: `/tmp/repository-${randomUUID()}`,
-				isExistingRepository: true,
-			},
-			compressionMode: "off",
-			organizationId,
+		const { organizationId, userId, shortId, basePath } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-no-kind",
+			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
 
-		const snapshotsMock = mock(() =>
-			Promise.resolve([
-				{
-					id: "snapshot-no-kind",
-					short_id: "snapshot-no-kind",
-					time: new Date().toISOString(),
-					tree: "tree-no-kind",
-					paths: [basePath],
-					hostname: "host",
-				},
-			]),
-		);
-		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
-
 		expect(
-			withContext({ organizationId, userId: user.id }, () =>
+			withContext({ organizationId, userId }, () =>
 				repositoriesService.dumpSnapshot(shortId, "snapshot-no-kind", `${basePath}/documents/report.txt`),
 			),
 		).rejects.toThrow("Path kind is required when downloading a specific snapshot path");
 	});
 
 	test("downloads full snapshot relative to common ancestor when path is omitted", async () => {
-		const { organizationId, user } = await createTestSession();
-		const shortId = generateShortId();
-		const basePath = "/var/lib/zerobyte/volumes/vol555/_data";
-
-		await db.insert(repositoriesTable).values({
-			id: randomUUID(),
-			shortId,
-			name: `Repository-${randomUUID()}`,
-			type: "local",
-			config: {
-				backend: "local",
-				path: `/tmp/repository-${randomUUID()}`,
-				isExistingRepository: true,
-			},
-			compressionMode: "off",
-			organizationId,
+		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-999",
+			basePath: "/var/lib/zerobyte/volumes/vol555/_data",
 		});
 
-		const snapshotsMock = mock(() =>
-			Promise.resolve([
-				{
-					id: "snapshot-999",
-					short_id: "snapshot-999",
-					time: new Date().toISOString(),
-					tree: "tree-9",
-					paths: [basePath],
-					hostname: "host",
-				},
-			]),
-		);
-		spyOn(restic, "snapshots").mockImplementation(snapshotsMock as typeof restic.snapshots);
-
-		const dumpMock = mock(() =>
-			Promise.resolve({
-				stream: Readable.from([]),
-				completion: Promise.resolve(),
-				abort: () => {},
-			}),
-		);
-		spyOn(restic, "dump").mockImplementation(dumpMock);
-
-		await withContext({ organizationId, userId: user.id }, () =>
-			repositoriesService.dumpSnapshot(shortId, "snapshot-999"),
-		);
+		await withContext({ organizationId, userId }, () => repositoriesService.dumpSnapshot(shortId, "snapshot-999"));
 
 		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-999:${basePath}`, {
 			organizationId,

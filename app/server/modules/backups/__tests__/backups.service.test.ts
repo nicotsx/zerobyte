@@ -1,5 +1,5 @@
 import waitForExpect from "wait-for-expect";
-import { test, describe, mock, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { test, describe, mock, expect, afterEach, spyOn } from "bun:test";
 import { eq } from "drizzle-orm";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -14,13 +14,15 @@ import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
 import { backupsExecutionService } from "../backups.execution";
 
-const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
-
-beforeEach(() => {
-	resticBackupMock.mockClear();
+const setup = () => {
+	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
 	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-});
+
+	return {
+		resticBackupMock,
+	};
+};
 
 afterEach(() => {
 	mock.restore();
@@ -29,6 +31,7 @@ afterEach(() => {
 describe("execute backup", () => {
 	test("should correctly set next backup time", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -58,6 +61,7 @@ describe("execute backup", () => {
 
 	test("should skip backup if schedule is disabled", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -75,6 +79,7 @@ describe("execute backup", () => {
 
 	test("should execute backup if schedule is disabled but the run is manual", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -96,6 +101,7 @@ describe("execute backup", () => {
 
 	test("should skip the backup if the previous one is still running", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -123,6 +129,7 @@ describe("execute backup", () => {
 
 	test("should set the backup status to failed if restic returns a 3 exit code", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -144,6 +151,7 @@ describe("execute backup", () => {
 
 	test("should set the backup status to failed if restic returns a non zero exit code", async () => {
 		// arrange
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -167,6 +175,7 @@ describe("execute backup", () => {
 describe("getSchedulesToExecute", () => {
 	test("should return schedules with NULL lastBackupStatus", async () => {
 		// arrange
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 
@@ -189,6 +198,7 @@ describe("getSchedulesToExecute", () => {
 
 describe("getScheduleByIdOrShortId", () => {
 	test("should resolve a schedule by numeric id string", async () => {
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -203,6 +213,7 @@ describe("getScheduleByIdOrShortId", () => {
 	});
 
 	test("should resolve a schedule by short id", async () => {
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -217,6 +228,7 @@ describe("getScheduleByIdOrShortId", () => {
 	});
 
 	test("should not return schedules from another organization", async () => {
+		setup();
 		const otherOrgId = faker.string.uuid();
 		const schedule = await createTestBackupSchedule({
 			organizationId: otherOrgId,
@@ -231,6 +243,7 @@ describe("getScheduleByIdOrShortId", () => {
 
 describe("listSchedules", () => {
 	test("should ignore schedules with missing relations", async () => {
+		setup();
 		const healthyVolume = await createTestVolume();
 		const healthyRepository = await createTestRepository();
 		const healthySchedule = await createTestBackupSchedule({
@@ -254,6 +267,7 @@ describe("listSchedules", () => {
 	});
 
 	test("should ignore schedules with missing repository relation", async () => {
+		setup();
 		const healthyVolume = await createTestVolume();
 		const healthyRepository = await createTestRepository();
 		const healthySchedule = await createTestBackupSchedule({
@@ -279,6 +293,7 @@ describe("listSchedules", () => {
 
 describe("cleanupOrphanedSchedules", () => {
 	test("should return zero when cascades already removed orphaned schedules", async () => {
+		setup();
 		const healthyVolume = await createTestVolume();
 		const healthyRepository = await createTestRepository();
 		const healthySchedule = await createTestBackupSchedule({

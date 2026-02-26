@@ -75,34 +75,30 @@ describe("safeExec", () => {
 	});
 
 	describe("shell injection protection", () => {
-		test("treats semicolon-separated commands as a single literal argument", async () => {
+		test.each([
+			{
+				name: "treats semicolon-separated commands as a single literal argument",
+				argument: "safe; echo injected",
+				expected: "safe; echo injected",
+			},
+			{
+				name: "does not evaluate command substitution syntax",
+				argument: "$(echo injected)",
+				expected: "$(echo injected)",
+			},
+			{
+				name: "does not expand glob patterns",
+				argument: "*.ts",
+				expected: "*.ts",
+			},
+		])("$name", async ({ argument, expected }) => {
 			const result = await safeExec({
 				command: "echo",
-				args: ["safe; echo injected"],
+				args: [argument],
 			});
 
 			expect(result.exitCode).toBe(0);
-			expect(result.stdout.trim()).toBe("safe; echo injected");
-		});
-
-		test("does not evaluate command substitution syntax", async () => {
-			const result = await safeExec({
-				command: "echo",
-				args: ["$(echo injected)"],
-			});
-
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout.trim()).toBe("$(echo injected)");
-		});
-
-		test("does not expand glob patterns", async () => {
-			const result = await safeExec({
-				command: "echo",
-				args: ["*.ts"],
-			});
-
-			expect(result.exitCode).toBe(0);
-			expect(result.stdout.trim()).toBe("*.ts");
+			expect(result.stdout.trim()).toBe(expected);
 		});
 	});
 
@@ -268,40 +264,32 @@ describe("safeSpawn", () => {
 	});
 
 	describe("shell injection protection", () => {
-		test("treats semicolon-separated commands as a single literal argument", async () => {
+		test.each([
+			{
+				name: "treats semicolon-separated commands as a single literal argument",
+				argument: "safe; echo injected",
+				expected: "safe; echo injected",
+			},
+			{
+				name: "does not evaluate command substitution syntax",
+				argument: "$(echo injected)",
+				expected: "$(echo injected)",
+			},
+			{
+				name: "does not expand glob patterns",
+				argument: "*.ts",
+				expected: "*.ts",
+			},
+		])("$name", async ({ argument, expected }) => {
 			const lines: string[] = [];
 
 			await safeSpawn({
 				command: "echo",
-				args: ["safe; echo injected"],
+				args: [argument],
 				onStdout: (line) => lines.push(line),
 			});
 
-			expect(lines).toEqual(["safe; echo injected"]);
-		});
-
-		test("does not evaluate command substitution syntax", async () => {
-			const lines: string[] = [];
-
-			await safeSpawn({
-				command: "echo",
-				args: ["$(echo injected)"],
-				onStdout: (line) => lines.push(line),
-			});
-
-			expect(lines).toEqual(["$(echo injected)"]);
-		});
-
-		test("does not expand glob patterns", async () => {
-			const lines: string[] = [];
-
-			await safeSpawn({
-				command: "echo",
-				args: ["*.ts"],
-				onStdout: (line) => lines.push(line),
-			});
-
-			expect(lines).toEqual(["*.ts"]);
+			expect(lines).toEqual([expected]);
 		});
 	});
 });

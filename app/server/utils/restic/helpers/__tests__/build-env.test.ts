@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, test } from "bun:test";
+import fs from "node:fs/promises";
+import { afterEach, describe, expect, test } from "bun:test";
 import { db } from "~/server/db/db";
 import { organization } from "~/server/db/schema";
 import { RESTIC_CACHE_DIR } from "~/server/core/constants";
@@ -27,6 +28,23 @@ const createTestOrg = async (overrides: Partial<typeof organization.$inferInsert
 const PLAIN_PRIVATE_KEY =
 	"-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n-----END OPENSSH PRIVATE KEY-----";
 
+const tempFiles = new Set<string>();
+
+const trackTempFile = (filePath: string | undefined) => {
+	if (filePath) {
+		tempFiles.add(filePath);
+	}
+};
+
+afterEach(async () => {
+	await Promise.all(
+		[...tempFiles].map(async (filePath) => {
+			await fs.rm(filePath, { force: true });
+		}),
+	);
+	tempFiles.clear();
+});
+
 describe("buildEnv", () => {
 	describe("base environment", () => {
 		test("always sets RESTIC_CACHE_DIR", async () => {
@@ -49,7 +67,15 @@ describe("buildEnv", () => {
 				"org-1",
 			);
 
-			expect(env.RESTIC_PASSWORD_FILE).toMatch(/^\/tmp\/zerobyte-pass-.+\.txt$/);
+			const passwordFilePath = env.RESTIC_PASSWORD_FILE;
+			expect(passwordFilePath).toBeDefined();
+			if (!passwordFilePath) {
+				throw new Error("Expected password file path to be defined");
+			}
+
+			trackTempFile(passwordFilePath);
+			const fileContent = await fs.readFile(passwordFilePath, "utf-8");
+			expect(fileContent).toBe("my-secret");
 		});
 
 		test("writes a password file from the organization's resticPassword when no customPassword is given", async () => {
@@ -57,7 +83,15 @@ describe("buildEnv", () => {
 
 			const env = await buildEnv({ backend: "local" as const, path: "/tmp/repo" }, orgId);
 
-			expect(env.RESTIC_PASSWORD_FILE).toMatch(/^\/tmp\/zerobyte-pass-.+\.txt$/);
+			const passwordFilePath = env.RESTIC_PASSWORD_FILE;
+			expect(passwordFilePath).toBeDefined();
+			if (!passwordFilePath) {
+				throw new Error("Expected password file path to be defined");
+			}
+
+			trackTempFile(passwordFilePath);
+			const fileContent = await fs.readFile(passwordFilePath, "utf-8");
+			expect(fileContent).toBe("org-restic-password");
 		});
 
 		test("throws when the organization does not exist", async () => {
@@ -137,7 +171,16 @@ describe("buildEnv", () => {
 			);
 
 			expect(env.GOOGLE_PROJECT_ID).toBe("my-gcp-project");
-			expect(env.GOOGLE_APPLICATION_CREDENTIALS).toMatch(/^\/tmp\/zerobyte-gcs-.+\.json$/);
+
+			const credentialsPath = env.GOOGLE_APPLICATION_CREDENTIALS;
+			expect(credentialsPath).toBeDefined();
+			if (!credentialsPath) {
+				throw new Error("Expected credentials path to be defined");
+			}
+
+			trackTempFile(credentialsPath);
+			const fileContent = await fs.readFile(credentialsPath, "utf-8");
+			expect(fileContent).toBe('{"type":"service_account"}');
 		});
 	});
 
@@ -285,7 +328,15 @@ describe("buildEnv", () => {
 				"org-1",
 			);
 
-			expect(env.RESTIC_CACERT).toMatch(/^\/tmp\/zerobyte-cacert-.+\.pem$/);
+			const certPath = env.RESTIC_CACERT;
+			expect(certPath).toBeDefined();
+			if (!certPath) {
+				throw new Error("Expected certificate path to be defined");
+			}
+
+			trackTempFile(certPath);
+			const fileContent = await fs.readFile(certPath, "utf-8");
+			expect(fileContent).toBe("-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----");
 		});
 
 		test("does not set RESTIC_CACERT when cacert is absent", async () => {
