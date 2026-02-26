@@ -75,7 +75,7 @@ describe("repositoriesService.createRepository", () => {
 		expect(created.status).toBe("healthy");
 	});
 
-	test("keeps an explicit local repository path unchanged", async () => {
+	test("creates a shortId-scoped repository path when using a custom directory", async () => {
 		// arrange
 		const { organizationId, user } = await createTestSession();
 		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
@@ -84,6 +84,37 @@ describe("repositoriesService.createRepository", () => {
 		// act
 		const result = await withContext({ organizationId, userId: user.id }, () =>
 			repositoriesService.createRepository("custom repo", config),
+		);
+
+		const created = await db.query.repositoriesTable.findFirst({
+			where: {
+				id: result.repository.id,
+			},
+		});
+
+		// assert
+		expect(created).toBeTruthy();
+		if (!created) {
+			throw new Error("Repository should be created");
+		}
+
+		const savedConfig = created.config as Extract<RepositoryConfig, { backend: "local" }>;
+		expect(savedConfig.path).toBe(`${explicitPath}/${created.shortId}`);
+		expect(savedConfig.path).not.toBe(explicitPath);
+		expect(created.status).toBe("healthy");
+	});
+
+	test("keeps an explicit local repository path unchanged when importing existing repository", async () => {
+		// arrange
+		const { organizationId, user } = await createTestSession();
+		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
+		const config: RepositoryConfig = { backend: "local", path: explicitPath, isExistingRepository: true };
+
+		spyOn(restic, "snapshots").mockImplementation(() => Promise.resolve([]));
+
+		// act
+		const result = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.createRepository("existing repo", config),
 		);
 
 		const created = await db.query.repositoriesTable.findFirst({

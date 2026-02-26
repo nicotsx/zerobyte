@@ -38,3 +38,4 @@ playwright/temp
 openapi-ts-error-*.log
 .output
 tmp/
+qa-output

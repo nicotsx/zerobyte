@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { Check, Pencil, X, AlertTriangle } from "lucide-react";
 import { Button } from "../../../../components/ui/button";
 import { FormItem, FormLabel, FormDescription, FormField, FormControl } from "../../../../components/ui/form";
@@ -33,6 +34,8 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 		queryFn: getConstants,
 	});
 
+	const isExistingRepository = useWatch({ control: form.control, name: "isExistingRepository" });
+
 	return (
 		<FormField
 			control={form.control}
@@ -45,6 +48,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 							<div className="flex items-center gap-2">
 								<div className="flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border">
 									{field.value || constants.REPOSITORY_BASE}
+									{!isExistingRepository && <span className="text-muted-foreground">/{"{unique-id}"}</span>}
 								</div>
 								<Button type="button" variant="outline" onClick={() => setShowPathWarning(true)} size="sm">
 									<Pencil className="h-4 w-4 mr-2" />
@@ -52,7 +56,11 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 								</Button>
 							</div>
 						</FormControl>
-						<FormDescription>The directory where the repository will be stored.</FormDescription>
+						<FormDescription>
+							{isExistingRepository
+								? "The exact path to your existing repository."
+								: "A unique subdirectory will be created inside this directory to store the repository."}
+						</FormDescription>
 					</FormItem>
 
 					<AlertDialog open={showPathWarning} onOpenChange={setShowPathWarning}>

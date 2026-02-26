@@ -25,7 +25,6 @@ import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } f
 import { safeSpawn } from "../../utils/spawn";
 import { backupsService } from "../backups/backups.service";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
-import { REPOSITORY_BASE } from "~/server/core/constants";
 import { findCommonAncestor } from "~/utils/common-ancestor";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
@@ -131,8 +130,8 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 
-	if (config.backend === "local" && config.path === REPOSITORY_BASE) {
-		config.path = `${REPOSITORY_BASE}/${shortId}`;
+	if (config.backend === "local" && !config.isExistingRepository) {
+		config.path = `${config.path}/${shortId}`;
 	}
 
 	const encryptedConfig = await encryptConfig(config);
