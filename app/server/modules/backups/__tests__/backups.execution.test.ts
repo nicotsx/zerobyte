@@ -168,14 +168,14 @@ describe("stop backup", () => {
 		});
 
 		// act & assert
-		expect(backupsExecutionService.stopBackup(schedule.id)).rejects.toThrow(
+		await expect(backupsExecutionService.stopBackup(schedule.id)).rejects.toThrow(
 			"No backup is currently running for this schedule",
 		);
 	});
 
 	test("should throw NotFoundError when schedule does not exist", async () => {
 		// act & assert
-		expect(backupsExecutionService.stopBackup(99999)).rejects.toThrow("Backup schedule not found");
+		await expect(backupsExecutionService.stopBackup(99999)).rejects.toThrow("Backup schedule not found");
 	});
 });
 
@@ -223,14 +223,14 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act & assert
-		expect(backupsExecutionService.runForget(schedule.id)).rejects.toThrow(
+		await expect(backupsExecutionService.runForget(schedule.id)).rejects.toThrow(
 			"No retention policy configured for this schedule",
 		);
 	});
 
 	test("should throw NotFoundError when schedule does not exist", async () => {
 		// act & assert
-		expect(backupsExecutionService.runForget(99999)).rejects.toThrow("Backup schedule not found");
+		await expect(backupsExecutionService.runForget(99999)).rejects.toThrow("Backup schedule not found");
 	});
 
 	test("should throw NotFoundError when repository does not exist", async () => {
@@ -242,7 +242,9 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act & assert
-		expect(backupsExecutionService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow("Repository not found");
+		await expect(backupsExecutionService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow(
+			"Repository not found",
+		);
 	});
 });
 

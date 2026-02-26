@@ -67,7 +67,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			password: "wrong-password",
 		});
 
-		expect(convertLegacyUserOnFirstLogin(ctx)).rejects.toThrow("Invalid credentials");
+		await expect(convertLegacyUserOnFirstLogin(ctx)).rejects.toThrow("Invalid credentials");
 
 		// Verify user still exists (not migrated)
 		const user = await db.query.usersTable.findFirst({

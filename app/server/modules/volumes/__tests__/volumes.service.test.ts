@@ -85,7 +85,7 @@ describe("volumeService", () => {
 			const { organizationId, user } = await createTestSession();
 
 			await withContext({ organizationId, userId: user.id }, async () => {
-				expect(volumeService.getVolume(asShortId("nonexistent"))).rejects.toThrow("Volume not found");
+				await expect(volumeService.getVolume(asShortId("nonexistent"))).rejects.toThrow("Volume not found");
 			});
 		});
 	});
@@ -120,7 +120,7 @@ describe("volumeService security", () => {
 				await withContext({ organizationId, userId: user.id }, async () => {
 					const traversalPath = `../${path.basename(secretPath)}`;
 
-					expect(volumeService.listFiles(volume.shortId, traversalPath)).rejects.toThrow("Invalid path");
+					await expect(volumeService.listFiles(volume.shortId, traversalPath)).rejects.toThrow("Invalid path");
 				});
 			} finally {
 				await fs.rm(tempRoot, { recursive: true, force: true });

@@ -148,5 +148,13 @@
 		"builtin": true
 	},
 	"globals": {},
-	"ignorePatterns": ["**/api-client/**"]
+	"ignorePatterns": ["**/api-client/**"],
+	"overrides": [
+		{
+			"files": ["**/*.test.ts", "**/*.test.tsx"],
+			"rules": {
+				"typescript/await-thenable": "off"
+			}
+		}
+	]
 }

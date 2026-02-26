@@ -59,7 +59,7 @@ describe("RepositoryMutex", () => {
 
 		controller.abort();
 
-		expect(exclusivePromise).rejects.toThrow();
+		await expect(exclusivePromise).rejects.toThrow();
 		expect(results).toEqual(["acquired-shared-1", "aborted-exclusive"]);
 
 		releaseShared1();
@@ -83,10 +83,10 @@ describe("RepositoryMutex", () => {
 		const p3 = repoMutex.acquireExclusive(repoId, "ex-3");
 
 		controller2.abort();
-		expect(p2).rejects.toThrow();
+		await expect(p2).rejects.toThrow();
 
 		controller1.abort();
-		expect(p1).rejects.toThrow();
+		await expect(p1).rejects.toThrow();
 
 		releaseShared1();
 
@@ -115,7 +115,7 @@ describe("RepositoryMutex", () => {
 		// Trigger abort while it's waiting
 		controller.abort();
 
-		expect(abortedAcquisition).rejects.toThrow();
+		await expect(abortedAcquisition).rejects.toThrow();
 		expect(removed).toBe(true);
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
@@ -252,8 +252,8 @@ describe("RepositoryMutex", () => {
 		const controller = new AbortController();
 		controller.abort(new Error("pre-aborted"));
 
-		expect(repoMutex.acquireShared(repoId, "s1", controller.signal)).rejects.toThrow("pre-aborted");
-		expect(repoMutex.acquireExclusive(repoId, "e1", controller.signal)).rejects.toThrow("pre-aborted");
+		await expect(repoMutex.acquireShared(repoId, "s1", controller.signal)).rejects.toThrow("pre-aborted");
+		await expect(repoMutex.acquireExclusive(repoId, "e1", controller.signal)).rejects.toThrow("pre-aborted");
 
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
