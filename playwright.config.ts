@@ -5,8 +5,8 @@ export default defineConfig({
 	testDir: "./e2e",
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
+	timeout: 90000,
 	retries: 0,
-	workers: process.env.CI ? 1 : undefined,
 	reporter: "html",
 	use: {
 		baseURL: `http://${process.env.SERVER_IP}:4096`,
@@ -17,12 +17,16 @@ export default defineConfig({
 		{
 			name: "setup",
 			testMatch: /.*\.setup\.ts/,
+			workers: 1,
 		},
 		{
 			name: "chromium",
 			use: {
 				...devices["Desktop Chrome"],
 				storageState: "playwright/.auth/user.json",
+				launchOptions: {
+					args: ["--host-rules=MAP dex 127.0.0.1"],
+				},
 			},
 			dependencies: ["setup"],
 		},

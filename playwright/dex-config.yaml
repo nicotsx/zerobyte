@@ -1,0 +1,48 @@
+issuer: http://dex:5557/dex
+
+storage:
+  type: sqlite3
+  config:
+    file: /tmp/dex.db
+
+web:
+  http: 0.0.0.0:5557
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: "admin@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+  - email: "user@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "user"
+  - email: "test@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "test"
+  - email: "test@test.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "test-local"
+
+staticClients:
+  - id: zerobyte-test
+    name: Zerobyte Test
+    redirectURIs:
+      - "http://localhost:3000/api/auth/sso/callback/test-oidc"
+      - "http://localhost:3000/api/auth/sso/callback/test-oidc-register"
+      - "http://localhost:3000/api/auth/sso/callback/test-oidc-uninvited"
+      - "http://localhost:3000/api/auth/sso/callback/test-oidc-invited"
+      - "http://localhost:3000/api/auth/sso/callback/test-oidc-autolink"
+      - "http://localhost:4096/api/auth/sso/callback/test-oidc"
+      - "http://localhost:4096/api/auth/sso/callback/test-oidc-register"
+      - "http://localhost:4096/api/auth/sso/callback/test-oidc-uninvited"
+      - "http://localhost:4096/api/auth/sso/callback/test-oidc-invited"
+      - "http://localhost:4096/api/auth/sso/callback/test-oidc-autolink"
+    secret: test-secret-12345
+
+oauth2:
+  skipApprovalScreen: true
+
+logger:
+  level: debug
+  format: json

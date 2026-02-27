@@ -28,6 +28,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/playwright/restic.pass
 
 playwright/.auth
 playwright/temp
@@ -39,3 +40,4 @@ openapi-ts-error-*.log
 .output
 tmp/
 qa-output
+

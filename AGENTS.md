@@ -1,5 +1,3 @@
-# AGENTS.md
-
 ## Important instructions
 
 - Never create migration files manually. Always use the provided command to generate migrations

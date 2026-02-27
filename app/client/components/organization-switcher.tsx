@@ -59,7 +59,7 @@ export function OrganizationSwitcher() {
 							size="lg"
 							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 						>
-							<div className="bg-black text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg">
+							<div className="bg-black text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
 								{activeOrganization?.logo ? (
 									<img
 										src={activeOrganization.logo}
@@ -74,7 +74,7 @@ export function OrganizationSwitcher() {
 								<span className="truncate font-medium">{activeOrganization?.name}</span>
 								<span className="truncate text-xs">{organizations.length} organizations</span>
 							</div>
-							<ChevronsUpDown className="ml-auto" />
+							<ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
 						</SidebarMenuButton>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent

@@ -1,85 +1,115 @@
-import { expect, test } from "@playwright/test";
-import path from "node:path";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { gotoAndWaitForAppReady } from "./helpers/page";
 
-test.describe.configure({ mode: "serial" });
+const testDataPath = path.join(process.cwd(), "playwright", "temp");
 
-test.beforeAll(() => {
-	const testDataPath = path.join(process.cwd(), "playwright", "temp");
-	if (fs.existsSync(testDataPath)) {
-		for (const file of fs.readdirSync(testDataPath)) {
-			fs.rmSync(path.join(testDataPath, file), { recursive: true, force: true });
-		}
-	} else {
-		fs.mkdirSync(testDataPath, { recursive: true });
-	}
-});
+type ScenarioNames = {
+	volumeName: string;
+	repositoryName: string;
+	backupName: string;
+};
 
-test("can backup & restore a file", async ({ page }) => {
-	await gotoAndWaitForAppReady(page, "/");
-	await expect(page).toHaveURL("/volumes");
+function getRunId(testInfo: TestInfo) {
+	return `${testInfo.parallelIndex}-${testInfo.retry}-${randomUUID().slice(0, 8)}`;
+}
 
-	// 0. Create a test file in /test-data
-	const testDataPath = path.join(process.cwd(), "playwright", "temp");
-	const filePath = path.join(testDataPath, "test.json");
+function getScenarioNames(runId: string): ScenarioNames {
+	return {
+		volumeName: `Volume-${runId}`,
+		repositoryName: `Repo-${runId}`,
+		backupName: `Backup-${runId}`,
+	};
+}
+
+function prepareTestFile(runId: string): string {
+	const runPath = path.join(testDataPath, runId);
+	fs.mkdirSync(runPath, { recursive: true });
+
+	const filePath = path.join(runPath, "test.json");
 	fs.writeFileSync(filePath, JSON.stringify({ data: "test file" }));
 
-	// 1. Create a local volume on /test-data
+	return filePath;
+}
+
+async function createBackupScenario(page: Page, names: ScenarioNames) {
 	await page.getByRole("button", { name: "Create Volume" }).click();
-	await page.getByRole("textbox", { name: "Name" }).fill("Test Volume");
+	await page.getByRole("textbox", { name: "Name" }).fill(names.volumeName);
 	await page.getByRole("button", { name: "test-data" }).click();
 	await page.getByRole("button", { name: "Create Volume" }).click();
 	await expect(page.getByText("Volume created successfully")).toBeVisible();
 
-	// 2. Create a local repository on the default location
 	await page.getByRole("link", { name: "Repositories" }).click();
 	await page.getByRole("button", { name: "Create repository" }).click();
-	await page.getByRole("textbox", { name: "Name" }).fill("Test Repo");
+	await page.getByRole("textbox", { name: "Name" }).fill(names.repositoryName);
 	await page.getByRole("combobox", { name: "Backend" }).click();
 	await page.getByRole("option", { name: "Local" }).click();
 	await page.getByRole("button", { name: "Create repository" }).click();
-	await expect(page.getByText("Repository created successfully")).toBeVisible();
+	await expect(page.getByText("Repository created successfully")).toBeVisible({ timeout: 30000 });
 
-	// 3. Create a backup schedule
 	await page.getByRole("link", { name: "Backups" }).click();
-	await page.getByRole("button", { name: "Create a backup job" }).click();
+	const createBackupButton = page.getByRole("button", { name: "Create a backup job" }).first();
+	if (await createBackupButton.isVisible()) {
+		await createBackupButton.click();
+	} else {
+		await page.getByRole("link", { name: "Create a backup job" }).first().click();
+	}
 	await page.getByRole("combobox").filter({ hasText: "Choose a volume to backup" }).click();
-	await page.getByRole("option", { name: "Test Volume" }).click();
-	await page.getByRole("textbox", { name: "Backup name" }).fill("Test Backup");
+	await page.getByRole("option", { name: names.volumeName }).click();
+	await page.getByRole("textbox", { name: "Backup name" }).fill(names.backupName);
 	await page.getByRole("combobox").filter({ hasText: "Select a repository" }).click();
-	await page.getByRole("option", { name: "Test Repo" }).click();
+	await page.getByRole("option", { name: names.repositoryName }).click();
 	await page.getByRole("combobox").filter({ hasText: "Select frequency" }).click();
 	await page.getByRole("option", { name: "Daily" }).click();
 	await page.getByRole("textbox", { name: "Execution time" }).fill("00:00");
 	await page.getByRole("button", { name: "Create" }).click();
 	await expect(page.getByText("Backup job created successfully")).toBeVisible();
+}
 
-	// 4. Runs that schedule once
+test("can backup & restore a file", async ({ page }, testInfo) => {
+	const runId = getRunId(testInfo);
+	const names = getScenarioNames(runId);
+	const filePath = prepareTestFile(runId);
+
+	await gotoAndWaitForAppReady(page, "/");
+	await expect(page).toHaveURL("/volumes");
+
+	await createBackupScenario(page, names);
+
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
 	await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
 
-	// 5. Modify the json file after the backup
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
-	// 6. Restores the file from backup
-	await page.getByRole("button", { name: /20 B/ }).click();
+	await page
+		.getByRole("button", { name: /\d+ B$/ })
+		.first()
+		.click();
 	await page.getByRole("link", { name: "Restore" }).click();
 	await expect(page).toHaveURL(/\/restore/);
 	await page.getByRole("button", { name: "Restore All" }).click();
 	await expect(page.getByText("Restore completed")).toBeVisible({ timeout: 30000 });
 
-	// 7. Ensures that the file is back to its previous state
 	const restoredContent = fs.readFileSync(filePath, "utf8");
 	expect(JSON.parse(restoredContent)).toEqual({ data: "test file" });
 });
 
-test("deleting a volume cascades and removes its backup schedule", async ({ page }) => {
-	await gotoAndWaitForAppReady(page, "/backups");
-	await page.getByText("Test Backup", { exact: true }).first().click();
+test("deleting a volume cascades and removes its backup schedule", async ({ page }, testInfo) => {
+	const runId = getRunId(testInfo);
+	const names = getScenarioNames(runId);
 
-	const volumeLink = page.locator("main").getByRole("link", { name: "Test Volume", exact: true }).first();
+	await gotoAndWaitForAppReady(page, "/");
+	await expect(page).toHaveURL("/volumes");
+
+	await createBackupScenario(page, names);
+
+	await gotoAndWaitForAppReady(page, "/backups");
+	await page.getByText(names.backupName, { exact: true }).first().click();
+
+	const volumeLink = page.locator("main").getByRole("link", { name: names.volumeName, exact: true }).first();
 	await expect(volumeLink).toBeVisible();
 	await volumeLink.click();
 	await expect(page).toHaveURL(/\/volumes\/[^/?#]+/);
@@ -95,5 +125,5 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 	await expect(page.getByText("Volume deleted successfully")).toBeVisible();
 
 	await gotoAndWaitForAppReady(page, "/backups");
-	await expect(page.getByText("Test Backup", { exact: true })).toHaveCount(0);
+	await expect(page.getByText(names.backupName, { exact: true })).toHaveCount(0);
 });
