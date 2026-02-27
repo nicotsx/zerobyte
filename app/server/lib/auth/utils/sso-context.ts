@@ -4,6 +4,16 @@ export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
 
+export function extractProviderIdFromUrl(url: string): string | null {
+	try {
+		const pathname = new URL(url, "http://localhost").pathname;
+		const match = pathname.match(/\/sso\/(?:saml2\/)?callback\/([^/]+)$/);
+		return match?.[1] ?? null;
+	} catch {
+		return null;
+	}
+}
+
 export function extractProviderIdFromContext(ctx?: GenericEndpointContext | null) {
 	if (!ctx) {
 		return null;
@@ -14,15 +24,7 @@ export function extractProviderIdFromContext(ctx?: GenericEndpointContext | null
 	}
 
 	if (ctx.request?.url) {
-		try {
-			const pathname = new URL(ctx.request.url, "http://localhost").pathname;
-			const ssoCallbackMatch = pathname.match(/\/sso\/(?:saml2\/)?callback\/([^/]+)$/);
-			if (ssoCallbackMatch) {
-				return ssoCallbackMatch[1];
-			}
-		} catch {
-			return null;
-		}
+		return extractProviderIdFromUrl(ctx.request.url);
 	}
 
 	return null;

@@ -2,14 +2,14 @@ import { APIError } from "better-auth/api";
 import type { GenericEndpointContext } from "@better-auth/core";
 import { db } from "~/server/db/db";
 import { logger } from "~/server/utils/logger";
-import { extractProviderIdFromContext, normalizeEmail } from "../utils/sso-context";
+import { extractProviderIdFromContext, extractProviderIdFromUrl, normalizeEmail } from "../utils/sso-context";
 
 export function isSsoCallbackRequest(ctx: GenericEndpointContext | null) {
-	if (!ctx) {
+	if (!ctx?.request?.url) {
 		return false;
 	}
 
-	return extractProviderIdFromContext(ctx) !== null;
+	return extractProviderIdFromUrl(ctx.request.url) !== null;
 }
 
 export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpointContext | null) => {
