@@ -13,7 +13,7 @@
 		"tsc": "tsc --noEmit",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
-		"start:e2e": "docker compose down && rm -f playwright/data/zerobyte.db playwright/data/cache.db playwright/data/restic.pass playwright/.auth/user.json playwright/restic.pass && docker compose up --build zerobyte-e2e",
+		"start:e2e": "docker compose down && rm -rf playwright/data/* playwright/.auth/user.json playwright/restic.pass playwright/temp && docker compose up --build zerobyte-e2e",
 		"start:distroless": "docker compose down && docker compose up --build zerobyte-distroless",
 		"gen:api-client": "dotenv -e .env.local -- openapi-ts",
 		"gen:migrations": "dotenv -e .env.local -- drizzle-kit generate",

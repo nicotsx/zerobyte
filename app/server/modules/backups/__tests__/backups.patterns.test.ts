@@ -31,7 +31,12 @@ describe("executeBackup - include / exclude patterns", () => {
 
 		// assert
 		expect(options).toMatchObject({
-			include: ["*.zip", path.join(volumePath, "Photos"), `!${path.join(volumePath, "Temp")}`, "!*.log"],
+			include: [
+				path.join(volumePath, "*.zip"),
+				path.join(volumePath, "Photos"),
+				`!${path.join(volumePath, "Temp")}`,
+				`!${path.join(volumePath, "*.log")}`,
+			],
 			exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
 			excludeIfPresent: [".nobackup"],
 		});
@@ -68,7 +73,10 @@ describe("executeBackup - include / exclude patterns", () => {
 		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(options.include).toEqual([relativeInclude, path.join(volumePath, "anchored/include")]);
+		expect(options.include).toEqual([
+			path.join(volumePath, relativeInclude),
+			path.join(volumePath, "anchored/include"),
+		]);
 	});
 
 	test("should handle empty include and exclude patterns", () => {
@@ -90,5 +98,21 @@ describe("executeBackup - include / exclude patterns", () => {
 	test("processPattern keeps relative and negated relative patterns unchanged", () => {
 		expect(processPattern("relative/include", "/volume")).toBe("relative/include");
 		expect(processPattern("!*.log", "/volume")).toBe("!*.log");
+	});
+
+	test("anchors relative glob include patterns to the volume path", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const schedule = createSchedule({
+			includePatterns: ["**/*.xyz", "*.zip", "!**/*.tmp"],
+		});
+		const signal = new AbortController().signal;
+
+		const options = createBackupOptions(schedule, volumePath, signal);
+
+		expect(options.include).toEqual([
+			path.join(volumePath, "**/*.xyz"),
+			path.join(volumePath, "*.zip"),
+			`!${path.join(volumePath, "**/*.tmp")}`,
+		]);
 	});
 });

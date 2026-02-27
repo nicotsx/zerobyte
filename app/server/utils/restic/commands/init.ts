@@ -8,6 +8,19 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { keyAdd } from "./key-add";
 
+const addDefaultKey = async (config: RepositoryConfig, organizationId: string, options?: { timeoutMs?: number }) => {
+	if (appConfig.resticHostname) {
+		const keyResult = await keyAdd(config, organizationId, {
+			host: appConfig.resticHostname,
+			timeoutMs: options?.timeoutMs,
+		});
+
+		if (!keyResult.success) {
+			logger.warn(`Repository initialized but failed to add key with hostname: ${keyResult.error}`);
+		}
+	}
+};
+
 export const init = async (config: RepositoryConfig, organizationId: string, options?: { timeoutMs?: number }) => {
 	const repoUrl = buildRepoUrl(config);
 
@@ -28,16 +41,7 @@ export const init = async (config: RepositoryConfig, organizationId: string, opt
 
 	logger.info(`Restic repository initialized: ${repoUrl}`);
 
-	if (appConfig.resticHostname) {
-		const keyResult = await keyAdd(config, organizationId, {
-			host: appConfig.resticHostname,
-			timeoutMs: options?.timeoutMs,
-		});
-
-		if (!keyResult.success) {
-			logger.warn(`Repository initialized but failed to add key with hostname: ${keyResult.error}`);
-		}
-	}
+	void addDefaultKey(config, organizationId, { timeoutMs: options?.timeoutMs });
 
 	return { success: true, error: null };
 };
