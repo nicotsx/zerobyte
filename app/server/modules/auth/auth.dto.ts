@@ -157,6 +157,9 @@ export const deleteSsoProviderDto = describeRoute({
 		200: {
 			description: "SSO provider deleted successfully",
 		},
+		404: {
+			description: "Provider not found",
+		},
 		403: {
 			description: "Forbidden",
 		},

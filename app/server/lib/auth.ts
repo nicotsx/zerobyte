@@ -18,6 +18,7 @@ import { isValidUsername, normalizeUsername } from "~/lib/username";
 import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
 import { validateSsoCallbackUrls } from "./auth/middlewares/validate-sso-callback-urls";
+import { validateSsoProviderId } from "./auth/middlewares/validate-sso-provider-id";
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 import { ssoTrustedProviderLinkingPlugin } from "./auth/plugins/sso-trusted-provider-linking";
@@ -37,6 +38,7 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
+			await validateSsoProviderId(ctx);
 			await validateSsoCallbackUrls(ctx);
 			await ensureOnlyOneUser(ctx);
 			await convertLegacyUserOnFirstLogin(ctx);

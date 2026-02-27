@@ -12,6 +12,7 @@ import {
 } from "../../db/schema";
 import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
+import { isReservedSsoProviderId } from "~/server/lib/auth/utils/sso-provider-id";
 
 export class AuthService {
 	/**
@@ -108,11 +109,25 @@ export class AuthService {
 	 * Delete an SSO provider and its associated accounts
 	 */
 	async deleteSsoProvider(providerId: string, organizationId: string) {
-		await db.transaction(async (tx) => {
-			await tx.delete(account).where(eq(account.providerId, providerId));
-			await tx
-				.delete(ssoProvider)
-				.where(and(eq(ssoProvider.providerId, providerId), eq(ssoProvider.organizationId, organizationId)));
+		return db.transaction(async (tx) => {
+			const provider = await tx.query.ssoProvider.findFirst({
+				where: { AND: [{ providerId }, { organizationId }] },
+				columns: { id: true, providerId: true },
+			});
+
+			if (!provider) {
+				return false;
+			}
+
+			if (isReservedSsoProviderId(provider.providerId)) {
+				await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
+				return true;
+			}
+
+			await tx.delete(account).where(eq(account.providerId, provider.providerId));
+			await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
+
+			return true;
 		});
 	}
 

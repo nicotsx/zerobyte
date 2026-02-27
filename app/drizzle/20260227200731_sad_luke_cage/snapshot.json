@@ -1,7 +1,7 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "9fe017f6-0277-40aa-adbc-e165e20796fd",
+	"id": "60a53b0c-395a-4960-9b48-1740388bd2dc",
 	"prevIds": ["3a308c54-d950-464f-9490-fee06985fbeb"],
 	"ddl": [
 		{
@@ -2078,48 +2078,6 @@
 		{
 			"columns": [
 				{
-					"value": "provider_id",
-					"isExpression": false
-				}
-			],
-			"isUnique": true,
-			"where": null,
-			"origin": "manual",
-			"name": "sso_provider_provider_id_uidx",
-			"entityType": "indexes",
-			"table": "sso_provider"
-		},
-		{
-			"columns": [
-				{
-					"value": "organization_id",
-					"isExpression": false
-				}
-			],
-			"isUnique": false,
-			"where": null,
-			"origin": "manual",
-			"name": "sso_provider_organization_id_idx",
-			"entityType": "indexes",
-			"table": "sso_provider"
-		},
-		{
-			"columns": [
-				{
-					"value": "domain",
-					"isExpression": false
-				}
-			],
-			"isUnique": false,
-			"where": null,
-			"origin": "manual",
-			"name": "sso_provider_domain_idx",
-			"entityType": "indexes",
-			"table": "sso_provider"
-		},
-		{
-			"columns": [
-				{
 					"value": "secret",
 					"isExpression": false
 				}
@@ -2193,6 +2151,13 @@
 			"name": "sessions_table_token_unique",
 			"entityType": "uniques",
 			"table": "sessions_table"
+		},
+		{
+			"columns": ["provider_id"],
+			"nameExplicit": false,
+			"name": "sso_provider_provider_id_unique",
+			"entityType": "uniques",
+			"table": "sso_provider"
 		},
 		{
 			"columns": ["username"],

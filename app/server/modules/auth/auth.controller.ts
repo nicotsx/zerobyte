@@ -66,7 +66,11 @@ export const authController = new Hono()
 		const providerId = c.req.param("providerId");
 		const organizationId = c.get("organizationId");
 
-		await authService.deleteSsoProvider(providerId, organizationId);
+		const deleted = await authService.deleteSsoProvider(providerId, organizationId);
+
+		if (!deleted) {
+			return c.json({ message: "Provider not found" }, 404);
+		}
 
 		return c.json({ success: true });
 	})

@@ -28,11 +28,8 @@ staticClients:
   - id: zerobyte-test
     name: Zerobyte Test
     redirectURIs:
-      - "http://localhost:3000/api/auth/sso/callback/test-oidc"
-      - "http://localhost:3000/api/auth/sso/callback/test-oidc-register"
-      - "http://localhost:3000/api/auth/sso/callback/test-oidc-uninvited"
-      - "http://localhost:3000/api/auth/sso/callback/test-oidc-invited"
-      - "http://localhost:3000/api/auth/sso/callback/test-oidc-autolink"
+      - "http://localhost:3000/api/auth/sso/callback/credential"
+      - "http://localhost:3000/api/auth/sso/callback/dex"
       - "http://localhost:4096/api/auth/sso/callback/test-oidc"
       - "http://localhost:4096/api/auth/sso/callback/test-oidc-register"
       - "http://localhost:4096/api/auth/sso/callback/test-oidc-uninvited"
@@ -46,3 +43,8 @@ oauth2:
 logger:
   level: debug
   format: json
+
+# Issuer URL: http://dex:5557/dex
+# Discovery URL: http://dex:5557/dex/.well-known/openid-configuration
+# Client ID: zerobyte-test
+# Client Secret: test-secret-12345

@@ -90,6 +90,10 @@ export type DeleteSsoProviderErrors = {
      * Forbidden
      */
     403: unknown;
+    /**
+     * Provider not found
+     */
+    404: unknown;
 };
 
 export type DeleteSsoProviderResponses = {
