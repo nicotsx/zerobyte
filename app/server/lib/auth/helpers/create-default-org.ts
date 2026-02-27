@@ -1,41 +1,26 @@
-import { and, eq, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { UnauthorizedError } from "http-errors-enhanced";
 import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
-import { invitation, member, organization, ssoProvider, usersTable, type User } from "~/server/db/schema";
+import { invitation, member, organization, type User } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { APIError } from "better-auth";
 import { extractProviderIdFromContext, normalizeEmail } from "../utils/sso-context";
 import { logger } from "~/server/utils/logger";
+import { authService } from "~/server/modules/auth/auth.service";
 
 export async function findMembershipWithOrganization(userId: string, organizationId?: string) {
-	const memberships = await db
-		.select()
-		.from(member)
-		.where(
-			organizationId
-				? and(eq(member.userId, userId), eq(member.organizationId, organizationId))
-				: eq(member.userId, userId),
-		)
-		.limit(1);
+	const membership = await db.query.member.findFirst({
+		where: organizationId ? { AND: [{ userId }, { organizationId }] } : { userId },
+		with: {
+			organization: true,
+		},
+	});
 
-	const membership = memberships[0];
-
-	if (!membership) {
-		return null;
-	}
-
-	const orgs = await db.select().from(organization).where(eq(organization.id, membership.organizationId)).limit(1);
-	const org = orgs[0];
-
-	if (!org) {
-		return null;
-	}
-
-	return { ...membership, organization: org };
+	return membership ?? null;
 }
 
-function buildOrgSlug(email: string) {
+export function buildOrgSlug(email: string) {
 	const [emailPrefix] = email.split("@");
 	const sanitized = emailPrefix
 		.toLowerCase()
@@ -46,39 +31,45 @@ function buildOrgSlug(email: string) {
 	return `${safePrefix}-${Math.random().toString(36).slice(-4)}`;
 }
 
-async function tryCreateInvitedMembership(userId: string, email: string, ctx: GenericEndpointContext | null) {
-	logger.debug("Checking for pending invitations for user", userId);
+export type DefaultOrganizationData = {
+	id: string;
+	name: string;
+	slug: string;
+	createdAt: Date;
+	metadata: {
+		resticPassword: string;
+	};
+};
 
-	const providerId = extractProviderIdFromContext(ctx);
-	const ssoProviders = await db.select().from(ssoProvider).where(eq(ssoProvider.providerId, providerId)).limit(1);
-	const ssoProviderRecord = ssoProviders[0];
+export async function buildDefaultOrganizationData(
+	user: Pick<User, "name" | "email">,
+	organizationId = Bun.randomUUIDv7(),
+): Promise<DefaultOrganizationData> {
+	const resticPassword = cryptoUtils.generateResticPassword();
 
+	return {
+		id: organizationId,
+		name: `${user.name}'s Workspace`,
+		slug: buildOrgSlug(user.email),
+		createdAt: new Date(),
+		metadata: {
+			resticPassword: await cryptoUtils.sealSecret(resticPassword),
+		},
+	};
+}
+
+async function tryCreateInvitedMembership(
+	userId: string,
+	email: string,
+	ssoProviderRecord: Awaited<ReturnType<typeof authService.getSsoProviderById>>,
+) {
 	if (!ssoProviderRecord) {
-		logger.debug("No SSO provider found in context, skipping invitation check");
 		return null;
 	}
-	logger.debug("SSO provider found in context, checking for linked accounts", ssoProviderRecord.providerId);
 
-	const now = new Date();
+	logger.debug("Checking for pending invitations for user", { userId, providerId: ssoProviderRecord.providerId });
 
-	const pendingInvitations = await db
-		.select({
-			id: invitation.id,
-			email: invitation.email,
-			role: invitation.role,
-			organizationId: invitation.organizationId,
-		})
-		.from(invitation)
-		.where(
-			and(
-				eq(invitation.status, "pending"),
-				eq(invitation.organizationId, ssoProviderRecord.organizationId),
-				gt(invitation.expiresAt, now),
-				eq(invitation.email, normalizeEmail(email)),
-			),
-		)
-		.limit(1);
-	const pendingInvitation = pendingInvitations[0];
+	const pendingInvitation = await authService.getPendingInvitation(ssoProviderRecord.organizationId, email);
 
 	if (!pendingInvitation) {
 		logger.debug("No pending invitation found for user");
@@ -114,29 +105,17 @@ async function tryCreateInvitedMembership(userId: string, email: string, ctx: Ge
 
 async function createDefaultOrganizationMembership(user: User) {
 	logger.debug("Creating default organization for user", { userId: user.id });
-	const resticPassword = cryptoUtils.generateResticPassword();
-	const metadata = { resticPassword: await cryptoUtils.sealSecret(resticPassword) };
+	const organizationData = await buildDefaultOrganizationData(user);
 
 	await db.transaction(async (tx) => {
-		const orgId = Bun.randomUUIDv7();
-		const slug = buildOrgSlug(user.email);
-
-		tx.insert(organization)
-			.values({
-				name: `${user.name}'s Workspace`,
-				slug,
-				id: orgId,
-				createdAt: new Date(),
-				metadata,
-			})
-			.run();
+		tx.insert(organization).values(organizationData).run();
 
 		tx.insert(member)
 			.values({
 				id: Bun.randomUUIDv7(),
 				userId: user.id,
 				role: "owner",
-				organizationId: orgId,
+				organizationId: organizationData.id,
 				createdAt: new Date(),
 			})
 			.run();
@@ -144,19 +123,14 @@ async function createDefaultOrganizationMembership(user: User) {
 }
 
 export async function createUserDefaultOrg(userId: string, ctx: GenericEndpointContext | null) {
-	const users = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-	const user = users[0];
+	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
 	if (!user) {
 		throw new UnauthorizedError("User not found");
 	}
 
 	const providerId = extractProviderIdFromContext(ctx);
 	if (providerId) {
-		const [ssoProviderRecord] = await db
-			.select()
-			.from(ssoProvider)
-			.where(eq(ssoProvider.providerId, providerId))
-			.limit(1);
+		const ssoProviderRecord = await authService.getSsoProviderById(providerId);
 
 		if (ssoProviderRecord) {
 			// If the user is already a member of this SSO org (accepted a past invitation), let them through
@@ -166,7 +140,7 @@ export async function createUserDefaultOrg(userId: string, ctx: GenericEndpointC
 			}
 
 			// Not yet a member of this SSO org, a valid pending invitation is required.
-			const invitedMembership = await tryCreateInvitedMembership(userId, normalizeEmail(user.email), ctx);
+			const invitedMembership = await tryCreateInvitedMembership(userId, normalizeEmail(user.email), ssoProviderRecord);
 			if (invitedMembership) {
 				return invitedMembership;
 			}

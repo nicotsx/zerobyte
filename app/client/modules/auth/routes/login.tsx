@@ -38,7 +38,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const [isVerifying2FA, setIsVerifying2FA] = useState(false);
 	const [trustDevice, setTrustDevice] = useState(false);
 	const errorCode = decodeLoginError(error);
-	const errorDescription = getLoginErrorDescription(errorCode);
+	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
 
 	const { data: ssoProviders } = useSuspenseQuery({
 		...getPublicSsoProvidersOptions(),

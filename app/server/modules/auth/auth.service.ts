@@ -13,6 +13,7 @@ import {
 import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
 import { isReservedSsoProviderId } from "~/server/lib/auth/utils/sso-provider-id";
+import { normalizeEmail } from "~/server/lib/auth/utils/sso-context";
 
 export class AuthService {
 	/**
@@ -103,6 +104,45 @@ export class AuthService {
 		if (orgIds.length > 0) {
 			await db.delete(organization).where(inArray(organization.id, orgIds));
 		}
+	}
+
+	/**
+	 * Get an SSO provider by provider id
+	 */
+	async getSsoProviderById(providerId: string) {
+		return db.query.ssoProvider.findFirst({
+			where: { providerId },
+			columns: { id: true, providerId: true, organizationId: true },
+		});
+	}
+
+	/**
+	 * Get an active pending invitation for organization/email
+	 */
+	async getPendingInvitation(organizationId: string, email: string) {
+		return db.query.invitation.findFirst({
+			where: {
+				AND: [
+					{ organizationId },
+					{ status: "pending" },
+					{ expiresAt: { gt: new Date() } },
+					{ email: normalizeEmail(email) },
+				],
+			},
+			columns: { id: true, email: true, role: true, organizationId: true },
+		});
+	}
+
+	/**
+	 * Get trusted provider ids for organization auto-linking
+	 */
+	async getAutoLinkingSsoProviderIds(organizationId: string) {
+		const providers = await db.query.ssoProvider.findMany({
+			columns: { providerId: true },
+			where: { organizationId, autoLinkMatchingEmails: true },
+		});
+
+		return providers.map((provider) => provider.providerId);
 	}
 
 	/**

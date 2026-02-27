@@ -22,9 +22,10 @@ import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy
 import { validateSsoCallbackUrls } from "./auth/middlewares/validate-sso-callback-urls";
 import { validateSsoProviderId } from "./auth/middlewares/validate-sso-provider-id";
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
-import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
+import { requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 import { resolveTrustedProvidersForRequest } from "./auth/middlewares/trust-sso-provider-for-linking";
 import { buildAllowedHosts } from "./auth/base-url";
+import { isSsoCallbackRequest } from "./auth/utils/sso-context";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 

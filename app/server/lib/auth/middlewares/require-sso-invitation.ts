@@ -1,16 +1,8 @@
 import { APIError } from "better-auth/api";
 import type { GenericEndpointContext } from "better-auth";
-import { db } from "~/server/db/db";
 import { logger } from "~/server/utils/logger";
-import { extractProviderIdFromContext, extractProviderIdFromUrl, normalizeEmail } from "../utils/sso-context";
-
-export function isSsoCallbackRequest(ctx: GenericEndpointContext | null) {
-	if (!ctx?.request?.url) {
-		return false;
-	}
-
-	return extractProviderIdFromUrl(ctx.request.url) !== null;
-}
+import { extractProviderIdFromContext } from "../utils/sso-context";
+import { authService } from "~/server/modules/auth/auth.service";
 
 export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpointContext | null) => {
 	if (!ctx) {
@@ -22,25 +14,14 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 		throw new APIError("BAD_REQUEST", { message: "Missing providerId in context" });
 	}
 
-	const provider = await db.query.ssoProvider.findFirst({ where: { providerId } });
+	const provider = await authService.getSsoProviderById(providerId);
 	if (!provider) {
 		throw new APIError("NOT_FOUND", { message: "SSO provider not found" });
 	}
 
-	const normalizedEmail = normalizeEmail(userEmail);
 	logger.debug("Checking for pending invitations", { organizationId: provider.organizationId });
 
-	const pendingInvitation = await db.query.invitation.findFirst({
-		where: {
-			AND: [
-				{ organizationId: provider.organizationId },
-				{ status: "pending" },
-				{ expiresAt: { gt: new Date() } },
-				{ email: normalizedEmail },
-			],
-		},
-		columns: { id: true },
-	});
+	const pendingInvitation = await authService.getPendingInvitation(provider.organizationId, userEmail);
 
 	logger.debug("Pending invitation result", { found: !!pendingInvitation, invitationId: pendingInvitation?.id });
 
