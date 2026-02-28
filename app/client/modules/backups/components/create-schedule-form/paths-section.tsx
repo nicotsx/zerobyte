@@ -75,7 +75,7 @@ export const PathsSection = ({
 						<FormControl>
 							<Textarea
 								{...field}
-								placeholder="/data/**&#10;/config/*.json&#10;*.db"
+								placeholder="/data/**&#10;/config/*.json&#10;*.db&#10;**/*.log"
 								className="font-mono text-sm min-h-25"
 							/>
 						</FormControl>

@@ -46,7 +46,12 @@ describe("executeBackup - include / exclude patterns", () => {
 			expect.anything(),
 			volumePath,
 			expect.objectContaining({
-				include: ["*.zip", path.join(volumePath, "Photos"), `!${path.join(volumePath, "Temp")}`, "!*.log"],
+				include: [
+					path.join(volumePath, "*.zip"),
+					path.join(volumePath, "Photos"),
+					`!${path.join(volumePath, "Temp")}`,
+					`!${path.join(volumePath, "*.log")}`,
+				],
 				exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
 				excludeIfPresent: [".nobackup"],
 			}),
@@ -109,7 +114,7 @@ describe("executeBackup - include / exclude patterns", () => {
 			expect.anything(),
 			volumePath,
 			expect.objectContaining({
-				include: [relativeInclude, path.join(volumePath, "anchored/include")],
+				include: [path.join(volumePath, relativeInclude), path.join(volumePath, "anchored/include")],
 			}),
 		);
 	});
