@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import nodePath from "node:path";
-import { type } from "arktype";
 import { and, eq } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import {
@@ -732,10 +731,11 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		throw new NotFoundError("Repository not found");
 	}
 
-	const existingConfig = repositoryConfigSchema(existing.config);
-	if (existingConfig instanceof type.errors) {
+	const existingConfigResult = repositoryConfigSchema.safeParse(existing.config);
+	if (!existingConfigResult.success) {
 		throw new InternalServerError("Invalid repository configuration");
 	}
+	const existingConfig = existingConfigResult.data;
 
 	let newName = existing.name;
 	if (updates.name) {
@@ -747,10 +747,11 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 
 	let parsedConfig = existingConfig;
 	if (updates.config) {
-		const nextConfig = repositoryConfigSchema(updates.config);
-		if (nextConfig instanceof type.errors) {
+		const nextConfigResult = repositoryConfigSchema.safeParse(updates.config);
+		if (!nextConfigResult.success) {
 			throw new BadRequestError("Invalid repository configuration");
 		}
+		const nextConfig = nextConfigResult.data;
 
 		if (nextConfig.backend !== existing.type) {
 			throw new BadRequestError("Repository backend cannot be changed");
@@ -759,7 +760,7 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		parsedConfig = nextConfig;
 	}
 
-	const decryptedExisting = existingConfig ? await decryptConfig(existingConfig) : null;
+	const decryptedExisting = await decryptConfig(existingConfig);
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptConfig(parsedConfig) : existingConfig;
 

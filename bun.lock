@@ -34,7 +34,6 @@
         "@tanstack/react-router": "^1.166.2",
         "@tanstack/react-router-ssr-query": "^1.166.2",
         "@tanstack/react-start": "^1.166.2",
-        "arktype": "^2.2.0",
         "better-auth": "^1.5.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -69,6 +68,7 @@
         "tiny-typed-emitter": "^2.1.0",
         "web-haptics": "^0.0.6",
         "yaml": "^2.8.2",
+        "zod": "^4.0.1",
       },
       "devDependencies": {
         "@babel/preset-typescript": "^7.28.5",

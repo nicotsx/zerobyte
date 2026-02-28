@@ -3,7 +3,7 @@ import { HardDrive, Plus } from "lucide-react";
 import { useId } from "react";
 import { toast } from "sonner";
 import { createVolumeMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
+import { CreateVolumeForm, formSchema, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
@@ -23,10 +23,12 @@ export function CreateVolumePage() {
 	});
 
 	const handleSubmit = (values: FormValues) => {
+		const { name, ...config } = formSchema.parse(values);
+
 		createVolume.mutate({
 			body: {
-				config: values,
-				name: values.name,
+				config,
+				name,
 			},
 		});
 	};

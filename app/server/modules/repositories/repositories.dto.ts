@@ -1,4 +1,4 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import {
 	COMPRESSION_MODES,
@@ -10,28 +10,25 @@ import {
 } from "~/schemas/restic";
 import { resticSnapshotSummarySchema, resticStatsSchema } from "~/schemas/restic-dto";
 
-export const repositorySchema = type({
-	id: "string",
-	shortId: "string",
-	name: "string",
-	type: type.valueOf(REPOSITORY_BACKENDS),
+export const repositorySchema = z.object({
+	id: z.string(),
+	shortId: z.string(),
+	name: z.string(),
+	type: z.enum(REPOSITORY_BACKENDS),
 	config: repositoryConfigSchema,
-	compressionMode: type.valueOf(COMPRESSION_MODES).or("null"),
-	status: type.valueOf(REPOSITORY_STATUS).or("null"),
-	lastChecked: "number | null",
-	lastError: "string | null",
-	doctorResult: doctorResultSchema.or("null"),
-	createdAt: "number",
-	updatedAt: "number",
+	compressionMode: z.enum(COMPRESSION_MODES).nullable(),
+	status: z.enum(REPOSITORY_STATUS).nullable(),
+	lastChecked: z.number().nullable(),
+	lastError: z.string().nullable(),
+	doctorResult: doctorResultSchema.nullable(),
+	createdAt: z.number(),
+	updatedAt: z.number(),
 });
 
-export type RepositoryDto = typeof repositorySchema.infer;
+export type RepositoryDto = z.infer<typeof repositorySchema>;
 
-/**
- * List all repositories
- */
 export const listRepositoriesResponse = repositorySchema.array();
-export type ListRepositoriesDto = typeof listRepositoriesResponse.infer;
+export type ListRepositoriesDto = z.infer<typeof listRepositoriesResponse>;
 
 export const listRepositoriesDto = describeRoute({
 	description: "List all repositories",
@@ -49,27 +46,24 @@ export const listRepositoriesDto = describeRoute({
 	},
 });
 
-/**
- * Create a new repository
- */
-export const createRepositoryBody = type({
-	name: "string",
-	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+export const createRepositoryBody = z.object({
+	name: z.string(),
+	compressionMode: z.enum(COMPRESSION_MODES).optional(),
 	config: repositoryConfigSchema,
 });
 
-export type CreateRepositoryBody = typeof createRepositoryBody.infer;
+export type CreateRepositoryBody = z.infer<typeof createRepositoryBody>;
 
-export const createRepositoryResponse = type({
-	message: "string",
-	repository: type({
-		id: "string",
-		shortId: "string",
-		name: "string",
+export const createRepositoryResponse = z.object({
+	message: z.string(),
+	repository: z.object({
+		id: z.string(),
+		shortId: z.string(),
+		name: z.string(),
 	}),
 });
 
-export type CreateRepositoryDto = typeof createRepositoryResponse.infer;
+export type CreateRepositoryDto = z.infer<typeof createRepositoryResponse>;
 
 export const createRepositoryDto = describeRoute({
 	description: "Create a new restic repository",
@@ -87,11 +81,8 @@ export const createRepositoryDto = describeRoute({
 	},
 });
 
-/**
- * Get a single repository
- */
 export const getRepositoryResponse = repositorySchema;
-export type GetRepositoryDto = typeof getRepositoryResponse.infer;
+export type GetRepositoryDto = z.infer<typeof getRepositoryResponse>;
 
 export const getRepositoryDto = describeRoute({
 	description: "Get a single repository by ID",
@@ -109,12 +100,9 @@ export const getRepositoryDto = describeRoute({
 	},
 });
 
-/**
- * Get repository stats
- */
 export const repositoryStatsSchema = resticStatsSchema;
 export const getRepositoryStatsResponse = repositoryStatsSchema;
-export type GetRepositoryStatsDto = typeof getRepositoryStatsResponse.infer;
+export type GetRepositoryStatsDto = z.infer<typeof getRepositoryStatsResponse>;
 
 export const getRepositoryStatsDto = describeRoute({
 	description: "Get repository storage and compression statistics",
@@ -133,7 +121,7 @@ export const getRepositoryStatsDto = describeRoute({
 });
 
 export const refreshRepositoryStatsResponse = repositoryStatsSchema;
-export type RefreshRepositoryStatsDto = typeof refreshRepositoryStatsResponse.infer;
+export type RefreshRepositoryStatsDto = z.infer<typeof refreshRepositoryStatsResponse>;
 
 export const refreshRepositoryStatsDto = describeRoute({
 	description: "Refresh repository storage and compression statistics",
@@ -151,14 +139,11 @@ export const refreshRepositoryStatsDto = describeRoute({
 	},
 });
 
-/**
- * Delete a repository
- */
-export const deleteRepositoryResponse = type({
-	message: "string",
+export const deleteRepositoryResponse = z.object({
+	message: z.string(),
 });
 
-export type DeleteRepositoryDto = typeof deleteRepositoryResponse.infer;
+export type DeleteRepositoryDto = z.infer<typeof deleteRepositoryResponse>;
 
 export const deleteRepositoryDto = describeRoute({
 	description: "Delete a repository",
@@ -176,19 +161,16 @@ export const deleteRepositoryDto = describeRoute({
 	},
 });
 
-/**
- * Update a repository
- */
-export const updateRepositoryBody = type({
-	name: "string?",
-	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
+export const updateRepositoryBody = z.object({
+	name: z.string().optional(),
+	compressionMode: z.enum(COMPRESSION_MODES).optional(),
 	config: repositoryConfigSchema.optional(),
 });
 
-export type UpdateRepositoryBody = typeof updateRepositoryBody.infer;
+export type UpdateRepositoryBody = z.infer<typeof updateRepositoryBody>;
 
 export const updateRepositoryResponse = repositorySchema;
-export type UpdateRepositoryDto = typeof updateRepositoryResponse.infer;
+export type UpdateRepositoryDto = z.infer<typeof updateRepositoryResponse>;
 
 export const updateRepositoryDto = describeRoute({
 	description: "Update a repository's name or settings",
@@ -215,27 +197,24 @@ export const updateRepositoryDto = describeRoute({
 	},
 });
 
-/**
- * List snapshots in a repository
- */
-export const snapshotSchema = type({
-	short_id: "string",
-	time: "number",
-	paths: "string[]",
-	size: "number",
-	duration: "number",
-	tags: "string[]",
-	retentionCategories: "string[]",
-	hostname: "string?",
+export const snapshotSchema = z.object({
+	short_id: z.string(),
+	time: z.number(),
+	paths: z.array(z.string()),
+	size: z.number(),
+	duration: z.number(),
+	tags: z.array(z.string()),
+	retentionCategories: z.array(z.string()),
+	hostname: z.string().optional(),
 	summary: resticSnapshotSummarySchema.optional(),
 });
 
 const listSnapshotsResponse = snapshotSchema.array();
 
-export type ListSnapshotsDto = typeof listSnapshotsResponse.infer;
+export type ListSnapshotsDto = z.infer<typeof listSnapshotsResponse>;
 
-export const listSnapshotsFilters = type({
-	backupId: "string?",
+export const listSnapshotsFilters = z.object({
+	backupId: z.string().optional(),
 });
 
 export const listSnapshotsDto = describeRoute({
@@ -254,12 +233,9 @@ export const listSnapshotsDto = describeRoute({
 	},
 });
 
-/**
- * Get snapshot details
- */
 export const getSnapshotDetailsResponse = snapshotSchema;
 
-export type GetSnapshotDetailsDto = typeof getSnapshotDetailsResponse.infer;
+export type GetSnapshotDetailsDto = z.infer<typeof getSnapshotDetailsResponse>;
 
 export const getSnapshotDetailsDto = describeRoute({
 	description: "Get details of a specific snapshot",
@@ -277,43 +253,40 @@ export const getSnapshotDetailsDto = describeRoute({
 	},
 });
 
-/**
- * List files in a snapshot
- */
-export const snapshotFileNodeSchema = type({
-	name: "string",
-	type: "string",
-	path: "string",
-	uid: "number?",
-	gid: "number?",
-	size: "number?",
-	mode: "number?",
-	mtime: "string?",
-	atime: "string?",
-	ctime: "string?",
+export const snapshotFileNodeSchema = z.object({
+	name: z.string(),
+	type: z.string(),
+	path: z.string(),
+	uid: z.number().optional(),
+	gid: z.number().optional(),
+	size: z.number().optional(),
+	mode: z.number().optional(),
+	mtime: z.string().optional(),
+	atime: z.string().optional(),
+	ctime: z.string().optional(),
 });
 
-export const listSnapshotFilesResponse = type({
-	snapshot: type({
-		id: "string",
-		short_id: "string",
-		time: "string",
-		hostname: "string",
-		paths: "string[]",
+export const listSnapshotFilesResponse = z.object({
+	snapshot: z.object({
+		id: z.string(),
+		short_id: z.string(),
+		time: z.string(),
+		hostname: z.string().optional(),
+		paths: z.array(z.string()),
 	}),
 	files: snapshotFileNodeSchema.array(),
-	offset: "number",
-	limit: "number",
-	total: "number",
-	hasMore: "boolean",
+	offset: z.number(),
+	limit: z.number(),
+	total: z.number(),
+	hasMore: z.boolean(),
 });
 
-export type ListSnapshotFilesDto = typeof listSnapshotFilesResponse.infer;
+export type ListSnapshotFilesDto = z.infer<typeof listSnapshotFilesResponse>;
 
-export const listSnapshotFilesQuery = type({
-	path: "string?",
-	offset: "string.integer?",
-	limit: "string.integer?",
+export const listSnapshotFilesQuery = z.object({
+	path: z.string().optional(),
+	offset: z.coerce.number().int().optional(),
+	limit: z.coerce.number().int().optional(),
 });
 
 export const listSnapshotFilesDto = describeRoute({
@@ -337,14 +310,11 @@ const DUMP_PATH_KINDS = {
 	dir: "dir",
 } as const;
 
-export const dumpPathKindSchema = type.valueOf(DUMP_PATH_KINDS);
-export type DumpPathKind = typeof dumpPathKindSchema.infer;
+export const dumpPathKindSchema = z.enum(DUMP_PATH_KINDS);
+export type DumpPathKind = z.infer<typeof dumpPathKindSchema>;
 
-/**
- * Download snapshot paths as tar archives (folders) or raw file streams (single files)
- */
-export const dumpSnapshotQuery = type({
-	path: "string?",
+export const dumpSnapshotQuery = z.object({
+	path: z.string().optional(),
 	kind: dumpPathKindSchema.optional(),
 });
 
@@ -367,32 +337,29 @@ export const dumpSnapshotDto = describeRoute({
 	},
 });
 
-/**
- * Restore a snapshot
- */
-export const overwriteModeSchema = type.valueOf(OVERWRITE_MODES);
+export const overwriteModeSchema = z.enum(OVERWRITE_MODES);
 
-export const restoreSnapshotBody = type({
-	snapshotId: "string",
-	include: "string[]?",
+export const restoreSnapshotBody = z.object({
+	snapshotId: z.string(),
+	include: z.array(z.string()).optional(),
 	selectedItemKind: dumpPathKindSchema.optional(),
-	exclude: "string[]?",
-	excludeXattr: "string[]?",
-	delete: "boolean?",
-	targetPath: "string?",
+	exclude: z.array(z.string()).optional(),
+	excludeXattr: z.array(z.string()).optional(),
+	delete: z.boolean().optional(),
+	targetPath: z.string().optional(),
 	overwrite: overwriteModeSchema.optional(),
 });
 
-export type RestoreSnapshotBody = typeof restoreSnapshotBody.infer;
+export type RestoreSnapshotBody = z.infer<typeof restoreSnapshotBody>;
 
-export const restoreSnapshotResponse = type({
-	success: "boolean",
-	message: "string",
-	filesRestored: "number",
-	filesSkipped: "number",
+export const restoreSnapshotResponse = z.object({
+	success: z.boolean(),
+	message: z.string(),
+	filesRestored: z.number(),
+	filesSkipped: z.number(),
 });
 
-export type RestoreSnapshotDto = typeof restoreSnapshotResponse.infer;
+export type RestoreSnapshotDto = z.infer<typeof restoreSnapshotResponse>;
 
 export const restoreSnapshotDto = describeRoute({
 	description: "Restore a snapshot to a target path on the filesystem",
@@ -410,15 +377,12 @@ export const restoreSnapshotDto = describeRoute({
 	},
 });
 
-/**
- * Start doctor operation
- */
-export const startDoctorResponse = type({
-	message: "string",
-	repositoryId: "string",
+export const startDoctorResponse = z.object({
+	message: z.string(),
+	repositoryId: z.string(),
 });
 
-export type StartDoctorDto = typeof startDoctorResponse.infer;
+export type StartDoctorDto = z.infer<typeof startDoctorResponse>;
 
 export const startDoctorDto = describeRoute({
 	description:
@@ -440,14 +404,11 @@ export const startDoctorDto = describeRoute({
 	},
 });
 
-/**
- * Cancel running doctor operation
- */
-export const cancelDoctorResponse = type({
-	message: "string",
+export const cancelDoctorResponse = z.object({
+	message: z.string(),
 });
 
-export type CancelDoctorDto = typeof cancelDoctorResponse.infer;
+export type CancelDoctorDto = z.infer<typeof cancelDoctorResponse>;
 
 export const cancelDoctorDto = describeRoute({
 	description: "Cancel a running doctor operation on a repository",
@@ -468,12 +429,9 @@ export const cancelDoctorDto = describeRoute({
 	},
 });
 
-/**
- * List rclone available remotes
- */
-const rcloneRemoteSchema = type({
-	name: "string",
-	type: "string",
+const rcloneRemoteSchema = z.object({
+	name: z.string(),
+	type: z.string(),
 });
 
 const listRcloneRemotesResponse = rcloneRemoteSchema.array();
@@ -494,14 +452,11 @@ export const listRcloneRemotesDto = describeRoute({
 	},
 });
 
-/**
- * Delete a snapshot
- */
-export const deleteSnapshotResponse = type({
-	message: "string",
+export const deleteSnapshotResponse = z.object({
+	message: z.string(),
 });
 
-export type DeleteSnapshotDto = typeof deleteSnapshotResponse.infer;
+export type DeleteSnapshotDto = z.infer<typeof deleteSnapshotResponse>;
 
 export const deleteSnapshotDto = describeRoute({
 	description: "Delete a specific snapshot from a repository",
@@ -519,18 +474,15 @@ export const deleteSnapshotDto = describeRoute({
 	},
 });
 
-/**
- * Delete multiple snapshots
- */
-export const deleteSnapshotsBody = type({
-	snapshotIds: "string[]>=1",
+export const deleteSnapshotsBody = z.object({
+	snapshotIds: z.array(z.string()).min(1),
 });
 
-export const deleteSnapshotsResponse = type({
-	message: "string",
+export const deleteSnapshotsResponse = z.object({
+	message: z.string(),
 });
 
-export type DeleteSnapshotsResponseDto = typeof deleteSnapshotsResponse.infer;
+export type DeleteSnapshotsResponseDto = z.infer<typeof deleteSnapshotsResponse>;
 
 export const deleteSnapshotsDto = describeRoute({
 	description: "Delete multiple snapshots from a repository",
@@ -548,21 +500,18 @@ export const deleteSnapshotsDto = describeRoute({
 	},
 });
 
-/**
- * Tag multiple snapshots
- */
-export const tagSnapshotsBody = type({
-	snapshotIds: "string[]>=1",
-	add: "string[]?",
-	remove: "string[]?",
-	set: "string[]?",
+export const tagSnapshotsBody = z.object({
+	snapshotIds: z.array(z.string()).min(1),
+	add: z.array(z.string()).optional(),
+	remove: z.array(z.string()).optional(),
+	set: z.array(z.string()).optional(),
 });
 
-export const tagSnapshotsResponse = type({
-	message: "string",
+export const tagSnapshotsResponse = z.object({
+	message: z.string(),
 });
 
-export type TagSnapshotsResponseDto = typeof tagSnapshotsResponse.infer;
+export type TagSnapshotsResponseDto = z.infer<typeof tagSnapshotsResponse>;
 
 export const tagSnapshotsDto = describeRoute({
 	description: "Tag multiple snapshots in a repository",
@@ -580,15 +529,12 @@ export const tagSnapshotsDto = describeRoute({
 	},
 });
 
-/**
- * Refresh snapshots cache
- */
-export const refreshSnapshotsResponse = type({
-	message: "string",
-	count: "number",
+export const refreshSnapshotsResponse = z.object({
+	message: z.string(),
+	count: z.number(),
 });
 
-export type RefreshSnapshotsDto = typeof refreshSnapshotsResponse.infer;
+export type RefreshSnapshotsDto = z.infer<typeof refreshSnapshotsResponse>;
 
 export const refreshSnapshotsDto = describeRoute({
 	description: "Clear snapshot cache and force refresh from repository",
@@ -606,12 +552,12 @@ export const refreshSnapshotsDto = describeRoute({
 	},
 });
 
-export const devPanelExecBody = type({
-	command: "string",
-	args: "string[]?",
+export const devPanelExecBody = z.object({
+	command: z.string(),
+	args: z.array(z.string()).optional(),
 });
 
-export type DevPanelExecBody = typeof devPanelExecBody.infer;
+export type DevPanelExecBody = z.infer<typeof devPanelExecBody>;
 
 export const devPanelExecDto = describeRoute({
 	description: "Execute a restic command against a repository (dev panel only)",
@@ -632,15 +578,12 @@ export const devPanelExecDto = describeRoute({
 	},
 });
 
-/**
- * Unlock repository
- */
-export const unlockRepositoryResponse = type({
-	success: "boolean",
-	message: "string",
+export const unlockRepositoryResponse = z.object({
+	success: z.boolean(),
+	message: z.string(),
 });
 
-export type UnlockRepositoryDto = typeof unlockRepositoryResponse.infer;
+export type UnlockRepositoryDto = z.infer<typeof unlockRepositoryResponse>;
 
 export const unlockRepositoryDto = describeRoute({
 	description: "Unlock a repository by removing all stale locks",

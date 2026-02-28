@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { type } from "arktype";
 import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 import {
@@ -108,11 +107,11 @@ export const backup = async (
 		if (options.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
-				const progress = resticBackupProgressSchema(jsonData);
-				if (!(progress instanceof type.errors)) {
-					options.onProgress(progress);
+				const progressResult = resticBackupProgressSchema.safeParse(jsonData);
+				if (progressResult.success) {
+					options.onProgress(progressResult.data);
 				} else {
-					logger.error(progress.summary);
+					logger.error(progressResult.error.message);
 				}
 			} catch {
 				// Ignore JSON parse errors for non-JSON lines
@@ -168,12 +167,12 @@ export const backup = async (
 	}
 
 	logger.debug(`Restic backup output last line: ${JSON.stringify(summaryLine)}`);
-	const result = resticBackupOutputSchema(summaryLine);
+	const result = resticBackupOutputSchema.safeParse(summaryLine);
 
-	if (result instanceof type.errors) {
-		logger.error(`Restic backup output validation failed: ${result.summary}`);
+	if (!result.success) {
+		logger.error(`Restic backup output validation failed: ${result.error.message}`);
 		return { result: null, exitCode: res.exitCode };
 	}
 
-	return { result, exitCode: res.exitCode };
+	return { result: result.data, exitCode: res.exitCode };
 };

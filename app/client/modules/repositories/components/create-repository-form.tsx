@@ -1,10 +1,9 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { type } from "arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Save } from "lucide-react";
+import { z } from "zod";
 import { cn } from "~/client/lib/utils";
-import { deepClean } from "~/utils/object";
 import { Button } from "../../../components/ui/button";
 import {
 	Form,
@@ -21,7 +20,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
-import { COMPRESSION_MODES, repositoryConfigSchemaBase } from "~/schemas/restic";
+import {
+	COMPRESSION_MODES,
+	azureRepositoryConfigSchema,
+	gcsRepositoryConfigSchema,
+	localRepositoryConfigSchema,
+	r2RepositoryConfigSchema,
+	rcloneRepositoryConfigSchema,
+	restRepositoryConfigSchema,
+	s3RepositoryConfigSchema,
+	sftpRepositoryConfigSchema,
+} from "~/schemas/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
 import {
 	LocalRepositoryForm,
@@ -38,13 +47,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-export const formSchema = type({
-	name: "2<=string<=32",
-	compressionMode: type.valueOf(COMPRESSION_MODES).optional(),
-}).and(repositoryConfigSchemaBase);
-const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
+const formBaseFields = {
+	name: z.string().min(2).max(32),
+	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+};
 
-export type RepositoryFormValues = typeof formSchema.inferIn;
+export const formSchema = z.discriminatedUnion("backend", [
+	localRepositoryConfigSchema.extend(formBaseFields),
+	s3RepositoryConfigSchema.extend(formBaseFields),
+	r2RepositoryConfigSchema.extend(formBaseFields),
+	gcsRepositoryConfigSchema.extend(formBaseFields),
+	azureRepositoryConfigSchema.extend(formBaseFields),
+	rcloneRepositoryConfigSchema.extend(formBaseFields),
+	restRepositoryConfigSchema.extend(formBaseFields),
+	sftpRepositoryConfigSchema.extend(formBaseFields),
+]);
+
+export type RepositoryFormValues = z.input<typeof formSchema>;
 
 type Props = {
 	onSubmit: (values: RepositoryFormValues) => void;
@@ -81,7 +100,7 @@ export const CreateRepositoryForm = ({
 	});
 
 	const form = useForm<RepositoryFormValues>({
-		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
+		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues,
 		resetOptions: {
 			keepDefaultValues: true,

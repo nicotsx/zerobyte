@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Check, Plug, Trash2, Unplug } from "lucide-react";
-import { CreateVolumeForm, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
+import { CreateVolumeForm, formSchema, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -102,9 +102,11 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 
 	const confirmUpdate = () => {
 		if (pendingValues) {
+			const { name, ...config } = formSchema.parse(pendingValues);
+
 			updateMutation.mutate({
 				path: { shortId: volume.shortId },
-				body: { name: pendingValues.name, config: pendingValues },
+				body: { name, config },
 			});
 		}
 	};

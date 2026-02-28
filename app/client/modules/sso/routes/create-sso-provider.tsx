@@ -1,11 +1,11 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { type } from "arktype";
 import { ShieldCheck, Plus } from "lucide-react";
 import { useId } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { updateSsoProviderAutoLinkingMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -24,17 +24,17 @@ import { authClient } from "~/client/lib/auth-client";
 import { parseError } from "~/client/lib/errors";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 
-const ssoProviderSchema = type({
-	providerId: "string>=1",
-	issuer: "string>=1",
-	domain: "string>=1",
-	clientId: "string>=1",
-	clientSecret: "string>=1",
-	discoveryEndpoint: "string>=1",
-	linkMatchingEmails: "boolean",
+const ssoProviderSchema = z.object({
+	providerId: z.string().min(1),
+	issuer: z.string().min(1),
+	domain: z.string().min(1),
+	clientId: z.string().min(1),
+	clientSecret: z.string().min(1),
+	discoveryEndpoint: z.string().min(1),
+	linkMatchingEmails: z.boolean(),
 });
 
-type ProviderForm = typeof ssoProviderSchema.infer;
+type ProviderForm = z.infer<typeof ssoProviderSchema>;
 
 export function CreateSsoProviderPage() {
 	const navigate = useNavigate();
@@ -42,7 +42,7 @@ export function CreateSsoProviderPage() {
 	const { activeOrganization } = useOrganizationContext();
 
 	const form = useForm<ProviderForm>({
-		resolver: arktypeResolver(ssoProviderSchema),
+		resolver: zodResolver(ssoProviderSchema),
 		defaultValues: {
 			providerId: "",
 			issuer: "",

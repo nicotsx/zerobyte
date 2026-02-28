@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type } from "arktype";
+import { z } from "zod";
 import {
 	getRepositoryOptions,
 	getRepositoryStatsOptions,
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")
 			stats: context.queryClient.getQueryData(statsOptions.queryKey),
 		};
 	},
-	validateSearch: type({ tab: "string?" }),
+	validateSearch: z.object({ tab: z.string().optional() }),
 	staticData: {
 		breadcrumb: (match) => [
 			{ label: "Repositories", href: "/repositories" },

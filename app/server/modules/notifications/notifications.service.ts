@@ -14,7 +14,6 @@ import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import type { ResticBackupRunSummaryDto } from "~/schemas/restic-dto";
 import { toMessage } from "../../utils/errors";
-import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
 
@@ -192,10 +191,11 @@ const updateDestination = async (
 		updateData.enabled = updates.enabled;
 	}
 
-	const newConfig = notificationConfigSchema(updates.config || existing.config);
-	if (newConfig instanceof type.errors) {
+	const newConfigResult = notificationConfigSchema.safeParse(updates.config || existing.config);
+	if (!newConfigResult.success) {
 		throw new BadRequestError("Invalid notification configuration");
 	}
+	const newConfig = newConfigResult.data;
 
 	const encryptedConfig = await encryptSensitiveFields(newConfig);
 	updateData.config = encryptedConfig;

@@ -1,11 +1,10 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { type } from "arktype";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { cn } from "~/client/lib/utils";
-import { deepClean } from "~/utils/object";
 import { Button } from "../../../components/ui/button";
 import {
 	Form,
@@ -18,19 +17,31 @@ import {
 } from "../../../components/ui/form";
 import { Input } from "../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { volumeConfigSchemaBase } from "~/schemas/volumes";
+import {
+	directoryConfigSchema,
+	nfsConfigSchema,
+	rcloneConfigSchema,
+	sftpConfigSchema,
+	smbConfigSchema,
+	volumeConfigSchema,
+	webdavConfigSchema,
+} from "~/schemas/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm, SFTPForm } from "./volume-forms";
 
-export const formSchema = type({
-	name: "2<=string<=32",
-}).and(volumeConfigSchemaBase);
-const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
+export const formSchema = z.discriminatedUnion("backend", [
+	directoryConfigSchema.extend({ name: z.string().min(2).max(32) }),
+	nfsConfigSchema.extend({ name: z.string().min(2).max(32) }),
+	smbConfigSchema.extend({ name: z.string().min(2).max(32) }),
+	webdavConfigSchema.extend({ name: z.string().min(2).max(32) }),
+	rcloneConfigSchema.extend({ name: z.string().min(2).max(32) }),
+	sftpConfigSchema.extend({ name: z.string().min(2).max(32) }),
+]);
 
-export type FormValues = typeof formSchema.inferIn;
+export type FormValues = z.input<typeof formSchema>;
 
 type Props = {
 	onSubmit: (values: FormValues) => void;
@@ -52,7 +63,7 @@ const defaultValuesForType = {
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
 	const form = useForm<FormValues>({
-		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
+		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
 			name: "",
 			backend: "directory",
@@ -89,15 +100,22 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 
 	const handleTestConnection = async () => {
 		const formValues = getValues();
+		const { name: _, ...configCandidate } = formValues;
+		const parsedConfig = volumeConfigSchema.safeParse(configCandidate);
+
+		if (!parsedConfig.success) {
+			setTestMessage({ success: false, message: "Please fix validation errors before testing the connection." });
+			return;
+		}
 
 		if (
-			formValues.backend === "nfs" ||
-			formValues.backend === "smb" ||
-			formValues.backend === "webdav" ||
-			formValues.backend === "sftp"
+			parsedConfig.data.backend === "nfs" ||
+			parsedConfig.data.backend === "smb" ||
+			parsedConfig.data.backend === "webdav" ||
+			parsedConfig.data.backend === "sftp"
 		) {
 			testBackendConnection.mutate({
-				body: { config: formValues },
+				body: { config: parsedConfig.data },
 			});
 		}
 	};

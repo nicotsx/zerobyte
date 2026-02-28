@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import os from "node:os";
-import { type } from "arktype";
+import { z } from "zod";
 import "dotenv/config";
 
 const getResticHostname = () => {
@@ -24,43 +24,45 @@ const getResticHostname = () => {
 	return "zerobyte";
 };
 
-const envSchema = type({
-	NODE_ENV: type.enumerated("development", "production", "test").default("production"),
-	SERVER_IP: 'string = "localhost"',
-	SERVER_IDLE_TIMEOUT: 'string.integer.parse = "60"',
-	RESTIC_HOSTNAME: "string?",
-	PORT: 'string.integer.parse = "4096"',
-	MIGRATIONS_PATH: "string?",
-	APP_VERSION: "string = 'dev'",
-	TRUSTED_ORIGINS: "string?",
-	DISABLE_RATE_LIMITING: 'string = "false"',
-	APP_SECRET: "32 <= string <= 256",
-	BASE_URL: "string",
-	ENABLE_DEV_PANEL: 'string = "false"',
-}).pipe((s) => ({
-	__prod__: s.NODE_ENV === "production",
-	environment: s.NODE_ENV,
-	serverIp: s.SERVER_IP,
-	serverIdleTimeout: s.SERVER_IDLE_TIMEOUT,
-	resticHostname: s.RESTIC_HOSTNAME || getResticHostname(),
-	port: s.PORT,
-	migrationsPath: s.MIGRATIONS_PATH,
-	appVersion: s.APP_VERSION,
-	trustedOrigins: s.TRUSTED_ORIGINS?.split(",")
-		.map((origin) => origin.trim())
-		.filter(Boolean)
-		.concat(s.BASE_URL) ?? [s.BASE_URL],
-	disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
-	appSecret: s.APP_SECRET,
-	baseUrl: s.BASE_URL,
-	isSecure: s.BASE_URL?.startsWith("https://") ?? false,
-	enableDevPanel: s.ENABLE_DEV_PANEL === "true",
-}));
+const envSchema = z
+	.object({
+		NODE_ENV: z.enum(["development", "production", "test"]).default("production"),
+		SERVER_IP: z.string().default("localhost"),
+		SERVER_IDLE_TIMEOUT: z.coerce.number().int().default(60),
+		RESTIC_HOSTNAME: z.string().optional(),
+		PORT: z.coerce.number().int().default(4096),
+		MIGRATIONS_PATH: z.string().optional(),
+		APP_VERSION: z.string().default("dev"),
+		TRUSTED_ORIGINS: z.string().optional(),
+		DISABLE_RATE_LIMITING: z.string().default("false"),
+		APP_SECRET: z.string().min(32).max(256),
+		BASE_URL: z.string(),
+		ENABLE_DEV_PANEL: z.string().default("false"),
+	})
+	.transform((s) => ({
+		__prod__: s.NODE_ENV === "production",
+		environment: s.NODE_ENV,
+		serverIp: s.SERVER_IP,
+		serverIdleTimeout: s.SERVER_IDLE_TIMEOUT,
+		resticHostname: s.RESTIC_HOSTNAME || getResticHostname(),
+		port: s.PORT,
+		migrationsPath: s.MIGRATIONS_PATH,
+		appVersion: s.APP_VERSION,
+		trustedOrigins: s.TRUSTED_ORIGINS?.split(",")
+			.map((origin) => origin.trim())
+			.filter(Boolean)
+			.concat(s.BASE_URL) ?? [s.BASE_URL],
+		disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
+		appSecret: s.APP_SECRET,
+		baseUrl: s.BASE_URL,
+		isSecure: s.BASE_URL?.startsWith("https://") ?? false,
+		enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+	}));
 
 const parseConfig = (env: unknown) => {
-	const result = envSchema(env);
+	const result = envSchema.safeParse(env);
 
-	if (result instanceof type.errors) {
+	if (!result.success) {
 		if (!process.env.APP_SECRET) {
 			const errorMessage = [
 				"",
@@ -82,11 +84,12 @@ const parseConfig = (env: unknown) => {
 
 			console.error(errorMessage);
 		}
-		console.error(`Environment variable validation failed: ${result.summary}`);
+
+		console.error(`Environment variable validation failed: ${result.error.message}`);
 		throw new Error("Invalid environment variables");
 	}
 
-	return result;
+	return result.data;
 };
 
 export const config = parseConfig(process.env);

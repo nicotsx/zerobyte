@@ -1,8 +1,7 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { type } from "arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { cn } from "~/client/lib/utils";
-import { deepClean } from "~/utils/object";
 import {
 	Form,
 	FormControl,
@@ -14,7 +13,17 @@ import {
 } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
-import { notificationConfigSchemaBase } from "~/schemas/notifications";
+import {
+	customNotificationConfigSchema,
+	discordNotificationConfigSchema,
+	emailNotificationConfigSchema,
+	genericNotificationConfigSchema,
+	gotifyNotificationConfigSchema,
+	ntfyNotificationConfigSchema,
+	pushoverNotificationConfigSchema,
+	slackNotificationConfigSchema,
+	telegramNotificationConfigSchema,
+} from "~/schemas/notifications";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import {
 	CustomForm,
@@ -28,12 +37,21 @@ import {
 	TelegramForm,
 } from "./notification-forms";
 
-export const formSchema = type({
-	name: "2<=string<=32",
-}).and(notificationConfigSchemaBase);
-const cleanSchema = type.pipe((d) => formSchema(deepClean(d)));
+const baseFields = { name: z.string().min(2).max(32) };
 
-export type NotificationFormValues = typeof formSchema.inferIn;
+export const formSchema = z.discriminatedUnion("type", [
+	emailNotificationConfigSchema.extend(baseFields),
+	slackNotificationConfigSchema.extend(baseFields),
+	discordNotificationConfigSchema.extend(baseFields),
+	gotifyNotificationConfigSchema.extend(baseFields),
+	ntfyNotificationConfigSchema.extend(baseFields),
+	pushoverNotificationConfigSchema.extend(baseFields),
+	telegramNotificationConfigSchema.extend(baseFields),
+	genericNotificationConfigSchema.extend(baseFields),
+	customNotificationConfigSchema.extend(baseFields),
+]);
+
+export type NotificationFormValues = z.input<typeof formSchema>;
 
 type Props = {
 	onSubmit: (values: NotificationFormValues) => void;
@@ -106,7 +124,7 @@ const defaultValuesForType = {
 
 export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValues, formId, className }: Props) => {
 	const form = useForm<NotificationFormValues>({
-		resolver: arktypeResolver(cleanSchema as unknown as typeof formSchema),
+		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
 			name: "",
 		},

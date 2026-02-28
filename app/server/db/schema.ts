@@ -3,14 +3,14 @@ import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqu
 import type {
 	CompressionMode,
 	RepositoryBackend,
-	repositoryConfigSchema,
+	RepositoryConfig,
 	RepositoryStatus,
 	BandwidthUnit,
 	DoctorResult,
 } from "~/schemas/restic";
 import type { ResticStatsDto } from "~/schemas/restic-dto";
-import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
-import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
+import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
+import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";
 
 /**
@@ -217,7 +217,7 @@ export const volumesTable = sqliteTable(
 			.notNull()
 			.$onUpdate(() => Date.now())
 			.default(sql`(unixepoch() * 1000)`),
-		config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
+		config: text("config", { mode: "json" }).$type<BackendConfig>().notNull(),
 		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 		organizationId: text("organization_id")
 			.notNull()
@@ -236,7 +236,7 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	shortId: text("short_id").$type<ShortId>().notNull().unique(),
 	name: text().notNull(),
 	type: text().$type<RepositoryBackend>().notNull(),
-	config: text("config", { mode: "json" }).$type<typeof repositoryConfigSchema.inferOut>().notNull(),
+	config: text("config", { mode: "json" }).$type<RepositoryConfig>().notNull(),
 	compressionMode: text("compression_mode").$type<CompressionMode>().default("auto"),
 	status: text().$type<RepositoryStatus>().default("unknown"),
 	lastChecked: int("last_checked", { mode: "number" }),
@@ -319,7 +319,7 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	name: text().notNull(),
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
 	type: text().$type<NotificationType>().notNull(),
-	config: text("config", { mode: "json" }).$type<typeof notificationConfigSchema.inferOut>().notNull(),
+	config: text("config", { mode: "json" }).$type<NotificationConfig>().notNull(),
 	createdAt: int("created_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),

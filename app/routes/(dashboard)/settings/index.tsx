@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { fetchUser } from "../route";
 import type { AppContext } from "~/context";
 import { SettingsPage } from "~/client/modules/settings/routes/settings";
-import { type } from "arktype";
+import { z } from "zod";
+import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 import { getOrgMembersOptions, getSsoSettingsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { getOrigin } from "~/client/functions/get-origin";
-import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 
 export const Route = createFileRoute("/(dashboard)/settings/")({
 	component: RouteComponent,
-	validateSearch: type({ tab: "string?" }),
+	validateSearch: z.object({ tab: z.string().optional() }),
 	errorComponent: () => <div>Failed to load settings</div>,
 	loader: async ({ context }) => {
 		const [authContext, orgContext] = await Promise.all([

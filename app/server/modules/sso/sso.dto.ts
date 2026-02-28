@@ -1,16 +1,16 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
-export const publicSsoProvidersDto = type({
-	providers: type({
-		providerId: "string",
-		organizationSlug: "string",
-	})
-		.onUndeclaredKey("delete")
+export const publicSsoProvidersDto = z.object({
+	providers: z
+		.object({
+			providerId: z.string(),
+			organizationSlug: z.string(),
+		})
 		.array(),
 });
 
-export type PublicSsoProvidersDto = typeof publicSsoProvidersDto.infer;
+export type PublicSsoProvidersDto = z.infer<typeof publicSsoProvidersDto>;
 
 export const getPublicSsoProvidersDto = describeRoute({
 	description: "Get public SSO providers for the instance",
@@ -28,25 +28,29 @@ export const getPublicSsoProvidersDto = describeRoute({
 	},
 });
 
-export const ssoSettingsResponse = type({
-	providers: type({
-		providerId: "string",
-		type: "string",
-		issuer: "string",
-		domain: "string",
-		autoLinkMatchingEmails: "boolean",
-		organizationId: "string | null",
-	}).array(),
-	invitations: type({
-		id: "string",
-		email: "string",
-		role: "string",
-		status: "string",
-		expiresAt: "string",
-	}).array(),
+export const ssoSettingsResponse = z.object({
+	providers: z
+		.object({
+			providerId: z.string(),
+			type: z.string(),
+			issuer: z.string(),
+			domain: z.string(),
+			autoLinkMatchingEmails: z.boolean(),
+			organizationId: z.string().nullable(),
+		})
+		.array(),
+	invitations: z
+		.object({
+			id: z.string(),
+			email: z.string(),
+			role: z.string(),
+			status: z.string(),
+			expiresAt: z.string(),
+		})
+		.array(),
 });
 
-export type SsoSettingsDto = typeof ssoSettingsResponse.infer;
+export type SsoSettingsDto = z.infer<typeof ssoSettingsResponse>;
 
 export const getSsoSettingsDto = describeRoute({
 	description: "Get SSO providers and invitations for the active organization",
@@ -95,8 +99,8 @@ export const deleteSsoInvitationDto = describeRoute({
 	},
 });
 
-export const updateSsoProviderAutoLinkingBody = type({
-	enabled: "boolean",
+export const updateSsoProviderAutoLinkingBody = z.object({
+	enabled: z.boolean(),
 });
 
 export const updateSsoProviderAutoLinkingDto = describeRoute({

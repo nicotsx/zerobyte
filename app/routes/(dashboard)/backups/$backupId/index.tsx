@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type } from "arktype";
+import { z } from "zod";
 import {
 	getBackupProgressOptions,
 	getBackupScheduleOptions,
@@ -15,7 +15,7 @@ import { prefetchOrSkip } from "~/utils/prefetch";
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	component: RouteComponent,
 	errorComponent: () => <div>Failed to load backup</div>,
-	validateSearch: type({ snapshot: "string?" }),
+	validateSearch: z.object({ snapshot: z.string().optional() }),
 	loader: async ({ params, context }) => {
 		const { backupId } = params;
 

@@ -1,5 +1,4 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { type } from "arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,13 +15,17 @@ import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
 import { cn } from "~/client/lib/utils";
 import { SsoLoginSection } from "~/client/modules/sso/components/sso-login-section";
+import { z } from "zod";
 
-const loginSchema = type({
-	username: "2<=string<=50",
-	password: "string>=1",
+const loginSchema = z.object({
+	username: z
+		.string()
+		.min(2, "Username must be at least 2 characters")
+		.max(50, "Username must be at most 50 characters"),
+	password: z.string().min(1, "Password is required"),
 });
 
-type LoginFormValues = typeof loginSchema.inferIn;
+type LoginFormValues = z.input<typeof loginSchema>;
 
 type LoginPageProps = {
 	error?: string;
@@ -40,7 +43,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
 
 	const form = useForm<LoginFormValues>({
-		resolver: arktypeResolver(loginSchema),
+		resolver: zodResolver(loginSchema),
 		defaultValues: {
 			username: "",
 			password: "",

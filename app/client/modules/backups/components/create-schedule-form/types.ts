@@ -1,29 +1,26 @@
-import { type } from "arktype";
-import { deepClean } from "~/utils/object";
+import { z } from "zod";
 
-export const internalFormSchema = type({
-	name: "1 <= string <= 128",
-	repositoryId: "string",
-	excludePatternsText: "string?",
-	excludeIfPresentText: "string?",
-	includePatternsText: "string?",
-	includePatterns: "string[]?",
-	frequency: "string",
-	dailyTime: "string?",
-	weeklyDay: "string?",
-	monthlyDays: "string[]?",
-	cronExpression: "string?",
-	keepLast: "number?",
-	keepHourly: "number?",
-	keepDaily: "number?",
-	keepWeekly: "number?",
-	keepMonthly: "number?",
-	keepYearly: "number?",
-	oneFileSystem: "boolean?",
-	customResticParamsText: "string?",
+export const internalFormSchema = z.object({
+	name: z.string().min(1).max(128),
+	repositoryId: z.string(),
+	excludePatternsText: z.string().optional(),
+	excludeIfPresentText: z.string().optional(),
+	includePatternsText: z.string().optional(),
+	includePatterns: z.array(z.string()).optional(),
+	frequency: z.string(),
+	dailyTime: z.string().optional(),
+	weeklyDay: z.string().optional(),
+	monthlyDays: z.array(z.string()).optional(),
+	cronExpression: z.string().optional(),
+	keepLast: z.number().optional(),
+	keepHourly: z.number().optional(),
+	keepDaily: z.number().optional(),
+	keepWeekly: z.number().optional(),
+	keepMonthly: z.number().optional(),
+	keepYearly: z.number().optional(),
+	oneFileSystem: z.boolean().optional(),
+	customResticParamsText: z.string().optional(),
 });
-
-export const cleanSchema = type.pipe((d) => internalFormSchema(deepClean(d)));
 
 export const weeklyDays = [
 	{ label: "Monday", value: "1" },
@@ -35,7 +32,7 @@ export const weeklyDays = [
 	{ label: "Sunday", value: "0" },
 ];
 
-export type InternalFormValues = typeof internalFormSchema.infer;
+export type InternalFormValues = z.infer<typeof internalFormSchema>;
 
 export type BackupScheduleFormValues = Omit<
 	InternalFormValues,

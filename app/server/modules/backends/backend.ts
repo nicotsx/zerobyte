@@ -41,5 +41,8 @@ export const createVolumeBackend = (volume: Volume): VolumeBackend => {
 		case "sftp": {
 			return makeSftpBackend(volume.config, path);
 		}
+		default: {
+			throw new Error("Unsupported backend");
+		}
 	}
 };

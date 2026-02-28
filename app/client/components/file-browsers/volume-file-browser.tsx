@@ -24,7 +24,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 			return await queryClient.ensureQueryData(
 				listFilesOptions({
 					path: { shortId: volumeId },
-					query: { path, offset: offset?.toString() },
+					query: { path, offset: offset },
 				}),
 			);
 		},

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import {
 	CreateRepositoryForm,
+	formSchema,
 	type RepositoryFormValues,
 } from "~/client/modules/repositories/components/create-repository-form";
 import { Button } from "~/client/components/ui/button";
@@ -26,11 +27,13 @@ export function CreateRepositoryPage() {
 	});
 
 	const handleSubmit = (values: RepositoryFormValues) => {
+		const { name, compressionMode, ...config } = formSchema.parse(values);
+
 		createRepository.mutate({
 			body: {
-				config: values,
-				name: values.name,
-				compressionMode: values.compressionMode,
+				config,
+				name,
+				compressionMode,
 			},
 		});
 	};

@@ -179,8 +179,8 @@ export const repositoriesController = new Hono()
 
 			const decodedPath = path ? decodeURIComponent(path) : undefined;
 
-			const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
-			const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
+			const offset = Math.max(0, query.offset ?? 0);
+			const limit = Math.min(1000, Math.max(1, query.limit ?? 500));
 
 			const result = await repositoriesService.listSnapshotFiles(shortId, snapshotId, decodedPath, { offset, limit });
 

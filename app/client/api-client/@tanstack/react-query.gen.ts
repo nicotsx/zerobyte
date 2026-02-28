@@ -457,7 +457,7 @@ export const listFilesInfiniteQueryKey = (options: Options<ListFilesData>): Quer
 /**
  * List files in a volume directory
  */
-export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, string | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
 {
     queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -747,7 +747,7 @@ export const listSnapshotFilesInfiniteQueryKey = (options: Options<ListSnapshotF
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, string | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
 {
     queryFn: async ({ pageParam, queryKey, signal }) => {

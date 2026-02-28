@@ -50,6 +50,7 @@
 		"no-unused-vars": [
 			"warn",
 			{
+				"varsIgnorePattern": "^_",
 				"caughtErrorsIgnorePattern": "^_",
 				"argsIgnorePattern": "^_"
 			}

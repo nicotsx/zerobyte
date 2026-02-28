@@ -1,4 +1,4 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
@@ -13,7 +13,7 @@ import { FrequencySection } from "./frequency-section";
 import { PathsSection } from "./paths-section";
 import { RetentionSection } from "./retention-section";
 import { SummarySection } from "./summary-section";
-import { cleanSchema, type BackupScheduleFormValues, type InternalFormValues } from "./types";
+import { internalFormSchema, type BackupScheduleFormValues, type InternalFormValues } from "./types";
 import { backupScheduleToFormValues } from "./utils";
 
 export type { BackupScheduleFormValues };
@@ -29,7 +29,7 @@ type Props = {
 
 export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: Props) => {
 	const form = useForm<InternalFormValues>({
-		resolver: arktypeResolver(cleanSchema as unknown as typeof import("./types").internalFormSchema),
+		resolver: zodResolver(internalFormSchema),
 		defaultValues: backupScheduleToFormValues(initialValues),
 	});
 
