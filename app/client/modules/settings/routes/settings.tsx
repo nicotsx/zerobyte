@@ -1,12 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { Download, KeyRound, User, X, Users, Settings as SettingsIcon } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Download, KeyRound, User, X, Settings as SettingsIcon, Building2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-	downloadResticPasswordMutation,
-	setRegistrationStatusMutation,
-	getRegistrationStatusOptions,
-} from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import {
@@ -20,14 +16,14 @@ import {
 } from "~/client/components/ui/dialog";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
-import { Switch } from "~/client/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { authClient } from "~/client/lib/auth-client";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
-import { UserManagement } from "../components/user-management";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "../components/sso/sso-settings-section";
+import { OrgMembersSection } from "../components/org-members-section";
+import { useOrganizationContext } from "~/client/hooks/use-org-context";
 
 type Props = {
 	appContext: AppContext;
@@ -45,25 +41,8 @@ export function SettingsPage({ appContext }: Props) {
 	const activeTab = tab || "account";
 
 	const navigate = useNavigate();
-	const isAdmin = appContext.user?.role === "admin";
-
-	const registrationStatusQuery = useQuery({
-		...getRegistrationStatusOptions(),
-		enabled: isAdmin,
-	});
-
-	const updateRegistrationStatusMutation = useMutation({
-		...setRegistrationStatusMutation(),
-		onSuccess: () => {
-			toast.success("Registration settings updated");
-			void registrationStatusQuery.refetch();
-		},
-		onError: (error) => {
-			toast.error("Failed to update registration settings", {
-				description: error.message,
-			});
-		},
-	});
+	const { activeMember } = useOrganizationContext();
+	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -166,8 +145,7 @@ export function SettingsPage({ appContext }: Props) {
 			<Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 				<TabsList>
 					<TabsTrigger value="account">Account</TabsTrigger>
-					{isAdmin && <TabsTrigger value="users">Users & Authentication</TabsTrigger>}
-					{isAdmin && <TabsTrigger value="system">System</TabsTrigger>}
+					{isOrgAdmin && <TabsTrigger value="organization">Organization</TabsTrigger>}
 				</TabsList>
 
 				<div className="mt-2">
@@ -307,17 +285,19 @@ export function SettingsPage({ appContext }: Props) {
 						</Card>
 					</TabsContent>
 
-					{isAdmin && (
-						<TabsContent value="users" className="mt-0 space-y-4">
+					{isOrgAdmin && (
+						<TabsContent value="organization" className="mt-0 space-y-4">
 							<Card className="p-0 gap-0">
 								<div className="border-b border-border/50 bg-card-header p-6">
 									<CardTitle className="flex items-center gap-2">
-										<Users className="size-5" />
-										User Management
+										<Building2 className="size-5" />
+										Members
 									</CardTitle>
-									<CardDescription className="mt-1.5">Manage users, roles and permissions</CardDescription>
+									<CardDescription className="mt-1.5">Manage organization members and roles</CardDescription>
 								</div>
-								<UserManagement currentUser={appContext.user} />
+								<CardContent className="p-6">
+									<OrgMembersSection />
+								</CardContent>
 							</Card>
 
 							<Card className="p-0 gap-0">
@@ -330,38 +310,6 @@ export function SettingsPage({ appContext }: Props) {
 								</div>
 								<CardContent className="p-6">
 									<SsoSettingsSection />
-								</CardContent>
-							</Card>
-						</TabsContent>
-					)}
-
-					{isAdmin && (
-						<TabsContent value="system" className="mt-0">
-							<Card className="p-0 gap-0">
-								<div className="border-b border-border/50 bg-card-header p-6">
-									<CardTitle className="flex items-center gap-2">
-										<SettingsIcon className="size-5" />
-										System Settings
-									</CardTitle>
-									<CardDescription className="mt-1.5">Manage system-wide settings</CardDescription>
-								</div>
-								<CardContent className="p-6">
-									<div className="flex items-center justify-between">
-										<div className="space-y-0.5">
-											<Label htmlFor="enable-registrations" className="text-base">
-												Enable new user registrations
-											</Label>
-											<p className="text-sm text-muted-foreground max-w-2xl">When enabled, new users can sign up</p>
-										</div>
-										<Switch
-											id="enable-registrations"
-											checked={registrationStatusQuery.data?.enabled ?? false}
-											onCheckedChange={(checked) =>
-												updateRegistrationStatusMutation.mutate({ body: { enabled: checked } })
-											}
-											disabled={registrationStatusQuery.isLoading || updateRegistrationStatusMutation.isPending}
-										/>
-									</div>
 								</CardContent>
 							</Card>
 						</TabsContent>

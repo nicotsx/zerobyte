@@ -22,7 +22,7 @@ const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 
 async function openSsoSettings(page: Page) {
-	await gotoAndWaitForAppReady(page, "/settings?tab=users");
+	await gotoAndWaitForAppReady(page, "/settings?tab=organization");
 	await expect(page.getByText("Single Sign-On")).toBeVisible();
 }
 

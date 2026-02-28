@@ -16,9 +16,14 @@ import {
 	updateSsoProviderAutoLinkingBody,
 	updateSsoProviderAutoLinkingDto,
 	deleteUserAccountDto,
+	getOrgMembersDto,
+	type OrgMembersDto,
+	updateMemberRoleBody,
+	updateMemberRoleDto,
+	removeOrgMemberDto,
 } from "./auth.dto";
 import { authService } from "./auth.service";
-import { requireAdmin, requireAuth } from "./auth.middleware";
+import { requireAdmin, requireAuth, requireOrgAdmin } from "./auth.middleware";
 import { auth } from "~/server/lib/auth";
 
 export const authController = new Hono()
@@ -30,7 +35,7 @@ export const authController = new Hono()
 		const providers = await authService.getPublicSsoProviders();
 		return c.json<PublicSsoProvidersDto>(providers);
 	})
-	.get("/sso-settings", requireAuth, requireAdmin, getSsoSettingsDto, async (c) => {
+	.get("/sso-settings", requireAuth, requireOrgAdmin, getSsoSettingsDto, async (c) => {
 		const headers = c.req.raw.headers;
 		const activeOrganizationId = c.get("organizationId");
 
@@ -62,7 +67,7 @@ export const authController = new Hono()
 			})),
 		});
 	})
-	.delete("/sso-providers/:providerId", requireAuth, requireAdmin, deleteSsoProviderDto, async (c) => {
+	.delete("/sso-providers/:providerId", requireAuth, requireOrgAdmin, deleteSsoProviderDto, async (c) => {
 		const providerId = c.req.param("providerId");
 		const organizationId = c.get("organizationId");
 
@@ -77,7 +82,7 @@ export const authController = new Hono()
 	.patch(
 		"/sso-providers/:providerId/auto-linking",
 		requireAuth,
-		requireAdmin,
+		requireOrgAdmin,
 		updateSsoProviderAutoLinkingDto,
 		validator("json", updateSsoProviderAutoLinkingBody),
 		async (c) => {
@@ -94,7 +99,7 @@ export const authController = new Hono()
 			return c.json({ success: true });
 		},
 	)
-	.delete("/sso-invitations/:invitationId", requireAuth, requireAdmin, deleteSsoInvitationDto, async (c) => {
+	.delete("/sso-invitations/:invitationId", requireAuth, requireOrgAdmin, deleteSsoInvitationDto, async (c) => {
 		const invitationId = c.req.param("invitationId");
 		const organizationId = c.get("organizationId");
 
@@ -151,4 +156,49 @@ export const authController = new Hono()
 		const userId = c.req.param("userId");
 		const impact = await authService.getUserDeletionImpact(userId);
 		return c.json<UserDeletionImpactDto>(impact);
+	})
+	.get("/org-members", requireAuth, requireOrgAdmin, getOrgMembersDto, async (c) => {
+		const organizationId = c.get("organizationId");
+		const result = await authService.getOrgMembers(organizationId);
+		return c.json<OrgMembersDto>(result);
+	})
+	.patch(
+		"/org-members/:memberId/role",
+		requireAuth,
+		requireOrgAdmin,
+		updateMemberRoleDto,
+		validator("json", updateMemberRoleBody),
+		async (c) => {
+			const memberId = c.req.param("memberId");
+			const organizationId = c.get("organizationId");
+			const { role } = c.req.valid("json");
+
+			const result = await authService.updateMemberRole(memberId, organizationId, role);
+
+			if (!result.found) {
+				return c.json({ message: "Member not found" }, 404);
+			}
+
+			if (result.isOwner) {
+				return c.json({ message: "Cannot change the role of the organization owner" }, 403);
+			}
+
+			return c.json({ success: true });
+		},
+	)
+	.delete("/org-members/:memberId", requireAuth, requireOrgAdmin, removeOrgMemberDto, async (c) => {
+		const memberId = c.req.param("memberId");
+		const organizationId = c.get("organizationId");
+
+		const result = await authService.removeOrgMember(memberId, organizationId);
+
+		if (!result.found) {
+			return c.json({ message: "Member not found" }, 404);
+		}
+
+		if (result.isOwner) {
+			return c.json({ message: "Cannot remove the organization owner" }, 403);
+		}
+
+		return c.json({ success: true });
 	});

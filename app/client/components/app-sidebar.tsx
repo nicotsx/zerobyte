@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, Database, HardDrive, Settings } from "lucide-react";
+import { Bell, CalendarClock, Database, HardDrive, Settings, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import {
 	Sidebar,
@@ -10,6 +10,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarSeparator,
 	useSidebar,
 } from "~/client/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "~/client/components/ui/tooltip";
@@ -49,7 +50,11 @@ const items = [
 	},
 ];
 
-export function AppSidebar() {
+type Props = {
+	isInstanceAdmin: boolean;
+};
+
+export function AppSidebar({ isInstanceAdmin }: Props) {
 	const { state, isMobile, setOpenMobile } = useSidebar();
 	const { updates, hasUpdate } = useUpdates();
 	const [showReleaseNotes, setShowReleaseNotes] = useState(false);
@@ -131,6 +136,63 @@ export function AppSidebar() {
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
+				{isInstanceAdmin && (
+					<>
+						<SidebarSeparator />
+						<SidebarGroup>
+							<SidebarGroupContent>
+								<SidebarMenu>
+									<SidebarMenuItem>
+										<TooltipProvider>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<SidebarMenuButton asChild className="relative overflow-hidden">
+														<Link
+															to="/admin"
+															onClick={() => isMobile && setOpenMobile(false)}
+															activeProps={{ className: "bg-strong-accent/10" }}
+															className="w-full flex items-center gap-2"
+														>
+															{({ isActive }) => (
+																<>
+																	{isActive && (
+																		<div
+																			className={cn("absolute left-0 top-0 h-full w-0.75 bg-strong-accent mr-2", {
+																				hidden: isCollapsed,
+																			})}
+																		/>
+																	)}
+																	<ShieldCheck
+																		className={cn("transition-all duration-200", {
+																			"text-strong-accent": isActive,
+																			"ml-1": isActive && !isCollapsed,
+																			"text-muted-foreground": !isActive,
+																		})}
+																	/>
+																	<span
+																		className={cn({
+																			"text-white font-medium": isActive,
+																			"text-muted-foreground": !isActive,
+																		})}
+																	>
+																		Administration
+																	</span>
+																</>
+															)}
+														</Link>
+													</SidebarMenuButton>
+												</TooltipTrigger>
+												<TooltipContent side="right" className={cn({ hidden: !isCollapsed })}>
+													<p>Administration</p>
+												</TooltipContent>
+											</Tooltip>
+										</TooltipProvider>
+									</SidebarMenuItem>
+								</SidebarMenu>
+							</SidebarGroupContent>
+						</SidebarGroup>
+					</>
+				)}
 			</SidebarContent>
 			<SidebarFooter className="p-4 border-r border-border/50">
 				<OrganizationSwitcher />

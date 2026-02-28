@@ -33,7 +33,7 @@ export function Layout({ loaderData }: Props) {
 
 	return (
 		<SidebarProvider defaultOpen={loaderData.sidebarOpen}>
-			<AppSidebar />
+			<AppSidebar isInstanceAdmin={loaderData.user?.role === "admin"} />
 			<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">
 				<header className="z-50 bg-card-header border-b border-border/50 shrink-0 h-16.25">
 					<div className="flex items-center h-full justify-between px-2 sm:px-8 mx-auto container gap-4">

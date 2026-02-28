@@ -42,12 +42,9 @@ export function SsoSettingsSection() {
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<InvitationRole>("member");
 
-	const { data } = useSuspenseQuery({
+	const ssoSettingsQuery = useSuspenseQuery({
 		...getSsoSettingsOptions(),
 	});
-
-	const providers = data.providers;
-	const invitations = data.invitations;
 
 	const updateProviderAutoLinkingMutation = useMutation({
 		...updateSsoProviderAutoLinkingMutation(),
@@ -124,6 +121,9 @@ export function SsoSettingsSection() {
 			toast.error("Failed to delete invitation", { description: error.message });
 		},
 	});
+
+	const providers = ssoSettingsQuery.data.providers;
+	const invitations = ssoSettingsQuery.data.invitations;
 
 	return (
 		<div className="space-y-6">

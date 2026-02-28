@@ -197,6 +197,75 @@ export const deleteUserAccountDto = describeRoute({
 	},
 });
 
+export const orgMembersResponse = type({
+	members: type({
+		id: "string",
+		userId: "string",
+		role: "string",
+		createdAt: "string",
+		user: {
+			name: "string | null",
+			email: "string",
+		},
+	}).array(),
+});
+
+export type OrgMembersDto = typeof orgMembersResponse.infer;
+
+export const getOrgMembersDto = describeRoute({
+	description: "Get members of the active organization",
+	operationId: "getOrgMembers",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "List of organization members",
+			content: {
+				"application/json": {
+					schema: resolver(orgMembersResponse),
+				},
+			},
+		},
+	},
+});
+
+export const updateMemberRoleBody = type({
+	role: "'member' | 'admin'",
+});
+
+export const updateMemberRoleDto = describeRoute({
+	description: "Update a member's role in the active organization",
+	operationId: "updateMemberRole",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Member role updated successfully",
+		},
+		403: {
+			description: "Forbidden",
+		},
+		404: {
+			description: "Member not found",
+		},
+	},
+});
+
+export const removeOrgMemberDto = describeRoute({
+	description: "Remove a member from the active organization",
+	operationId: "removeOrgMember",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Member removed successfully",
+		},
+		403: {
+			description: "Forbidden",
+		},
+		404: {
+			description: "Member not found",
+		},
+	},
+});
+
 export const updateSsoProviderAutoLinkingBody = type({
 	enabled: "boolean",
 });

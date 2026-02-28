@@ -88,7 +88,7 @@ export function CreateSsoProviderPage() {
 		},
 		onSuccess: () => {
 			toast.success("SSO provider registered successfully");
-			void navigate({ to: "/settings", search: { tab: "users" } });
+			void navigate({ to: "/settings", search: { tab: "organization" } });
 		},
 		onError: (error) => {
 			toast.error("Failed to register provider", { description: error.message });
@@ -242,7 +242,7 @@ export function CreateSsoProviderPage() {
 						<Button
 							type="button"
 							variant="secondary"
-							onClick={() => void navigate({ to: "/settings", search: { tab: "users" } })}
+							onClick={() => void navigate({ to: "/settings", search: { tab: "organization" } })}
 						>
 							Cancel
 						</Button>

@@ -124,12 +124,8 @@ export const auth = betterAuth({
 		sso({
 			trustEmailVerified: false,
 			providersLimit: async (user: User) => {
-				const existingUser = await db.query.usersTable.findFirst({
-					columns: { role: true },
-					where: { id: user.id },
-				});
-
-				return existingUser?.role === "admin" ? 10 : 0;
+				const isOrgAdmin = await authService.isOrgAdminAnywhere(user.id);
+				return isOrgAdmin ? 10 : 0;
 			},
 			organizationProvisioning: {
 				disabled: false,

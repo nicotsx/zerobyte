@@ -213,6 +213,86 @@ export class AuthService {
 	}
 
 	/**
+	 * Get all members of an organization with their user data
+	 */
+	async getOrgMembers(organizationId: string) {
+		const members = await db.query.member.findMany({
+			where: { organizationId },
+			with: { user: true },
+		});
+
+		return {
+			members: members.map((m) => ({
+				id: m.id,
+				userId: m.userId,
+				role: m.role,
+				createdAt: new Date(m.createdAt).toISOString(),
+				user: {
+					name: m.user.name,
+					email: m.user.email,
+				},
+			})),
+		};
+	}
+
+	/**
+	 * Update a member's role in an organization.
+	 * Cannot change the role of an owner.
+	 */
+	async updateMemberRole(memberId: string, organizationId: string, role: "member" | "admin") {
+		const targetMember = await db.query.member.findFirst({
+			where: { AND: [{ id: memberId }, { organizationId }] },
+		});
+
+		if (!targetMember) {
+			return { found: false, isOwner: false } as const;
+		}
+
+		if (targetMember.role === "owner") {
+			return { found: true, isOwner: true } as const;
+		}
+
+		await db.update(member).set({ role }).where(eq(member.id, memberId));
+
+		return { found: true, isOwner: false } as const;
+	}
+
+	/**
+	 * Remove a member from an organization.
+	 * Cannot remove an owner.
+	 */
+	async removeOrgMember(memberId: string, organizationId: string) {
+		const targetMember = await db.query.member.findFirst({
+			where: { AND: [{ id: memberId }, { organizationId }] },
+		});
+
+		if (!targetMember) {
+			return { found: false, isOwner: false } as const;
+		}
+
+		if (targetMember.role === "owner") {
+			return { found: true, isOwner: true } as const;
+		}
+
+		await db.delete(member).where(eq(member.id, memberId));
+
+		return { found: true, isOwner: false } as const;
+	}
+
+	/**
+	 * Check if a user is an owner or admin in any organization
+	 */
+	async isOrgAdminAnywhere(userId: string) {
+		const membership = await db.query.member.findFirst({
+			where: {
+				AND: [{ userId }, { role: { in: ["owner", "admin"] } }],
+			},
+		});
+
+		return !!membership;
+	}
+
+	/**
 	 * Delete a single account for a user, refusing if it is the last one
 	 */
 	async deleteUserAccount(userId: string, accountId: string, organizationId: string) {
