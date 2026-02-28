@@ -3,6 +3,7 @@ import { listRepositoriesOptions, listVolumesOptions } from "~/client/api-client
 import { CreateBackupPage } from "~/client/modules/backups/routes/create-backup";
 
 export const Route = createFileRoute("/(dashboard)/backups/create")({
+	errorComponent: () => <div>Failed to load backup creation</div>,
 	loader: async ({ context }) => {
 		await Promise.all([
 			context.queryClient.ensureQueryData({ ...listVolumesOptions() }),

@@ -4,6 +4,7 @@ import { NotificationDetailsPage } from "~/client/modules/notifications/routes/n
 
 export const Route = createFileRoute("/(dashboard)/notifications/$notificationId")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load notification</div>,
 	loader: async ({ params, context }) => {
 		const res = await context.queryClient.ensureQueryData({
 			...getNotificationDestinationOptions({ path: { id: params.notificationId } }),

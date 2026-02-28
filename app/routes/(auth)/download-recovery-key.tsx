@@ -3,6 +3,7 @@ import { DownloadRecoveryKeyPage } from "~/client/modules/auth/routes/download-r
 
 export const Route = createFileRoute("/(auth)/download-recovery-key")({
 	component: DownloadRecoveryKeyPage,
+	errorComponent: () => <div>Failed to load recovery key</div>,
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Download Recovery Key" },

@@ -4,6 +4,7 @@ import { LoginPage } from "~/client/modules/auth/routes/login";
 
 export const Route = createFileRoute("/(auth)/login")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load login</div>,
 	validateSearch: type({ error: "string?" }),
 	head: () => ({
 		meta: [

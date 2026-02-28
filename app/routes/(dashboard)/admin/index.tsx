@@ -8,6 +8,7 @@ import { getAdminUsersOptions, getRegistrationStatusOptions } from "~/client/api
 export const Route = createFileRoute("/(dashboard)/admin/")({
 	validateSearch: type({ tab: "string?" }),
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load admin</div>,
 	loader: async ({ context }) => {
 		const authContext = await fetchUser();
 

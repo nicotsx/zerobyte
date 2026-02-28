@@ -13,6 +13,7 @@ import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load backup</div>,
 	validateSearch: type({ snapshot: "string?" }),
 	loader: async ({ params, context }) => {
 		const { backupId } = params;

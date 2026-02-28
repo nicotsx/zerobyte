@@ -10,6 +10,7 @@ import { getOrganizationContext } from "~/server/lib/functions/organization-cont
 export const Route = createFileRoute("/(dashboard)/settings/")({
 	component: RouteComponent,
 	validateSearch: type({ tab: "string?" }),
+	errorComponent: () => <div>Failed to load settings</div>,
 	loader: async ({ context }) => {
 		const authContext = await fetchUser();
 		const orgContext = await getOrganizationContext();

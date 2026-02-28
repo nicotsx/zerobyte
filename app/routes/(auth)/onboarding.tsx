@@ -3,6 +3,7 @@ import { OnboardingPage } from "~/client/modules/auth/routes/onboarding";
 
 export const Route = createFileRoute("/(auth)/onboarding")({
 	component: OnboardingPage,
+	errorComponent: () => <div>Failed to load onboarding</div>,
 	head: () => ({
 		meta: [
 			{ title: "Zerobyte - Onboarding" },

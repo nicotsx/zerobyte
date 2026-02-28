@@ -3,11 +3,9 @@ import { CreateRepositoryPage } from "~/client/modules/repositories/routes/creat
 
 export const Route = createFileRoute("/(dashboard)/repositories/create")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load repository creation</div>,
 	staticData: {
-		breadcrumb: () => [
-			{ label: "Repositories", href: "/repositories" },
-			{ label: "Create" },
-		],
+		breadcrumb: () => [{ label: "Repositories", href: "/repositories" }, { label: "Create" }],
 	},
 	head: () => ({
 		meta: [

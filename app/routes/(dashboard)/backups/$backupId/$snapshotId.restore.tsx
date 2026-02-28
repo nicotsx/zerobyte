@@ -6,6 +6,7 @@ import { getVolumeMountPath } from "~/client/lib/volume-path";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load restore</div>,
 	loader: async ({ params, context }) => {
 		const schedule = await getBackupSchedule({ path: { shortId: params.backupId } });
 

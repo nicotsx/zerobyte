@@ -4,6 +4,7 @@ import { getOrganizationContext } from "~/server/lib/functions/organization-cont
 
 export const Route = createFileRoute("/(dashboard)/settings/sso/new")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load SSO registration</div>,
 	loader: async () => {
 		const orgContext = await getOrganizationContext();
 		const role = orgContext.activeMember?.role;

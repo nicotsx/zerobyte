@@ -4,6 +4,7 @@ import { NotificationsPage } from "~/client/modules/notifications/routes/notific
 
 export const Route = createFileRoute("/(dashboard)/notifications/")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load notifications</div>,
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() });
 	},

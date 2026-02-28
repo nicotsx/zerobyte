@@ -10,6 +10,7 @@ export const Route = createFileRoute("/")({
 			},
 		],
 	}),
+	errorComponent: () => <div>Failed to load page</div>,
 	beforeLoad: () => {
 		throw redirect({ to: "/volumes" });
 	},

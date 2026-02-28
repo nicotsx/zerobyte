@@ -3,11 +3,9 @@ import { CreateNotificationPage } from "~/client/modules/notifications/routes/cr
 
 export const Route = createFileRoute("/(dashboard)/notifications/create")({
 	component: RouteComponent,
+	errorComponent: () => <div>Failed to load notification creation</div>,
 	staticData: {
-		breadcrumb: () => [
-			{ label: "Notifications", href: "/notifications" },
-			{ label: "Create" },
-		],
+		breadcrumb: () => [{ label: "Notifications", href: "/notifications" }, { label: "Create" }],
 	},
 	head: () => ({
 		meta: [
