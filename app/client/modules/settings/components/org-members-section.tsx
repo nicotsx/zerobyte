@@ -2,6 +2,7 @@ import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Shield, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import type { GetOrgMembersResponse } from "~/client/api-client";
 import {
 	getOrgMembersOptions,
 	removeOrgMemberMutation,
@@ -24,13 +25,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
 
-export function OrgMembersSection() {
+type OrgMembersSectionProps = {
+	initialMembers: GetOrgMembersResponse;
+};
+
+export function OrgMembersSection({ initialMembers }: OrgMembersSectionProps) {
 	const { activeMember } = useOrganizationContext();
 	const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
 
-	const orgMembersQuery = useSuspenseQuery({
-		...getOrgMembersOptions(),
-	});
+	const {
+		data: { members },
+	} = useSuspenseQuery({ ...getOrgMembersOptions(), initialData: initialMembers });
 
 	const updateRole = useMutation({
 		...updateMemberRoleMutation(),
@@ -52,8 +57,6 @@ export function OrgMembersSection() {
 			toast.error("Failed to remove member", { description: error.message });
 		},
 	});
-
-	const members = orgMembersQuery.data.members;
 
 	return (
 		<div className="space-y-4">

@@ -1,6 +1,6 @@
-import { createIsomorphicFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { config } from "~/server/core/config";
 
-export const getOrigin = createIsomorphicFn()
-	.server(() => config.baseUrl)
-	.client(() => window.location.origin);
+export const getOrigin = createServerFn().handler(() => {
+	return config.baseUrl;
+});

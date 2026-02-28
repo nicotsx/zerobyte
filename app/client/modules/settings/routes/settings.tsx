@@ -24,12 +24,15 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "../components/sso/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
+import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client";
 
 type Props = {
 	appContext: AppContext;
+	initialMembers: GetOrgMembersResponse;
+	initialSsoSettings: GetSsoSettingsResponse;
 };
 
-export function SettingsPage({ appContext }: Props) {
+export function SettingsPage({ appContext, initialMembers, initialSsoSettings }: Props) {
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -296,7 +299,7 @@ export function SettingsPage({ appContext }: Props) {
 									<CardDescription className="mt-1.5">Manage organization members and roles</CardDescription>
 								</div>
 								<CardContent className="p-6">
-									<OrgMembersSection />
+									<OrgMembersSection initialMembers={initialMembers} />
 								</CardContent>
 							</Card>
 
@@ -309,7 +312,7 @@ export function SettingsPage({ appContext }: Props) {
 									<CardDescription className="mt-1.5">Configure OIDC provider settings</CardDescription>
 								</div>
 								<CardContent className="p-6">
-									<SsoSettingsSection />
+									<SsoSettingsSection initialSettings={initialSsoSettings} />
 								</CardContent>
 							</Card>
 						</TabsContent>

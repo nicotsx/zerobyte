@@ -32,19 +32,25 @@ import { formatDateWithMonth } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
 import { cn } from "~/client/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import type { GetSsoSettingsResponse } from "~/client/api-client";
 
 type InvitationRole = "member" | "admin" | "owner";
 
-export function SsoSettingsSection() {
-	const origin = getOrigin();
+type SsoSettingsSectionProps = {
+	initialSettings: GetSsoSettingsResponse;
+};
+
+export function SsoSettingsSection({ initialSettings }: SsoSettingsSectionProps) {
+	const originQuery = useServerFn(getOrigin);
+	const { data } = useSuspenseQuery({ queryKey: ["app-origin"], queryFn: originQuery });
+
 	const navigate = useNavigate();
 	const { activeOrganization } = useOrganizationContext();
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<InvitationRole>("member");
 
-	const ssoSettingsQuery = useSuspenseQuery({
-		...getSsoSettingsOptions(),
-	});
+	const ssoSettingsQuery = useSuspenseQuery({ ...getSsoSettingsOptions(), initialData: initialSettings });
 
 	const updateProviderAutoLinkingMutation = useMutation({
 		...updateSsoProviderAutoLinkingMutation(),
@@ -195,7 +201,7 @@ export function SsoSettingsSection() {
 										<Input
 											type="text"
 											readOnly
-											value={`${origin}/api/auth/sso/callback/${provider.providerId}`}
+											value={`${data}/api/auth/sso/callback/${provider.providerId}`}
 											className="h-8 max-w-62.5 font-mono text-xs text-muted-foreground"
 											onClick={(e) => e.currentTarget.select()}
 										/>

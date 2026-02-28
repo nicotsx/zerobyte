@@ -3,7 +3,7 @@ import { type } from "arktype";
 import { fetchUser } from "../route";
 import type { AppContext } from "~/context";
 import { AdminPage } from "~/client/modules/admin/routes/admin-page";
-import { getAdminUsersOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { getAdminUsersOptions, getRegistrationStatusOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export const Route = createFileRoute("/(dashboard)/admin/")({
 	validateSearch: type({ tab: "string?" }),
@@ -15,7 +15,10 @@ export const Route = createFileRoute("/(dashboard)/admin/")({
 			throw redirect({ to: "/settings" });
 		}
 
-		await context.queryClient.ensureQueryData(getAdminUsersOptions());
+		await Promise.all([
+			context.queryClient.ensureQueryData({ ...getAdminUsersOptions() }),
+			context.queryClient.ensureQueryData({ ...getRegistrationStatusOptions() }),
+		]);
 
 		return authContext as AppContext;
 	},

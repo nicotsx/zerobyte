@@ -5,6 +5,7 @@ import { Layout } from "~/client/components/layout";
 import { SIDEBAR_COOKIE_NAME } from "~/client/components/ui/sidebar";
 import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
+import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 import { authService } from "~/server/modules/auth/auth.service";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
@@ -24,8 +25,15 @@ export const Route = createFileRoute("/(dashboard)")({
 	server: {
 		middleware: [authMiddleware],
 	},
-	loader: async () => {
-		const authContext = await fetchUser();
+	loader: async ({ context }) => {
+		const [authContext] = await Promise.all([
+			fetchUser(),
+			context.queryClient.ensureQueryData({
+				queryKey: ["organization-context"],
+				queryFn: () => getOrganizationContext(),
+			}),
+		]);
+
 		return authContext;
 	},
 });

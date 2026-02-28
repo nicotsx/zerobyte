@@ -12,6 +12,7 @@ import { VolumeIcon } from "~/client/components/volume-icon";
 import { listVolumesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import type { VolumeStatus } from "~/client/lib/types";
 import { useNavigate } from "@tanstack/react-router";
+import { cn } from "~/client/lib/utils";
 
 const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "error" | "warning" => {
 	const statusMap = {
@@ -119,38 +120,35 @@ export function VolumesPage() {
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{hasNoFilteredVolumes ? (
-							<TableRow>
-								<TableCell colSpan={4} className="text-center py-12">
-									<div className="flex flex-col items-center gap-3">
-										<p className="text-muted-foreground">No volumes match your filters.</p>
-										<Button onClick={clearFilters} variant="outline" size="sm">
-											<RotateCcw className="h-4 w-4 mr-2" />
-											Clear filters
-										</Button>
-									</div>
+						<TableRow className={cn({ hidden: !hasNoFilteredVolumes })}>
+							<TableCell colSpan={4} className="text-center py-12">
+								<div className="flex flex-col items-center gap-3">
+									<p className="text-muted-foreground">No volumes match your filters.</p>
+									<Button onClick={clearFilters} variant="outline" size="sm">
+										<RotateCcw className="h-4 w-4 mr-2" />
+										Clear filters
+									</Button>
+								</div>
+							</TableCell>
+						</TableRow>
+						{filteredVolumes.map((volume) => (
+							<TableRow
+								key={volume.name}
+								className="hover:bg-white/2 hover:cursor-pointer transition-colors h-12"
+								onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
+							>
+								<TableCell className="font-medium font-mono text-strong-accent">{volume.name}</TableCell>
+								<TableCell className="font-mono text-muted-foreground">
+									<VolumeIcon backend={volume.type} />
+								</TableCell>
+								<TableCell className="text-center font-mono">
+									<StatusDot
+										variant={getVolumeStatusVariant(volume.status)}
+										label={volume.status[0].toUpperCase() + volume.status.slice(1)}
+									/>
 								</TableCell>
 							</TableRow>
-						) : (
-							filteredVolumes.map((volume) => (
-								<TableRow
-									key={volume.name}
-									className="hover:bg-white/2 hover:cursor-pointer transition-colors border-l-2 border-r-2 border-transparent hover:border-white/10 h-12"
-									onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
-								>
-									<TableCell className="font-medium font-mono text-strong-accent">{volume.name}</TableCell>
-									<TableCell className="font-mono text-muted-foreground">
-										<VolumeIcon backend={volume.type} />
-									</TableCell>
-									<TableCell className="text-center font-mono">
-										<StatusDot
-											variant={getVolumeStatusVariant(volume.status)}
-											label={volume.status[0].toUpperCase() + volume.status.slice(1)}
-										/>
-									</TableCell>
-								</TableRow>
-							))
-						)}
+						))}
 					</TableBody>
 				</Table>
 			</div>
