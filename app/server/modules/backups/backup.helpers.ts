@@ -19,12 +19,14 @@ export const calculateNextRun = (cronExpression: string) => {
 	}
 };
 
-export const processPattern = (pattern: string, volumePath: string) => {
+export const processPattern = (pattern: string, volumePath: string, relative = false) => {
 	const isNegated = pattern.startsWith("!");
 	const p = isNegated ? pattern.slice(1) : pattern;
 
 	if (!p.startsWith("/")) {
-		return pattern;
+		if (!relative) return pattern;
+		const processed = path.join(volumePath, p);
+		return isNegated ? `!${processed}` : processed;
 	}
 
 	const processed = path.join(volumePath, p.slice(1));
@@ -37,5 +39,7 @@ export const createBackupOptions = (schedule: BackupSchedule, volumePath: string
 	signal,
 	exclude: schedule.excludePatterns ? schedule.excludePatterns.map((p) => processPattern(p, volumePath)) : undefined,
 	excludeIfPresent: schedule.excludeIfPresent ?? undefined,
-	include: schedule.includePatterns ? schedule.includePatterns.map((p) => processPattern(p, volumePath)) : undefined,
+	include: schedule.includePatterns
+		? schedule.includePatterns.map((p) => processPattern(p, volumePath, true))
+		: undefined,
 });
