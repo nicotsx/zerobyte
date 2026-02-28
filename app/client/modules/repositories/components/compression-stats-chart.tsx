@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Archive } from "lucide-react";
 import { getRepositoryStatsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { ByteSize } from "~/client/components/bytes-size";
-import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
 
 type Props = {
@@ -53,9 +53,9 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 
 	if (error) {
 		return (
-			<Card className="p-6">
-				<p className="text-sm font-medium text-destructive">Failed to load compression statistics</p>
-				<p className="mt-2 text-sm text-muted-foreground wrap-break-word">{error.message}</p>
+			<Card className="p-6 border-red-500/20 bg-red-500/5">
+				<p className="text-sm font-medium text-red-500">Failed to load compression statistics</p>
+				<p className="mt-2 text-sm text-red-500/80 wrap-break-word">{error.message}</p>
 			</Card>
 		);
 	}
@@ -71,67 +71,61 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 	}
 
 	return (
-		<Card className="flex flex-col h-full">
-			<CardHeader className="pb-4">
-				<CardTitle className="flex items-center gap-2 text-base font-semibold">
-					<Archive className="h-4 w-4" />
+		<Card className="flex flex-col px-6 py-6">
+			<div className="pb-4">
+				<CardTitle className="flex items-center gap-2">
+					<Archive className="h-5 w-5 text-muted-foreground" />
 					Compression Statistics
 				</CardTitle>
-			</CardHeader>
-			<CardContent className="flex-1">
-				<div className="grid grid-cols-2 md:grid-cols-3 gap-y-6 gap-x-6">
+			</div>
+			<div>
+				<CardContent className="grid grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-4 px-0">
 					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<span className="text-xs font-medium uppercase tracking-wider">Stored Size</span>
-						</div>
+						<div className="text-sm font-medium text-muted-foreground">Stored Size</div>
 						<div className="flex items-baseline gap-2">
-							<ByteSize base={1024} bytes={storedSize} className="text-2xl font-bold font-mono text-foreground" />
+							<ByteSize base={1024} bytes={storedSize} className="text-xl font-semibold text-foreground font-mono" />
 						</div>
 					</div>
 
 					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<span className="text-xs font-medium uppercase tracking-wider">Uncompressed</span>
-						</div>
+						<div className="text-sm font-medium text-muted-foreground">Uncompressed</div>
 						<div className="flex items-baseline gap-2">
-							<ByteSize base={1024} bytes={uncompressedSize} className="text-2xl font-bold font-mono text-foreground" />
+							<ByteSize
+								base={1024}
+								bytes={uncompressedSize}
+								className="text-xl font-semibold text-foreground font-mono"
+							/>
 						</div>
 					</div>
 
 					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<span className="text-xs font-medium uppercase tracking-wider">Space Saved</span>
-						</div>
+						<div className="text-sm font-medium text-muted-foreground">Space Saved</div>
 						<div className="flex items-baseline gap-2">
-							<span className="text-2xl font-bold font-mono text-foreground">{spaceSavingPercent.toFixed(1)}%</span>
-							<ByteSize base={1024} bytes={savedSize} className="text-sm text-muted-foreground font-mono" />
+							<span className="text-xl font-semibold text-foreground font-mono">{spaceSavingPercent.toFixed(1)}%</span>
+							<ByteSize base={1024} bytes={savedSize} className="text-xs text-muted-foreground font-mono" />
 						</div>
 					</div>
 
 					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<span className="text-xs font-medium uppercase tracking-wider">Ratio</span>
-						</div>
+						<div className="text-sm font-medium text-muted-foreground">Ratio</div>
 						<div className="flex items-baseline gap-2">
-							<span className="text-2xl font-bold font-mono text-foreground">
+							<span className="text-xl font-semibold text-foreground font-mono">
 								{compressionRatio > 0 ? `${compressionRatio.toFixed(2)}x` : "—"}
 							</span>
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-1.5">
-						<div className="flex items-center gap-2 text-muted-foreground">
-							<span className="text-xs font-medium uppercase tracking-wider">Snapshots</span>
-						</div>
+					<div className="flex flex-col gap-1.5 lg:col-span-2">
+						<div className="text-sm font-medium text-muted-foreground">Snapshots</div>
 						<div className="flex items-baseline gap-2">
-							<span className="text-2xl font-bold font-mono text-foreground">{snapshotsCount.toLocaleString()}</span>
-							<span className="text-sm text-muted-foreground font-mono">
+							<span className="text-xl font-semibold text-foreground font-mono">{snapshotsCount.toLocaleString()}</span>
+							<span className="text-xs text-muted-foreground font-mono">
 								{compressionProgressPercent.toFixed(1)}% compressed
 							</span>
 						</div>
 					</div>
-				</div>
-			</CardContent>
+				</CardContent>
+			</div>
 		</Card>
 	);
 }

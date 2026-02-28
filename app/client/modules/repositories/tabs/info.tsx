@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
-import { Card } from "~/client/components/ui/card";
+import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import {
 	AlertDialog,
@@ -106,135 +106,149 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 
 	return (
 		<>
-			<div className="grid gap-4">
-				<Card className="p-6 @container">
-					<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4">
-						<div>
-							<span className="text-lg font-semibold">Repository Settings</span>
-						</div>
-						<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
-							>
-								<Pencil className="h-4 w-4 mr-2" />
-								Edit
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								loading={cancelDoctor.isPending}
-								onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
-								className={cn({ hidden: !isDoctorRunning })}
-							>
-								<Square className="h-4 w-4 mr-2" />
-								<span>Cancel doctor</span>
-							</Button>
-							<Button
-								type="button"
-								onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
-								disabled={startDoctor.isPending}
-								className={cn({ hidden: isDoctorRunning })}
-							>
-								<Stethoscope className="h-4 w-4 mr-2" />
-								Run doctor
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
-								loading={unlockRepo.isPending}
-							>
-								<Unlock className="h-4 w-4 mr-2" />
-								Unlock
-							</Button>
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={deleteRepo.isPending}
-							>
-								<Trash2 className="h-4 w-4 mr-2" />
-								Delete
-							</Button>
-						</div>
-					</div>
-
+			<div className="flex flex-col gap-6 @container">
+				<div className="flex flex-col @medium:flex-row items-start @medium:items-center justify-between gap-4">
 					<div>
-						<h3 className="text-lg font-semibold mb-4">Current Configuration</h3>
-						<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Name</div>
-								<p className="mt-1 text-sm">{repository.name}</p>
-							</div>
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Compression mode</div>
-								<p className="mt-1 text-sm">{repository.compressionMode || "off"}</p>
-							</div>
+						<h2 className="text-lg font-semibold tracking-tight">Repository Settings</h2>
+					</div>
+					<div className="flex flex-wrap items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
+						>
+							<Pencil className="h-4 w-4 mr-2" />
+							Edit
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							className={cn({ hidden: !isDoctorRunning })}
+							loading={cancelDoctor.isPending}
+							onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
+						>
+							<Square className="h-4 w-4 mr-2" />
+							<span>Cancel doctor</span>
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							className={cn({ hidden: isDoctorRunning })}
+							onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
+							disabled={startDoctor.isPending}
+						>
+							<Stethoscope className="h-4 w-4 mr-2" />
+							Run doctor
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
+							loading={unlockRepo.isPending}
+						>
+							<Unlock className="h-4 w-4 mr-2" />
+							Unlock
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							onClick={() => setShowDeleteConfirm(true)}
+							disabled={deleteRepo.isPending}
+						>
+							<Trash2 className="h-4 w-4 mr-2" />
+							Delete
+						</Button>
+					</div>
+				</div>
+
+				<div className="grid grid-cols-1 @wide:grid-cols-2 gap-6 items-stretch">
+					<div className="flex flex-col gap-6">
+						<Card className="px-6 py-6">
+							<CardTitle>Overview</CardTitle>
+							<CardContent className="grid grid-cols-1 @medium:grid-cols-2 gap-y-6 gap-x-4 px-0">
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Name</div>
+									<p className="text-sm">{repository.name}</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Backend</div>
+									<p className="text-sm">{repository.type}</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Compression Mode</div>
+									<p className="text-sm">{repository.compressionMode || "off"}</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Created</div>
+									<p className="text-sm">{formatDateTime(repository.createdAt)}</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Status</div>
+									<p className="text-sm flex items-center gap-2">
+										<span
+											className={cn("w-2 h-2 rounded-full", {
+												"bg-emerald-500": repository.status === "healthy",
+												"bg-red-500": repository.status === "error",
+												"bg-amber-500": repository.status !== "healthy" && repository.status !== "error",
+												"animate-pulse": repository.status === "doctor",
+											})}
+										/>
+										<span className="capitalize">{repository.status || "Unknown"}</span>
+									</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
+									<p className="text-sm">{formatTimeAgo(repository.lastChecked)}</p>
+								</div>
+								{hasLocalPath && (
+									<div className="flex flex-col gap-1 @medium:col-span-2">
+										<div className="text-sm font-medium text-muted-foreground">Local Path</div>
+										<p className="text-sm font-mono bg-muted/50 p-2 rounded-md break-all">{effectiveLocalPath}</p>
+									</div>
+								)}
+								{hasCaCert && (
+									<div className="flex flex-col gap-1">
+										<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
+										<p className="text-sm text-green-500">Configured</p>
+									</div>
+								)}
+								{hasInsecureTlsConfig && (
+									<div className="flex flex-col gap-1">
+										<div className="text-sm font-medium text-muted-foreground">TLS Validation</div>
+										<p className="text-sm">
+											<span className={cn("text-red-500", { hidden: !isTlsValidationDisabled })}>Disabled</span>
+											<span className={cn("text-green-500", { hidden: isTlsValidationDisabled })}>Enabled</span>
+										</p>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+
+						{hasLastError && (
+							<Card className="px-6 py-6 border-red-500/20 bg-red-500/5">
+								<h3 className="text-lg font-medium text-red-500 mb-2">Last Error</h3>
+								<p className="text-sm text-red-500/90 font-mono wrap-break-word">{repository.lastError}</p>
+							</Card>
+						)}
+
+						<div className="flex-1 flex flex-col">
+							<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
 						</div>
 					</div>
 
-					<div>
-						<h3 className="text-lg font-semibold mb-4">Repository Information</h3>
-						<div className="grid grid-cols-1 @xl:grid-cols-2 gap-4">
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Backend</div>
-								<p className="mt-1 text-sm">{repository.type}</p>
+					<div className="flex flex-col gap-6">
+						<CompressionStatsChart repositoryShortId={repository.shortId} initialStats={initialStats} />
+
+						<Card className="px-6 py-6 flex-1">
+							<CardTitle>Configuration</CardTitle>
+							<div className="bg-muted/50 rounded-md p-4 max-w-full">
+								<pre className="text-sm overflow-auto font-mono whitespace-pre-wrap">
+									{JSON.stringify(repository.config, null, 2)}
+								</pre>
 							</div>
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Status</div>
-								<p className="mt-1 text-sm">{repository.status || "unknown"}</p>
-							</div>
-							<div className={cn({ hidden: !hasLocalPath })}>
-								<div className="text-sm font-medium text-muted-foreground">Local path</div>
-								<p className="mt-1 text-sm font-mono">{effectiveLocalPath}</p>
-							</div>
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Created at</div>
-								<p className="mt-1 text-sm">{formatDateTime(repository.createdAt)}</p>
-							</div>
-							<div>
-								<div className="text-sm font-medium text-muted-foreground">Last checked</div>
-								<p className="mt-1 text-sm">{formatTimeAgo(repository.lastChecked)}</p>
-							</div>
-							<div className={cn({ hidden: !hasCaCert })}>
-								<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
-								<p className="mt-1 text-sm">
-									<span className="text-green-500">configured</span>
-								</p>
-							</div>
-							<div className={cn({ hidden: !hasInsecureTlsConfig })}>
-								<div className="text-sm font-medium text-muted-foreground">TLS Certificate Validation</div>
-								<p className="mt-1 text-sm">
-									<span className={cn("text-red-500", { hidden: !isTlsValidationDisabled })}>disabled</span>
-									<span className={cn("text-green-500", { hidden: isTlsValidationDisabled })}>enabled</span>
-								</p>
-							</div>
-						</div>
+						</Card>
 					</div>
-
-					<div>
-						<div className={cn({ hidden: !hasLastError })}>
-							<div className="flex items-center justify-between mb-4">
-								<h3 className="text-lg font-semibold text-red-500">Last Error</h3>
-							</div>
-							<div className="bg-red-500/10 border border-red-500/20 rounded-md p-4">
-								<p className="text-sm text-red-500 wrap-break-word">{repository.lastError}</p>
-							</div>
-						</div>
-
-						<div>
-							<h3 className="text-lg font-semibold mb-4">Configuration</h3>
-							<div className="bg-muted/50 rounded-md p-4">
-								<pre className="text-sm overflow-auto">{JSON.stringify(repository.config, null, 2)}</pre>
-							</div>
-						</div>
-					</div>
-
-					<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
-				</Card>
-				<CompressionStatsChart repositoryShortId={repository.shortId} initialStats={initialStats} />
+				</div>
 			</div>
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
