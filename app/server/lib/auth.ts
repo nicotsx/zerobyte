@@ -22,13 +22,16 @@ import { validateSsoCallbackUrls } from "./auth/middlewares/validate-sso-callbac
 import { validateSsoProviderId } from "./auth/middlewares/validate-sso-provider-id";
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
-import { ssoTrustedProviderLinkingPlugin } from "./auth/plugins/sso-trusted-provider-linking";
+import { resolveTrustedProvidersForRequest } from "./auth/middlewares/trust-sso-provider-for-linking";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
 export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
-	baseURL: config.baseUrl,
+	baseURL: {
+		allowedHosts: [new URL(config.baseUrl).host, ...config.trustedOrigins.map((origin) => new URL(origin).host)],
+		protocol: "auto",
+	},
 	trustedOrigins: config.trustedOrigins,
 	advanced: {
 		cookiePrefix: "zerobyte",
@@ -92,6 +95,7 @@ export const auth = betterAuth({
 	account: {
 		accountLinking: {
 			enabled: true,
+			trustedProviders: resolveTrustedProvidersForRequest,
 		},
 	},
 	user: {
@@ -133,7 +137,6 @@ export const auth = betterAuth({
 				defaultRole: "member",
 			},
 		}),
-		ssoTrustedProviderLinkingPlugin(),
 		twoFactor({
 			backupCodeOptions: {
 				storeBackupCodes: "encrypted",

@@ -1,5 +1,5 @@
-import { describe, expect, mock, test } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 await mock.module("@tanstack/react-router", () => ({
@@ -28,9 +28,24 @@ await mock.module("~/client/lib/auth-client", () => ({
 
 import { LoginPage } from "../login";
 
-const createTestQueryClient = () => new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const createTestQueryClient = () =>
+	new QueryClient({
+		defaultOptions: {
+			queries: {
+				retry: false,
+				gcTime: Infinity,
+			},
+			mutations: {
+				gcTime: Infinity,
+			},
+		},
+	});
 const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
+
+afterEach(() => {
+	cleanup();
+});
 
 describe("LoginPage", () => {
 	test("shows an invite-only message when SSO returns INVITE_REQUIRED code", async () => {
@@ -104,7 +119,7 @@ describe("LoginPage", () => {
 			</QueryClientProvider>,
 		);
 
-		// The error message container should be hidden
+		expect(await screen.findByText("Login to your account")).toBeTruthy();
 		expect(screen.queryByText(inviteOnlyMessage)).toBeNull();
 	});
 });

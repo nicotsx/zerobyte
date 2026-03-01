@@ -29,6 +29,7 @@ export const validateSsoCallbackUrls = async (ctx: AuthMiddlewareContext) => {
 			if (value !== undefined && (typeof value !== "string" || !isValidCallbackPath(value))) {
 				throw new APIError("BAD_REQUEST", {
 					message: `Invalid ${field}. Only relative paths like /login are allowed.`,
+					code: `INVALID_${field.toUpperCase()}`,
 				});
 			}
 		}

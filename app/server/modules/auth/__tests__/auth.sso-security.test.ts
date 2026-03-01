@@ -1,9 +1,21 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { createApp } from "~/server/app";
+import { config } from "~/server/core/config";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
 import { db } from "~/server/db/db";
 
 const app = createApp();
+const ssoSignInUrl = new URL("/api/auth/sign-in/sso", config.baseUrl).toString();
+
+function postSsoSignIn(body: Record<string, unknown>) {
+	return app.request(ssoSignInUrl, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(body),
+	});
+}
 
 describe("auth SSO sign-in security", () => {
 	beforeEach(async () => {
@@ -16,15 +28,9 @@ describe("auth SSO sign-in security", () => {
 	});
 
 	test("rejects malicious callback URL", async () => {
-		const response = await app.request("/api/auth/sign-in/sso", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				providerId: "missing-provider",
-				callbackURL: "https://evil.example",
-			}),
+		const response = await postSsoSignIn({
+			providerId: "missing-provider",
+			callbackURL: "https://evil.example",
 		});
 
 		expect(response.status).toBe(400);
@@ -35,16 +41,10 @@ describe("auth SSO sign-in security", () => {
 	});
 
 	test("rejects malicious error callback URL", async () => {
-		const response = await app.request("/api/auth/sign-in/sso", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				providerId: "missing-provider",
-				callbackURL: "/login",
-				errorCallbackURL: "https://evil.example",
-			}),
+		const response = await postSsoSignIn({
+			providerId: "missing-provider",
+			callbackURL: "/login",
+			errorCallbackURL: "https://evil.example",
 		});
 
 		expect(response.status).toBe(400);
@@ -55,16 +55,10 @@ describe("auth SSO sign-in security", () => {
 	});
 
 	test("rejects malicious new user callback URL", async () => {
-		const response = await app.request("/api/auth/sign-in/sso", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				providerId: "missing-provider",
-				callbackURL: "/login",
-				newUserCallbackURL: "https://evil.example",
-			}),
+		const response = await postSsoSignIn({
+			providerId: "missing-provider",
+			callbackURL: "/login",
+			newUserCallbackURL: "https://evil.example",
 		});
 
 		expect(response.status).toBe(400);
@@ -75,20 +69,14 @@ describe("auth SSO sign-in security", () => {
 	});
 
 	test("allows relative callback URL to continue normal flow", async () => {
-		const response = await app.request("/api/auth/sign-in/sso", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				providerId: "missing-provider",
-				callbackURL: "/login",
-			}),
+		const response = await postSsoSignIn({
+			providerId: "missing-provider",
+			callbackURL: "/login",
 		});
 
 		expect(response.status).toBe(404);
 
 		const body = await response.json();
-		expect(body.code).toBe("NO_PROVIDER_FOUND_FOR_THE_ISSUER");
+		expect(body.message).toBe("No provider found for the issuer");
 	});
 });

@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { GenericEndpointContext } from "@better-auth/core";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { isSsoCallbackPath, trustSsoProviderForLinking } from "../trust-sso-provider-for-linking";
+import { resolveTrustedProvidersForRequest } from "../trust-sso-provider-for-linking";
 
 function randomId() {
 	return Bun.randomUUIDv7();
@@ -13,38 +12,8 @@ function randomSlug(prefix: string) {
 	return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createMockContext(options: {
-	path: string;
-	method?: string;
-	params?: Record<string, string>;
-	trustedProviders?: string[];
-	enabled?: boolean;
-}): GenericEndpointContext {
-	const { path, method = "GET", params = {}, trustedProviders = [], enabled = true } = options;
-
-	const accountLinking = {
-		enabled,
-		trustedProviders,
-	};
-
-	const context = {
-		options: {
-			account: {
-				accountLinking,
-			},
-		},
-	};
-
-	return {
-		path,
-		body: {},
-		query: {},
-		headers: new Headers(),
-		request: new Request(`http://test.local${path}`, { method }),
-		params,
-		method,
-		context: context as GenericEndpointContext["context"],
-	} as GenericEndpointContext;
+function createRequest(path: string): Request {
+	return new Request(`http://test.local${path}`);
 }
 
 async function createSsoProviderRecord(
@@ -86,18 +55,7 @@ async function createSsoProviderRecord(
 	return { organizationId, userId };
 }
 
-describe("isSsoCallbackPath", () => {
-	test("detects OIDC callback paths", () => {
-		expect(isSsoCallbackPath("/sso/callback/pocket-id")).toBe(true);
-	});
-
-	test("ignores non-callback paths", () => {
-		expect(isSsoCallbackPath("/sso/register")).toBe(false);
-		expect(isSsoCallbackPath("/sign-in/email")).toBe(false);
-	});
-});
-
-describe("trustSsoProviderForLinking", () => {
+describe("resolveTrustedProvidersForRequest", () => {
 	beforeEach(async () => {
 		await db.delete(member);
 		await db.delete(account);
@@ -106,110 +64,61 @@ describe("trustSsoProviderForLinking", () => {
 		await db.delete(usersTable);
 	});
 
-	test("adds callback provider to trusted providers", async () => {
+	test("returns [] when request is missing", async () => {
+		expect(await resolveTrustedProvidersForRequest()).toEqual([]);
+	});
+
+	test("returns [] for non-callback paths", async () => {
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sign-in/email"))).toEqual([]);
+	});
+
+	test("returns [] for unknown providers", async () => {
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/missing-provider"))).toEqual([]);
+	});
+
+	test("returns auto-link-enabled providers from the callback provider organization", async () => {
+		const { organizationId, userId } = await createSsoProviderRecord("pocket-id", true);
+
+		await createSsoProviderRecord("acme-saml", true, { organizationId, userId });
+		await createSsoProviderRecord("acme-disabled", false, { organizationId, userId });
+		await createSsoProviderRecord("other-org-provider", true);
+
+		const trustedProviders = await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"));
+
+		expect([...trustedProviders].sort()).toEqual(["acme-saml", "pocket-id"]);
+	});
+
+	test("supports /sso/saml2/callback/:providerId paths", async () => {
+		await createSsoProviderRecord("saml-provider", true);
+
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/saml2/callback/saml-provider"))).toEqual([
+			"saml-provider",
+		]);
+	});
+
+	test("supports callback paths nested under /api/auth", async () => {
+		await createSsoProviderRecord("prefixed-provider", true);
+
+		expect(await resolveTrustedProvidersForRequest(createRequest("/api/auth/sso/callback/prefixed-provider"))).toEqual([
+			"prefixed-provider",
+		]);
+	});
+
+	test("supports /sso/saml2/sp/acs/:providerId paths", async () => {
+		await createSsoProviderRecord("saml-acs-provider", true);
+
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/saml2/sp/acs/saml-acs-provider"))).toEqual([
+			"saml-acs-provider",
+		]);
+	});
+
+	test("removes providers from the result when auto-linking is disabled", async () => {
 		await createSsoProviderRecord("pocket-id", true);
 
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toContain("pocket-id");
-	});
-
-	test("does not trust providers with disabled auto-linking", async () => {
-		await createSsoProviderRecord("pocket-id", false);
-
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
-	});
-
-	test("replaces stale trusted providers with database state", async () => {
-		await createSsoProviderRecord("pocket-id", true);
-
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-			trustedProviders: ["stale-provider"],
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
-	});
-
-	test("does not trust unknown providers", async () => {
-		const ctx = createMockContext({
-			path: "/sso/callback/missing-provider",
-			params: { providerId: "missing-provider" },
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
-	});
-
-	test("does not duplicate an existing provider", async () => {
-		await createSsoProviderRecord("pocket-id", true);
-
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-			trustedProviders: ["pocket-id"],
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
-	});
-
-	test("removes provider from trusted providers when auto-linking is disabled", async () => {
-		await createSsoProviderRecord("pocket-id", true);
-
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-		});
-
-		await trustSsoProviderForLinking(ctx);
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual(["pocket-id"]);
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual(["pocket-id"]);
 
 		await db.update(ssoProvider).set({ autoLinkMatchingEmails: false }).where(eq(ssoProvider.providerId, "pocket-id"));
 
-		await trustSsoProviderForLinking(ctx);
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
-	});
-
-	test("does nothing when account linking is disabled", async () => {
-		await createSsoProviderRecord("pocket-id", true);
-
-		const ctx = createMockContext({
-			path: "/sso/callback/pocket-id",
-			params: { providerId: "pocket-id" },
-			enabled: false,
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
-	});
-
-	test("does nothing when provider id cannot be extracted", async () => {
-		const ctx = createMockContext({
-			path: "/sso/callback/",
-			params: {},
-		});
-
-		await trustSsoProviderForLinking(ctx);
-
-		expect(ctx.context.options.account?.accountLinking?.trustedProviders).toEqual([]);
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual([]);
 	});
 });

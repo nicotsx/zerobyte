@@ -1,26 +1,14 @@
-import type { GenericEndpointContext } from "@better-auth/core";
 import { db } from "~/server/db/db";
-import { extractProviderIdFromContext } from "../utils/sso-context";
+import { extractProviderIdFromUrl } from "../utils/sso-context";
 
-export function isSsoCallbackPath(path?: string): boolean {
-	if (!path) {
-		return false;
+export async function resolveTrustedProvidersForRequest(request?: Request): Promise<string[]> {
+	if (!request) {
+		return [];
 	}
 
-	return path.startsWith("/sso/callback/");
-}
-
-export async function trustSsoProviderForLinking(ctx: GenericEndpointContext): Promise<void> {
-	const providerId = extractProviderIdFromContext(ctx);
-
+	const providerId = extractProviderIdFromUrl(request.url);
 	if (!providerId) {
-		return;
-	}
-
-	const accountLinking = ctx.context.options.account?.accountLinking;
-
-	if (!accountLinking || accountLinking.enabled === false) {
-		return;
+		return [];
 	}
 
 	const provider = await db.query.ssoProvider.findFirst({
@@ -28,7 +16,7 @@ export async function trustSsoProviderForLinking(ctx: GenericEndpointContext): P
 		where: { providerId },
 	});
 	if (!provider) {
-		return;
+		return [];
 	}
 
 	const autoLinkingProviders = await db.query.ssoProvider.findMany({
@@ -39,5 +27,5 @@ export async function trustSsoProviderForLinking(ctx: GenericEndpointContext): P
 		},
 	});
 
-	accountLinking.trustedProviders = autoLinkingProviders.map((entry) => entry.providerId);
+	return autoLinkingProviders.map((entry) => entry.providerId);
 }
