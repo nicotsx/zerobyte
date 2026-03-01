@@ -13,6 +13,7 @@ import { sso } from "@better-auth/sso";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
+import { logger } from "../utils/logger";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
@@ -23,13 +24,21 @@ import { validateSsoProviderId } from "./auth/middlewares/validate-sso-provider-
 import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
 import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
 import { resolveTrustedProvidersForRequest } from "./auth/middlewares/trust-sso-provider-for-linking";
+import { buildAllowedHosts } from "./auth/base-url";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
+
+const authOrigins = [config.baseUrl, ...config.trustedOrigins];
+const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
+
+for (const origin of invalidOrigins) {
+	logger.warn(`Ignoring invalid auth origin in configuration: ${origin}`);
+}
 
 export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
 	baseURL: {
-		allowedHosts: [new URL(config.baseUrl).host, ...config.trustedOrigins.map((origin) => new URL(origin).host)],
+		allowedHosts,
 		protocol: "auto",
 	},
 	trustedOrigins: config.trustedOrigins,

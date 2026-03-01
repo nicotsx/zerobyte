@@ -12,7 +12,13 @@ const INVITE_REQUIRED_ERRORS = new Set([
 ]);
 
 export function mapAuthErrorToCode(error: string): LoginErrorCode {
-	const decoded = decodeURIComponent(error);
+	let decoded: string;
+
+	try {
+		decoded = decodeURIComponent(error);
+	} catch {
+		return "SSO_LOGIN_FAILED";
+	}
 
 	if (decoded === "account not linked") {
 		return "ACCOUNT_LINK_REQUIRED";
