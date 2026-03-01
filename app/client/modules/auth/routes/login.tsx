@@ -135,7 +135,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 			const { data, error } = await authClient.signIn.sso({
 				providerId: providerId,
 				callbackURL: callbackPath,
-				errorCallbackURL: callbackPath,
+				errorCallbackURL: "/api/v1/auth/login-error",
 			});
 			if (error) throw error;
 

@@ -25,6 +25,8 @@ import {
 import { authService } from "./auth.service";
 import { requireAdmin, requireAuth, requireOrgAdmin } from "./auth.middleware";
 import { auth } from "~/server/lib/auth";
+import { mapAuthErrorToCode } from "./auth.errors";
+import { config } from "~/server/core/config";
 
 export const authController = new Hono()
 	.get("/status", getStatusDto, async (c) => {
@@ -201,4 +203,9 @@ export const authController = new Hono()
 		}
 
 		return c.json({ success: true });
+	})
+	.get("/login-error", async (c) => {
+		const error = c.req.query("error");
+		const errorCode = error ? mapAuthErrorToCode(error) : "SSO_LOGIN_FAILED";
+		return c.redirect(`${config.baseUrl}/login?error=${errorCode}`);
 	});

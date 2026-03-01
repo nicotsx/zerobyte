@@ -5,29 +5,35 @@ export type LoginErrorCode =
 	| "BANNED_USER"
 	| "SSO_LOGIN_FAILED";
 
-const VALID_ERROR_CODES: Set<LoginErrorCode> = new Set([
-	"ACCOUNT_LINK_REQUIRED",
-	"EMAIL_NOT_VERIFIED",
-	"INVITE_REQUIRED",
-	"BANNED_USER",
-	"SSO_LOGIN_FAILED",
+const INVITE_REQUIRED_ERRORS = new Set([
+	"Access denied. You must be invited to this organization before you can sign in with SSO.",
+	"SSO sign-in is invite-only for this organization",
+	"unable to create session",
 ]);
 
-export function decodeLoginError(error?: string): LoginErrorCode | null {
-	if (!error) {
-		return null;
+export function mapAuthErrorToCode(error: string): LoginErrorCode {
+	const decoded = decodeURIComponent(error);
+
+	if (decoded === "account not linked") {
+		return "ACCOUNT_LINK_REQUIRED";
 	}
 
-	const code = decodeURIComponent(error);
-
-	if (VALID_ERROR_CODES.has(code as LoginErrorCode)) {
-		return code as LoginErrorCode;
+	if (decoded === "EMAIL_NOT_VERIFIED") {
+		return "EMAIL_NOT_VERIFIED";
 	}
 
-	return null;
+	if (decoded === "banned") {
+		return "BANNED_USER";
+	}
+
+	if (INVITE_REQUIRED_ERRORS.has(decoded)) {
+		return "INVITE_REQUIRED";
+	}
+
+	return "SSO_LOGIN_FAILED";
 }
 
-export function getLoginErrorDescription(errorCode: LoginErrorCode | null): string | null {
+export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 	switch (errorCode) {
 		case "ACCOUNT_LINK_REQUIRED":
 			return "Your account exists but is not linked to this SSO provider. Sign in with username/password first, then enable auto linking in your provider settings or contact your administrator.";
@@ -39,7 +45,5 @@ export function getLoginErrorDescription(errorCode: LoginErrorCode | null): stri
 			return "You have been banned from this application. Please contact support if you believe this is an error.";
 		case "SSO_LOGIN_FAILED":
 			return "SSO authentication failed. Please try again.";
-		default:
-			return null;
 	}
 }
