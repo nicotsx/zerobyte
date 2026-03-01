@@ -22,10 +22,10 @@ describe("volumes security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/volumes", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -67,9 +67,9 @@ describe("volumes security", () => {
 
 	describe("input validation", () => {
 		test("should return 404 for non-existent volume", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/volumes/non-existent-volume", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -78,11 +78,11 @@ describe("volumes security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/volumes", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

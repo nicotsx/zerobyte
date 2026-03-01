@@ -22,10 +22,10 @@ describe("notifications security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/notifications/destinations", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -62,18 +62,18 @@ describe("notifications security", () => {
 
 	describe("input validation", () => {
 		test("should return 404 for malformed destination ID", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/not-a-number", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
 		});
 
 		test("should return 404 for non-existent destination ID", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/999999", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -82,12 +82,12 @@ describe("notifications security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 
 			const res = await app.request("/api/v1/notifications/destinations", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

@@ -7,7 +7,8 @@ import {
 	type User,
 } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin, createAuthMiddleware, twoFactor, username, organization } from "better-auth/plugins";
+import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
+import { createAuthMiddleware } from "better-auth/api";
 import { sso } from "@better-auth/sso";
 import { config } from "../core/config";
 import { db } from "../db/db";
@@ -140,5 +141,6 @@ export const auth = betterAuth({
 			},
 		}),
 		tanstackStartCookies(),
+		...(process.env.NODE_ENV === "test" ? [testUtils()] : []),
 	],
 });

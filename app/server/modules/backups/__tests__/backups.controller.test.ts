@@ -25,10 +25,10 @@ describe("backups security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/backups", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -81,7 +81,7 @@ describe("backups security", () => {
 
 	describe("input validation", () => {
 		test("should return a schedule when queried by short id", async () => {
-			const { token, organizationId } = await createTestSession();
+			const { headers, organizationId } = await createTestSession();
 			const volume = await createTestVolume({ organizationId });
 			const repository = await createTestRepository({ organizationId });
 			const schedule = await createTestBackupSchedule({
@@ -91,7 +91,7 @@ describe("backups security", () => {
 			});
 
 			const res = await app.request(`/api/v1/backups/${schedule.shortId}`, {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(200);
@@ -101,18 +101,18 @@ describe("backups security", () => {
 		});
 
 		test("should return 404 for malformed schedule ID", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups/not-a-number", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
 		});
 
 		test("should return 404 for non-existent schedule ID", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups/999999", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -121,11 +121,11 @@ describe("backups security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

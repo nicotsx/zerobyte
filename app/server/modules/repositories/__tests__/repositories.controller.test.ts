@@ -57,10 +57,10 @@ describe("repositories security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/repositories", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -106,9 +106,9 @@ describe("repositories security", () => {
 
 	describe("input validation", () => {
 		test("should return 404 for non-existent repository", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -117,9 +117,9 @@ describe("repositories security", () => {
 		});
 
 		test("should return 404 for stats of non-existent repository", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo/stats", {
-				headers: getAuthHeaders(token),
+				headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -128,11 +128,11 @@ describe("repositories security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
@@ -147,14 +147,14 @@ describe("repositories security", () => {
 
 describe("repositories updates", () => {
 	test("PATCH updates full config and metadata using shortId", async () => {
-		const { token, organizationId } = await createTestSession();
+		const { headers, organizationId } = await createTestSession();
 		const repository = await createRepositoryRecord(organizationId);
 		const nextPath = `/tmp/updated-${crypto.randomUUID()}`;
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...getAuthHeaders(token),
+				...headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -196,13 +196,13 @@ describe("repositories updates", () => {
 	});
 
 	test("PATCH rejects backend changes", async () => {
-		const { token, organizationId } = await createTestSession();
+		const { headers, organizationId } = await createTestSession();
 		const repository = await createRepositoryRecord(organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...getAuthHeaders(token),
+				...headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -222,13 +222,13 @@ describe("repositories updates", () => {
 	});
 
 	test("PATCH rejects invalid config payload", async () => {
-		const { token, organizationId } = await createTestSession();
+		const { headers, organizationId } = await createTestSession();
 		const repository = await createRepositoryRecord(organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...getAuthHeaders(token),
+				...headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -243,7 +243,7 @@ describe("repositories updates", () => {
 
 	describe("delete snapshot", () => {
 		test("should return 500 when restic deleteSnapshot throws ResticError", async () => {
-			const { token, organizationId } = await createTestSession();
+			const { headers, organizationId } = await createTestSession();
 			const repository = await createRepositoryRecord(organizationId);
 
 			const { restic } = await import("~/server/utils/restic");
@@ -256,7 +256,7 @@ describe("repositories updates", () => {
 			try {
 				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
 					method: "DELETE",
-					headers: getAuthHeaders(token),
+					headers,
 				});
 
 				expect(res.status).toBe(500);

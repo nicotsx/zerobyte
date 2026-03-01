@@ -1,6 +1,6 @@
 import { test, describe, expect } from "bun:test";
 import { createApp } from "~/server/app";
-import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
+import { createTestSession } from "~/test/helpers/auth";
 import { db } from "~/server/db/db";
 import {
 	repositoriesTable,
@@ -39,14 +39,13 @@ describe("multi-organization isolation", () => {
 		});
 
 		// Force the session to point at the foreign organization
-		const rawSessionToken = decodeURIComponent(session.token).split(".")[0];
 		await db
 			.update(sessionsTable)
 			.set({ activeOrganizationId: foreignOrgId })
-			.where(eq(sessionsTable.id, rawSessionToken));
+			.where(eq(sessionsTable.id, session.session.id));
 
 		const res = await app.request("/api/v1/repositories", {
-			headers: getAuthHeaders(session.token),
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(403);
@@ -72,7 +71,7 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res = await app.request(`/api/v1/repositories/${repoShortId}`, {
-			headers: getAuthHeaders(session2.token),
+			headers: session2.headers,
 		});
 
 		expect(res.status).toBe(404);
@@ -80,7 +79,7 @@ describe("multi-organization isolation", () => {
 		expect(body.message).toBe("Repository not found");
 
 		const resOk = await app.request(`/api/v1/repositories/${repoShortId}`, {
-			headers: getAuthHeaders(session1.token),
+			headers: session1.headers,
 		});
 		expect(resOk.status).toBe(200);
 	});
@@ -108,19 +107,19 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res1 = await app.request("/api/v1/repositories", {
-			headers: getAuthHeaders(session1.token),
+			headers: session1.headers,
 		});
 		const list1 = await res1.json();
 
 		expect(list1.length).toBeGreaterThanOrEqual(1);
-		expect(list1.some((r: any) => r.name === "Org 2 Repo")).toBe(false);
+		expect(list1.some((r: { name: string }) => r.name === "Org 2 Repo")).toBe(false);
 
 		const res2 = await app.request("/api/v1/repositories", {
-			headers: getAuthHeaders(session2.token),
+			headers: session2.headers,
 		});
 		const list2 = await res2.json();
-		expect(list2.some((r: any) => r.name === "Org 1 Repo")).toBe(false);
-		expect(list2.some((r: any) => r.name === "Org 2 Repo")).toBe(true);
+		expect(list2.some((r: { name: string }) => r.name === "Org 1 Repo")).toBe(false);
+		expect(list2.some((r: { name: string }) => r.name === "Org 2 Repo")).toBe(true);
 	});
 
 	test("should not be able to access volumes from another organization", async () => {
@@ -140,7 +139,7 @@ describe("multi-organization isolation", () => {
 		});
 
 		const res = await app.request(`/api/v1/volumes/${volumeShortId}`, {
-			headers: getAuthHeaders(session2.token),
+			headers: session2.headers,
 		});
 
 		expect(res.status).toBe(404);
@@ -174,7 +173,7 @@ describe("multi-organization isolation", () => {
 		const res = await app.request("/api/v1/backups", {
 			method: "POST",
 			headers: {
-				...getAuthHeaders(session2.token),
+				...session2.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -226,13 +225,13 @@ describe("multi-organization isolation", () => {
 			.returning();
 
 		const res = await app.request(`/api/v1/backups/${schedule.shortId}`, {
-			headers: getAuthHeaders(session2.token),
+			headers: session2.headers,
 		});
 
 		expect(res.status).toBe(404);
 
 		const resOk = await app.request(`/api/v1/backups/${schedule.shortId}`, {
-			headers: getAuthHeaders(session1.token),
+			headers: session1.headers,
 		});
 		expect(resOk.status).toBe(200);
 	});
@@ -295,14 +294,14 @@ describe("multi-organization isolation", () => {
 		});
 
 		const resGet = await app.request(`/api/v1/backups/${schedule.shortId}/notifications`, {
-			headers: getAuthHeaders(session2.token),
+			headers: session2.headers,
 		});
 		expect(resGet.status).toBe(404);
 
 		const resPut = await app.request(`/api/v1/backups/${schedule.shortId}/notifications`, {
 			method: "PUT",
 			headers: {
-				...getAuthHeaders(session2.token),
+				...session2.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({

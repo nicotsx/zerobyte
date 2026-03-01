@@ -23,10 +23,10 @@ describe("events security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/events", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -35,11 +35,11 @@ describe("events security", () => {
 	});
 
 	test("should cleanup SSE listeners when client disconnects", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 		const initialCount = serverEvents.listenerCount("doctor:cancelled");
 
 		const res = await app.request("/api/v1/events", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);

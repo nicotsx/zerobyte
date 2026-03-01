@@ -22,10 +22,10 @@ describe("system security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { token } = await createTestSession();
+		const { headers } = await createTestSession();
 
 		const res = await app.request("/api/v1/system/info", {
-			headers: getAuthHeaders(token),
+			headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -49,11 +49,11 @@ describe("system security", () => {
 
 	describe("input validation", () => {
 		test("should return 400 for invalid payload on restic-password", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({}),
@@ -63,11 +63,11 @@ describe("system security", () => {
 		});
 
 		test("should return 401 for incorrect password on restic-password", async () => {
-			const { token } = await createTestSession();
+			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
 				headers: {
-					...getAuthHeaders(token),
+					...headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
