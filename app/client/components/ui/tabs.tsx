@@ -1,6 +1,7 @@
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import type * as React from "react";
 
+import { useWebHaptics } from "web-haptics/react";
 import { cn } from "~/client/lib/utils";
 
 function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Root>) {
@@ -17,7 +18,14 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
 	);
 }
 
-function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+function TabsTrigger({ className, onClick, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+	const { trigger } = useWebHaptics();
+
+	const handleClick: React.MouseEventHandler<HTMLButtonElement> = (event) => {
+		void trigger("nudge");
+		onClick?.(event);
+	};
+
 	return (
 		<TabsPrimitive.Trigger
 			data-slot="tabs-trigger"
@@ -36,6 +44,7 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
 				"after:absolute after:left-0 after:-top-px after:w-2 after:h-0.5 after:bg-[#5D6570] after:transition-colors data-[state=active]:after:bg-[#FF453A]",
 				className,
 			)}
+			onClick={handleClick}
 			{...props}
 		>
 			<span className="relative z-10">{props.children}</span>
