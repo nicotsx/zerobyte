@@ -4005,6 +4005,7 @@ export type GetBackupProgressResponses = {
 		repositoryName: string;
 		scheduleId: string;
 		seconds_elapsed: number;
+		seconds_remaining: number;
 		total_bytes: number;
 		total_files: number;
 		volumeName: string;
