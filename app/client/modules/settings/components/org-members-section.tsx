@@ -2,12 +2,12 @@ import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Shield, ShieldAlert, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { GetOrgMembersResponse } from "~/client/api-client";
 import {
 	getOrgMembersOptions,
 	removeOrgMemberMutation,
 	updateMemberRoleMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import type { GetOrgMembersResponse } from "~/client/api-client/types.gen";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,11 +25,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
 
-type OrgMembersSectionProps = {
+type Props = {
 	initialMembers?: GetOrgMembersResponse;
 };
 
-export function OrgMembersSection({ initialMembers }: OrgMembersSectionProps) {
+export function OrgMembersSection({ initialMembers }: Props) {
 	const { activeMember } = useOrganizationContext();
 	const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
 

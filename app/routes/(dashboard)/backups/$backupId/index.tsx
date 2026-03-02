@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { type } from "arktype";
 import {
+	getBackupProgressOptions,
 	getBackupScheduleOptions,
 	getScheduleMirrorsOptions,
 	getScheduleNotificationsOptions,
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
 			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { shortId: backupId } }) }),
 			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
+			context.queryClient.ensureQueryData({ ...getBackupProgressOptions({ path: { shortId: backupId } }) }),
 		]);
 
 		const snapshotOptions = listSnapshotsOptions({

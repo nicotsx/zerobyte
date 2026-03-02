@@ -6,6 +6,7 @@ import { SIDEBAR_COOKIE_NAME } from "~/client/components/ui/sidebar";
 import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
+import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { authService } from "~/server/modules/auth/auth.service";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
@@ -31,6 +32,10 @@ export const Route = createFileRoute("/(dashboard)")({
 			context.queryClient.ensureQueryData({
 				queryKey: ["organization-context"],
 				queryFn: () => getOrganizationContext(),
+			}),
+			context.queryClient.ensureQueryData({
+				queryKey: ["server-constants"],
+				queryFn: () => getServerConstants(),
 			}),
 		]);
 

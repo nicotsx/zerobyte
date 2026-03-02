@@ -9,6 +9,7 @@ import {
 	getSsoSettingsOptions,
 	updateSsoProviderAutoLinkingMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import type { GetSsoSettingsResponse } from "~/client/api-client/types.gen";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -33,17 +34,17 @@ import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
 import { cn } from "~/client/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
-import type { GetSsoSettingsResponse } from "~/client/api-client";
 
 type InvitationRole = "member" | "admin" | "owner";
 
-type SsoSettingsSectionProps = {
+type Props = {
 	initialSettings?: GetSsoSettingsResponse;
+	initialOrigin?: string;
 };
 
-export function SsoSettingsSection({ initialSettings }: SsoSettingsSectionProps) {
+export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 	const originQuery = useServerFn(getOrigin);
-	const { data } = useSuspenseQuery({ queryKey: ["app-origin"], queryFn: originQuery });
+	const { data } = useSuspenseQuery({ queryKey: ["app-origin"], queryFn: originQuery, initialData: initialOrigin });
 
 	const navigate = useNavigate();
 	const { activeOrganization } = useOrganizationContext();

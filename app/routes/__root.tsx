@@ -2,6 +2,7 @@ import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanst
 import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
@@ -58,6 +59,7 @@ function RootLayout() {
 			<body className="dark">
 				<Outlet />
 				<Toaster />
+				<ReactQueryDevtools buttonPosition="bottom-right" />
 				<Scripts />
 			</body>
 		</html>

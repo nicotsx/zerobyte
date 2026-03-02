@@ -51,6 +51,7 @@
 		"@scalar/hono-api-reference": "^0.9.45",
 		"@tanstack/react-hotkeys": "^0.3.0",
 		"@tanstack/react-query": "^5.90.21",
+		"@tanstack/react-query-devtools": "^5.91.3",
 		"@tanstack/react-router": "^1.162.9",
 		"@tanstack/react-router-ssr-query": "^1.162.9",
 		"@tanstack/react-start": "^1.162.9",
