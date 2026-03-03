@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
 import { isSsoCallbackRequest, requireSsoInvitation } from "../require-sso-invitation";

@@ -165,7 +165,11 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 							<CardContent className="p-6 space-y-4">
 								<div className="space-y-2">
 									<Label>Username</Label>
-									<Input value={appContext.user?.username || ""} disabled className="max-w-md" />
+									<Input value={appContext.user?.username} disabled className="max-w-md" />
+								</div>
+								<div className="space-y-2">
+									<Label>Email</Label>
+									<Input value={appContext.user?.email} disabled className="max-w-md" />
 								</div>
 							</CardContent>
 

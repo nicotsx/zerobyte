@@ -20,7 +20,7 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 			}),
 		]);
 		const orgRole = orgContext.activeMember?.role;
-		const shouldPrefetchOrgQueries = authContext.user?.role === "admin" || orgRole === "owner" || orgRole === "admin";
+		const shouldPrefetchOrgQueries = orgRole === "owner" || orgRole === "admin";
 
 		if (shouldPrefetchOrgQueries) {
 			const [org, members, appOrigin] = await Promise.all([

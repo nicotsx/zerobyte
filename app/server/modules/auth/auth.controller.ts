@@ -46,20 +46,22 @@ export const authController = new Hono()
 		}
 
 		const [providersData, invitationsData, autoLinkingSettings] = await Promise.all([
-			auth.api.listSSOProviders({ headers }),
+			auth.api.listSSOProviders({ headers, query: { organizationId: activeOrganizationId } }),
 			auth.api.listInvitations({ headers, query: { organizationId: activeOrganizationId } }),
 			authService.getSsoProviderAutoLinkingSettings(activeOrganizationId),
 		]);
 
 		return c.json<SsoSettingsDto>({
-			providers: providersData.providers.map((provider) => ({
-				providerId: provider.providerId,
-				type: provider.type,
-				issuer: provider.issuer,
-				domain: provider.domain,
-				autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? false,
-				organizationId: provider.organizationId,
-			})),
+			providers: providersData.providers
+				.map((provider) => ({
+					providerId: provider.providerId,
+					type: provider.type,
+					issuer: provider.issuer,
+					domain: provider.domain,
+					autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? false,
+					organizationId: provider.organizationId,
+				}))
+				.filter((p) => p.organizationId === activeOrganizationId),
 			invitations: invitationsData.map((invitation) => ({
 				id: invitation.id,
 				email: invitation.email,
