@@ -130,4 +130,22 @@ describe("changeEmailForUser", () => {
 
 		expect(impact.ssoAccounts).toEqual([]);
 	});
+
+	test("rejects changing to the same email and leaves SSO accounts and sessions unchanged", async () => {
+		const user = await insertUser("grace", "grace@example.com");
+		await insertCredentialAccount(user.id);
+		await insertSsoAccount(user.id, "oidc-google", "google-grace");
+		await insertSession(user.id);
+
+		await expect(changeEmailForUser("grace", "grace@example.com")).rejects.toThrow("already has email");
+
+		const impact = await getEmailChangeImpact("grace", "grace-different@example.com");
+		expect(impact.ssoAccounts).toEqual([{ providerId: "oidc-google", accountId: "google-grace" }]);
+
+		const sessions = await db
+			.select({ id: sessionsTable.id })
+			.from(sessionsTable)
+			.where(eq(sessionsTable.userId, user.id));
+		expect(sessions).toHaveLength(1);
+	});
 });

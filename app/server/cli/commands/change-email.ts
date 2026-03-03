@@ -52,6 +52,10 @@ export const getEmailChangeImpact = async (username: string, newEmail: string): 
 		throw new Error(`User "${username}" not found`);
 	}
 
+	if (user.email.trim().toLowerCase() === normalizedEmail) {
+		throw new Error(`User "${username}" already has email "${normalizedEmail}"`);
+	}
+
 	const [existingUser] = await db
 		.select({ id: usersTable.id })
 		.from(usersTable)
