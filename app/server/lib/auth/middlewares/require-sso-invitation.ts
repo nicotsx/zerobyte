@@ -1,5 +1,5 @@
 import { APIError } from "better-auth/api";
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { logger } from "~/server/utils/logger";
 import { extractProviderIdFromContext, extractProviderIdFromUrl, normalizeEmail } from "../utils/sso-context";

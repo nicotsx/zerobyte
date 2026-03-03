@@ -1,6 +1,6 @@
 import { and, eq, gt } from "drizzle-orm";
 import { UnauthorizedError } from "http-errors-enhanced";
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { invitation, member, organization, ssoProvider, usersTable, type User } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
@@ -150,15 +150,34 @@ export async function createUserDefaultOrg(userId: string, ctx: GenericEndpointC
 		throw new UnauthorizedError("User not found");
 	}
 
+	const providerId = extractProviderIdFromContext(ctx);
+	if (providerId) {
+		const [ssoProviderRecord] = await db
+			.select()
+			.from(ssoProvider)
+			.where(eq(ssoProvider.providerId, providerId))
+			.limit(1);
+
+		if (ssoProviderRecord) {
+			// If the user is already a member of this SSO org (accepted a past invitation), let them through
+			const existingSsoMembership = await findMembershipWithOrganization(user.id, ssoProviderRecord.organizationId);
+			if (existingSsoMembership) {
+				return existingSsoMembership;
+			}
+
+			// Not yet a member of this SSO org, a valid pending invitation is required.
+			const invitedMembership = await tryCreateInvitedMembership(userId, normalizeEmail(user.email), ctx);
+			if (invitedMembership) {
+				return invitedMembership;
+			}
+		}
+	}
+
+	// Non-SSO path: check for any existing membership before creating a personal org.
 	const existingMembership = await findMembershipWithOrganization(user.id);
 	if (existingMembership) {
 		logger.debug("User already has an organization membership, skipping default org creation", { userId });
 		return existingMembership;
-	}
-
-	const invitedMembership = await tryCreateInvitedMembership(userId, normalizeEmail(user.email), ctx);
-	if (invitedMembership) {
-		return invitedMembership;
 	}
 
 	await createDefaultOrganizationMembership(user);

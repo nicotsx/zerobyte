@@ -1,4 +1,4 @@
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 
 const SSO_CALLBACK_PATH_SEGMENTS = ["/sso/callback/", "/sso/saml2/callback/", "/sso/saml2/sp/acs/"] as const;
 

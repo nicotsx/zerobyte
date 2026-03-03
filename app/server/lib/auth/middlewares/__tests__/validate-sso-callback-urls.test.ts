@@ -71,4 +71,22 @@ describe("validateSsoCallbackUrls", () => {
 
 		expect(validateSsoCallbackUrls(ctx)).resolves.toBeUndefined();
 	});
+
+	test("rejects URL-encoded external URL (%2F%2Fevil.example)", async () => {
+		const ctx = createContext("/sign-in/sso", { callbackURL: "%2F%2Fevil.example" });
+
+		expect(validateSsoCallbackUrls(ctx)).rejects.toThrow("callbackURL");
+	});
+
+	test("rejects URL-encoded reserved path (%2Fsso%2Fcallback%2Ffoo)", async () => {
+		const ctx = createContext("/sign-in/sso", { callbackURL: "%2Fsso%2Fcallback%2Ffoo" });
+
+		expect(validateSsoCallbackUrls(ctx)).rejects.toThrow("callbackURL");
+	});
+
+	test("rejects invalid URL encoding (malformed)", async () => {
+		const ctx = createContext("/sign-in/sso", { callbackURL: "%ZZ" });
+
+		expect(validateSsoCallbackUrls(ctx)).rejects.toThrow("callbackURL");
+	});
 });

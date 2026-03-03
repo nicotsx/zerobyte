@@ -56,7 +56,7 @@
 		"@tanstack/react-router-ssr-query": "^1.162.9",
 		"@tanstack/react-start": "^1.162.9",
 		"arktype": "^2.1.28",
-		"better-auth": "1.5.0",
+		"better-auth": "^1.5.2",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"commander": "^14.0.2",

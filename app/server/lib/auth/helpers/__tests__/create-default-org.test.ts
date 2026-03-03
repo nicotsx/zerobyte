@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
@@ -117,6 +117,45 @@ describe("createUserDefaultOrg", () => {
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
 		expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
+	});
+
+	test("blocks existing users with a personal org from SSO orgs they were not invited to", async () => {
+		const userId = await createUser("alice@example.com", randomSlug("alice"));
+		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
+
+		const personalOrgId = randomId();
+		await db.insert(organization).values({
+			id: personalOrgId,
+			name: "Alice's Workspace",
+			slug: randomSlug("alice"),
+			createdAt: new Date(),
+		});
+		await db.insert(member).values({
+			id: randomId(),
+			userId,
+			organizationId: personalOrgId,
+			role: "owner",
+			createdAt: new Date(),
+		});
+
+		const ssoOrgId = randomId();
+		await db.insert(organization).values({
+			id: ssoOrgId,
+			name: "Acme Corp",
+			slug: randomSlug("acme"),
+			createdAt: new Date(),
+		});
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId: "oidc-acme",
+			organizationId: ssoOrgId,
+			userId: inviterId,
+			issuer: "https://issuer.example.com",
+			domain: "example.com",
+		});
+
+		const ctx = createMockSsoCallbackContext("oidc-acme");
+		await expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
 	});
 
 	test("returns existing membership without creating another workspace", async () => {

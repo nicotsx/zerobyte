@@ -2,11 +2,17 @@ import { APIError } from "better-auth/api";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 
 function isValidCallbackPath(value: string): boolean {
-	if (!value.startsWith("/") || value.startsWith("//") || value.includes("\\")) {
+	let decoded: string;
+	try {
+		decoded = decodeURIComponent(value);
+	} catch {
+		return false;
+	}
+	if (!decoded.startsWith("/") || decoded.startsWith("//") || decoded.includes("\\")) {
 		return false;
 	}
 
-	if (value.startsWith("/sso/callback/") || value.startsWith("/sso/saml2/")) {
+	if (decoded.startsWith("/sso/callback/") || decoded.startsWith("/sso/saml2/")) {
 		return false;
 	}
 

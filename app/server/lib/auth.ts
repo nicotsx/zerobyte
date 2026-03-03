@@ -2,6 +2,7 @@ import {
 	betterAuth,
 	type AuthContext,
 	type BetterAuthOptions,
+	type GenericEndpointContext,
 	type MiddlewareContext,
 	type MiddlewareOptions,
 	type User,
