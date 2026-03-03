@@ -3,6 +3,7 @@ import {
 	usersTable,
 	member,
 	organization,
+	sessionsTable,
 	volumesTable,
 	repositoriesTable,
 	backupSchedulesTable,
@@ -101,9 +102,43 @@ export class AuthService {
 		const impact = await this.getUserDeletionImpact(userId);
 		const orgIds = impact.organizations.map((o) => o.id);
 
-		if (orgIds.length > 0) {
-			await db.delete(organization).where(inArray(organization.id, orgIds));
+		if (orgIds.length === 0) {
+			return;
 		}
+
+		await db.transaction(async (tx) => {
+			const membersInDeletedOrgs = await tx
+				.select({ userId: member.userId })
+				.from(member)
+				.where(and(inArray(member.organizationId, orgIds), ne(member.userId, userId)));
+
+			const affectedUserIds = [...new Set(membersInDeletedOrgs.map((r) => r.userId))];
+
+			if (affectedUserIds.length > 0) {
+				const memberships = await tx
+					.select({ userId: member.userId, organizationId: member.organizationId })
+					.from(member)
+					.where(inArray(member.userId, affectedUserIds));
+
+				const orgIdSet = new Set(orgIds);
+				const fallbackOrgByUser = new Map<string, string | null>(affectedUserIds.map((id) => [id, null]));
+
+				for (const { userId, organizationId } of memberships) {
+					if (!orgIdSet.has(organizationId) && fallbackOrgByUser.get(userId) === null) {
+						fallbackOrgByUser.set(userId, organizationId);
+					}
+				}
+
+				for (const [affectedUserId, fallbackOrgId] of fallbackOrgByUser) {
+					await tx
+						.update(sessionsTable)
+						.set({ activeOrganizationId: fallbackOrgId })
+						.where(and(eq(sessionsTable.userId, affectedUserId), inArray(sessionsTable.activeOrganizationId, orgIds)));
+				}
+			}
+
+			await tx.delete(organization).where(inArray(organization.id, orgIds));
+		});
 	}
 
 	/**
