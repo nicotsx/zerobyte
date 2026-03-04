@@ -161,4 +161,123 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 		const result = await ssoIntegration.resolveOrgMembership(userId, null);
 		expect(result).toBeNull();
 	});
+
+	test("blocks user whose invitation has expired", async () => {
+		const userId = await createUser("expired@example.com", randomSlug("expired"));
+		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
+		const organizationId = randomId();
+
+		await db.insert(organization).values({
+			id: organizationId,
+			name: "Acme",
+			slug: randomSlug("acme"),
+			createdAt: new Date(),
+		});
+
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId: "oidc-acme",
+			organizationId,
+			userId: inviterId,
+			issuer: "https://issuer.example.com",
+			domain: "example.com",
+		});
+
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId,
+			email: "expired@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() - 60 * 60 * 1000), // expired 1 hour ago
+			createdAt: new Date(),
+			inviterId,
+		});
+
+		const ctx = createMockSsoCallbackContext("oidc-acme");
+		await expect(ssoIntegration.resolveOrgMembership(userId, ctx)).rejects.toThrow("invite-only");
+	});
+
+	test("blocks user whose invitation was already accepted", async () => {
+		const userId = await createUser("returning@example.com", randomSlug("returning"));
+		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
+		const organizationId = randomId();
+
+		await db.insert(organization).values({
+			id: organizationId,
+			name: "Acme",
+			slug: randomSlug("acme"),
+			createdAt: new Date(),
+		});
+
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId: "oidc-acme",
+			organizationId,
+			userId: inviterId,
+			issuer: "https://issuer.example.com",
+			domain: "example.com",
+		});
+
+		// Invitation was already consumed (user was removed from org, invitation remains accepted)
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId,
+			email: "returning@example.com",
+			role: "member",
+			status: "accepted",
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			createdAt: new Date(),
+			inviterId,
+		});
+
+		const ctx = createMockSsoCallbackContext("oidc-acme");
+		await expect(ssoIntegration.resolveOrgMembership(userId, ctx)).rejects.toThrow("invite-only");
+	});
+
+	test("does not grant access to org B when invitation belongs to a different org A", async () => {
+		const userId = await createUser("alice@example.com", randomSlug("alice"));
+		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
+
+		const orgAId = randomId();
+		await db.insert(organization).values({
+			id: orgAId,
+			name: "Org A",
+			slug: randomSlug("org-a"),
+			createdAt: new Date(),
+		});
+
+		const orgBId = randomId();
+		await db.insert(organization).values({
+			id: orgBId,
+			name: "Org B",
+			slug: randomSlug("org-b"),
+			createdAt: new Date(),
+		});
+
+		// SSO provider belongs to org B
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId: "oidc-org-b",
+			organizationId: orgBId,
+			userId: inviterId,
+			issuer: "https://issuer.example.com",
+			domain: "example.com",
+		});
+
+		// User has a valid pending invitation, but only for org A — not org B
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId: orgAId,
+			email: "alice@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			createdAt: new Date(),
+			inviterId,
+		});
+
+		const ctx = createMockSsoCallbackContext("oidc-org-b");
+		await expect(ssoIntegration.resolveOrgMembership(userId, ctx)).rejects.toThrow("invite-only");
+	});
 });
