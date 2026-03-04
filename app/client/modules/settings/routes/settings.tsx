@@ -22,7 +22,7 @@ import { authClient } from "~/client/lib/auth-client";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { SsoSettingsSection } from "../components/sso/sso-settings-section";
+import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 

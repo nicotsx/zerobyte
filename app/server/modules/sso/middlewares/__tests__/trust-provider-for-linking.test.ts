@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { resolveTrustedProvidersForRequest } from "../trust-sso-provider-for-linking";
+import { resolveTrustedProvidersForRequest } from "../trust-provider-for-linking";
 
 function randomId() {
 	return Bun.randomUUIDv7();

@@ -120,4 +120,42 @@ describe("authService.cleanupUserOrganizations", () => {
 
 		expect(deletedMembership).toBeUndefined();
 	});
+
+	test("sets active organization to null when user has no other memberships", async () => {
+		const deletedOnlyUserId = await createUser(`${randomSlug("deleted")}@example.com`);
+
+		const deletedWorkspaceId = await createOrganization("Deleted Workspace");
+
+		await createMembership({
+			userId: deletedOnlyUserId,
+			organizationId: deletedWorkspaceId,
+			role: "owner",
+		});
+
+		const userSessionId = await createSession({
+			userId: deletedOnlyUserId,
+			activeOrganizationId: deletedWorkspaceId,
+		});
+
+		await authService.cleanupUserOrganizations(deletedOnlyUserId);
+
+		const deletedWorkspace = await db.query.organization.findFirst({
+			where: { id: deletedWorkspaceId },
+			columns: { id: true },
+		});
+		const updatedSession = await db.query.sessionsTable.findFirst({
+			where: { id: userSessionId },
+			columns: { activeOrganizationId: true },
+		});
+
+		expect(deletedWorkspace).toBeUndefined();
+		expect(updatedSession?.activeOrganizationId).toBeNull();
+
+		const membership = await db.query.member.findFirst({
+			where: { userId: deletedOnlyUserId },
+			columns: { id: true },
+		});
+
+		expect(membership).toBeUndefined();
+	});
 });

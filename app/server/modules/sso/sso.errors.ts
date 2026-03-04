@@ -1,4 +1,4 @@
-import type { LoginErrorCode } from "~/lib/auth-errors";
+import type { LoginErrorCode } from "~/lib/sso-errors";
 
 const INVITE_REQUIRED_ERRORS = new Set([
 	"Access denied. You must be invited to this organization before you can sign in with SSO.",

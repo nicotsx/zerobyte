@@ -1,6 +1,6 @@
 import { APIError } from "better-auth/api";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
-import { isReservedSsoProviderId } from "../utils/sso-provider-id";
+import { isReservedSsoProviderId } from "~/server/modules/sso/utils/sso-provider-id";
 
 export const validateSsoProviderId = async (ctx: AuthMiddlewareContext) => {
 	if (ctx.path !== "/sso/register") {

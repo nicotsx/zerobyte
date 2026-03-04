@@ -1,26 +1,8 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { GenericEndpointContext } from "better-auth";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
-import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { createUserDefaultOrg } from "../create-default-org";
-
-function createMockContext(path: string, params: Record<string, string> = {}): GenericEndpointContext {
-	return {
-		path,
-		body: {},
-		query: {},
-		headers: new Headers(),
-		request: new Request(`http://localhost:3000${path}`),
-		params,
-		method: "POST",
-		context: {} as GenericEndpointContext["context"],
-	} as GenericEndpointContext;
-}
-
-function createMockSsoCallbackContext(providerId: string): GenericEndpointContext {
-	return createMockContext(`/sso/callback/${providerId}`, { providerId });
-}
+import { account, invitation, member, organization, usersTable } from "~/server/db/schema";
+import { ensureDefaultOrg } from "../create-default-org";
 
 function randomId() {
 	return Bun.randomUUIDv7();
@@ -41,121 +23,13 @@ async function createUser(email: string, username: string) {
 	return userId;
 }
 
-describe("createUserDefaultOrg", () => {
+describe("ensureDefaultOrg", () => {
 	beforeEach(async () => {
 		await db.delete(member);
 		await db.delete(account);
 		await db.delete(invitation);
-		await db.delete(ssoProvider);
 		await db.delete(organization);
 		await db.delete(usersTable);
-	});
-
-	test("creates invited membership from SSO callback request context", async () => {
-		const invitedUserId = await createUser("invited@example.com", randomSlug("invited"));
-		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
-		const organizationId = randomId();
-
-		await db.insert(organization).values({
-			id: organizationId,
-			name: "Acme",
-			slug: randomSlug("acme"),
-			createdAt: new Date(),
-		});
-
-		await db.insert(ssoProvider).values({
-			id: randomId(),
-			providerId: "oidc-acme",
-			organizationId,
-			userId: inviterId,
-			issuer: "https://issuer.example.com",
-			domain: "example.com",
-		});
-
-		await db.insert(invitation).values({
-			id: randomId(),
-			organizationId,
-			email: "invited@example.com",
-			role: "member",
-			status: "pending",
-			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-			createdAt: new Date(),
-			inviterId,
-		});
-
-		const ctx = createMockSsoCallbackContext("oidc-acme");
-		const membership = await createUserDefaultOrg(invitedUserId, ctx);
-
-		expect(membership.organizationId).toBe(organizationId);
-		expect(membership.role).toBe("member");
-
-		const updatedInvitations = await db.select().from(invitation).where(eq(invitation.organizationId, organizationId));
-		const updatedInvitation = updatedInvitations.find((i) => i.email === "invited@example.com");
-		expect(updatedInvitation?.status).toBe("accepted");
-	});
-
-	test("blocks SSO callback users without pending invitations", async () => {
-		const userId = await createUser("new-user@example.com", randomSlug("new-user"));
-		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
-		const organizationId = randomId();
-
-		await db.insert(organization).values({
-			id: organizationId,
-			name: "Acme",
-			slug: randomSlug("acme"),
-			createdAt: new Date(),
-		});
-
-		await db.insert(ssoProvider).values({
-			id: randomId(),
-			providerId: "oidc-acme",
-			organizationId,
-			userId: inviterId,
-			issuer: "https://issuer.example.com",
-			domain: "example.com",
-		});
-
-		const ctx = createMockSsoCallbackContext("oidc-acme");
-		expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
-	});
-
-	test("blocks existing users with a personal org from SSO orgs they were not invited to", async () => {
-		const userId = await createUser("alice@example.com", randomSlug("alice"));
-		const inviterId = await createUser("inviter@example.com", randomSlug("inviter"));
-
-		const personalOrgId = randomId();
-		await db.insert(organization).values({
-			id: personalOrgId,
-			name: "Alice's Workspace",
-			slug: randomSlug("alice"),
-			createdAt: new Date(),
-		});
-		await db.insert(member).values({
-			id: randomId(),
-			userId,
-			organizationId: personalOrgId,
-			role: "owner",
-			createdAt: new Date(),
-		});
-
-		const ssoOrgId = randomId();
-		await db.insert(organization).values({
-			id: ssoOrgId,
-			name: "Acme Corp",
-			slug: randomSlug("acme"),
-			createdAt: new Date(),
-		});
-		await db.insert(ssoProvider).values({
-			id: randomId(),
-			providerId: "oidc-acme",
-			organizationId: ssoOrgId,
-			userId: inviterId,
-			issuer: "https://issuer.example.com",
-			domain: "example.com",
-		});
-
-		const ctx = createMockSsoCallbackContext("oidc-acme");
-		await expect(createUserDefaultOrg(userId, ctx)).rejects.toThrow("invite-only");
 	});
 
 	test("returns existing membership without creating another workspace", async () => {
@@ -177,7 +51,7 @@ describe("createUserDefaultOrg", () => {
 			createdAt: new Date(),
 		});
 
-		const membership = await createUserDefaultOrg(userId, null);
+		const membership = await ensureDefaultOrg(userId);
 
 		expect(membership.organizationId).toBe(organizationId);
 		expect(membership.role).toBe("owner");
@@ -189,10 +63,10 @@ describe("createUserDefaultOrg", () => {
 		expect(organizations.length).toBe(1);
 	});
 
-	test("creates personal workspace for non-SSO flows", async () => {
+	test("creates personal workspace for new users", async () => {
 		const userId = await createUser("local-user@example.com", randomSlug("local-user"));
 
-		const membership = await createUserDefaultOrg(userId, null);
+		const membership = await ensureDefaultOrg(userId);
 
 		expect(membership.role).toBe("owner");
 		expect(membership.organization.name).toContain("Workspace");

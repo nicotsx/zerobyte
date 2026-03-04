@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { CreateSsoProviderPage } from "~/client/modules/settings/routes/create-sso-provider";
+import { CreateSsoProviderPage } from "~/client/modules/sso/routes/create-sso-provider";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 
 export const Route = createFileRoute("/(dashboard)/settings/sso/new")({
