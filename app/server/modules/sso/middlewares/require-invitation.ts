@@ -1,8 +1,8 @@
 import { APIError } from "better-auth/api";
 import type { GenericEndpointContext } from "better-auth";
 import { logger } from "~/server/utils/logger";
-import { extractProviderIdFromContext } from "../utils/sso-context";
-import { authService } from "~/server/modules/auth/auth.service";
+import { extractProviderIdFromContext } from "~/server/modules/sso/utils/sso-context";
+import { ssoService } from "~/server/modules/sso/sso.service";
 
 export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpointContext | null) => {
 	if (!ctx) {
@@ -14,14 +14,14 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 		throw new APIError("BAD_REQUEST", { message: "Missing providerId in context" });
 	}
 
-	const provider = await authService.getSsoProviderById(providerId);
+	const provider = await ssoService.getSsoProviderById(providerId);
 	if (!provider) {
 		throw new APIError("NOT_FOUND", { message: "SSO provider not found" });
 	}
 
 	logger.debug("Checking for pending invitations", { organizationId: provider.organizationId });
 
-	const pendingInvitation = await authService.getPendingInvitation(provider.organizationId, userEmail);
+	const pendingInvitation = await ssoService.getPendingInvitation(provider.organizationId, userEmail);
 
 	logger.debug("Pending invitation result", { found: !!pendingInvitation, invitationId: pendingInvitation?.id });
 

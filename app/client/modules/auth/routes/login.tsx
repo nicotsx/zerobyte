@@ -10,13 +10,12 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
-import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/auth-errors";
+import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { getPublicSsoProvidersOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { cn } from "~/client/lib/utils";
+import { SsoLoginSection } from "~/client/modules/sso/components/sso-login-section";
 
 const loginSchema = type({
 	username: "2<=string<=50",
@@ -39,10 +38,6 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const [trustDevice, setTrustDevice] = useState(false);
 	const errorCode = decodeLoginError(error);
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
-
-	const { data: ssoProviders } = useSuspenseQuery({
-		...getPublicSsoProvidersOptions(),
-	});
 
 	const form = useForm<LoginFormValues>({
 		resolver: arktypeResolver(loginSchema),
@@ -128,27 +123,6 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		setTrustDevice(false);
 		form.reset();
 	};
-
-	const ssoLoginMutation = useMutation({
-		mutationFn: async (providerId: string) => {
-			const callbackPath = "/login";
-			const { data, error } = await authClient.signIn.sso({
-				providerId: providerId,
-				callbackURL: callbackPath,
-				errorCallbackURL: "/api/v1/auth/login-error",
-			});
-			if (error) throw error;
-
-			return data;
-		},
-		onSuccess: (data) => {
-			window.location.href = data.url;
-		},
-		onError: (error) => {
-			console.error(error);
-			toast.error("SSO Login failed", { description: error.message });
-		},
-	});
 
 	if (requires2FA) {
 		return (
@@ -265,26 +239,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				</form>
 			</Form>
 
-			{ssoProviders.providers.length > 0 && (
-				<div className="pt-4 border-t border-border/60 space-y-3">
-					<p className="text-sm font-medium">Alternative Sign-in</p>
-					<div className="flex flex-col gap-2">
-						{ssoProviders.providers.map((provider) => (
-							<Button
-								key={provider.providerId}
-								type="button"
-								variant="outline"
-								className="w-full"
-								loading={ssoLoginMutation.isPending}
-								disabled={ssoLoginMutation.isPending}
-								onClick={() => ssoLoginMutation.mutate(provider.providerId)}
-							>
-								Log in with {provider.providerId}
-							</Button>
-						))}
-					</div>
-				</div>
-			)}
+			<SsoLoginSection />
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

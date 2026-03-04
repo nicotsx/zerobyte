@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { authService } from "../auth.service";
+import { ssoService } from "../sso.service";
 
 function randomId() {
 	return Bun.randomUUIDv7();
@@ -37,7 +37,7 @@ async function createOrganization(name: string) {
 	return id;
 }
 
-describe("authService.deleteSsoProvider", () => {
+describe("ssoService.deleteSsoProvider", () => {
 	beforeEach(async () => {
 		await db.delete(member);
 		await db.delete(account);
@@ -71,7 +71,7 @@ describe("authService.deleteSsoProvider", () => {
 			userId: accountUser,
 		});
 
-		const deleted = await authService.deleteSsoProvider(providerId, orgA);
+		const deleted = await ssoService.deleteSsoProvider(providerId, orgA);
 
 		expect(deleted).toBe(false);
 
@@ -120,7 +120,7 @@ describe("authService.deleteSsoProvider", () => {
 			},
 		]);
 
-		const deleted = await authService.deleteSsoProvider(providerId, org);
+		const deleted = await ssoService.deleteSsoProvider(providerId, org);
 
 		expect(deleted).toBe(true);
 
@@ -158,7 +158,7 @@ describe("authService.deleteSsoProvider", () => {
 			userId: credentialUser,
 		});
 
-		const deleted = await authService.deleteSsoProvider("credential", org);
+		const deleted = await ssoService.deleteSsoProvider("credential", org);
 
 		expect(deleted).toBe(true);
 
