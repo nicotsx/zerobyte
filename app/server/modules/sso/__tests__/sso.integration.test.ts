@@ -38,6 +38,22 @@ async function createUser(email: string, username: string) {
 	return userId;
 }
 
+async function createUserWithCredentialAccount(email: string, username: string) {
+	const userId = await createUser(email, username);
+
+	await db.insert(account).values({
+		id: randomId(),
+		accountId: username,
+		providerId: "credential",
+		userId,
+		password: "test-password-hash",
+		createdAt: new Date(),
+		updatedAt: new Date(),
+	});
+
+	return userId;
+}
+
 describe("ssoIntegration.resolveOrgMembership", () => {
 	beforeEach(async () => {
 		await db.delete(member);
@@ -327,5 +343,143 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 
 		const [updatedInvitation] = await db.select().from(invitation).where(eq(invitation.organizationId, invitedOrgId));
 		expect(updatedInvitation.status).toBe("accepted");
+	});
+});
+
+describe("ssoIntegration.canLinkSsoAccount", () => {
+	beforeEach(async () => {
+		await db.delete(member);
+		await db.delete(account);
+		await db.delete(invitation);
+		await db.delete(ssoProvider);
+		await db.delete(organization);
+		await db.delete(usersTable);
+	});
+
+	async function setupOrgWithProvider(providerId: string, autoLinkMatchingEmails = false) {
+		const orgId = randomId();
+		const ownerId = await createUser(`owner-${randomSlug("u")}@example.com`, randomSlug("owner"));
+		await db.insert(organization).values({ id: orgId, name: "Acme", slug: randomSlug("acme"), createdAt: new Date() });
+		await db.insert(ssoProvider).values({
+			id: randomId(),
+			providerId,
+			organizationId: orgId,
+			userId: ownerId,
+			issuer: "https://issuer.example.com",
+			domain: "example.com",
+			autoLinkMatchingEmails,
+		});
+		return { orgId, ownerId };
+	}
+
+	const autoLinkingStates = [false, true] as const;
+
+	test("allows linking for a user who is already a member of the org", async () => {
+		const { orgId } = await setupOrgWithProvider("oidc-acme");
+		const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+		await db.insert(member).values({
+			id: randomId(),
+			userId,
+			organizationId: orgId,
+			role: "member",
+			createdAt: new Date(),
+		});
+
+		const allowed = await ssoIntegration.canLinkSsoAccount(userId, "oidc-acme");
+
+		expect(allowed).toBe(true);
+	});
+
+	for (const autoLinkingEnabled of autoLinkingStates) {
+		test(`allows linking for a new SSO user with a valid pending invitation (auto-linking ${autoLinkingEnabled ? "enabled" : "disabled"})`, async () => {
+			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
+			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
+			const userId = await createUser("alice@example.com", randomSlug("alice"));
+			await db.insert(invitation).values({
+				id: randomId(),
+				organizationId: orgId,
+				email: "alice@example.com",
+				role: "member",
+				status: "pending",
+				expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+				createdAt: new Date(),
+				inviterId: ownerId,
+			});
+
+			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
+
+			expect(allowed).toBe(true);
+		});
+
+		test(`blocks linking for an existing user account even with a pending invitation (auto-linking ${autoLinkingEnabled ? "enabled" : "disabled"})`, async () => {
+			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
+			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
+			const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+			await db.insert(invitation).values({
+				id: randomId(),
+				organizationId: orgId,
+				email: "alice@example.com",
+				role: "member",
+				status: "pending",
+				expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+				createdAt: new Date(),
+				inviterId: ownerId,
+			});
+
+			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
+
+			expect(allowed).toBe(false);
+		});
+	}
+
+	test("blocks linking for a user with no membership and no invitation in the org", async () => {
+		await setupOrgWithProvider("oidc-acme");
+		const aliceId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+
+		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+
+		expect(allowed).toBe(false);
+	});
+
+	test("blocks linking when the user only has an invitation to a different org", async () => {
+		const { ownerId } = await setupOrgWithProvider("oidc-acme");
+		const otherOrgId = randomId();
+		await db
+			.insert(organization)
+			.values({ id: otherOrgId, name: "Other", slug: randomSlug("other"), createdAt: new Date() });
+		const aliceId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId: otherOrgId,
+			email: "alice@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+			createdAt: new Date(),
+			inviterId: ownerId,
+		});
+
+		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+
+		expect(allowed).toBe(false);
+	});
+
+	test("blocks linking when the user's invitation to the org has expired", async () => {
+		const { orgId, ownerId } = await setupOrgWithProvider("oidc-acme");
+		const aliceId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+		await db.insert(invitation).values({
+			id: randomId(),
+			organizationId: orgId,
+			email: "alice@example.com",
+			role: "member",
+			status: "pending",
+			expiresAt: new Date(Date.now() - 60 * 60 * 1000), // expired
+			createdAt: new Date(),
+			inviterId: ownerId,
+		});
+
+		const allowed = await ssoIntegration.canLinkSsoAccount(aliceId, "oidc-acme");
+
+		expect(allowed).toBe(false);
 	});
 });

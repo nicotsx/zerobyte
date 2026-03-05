@@ -6,6 +6,12 @@ const INVITE_REQUIRED_ERRORS = new Set([
 	"unable to create session",
 ]);
 
+const ACCOUNT_LINK_REQUIRED_ERRORS = new Set([
+	"account not linked",
+	"unable to link account",
+	"SSO account linking is not permitted for users outside this organization",
+]);
+
 export function mapAuthErrorToCode(error: string): LoginErrorCode {
 	let decoded: string;
 
@@ -15,7 +21,7 @@ export function mapAuthErrorToCode(error: string): LoginErrorCode {
 		return "SSO_LOGIN_FAILED";
 	}
 
-	if (decoded === "account not linked") {
+	if (ACCOUNT_LINK_REQUIRED_ERRORS.has(decoded)) {
 		return "ACCOUNT_LINK_REQUIRED";
 	}
 

@@ -69,7 +69,7 @@ describe("LoginPage", () => {
 
 		expect(
 			await screen.findByText(
-				"Your account exists but is not linked to this SSO provider. Sign in with username/password first, then enable auto linking in your provider settings or contact your administrator.",
+				"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict.",
 			),
 		).toBeTruthy();
 	});

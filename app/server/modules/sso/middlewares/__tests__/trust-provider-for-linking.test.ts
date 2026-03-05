@@ -76,17 +76,25 @@ describe("resolveTrustedProvidersForRequest", () => {
 		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/missing-provider"))).toEqual([]);
 	});
 
-	test("returns auto-link-enabled providers from the callback provider organization", async () => {
-		const { organizationId, userId } = await createSsoProviderRecord("pocket-id", true);
+	test.each([
+		{ callbackAutoLinking: true, sameOrgAutoLinking: true, expected: ["acme-saml", "pocket-id"] },
+		{ callbackAutoLinking: false, sameOrgAutoLinking: true, expected: ["acme-saml"] },
+		{ callbackAutoLinking: true, sameOrgAutoLinking: false, expected: ["pocket-id"] },
+		{ callbackAutoLinking: false, sameOrgAutoLinking: false, expected: [] },
+	])(
+		"returns trusted providers matrix (callback: $callbackAutoLinking, same-org: $sameOrgAutoLinking)",
+		async ({ callbackAutoLinking, sameOrgAutoLinking, expected }) => {
+			const { organizationId, userId } = await createSsoProviderRecord("pocket-id", callbackAutoLinking);
 
-		await createSsoProviderRecord("acme-saml", true, { organizationId, userId });
-		await createSsoProviderRecord("acme-disabled", false, { organizationId, userId });
-		await createSsoProviderRecord("other-org-provider", true);
+			await createSsoProviderRecord("acme-saml", sameOrgAutoLinking, { organizationId, userId });
+			await createSsoProviderRecord("acme-disabled", false, { organizationId, userId });
+			await createSsoProviderRecord("other-org-provider", true);
 
-		const trustedProviders = await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"));
+			const trustedProviders = await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"));
 
-		expect([...trustedProviders].sort()).toEqual(["acme-saml", "pocket-id"]);
-	});
+			expect([...trustedProviders].sort()).toEqual([...expected]);
+		},
+	);
 
 	test("supports /sso/saml2/callback/:providerId paths", async () => {
 		await createSsoProviderRecord("saml-provider", true);
@@ -112,7 +120,7 @@ describe("resolveTrustedProvidersForRequest", () => {
 		]);
 	});
 
-	test("removes providers from the result when auto-linking is disabled", async () => {
+	test("updates trusted providers immediately when callback provider auto-linking is toggled", async () => {
 		await createSsoProviderRecord("pocket-id", true);
 
 		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual(["pocket-id"]);

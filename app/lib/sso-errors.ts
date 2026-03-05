@@ -11,7 +11,7 @@ export type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
 export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 	switch (errorCode) {
 		case "ACCOUNT_LINK_REQUIRED":
-			return "Your account exists but is not linked to this SSO provider. Sign in with username/password first, then enable auto linking in your provider settings or contact your administrator.";
+			return "SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict.";
 		case "EMAIL_NOT_VERIFIED":
 			return "Your identity provider did not mark your email as verified.";
 		case "INVITE_REQUIRED":

@@ -5,6 +5,7 @@ import {
 	type MiddlewareContext,
 	type MiddlewareOptions,
 } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
 import { createAuthMiddleware } from "better-auth/api";
@@ -58,6 +59,20 @@ export const auth = betterAuth({
 		provider: "sqlite",
 	}),
 	databaseHooks: {
+		account: {
+			create: {
+				before: async (account, ctx) => {
+					if (ssoIntegration.isSsoCallback(ctx)) {
+						const allowed = await ssoIntegration.canLinkSsoAccount(account.userId, account.providerId);
+						if (!allowed) {
+							throw new APIError("FORBIDDEN", {
+								message: "SSO account linking is not permitted for users outside this organization",
+							});
+						}
+					}
+				},
+			},
+		},
 		user: {
 			delete: {
 				before: async (user) => {

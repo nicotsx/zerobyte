@@ -47,7 +47,7 @@ async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext 
 		throw new APIError("FORBIDDEN", { message: "SSO sign-in is invite-only for this organization" });
 	}
 
-	await db.transaction(async (tx) => {
+	db.transaction((tx) => {
 		tx.insert(member)
 			.values({
 				id: Bun.randomUUIDv7(),
@@ -80,6 +80,39 @@ async function onUserCreate(
 ) {
 	await requireSsoInvitation(user.email, ctx);
 	user.hasDownloadedResticPassword = true;
+}
+
+async function canLinkSsoAccount(userId: string, providerId: string): Promise<boolean> {
+	const ssoProviderRecord = await ssoService.getSsoProviderById(providerId);
+	if (!ssoProviderRecord) {
+		return false;
+	}
+
+	const existingMembership = await findMembershipWithOrganization(userId, ssoProviderRecord.organizationId);
+	if (existingMembership) {
+		return true;
+	}
+
+	const existingAccount = await db.query.account.findFirst({
+		where: { userId },
+		columns: { id: true },
+	});
+
+	if (existingAccount) {
+		return false;
+	}
+
+	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
+	if (!user) {
+		return false;
+	}
+
+	const pendingInvitation = await ssoService.getPendingInvitation(
+		ssoProviderRecord.organizationId,
+		normalizeEmail(user.email),
+	);
+
+	return !!pendingInvitation;
 }
 
 async function resolveOrgMembershipOrThrow(userId: string, ctx: GenericEndpointContext | null) {
@@ -121,6 +154,8 @@ export const ssoIntegration = {
 	resolveOrgMembershipOrThrow,
 
 	resolveOrgMembership,
+
+	canLinkSsoAccount,
 
 	resolveTrustedProviders: resolveTrustedProvidersForRequest,
 };
