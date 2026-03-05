@@ -87,22 +87,26 @@ export class AuthService {
 			return;
 		}
 
-		await db.transaction(async (tx) => {
-			const membersInDeletedOrgs = await tx
-				.select({ userId: member.userId })
-				.from(member)
-				.where(and(inArray(member.organizationId, orgIds), ne(member.userId, userId)));
+		db.transaction((tx) => {
+			const membersInDeletedOrgs = tx.query.member
+				.findMany({
+					where: {
+						AND: [{ organizationId: { in: orgIds } }, { userId: { ne: userId } }],
+					},
+					columns: { userId: true },
+				})
+				.sync();
 
 			const affectedUserIds = [...new Set(membersInDeletedOrgs.map((r) => r.userId))];
 
 			if (affectedUserIds.length > 0) {
-				const memberships = await tx
-					.select({
-						userId: member.userId,
-						organizationId: member.organizationId,
+				const memberships = tx.query.member
+					.findMany({
+						where: {
+							userId: { in: affectedUserIds },
+						},
 					})
-					.from(member)
-					.where(inArray(member.userId, affectedUserIds));
+					.sync();
 
 				const orgIdSet = new Set(orgIds);
 				const fallbackOrgByUser = new Map<string, string | null>(affectedUserIds.map((id) => [id, null]));
@@ -114,19 +118,19 @@ export class AuthService {
 				}
 
 				for (const [affectedUserId, fallbackOrgId] of fallbackOrgByUser) {
-					await tx
-						.update(sessionsTable)
+					tx.update(sessionsTable)
 						.set({ activeOrganizationId: fallbackOrgId })
-						.where(and(eq(sessionsTable.userId, affectedUserId), inArray(sessionsTable.activeOrganizationId, orgIds)));
+						.where(and(eq(sessionsTable.userId, affectedUserId), inArray(sessionsTable.activeOrganizationId, orgIds)))
+						.run();
 				}
 			}
 
-			await tx.delete(organization).where(inArray(organization.id, orgIds));
+			tx.delete(organization).where(inArray(organization.id, orgIds)).run();
 
-			await tx
-				.update(sessionsTable)
+			tx.update(sessionsTable)
 				.set({ activeOrganizationId: null })
-				.where(inArray(sessionsTable.activeOrganizationId, orgIds));
+				.where(inArray(sessionsTable.activeOrganizationId, orgIds))
+				.run();
 		});
 	}
 
@@ -216,29 +220,31 @@ export class AuthService {
 			return { found: true, isOwner: true } as const;
 		}
 
-		await db.transaction(async (tx) => {
-			const fallbackMembership = await tx.query.member.findFirst({
-				where: {
-					AND: [{ userId: targetMember.userId }, { organizationId: { ne: organizationId } }],
-				},
-				columns: { organizationId: true },
-			});
+		db.transaction((tx) => {
+			const fallbackMembership = tx.query.member
+				.findFirst({
+					where: {
+						AND: [{ userId: targetMember.userId }, { organizationId: { ne: organizationId } }],
+					},
+					columns: { organizationId: true },
+				})
+				.sync();
 
-			await tx.delete(member).where(eq(member.id, memberId));
+			tx.delete(member).where(eq(member.id, memberId)).run();
 
 			if (fallbackMembership?.organizationId) {
-				await tx
-					.update(sessionsTable)
+				tx.update(sessionsTable)
 					.set({
 						activeOrganizationId: fallbackMembership.organizationId,
 					})
 					.where(
 						and(eq(sessionsTable.userId, targetMember.userId), eq(sessionsTable.activeOrganizationId, organizationId)),
-					);
+					)
+					.run();
 				return;
 			}
 
-			await tx.delete(sessionsTable).where(eq(sessionsTable.userId, targetMember.userId));
+			tx.delete(sessionsTable).where(eq(sessionsTable.userId, targetMember.userId)).run();
 		});
 
 		return { found: true, isOwner: false } as const;
@@ -261,29 +267,33 @@ export class AuthService {
 	 * Delete a single account for a user, refusing if it is the last one
 	 */
 	async deleteUserAccount(userId: string, accountId: string) {
-		return db.transaction(async (tx) => {
-			const [targetAccount] = await tx
-				.select({ id: account.id })
-				.from(account)
-				.where(and(eq(account.id, accountId), eq(account.userId, userId)))
-				.limit(1);
+		return db.transaction((tx) => {
+			const targetAccount = tx.query.account
+				.findFirst({
+					where: {
+						AND: [{ id: accountId }, { userId }],
+					},
+				})
+				.sync();
 
 			if (!targetAccount) {
 				return { lastAccount: false, notFound: true };
 			}
 
-			const userAccounts = await tx.query.account.findMany({
-				where: { userId },
-				columns: { id: true },
-			});
+			const userAccounts = tx.query.account
+				.findMany({
+					where: { userId },
+					columns: { id: true },
+				})
+				.sync();
 
 			if (userAccounts.length <= 1) {
 				return { lastAccount: true, notFound: false };
 			}
 
-			await tx.delete(account).where(and(eq(account.id, accountId), eq(account.userId, userId)));
-			// Sessions cannot be tied to a specific account/provider with the current schema,
-			// so keep active sessions intact when unlinking a single account.
+			tx.delete(account)
+				.where(and(eq(account.id, accountId), eq(account.userId, userId)))
+				.run();
 
 			return { lastAccount: false, notFound: false };
 		});

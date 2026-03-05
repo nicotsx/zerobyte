@@ -57,7 +57,7 @@ async function createDefaultOrganizationMembership(user: User) {
 	logger.debug("Creating default organization for user", { userId: user.id });
 	const organizationData = await buildDefaultOrganizationData(user);
 
-	await db.transaction(async (tx) => {
+	db.transaction((tx) => {
 		tx.insert(organization).values(organizationData).run();
 
 		tx.insert(member)
