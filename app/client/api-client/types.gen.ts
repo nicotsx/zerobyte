@@ -1985,6 +1985,31 @@ export type GetRepositoryStatsResponses = {
 
 export type GetRepositoryStatsResponse = GetRepositoryStatsResponses[keyof GetRepositoryStatsResponses];
 
+export type RefreshRepositoryStatsData = {
+    body?: never;
+    path: {
+        shortId: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{shortId}/stats/refresh';
+};
+
+export type RefreshRepositoryStatsResponses = {
+    /**
+     * Refreshed repository statistics
+     */
+    200: {
+        compression_progress?: number;
+        compression_ratio?: number;
+        compression_space_saving?: number;
+        snapshots_count?: number;
+        total_size?: number;
+        total_uncompressed_size?: number;
+    };
+};
+
+export type RefreshRepositoryStatsResponse = RefreshRepositoryStatsResponses[keyof RefreshRepositoryStatsResponses];
+
 export type DeleteSnapshotsData = {
     body: {
         snapshotIds: Array<string>;

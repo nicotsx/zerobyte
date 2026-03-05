@@ -108,7 +108,6 @@ export const createCache = (options: CacheOptions = {}) => {
 export const cacheKeys = {
 	repository: {
 		all: (repositoryId: string) => `repo:${repositoryId}:`,
-		stats: (repositoryId: string) => `repo:${repositoryId}:stats`,
 		snapshots: (repositoryId: string, backupId = "all") => `repo:${repositoryId}:snapshots:${backupId}`,
 		ls: (repositoryId: string, snapshotId: string, path = "root", offset: number, limit: number) =>
 			`repo:${repositoryId}:ls:${snapshotId}:${path}:${offset}:${limit}`,

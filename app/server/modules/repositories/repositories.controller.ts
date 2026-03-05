@@ -14,6 +14,7 @@ import {
 	cancelDoctorDto,
 	getRepositoryDto,
 	getRepositoryStatsDto,
+	refreshRepositoryStatsDto,
 	getSnapshotDetailsDto,
 	refreshSnapshotsDto,
 	listRcloneRemotesDto,
@@ -40,6 +41,7 @@ import {
 	type CancelDoctorDto,
 	type GetRepositoryDto,
 	type GetRepositoryStatsDto,
+	type RefreshRepositoryStatsDto,
 	type GetSnapshotDetailsDto,
 	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
@@ -97,6 +99,12 @@ export const repositoriesController = new Hono()
 		const stats = await repositoriesService.getRepositoryStats(shortId);
 
 		return c.json<GetRepositoryStatsDto>(stats, 200);
+	})
+	.post("/:shortId/stats/refresh", refreshRepositoryStatsDto, async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const stats = await repositoriesService.refreshRepositoryStats(shortId);
+
+		return c.json<RefreshRepositoryStatsDto>(stats, 200);
 	})
 	.delete("/:shortId", deleteRepositoryDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

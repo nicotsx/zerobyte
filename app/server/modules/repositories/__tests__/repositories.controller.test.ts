@@ -73,6 +73,7 @@ describe("repositories security", () => {
 			{ method: "GET", path: "/api/v1/repositories/rclone-remotes" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/stats" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/stats/refresh" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/refresh" },
@@ -138,6 +139,18 @@ describe("repositories security", () => {
 		test("should return 404 for stats of non-existent repository", async () => {
 			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo/stats", {
+				headers,
+			});
+
+			expect(res.status).toBe(404);
+			const body = await res.json();
+			expect(body.message).toBe("Repository not found");
+		});
+
+		test("should return 404 for stats refresh of non-existent repository", async () => {
+			const { headers } = await createTestSession();
+			const res = await app.request("/api/v1/repositories/non-existent-repo/stats/refresh", {
+				method: "POST",
 				headers,
 			});
 
