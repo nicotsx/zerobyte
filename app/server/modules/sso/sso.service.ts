@@ -68,32 +68,36 @@ export class SsoService {
 	 * Delete an SSO provider and its associated accounts
 	 */
 	async deleteSsoProvider(providerId: string, organizationId: string) {
-		return db.transaction(async (tx) => {
-			const provider = await tx.query.ssoProvider.findFirst({
-				where: { AND: [{ providerId }, { organizationId }] },
-				columns: { id: true, providerId: true },
-			});
+		return db.transaction((tx) => {
+			const provider = tx.query.ssoProvider
+				.findFirst({
+					where: { AND: [{ providerId }, { organizationId }] },
+					columns: { id: true, providerId: true },
+				})
+				.sync();
 
 			if (!provider) {
 				return false;
 			}
 
 			if (isReservedSsoProviderId(provider.providerId)) {
-				await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
+				tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id)).run();
 				return true;
 			}
 
-			const affectedAccounts = await tx.query.account.findMany({
-				where: { providerId: provider.providerId },
-				columns: { userId: true },
-			});
+			const affectedAccounts = tx.query.account
+				.findMany({
+					where: { providerId: provider.providerId },
+					columns: { userId: true },
+				})
+				.sync();
 			const affectedUserIds = [...new Set(affectedAccounts.map((row) => row.userId))];
 
-			await tx.delete(account).where(eq(account.providerId, provider.providerId));
-			await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
+			tx.delete(account).where(eq(account.providerId, provider.providerId)).run();
+			tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id)).run();
 
 			if (affectedUserIds.length > 0) {
-				await tx.delete(sessionsTable).where(inArray(sessionsTable.userId, affectedUserIds));
+				tx.delete(sessionsTable).where(inArray(sessionsTable.userId, affectedUserIds)).run();
 			}
 
 			return true;
