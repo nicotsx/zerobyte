@@ -132,6 +132,25 @@ export const getRepositoryStatsDto = describeRoute({
 	},
 });
 
+export const refreshRepositoryStatsResponse = repositoryStatsSchema;
+export type RefreshRepositoryStatsDto = typeof refreshRepositoryStatsResponse.infer;
+
+export const refreshRepositoryStatsDto = describeRoute({
+	description: "Refresh repository storage and compression statistics",
+	tags: ["Repositories"],
+	operationId: "refreshRepositoryStats",
+	responses: {
+		200: {
+			description: "Refreshed repository statistics",
+			content: {
+				"application/json": {
+					schema: resolver(refreshRepositoryStatsResponse),
+				},
+			},
+		},
+	},
+});
+
 /**
  * Delete a repository
  */
