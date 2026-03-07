@@ -64,9 +64,9 @@ export type DeleteUserAccountData = {
 
 export type DeleteUserAccountErrors = {
     /**
-     * Forbidden
+     * Account not found
      */
-    403: unknown;
+    404: unknown;
     /**
      * Cannot delete the last account
      */
