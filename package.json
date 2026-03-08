@@ -73,7 +73,6 @@
 		"isbot": "^5.1.35",
 		"lucide-react": "^0.575.0",
 		"next-themes": "^0.4.6",
-		"node-cron": "^4.2.1",
 		"qrcode.react": "^4.2.0",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",

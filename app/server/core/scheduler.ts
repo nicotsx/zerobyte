@@ -11,27 +11,37 @@ class ScheduledTask {
 	private timer: ReturnType<typeof setTimeout> | null = null;
 	private active = true;
 	private running = false;
+	private readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
 
 	constructor(
 		private readonly jobName: string,
 		private readonly cronExpression: string,
 		private readonly run: () => Promise<void>,
 	) {
+		CronExpressionParser.parse(this.cronExpression);
 		this.scheduleNext();
 	}
 
 	private getDelay(fromDate: Date) {
-		try {
-			const interval = CronExpressionParser.parse(this.cronExpression, {
-				currentDate: fromDate,
-				tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
-			});
-			const nextRun = interval.next().toDate();
-			return Math.max(0, nextRun.getTime() - Date.now());
-		} catch (error) {
-			logger.error(`Failed to parse cron expression for ${this.jobName}:`, error);
-			return 60_000;
+		const interval = CronExpressionParser.parse(this.cronExpression, {
+			currentDate: fromDate,
+			tz: this.timeZone,
+		});
+		const nextRun = interval.next().toDate();
+		return Math.max(0, nextRun.getTime() - Date.now());
+	}
+
+	private clearTimer() {
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
 		}
+	}
+
+	private stopScheduling(error: unknown) {
+		this.active = false;
+		this.clearTimer();
+		logger.error(`Stopping scheduled job ${this.jobName} after cron parsing failed:`, error);
 	}
 
 	private scheduleNext(fromDate = new Date()) {
@@ -45,10 +55,17 @@ class ScheduledTask {
 
 	private async tick() {
 		if (!this.active) return;
+		this.timer = null;
+
+		try {
+			this.scheduleNext(new Date());
+		} catch (error) {
+			this.stopScheduling(error);
+			return;
+		}
 
 		if (this.running) {
 			logger.warn(`Skipping overlapping run for job ${this.jobName}`);
-			this.scheduleNext(new Date());
 			return;
 		}
 
@@ -57,16 +74,12 @@ class ScheduledTask {
 			await this.run();
 		} finally {
 			this.running = false;
-			this.scheduleNext(new Date());
 		}
 	}
 
 	async stop() {
 		this.active = false;
-		if (this.timer) {
-			clearTimeout(this.timer);
-			this.timer = null;
-		}
+		this.clearTimer();
 	}
 
 	async destroy() {

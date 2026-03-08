@@ -1,6 +1,15 @@
 import { and, eq, inArray } from "drizzle-orm";
-import cron from "node-cron";
+import CronExpressionParser from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
+
+const isValidCron = (expression: string): boolean => {
+	try {
+		CronExpressionParser.parse(expression);
+		return true;
+	} catch {
+		return false;
+	}
+};
 import { db } from "../../db/db";
 import { backupScheduleMirrorsTable, backupScheduleNotificationsTable, backupSchedulesTable } from "../../db/schema";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
@@ -82,7 +91,7 @@ const getScheduleByIdOrShortId = async (idOrShortId: string | number) => {
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
-	if (!cron.validate(data.cronExpression)) {
+	if (!isValidCron(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
 	}
 
@@ -162,7 +171,7 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 		throw new NotFoundError("Backup schedule not found");
 	}
 
-	if (data.cronExpression && !cron.validate(data.cronExpression)) {
+	if (data.cronExpression && !isValidCron(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
 	}
 
