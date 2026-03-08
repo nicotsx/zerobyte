@@ -375,6 +375,7 @@ export const overwriteModeSchema = type.valueOf(OVERWRITE_MODES);
 export const restoreSnapshotBody = type({
 	snapshotId: "string",
 	include: "string[]?",
+	selectedItemKind: dumpPathKindSchema.optional(),
 	exclude: "string[]?",
 	excludeXattr: "string[]?",
 	delete: "boolean?",

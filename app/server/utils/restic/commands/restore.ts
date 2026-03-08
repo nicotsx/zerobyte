@@ -33,6 +33,7 @@ export const restore = async (
 		basePath?: string;
 		organizationId: string;
 		include?: string[];
+		selectedItemKind?: "file" | "dir";
 		exclude?: string[];
 		excludeXattr?: string[];
 		delete?: boolean;
@@ -47,7 +48,11 @@ export const restore = async (
 	let restoreArg = snapshotId;
 
 	const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
-	const commonAncestor = findCommonAncestor(includes);
+	const commonAncestor =
+		options.selectedItemKind === "file" && includes.length === 1
+			? path.posix.dirname(includes[0] ?? "/")
+			: findCommonAncestor(includes);
+
 	if (target !== "/") {
 		restoreArg = `${snapshotId}:${commonAncestor}`;
 	}
@@ -64,7 +69,7 @@ export const restore = async (
 				args.push("--include", pattern);
 			}
 		} else {
-			const strippedIncludes = options.include.map((pattern) => path.relative(commonAncestor, pattern));
+			const strippedIncludes = options.include.map((pattern) => path.posix.relative(commonAncestor, pattern));
 			const includesCoverRestoreRoot = strippedIncludes.some((pattern) => pattern === "" || pattern === ".");
 
 			if (!includesCoverRestoreRoot) {

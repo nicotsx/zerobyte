@@ -2240,6 +2240,7 @@ export type RestoreSnapshotData = {
         excludeXattr?: Array<string>;
         include?: Array<string>;
         overwrite?: 'always' | 'if-changed' | 'if-newer' | 'never';
+        selectedItemKind?: 'dir' | 'file';
         targetPath?: string;
     };
     path: {
