@@ -195,15 +195,28 @@ export const repositoriesController = new Hono()
 		const { path, kind } = c.req.valid("query");
 
 		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path, kind);
-		const signal = c.req.raw.signal;
+		const sourceStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+		const reader = sourceStream.getReader();
+		const webStream = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
 
-		if (signal.aborted) {
-			dumpStream.abort();
-		} else {
-			signal.addEventListener("abort", () => dumpStream.abort(), { once: true });
-		}
+					if (done) {
+						controller.close();
+						return;
+					}
 
-		const webStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+					controller.enqueue(value);
+				} catch (error) {
+					controller.error(error);
+				}
+			},
+			async cancel(reason) {
+				dumpStream.abort();
+				await reader.cancel(reason).catch(() => {});
+			},
+		});
 
 		return new Response(webStream, {
 			status: 200,

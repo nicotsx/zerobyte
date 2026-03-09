@@ -1,5 +1,6 @@
 import { test, describe, expect, spyOn } from "bun:test";
 import crypto from "node:crypto";
+import { PassThrough } from "node:stream";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
@@ -296,6 +297,44 @@ describe("repositories updates", () => {
 				expect(body.message).toContain("Command failed");
 			} finally {
 				deleteSnapshotSpy.mockRestore();
+			}
+		});
+	});
+
+	describe("dump snapshot", () => {
+		test("continues streaming a download after the request signal aborts", async () => {
+			const { headers, organizationId } = await createTestSession();
+			const repository = await createRepositoryRecord(organizationId);
+			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
+
+			const stream = new PassThrough();
+			const expectedContent = "downloaded snapshot contents";
+
+			const dumpSnapshotSpy = spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+				stream,
+				completion: Promise.resolve(),
+				abort: () => {
+					stream.destroy(new Error("download aborted"));
+				},
+				filename: "snapshot.txt",
+				contentType: "application/octet-stream",
+			});
+
+			try {
+				const controller = new AbortController();
+				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
+					headers,
+					signal: controller.signal,
+				});
+
+				queueMicrotask(() => {
+					controller.abort();
+					stream.end(expectedContent);
+				});
+
+				await expect(response.text()).resolves.toBe(expectedContent);
+			} finally {
+				dumpSnapshotSpy.mockRestore();
 			}
 		});
 	});
