@@ -10,6 +10,7 @@ import { DevPanelListener } from "./dev-panel-listener";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { AppBreadcrumb } from "./app-breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { ThemeToggle } from "./theme-toggle";
 
 type Props = {
 	loaderData: AppContext;
@@ -46,12 +47,13 @@ export function Layout({ loaderData }: Props) {
 								<span className="text-sm text-muted-foreground hidden md:inline-flex pl-2 mr-5">
 									<span className="text-foreground">{loaderData.user.name}</span>
 								</span>
+								<ThemeToggle />
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
 											variant="ghost"
 											size="icon"
-											className="rounded-full h-7 text-xs text-muted-foreground hover:text-white"
+											className="rounded-full h-7 text-xs text-muted-foreground hover:text-foreground"
 											onClick={handleLogout}
 										>
 											<LogOut className="w-4 h-4" />
@@ -64,7 +66,7 @@ export function Layout({ loaderData }: Props) {
 										<Button
 											variant="ghost"
 											size="icon"
-											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-white"
+											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-foreground"
 										>
 											<a
 												href="https://github.com/nicotsx/zerobyte/issues/new"

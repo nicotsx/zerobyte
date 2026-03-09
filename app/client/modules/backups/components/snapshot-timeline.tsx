@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardContent } from "~/client/components/ui/card";
@@ -15,6 +16,7 @@ interface Props {
 
 export const SnapshotTimeline = (props: Props) => {
 	const { snapshots, snapshotId, loading, onSnapshotSelect, error } = props;
+	const selectedRef = useRef<HTMLButtonElement>(null);
 
 	if (error) {
 		return (
@@ -51,13 +53,14 @@ export const SnapshotTimeline = (props: Props) => {
 			<div className="w-full bg-card">
 				<div className="relative flex items-center">
 					<div className="flex-1 overflow-hidden">
-						<div className="flex gap-4 overflow-x-auto pb-2 *:first:ml-2 *:last:mr-2">
+						<div className="snapshot-scrollable flex gap-4 overflow-x-auto pb-2 *:first:ml-2 *:last:mr-2">
 							{snapshots.map((snapshot) => {
 								const date = new Date(snapshot.time);
 								const isSelected = snapshotId === snapshot.short_id;
 
 								return (
 									<button
+										ref={isSelected ? selectedRef : undefined}
 										type="button"
 										key={snapshot.short_id}
 										onClick={() => onSnapshotSelect(snapshot.short_id)}

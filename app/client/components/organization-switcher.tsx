@@ -59,7 +59,7 @@ export function OrganizationSwitcher() {
 							size="lg"
 							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 						>
-							<div className="bg-black text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
+							<div className="bg-foreground text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg">
 								{activeOrganization?.logo ? (
 									<img
 										src={activeOrganization.logo}

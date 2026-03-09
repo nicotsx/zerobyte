@@ -115,7 +115,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 																/>
 																<span
 																	className={cn({
-																		"text-white font-medium": isActive,
+																		"text-foreground font-medium": isActive,
 																		"text-muted-foreground": !isActive,
 																	})}
 																>
@@ -171,7 +171,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 																	/>
 																	<span
 																		className={cn({
-																			"text-white font-medium": isActive,
+																			"text-foreground font-medium": isActive,
 																			"text-muted-foreground": !isActive,
 																		})}
 																	>

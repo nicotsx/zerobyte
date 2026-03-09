@@ -7,6 +7,7 @@ const flushMicrotasks = async () => {
 };
 
 const mockTimeZone = (timeZone: string) => {
+	// oxlint-disable-next-line typescript/unbound-method
 	const resolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
 	return spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(
 		function (this: Intl.DateTimeFormat) {

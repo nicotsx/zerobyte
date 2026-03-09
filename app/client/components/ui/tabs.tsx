@@ -37,11 +37,11 @@ function TabsTrigger({ className, onClick, ...props }: React.ComponentProps<type
 				// Padding: 20px horizontal (8px for bracket tick + 12px gap to text)
 				"px-5",
 				// Transparent orange background for active state
-				"data-[state=active]:bg-[#FF453A]/10",
+				"data-[state=active]:bg-strong-accent/10",
 				// Left bracket - vertical line
-				"before:absolute before:left-0 before:top-0 before:h-7 before:w-0.5 before:bg-[#5D6570] before:transition-colors data-[state=active]:before:bg-[#FF453A]",
+				"before:absolute before:left-0 before:top-0 before:h-7 before:w-0.5 before:bg-muted-foreground/60 before:transition-colors data-[state=active]:before:bg-strong-accent",
 				// Left bracket - top tick
-				"after:absolute after:left-0 after:-top-px after:w-2 after:h-0.5 after:bg-[#5D6570] after:transition-colors data-[state=active]:after:bg-[#FF453A]",
+				"after:absolute after:left-0 after:-top-px after:w-2 after:h-0.5 after:bg-muted-foreground/60 after:transition-colors data-[state=active]:after:bg-strong-accent",
 				className,
 			)}
 			onClick={handleClick}
@@ -49,13 +49,13 @@ function TabsTrigger({ className, onClick, ...props }: React.ComponentProps<type
 		>
 			<span className="relative z-10">{props.children}</span>
 			{/* Left bracket - bottom tick */}
-			<span className="absolute left-0 bottom-[-1px] h-0.5 w-2 bg-[#5D6570] transition-colors group-data-[state=active]:bg-[#FF453A]" />
+			<span className="absolute left-0 bottom-[-1px] h-0.5 w-2 bg-muted-foreground/60 transition-colors group-data-[state=active]:bg-strong-accent" />
 			{/* Right bracket - top tick */}
-			<span className="absolute right-0 top-[-1px] h-0.5 w-2 bg-[#5D6570] transition-colors group-data-[state=active]:bg-[#FF453A]" />
+			<span className="absolute right-0 top-[-1px] h-0.5 w-2 bg-muted-foreground/60 transition-colors group-data-[state=active]:bg-strong-accent" />
 			{/* Right bracket - vertical line */}
-			<span className="absolute right-0 top-0 h-7 w-0.5 bg-[#5D6570] transition-colors group-data-[state=active]:bg-[#FF453A]" />
+			<span className="absolute right-0 top-0 h-7 w-0.5 bg-muted-foreground/60 transition-colors group-data-[state=active]:bg-strong-accent" />
 			{/* Right bracket - bottom tick */}
-			<span className="absolute right-0 bottom-[-1px] h-0.5 w-2 bg-[#5D6570] transition-colors group-data-[state=active]:bg-[#FF453A]" />
+			<span className="absolute right-0 bottom-[-1px] h-0.5 w-2 bg-muted-foreground/60 transition-colors group-data-[state=active]:bg-strong-accent" />
 		</TabsPrimitive.Trigger>
 	);
 }

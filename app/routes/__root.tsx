@@ -6,10 +6,22 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
+import { ThemeProvider, THEME_COOKIE_NAME } from "~/client/components/theme-provider";
+import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
+
+const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
+	const themeCookie = getCookie(THEME_COOKIE_NAME);
+	return (themeCookie === "light" ? "light" : "dark") as "light" | "dark";
+});
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
 		middleware: [apiClientMiddleware],
+	},
+	loader: async () => {
+		const theme = await fetchTheme();
+		return { theme };
 	},
 	head: () => ({
 		meta: [{ title: "Zerobyte - Open Source Backup Solution" }],
@@ -35,6 +47,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootLayout() {
+	const { theme } = Route.useLoaderData();
 	useServerEvents();
 	useEffect(() => {
 		document.body.setAttribute("data-app-ready", "true");
@@ -44,7 +57,7 @@ function RootLayout() {
 	}, []);
 
 	return (
-		<html lang="en">
+		<html lang="en" className={theme === "dark" ? "dark" : undefined} style={{ colorScheme: theme }}>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
@@ -56,10 +69,12 @@ function RootLayout() {
 				<link rel="manifest" href="/images/favicon/site.webmanifest" />
 				<HeadContent />
 			</head>
-			<body className="dark">
-				<Outlet />
-				<Toaster />
-				<ReactQueryDevtools buttonPosition="bottom-right" />
+			<body>
+				<ThemeProvider initialTheme={theme}>
+					<Outlet />
+					<Toaster />
+					<ReactQueryDevtools buttonPosition="bottom-right" />
+				</ThemeProvider>
 				<Scripts />
 			</body>
 		</html>

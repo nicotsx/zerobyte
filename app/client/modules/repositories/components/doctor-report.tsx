@@ -41,7 +41,7 @@ export const DoctorReport = ({ result, repositoryStatus }: Props) => {
 							<CollapsibleTrigger className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
 								<span className="text-sm font-medium capitalize">{step.step.replaceAll("_", " ")}</span>
 								{step.success ? (
-									<CheckCircle2 className="h-4 w-4 text-emerald-500" />
+									<CheckCircle2 className="h-4 w-4 text-success" />
 								) : (
 									<AlertCircle className="h-4 w-4 text-red-500" />
 								)}

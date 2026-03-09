@@ -32,21 +32,21 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 				<CardContent className="flex-1 space-y-4">
 					<div className="space-y-3">
 						<div className="flex items-center text-sm gap-2">
-							<span className="text-zinc-500 shrink-0">Schedule</span>
-							<div className="flex-1 border-b border-dashed border-white/10" />
-							<code className="text-xs text-zinc-100 font-mono bg-muted px-2 py-1 rounded shrink-0">
+							<span className="text-muted-foreground shrink-0">Schedule</span>
+							<div className="flex-1 border-b border-dashed border-border/50" />
+							<code className="text-xs text-foreground font-mono bg-muted px-2 py-1 rounded shrink-0">
 								{schedule.cronExpression}
 							</code>
 						</div>
 						<div className="flex items-center text-sm gap-2">
-							<span className="text-zinc-500 shrink-0">Last backup</span>
-							<div className="flex-1 border-b border-dashed border-white/10" />
-							<span className="text-zinc-100 font-mono text-sm shrink-0">{formatTimeAgo(schedule.lastBackupAt)}</span>
+							<span className="text-muted-foreground shrink-0">Last backup</span>
+							<div className="flex-1 border-b border-dashed border-border/50" />
+							<span className="text-foreground font-mono text-sm shrink-0">{formatTimeAgo(schedule.lastBackupAt)}</span>
 						</div>
 						<div className="flex items-center text-sm gap-2">
-							<span className="text-zinc-500 shrink-0">Next backup</span>
-							<div className="flex-1 border-b border-dashed border-white/10" />
-							<span className="text-zinc-100 font-mono text-sm shrink-0">
+							<span className="text-muted-foreground shrink-0">Next backup</span>
+							<div className="flex-1 border-b border-dashed border-border/50" />
+							<span className="text-foreground font-mono text-sm shrink-0">
 								{formatShortDateTime(schedule.nextBackupAt)}
 							</span>
 						</div>
