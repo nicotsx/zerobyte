@@ -1,4 +1,5 @@
 import { runDbMigrations } from "../../db/db";
+import { agentManager, spawnLocalAgent } from "../agents/agents-manager";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
 
@@ -8,6 +9,8 @@ const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
 	await startup();
+	agentManager.start();
+	spawnLocalAgent();
 };
 
 export const bootstrapApplication = async () => {
