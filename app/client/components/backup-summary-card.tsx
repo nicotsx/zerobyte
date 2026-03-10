@@ -1,6 +1,6 @@
 import { Card, CardContent } from "~/client/components/ui/card";
 import { ByteSize } from "~/client/components/bytes-size";
-import type { ResticSnapshotSummaryDto } from "~/schemas/restic-dto";
+import type { ResticSnapshotSummaryDto } from "@zerobyte/core/restic";
 import { formatDuration } from "~/utils/utils";
 
 type Props = {

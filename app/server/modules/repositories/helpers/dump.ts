@@ -1,7 +1,6 @@
 import { BadRequestError } from "http-errors-enhanced";
 import path from "node:path";
-import { findCommonAncestor } from "~/utils/common-ancestor";
-import { normalizeAbsolutePath } from "~/utils/path";
+import { findCommonAncestor, normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 const sanitizeFilenamePart = (value: string): string => {
 	const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/^_+|_+$/g, "");

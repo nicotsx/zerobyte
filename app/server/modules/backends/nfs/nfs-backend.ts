@@ -3,7 +3,7 @@ import * as os from "node:os";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
 import { OPERATION_TIMEOUT } from "../../../core/constants";
 import { toMessage } from "../../../utils/errors";
-import { logger } from "../../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { getMountForPath } from "../../../utils/mountinfo";
 import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";

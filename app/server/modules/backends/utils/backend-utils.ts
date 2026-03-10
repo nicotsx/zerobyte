@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as npath from "node:path";
 import { toMessage } from "../../../utils/errors";
-import { logger } from "../../../utils/logger";
-import { safeExec } from "~/server/utils/spawn";
+import { logger } from "@zerobyte/core/utils";
+import { safeExec } from "@zerobyte/core/utils";
 
 export const executeMount = async (args: string[]): Promise<void> => {
 	const shouldBeVerbose = process.env.LOG_LEVEL === "debug" || process.env.NODE_ENV !== "production";

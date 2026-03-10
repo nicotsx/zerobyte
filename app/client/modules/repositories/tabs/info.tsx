@@ -22,7 +22,7 @@ import {
 	startDoctorMutation,
 	unlockRepositoryMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import type { RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { DoctorReport } from "../components/doctor-report";
 import { parseError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";

@@ -1,4 +1,4 @@
-import type { RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { cryptoUtils } from "./crypto";
 
 type BackendConflictGroup = "s3" | "gcs" | "azure" | "rest" | "sftp" | null;

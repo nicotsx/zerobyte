@@ -45,7 +45,7 @@ import {
 import { notificationsService } from "../notifications/notifications.service";
 import { requireAuth } from "../auth/auth.middleware";
 import { backupsExecutionService } from "./backups.execution";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { asShortId } from "~/server/utils/branded";
 
 export const backupScheduleController = new Hono()

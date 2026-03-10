@@ -2,7 +2,7 @@ import CronExpressionParser from "cron-parser";
 import path from "node:path";
 import type { BackupSchedule } from "~/server/db/schema";
 import { toMessage } from "~/server/utils/errors";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 
 export const calculateNextRun = (cronExpression: string) => {
 	try {

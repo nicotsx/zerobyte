@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { findCommonAncestor } from "~/utils/common-ancestor";
+import { findCommonAncestor } from "@zerobyte/core/utils";
 
 describe("findCommonAncestor", () => {
 	test("returns root for empty path lists", () => {

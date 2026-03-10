@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../../../../components/
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../../../components/ui/collapsible";
 import type { RepositoryFormValues } from "../create-repository-form";
 import { cn } from "~/client/lib/utils";
-import { BANDWIDTH_UNITS } from "~/schemas/restic";
+import { BANDWIDTH_UNITS } from "@zerobyte/core/restic";
 
 type Props = {
 	form: UseFormReturn<RepositoryFormValues>;

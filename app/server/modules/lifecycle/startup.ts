@@ -2,7 +2,7 @@ import { Scheduler } from "../../core/scheduler";
 import { eq } from "drizzle-orm";
 import { db } from "../../db/db";
 import { backupSchedulesTable } from "../../db/schema";
-import { logger } from "../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { volumeService } from "../volumes/volume.service";
 import { CleanupDanglingMountsJob } from "../../jobs/cleanup-dangling";
 import { VolumeHealthCheckJob } from "../../jobs/healthchecks";

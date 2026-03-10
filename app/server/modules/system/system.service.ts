@@ -3,7 +3,7 @@ import { config } from "../../core/config";
 import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache, cacheKeys } from "../../utils/cache";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
 import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";

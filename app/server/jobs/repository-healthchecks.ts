@@ -1,6 +1,6 @@
 import { Job } from "../core/scheduler";
 import { repositoriesService } from "../modules/repositories/repositories.service";
-import { logger } from "../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
 

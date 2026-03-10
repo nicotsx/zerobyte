@@ -7,7 +7,7 @@ import type {
 	ServerRestoreProgressEventDto,
 	ServerRestoreStartedEventDto,
 } from "~/schemas/events-dto";
-import type { DoctorResult } from "~/schemas/restic";
+import type { DoctorResult } from "@zerobyte/core/restic";
 
 const payload = <T>() => undefined as unknown as T;
 

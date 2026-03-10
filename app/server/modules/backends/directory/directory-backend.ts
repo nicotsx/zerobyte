@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import { toMessage } from "../../../utils/errors";
-import { logger } from "../../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import type { VolumeBackend } from "../backend";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
 

@@ -7,12 +7,12 @@ import {
 	type NotificationDestination,
 } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
-import { logger } from "../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
 import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
-import type { ResticBackupRunSummaryDto } from "~/schemas/restic-dto";
+import type { ResticBackupRunSummaryDto } from "@zerobyte/core/restic";
 import { toMessage } from "../../utils/errors";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";

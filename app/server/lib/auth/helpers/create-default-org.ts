@@ -2,7 +2,7 @@ import { UnauthorizedError } from "http-errors-enhanced";
 import { db } from "~/server/db/db";
 import { member, organization, type User } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 
 export async function findMembershipWithOrganization(userId: string, organizationId?: string) {
 	const membership = await db.query.member.findFirst({

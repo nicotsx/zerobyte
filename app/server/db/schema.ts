@@ -7,8 +7,8 @@ import type {
 	RepositoryStatus,
 	BandwidthUnit,
 	DoctorResult,
-} from "~/schemas/restic";
-import type { ResticStatsDto } from "~/schemas/restic-dto";
+	ResticStatsDto,
+} from "@zerobyte/core/restic";
 import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";

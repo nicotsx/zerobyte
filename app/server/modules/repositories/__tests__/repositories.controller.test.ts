@@ -6,7 +6,7 @@ import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
-import type { RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 
 const app = createApp();
 
@@ -279,8 +279,8 @@ describe("repositories updates", () => {
 			const { headers, organizationId } = await createTestSession();
 			const repository = await createRepositoryRecord(organizationId);
 
-			const { restic } = await import("~/server/utils/restic");
-			const { ResticError } = await import("~/server/utils/errors");
+			const { restic } = await import("~/server/core/restic");
+			const { ResticError } = await import("@zerobyte/core/restic");
 
 			const deleteSnapshotSpy = spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
 				throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");

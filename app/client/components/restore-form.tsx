@@ -21,7 +21,7 @@ import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-
 import { RestoreProgress } from "~/client/components/restore-progress";
 import { restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { type RestoreCompletedEvent, useServerEvents } from "~/client/hooks/use-server-events";
-import { OVERWRITE_MODES, type OverwriteMode } from "~/schemas/restic";
+import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
 import type { Repository } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";

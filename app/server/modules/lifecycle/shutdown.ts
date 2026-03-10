@@ -1,6 +1,6 @@
 import { Scheduler } from "../../core/scheduler";
 import { db } from "../../db/db";
-import { logger } from "../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { createVolumeBackend } from "../backends/backend";
 
 export const shutdown = async () => {

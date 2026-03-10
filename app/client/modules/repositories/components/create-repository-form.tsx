@@ -30,7 +30,7 @@ import {
 	restRepositoryConfigSchema,
 	s3RepositoryConfigSchema,
 	sftpRepositoryConfigSchema,
-} from "~/schemas/restic";
+} from "@zerobyte/core/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
 import {
 	LocalRepositoryForm,

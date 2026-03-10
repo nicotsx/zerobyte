@@ -1,4 +1,4 @@
-import type { ResticForgetResponse } from "./restic";
+import type { ResticForgetResponse } from "@zerobyte/core/restic";
 
 export type RetentionCategory = "last" | "hourly" | "daily" | "weekly" | "monthly" | "yearly";
 

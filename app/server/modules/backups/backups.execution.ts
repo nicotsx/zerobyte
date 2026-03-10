@@ -1,7 +1,7 @@
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
-import { restic } from "../../utils/restic";
-import { logger } from "../../utils/logger";
+import { restic } from "../../core/restic";
+import { logger } from "@zerobyte/core/utils";
 import { cache, cacheKeys } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
 import { toMessage } from "../../utils/errors";
@@ -12,7 +12,7 @@ import { repositoriesService } from "../repositories/repositories.service";
 import { getOrganizationId } from "~/server/core/request-context";
 import { scheduleQueries, mirrorQueries, repositoryQueries } from "./backups.queries";
 import { calculateNextRun, createBackupOptions } from "./backup.helpers";
-import type { ResticBackupOutputDto } from "~/schemas/restic-dto";
+import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type { BackupProgressEventDto } from "~/schemas/events-dto";
 
 const runningBackups = new Map<number, AbortController>();

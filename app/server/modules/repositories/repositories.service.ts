@@ -6,13 +6,13 @@ import {
 	type CompressionMode,
 	type OverwriteMode,
 	type RepositoryConfig,
+	type ResticStatsDto,
 	repositoryConfigSchema,
-} from "~/schemas/restic";
-import type { ResticStatsDto } from "~/schemas/restic-dto";
+} from "@zerobyte/core/restic";
 import { config as appConfig } from "~/server/core/config";
 import { serverEvents } from "~/server/core/events";
 import { getOrganizationId } from "~/server/core/request-context";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
@@ -21,11 +21,12 @@ import { cache, cacheKeys } from "../../utils/cache";
 import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
-import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys, restic } from "../../utils/restic";
-import { safeSpawn } from "../../utils/spawn";
+import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic";
+import { restic, resticDeps } from "../../core/restic";
+import { safeSpawn } from "@zerobyte/core/utils";
 import { backupsService } from "../backups/backups.service";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
-import { findCommonAncestor } from "~/utils/common-ancestor";
+import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
 import type { ShortId } from "~/server/utils/branded";
@@ -832,7 +833,7 @@ const execResticCommand = async (
 	}
 
 	const repoUrl = buildRepoUrl(repository.config);
-	const env = await buildEnv(repository.config, organizationId);
+	const env = await buildEnv(repository.config, organizationId, resticDeps);
 
 	const resticArgs: string[] = ["--repo", repoUrl, command];
 	if (args && args.length > 0) {
@@ -842,7 +843,7 @@ const execResticCommand = async (
 
 	const result = await safeSpawn({ command: "restic", args: resticArgs, env, signal, onStdout, onStderr });
 
-	await cleanupTemporaryKeys(env);
+	await cleanupTemporaryKeys(env, resticDeps);
 
 	return { exitCode: result.exitCode };
 };

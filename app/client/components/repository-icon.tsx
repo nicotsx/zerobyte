@@ -1,5 +1,5 @@
 import { Database, HardDrive, Cloud, Server } from "lucide-react";
-import type { RepositoryBackend } from "~/schemas/restic";
+import type { RepositoryBackend } from "@zerobyte/core/restic";
 
 type Props = {
 	backend: RepositoryBackend;

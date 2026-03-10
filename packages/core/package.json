@@ -1,0 +1,25 @@
+{
+	"name": "@zerobyte/core",
+	"private": true,
+	"type": "module",
+	"main": "index.ts",
+	"module": "index.ts",
+	"exports": {
+		"./restic": {
+			"types": "./src/restic/index.ts",
+			"import": "./src/restic/index.ts",
+			"default": "./src/restic/index.ts"
+		},
+		"./utils": {
+			"types": "./src/utils/index.ts",
+			"import": "./src/utils/index.ts",
+			"default": "./src/utils/index.ts"
+		}
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}

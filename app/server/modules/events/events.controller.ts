@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { serverEvents } from "../../core/events";
-import { logger } from "../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { requireAuth } from "../auth/auth.middleware";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
 

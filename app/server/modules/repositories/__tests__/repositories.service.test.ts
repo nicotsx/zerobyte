@@ -1,18 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
-import type { RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { serverEvents } from "~/server/core/events";
 import { withContext } from "~/server/core/request-context";
 import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
-import { restic } from "~/server/utils/restic";
+import { restic } from "~/server/core/restic";
 import { createTestSession } from "~/test/helpers/auth";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { cache, cacheKeys } from "~/server/utils/cache";
-import { ResticError } from "~/server/utils/errors";
+import { ResticError } from "@zerobyte/core/restic";
 import { repositoriesService } from "../repositories.service";
 
 const createTestRepository = async (organizationId: string) => {

@@ -7,8 +7,9 @@ import {
 	REPOSITORY_STATUS,
 	repositoryConfigSchema,
 	doctorResultSchema,
-} from "~/schemas/restic";
-import { resticSnapshotSummarySchema, resticStatsSchema } from "~/schemas/restic-dto";
+	resticSnapshotSummarySchema,
+	resticStatsSchema,
+} from "@zerobyte/core/restic";
 
 export const repositorySchema = z.object({
 	id: z.string(),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeAbsolutePath } from "../path";
+import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 describe("normalizeAbsolutePath", () => {
 	test("handles undefined and empty inputs", () => {

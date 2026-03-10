@@ -13,7 +13,7 @@ import { withTimeout } from "../../utils/timeout";
 import { createVolumeBackend } from "../backends/backend";
 import type { UpdateVolumeBody } from "./volume.dto";
 import { getVolumePath } from "./helpers";
-import { logger } from "../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { serverEvents } from "../../core/events";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { getOrganizationId } from "~/server/core/request-context";

@@ -1,5 +1,5 @@
 import CronExpressionParser from "cron-parser";
-import { logger } from "../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 
 export abstract class Job {
 	abstract run(): Promise<unknown>;

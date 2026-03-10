@@ -4,7 +4,7 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { normalizeAbsolutePath } from "~/utils/path";
+import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	repositoryId: string;

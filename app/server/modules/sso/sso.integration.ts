@@ -13,7 +13,7 @@ import { requireSsoInvitation } from "./middlewares/require-invitation";
 import { resolveTrustedProvidersForRequest } from "./middlewares/trust-provider-for-linking";
 import { isSsoCallbackRequest, extractProviderIdFromContext, normalizeEmail } from "./utils/sso-context";
 import { findMembershipWithOrganization } from "~/server/lib/auth/helpers/create-default-org";
-import { logger } from "~/server/utils/logger";
+import { logger } from "@zerobyte/core/utils";
 
 async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext | null) {
 	const user = await db.query.usersTable.findFirst({ where: { id: userId } });

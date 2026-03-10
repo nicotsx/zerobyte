@@ -22,7 +22,7 @@ import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
-import type { RepositoryConfig } from "~/schemas/restic";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { useNavigate } from "@tanstack/react-router";
 
 const riskyLocationFieldsByBackend = {

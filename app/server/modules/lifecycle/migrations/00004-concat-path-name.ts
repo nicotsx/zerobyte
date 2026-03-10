@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../db/db";
 import { repositoriesTable } from "../../../db/schema";
-import { logger } from "../../../utils/logger";
+import { logger } from "@zerobyte/core/utils";
 import { toMessage } from "~/server/utils/errors";
 import { REPOSITORY_BASE } from "~/server/core/constants";
-import { repositoryConfigSchema } from "~/schemas/restic";
+import { repositoryConfigSchema } from "@zerobyte/core/restic";
 
 type MigrationError = { name: string; error: string };
 

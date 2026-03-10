@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { resticBackupProgressMetricsSchema, resticBackupRunSummarySchema } from "~/schemas/restic-dto";
+import { resticBackupProgressMetricsSchema, resticBackupRunSummarySchema } from "@zerobyte/core/restic";
 
 export const backupEventStatusSchema = z.enum(["success", "error", "stopped", "warning"]);
 export const restoreEventStatusSchema = z.enum(["success", "error"]);
