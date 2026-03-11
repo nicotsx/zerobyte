@@ -10,7 +10,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { validateCustomResticParams } from "../helpers/validate-custom-params";
 import { ResticError } from "../error";
-import { logger, safeSpawn } from "../../utils";
+import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
 
 export const backup = async (

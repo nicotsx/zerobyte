@@ -1,7 +1,7 @@
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { restic } from "../../core/restic";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { cache, cacheKeys } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
 import { toMessage } from "../../utils/errors";

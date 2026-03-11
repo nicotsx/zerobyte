@@ -7,7 +7,7 @@ import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
-import * as spawnModule from "@zerobyte/core/utils";
+import * as spawnModule from "@zerobyte/core/node";
 import { db } from "~/server/db/db";
 import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { TEST_ORG_ID } from "~/test/helpers/organization";

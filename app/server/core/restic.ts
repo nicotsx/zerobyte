@@ -1,5 +1,7 @@
-import { createRestic, type ResticDeps } from "@zerobyte/core/restic";
+import { createRestic } from "@zerobyte/core/restic/server";
+import type { ResticDeps } from "@zerobyte/core/restic";
 import { DEFAULT_EXCLUDES, RESTIC_CACHE_DIR, RESTIC_PASS_FILE } from "./constants";
+import { config } from "./config";
 import { cryptoUtils } from "../utils/crypto";
 import { db } from "../db/db";
 
@@ -24,6 +26,7 @@ export const resticDeps: ResticDeps = {
 	resticCacheDir: RESTIC_CACHE_DIR,
 	resticPassFile: RESTIC_PASS_FILE,
 	defaultExcludes: DEFAULT_EXCLUDES,
+	hostname: config.resticHostname,
 };
 
 export const restic = createRestic(resticDeps);

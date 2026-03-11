@@ -12,7 +12,7 @@ import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { ResticDeps, ResticEnv } from "../types";
 import type { RepositoryConfig } from "../schemas";
-import { logger } from "../../utils";
+import { logger } from "../../node";
 
 export const buildEnv = async (
 	config: RepositoryConfig,

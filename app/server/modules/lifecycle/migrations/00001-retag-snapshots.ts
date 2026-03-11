@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../../db/db";
 import { backupScheduleMirrorsTable, type Repository } from "../../../db/schema";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
-import { safeExec } from "@zerobyte/core/utils";
-import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic";
+import { safeExec } from "@zerobyte/core/node";
+import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic/server";
 import { resticDeps } from "~/server/core/restic";
 
 const migrateTag = async (

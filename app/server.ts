@@ -1,4 +1,4 @@
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { shutdown } from "./server/modules/lifecycle/shutdown";
 import { runCLI } from "./server/cli";
 import { createStartHandler, defaultStreamHandler, defineHandlerCallback } from "@tanstack/react-start/server";

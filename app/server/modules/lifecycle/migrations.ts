@@ -1,4 +1,4 @@
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { v00001 } from "./migrations/00001-retag-snapshots";
 import { v00002 } from "./migrations/00002-isolate-restic-passwords";
 import { v00003 } from "./migrations/00003-assign-organization";

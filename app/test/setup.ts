@@ -4,9 +4,9 @@ import path from "node:path";
 import { cwd } from "node:process";
 import { db } from "~/server/db/db";
 
-import * as utils from "@zerobyte/core/utils";
+import * as utils from "@zerobyte/core/node";
 
-void mock.module("@zerobyte/core/utils", () => {
+void mock.module("@zerobyte/core/node", () => {
 	return {
 		...utils,
 		logger: {

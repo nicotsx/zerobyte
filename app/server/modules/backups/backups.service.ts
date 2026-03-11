@@ -19,7 +19,7 @@ import { generateShortId } from "~/server/utils/id";
 import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "./backup.helpers";
 import { asShortId, type ShortId } from "~/server/utils/branded";
-import { validateCustomResticParams } from "@zerobyte/core/restic";
+import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();

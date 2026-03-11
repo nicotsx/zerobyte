@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../../db/db";
 import { repositoriesTable } from "../../../db/schema";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { repositoryConfigSchema } from "@zerobyte/core/restic";

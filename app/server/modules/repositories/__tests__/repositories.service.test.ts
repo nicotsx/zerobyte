@@ -12,7 +12,7 @@ import { restic } from "~/server/core/restic";
 import { createTestSession } from "~/test/helpers/auth";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { cache, cacheKeys } from "~/server/utils/cache";
-import { ResticError } from "@zerobyte/core/restic";
+import { ResticError } from "@zerobyte/core/restic/server";
 import { repositoriesService } from "../repositories.service";
 
 const createTestRepository = async (organizationId: string) => {

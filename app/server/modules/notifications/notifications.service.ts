@@ -7,7 +7,7 @@ import {
 	type NotificationDestination,
 } from "../../db/schema";
 import { cryptoUtils } from "../../utils/crypto";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
 import { buildShoutrrrUrl } from "./builders";

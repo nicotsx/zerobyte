@@ -1,4 +1,4 @@
-import { logger, safeExec } from "../../utils";
+import { logger, safeExec } from "../../node";
 import { ResticError } from "../error";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";

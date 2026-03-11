@@ -1,6 +1,6 @@
 import { definePlugin } from "nitro";
 import { bootstrapApplication } from "../modules/lifecycle/bootstrap";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "../utils/errors";
 
 export default definePlugin(async () => {

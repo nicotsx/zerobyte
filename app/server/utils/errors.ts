@@ -1,5 +1,5 @@
 import { HttpError } from "http-errors-enhanced";
-import { sanitizeSensitiveData } from "@zerobyte/core/utils";
+import { sanitizeSensitiveData } from "@zerobyte/core/node";
 
 export const handleServiceError = (error: unknown) => {
 	if (error instanceof HttpError) {

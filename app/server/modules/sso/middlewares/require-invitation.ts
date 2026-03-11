@@ -1,6 +1,6 @@
 import { APIError } from "better-auth/api";
 import type { GenericEndpointContext } from "better-auth";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { extractProviderIdFromContext } from "~/server/modules/sso/utils/sso-context";
 import { ssoService } from "~/server/modules/sso/sso.service";
 

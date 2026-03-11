@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test, vi } from "bun:test";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { Job, Scheduler } from "../scheduler";
 
 const flushMicrotasks = async () => {

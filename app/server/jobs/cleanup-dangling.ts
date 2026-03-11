@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { volumeService } from "../modules/volumes/volume.service";
 import { readMountInfo } from "../utils/mountinfo";
 import { getVolumePath } from "../modules/volumes/helpers";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { executeUnmount } from "../modules/backends/utils/backend-utils";
 import { toMessage } from "../utils/errors";
 import { VOLUME_MOUNT_BASE } from "../core/constants";

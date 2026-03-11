@@ -6,7 +6,7 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
-import { logger, safeSpawn } from "../../utils";
+import { logger, safeSpawn } from "../../node";
 import { ResticError } from "../error";
 
 const normalizeDumpPath = (pathToDump?: string): string => {

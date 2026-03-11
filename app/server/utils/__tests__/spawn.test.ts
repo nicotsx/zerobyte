@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { safeExec, safeSpawn } from "@zerobyte/core/utils";
+import { safeExec, safeSpawn } from "@zerobyte/core/node";
 
 describe("safeExec", () => {
 	describe("successful commands", () => {

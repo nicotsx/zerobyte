@@ -1,4 +1,4 @@
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 
 export type LockType = "shared" | "exclusive";
 

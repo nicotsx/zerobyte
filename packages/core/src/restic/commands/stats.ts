@@ -4,7 +4,7 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
-import { logger, safeExec } from "../../utils";
+import { logger, safeExec } from "../../node";
 import { ResticError } from "../error";
 import { resticStatsSchema } from "../restic-dto";
 import type { ResticDeps } from "../types";

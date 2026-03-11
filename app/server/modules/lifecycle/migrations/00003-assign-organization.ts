@@ -1,6 +1,6 @@
 import { db } from "../../../db/db";
 import { member } from "../../../db/schema";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
 
 const execute = async () => {

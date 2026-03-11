@@ -4,7 +4,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { keyAdd } from "./key-add";
 import type { RepositoryConfig } from "../schemas";
-import { logger, safeExec } from "../../utils";
+import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
 
 const addDefaultKey = async (

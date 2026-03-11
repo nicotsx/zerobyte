@@ -9,7 +9,7 @@ import {
 	notificationDestinationsTable,
 	twoFactor,
 } from "../../../db/schema";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
 import { cryptoUtils } from "~/server/utils/crypto";
 import type { RepositoryConfig } from "@zerobyte/core/restic";

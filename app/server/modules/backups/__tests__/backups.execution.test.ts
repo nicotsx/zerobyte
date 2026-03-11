@@ -9,7 +9,7 @@ import { createTestBackupScheduleMirror } from "~/test/helpers/backup-mirror";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
-import * as spawnModule from "@zerobyte/core/utils";
+import * as spawnModule from "@zerobyte/core/node";
 import { restic } from "~/server/core/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";

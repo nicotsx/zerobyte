@@ -8,10 +8,20 @@
 			"import": "./src/restic/index.ts",
 			"default": "./src/restic/index.ts"
 		},
+		"./restic/server": {
+			"types": "./src/restic/server.ts",
+			"import": "./src/restic/server.ts",
+			"default": "./src/restic/server.ts"
+		},
 		"./utils": {
 			"types": "./src/utils/index.ts",
 			"import": "./src/utils/index.ts",
 			"default": "./src/utils/index.ts"
+		},
+		"./node": {
+			"types": "./src/node/index.ts",
+			"import": "./src/node/index.ts",
+			"default": "./src/node/index.ts"
 		}
 	},
 	"scripts": {

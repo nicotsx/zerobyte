@@ -1,6 +1,6 @@
 import { db } from "~/server/db/db";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { ForbiddenError } from "http-errors-enhanced";
 import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
 

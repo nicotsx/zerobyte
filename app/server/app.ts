@@ -16,7 +16,7 @@ import { backupScheduleController } from "./modules/backups/backups.controller";
 import { eventsController } from "./modules/events/events.controller";
 import { notificationsController } from "./modules/notifications/notifications.controller";
 import { handleServiceError } from "./utils/errors";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
 import { db } from "./db/db";

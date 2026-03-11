@@ -5,7 +5,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { ResticError } from "../error";
-import { logger, safeExec } from "../../utils";
+import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
 
 export const copy = async (

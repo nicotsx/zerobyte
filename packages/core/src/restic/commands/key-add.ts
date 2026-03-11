@@ -1,4 +1,4 @@
-import { logger, safeExec } from "../../utils";
+import { logger, safeExec } from "../../node";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";

@@ -5,7 +5,7 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { restic } from "~/server/core/restic";
 import { toMessage } from "~/server/utils/errors";
 import { safeJsonParse } from "@zerobyte/core/utils";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
 import { repoMutex } from "~/server/core/repository-mutex";
