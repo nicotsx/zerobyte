@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { type } from "arktype";
 import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "~/schemas/restic";
 import {
@@ -18,6 +17,7 @@ import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
+import { validateCustomResticParams } from "../helpers/validate-custom-params";
 
 export const backup = async (
 	config: RepositoryConfig,
@@ -32,6 +32,7 @@ export const backup = async (
 		compressionMode?: CompressionMode;
 		signal?: AbortSignal;
 		onProgress?: (progress: ResticBackupProgressDto) => void;
+		customResticParams?: string[];
 	},
 ) => {
 	const repoUrl = buildRepoUrl(config);
@@ -85,6 +86,17 @@ export const backup = async (
 		}
 	}
 
+	if (options.customResticParams && options.customResticParams.length > 0) {
+		const validationError = validateCustomResticParams(options.customResticParams);
+		if (validationError) {
+			throw new Error(`Invalid customResticParams: ${validationError}`);
+		}
+		for (const param of options.customResticParams) {
+			const tokens = param.trim().split(/\s+/).filter(Boolean);
+			args.push(...tokens);
+		}
+	}
+
 	addCommonArgs(args, env, config);
 
 	const logData = throttle((data: string) => {
@@ -95,11 +107,15 @@ export const backup = async (
 		if (options.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
-				const progress = resticBackupProgressSchema(jsonData);
-				if (!(progress instanceof type.errors)) {
-					options.onProgress(progress);
+				if (jsonData.message_type !== "status") {
+					return;
+				}
+
+				const progressResult = resticBackupProgressSchema.safeParse(jsonData);
+				if (progressResult.success) {
+					options.onProgress(progressResult.data);
 				} else {
-					logger.error(progress.summary);
+					logger.error(progressResult.error.message);
 				}
 			} catch {
 				// Ignore JSON parse errors for non-JSON lines
@@ -155,12 +171,12 @@ export const backup = async (
 	}
 
 	logger.debug(`Restic backup output last line: ${JSON.stringify(summaryLine)}`);
-	const result = resticBackupOutputSchema(summaryLine);
+	const result = resticBackupOutputSchema.safeParse(summaryLine);
 
-	if (result instanceof type.errors) {
-		logger.error(`Restic backup output validation failed: ${result.summary}`);
+	if (!result.success) {
+		logger.error(`Restic backup output validation failed: ${result.error.message}`);
 		return { result: null, exitCode: res.exitCode };
 	}
 
-	return { result, exitCode: res.exitCode };
+	return { result: result.data, exitCode: res.exitCode };
 };

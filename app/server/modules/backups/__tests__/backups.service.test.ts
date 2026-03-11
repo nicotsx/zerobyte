@@ -13,14 +13,27 @@ import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/s
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
 import { backupsExecutionService } from "../backups.execution";
+import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 
 const setup = () => {
 	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	const refreshStatsMock = mock(() =>
+		Promise.resolve({
+			total_size: 0,
+			total_uncompressed_size: 0,
+			compression_ratio: 0,
+			compression_progress: 0,
+			compression_space_saving: 0,
+			snapshots_count: 0,
+		}),
+	);
 	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
+	spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
 	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
+		refreshStatsMock,
 	};
 };
 

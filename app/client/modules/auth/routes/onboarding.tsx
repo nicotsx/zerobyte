@@ -1,5 +1,4 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
-import { type } from "arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
@@ -19,24 +18,28 @@ import { authClient } from "~/client/lib/auth-client";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
+import { z } from "zod";
 
 export const clientMiddleware = [authMiddleware];
 
-const onboardingSchema = type({
-	username: type("2<=string<=30").pipe(normalizeUsername),
-	email: type("string.email").pipe((str) => str.trim().toLowerCase()),
-	password: "string>=8",
-	confirmPassword: "string>=1",
+const onboardingSchema = z.object({
+	username: z.string().min(2).max(30).transform(normalizeUsername),
+	email: z
+		.string()
+		.email()
+		.transform((str) => str.trim().toLowerCase()),
+	password: z.string().min(8),
+	confirmPassword: z.string().min(1),
 });
 
-type OnboardingFormValues = typeof onboardingSchema.inferIn;
+type OnboardingFormValues = z.input<typeof onboardingSchema>;
 
 export function OnboardingPage() {
 	const navigate = useNavigate();
 	const [submitting, setSubmitting] = useState(false);
 
 	const form = useForm<OnboardingFormValues>({
-		resolver: arktypeResolver(onboardingSchema),
+		resolver: zodResolver(onboardingSchema),
 		defaultValues: {
 			username: "",
 			password: "",

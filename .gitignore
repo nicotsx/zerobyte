@@ -41,3 +41,4 @@ openapi-ts-error-*.log
 tmp/
 qa-output
 
+.worktrees/

@@ -14,21 +14,34 @@ import { restic } from "~/server/utils/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";
 import { fromAny } from "@total-typescript/shoehorn";
+import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 
 const setup = () => {
 	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
 	const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
 	const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
+	const refreshStatsMock = mock(() =>
+		Promise.resolve({
+			total_size: 0,
+			total_uncompressed_size: 0,
+			compression_ratio: 0,
+			compression_progress: 0,
+			compression_space_saving: 0,
+			snapshots_count: 0,
+		}),
+	);
 
 	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	spyOn(restic, "forget").mockImplementation(resticForgetMock);
 	spyOn(restic, "copy").mockImplementation(resticCopyMock);
+	spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
 	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
 		resticForgetMock,
 		resticCopyMock,
+		refreshStatsMock,
 	};
 };
 

@@ -110,8 +110,8 @@ export const volumeController = new Hono()
 		const shortId = asShortId(c.req.param("shortId"));
 		const { path, ...query } = c.req.valid("query");
 
-		const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
-		const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
+		const offset = Math.max(0, query.offset ?? 0);
+		const limit = Math.min(1000, Math.max(1, query.limit ?? 500));
 
 		const result = await volumeService.listFiles(shortId, path, offset, limit);
 

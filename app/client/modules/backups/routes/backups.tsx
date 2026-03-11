@@ -110,9 +110,9 @@ export function BackupsPage() {
 							);
 						})}
 						<Link to="/backups/create" className="h-full">
-							<div className="group flex flex-col items-center justify-center h-full min-h-50 border border-dashed border-border/80 bg-card hover:bg-card/50 transition-colors cursor-pointer rounded-s shadow-sm hover:border-border">
+							<div className="group flex flex-col items-center justify-center h-full min-h-50 border-2 border-dashed border-border/60 bg-muted/20 dark:bg-card hover:bg-muted/40 dark:hover:bg-card/50 transition-all cursor-pointer rounded-xl hover:shadow-[0_8px_30px_-15px_rgba(0,0,0,0.05)] dark:hover:shadow-sm hover:border-border hover:-translate-y-[1px] active:scale-[0.98] duration-300">
 								<div className="flex flex-col items-center justify-center gap-3">
-									<div className="p-3 rounded-full bg-muted/20 group-hover:bg-muted/50 transition-all group-hover:scale-110 duration-300">
+									<div className="p-3 rounded-full bg-background/50 dark:bg-muted/20 group-hover:bg-background dark:group-hover:bg-muted/50 transition-all group-hover:scale-110 duration-300 shadow-xs dark:shadow-none">
 										<Plus className="h-6 w-6 text-muted-foreground group-hover:text-foreground transition-colors" />
 									</div>
 									<span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">

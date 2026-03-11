@@ -12,7 +12,7 @@ ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
 
 RUN apk update --no-cache && \
     apk upgrade --no-cache && \
-    apk add --no-cache davfs2=1.6.1-r2 openssh-client fuse3 sshfs tini
+    apk add --no-cache davfs2=1.6.1-r2 openssh-client fuse3 sshfs tini tzdata
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 

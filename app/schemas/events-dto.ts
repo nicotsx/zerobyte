@@ -1,85 +1,84 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { resticBackupProgressMetricsSchema, resticBackupRunSummarySchema } from "~/schemas/restic-dto";
 
-export const backupEventStatusSchema = type("'success' | 'error' | 'stopped' | 'warning'");
-export const restoreEventStatusSchema = type("'success' | 'error'");
+export const backupEventStatusSchema = z.enum(["success", "error", "stopped", "warning"]);
+export const restoreEventStatusSchema = z.enum(["success", "error"]);
 
-const backupEventBaseSchema = type({
-	scheduleId: "string",
-	volumeName: "string",
-	repositoryName: "string",
+const backupEventBaseSchema = z.object({
+	scheduleId: z.string(),
+	volumeName: z.string(),
+	repositoryName: z.string(),
 });
 
-const organizationScopedSchema = type({
-	organizationId: "string",
+const organizationScopedSchema = z.object({
+	organizationId: z.string(),
 });
 
-const restoreEventBaseSchema = type({
-	repositoryId: "string",
-	snapshotId: "string",
+const restoreEventBaseSchema = z.object({
+	repositoryId: z.string(),
+	snapshotId: z.string(),
 });
 
-const dumpStartedEventSchema = type({
-	repositoryId: "string",
-	snapshotId: "string",
-	path: "string",
-	filename: "string",
+const dumpStartedEventSchema = z.object({
+	repositoryId: z.string(),
+	snapshotId: z.string(),
+	path: z.string(),
+	filename: z.string(),
 });
 
-const restoreProgressMetricsSchema = type({
-	seconds_elapsed: "number",
-	percent_done: "number",
-	total_files: "number",
-	files_restored: "number",
-	total_bytes: "number",
-	bytes_restored: "number",
+const restoreProgressMetricsSchema = z.object({
+	seconds_elapsed: z.number(),
+	percent_done: z.number(),
+	total_files: z.number(),
+	files_restored: z.number(),
+	total_bytes: z.number(),
+	bytes_restored: z.number(),
 });
 
 export const backupStartedEventSchema = backupEventBaseSchema;
 
-export const backupProgressEventSchema = backupEventBaseSchema.and(resticBackupProgressMetricsSchema);
+export const backupProgressEventSchema = backupEventBaseSchema.extend(resticBackupProgressMetricsSchema.shape);
 
-export const backupCompletedEventSchema = backupEventBaseSchema.and(
-	type({
-		status: backupEventStatusSchema,
-		summary: resticBackupRunSummarySchema.optional(),
-	}),
-);
+export const backupCompletedEventSchema = backupEventBaseSchema.extend({
+	status: backupEventStatusSchema,
+	summary: resticBackupRunSummarySchema.optional(),
+});
 
 export const restoreStartedEventSchema = restoreEventBaseSchema;
 
-export const restoreProgressEventSchema = restoreEventBaseSchema.and(restoreProgressMetricsSchema);
+export const restoreProgressEventSchema = restoreEventBaseSchema.extend(restoreProgressMetricsSchema.shape);
 
-export const restoreCompletedEventSchema = restoreEventBaseSchema.and(
-	type({ status: restoreEventStatusSchema, error: "string?" }),
-);
+export const restoreCompletedEventSchema = restoreEventBaseSchema.extend({
+	status: restoreEventStatusSchema,
+	error: z.string().optional(),
+});
 
-export const serverBackupStartedEventSchema = organizationScopedSchema.and(backupStartedEventSchema);
+export const serverBackupStartedEventSchema = organizationScopedSchema.extend(backupStartedEventSchema.shape);
 
-export const serverBackupProgressEventSchema = organizationScopedSchema.and(backupProgressEventSchema);
+export const serverBackupProgressEventSchema = organizationScopedSchema.extend(backupProgressEventSchema.shape);
 
-export const serverBackupCompletedEventSchema = organizationScopedSchema.and(backupCompletedEventSchema);
+export const serverBackupCompletedEventSchema = organizationScopedSchema.extend(backupCompletedEventSchema.shape);
 
-export const serverRestoreStartedEventSchema = organizationScopedSchema.and(restoreStartedEventSchema);
+export const serverRestoreStartedEventSchema = organizationScopedSchema.extend(restoreStartedEventSchema.shape);
 
-export const serverRestoreProgressEventSchema = organizationScopedSchema.and(restoreProgressEventSchema);
+export const serverRestoreProgressEventSchema = organizationScopedSchema.extend(restoreProgressEventSchema.shape);
 
-export const serverRestoreCompletedEventSchema = organizationScopedSchema.and(restoreCompletedEventSchema);
+export const serverRestoreCompletedEventSchema = organizationScopedSchema.extend(restoreCompletedEventSchema.shape);
 
-export const serverDumpStartedEventSchema = organizationScopedSchema.and(dumpStartedEventSchema);
+export const serverDumpStartedEventSchema = organizationScopedSchema.extend(dumpStartedEventSchema.shape);
 
-export type BackupEventStatusDto = typeof backupEventStatusSchema.infer;
-export type BackupStartedEventDto = typeof backupStartedEventSchema.infer;
-export type BackupProgressEventDto = typeof backupProgressEventSchema.infer;
-export type BackupCompletedEventDto = typeof backupCompletedEventSchema.infer;
-export type RestoreStartedEventDto = typeof restoreStartedEventSchema.infer;
-export type RestoreProgressEventDto = typeof restoreProgressEventSchema.infer;
-export type RestoreCompletedEventDto = typeof restoreCompletedEventSchema.infer;
-export type DumpStartedEventDto = typeof dumpStartedEventSchema.infer;
-export type ServerBackupStartedEventDto = typeof serverBackupStartedEventSchema.infer;
-export type ServerBackupProgressEventDto = typeof serverBackupProgressEventSchema.infer;
-export type ServerBackupCompletedEventDto = typeof serverBackupCompletedEventSchema.infer;
-export type ServerRestoreStartedEventDto = typeof serverRestoreStartedEventSchema.infer;
-export type ServerRestoreProgressEventDto = typeof serverRestoreProgressEventSchema.infer;
-export type ServerRestoreCompletedEventDto = typeof serverRestoreCompletedEventSchema.infer;
-export type ServerDumpStartedEventDto = typeof serverDumpStartedEventSchema.infer;
+export type BackupEventStatusDto = z.infer<typeof backupEventStatusSchema>;
+export type BackupStartedEventDto = z.infer<typeof backupStartedEventSchema>;
+export type BackupProgressEventDto = z.infer<typeof backupProgressEventSchema>;
+export type BackupCompletedEventDto = z.infer<typeof backupCompletedEventSchema>;
+export type RestoreStartedEventDto = z.infer<typeof restoreStartedEventSchema>;
+export type RestoreProgressEventDto = z.infer<typeof restoreProgressEventSchema>;
+export type RestoreCompletedEventDto = z.infer<typeof restoreCompletedEventSchema>;
+export type DumpStartedEventDto = z.infer<typeof dumpStartedEventSchema>;
+export type ServerBackupStartedEventDto = z.infer<typeof serverBackupStartedEventSchema>;
+export type ServerBackupProgressEventDto = z.infer<typeof serverBackupProgressEventSchema>;
+export type ServerBackupCompletedEventDto = z.infer<typeof serverBackupCompletedEventSchema>;
+export type ServerRestoreStartedEventDto = z.infer<typeof serverRestoreStartedEventSchema>;
+export type ServerRestoreProgressEventDto = z.infer<typeof serverRestoreProgressEventSchema>;
+export type ServerRestoreCompletedEventDto = z.infer<typeof serverRestoreCompletedEventSchema>;
+export type ServerDumpStartedEventDto = z.infer<typeof serverDumpStartedEventSchema>;

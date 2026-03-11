@@ -13,6 +13,7 @@ declare module "hono" {
 			role?: string | null | undefined;
 		};
 		organizationId: string;
+		membership: { role: string };
 	}
 }
 
@@ -44,6 +45,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 
 	c.set("user", user);
 	c.set("organizationId", activeOrganizationId);
+	c.set("membership", membership);
 
 	await withContext({ organizationId: activeOrganizationId, userId: user.id }, async () => {
 		await next();
@@ -55,16 +57,9 @@ export const requireAuth = createMiddleware(async (c, next) => {
  * Verifies the user has the required role in the current organization
  */
 export const requireOrgAdmin = createMiddleware(async (c, next) => {
-	const user = c.get("user");
-	const organizationId = c.get("organizationId");
+	const { role } = c.get("membership");
 
-	const membership = await db.query.member.findFirst({
-		where: {
-			AND: [{ userId: user.id }, { organizationId: organizationId }],
-		},
-	});
-
-	if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+	if (role !== "owner" && role !== "admin") {
 		return c.json({ message: "Forbidden" }, 403);
 	}
 

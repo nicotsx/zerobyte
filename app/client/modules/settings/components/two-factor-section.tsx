@@ -34,7 +34,7 @@ export const TwoFactorSection = ({ twoFactorEnabled }: TwoFactorSectionProps) =>
 						<p className="text-sm font-medium">
 							Status:&nbsp;
 							{twoFactorEnabled ? (
-								<span className="text-green-500">Enabled</span>
+								<span className="text-success">Enabled</span>
 							) : (
 								<span className="text-muted-foreground">Disabled</span>
 							)}

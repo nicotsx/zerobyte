@@ -40,7 +40,7 @@ In order to run Zerobyte, you need to have Docker and Docker Compose installed o
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.29
+    image: ghcr.io/nicotsx/zerobyte:v0.30
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -50,7 +50,7 @@ services:
     devices:
       - /dev/fuse:/dev/fuse
     environment:
-      - TZ=Europe/Paris # Set your timezone here
+      - TZ=Europe/Zurich # Set your timezone here
       - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
       - APP_SECRET=94bad46...c66e25d5c2b # Generate your own secret with `openssl rand -hex 32`
     volumes:
@@ -95,7 +95,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `APP_SECRET`          | **Required.** A random secret key (32+ chars) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`.       | (none)                 |
 | `PORT`                | The port the web interface and API will listen on.                                                                                        | `4096`                 |
 | `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                        | `zerobyte`             |
-| `TZ`                  | Timezone for the container (e.g., `Europe/Paris`). **Crucial for accurate backup scheduling.**                                            | `UTC`                  |
+| `TZ`                  | Timezone for the container (e.g., `Europe/Zurich`). **Crucial for accurate backup scheduling.**                                           | `UTC`                  |
 | `TRUSTED_ORIGINS`     | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                                | (none)                 |
 | `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
 | `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                                   | `60`                   |
@@ -118,13 +118,13 @@ If you only need to back up locally mounted folders and don't require remote sha
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.29
+    image: ghcr.io/nicotsx/zerobyte:v0.30
     container_name: zerobyte
     restart: unless-stopped
     ports:
       - "4096:4096"
     environment:
-      - TZ=Europe/Paris # Set your timezone here
+      - TZ=Europe/Zurich # Set your timezone here
       - BASE_URL=http://localhost:4096 # Change this to your actual URL (use https:// for secure cookies)
       - APP_SECRET=94bad46...c66e25d5c2b # Generate your own secret with `openssl rand -hex 32`
     volumes:
@@ -157,7 +157,7 @@ If you want to track a local directory on the same server where Zerobyte is runn
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.29
+    image: ghcr.io/nicotsx/zerobyte:v0.30
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -167,7 +167,7 @@ services:
     devices:
       - /dev/fuse:/dev/fuse
     environment:
-      - TZ=Europe/Paris
+      - TZ=Europe/Zurich
       - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
       - APP_SECRET=94bad46...c66e25d5c2b # Generate your own secret with `openssl rand -hex 32`
     volumes:
@@ -232,7 +232,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```diff
    services:
      zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.29
+       image: ghcr.io/nicotsx/zerobyte:v0.30
        container_name: zerobyte
        restart: unless-stopped
        cap_add:
@@ -242,7 +242,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
        devices:
          - /dev/fuse:/dev/fuse
        environment:
-         - TZ=Europe/Paris
+         - TZ=Europe/Zurich
          - BASE_URL=http://localhost:4096 # URL you will use to access Zerobyte
        volumes:
          - /etc/localtime:/etc/localtime:ro

@@ -100,6 +100,20 @@ describe("restore command", () => {
 		expect(getOptionValues("--include")).toEqual([]);
 	});
 
+	test("restores a single selected file from its parent directory for non-root targets", async () => {
+		const { getRestoreArg, getOptionValues } = setup();
+		const options: Parameters<typeof restore>[3] & { selectedItemKind: "file" } = {
+			organizationId: "org-1",
+			include: ["/var/lib/zerobyte/volumes/vol123/_data/archive/backup.20260301-233001.7z"],
+			selectedItemKind: "file",
+		};
+
+		await restore(config, "snapshot-single-file", "/tmp/restore-target", options);
+
+		expect(getRestoreArg()).toBe("snapshot-single-file:/var/lib/zerobyte/volumes/vol123/_data/archive");
+		expect(getOptionValues("--include")).toEqual(["backup.20260301-233001.7z"]);
+	});
+
 	test("does not pass an empty include when include equals restore root", async () => {
 		const { getArgs, getRestoreArg, getOptionValues } = setup();
 		await restore(config, "snapshot-7202d8cc", "/Users/nicolas/Documents/restore", {

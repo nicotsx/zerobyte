@@ -51,6 +51,7 @@ describe("backups security", () => {
 			{ method: "PUT", path: "/api/v1/backups/1/mirrors" },
 			{ method: "GET", path: "/api/v1/backups/1/mirrors/compatibility" },
 			{ method: "POST", path: "/api/v1/backups/reorder" },
+			{ method: "GET", path: "/api/v1/backups/1/progress" },
 		];
 
 		for (const { method, path } of endpoints) {

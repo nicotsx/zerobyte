@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import nodePath from "node:path";
-import { type } from "arktype";
 import { and, eq } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import {
@@ -9,6 +8,7 @@ import {
 	type RepositoryConfig,
 	repositoryConfigSchema,
 } from "~/schemas/restic";
+import type { ResticStatsDto } from "~/schemas/restic-dto";
 import { config as appConfig } from "~/server/core/config";
 import { serverEvents } from "~/server/core/events";
 import { getOrganizationId } from "~/server/core/request-context";
@@ -16,7 +16,7 @@ import { logger } from "~/server/utils/logger";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
-import { repositoriesTable } from "../../db/schema";
+import { repositoriesTable, type Repository } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
 import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
@@ -31,6 +31,15 @@ import { executeDoctor } from "./helpers/doctor";
 import type { ShortId } from "~/server/utils/branded";
 
 const runningDoctors = new Map<string, AbortController>();
+
+const emptyRepositoryStats: ResticStatsDto = {
+	total_size: 0,
+	total_uncompressed_size: 0,
+	compression_ratio: 0,
+	compression_progress: 0,
+	compression_space_saving: 0,
+	snapshots_count: 0,
+};
 
 const findRepository = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
@@ -197,28 +206,42 @@ const getRepository = async (shortId: ShortId) => {
 	return { repository };
 };
 
-const getRepositoryStats = async (shortId: ShortId) => {
-	const organizationId = getOrganizationId();
+const runAndStoreRepositoryStats = async (repository: Repository): Promise<ResticStatsDto> => {
+	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
+	try {
+		const stats = await restic.stats(repository.config, { organizationId: repository.organizationId });
+
+		await db
+			.update(repositoriesTable)
+			.set({ stats, statsUpdatedAt: Date.now() })
+			.where(
+				and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+			);
+
+		return stats;
+	} finally {
+		releaseLock();
+	}
+};
+
+const refreshRepositoryStats = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const cacheKey = cacheKeys.repository.stats(repository.id);
-	const cached = cache.get<Awaited<ReturnType<typeof restic.stats>>>(cacheKey);
-	if (cached) {
-		return cached;
+	return runAndStoreRepositoryStats(repository);
+};
+
+const getRepositoryStats = async (shortId: ShortId) => {
+	const repository = await findRepository(shortId);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
-	try {
-		const stats = await restic.stats(repository.config, { organizationId });
-		cache.set(cacheKey, stats);
-		return stats;
-	} finally {
-		releaseLock();
-	}
+	return repository.stats ?? { ...emptyRepositoryStats };
 };
 
 const deleteRepository = async (shortId: ShortId) => {
@@ -616,6 +639,11 @@ const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
 	try {
 		await restic.deleteSnapshot(repository.config, snapshotId, organizationId);
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
+		void runAndStoreRepositoryStats(repository).catch((error) => {
+			logger.error(
+				`Failed to refresh repository stats after snapshot deletion for ${repository.shortId}: ${toMessage(error)}`,
+			);
+		});
 	} finally {
 		releaseLock();
 	}
@@ -629,13 +657,25 @@ const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
 		throw new NotFoundError("Repository not found");
 	}
 
+	let shouldRefreshStats = false;
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
 	try {
 		await restic.deleteSnapshots(repository.config, snapshotIds, organizationId);
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
+		shouldRefreshStats = true;
 	} finally {
 		releaseLock();
 	}
+
+	if (!shouldRefreshStats) {
+		return;
+	}
+
+	void runAndStoreRepositoryStats(repository).catch((error) => {
+		logger.error(
+			`Failed to refresh repository stats after snapshot deletion for ${repository.shortId}: ${toMessage(error)}`,
+		);
+	});
 };
 
 const tagSnapshots = async (
@@ -691,10 +731,11 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		throw new NotFoundError("Repository not found");
 	}
 
-	const existingConfig = repositoryConfigSchema(existing.config);
-	if (existingConfig instanceof type.errors) {
+	const existingConfigResult = repositoryConfigSchema.safeParse(existing.config);
+	if (!existingConfigResult.success) {
 		throw new InternalServerError("Invalid repository configuration");
 	}
+	const existingConfig = existingConfigResult.data;
 
 	let newName = existing.name;
 	if (updates.name) {
@@ -706,10 +747,11 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 
 	let parsedConfig = existingConfig;
 	if (updates.config) {
-		const nextConfig = repositoryConfigSchema(updates.config);
-		if (nextConfig instanceof type.errors) {
+		const nextConfigResult = repositoryConfigSchema.safeParse(updates.config);
+		if (!nextConfigResult.success) {
 			throw new BadRequestError("Invalid repository configuration");
 		}
+		const nextConfig = nextConfigResult.data;
 
 		if (nextConfig.backend !== existing.type) {
 			throw new BadRequestError("Repository backend cannot be changed");
@@ -718,7 +760,7 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		parsedConfig = nextConfig;
 	}
 
-	const decryptedExisting = existingConfig ? await decryptConfig(existingConfig) : null;
+	const decryptedExisting = await decryptConfig(existingConfig);
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptConfig(parsedConfig) : existingConfig;
 
@@ -734,6 +776,8 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 					lastChecked: null,
 					lastError: null,
 					doctorResult: null,
+					stats: null,
+					statsUpdatedAt: null,
 				}
 			: {}),
 	};
@@ -852,6 +896,7 @@ export const repositoriesService = {
 	createRepository,
 	getRepository,
 	getRepositoryStats,
+	refreshRepositoryStats,
 	deleteRepository,
 	updateRepository,
 	listSnapshots,

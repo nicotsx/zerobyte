@@ -3,7 +3,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponses, CancelDoctorData, CancelDoctorErrors, CancelDoctorResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteSnapshotsData, DeleteSnapshotsResponses, DeleteSsoInvitationData, DeleteSsoInvitationErrors, DeleteSsoInvitationResponses, DeleteSsoProviderData, DeleteSsoProviderErrors, DeleteSsoProviderResponses, DeleteUserAccountData, DeleteUserAccountErrors, DeleteUserAccountResponses, DeleteVolumeData, DeleteVolumeResponses, DevPanelExecData, DevPanelExecErrors, DevPanelExecResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, DumpSnapshotData, DumpSnapshotResponses, GetAdminUsersData, GetAdminUsersResponses, GetBackupProgressData, GetBackupProgressResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetDevPanelData, GetDevPanelResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetOrgMembersData, GetOrgMembersResponses, GetPublicSsoProvidersData, GetPublicSsoProvidersResponses, GetRegistrationStatusData, GetRegistrationStatusResponses, GetRepositoryData, GetRepositoryResponses, GetRepositoryStatsData, GetRepositoryStatsResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetSsoSettingsData, GetSsoSettingsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetUpdatesData, GetUpdatesResponses, GetUserDeletionImpactData, GetUserDeletionImpactResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, MountVolumeData, MountVolumeResponses, RefreshSnapshotsData, RefreshSnapshotsResponses, RemoveOrgMemberData, RemoveOrgMemberErrors, RemoveOrgMemberResponses, ReorderBackupSchedulesData, ReorderBackupSchedulesResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, SetRegistrationStatusData, SetRegistrationStatusResponses, StartDoctorData, StartDoctorErrors, StartDoctorResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TagSnapshotsData, TagSnapshotsResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnlockRepositoryData, UnlockRepositoryResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateMemberRoleData, UpdateMemberRoleErrors, UpdateMemberRoleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateSsoProviderAutoLinkingData, UpdateSsoProviderAutoLinkingErrors, UpdateSsoProviderAutoLinkingResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponses, CancelDoctorData, CancelDoctorErrors, CancelDoctorResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteSnapshotsData, DeleteSnapshotsResponses, DeleteSsoInvitationData, DeleteSsoInvitationErrors, DeleteSsoInvitationResponses, DeleteSsoProviderData, DeleteSsoProviderErrors, DeleteSsoProviderResponses, DeleteUserAccountData, DeleteUserAccountErrors, DeleteUserAccountResponses, DeleteVolumeData, DeleteVolumeResponses, DevPanelExecData, DevPanelExecErrors, DevPanelExecResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, DumpSnapshotData, DumpSnapshotResponses, GetAdminUsersData, GetAdminUsersResponses, GetBackupProgressData, GetBackupProgressResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetDevPanelData, GetDevPanelResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetOrgMembersData, GetOrgMembersResponses, GetPublicSsoProvidersData, GetPublicSsoProvidersResponses, GetRegistrationStatusData, GetRegistrationStatusResponses, GetRepositoryData, GetRepositoryResponses, GetRepositoryStatsData, GetRepositoryStatsResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetSsoSettingsData, GetSsoSettingsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetUpdatesData, GetUpdatesResponses, GetUserDeletionImpactData, GetUserDeletionImpactResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListVolumesData, ListVolumesResponses, MountVolumeData, MountVolumeResponses, RefreshRepositoryStatsData, RefreshRepositoryStatsResponses, RefreshSnapshotsData, RefreshSnapshotsResponses, RemoveOrgMemberData, RemoveOrgMemberErrors, RemoveOrgMemberResponses, ReorderBackupSchedulesData, ReorderBackupSchedulesResponses, RestoreSnapshotData, RestoreSnapshotResponses, RunBackupNowData, RunBackupNowResponses, RunForgetData, RunForgetResponses, SetRegistrationStatusData, SetRegistrationStatusResponses, StartDoctorData, StartDoctorErrors, StartDoctorResponses, StopBackupData, StopBackupErrors, StopBackupResponses, TagSnapshotsData, TagSnapshotsResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnlockRepositoryData, UnlockRepositoryResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateMemberRoleData, UpdateMemberRoleErrors, UpdateMemberRoleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateSsoProviderAutoLinkingData, UpdateSsoProviderAutoLinkingErrors, UpdateSsoProviderAutoLinkingResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -23,38 +23,6 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Get authentication system status
  */
 export const getStatus = <ThrowOnError extends boolean = false>(options?: Options<GetStatusData, ThrowOnError>) => (options?.client ?? client).get<GetStatusResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/status', ...options });
-
-/**
- * Get public SSO providers for the instance
- */
-export const getPublicSsoProviders = <ThrowOnError extends boolean = false>(options?: Options<GetPublicSsoProvidersData, ThrowOnError>) => (options?.client ?? client).get<GetPublicSsoProvidersResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/sso-providers', ...options });
-
-/**
- * Get SSO providers and invitations for the active organization
- */
-export const getSsoSettings = <ThrowOnError extends boolean = false>(options?: Options<GetSsoSettingsData, ThrowOnError>) => (options?.client ?? client).get<GetSsoSettingsResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/sso-settings', ...options });
-
-/**
- * Delete an SSO provider
- */
-export const deleteSsoProvider = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoProviderData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoProviderResponses, DeleteSsoProviderErrors, ThrowOnError>({ url: '/api/v1/auth/sso-providers/{providerId}', ...options });
-
-/**
- * Update whether SSO sign-in can auto-link existing accounts by email
- */
-export const updateSsoProviderAutoLinking = <ThrowOnError extends boolean = false>(options: Options<UpdateSsoProviderAutoLinkingData, ThrowOnError>) => (options.client ?? client).patch<UpdateSsoProviderAutoLinkingResponses, UpdateSsoProviderAutoLinkingErrors, ThrowOnError>({
-    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Delete an SSO invitation
- */
-export const deleteSsoInvitation = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoInvitationData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoInvitationResponses, DeleteSsoInvitationErrors, ThrowOnError>({ url: '/api/v1/auth/sso-invitations/{invitationId}', ...options });
 
 /**
  * List admin users for settings management
@@ -94,6 +62,38 @@ export const updateMemberRole = <ThrowOnError extends boolean = false>(options: 
 export const removeOrgMember = <ThrowOnError extends boolean = false>(options: Options<RemoveOrgMemberData, ThrowOnError>) => (options.client ?? client).delete<RemoveOrgMemberResponses, RemoveOrgMemberErrors, ThrowOnError>({ url: '/api/v1/auth/org-members/{memberId}', ...options });
 
 /**
+ * Get public SSO providers for the instance
+ */
+export const getPublicSsoProviders = <ThrowOnError extends boolean = false>(options?: Options<GetPublicSsoProvidersData, ThrowOnError>) => (options?.client ?? client).get<GetPublicSsoProvidersResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/sso-providers', ...options });
+
+/**
+ * Get SSO providers and invitations for the active organization
+ */
+export const getSsoSettings = <ThrowOnError extends boolean = false>(options?: Options<GetSsoSettingsData, ThrowOnError>) => (options?.client ?? client).get<GetSsoSettingsResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/sso-settings', ...options });
+
+/**
+ * Delete an SSO provider
+ */
+export const deleteSsoProvider = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoProviderData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoProviderResponses, DeleteSsoProviderErrors, ThrowOnError>({ url: '/api/v1/auth/sso-providers/{providerId}', ...options });
+
+/**
+ * Update whether SSO sign-in can auto-link existing accounts by email
+ */
+export const updateSsoProviderAutoLinking = <ThrowOnError extends boolean = false>(options: Options<UpdateSsoProviderAutoLinkingData, ThrowOnError>) => (options.client ?? client).patch<UpdateSsoProviderAutoLinkingResponses, UpdateSsoProviderAutoLinkingErrors, ThrowOnError>({
+    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete an SSO invitation
+ */
+export const deleteSsoInvitation = <ThrowOnError extends boolean = false>(options: Options<DeleteSsoInvitationData, ThrowOnError>) => (options.client ?? client).delete<DeleteSsoInvitationResponses, DeleteSsoInvitationErrors, ThrowOnError>({ url: '/api/v1/auth/sso-invitations/{invitationId}', ...options });
+
+/**
  * List all volumes
  */
 export const listVolumes = <ThrowOnError extends boolean = false>(options?: Options<ListVolumesData, ThrowOnError>) => (options?.client ?? client).get<ListVolumesResponses, unknown, ThrowOnError>({ url: '/api/v1/volumes', ...options });
@@ -101,24 +101,24 @@ export const listVolumes = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * Create a new volume
  */
-export const createVolume = <ThrowOnError extends boolean = false>(options?: Options<CreateVolumeData, ThrowOnError>) => (options?.client ?? client).post<CreateVolumeResponses, unknown, ThrowOnError>({
+export const createVolume = <ThrowOnError extends boolean = false>(options: Options<CreateVolumeData, ThrowOnError>) => (options.client ?? client).post<CreateVolumeResponses, unknown, ThrowOnError>({
     url: '/api/v1/volumes',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
 /**
  * Test connection to backend
  */
-export const testConnection = <ThrowOnError extends boolean = false>(options?: Options<TestConnectionData, ThrowOnError>) => (options?.client ?? client).post<TestConnectionResponses, unknown, ThrowOnError>({
+export const testConnection = <ThrowOnError extends boolean = false>(options: Options<TestConnectionData, ThrowOnError>) => (options.client ?? client).post<TestConnectionResponses, unknown, ThrowOnError>({
     url: '/api/v1/volumes/test-connection',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
@@ -177,12 +177,12 @@ export const listRepositories = <ThrowOnError extends boolean = false>(options?:
 /**
  * Create a new restic repository
  */
-export const createRepository = <ThrowOnError extends boolean = false>(options?: Options<CreateRepositoryData, ThrowOnError>) => (options?.client ?? client).post<CreateRepositoryResponses, unknown, ThrowOnError>({
+export const createRepository = <ThrowOnError extends boolean = false>(options: Options<CreateRepositoryData, ThrowOnError>) => (options.client ?? client).post<CreateRepositoryResponses, unknown, ThrowOnError>({
     url: '/api/v1/repositories',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
@@ -217,6 +217,11 @@ export const updateRepository = <ThrowOnError extends boolean = false>(options: 
  * Get repository storage and compression statistics
  */
 export const getRepositoryStats = <ThrowOnError extends boolean = false>(options: Options<GetRepositoryStatsData, ThrowOnError>) => (options.client ?? client).get<GetRepositoryStatsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/stats', ...options });
+
+/**
+ * Refresh repository storage and compression statistics
+ */
+export const refreshRepositoryStats = <ThrowOnError extends boolean = false>(options: Options<RefreshRepositoryStatsData, ThrowOnError>) => (options.client ?? client).post<RefreshRepositoryStatsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/stats/refresh', ...options });
 
 /**
  * Delete multiple snapshots from a repository
@@ -319,12 +324,12 @@ export const listBackupSchedules = <ThrowOnError extends boolean = false>(option
 /**
  * Create a new backup schedule for a volume
  */
-export const createBackupSchedule = <ThrowOnError extends boolean = false>(options?: Options<CreateBackupScheduleData, ThrowOnError>) => (options?.client ?? client).post<CreateBackupScheduleResponses, unknown, ThrowOnError>({
+export const createBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<CreateBackupScheduleData, ThrowOnError>) => (options.client ?? client).post<CreateBackupScheduleResponses, unknown, ThrowOnError>({
     url: '/api/v1/backups',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
@@ -412,12 +417,12 @@ export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(opt
 /**
  * Reorder backup schedules by providing an array of schedule short IDs in the desired order
  */
-export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(options?: Options<ReorderBackupSchedulesData, ThrowOnError>) => (options?.client ?? client).post<ReorderBackupSchedulesResponses, unknown, ThrowOnError>({
+export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(options: Options<ReorderBackupSchedulesData, ThrowOnError>) => (options.client ?? client).post<ReorderBackupSchedulesResponses, unknown, ThrowOnError>({
     url: '/api/v1/backups/reorder',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
@@ -434,12 +439,12 @@ export const listNotificationDestinations = <ThrowOnError extends boolean = fals
 /**
  * Create a new notification destination
  */
-export const createNotificationDestination = <ThrowOnError extends boolean = false>(options?: Options<CreateNotificationDestinationData, ThrowOnError>) => (options?.client ?? client).post<CreateNotificationDestinationResponses, unknown, ThrowOnError>({
+export const createNotificationDestination = <ThrowOnError extends boolean = false>(options: Options<CreateNotificationDestinationData, ThrowOnError>) => (options.client ?? client).post<CreateNotificationDestinationResponses, unknown, ThrowOnError>({
     url: '/api/v1/notifications/destinations',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
@@ -488,24 +493,24 @@ export const getRegistrationStatus = <ThrowOnError extends boolean = false>(opti
 /**
  * Update the registration status for new users. Requires global admin role.
  */
-export const setRegistrationStatus = <ThrowOnError extends boolean = false>(options?: Options<SetRegistrationStatusData, ThrowOnError>) => (options?.client ?? client).put<SetRegistrationStatusResponses, unknown, ThrowOnError>({
+export const setRegistrationStatus = <ThrowOnError extends boolean = false>(options: Options<SetRegistrationStatusData, ThrowOnError>) => (options.client ?? client).put<SetRegistrationStatusResponses, unknown, ThrowOnError>({
     url: '/api/v1/system/registration-status',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 
 /**
  * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.
  */
-export const downloadResticPassword = <ThrowOnError extends boolean = false>(options?: Options<DownloadResticPasswordData, ThrowOnError>) => (options?.client ?? client).post<DownloadResticPasswordResponses, unknown, ThrowOnError>({
+export const downloadResticPassword = <ThrowOnError extends boolean = false>(options: Options<DownloadResticPasswordData, ThrowOnError>) => (options.client ?? client).post<DownloadResticPasswordResponses, unknown, ThrowOnError>({
     url: '/api/v1/system/restic-password',
     ...options,
     headers: {
         'Content-Type': 'application/json',
-        ...options?.headers
+        ...options.headers
     }
 });
 

@@ -1,27 +1,21 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { NOTIFICATION_TYPES, notificationConfigSchema } from "~/schemas/notifications";
 
-/**
- * Notification Destination Schema
- */
-export const notificationDestinationSchema = type({
-	id: "number",
-	name: "string",
-	enabled: "boolean",
-	type: type.valueOf(NOTIFICATION_TYPES),
+export const notificationDestinationSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	enabled: z.boolean(),
+	type: z.enum(NOTIFICATION_TYPES),
 	config: notificationConfigSchema,
-	createdAt: "number",
-	updatedAt: "number",
+	createdAt: z.number(),
+	updatedAt: z.number(),
 });
 
-export type NotificationDestinationDto = typeof notificationDestinationSchema.infer;
+export type NotificationDestinationDto = z.infer<typeof notificationDestinationSchema>;
 
-/**
- * List all notification destinations
- */
 export const listDestinationsResponse = notificationDestinationSchema.array();
-export type ListDestinationsDto = typeof listDestinationsResponse.infer;
+export type ListDestinationsDto = z.infer<typeof listDestinationsResponse>;
 
 export const listDestinationsDto = describeRoute({
 	description: "List all notification destinations",
@@ -39,16 +33,13 @@ export const listDestinationsDto = describeRoute({
 	},
 });
 
-/**
- * Create a new notification destination
- */
-export const createDestinationBody = type({
-	name: "string",
+export const createDestinationBody = z.object({
+	name: z.string(),
 	config: notificationConfigSchema,
 });
 
 export const createDestinationResponse = notificationDestinationSchema;
-export type CreateDestinationDto = typeof createDestinationResponse.infer;
+export type CreateDestinationDto = z.infer<typeof createDestinationResponse>;
 
 export const createDestinationDto = describeRoute({
 	description: "Create a new notification destination",
@@ -66,11 +57,8 @@ export const createDestinationDto = describeRoute({
 	},
 });
 
-/**
- * Get a single notification destination
- */
 export const getDestinationResponse = notificationDestinationSchema;
-export type GetDestinationDto = typeof getDestinationResponse.infer;
+export type GetDestinationDto = z.infer<typeof getDestinationResponse>;
 
 export const getDestinationDto = describeRoute({
 	description: "Get a notification destination by ID",
@@ -91,17 +79,14 @@ export const getDestinationDto = describeRoute({
 	},
 });
 
-/**
- * Update a notification destination
- */
-export const updateDestinationBody = type({
-	"name?": "string",
-	"enabled?": "boolean",
-	"config?": notificationConfigSchema,
+export const updateDestinationBody = z.object({
+	name: z.string().optional(),
+	enabled: z.boolean().optional(),
+	config: notificationConfigSchema.optional(),
 });
 
 export const updateDestinationResponse = notificationDestinationSchema;
-export type UpdateDestinationDto = typeof updateDestinationResponse.infer;
+export type UpdateDestinationDto = z.infer<typeof updateDestinationResponse>;
 
 export const updateDestinationDto = describeRoute({
 	description: "Update a notification destination",
@@ -122,13 +107,10 @@ export const updateDestinationDto = describeRoute({
 	},
 });
 
-/**
- * Delete a notification destination
- */
-export const deleteDestinationResponse = type({
-	message: "string",
+export const deleteDestinationResponse = z.object({
+	message: z.string(),
 });
-export type DeleteDestinationDto = typeof deleteDestinationResponse.infer;
+export type DeleteDestinationDto = z.infer<typeof deleteDestinationResponse>;
 
 export const deleteDestinationDto = describeRoute({
 	description: "Delete a notification destination",
@@ -149,13 +131,10 @@ export const deleteDestinationDto = describeRoute({
 	},
 });
 
-/**
- * Test a notification destination
- */
-export const testDestinationResponse = type({
-	success: "boolean",
+export const testDestinationResponse = z.object({
+	success: z.boolean(),
 });
-export type TestDestinationDto = typeof testDestinationResponse.infer;
+export type TestDestinationDto = z.infer<typeof testDestinationResponse>;
 
 export const testDestinationDto = describeRoute({
 	description: "Test a notification destination by sending a test message",
@@ -182,27 +161,21 @@ export const testDestinationDto = describeRoute({
 	},
 });
 
-/**
- * Backup Schedule Notification Assignment Schema
- */
-export const scheduleNotificationAssignmentSchema = type({
-	scheduleId: "number",
-	destinationId: "number",
-	notifyOnStart: "boolean",
-	notifyOnSuccess: "boolean",
-	notifyOnWarning: "boolean",
-	notifyOnFailure: "boolean",
-	createdAt: "number",
+export const scheduleNotificationAssignmentSchema = z.object({
+	scheduleId: z.number(),
+	destinationId: z.number(),
+	notifyOnStart: z.boolean(),
+	notifyOnSuccess: z.boolean(),
+	notifyOnWarning: z.boolean(),
+	notifyOnFailure: z.boolean(),
+	createdAt: z.number(),
 	destination: notificationDestinationSchema,
 });
 
-export type ScheduleNotificationAssignmentDto = typeof scheduleNotificationAssignmentSchema.infer;
+export type ScheduleNotificationAssignmentDto = z.infer<typeof scheduleNotificationAssignmentSchema>;
 
-/**
- * Get notifications for a backup schedule
- */
 export const getScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
-export type GetScheduleNotificationsDto = typeof getScheduleNotificationsResponse.infer;
+export type GetScheduleNotificationsDto = z.infer<typeof getScheduleNotificationsResponse>;
 
 export const getScheduleNotificationsDto = describeRoute({
 	description: "Get notification assignments for a backup schedule",
@@ -220,21 +193,20 @@ export const getScheduleNotificationsDto = describeRoute({
 	},
 });
 
-/**
- * Update notifications for a backup schedule
- */
-export const updateScheduleNotificationsBody = type({
-	assignments: type({
-		destinationId: "number",
-		notifyOnStart: "boolean",
-		notifyOnSuccess: "boolean",
-		notifyOnWarning: "boolean",
-		notifyOnFailure: "boolean",
-	}).array(),
+export const updateScheduleNotificationsBody = z.object({
+	assignments: z
+		.object({
+			destinationId: z.number(),
+			notifyOnStart: z.boolean(),
+			notifyOnSuccess: z.boolean(),
+			notifyOnWarning: z.boolean(),
+			notifyOnFailure: z.boolean(),
+		})
+		.array(),
 });
 
 export const updateScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
-export type UpdateScheduleNotificationsDto = typeof updateScheduleNotificationsResponse.infer;
+export type UpdateScheduleNotificationsDto = z.infer<typeof updateScheduleNotificationsResponse>;
 
 export const updateScheduleNotificationsDto = describeRoute({
 	description: "Update notification assignments for a backup schedule",

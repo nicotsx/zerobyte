@@ -14,6 +14,7 @@ import {
 	cancelDoctorDto,
 	getRepositoryDto,
 	getRepositoryStatsDto,
+	refreshRepositoryStatsDto,
 	getSnapshotDetailsDto,
 	refreshSnapshotsDto,
 	listRcloneRemotesDto,
@@ -40,6 +41,7 @@ import {
 	type CancelDoctorDto,
 	type GetRepositoryDto,
 	type GetRepositoryStatsDto,
+	type RefreshRepositoryStatsDto,
 	type GetSnapshotDetailsDto,
 	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
@@ -97,6 +99,12 @@ export const repositoriesController = new Hono()
 		const stats = await repositoriesService.getRepositoryStats(shortId);
 
 		return c.json<GetRepositoryStatsDto>(stats, 200);
+	})
+	.post("/:shortId/stats/refresh", refreshRepositoryStatsDto, async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const stats = await repositoriesService.refreshRepositoryStats(shortId);
+
+		return c.json<RefreshRepositoryStatsDto>(stats, 200);
 	})
 	.delete("/:shortId", deleteRepositoryDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
@@ -172,8 +180,8 @@ export const repositoriesController = new Hono()
 
 			const decodedPath = path ? decodeURIComponent(path) : undefined;
 
-			const offset = Math.max(0, Number.parseInt(query.offset ?? "0", 10) || 0);
-			const limit = Math.min(1000, Math.max(1, Number.parseInt(query.limit ?? "500", 10) || 500));
+			const offset = Math.max(0, query.offset ?? 0);
+			const limit = Math.min(1000, Math.max(1, query.limit ?? 500));
 
 			const result = await repositoriesService.listSnapshotFiles(shortId, snapshotId, decodedPath, { offset, limit });
 
@@ -188,15 +196,28 @@ export const repositoriesController = new Hono()
 		const { path, kind } = c.req.valid("query");
 
 		const dumpStream = await repositoriesService.dumpSnapshot(shortId, snapshotId, path, kind);
-		const signal = c.req.raw.signal;
+		const sourceStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+		const reader = sourceStream.getReader();
+		const webStream = new ReadableStream<Uint8Array>({
+			async pull(controller) {
+				try {
+					const { done, value } = await reader.read();
 
-		if (signal.aborted) {
-			dumpStream.abort();
-		} else {
-			signal.addEventListener("abort", () => dumpStream.abort(), { once: true });
-		}
+					if (done) {
+						controller.close();
+						return;
+					}
 
-		const webStream = Readable.toWeb(dumpStream.stream) as unknown as ReadableStream<Uint8Array>;
+					controller.enqueue(value);
+				} catch (error) {
+					controller.error(error);
+				}
+			},
+			async cancel(reason) {
+				dumpStream.abort();
+				await reader.cancel(reason).catch(() => {});
+			},
+		});
 
 		return new Response(webStream, {
 			status: 200,

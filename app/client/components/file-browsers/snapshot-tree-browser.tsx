@@ -74,11 +74,7 @@ export const SnapshotTreeBrowser = ({
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { shortId: repositoryId, snapshotId },
-					query: {
-						path,
-						offset: offset.toString(),
-						limit: pageSize.toString(),
-					},
+					query: { path, offset: offset, limit: pageSize },
 				}),
 			);
 		},
@@ -86,11 +82,7 @@ export const SnapshotTreeBrowser = ({
 			void queryClient.prefetchQuery(
 				listSnapshotFilesOptions({
 					path: { shortId: repositoryId, snapshotId },
-					query: {
-						path,
-						offset: "0",
-						limit: pageSize.toString(),
-					},
+					query: { path, offset: 0, limit: pageSize },
 				}),
 			);
 		},

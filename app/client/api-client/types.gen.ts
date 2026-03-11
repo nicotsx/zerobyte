@@ -23,138 +23,6 @@ export type GetStatusResponses = {
 
 export type GetStatusResponse = GetStatusResponses[keyof GetStatusResponses];
 
-export type GetPublicSsoProvidersData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/sso-providers';
-};
-
-export type GetPublicSsoProvidersResponses = {
-    /**
-     * List of public SSO providers
-     */
-    200: {
-        providers: Array<{
-            organizationSlug: string;
-            providerId: string;
-        }>;
-    };
-};
-
-export type GetPublicSsoProvidersResponse = GetPublicSsoProvidersResponses[keyof GetPublicSsoProvidersResponses];
-
-export type GetSsoSettingsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/sso-settings';
-};
-
-export type GetSsoSettingsResponses = {
-    /**
-     * SSO settings for the active organization
-     */
-    200: {
-        invitations: Array<{
-            email: string;
-            expiresAt: string;
-            id: string;
-            role: string;
-            status: string;
-        }>;
-        providers: Array<{
-            autoLinkMatchingEmails: boolean;
-            domain: string;
-            issuer: string;
-            organizationId: string | null;
-            providerId: string;
-            type: string;
-        }>;
-    };
-};
-
-export type GetSsoSettingsResponse = GetSsoSettingsResponses[keyof GetSsoSettingsResponses];
-
-export type DeleteSsoProviderData = {
-    body?: never;
-    path: {
-        providerId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/sso-providers/{providerId}';
-};
-
-export type DeleteSsoProviderErrors = {
-    /**
-     * Forbidden
-     */
-    403: unknown;
-    /**
-     * Provider not found
-     */
-    404: unknown;
-};
-
-export type DeleteSsoProviderResponses = {
-    /**
-     * SSO provider deleted successfully
-     */
-    200: unknown;
-};
-
-export type UpdateSsoProviderAutoLinkingData = {
-    body?: {
-        enabled: boolean;
-    };
-    path: {
-        providerId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking';
-};
-
-export type UpdateSsoProviderAutoLinkingErrors = {
-    /**
-     * Forbidden
-     */
-    403: unknown;
-    /**
-     * Provider not found
-     */
-    404: unknown;
-};
-
-export type UpdateSsoProviderAutoLinkingResponses = {
-    /**
-     * SSO provider auto-linking setting updated successfully
-     */
-    200: unknown;
-};
-
-export type DeleteSsoInvitationData = {
-    body?: never;
-    path: {
-        invitationId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/sso-invitations/{invitationId}';
-};
-
-export type DeleteSsoInvitationErrors = {
-    /**
-     * Forbidden
-     */
-    403: unknown;
-};
-
-export type DeleteSsoInvitationResponses = {
-    /**
-     * SSO invitation deleted successfully
-     */
-    200: unknown;
-};
-
 export type GetAdminUsersData = {
     body?: never;
     path?: never;
@@ -167,18 +35,18 @@ export type GetAdminUsersResponses = {
      * List of users with roles and status
      */
     200: {
-        total: number;
         users: Array<{
+            id: string;
+            name: string | null;
+            email: string;
+            role: string;
+            banned: boolean;
             accounts: Array<{
                 id: string;
                 providerId: string;
             }>;
-            banned: boolean;
-            email: string;
-            id: string;
-            name: string | null;
-            role: string;
         }>;
+        total: number;
     };
 };
 
@@ -196,9 +64,9 @@ export type DeleteUserAccountData = {
 
 export type DeleteUserAccountErrors = {
     /**
-     * Forbidden
+     * Account not found
      */
-    403: unknown;
+    404: unknown;
     /**
      * Cannot delete the last account
      */
@@ -230,9 +98,9 @@ export type GetUserDeletionImpactResponses = {
             id: string;
             name: string;
             resources: {
-                backupSchedulesCount: number;
-                repositoriesCount: number;
                 volumesCount: number;
+                repositoriesCount: number;
+                backupSchedulesCount: number;
             };
         }>;
     };
@@ -253,14 +121,14 @@ export type GetOrgMembersResponses = {
      */
     200: {
         members: Array<{
-            createdAt: string;
             id: string;
-            role: string;
-            user: {
-                email: string;
-                name: string | null;
-            };
             userId: string;
+            role: string;
+            createdAt: string;
+            user: {
+                name: string | null;
+                email: string;
+            };
         }>;
     };
 };
@@ -268,8 +136,8 @@ export type GetOrgMembersResponses = {
 export type GetOrgMembersResponse = GetOrgMembersResponses[keyof GetOrgMembersResponses];
 
 export type UpdateMemberRoleData = {
-    body?: {
-        role: 'admin' | 'member';
+    body: {
+        role: 'member' | 'admin';
     };
     path: {
         memberId: string;
@@ -323,6 +191,138 @@ export type RemoveOrgMemberResponses = {
     200: unknown;
 };
 
+export type GetPublicSsoProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/sso-providers';
+};
+
+export type GetPublicSsoProvidersResponses = {
+    /**
+     * List of public SSO providers
+     */
+    200: {
+        providers: Array<{
+            providerId: string;
+            organizationSlug: string;
+        }>;
+    };
+};
+
+export type GetPublicSsoProvidersResponse = GetPublicSsoProvidersResponses[keyof GetPublicSsoProvidersResponses];
+
+export type GetSsoSettingsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/sso-settings';
+};
+
+export type GetSsoSettingsResponses = {
+    /**
+     * SSO settings for the active organization
+     */
+    200: {
+        providers: Array<{
+            providerId: string;
+            type: string;
+            issuer: string;
+            domain: string;
+            autoLinkMatchingEmails: boolean;
+            organizationId: string | null;
+        }>;
+        invitations: Array<{
+            id: string;
+            email: string;
+            role: string;
+            status: string;
+            expiresAt: string;
+        }>;
+    };
+};
+
+export type GetSsoSettingsResponse = GetSsoSettingsResponses[keyof GetSsoSettingsResponses];
+
+export type DeleteSsoProviderData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}';
+};
+
+export type DeleteSsoProviderErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Provider not found
+     */
+    404: unknown;
+};
+
+export type DeleteSsoProviderResponses = {
+    /**
+     * SSO provider deleted successfully
+     */
+    200: unknown;
+};
+
+export type UpdateSsoProviderAutoLinkingData = {
+    body: {
+        enabled: boolean;
+    };
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking';
+};
+
+export type UpdateSsoProviderAutoLinkingErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Provider not found
+     */
+    404: unknown;
+};
+
+export type UpdateSsoProviderAutoLinkingResponses = {
+    /**
+     * SSO provider auto-linking setting updated successfully
+     */
+    200: unknown;
+};
+
+export type DeleteSsoInvitationData = {
+    body?: never;
+    path: {
+        invitationId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-invitations/{invitationId}';
+};
+
+export type DeleteSsoInvitationErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+};
+
+export type DeleteSsoInvitationResponses = {
+    /**
+     * SSO invitation deleted successfully
+     */
+    200: unknown;
+};
+
 export type ListVolumesData = {
     body?: never;
     path?: never;
@@ -335,120 +335,120 @@ export type ListVolumesResponses = {
      * A list of volumes
      */
     200: Array<{
-        autoRemount: boolean;
+        id: number;
+        shortId: string;
+        name: string;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
         config: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
-        createdAt: number;
-        id: number;
-        lastError: string | null;
-        lastHealthCheck: number;
-        name: string;
-        shortId: string;
-        status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
-        updatedAt: number;
+        autoRemount: boolean;
     }>;
 };
 
 export type ListVolumesResponse = ListVolumesResponses[keyof ListVolumesResponses];
 
 export type CreateVolumeData = {
-    body?: {
+    body: {
+        name: string;
         config: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
-        name: string;
     };
     path?: never;
     query?: never;
@@ -460,118 +460,118 @@ export type CreateVolumeResponses = {
      * Volume created successfully
      */
     201: {
-        autoRemount: boolean;
+        id: number;
+        shortId: string;
+        name: string;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
         config: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
-        createdAt: number;
-        id: number;
-        lastError: string | null;
-        lastHealthCheck: number;
-        name: string;
-        shortId: string;
-        status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
-        updatedAt: number;
+        autoRemount: boolean;
     };
 };
 
 export type CreateVolumeResponse = CreateVolumeResponses[keyof CreateVolumeResponses];
 
 export type TestConnectionData = {
-    body?: {
+    body: {
         config: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
     };
     path?: never;
@@ -584,8 +584,8 @@ export type TestConnectionResponses = {
      * Connection test result
      */
     200: {
-        message: string;
         success: boolean;
+        message: string;
     };
 };
 
@@ -632,70 +632,70 @@ export type GetVolumeResponses = {
      * Volume details
      */
     200: {
-        statfs: {
-            free: number;
-            total: number;
-            used: number;
-        };
         volume: {
-            autoRemount: boolean;
+            id: number;
+            shortId: string;
+            name: string;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
             config: {
-                backend: 'directory';
-                path: string;
-                readOnly?: false;
-            } | {
                 backend: 'nfs';
-                exportPath: string;
                 server: string;
+                exportPath: string;
+                port?: string | number;
                 version: '3' | '4' | '4.1';
-                port?: number;
-                readOnly?: boolean;
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                readOnly?: boolean;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                username: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                knownHosts?: string;
-                password?: string;
-                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
                 server: string;
                 share: string;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-                port?: number;
-                domain?: string;
-                guest?: boolean;
-                password?: string;
-                readOnly?: boolean;
                 username?: string;
+                password?: string;
+                guest?: boolean;
+                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                domain?: string;
+                port?: string | number;
+                readOnly?: boolean;
             } | {
                 backend: 'webdav';
-                path: string;
                 server: string;
-                port?: number;
+                path: string;
+                username?: string;
                 password?: string;
+                port?: string | number;
                 readOnly?: boolean;
                 ssl?: boolean;
-                username?: string;
+            } | {
+                backend: 'directory';
+                path: string;
+                readOnly?: false;
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                username: string;
+                password?: string;
+                privateKey?: string;
+                path: string;
+                readOnly?: boolean;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
             };
-            createdAt: number;
-            id: number;
-            lastError: string | null;
-            lastHealthCheck: number;
-            name: string;
-            shortId: string;
-            status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
-            updatedAt: number;
+            autoRemount: boolean;
+        };
+        statfs: {
+            total: number;
+            used: number;
+            free: number;
         };
     };
 };
@@ -703,57 +703,57 @@ export type GetVolumeResponses = {
 export type GetVolumeResponse = GetVolumeResponses[keyof GetVolumeResponses];
 
 export type UpdateVolumeData = {
-    body?: {
+    body: {
+        name?: string;
         autoRemount?: boolean;
         config?: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
-        name?: string;
     };
     path: {
         shortId: string;
@@ -774,64 +774,64 @@ export type UpdateVolumeResponses = {
      * Volume updated successfully
      */
     200: {
-        autoRemount: boolean;
+        id: number;
+        shortId: string;
+        name: string;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
         config: {
-            backend: 'directory';
-            path: string;
-            readOnly?: false;
-        } | {
             backend: 'nfs';
-            exportPath: string;
             server: string;
+            exportPath: string;
+            port?: string | number;
             version: '3' | '4' | '4.1';
-            port?: number;
-            readOnly?: boolean;
-        } | {
-            backend: 'rclone';
-            path: string;
-            remote: string;
-            readOnly?: boolean;
-        } | {
-            backend: 'sftp';
-            host: string;
-            path: string;
-            username: string;
-            port?: number;
-            skipHostKeyCheck?: boolean;
-            knownHosts?: string;
-            password?: string;
-            privateKey?: string;
             readOnly?: boolean;
         } | {
             backend: 'smb';
             server: string;
             share: string;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-            port?: number;
-            domain?: string;
-            guest?: boolean;
-            password?: string;
-            readOnly?: boolean;
             username?: string;
+            password?: string;
+            guest?: boolean;
+            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            domain?: string;
+            port?: string | number;
+            readOnly?: boolean;
         } | {
             backend: 'webdav';
-            path: string;
             server: string;
-            port?: number;
+            path: string;
+            username?: string;
             password?: string;
+            port?: string | number;
             readOnly?: boolean;
             ssl?: boolean;
-            username?: string;
+        } | {
+            backend: 'directory';
+            path: string;
+            readOnly?: false;
+        } | {
+            backend: 'rclone';
+            remote: string;
+            path: string;
+            readOnly?: boolean;
+        } | {
+            backend: 'sftp';
+            host: string;
+            port?: string | number;
+            username: string;
+            password?: string;
+            privateKey?: string;
+            path: string;
+            readOnly?: boolean;
+            skipHostKeyCheck?: boolean;
+            knownHosts?: string;
         };
-        createdAt: number;
-        id: number;
-        lastError: string | null;
-        lastHealthCheck: number;
-        name: string;
-        shortId: string;
-        status: 'error' | 'mounted' | 'unmounted';
-        type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
-        updatedAt: number;
+        autoRemount: boolean;
     };
 };
 
@@ -851,8 +851,8 @@ export type MountVolumeResponses = {
      * Volume mounted successfully
      */
     200: {
-        status: 'error' | 'mounted' | 'unmounted';
         error?: string;
+        status: 'mounted' | 'unmounted' | 'error';
     };
 };
 
@@ -872,8 +872,8 @@ export type UnmountVolumeResponses = {
      * Volume unmounted successfully
      */
     200: {
-        status: 'error' | 'mounted' | 'unmounted';
         error?: string;
+        status: 'mounted' | 'unmounted' | 'error';
     };
 };
 
@@ -900,8 +900,8 @@ export type HealthCheckVolumeResponses = {
      * Volume health check result
      */
     200: {
-        status: 'error' | 'mounted' | 'unmounted';
         error?: string;
+        status: 'mounted' | 'unmounted' | 'error';
     };
 };
 
@@ -913,9 +913,9 @@ export type ListFilesData = {
         shortId: string;
     };
     query?: {
-        limit?: string;
-        offset?: string;
         path?: string;
+        offset?: number;
+        limit?: number;
     };
     url: '/api/v1/volumes/{shortId}/files';
 };
@@ -928,15 +928,15 @@ export type ListFilesResponses = {
         files: Array<{
             name: string;
             path: string;
-            type: 'directory' | 'file';
-            modifiedAt?: number;
+            type: 'file' | 'directory';
             size?: number;
+            modifiedAt?: number;
         }>;
-        hasMore: boolean;
-        limit: number;
-        offset: number;
         path: string;
+        offset: number;
+        limit: number;
         total: number;
+        hasMore: boolean;
     };
 };
 
@@ -962,9 +962,9 @@ export type BrowseFilesystemResponses = {
         directories: Array<{
             name: string;
             path: string;
-            type: 'directory' | 'file';
-            modifiedAt?: number;
+            type: 'file' | 'directory';
             size?: number;
+            modifiedAt?: number;
         }>;
         path: string;
     };
@@ -984,183 +984,183 @@ export type ListRepositoriesResponses = {
      * List of repositories
      */
     200: Array<{
-        compressionMode: 'auto' | 'max' | 'off' | null;
+        id: string;
+        shortId: string;
+        name: string;
+        type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
-            accessKeyId: string;
-            backend: 'r2';
-            bucket: string;
-            endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accessKeyId: string;
             backend: 's3';
-            bucket: string;
             endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accountKey: string;
-            accountName: string;
-            backend: 'azure';
-            container: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            endpointSuffix?: string;
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            backend: 'gcs';
             bucket: string;
-            credentialsJson: string;
-            projectId: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            accessKeyId: string;
+            secretAccessKey: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'r2';
+            endpoint: string;
+            bucket: string;
+            accessKeyId: string;
+            secretAccessKey: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
             path: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            projectId: string;
+            credentialsJson: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'azure';
+            container: string;
+            accountName: string;
+            accountKey: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
-            path: string;
             remote: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            path: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
             url: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
+            username?: string;
             password?: string;
             path?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
-            username?: string;
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
         } | {
             backend: 'sftp';
             host: string;
+            port?: string | number;
+            user: string;
             path: string;
             privateKey: string;
-            user: string;
-            port?: number;
             skipHostKeyCheck?: boolean;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
             knownHosts?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
-        createdAt: number;
-        doctorResult: {
-            completedAt: number;
-            steps: Array<{
-                error: string | null;
-                output: string | null;
-                step: string;
-                success: boolean;
-            }>;
-            success: boolean;
-        } | null;
-        id: string;
+        compressionMode: 'off' | 'auto' | 'max' | null;
+        status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
         lastChecked: number | null;
         lastError: string | null;
-        name: string;
-        shortId: string;
-        status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-        type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+        doctorResult: {
+            success: boolean;
+            steps: Array<{
+                step: string;
+                success: boolean;
+                output: string | null;
+                error: string | null;
+            }>;
+            completedAt: number;
+        } | null;
+        createdAt: number;
         updatedAt: number;
     }>;
 };
@@ -1168,167 +1168,167 @@ export type ListRepositoriesResponses = {
 export type ListRepositoriesResponse = ListRepositoriesResponses[keyof ListRepositoriesResponses];
 
 export type CreateRepositoryData = {
-    body?: {
+    body: {
+        name: string;
+        compressionMode?: 'off' | 'auto' | 'max';
         config: {
-            accessKeyId: string;
-            backend: 'r2';
-            bucket: string;
-            endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accessKeyId: string;
             backend: 's3';
-            bucket: string;
             endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accountKey: string;
-            accountName: string;
-            backend: 'azure';
-            container: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            endpointSuffix?: string;
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            backend: 'gcs';
             bucket: string;
-            credentialsJson: string;
-            projectId: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            accessKeyId: string;
+            secretAccessKey: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'r2';
+            endpoint: string;
+            bucket: string;
+            accessKeyId: string;
+            secretAccessKey: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
             path: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            projectId: string;
+            credentialsJson: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'azure';
+            container: string;
+            accountName: string;
+            accountKey: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
-            path: string;
             remote: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            path: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
             url: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
+            username?: string;
             password?: string;
             path?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
-            username?: string;
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
         } | {
             backend: 'sftp';
             host: string;
+            port?: string | number;
+            user: string;
             path: string;
             privateKey: string;
-            user: string;
-            port?: number;
             skipHostKeyCheck?: boolean;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
             knownHosts?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
-        name: string;
-        compressionMode?: 'auto' | 'max' | 'off';
     };
     path?: never;
     query?: never;
@@ -1343,8 +1343,8 @@ export type CreateRepositoryResponses = {
         message: string;
         repository: {
             id: string;
-            name: string;
             shortId: string;
+            name: string;
         };
     };
 };
@@ -1404,183 +1404,183 @@ export type GetRepositoryResponses = {
      * Repository details
      */
     200: {
-        compressionMode: 'auto' | 'max' | 'off' | null;
+        id: string;
+        shortId: string;
+        name: string;
+        type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
-            accessKeyId: string;
-            backend: 'r2';
-            bucket: string;
-            endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accessKeyId: string;
             backend: 's3';
-            bucket: string;
             endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accountKey: string;
-            accountName: string;
-            backend: 'azure';
-            container: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            endpointSuffix?: string;
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            backend: 'gcs';
             bucket: string;
-            credentialsJson: string;
-            projectId: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            accessKeyId: string;
+            secretAccessKey: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'r2';
+            endpoint: string;
+            bucket: string;
+            accessKeyId: string;
+            secretAccessKey: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
             path: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            projectId: string;
+            credentialsJson: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'azure';
+            container: string;
+            accountName: string;
+            accountKey: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
-            path: string;
             remote: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            path: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
             url: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
+            username?: string;
             password?: string;
             path?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
-            username?: string;
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
         } | {
             backend: 'sftp';
             host: string;
+            port?: string | number;
+            user: string;
             path: string;
             privateKey: string;
-            user: string;
-            port?: number;
             skipHostKeyCheck?: boolean;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
             knownHosts?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
-        createdAt: number;
-        doctorResult: {
-            completedAt: number;
-            steps: Array<{
-                error: string | null;
-                output: string | null;
-                step: string;
-                success: boolean;
-            }>;
-            success: boolean;
-        } | null;
-        id: string;
+        compressionMode: 'off' | 'auto' | 'max' | null;
+        status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
         lastChecked: number | null;
         lastError: string | null;
-        name: string;
-        shortId: string;
-        status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-        type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+        doctorResult: {
+            success: boolean;
+            steps: Array<{
+                step: string;
+                success: boolean;
+                output: string | null;
+                error: string | null;
+            }>;
+            completedAt: number;
+        } | null;
+        createdAt: number;
         updatedAt: number;
     };
 };
@@ -1588,167 +1588,167 @@ export type GetRepositoryResponses = {
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
 
 export type UpdateRepositoryData = {
-    body?: {
-        compressionMode?: 'auto' | 'max' | 'off';
+    body: {
+        name?: string;
+        compressionMode?: 'off' | 'auto' | 'max';
         config?: {
-            accessKeyId: string;
-            backend: 'r2';
-            bucket: string;
-            endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accessKeyId: string;
             backend: 's3';
-            bucket: string;
             endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accountKey: string;
-            accountName: string;
-            backend: 'azure';
-            container: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            endpointSuffix?: string;
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            backend: 'gcs';
             bucket: string;
-            credentialsJson: string;
-            projectId: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            accessKeyId: string;
+            secretAccessKey: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'r2';
+            endpoint: string;
+            bucket: string;
+            accessKeyId: string;
+            secretAccessKey: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
             path: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            projectId: string;
+            credentialsJson: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'azure';
+            container: string;
+            accountName: string;
+            accountKey: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
-            path: string;
             remote: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            path: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
             url: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
+            username?: string;
             password?: string;
             path?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
-            username?: string;
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
         } | {
             backend: 'sftp';
             host: string;
+            port?: string | number;
+            user: string;
             path: string;
             privateKey: string;
-            user: string;
-            port?: number;
             skipHostKeyCheck?: boolean;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
             knownHosts?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
-        name?: string;
     };
     path: {
         shortId: string;
@@ -1777,183 +1777,183 @@ export type UpdateRepositoryResponses = {
      * Repository updated successfully
      */
     200: {
-        compressionMode: 'auto' | 'max' | 'off' | null;
+        id: string;
+        shortId: string;
+        name: string;
+        type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
-            accessKeyId: string;
-            backend: 'r2';
-            bucket: string;
-            endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accessKeyId: string;
             backend: 's3';
-            bucket: string;
             endpoint: string;
-            secretAccessKey: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            accountKey: string;
-            accountName: string;
-            backend: 'azure';
-            container: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            endpointSuffix?: string;
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
-            uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-        } | {
-            backend: 'gcs';
             bucket: string;
-            credentialsJson: string;
-            projectId: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            accessKeyId: string;
+            secretAccessKey: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'r2';
+            endpoint: string;
+            bucket: string;
+            accessKeyId: string;
+            secretAccessKey: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
             path: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'gcs';
+            bucket: string;
+            projectId: string;
+            credentialsJson: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+        } | {
+            backend: 'azure';
+            container: string;
+            accountName: string;
+            accountKey: string;
+            endpointSuffix?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
+            uploadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
-            path: string;
             remote: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
+            path: string;
             isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
             url: string;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
+            username?: string;
             password?: string;
             path?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
-            username?: string;
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
         } | {
             backend: 'sftp';
             host: string;
+            port?: string | number;
+            user: string;
             path: string;
             privateKey: string;
-            user: string;
-            port?: number;
             skipHostKeyCheck?: boolean;
-            cacert?: string;
-            customPassword?: string;
-            downloadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
-                enabled?: boolean;
-            };
-            insecureTls?: boolean;
-            isExistingRepository?: boolean;
             knownHosts?: string;
+            isExistingRepository?: boolean;
+            customPassword?: string;
+            cacert?: string;
+            insecureTls?: boolean;
             uploadLimit?: {
-                unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                value?: number;
                 enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+            };
+            downloadLimit?: {
+                enabled?: boolean;
+                value?: number;
+                unit?: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
-        createdAt: number;
-        doctorResult: {
-            completedAt: number;
-            steps: Array<{
-                error: string | null;
-                output: string | null;
-                step: string;
-                success: boolean;
-            }>;
-            success: boolean;
-        } | null;
-        id: string;
+        compressionMode: 'off' | 'auto' | 'max' | null;
+        status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
         lastChecked: number | null;
         lastError: string | null;
-        name: string;
-        shortId: string;
-        status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-        type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+        doctorResult: {
+            success: boolean;
+            steps: Array<{
+                step: string;
+                success: boolean;
+                output: string | null;
+                error: string | null;
+            }>;
+            completedAt: number;
+        } | null;
+        createdAt: number;
         updatedAt: number;
     };
 };
@@ -1974,19 +1974,44 @@ export type GetRepositoryStatsResponses = {
      * Repository statistics
      */
     200: {
-        compression_progress?: number;
-        compression_ratio?: number;
-        compression_space_saving?: number;
-        snapshots_count?: number;
         total_size?: number;
         total_uncompressed_size?: number;
+        compression_ratio?: number;
+        compression_progress?: number;
+        compression_space_saving?: number;
+        snapshots_count?: number;
     };
 };
 
 export type GetRepositoryStatsResponse = GetRepositoryStatsResponses[keyof GetRepositoryStatsResponses];
 
+export type RefreshRepositoryStatsData = {
+    body?: never;
+    path: {
+        shortId: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{shortId}/stats/refresh';
+};
+
+export type RefreshRepositoryStatsResponses = {
+    /**
+     * Refreshed repository statistics
+     */
+    200: {
+        total_size?: number;
+        total_uncompressed_size?: number;
+        compression_ratio?: number;
+        compression_progress?: number;
+        compression_space_saving?: number;
+        snapshots_count?: number;
+    };
+};
+
+export type RefreshRepositoryStatsResponse = RefreshRepositoryStatsResponses[keyof RefreshRepositoryStatsResponses];
+
 export type DeleteSnapshotsData = {
-    body?: {
+    body: {
         snapshotIds: Array<string>;
     };
     path: {
@@ -2023,29 +2048,29 @@ export type ListSnapshotsResponses = {
      * List of snapshots
      */
     200: Array<{
-        duration: number;
-        paths: Array<string>;
-        retentionCategories: Array<string>;
         short_id: string;
-        size: number;
-        tags: Array<string>;
         time: number;
+        paths: Array<string>;
+        size: number;
+        duration: number;
+        tags: Array<string>;
+        retentionCategories: Array<string>;
         hostname?: string;
         summary?: {
-            backup_end: string;
-            backup_start: string;
-            data_added: number;
-            data_blobs: number;
-            dirs_changed: number;
-            dirs_new: number;
-            dirs_unmodified: number;
-            files_changed: number;
             files_new: number;
+            files_changed: number;
             files_unmodified: number;
-            total_bytes_processed: number;
-            total_files_processed: number;
+            dirs_new: number;
+            dirs_changed: number;
+            dirs_unmodified: number;
+            data_blobs: number;
             tree_blobs: number;
+            data_added: number;
             data_added_packed?: number;
+            total_files_processed: number;
+            total_bytes_processed: number;
+            backup_start: string;
+            backup_end: string;
         };
     }>;
 };
@@ -2066,8 +2091,8 @@ export type RefreshSnapshotsResponses = {
      * Snapshot cache cleared and refreshed
      */
     200: {
-        count: number;
         message: string;
+        count: number;
     };
 };
 
@@ -2109,29 +2134,29 @@ export type GetSnapshotDetailsResponses = {
      * Snapshot details
      */
     200: {
-        duration: number;
-        paths: Array<string>;
-        retentionCategories: Array<string>;
         short_id: string;
-        size: number;
-        tags: Array<string>;
         time: number;
+        paths: Array<string>;
+        size: number;
+        duration: number;
+        tags: Array<string>;
+        retentionCategories: Array<string>;
         hostname?: string;
         summary?: {
-            backup_end: string;
-            backup_start: string;
-            data_added: number;
-            data_blobs: number;
-            dirs_changed: number;
-            dirs_new: number;
-            dirs_unmodified: number;
-            files_changed: number;
             files_new: number;
+            files_changed: number;
             files_unmodified: number;
-            total_bytes_processed: number;
-            total_files_processed: number;
+            dirs_new: number;
+            dirs_changed: number;
+            dirs_unmodified: number;
+            data_blobs: number;
             tree_blobs: number;
+            data_added: number;
             data_added_packed?: number;
+            total_files_processed: number;
+            total_bytes_processed: number;
+            backup_start: string;
+            backup_end: string;
         };
     };
 };
@@ -2145,9 +2170,9 @@ export type ListSnapshotFilesData = {
         snapshotId: string;
     };
     query?: {
-        limit?: string;
-        offset?: string;
         path?: string;
+        offset?: number;
+        limit?: number;
     };
     url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files';
 };
@@ -2157,29 +2182,29 @@ export type ListSnapshotFilesResponses = {
      * List of files and directories in the snapshot
      */
     200: {
-        files: Array<{
-            name: string;
-            path: string;
-            type: string;
-            atime?: string;
-            ctime?: string;
-            gid?: number;
-            mode?: number;
-            mtime?: string;
-            size?: number;
-            uid?: number;
-        }>;
-        hasMore: boolean;
-        limit: number;
-        offset: number;
         snapshot: {
-            hostname: string;
             id: string;
-            paths: Array<string>;
             short_id: string;
             time: string;
+            hostname?: string;
+            paths: Array<string>;
         };
+        files: Array<{
+            name: string;
+            type: string;
+            path: string;
+            uid?: number;
+            gid?: number;
+            size?: number;
+            mode?: number;
+            mtime?: string;
+            atime?: string;
+            ctime?: string;
+        }>;
+        offset: number;
+        limit: number;
         total: number;
+        hasMore: boolean;
     };
 };
 
@@ -2192,8 +2217,8 @@ export type DumpSnapshotData = {
         snapshotId: string;
     };
     query?: {
-        kind?: 'dir' | 'file';
         path?: string;
+        kind?: 'file' | 'dir';
     };
     url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump';
 };
@@ -2208,14 +2233,15 @@ export type DumpSnapshotResponses = {
 export type DumpSnapshotResponse = DumpSnapshotResponses[keyof DumpSnapshotResponses];
 
 export type RestoreSnapshotData = {
-    body?: {
+    body: {
         snapshotId: string;
-        delete?: boolean;
+        include?: Array<string>;
+        selectedItemKind?: 'file' | 'dir';
         exclude?: Array<string>;
         excludeXattr?: Array<string>;
-        include?: Array<string>;
-        overwrite?: 'always' | 'if-changed' | 'if-newer' | 'never';
+        delete?: boolean;
         targetPath?: string;
+        overwrite?: 'always' | 'if-changed' | 'if-newer' | 'never';
     };
     path: {
         shortId: string;
@@ -2229,10 +2255,10 @@ export type RestoreSnapshotResponses = {
      * Snapshot restored successfully
      */
     200: {
+        success: boolean;
+        message: string;
         filesRestored: number;
         filesSkipped: number;
-        message: string;
-        success: boolean;
     };
 };
 
@@ -2307,15 +2333,15 @@ export type UnlockRepositoryResponses = {
      * Repository unlocked successfully
      */
     200: {
-        message: string;
         success: boolean;
+        message: string;
     };
 };
 
 export type UnlockRepositoryResponse = UnlockRepositoryResponses[keyof UnlockRepositoryResponses];
 
 export type TagSnapshotsData = {
-    body?: {
+    body: {
         snapshotIds: Array<string>;
         add?: Array<string>;
         remove?: Array<string>;
@@ -2340,7 +2366,7 @@ export type TagSnapshotsResponses = {
 export type TagSnapshotsResponse = TagSnapshotsResponses[keyof TagSnapshotsResponses];
 
 export type DevPanelExecData = {
-    body?: {
+    body: {
         command: string;
         args?: Array<string>;
     };
@@ -2379,298 +2405,300 @@ export type ListBackupSchedulesResponses = {
      * List of backup schedules
      */
     200: Array<{
-        createdAt: number;
-        cronExpression: string;
-        enabled: boolean;
-        excludeIfPresent: Array<string> | null;
-        excludePatterns: Array<string> | null;
         id: number;
-        includePatterns: Array<string> | null;
-        lastBackupAt: number | null;
-        lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
-        name: string;
-        nextBackupAt: number | null;
-        oneFileSystem: boolean;
-        repository: {
-            compressionMode: 'auto' | 'max' | 'off' | null;
-            config: {
-                accessKeyId: string;
-                backend: 'r2';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accessKeyId: string;
-                backend: 's3';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accountKey: string;
-                accountName: string;
-                backend: 'azure';
-                container: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                endpointSuffix?: string;
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'gcs';
-                bucket: string;
-                credentialsJson: string;
-                projectId: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'local';
-                path: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rest';
-                url: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                password?: string;
-                path?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                username?: string;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                privateKey: string;
-                user: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                knownHosts?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            };
-            createdAt: number;
-            doctorResult: {
-                completedAt: number;
-                steps: Array<{
-                    error: string | null;
-                    output: string | null;
-                    step: string;
-                    success: boolean;
-                }>;
-                success: boolean;
-            } | null;
-            id: string;
-            lastChecked: number | null;
-            lastError: string | null;
-            name: string;
-            shortId: string;
-            status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
-            updatedAt: number;
-        };
-        repositoryId: string;
-        retentionPolicy: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        } | null;
         shortId: string;
+        name: string;
+        volumeId: number;
+        repositoryId: string;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        } | null;
+        excludePatterns: Array<string> | null;
+        excludeIfPresent: Array<string> | null;
+        includePatterns: Array<string> | null;
+        oneFileSystem: boolean;
+        customResticParams: Array<string> | null;
+        lastBackupAt: number | null;
+        lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
+        lastBackupError: string | null;
+        nextBackupAt: number | null;
+        createdAt: number;
         updatedAt: number;
         volume: {
-            autoRemount: boolean;
+            id: number;
+            shortId: string;
+            name: string;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
             config: {
-                backend: 'directory';
-                path: string;
-                readOnly?: false;
-            } | {
                 backend: 'nfs';
-                exportPath: string;
                 server: string;
+                exportPath: string;
+                port?: string | number;
                 version: '3' | '4' | '4.1';
-                port?: number;
-                readOnly?: boolean;
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                readOnly?: boolean;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                username: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                knownHosts?: string;
-                password?: string;
-                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
                 server: string;
                 share: string;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-                port?: number;
-                domain?: string;
-                guest?: boolean;
-                password?: string;
-                readOnly?: boolean;
                 username?: string;
+                password?: string;
+                guest?: boolean;
+                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                domain?: string;
+                port?: string | number;
+                readOnly?: boolean;
             } | {
                 backend: 'webdav';
-                path: string;
                 server: string;
-                port?: number;
+                path: string;
+                username?: string;
                 password?: string;
+                port?: string | number;
                 readOnly?: boolean;
                 ssl?: boolean;
-                username?: string;
+            } | {
+                backend: 'directory';
+                path: string;
+                readOnly?: false;
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                username: string;
+                password?: string;
+                privateKey?: string;
+                path: string;
+                readOnly?: boolean;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
             };
-            createdAt: number;
-            id: number;
-            lastError: string | null;
-            lastHealthCheck: number;
-            name: string;
+            autoRemount: boolean;
+        };
+        repository: {
+            id: string;
             shortId: string;
-            status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
+            name: string;
+            type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            config: {
+                backend: 's3';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'r2';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'local';
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                projectId: string;
+                credentialsJson: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'azure';
+                container: string;
+                accountName: string;
+                accountKey: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rest';
+                url: string;
+                username?: string;
+                password?: string;
+                path?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                user: string;
+                path: string;
+                privateKey: string;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            };
+            compressionMode: 'off' | 'auto' | 'max' | null;
+            status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
+            lastChecked: number | null;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            } | null;
+            createdAt: number;
             updatedAt: number;
         };
-        volumeId: number;
     }>;
 };
 
 export type ListBackupSchedulesResponse = ListBackupSchedulesResponses[keyof ListBackupSchedulesResponses];
 
 export type CreateBackupScheduleData = {
-    body?: {
-        cronExpression: string;
-        enabled: boolean;
+    body: {
         name: string;
+        volumeId: string | number;
         repositoryId: string;
-        volumeId: number | string;
-        excludeIfPresent?: Array<string>;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy?: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        };
         excludePatterns?: Array<string>;
+        excludeIfPresent?: Array<string>;
         includePatterns?: Array<string>;
         oneFileSystem?: boolean;
-        retentionPolicy?: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        };
         tags?: Array<string>;
+        customResticParams?: Array<string>;
     };
     path?: never;
     query?: never;
@@ -2682,32 +2710,33 @@ export type CreateBackupScheduleResponses = {
      * Backup schedule created successfully
      */
     201: {
-        createdAt: number;
-        cronExpression: string;
-        enabled: boolean;
-        excludeIfPresent: Array<string> | null;
-        excludePatterns: Array<string> | null;
         id: number;
-        includePatterns: Array<string> | null;
-        lastBackupAt: number | null;
-        lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
-        name: string;
-        nextBackupAt: number | null;
-        oneFileSystem: boolean;
-        repositoryId: string;
-        retentionPolicy: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        } | null;
         shortId: string;
-        updatedAt: number;
+        name: string;
         volumeId: number;
+        repositoryId: string;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        } | null;
+        excludePatterns: Array<string> | null;
+        excludeIfPresent: Array<string> | null;
+        includePatterns: Array<string> | null;
+        oneFileSystem: boolean;
+        customResticParams: Array<string> | null;
+        lastBackupAt: number | null;
+        lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
+        lastBackupError: string | null;
+        nextBackupAt: number | null;
+        createdAt: number;
+        updatedAt: number;
     };
 };
 
@@ -2747,297 +2776,299 @@ export type GetBackupScheduleResponses = {
      * Backup schedule details
      */
     200: {
-        createdAt: number;
-        cronExpression: string;
-        enabled: boolean;
-        excludeIfPresent: Array<string> | null;
-        excludePatterns: Array<string> | null;
         id: number;
-        includePatterns: Array<string> | null;
-        lastBackupAt: number | null;
-        lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
-        name: string;
-        nextBackupAt: number | null;
-        oneFileSystem: boolean;
-        repository: {
-            compressionMode: 'auto' | 'max' | 'off' | null;
-            config: {
-                accessKeyId: string;
-                backend: 'r2';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accessKeyId: string;
-                backend: 's3';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accountKey: string;
-                accountName: string;
-                backend: 'azure';
-                container: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                endpointSuffix?: string;
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'gcs';
-                bucket: string;
-                credentialsJson: string;
-                projectId: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'local';
-                path: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rest';
-                url: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                password?: string;
-                path?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                username?: string;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                privateKey: string;
-                user: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                knownHosts?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            };
-            createdAt: number;
-            doctorResult: {
-                completedAt: number;
-                steps: Array<{
-                    error: string | null;
-                    output: string | null;
-                    step: string;
-                    success: boolean;
-                }>;
-                success: boolean;
-            } | null;
-            id: string;
-            lastChecked: number | null;
-            lastError: string | null;
-            name: string;
-            shortId: string;
-            status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
-            updatedAt: number;
-        };
-        repositoryId: string;
-        retentionPolicy: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        } | null;
         shortId: string;
+        name: string;
+        volumeId: number;
+        repositoryId: string;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        } | null;
+        excludePatterns: Array<string> | null;
+        excludeIfPresent: Array<string> | null;
+        includePatterns: Array<string> | null;
+        oneFileSystem: boolean;
+        customResticParams: Array<string> | null;
+        lastBackupAt: number | null;
+        lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
+        lastBackupError: string | null;
+        nextBackupAt: number | null;
+        createdAt: number;
         updatedAt: number;
         volume: {
-            autoRemount: boolean;
+            id: number;
+            shortId: string;
+            name: string;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
             config: {
-                backend: 'directory';
-                path: string;
-                readOnly?: false;
-            } | {
                 backend: 'nfs';
-                exportPath: string;
                 server: string;
+                exportPath: string;
+                port?: string | number;
                 version: '3' | '4' | '4.1';
-                port?: number;
-                readOnly?: boolean;
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                readOnly?: boolean;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                username: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                knownHosts?: string;
-                password?: string;
-                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
                 server: string;
                 share: string;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-                port?: number;
-                domain?: string;
-                guest?: boolean;
-                password?: string;
-                readOnly?: boolean;
                 username?: string;
+                password?: string;
+                guest?: boolean;
+                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                domain?: string;
+                port?: string | number;
+                readOnly?: boolean;
             } | {
                 backend: 'webdav';
-                path: string;
                 server: string;
-                port?: number;
+                path: string;
+                username?: string;
                 password?: string;
+                port?: string | number;
                 readOnly?: boolean;
                 ssl?: boolean;
-                username?: string;
+            } | {
+                backend: 'directory';
+                path: string;
+                readOnly?: false;
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                username: string;
+                password?: string;
+                privateKey?: string;
+                path: string;
+                readOnly?: boolean;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
             };
-            createdAt: number;
-            id: number;
-            lastError: string | null;
-            lastHealthCheck: number;
-            name: string;
+            autoRemount: boolean;
+        };
+        repository: {
+            id: string;
             shortId: string;
-            status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
+            name: string;
+            type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            config: {
+                backend: 's3';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'r2';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'local';
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                projectId: string;
+                credentialsJson: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'azure';
+                container: string;
+                accountName: string;
+                accountKey: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rest';
+                url: string;
+                username?: string;
+                password?: string;
+                path?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                user: string;
+                path: string;
+                privateKey: string;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            };
+            compressionMode: 'off' | 'auto' | 'max' | null;
+            status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
+            lastChecked: number | null;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            } | null;
+            createdAt: number;
             updatedAt: number;
         };
-        volumeId: number;
     };
 };
 
 export type GetBackupScheduleResponse = GetBackupScheduleResponses[keyof GetBackupScheduleResponses];
 
 export type UpdateBackupScheduleData = {
-    body?: {
-        cronExpression: string;
+    body: {
+        name?: string;
         repositoryId: string;
         enabled?: boolean;
-        excludeIfPresent?: Array<string>;
-        excludePatterns?: Array<string>;
-        includePatterns?: Array<string>;
-        name?: string;
-        oneFileSystem?: boolean;
+        cronExpression: string;
         retentionPolicy?: {
-            keepDaily?: number;
-            keepHourly?: number;
             keepLast?: number;
-            keepMonthly?: number;
+            keepHourly?: number;
+            keepDaily?: number;
             keepWeekly?: number;
-            keepWithinDuration?: string;
+            keepMonthly?: number;
             keepYearly?: number;
+            keepWithinDuration?: string;
         };
+        excludePatterns?: Array<string>;
+        excludeIfPresent?: Array<string>;
+        includePatterns?: Array<string>;
+        oneFileSystem?: boolean;
         tags?: Array<string>;
+        customResticParams?: Array<string>;
     };
     path: {
         shortId: string;
@@ -3051,32 +3082,33 @@ export type UpdateBackupScheduleResponses = {
      * Backup schedule updated successfully
      */
     200: {
-        createdAt: number;
-        cronExpression: string;
-        enabled: boolean;
-        excludeIfPresent: Array<string> | null;
-        excludePatterns: Array<string> | null;
         id: number;
-        includePatterns: Array<string> | null;
-        lastBackupAt: number | null;
-        lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
-        name: string;
-        nextBackupAt: number | null;
-        oneFileSystem: boolean;
-        repositoryId: string;
-        retentionPolicy: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        } | null;
         shortId: string;
-        updatedAt: number;
+        name: string;
         volumeId: number;
+        repositoryId: string;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        } | null;
+        excludePatterns: Array<string> | null;
+        excludeIfPresent: Array<string> | null;
+        includePatterns: Array<string> | null;
+        oneFileSystem: boolean;
+        customResticParams: Array<string> | null;
+        lastBackupAt: number | null;
+        lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
+        lastBackupError: string | null;
+        nextBackupAt: number | null;
+        createdAt: number;
+        updatedAt: number;
     };
 };
 
@@ -3096,272 +3128,273 @@ export type GetBackupScheduleForVolumeResponses = {
      * Backup schedule details for the volume
      */
     200: {
-        createdAt: number;
-        cronExpression: string;
-        enabled: boolean;
-        excludeIfPresent: Array<string> | null;
-        excludePatterns: Array<string> | null;
         id: number;
-        includePatterns: Array<string> | null;
-        lastBackupAt: number | null;
-        lastBackupError: string | null;
-        lastBackupStatus: 'error' | 'in_progress' | 'success' | 'warning' | null;
-        name: string;
-        nextBackupAt: number | null;
-        oneFileSystem: boolean;
-        repository: {
-            compressionMode: 'auto' | 'max' | 'off' | null;
-            config: {
-                accessKeyId: string;
-                backend: 'r2';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accessKeyId: string;
-                backend: 's3';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accountKey: string;
-                accountName: string;
-                backend: 'azure';
-                container: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                endpointSuffix?: string;
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'gcs';
-                bucket: string;
-                credentialsJson: string;
-                projectId: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'local';
-                path: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'rest';
-                url: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                password?: string;
-                path?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                username?: string;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                privateKey: string;
-                user: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                knownHosts?: string;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            };
-            createdAt: number;
-            doctorResult: {
-                completedAt: number;
-                steps: Array<{
-                    error: string | null;
-                    output: string | null;
-                    step: string;
-                    success: boolean;
-                }>;
-                success: boolean;
-            } | null;
-            id: string;
-            lastChecked: number | null;
-            lastError: string | null;
-            name: string;
-            shortId: string;
-            status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
-            updatedAt: number;
-        };
-        repositoryId: string;
-        retentionPolicy: {
-            keepDaily?: number;
-            keepHourly?: number;
-            keepLast?: number;
-            keepMonthly?: number;
-            keepWeekly?: number;
-            keepWithinDuration?: string;
-            keepYearly?: number;
-        } | null;
         shortId: string;
+        name: string;
+        volumeId: number;
+        repositoryId: string;
+        enabled: boolean;
+        cronExpression: string;
+        retentionPolicy: {
+            keepLast?: number;
+            keepHourly?: number;
+            keepDaily?: number;
+            keepWeekly?: number;
+            keepMonthly?: number;
+            keepYearly?: number;
+            keepWithinDuration?: string;
+        } | null;
+        excludePatterns: Array<string> | null;
+        excludeIfPresent: Array<string> | null;
+        includePatterns: Array<string> | null;
+        oneFileSystem: boolean;
+        customResticParams: Array<string> | null;
+        lastBackupAt: number | null;
+        lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
+        lastBackupError: string | null;
+        nextBackupAt: number | null;
+        createdAt: number;
         updatedAt: number;
         volume: {
-            autoRemount: boolean;
+            id: number;
+            shortId: string;
+            name: string;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
             config: {
-                backend: 'directory';
-                path: string;
-                readOnly?: false;
-            } | {
                 backend: 'nfs';
-                exportPath: string;
                 server: string;
+                exportPath: string;
+                port?: string | number;
                 version: '3' | '4' | '4.1';
-                port?: number;
-                readOnly?: boolean;
-            } | {
-                backend: 'rclone';
-                path: string;
-                remote: string;
-                readOnly?: boolean;
-            } | {
-                backend: 'sftp';
-                host: string;
-                path: string;
-                username: string;
-                port?: number;
-                skipHostKeyCheck?: boolean;
-                knownHosts?: string;
-                password?: string;
-                privateKey?: string;
                 readOnly?: boolean;
             } | {
                 backend: 'smb';
                 server: string;
                 share: string;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
-                port?: number;
-                domain?: string;
-                guest?: boolean;
-                password?: string;
-                readOnly?: boolean;
                 username?: string;
+                password?: string;
+                guest?: boolean;
+                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                domain?: string;
+                port?: string | number;
+                readOnly?: boolean;
             } | {
                 backend: 'webdav';
-                path: string;
                 server: string;
-                port?: number;
+                path: string;
+                username?: string;
                 password?: string;
+                port?: string | number;
                 readOnly?: boolean;
                 ssl?: boolean;
-                username?: string;
+            } | {
+                backend: 'directory';
+                path: string;
+                readOnly?: false;
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                readOnly?: boolean;
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                username: string;
+                password?: string;
+                privateKey?: string;
+                path: string;
+                readOnly?: boolean;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
             };
-            createdAt: number;
-            id: number;
-            lastError: string | null;
-            lastHealthCheck: number;
-            name: string;
+            autoRemount: boolean;
+        };
+        repository: {
+            id: string;
             shortId: string;
-            status: 'error' | 'mounted' | 'unmounted';
-            type: 'directory' | 'nfs' | 'rclone' | 'sftp' | 'smb' | 'webdav';
+            name: string;
+            type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            config: {
+                backend: 's3';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'r2';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'local';
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                projectId: string;
+                credentialsJson: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'azure';
+                container: string;
+                accountName: string;
+                accountKey: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rclone';
+                remote: string;
+                path: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'rest';
+                url: string;
+                username?: string;
+                password?: string;
+                path?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'sftp';
+                host: string;
+                port?: string | number;
+                user: string;
+                path: string;
+                privateKey: string;
+                skipHostKeyCheck?: boolean;
+                knownHosts?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            };
+            compressionMode: 'off' | 'auto' | 'max' | null;
+            status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
+            lastChecked: number | null;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            } | null;
+            createdAt: number;
             updatedAt: number;
         };
-        volumeId: number;
     } | null;
 };
 
@@ -3448,94 +3481,94 @@ export type GetScheduleNotificationsResponses = {
      * List of notification assignments for the schedule
      */
     200: Array<{
+        scheduleId: number;
+        destinationId: number;
+        notifyOnStart: boolean;
+        notifyOnSuccess: boolean;
+        notifyOnWarning: boolean;
+        notifyOnFailure: boolean;
         createdAt: number;
         destination: {
+            id: number;
+            name: string;
+            enabled: boolean;
+            type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
             config: {
-                apiToken: string;
-                priority: -1 | 0 | 1;
-                type: 'pushover';
-                userKey: string;
-                devices?: string;
-            } | {
-                botToken: string;
-                chatId: string;
-                type: 'telegram';
-                threadId?: string;
-            } | {
-                from: string;
+                type: 'email';
                 smtpHost: string;
                 smtpPort: number;
-                to: Array<string>;
-                type: 'email';
-                useTLS: boolean;
+                username?: string;
+                password?: string;
+                from: string;
                 fromName?: string;
-                password?: string;
-                username?: string;
-            } | {
-                method: 'GET' | 'POST';
-                type: 'generic';
-                url: string;
-                contentType?: string;
-                headers?: Array<string>;
-                messageKey?: string;
-                titleKey?: string;
-                useJson?: boolean;
-            } | {
-                priority: 'default' | 'high' | 'low' | 'max' | 'min';
-                topic: string;
-                type: 'ntfy';
-                accessToken?: string;
-                password?: string;
-                serverUrl?: string;
-                username?: string;
-            } | {
-                priority: number;
-                serverUrl: string;
-                token: string;
-                type: 'gotify';
-                path?: string;
-            } | {
-                shoutrrrUrl: string;
-                type: 'custom';
-            } | {
-                type: 'discord';
-                webhookUrl: string;
-                avatarUrl?: string;
-                threadId?: string;
-                username?: string;
+                to: Array<string>;
+                useTLS: boolean;
             } | {
                 type: 'slack';
                 webhookUrl: string;
                 channel?: string;
-                iconEmoji?: string;
                 username?: string;
+                iconEmoji?: string;
+            } | {
+                type: 'discord';
+                webhookUrl: string;
+                username?: string;
+                avatarUrl?: string;
+                threadId?: string;
+            } | {
+                type: 'gotify';
+                serverUrl: string;
+                token: string;
+                path?: string;
+                priority: number;
+            } | {
+                type: 'ntfy';
+                serverUrl?: string;
+                topic: string;
+                priority: 'max' | 'high' | 'default' | 'low' | 'min';
+                username?: string;
+                password?: string;
+                accessToken?: string;
+            } | {
+                type: 'pushover';
+                userKey: string;
+                apiToken: string;
+                devices?: string;
+                priority: -1 | 0 | 1;
+            } | {
+                type: 'telegram';
+                botToken: string;
+                chatId: string;
+                threadId?: string;
+            } | {
+                type: 'generic';
+                url: string;
+                method: 'GET' | 'POST';
+                contentType?: string;
+                headers?: Array<string>;
+                useJson?: boolean;
+                titleKey?: string;
+                messageKey?: string;
+            } | {
+                type: 'custom';
+                shoutrrrUrl: string;
             };
             createdAt: number;
-            enabled: boolean;
-            id: number;
-            name: string;
-            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
-        destinationId: number;
-        notifyOnFailure: boolean;
-        notifyOnStart: boolean;
-        notifyOnSuccess: boolean;
-        notifyOnWarning: boolean;
-        scheduleId: number;
     }>;
 };
 
 export type GetScheduleNotificationsResponse = GetScheduleNotificationsResponses[keyof GetScheduleNotificationsResponses];
 
 export type UpdateScheduleNotificationsData = {
-    body?: {
+    body: {
         assignments: Array<{
             destinationId: number;
-            notifyOnFailure: boolean;
             notifyOnStart: boolean;
             notifyOnSuccess: boolean;
             notifyOnWarning: boolean;
+            notifyOnFailure: boolean;
         }>;
     };
     path: {
@@ -3550,81 +3583,81 @@ export type UpdateScheduleNotificationsResponses = {
      * Notification assignments updated successfully
      */
     200: Array<{
+        scheduleId: number;
+        destinationId: number;
+        notifyOnStart: boolean;
+        notifyOnSuccess: boolean;
+        notifyOnWarning: boolean;
+        notifyOnFailure: boolean;
         createdAt: number;
         destination: {
+            id: number;
+            name: string;
+            enabled: boolean;
+            type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
             config: {
-                apiToken: string;
-                priority: -1 | 0 | 1;
-                type: 'pushover';
-                userKey: string;
-                devices?: string;
-            } | {
-                botToken: string;
-                chatId: string;
-                type: 'telegram';
-                threadId?: string;
-            } | {
-                from: string;
+                type: 'email';
                 smtpHost: string;
                 smtpPort: number;
-                to: Array<string>;
-                type: 'email';
-                useTLS: boolean;
+                username?: string;
+                password?: string;
+                from: string;
                 fromName?: string;
-                password?: string;
-                username?: string;
-            } | {
-                method: 'GET' | 'POST';
-                type: 'generic';
-                url: string;
-                contentType?: string;
-                headers?: Array<string>;
-                messageKey?: string;
-                titleKey?: string;
-                useJson?: boolean;
-            } | {
-                priority: 'default' | 'high' | 'low' | 'max' | 'min';
-                topic: string;
-                type: 'ntfy';
-                accessToken?: string;
-                password?: string;
-                serverUrl?: string;
-                username?: string;
-            } | {
-                priority: number;
-                serverUrl: string;
-                token: string;
-                type: 'gotify';
-                path?: string;
-            } | {
-                shoutrrrUrl: string;
-                type: 'custom';
-            } | {
-                type: 'discord';
-                webhookUrl: string;
-                avatarUrl?: string;
-                threadId?: string;
-                username?: string;
+                to: Array<string>;
+                useTLS: boolean;
             } | {
                 type: 'slack';
                 webhookUrl: string;
                 channel?: string;
-                iconEmoji?: string;
                 username?: string;
+                iconEmoji?: string;
+            } | {
+                type: 'discord';
+                webhookUrl: string;
+                username?: string;
+                avatarUrl?: string;
+                threadId?: string;
+            } | {
+                type: 'gotify';
+                serverUrl: string;
+                token: string;
+                path?: string;
+                priority: number;
+            } | {
+                type: 'ntfy';
+                serverUrl?: string;
+                topic: string;
+                priority: 'max' | 'high' | 'default' | 'low' | 'min';
+                username?: string;
+                password?: string;
+                accessToken?: string;
+            } | {
+                type: 'pushover';
+                userKey: string;
+                apiToken: string;
+                devices?: string;
+                priority: -1 | 0 | 1;
+            } | {
+                type: 'telegram';
+                botToken: string;
+                chatId: string;
+                threadId?: string;
+            } | {
+                type: 'generic';
+                url: string;
+                method: 'GET' | 'POST';
+                contentType?: string;
+                headers?: Array<string>;
+                useJson?: boolean;
+                titleKey?: string;
+                messageKey?: string;
+            } | {
+                type: 'custom';
+                shoutrrrUrl: string;
             };
             createdAt: number;
-            enabled: boolean;
-            id: number;
-            name: string;
-            type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
             updatedAt: number;
         };
-        destinationId: number;
-        notifyOnFailure: boolean;
-        notifyOnStart: boolean;
-        notifyOnSuccess: boolean;
-        notifyOnWarning: boolean;
-        scheduleId: number;
     }>;
 };
 
@@ -3644,203 +3677,203 @@ export type GetScheduleMirrorsResponses = {
      * List of mirror repository assignments for the schedule
      */
     200: Array<{
-        createdAt: number;
+        scheduleId: string;
+        repositoryId: string;
         enabled: boolean;
         lastCopyAt: number | null;
+        lastCopyStatus: 'success' | 'error' | 'in_progress' | null;
         lastCopyError: string | null;
-        lastCopyStatus: 'error' | 'in_progress' | 'success' | null;
+        createdAt: number;
         repository: {
-            compressionMode: 'auto' | 'max' | 'off' | null;
+            id: string;
+            shortId: string;
+            name: string;
+            type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
-                accessKeyId: string;
-                backend: 'r2';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accessKeyId: string;
                 backend: 's3';
-                bucket: string;
                 endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accountKey: string;
-                accountName: string;
-                backend: 'azure';
-                container: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                endpointSuffix?: string;
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'gcs';
                 bucket: string;
-                credentialsJson: string;
-                projectId: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
+                accessKeyId: string;
+                secretAccessKey: string;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'r2';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
                 path: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                projectId: string;
+                credentialsJson: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'azure';
+                container: string;
+                accountName: string;
+                accountKey: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
-                path: string;
                 remote: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
+                path: string;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
                 url: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
+                username?: string;
                 password?: string;
                 path?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
-                username?: string;
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
             } | {
                 backend: 'sftp';
                 host: string;
+                port?: string | number;
+                user: string;
                 path: string;
                 privateKey: string;
-                user: string;
-                port?: number;
                 skipHostKeyCheck?: boolean;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
                 knownHosts?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
-            createdAt: number;
-            doctorResult: {
-                completedAt: number;
-                steps: Array<{
-                    error: string | null;
-                    output: string | null;
-                    step: string;
-                    success: boolean;
-                }>;
-                success: boolean;
-            } | null;
-            id: string;
+            compressionMode: 'off' | 'auto' | 'max' | null;
+            status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
             lastChecked: number | null;
             lastError: string | null;
-            name: string;
-            shortId: string;
-            status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            } | null;
+            createdAt: number;
             updatedAt: number;
         };
-        repositoryId: string;
-        scheduleId: string;
     }>;
 };
 
 export type GetScheduleMirrorsResponse = GetScheduleMirrorsResponses[keyof GetScheduleMirrorsResponses];
 
 export type UpdateScheduleMirrorsData = {
-    body?: {
+    body: {
         mirrors: Array<{
-            enabled: boolean;
             repositoryId: string;
+            enabled: boolean;
         }>;
     };
     path: {
@@ -3855,193 +3888,193 @@ export type UpdateScheduleMirrorsResponses = {
      * Mirror assignments updated successfully
      */
     200: Array<{
-        createdAt: number;
+        scheduleId: string;
+        repositoryId: string;
         enabled: boolean;
         lastCopyAt: number | null;
+        lastCopyStatus: 'success' | 'error' | 'in_progress' | null;
         lastCopyError: string | null;
-        lastCopyStatus: 'error' | 'in_progress' | 'success' | null;
+        createdAt: number;
         repository: {
-            compressionMode: 'auto' | 'max' | 'off' | null;
+            id: string;
+            shortId: string;
+            name: string;
+            type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
-                accessKeyId: string;
-                backend: 'r2';
-                bucket: string;
-                endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accessKeyId: string;
                 backend: 's3';
-                bucket: string;
                 endpoint: string;
-                secretAccessKey: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                accountKey: string;
-                accountName: string;
-                backend: 'azure';
-                container: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                endpointSuffix?: string;
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
-                uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-            } | {
-                backend: 'gcs';
                 bucket: string;
-                credentialsJson: string;
-                projectId: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
+                accessKeyId: string;
+                secretAccessKey: string;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'r2';
+                endpoint: string;
+                bucket: string;
+                accessKeyId: string;
+                secretAccessKey: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
                 path: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'gcs';
+                bucket: string;
+                projectId: string;
+                credentialsJson: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+            } | {
+                backend: 'azure';
+                container: string;
+                accountName: string;
+                accountKey: string;
+                endpointSuffix?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
+                uploadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
-                path: string;
                 remote: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
+                path: string;
                 isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
                 url: string;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
+                username?: string;
                 password?: string;
                 path?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
-                username?: string;
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
             } | {
                 backend: 'sftp';
                 host: string;
+                port?: string | number;
+                user: string;
                 path: string;
                 privateKey: string;
-                user: string;
-                port?: number;
                 skipHostKeyCheck?: boolean;
-                cacert?: string;
-                customPassword?: string;
-                downloadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
-                    enabled?: boolean;
-                };
-                insecureTls?: boolean;
-                isExistingRepository?: boolean;
                 knownHosts?: string;
+                isExistingRepository?: boolean;
+                customPassword?: string;
+                cacert?: string;
+                insecureTls?: boolean;
                 uploadLimit?: {
-                    unit?: 'Gbps' | 'Kbps' | 'Mbps';
-                    value?: number;
                     enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                };
+                downloadLimit?: {
+                    enabled?: boolean;
+                    value?: number;
+                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
-            createdAt: number;
-            doctorResult: {
-                completedAt: number;
-                steps: Array<{
-                    error: string | null;
-                    output: string | null;
-                    step: string;
-                    success: boolean;
-                }>;
-                success: boolean;
-            } | null;
-            id: string;
+            compressionMode: 'off' | 'auto' | 'max' | null;
+            status: 'healthy' | 'error' | 'unknown' | 'doctor' | 'cancelled' | null;
             lastChecked: number | null;
             lastError: string | null;
-            name: string;
-            shortId: string;
-            status: 'cancelled' | 'doctor' | 'error' | 'healthy' | 'unknown' | null;
-            type: 'azure' | 'gcs' | 'local' | 'r2' | 'rclone' | 'rest' | 's3' | 'sftp';
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            } | null;
+            createdAt: number;
             updatedAt: number;
         };
-        repositoryId: string;
-        scheduleId: string;
     }>;
 };
 
@@ -4061,16 +4094,16 @@ export type GetMirrorCompatibilityResponses = {
      * List of repositories with their mirror compatibility status
      */
     200: Array<{
+        repositoryId: string;
         compatible: boolean;
         reason: string | null;
-        repositoryId: string;
     }>;
 };
 
 export type GetMirrorCompatibilityResponse = GetMirrorCompatibilityResponses[keyof GetMirrorCompatibilityResponses];
 
 export type ReorderBackupSchedulesData = {
-    body?: {
+    body: {
         scheduleShortIds: Array<string>;
     };
     path?: never;
@@ -4103,15 +4136,16 @@ export type GetBackupProgressResponses = {
      * Current backup progress or null if not yet available
      */
     200: {
-        bytes_done: number;
-        files_done: number;
-        percent_done: number;
-        repositoryName: string;
         scheduleId: string;
-        seconds_elapsed: number;
-        total_bytes: number;
-        total_files: number;
         volumeName: string;
+        repositoryName: string;
+        seconds_elapsed: number;
+        seconds_remaining?: number;
+        percent_done: number;
+        total_files: number;
+        files_done: number;
+        total_bytes: number;
+        bytes_done: number;
         current_files?: Array<string>;
     } | null;
 };
@@ -4130,71 +4164,71 @@ export type ListNotificationDestinationsResponses = {
      * A list of notification destinations
      */
     200: Array<{
+        id: number;
+        name: string;
+        enabled: boolean;
+        type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
         createdAt: number;
-        enabled: boolean;
-        id: number;
-        name: string;
-        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     }>;
 };
@@ -4202,68 +4236,68 @@ export type ListNotificationDestinationsResponses = {
 export type ListNotificationDestinationsResponse = ListNotificationDestinationsResponses[keyof ListNotificationDestinationsResponses];
 
 export type CreateNotificationDestinationData = {
-    body?: {
+    body: {
+        name: string;
         config: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
-        name: string;
     };
     path?: never;
     query?: never;
@@ -4275,71 +4309,71 @@ export type CreateNotificationDestinationResponses = {
      * Notification destination created successfully
      */
     201: {
+        id: number;
+        name: string;
+        enabled: boolean;
+        type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
         createdAt: number;
-        enabled: boolean;
-        id: number;
-        name: string;
-        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -4394,71 +4428,71 @@ export type GetNotificationDestinationResponses = {
      * Notification destination details
      */
     200: {
+        id: number;
+        name: string;
+        enabled: boolean;
+        type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
         createdAt: number;
-        enabled: boolean;
-        id: number;
-        name: string;
-        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -4466,69 +4500,69 @@ export type GetNotificationDestinationResponses = {
 export type GetNotificationDestinationResponse = GetNotificationDestinationResponses[keyof GetNotificationDestinationResponses];
 
 export type UpdateNotificationDestinationData = {
-    body?: {
+    body: {
+        name?: string;
+        enabled?: boolean;
         config?: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
-        enabled?: boolean;
-        name?: string;
     };
     path: {
         id: string;
@@ -4549,71 +4583,71 @@ export type UpdateNotificationDestinationResponses = {
      * Notification destination updated successfully
      */
     200: {
+        id: number;
+        name: string;
+        enabled: boolean;
+        type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
-            apiToken: string;
-            priority: -1 | 0 | 1;
-            type: 'pushover';
-            userKey: string;
-            devices?: string;
-        } | {
-            botToken: string;
-            chatId: string;
-            type: 'telegram';
-            threadId?: string;
-        } | {
-            from: string;
+            type: 'email';
             smtpHost: string;
             smtpPort: number;
-            to: Array<string>;
-            type: 'email';
-            useTLS: boolean;
+            username?: string;
+            password?: string;
+            from: string;
             fromName?: string;
-            password?: string;
-            username?: string;
-        } | {
-            method: 'GET' | 'POST';
-            type: 'generic';
-            url: string;
-            contentType?: string;
-            headers?: Array<string>;
-            messageKey?: string;
-            titleKey?: string;
-            useJson?: boolean;
-        } | {
-            priority: 'default' | 'high' | 'low' | 'max' | 'min';
-            topic: string;
-            type: 'ntfy';
-            accessToken?: string;
-            password?: string;
-            serverUrl?: string;
-            username?: string;
-        } | {
-            priority: number;
-            serverUrl: string;
-            token: string;
-            type: 'gotify';
-            path?: string;
-        } | {
-            shoutrrrUrl: string;
-            type: 'custom';
-        } | {
-            type: 'discord';
-            webhookUrl: string;
-            avatarUrl?: string;
-            threadId?: string;
-            username?: string;
+            to: Array<string>;
+            useTLS: boolean;
         } | {
             type: 'slack';
             webhookUrl: string;
             channel?: string;
-            iconEmoji?: string;
             username?: string;
+            iconEmoji?: string;
+        } | {
+            type: 'discord';
+            webhookUrl: string;
+            username?: string;
+            avatarUrl?: string;
+            threadId?: string;
+        } | {
+            type: 'gotify';
+            serverUrl: string;
+            token: string;
+            path?: string;
+            priority: number;
+        } | {
+            type: 'ntfy';
+            serverUrl?: string;
+            topic: string;
+            priority: 'max' | 'high' | 'default' | 'low' | 'min';
+            username?: string;
+            password?: string;
+            accessToken?: string;
+        } | {
+            type: 'pushover';
+            userKey: string;
+            apiToken: string;
+            devices?: string;
+            priority: -1 | 0 | 1;
+        } | {
+            type: 'telegram';
+            botToken: string;
+            chatId: string;
+            threadId?: string;
+        } | {
+            type: 'generic';
+            url: string;
+            method: 'GET' | 'POST';
+            contentType?: string;
+            headers?: Array<string>;
+            useJson?: boolean;
+            titleKey?: string;
+            messageKey?: string;
+        } | {
+            type: 'custom';
+            shoutrrrUrl: string;
         };
         createdAt: number;
-        enabled: boolean;
-        id: number;
-        name: string;
-        type: 'custom' | 'discord' | 'email' | 'generic' | 'gotify' | 'ntfy' | 'pushover' | 'slack' | 'telegram';
         updatedAt: number;
     };
 };
@@ -4689,13 +4723,13 @@ export type GetUpdatesResponses = {
      */
     200: {
         currentVersion: string;
-        hasUpdate: boolean;
         latestVersion: string;
+        hasUpdate: boolean;
         missedReleases: Array<{
-            body: string;
-            publishedAt: string;
-            url: string;
             version: string;
+            url: string;
+            publishedAt: string;
+            body: string;
         }>;
     };
 };
@@ -4721,7 +4755,7 @@ export type GetRegistrationStatusResponses = {
 export type GetRegistrationStatusResponse = GetRegistrationStatusResponses[keyof GetRegistrationStatusResponses];
 
 export type SetRegistrationStatusData = {
-    body?: {
+    body: {
         enabled: boolean;
     };
     path?: never;
@@ -4741,7 +4775,7 @@ export type SetRegistrationStatusResponses = {
 export type SetRegistrationStatusResponse = SetRegistrationStatusResponses[keyof SetRegistrationStatusResponses];
 
 export type DownloadResticPasswordData = {
-    body?: {
+    body: {
         password: string;
     };
     path?: never;

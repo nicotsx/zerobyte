@@ -133,6 +133,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 			body: {
 				snapshotId,
 				include: includePaths.length > 0 ? includePaths : undefined,
+				selectedItemKind: includePaths.length === 1 ? (selectedPathKind ?? undefined) : undefined,
 				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
 				targetPath,
 				overwrite: overwriteMode,
@@ -145,6 +146,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 		restoreLocation,
 		customTargetPath,
 		selectedPaths,
+		selectedPathKind,
 		overwriteMode,
 		restoreSnapshot,
 	]);

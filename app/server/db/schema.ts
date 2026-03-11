@@ -3,13 +3,14 @@ import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqu
 import type {
 	CompressionMode,
 	RepositoryBackend,
-	repositoryConfigSchema,
+	RepositoryConfig,
 	RepositoryStatus,
 	BandwidthUnit,
 	DoctorResult,
 } from "~/schemas/restic";
-import type { BackendStatus, BackendType, volumeConfigSchema } from "~/schemas/volumes";
-import type { NotificationType, notificationConfigSchema } from "~/schemas/notifications";
+import type { ResticStatsDto } from "~/schemas/restic-dto";
+import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
+import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";
 
 /**
@@ -216,7 +217,7 @@ export const volumesTable = sqliteTable(
 			.notNull()
 			.$onUpdate(() => Date.now())
 			.default(sql`(unixepoch() * 1000)`),
-		config: text("config", { mode: "json" }).$type<typeof volumeConfigSchema.inferOut>().notNull(),
+		config: text("config", { mode: "json" }).$type<BackendConfig>().notNull(),
 		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 		organizationId: text("organization_id")
 			.notNull()
@@ -235,12 +236,14 @@ export const repositoriesTable = sqliteTable("repositories_table", {
 	shortId: text("short_id").$type<ShortId>().notNull().unique(),
 	name: text().notNull(),
 	type: text().$type<RepositoryBackend>().notNull(),
-	config: text("config", { mode: "json" }).$type<typeof repositoryConfigSchema.inferOut>().notNull(),
+	config: text("config", { mode: "json" }).$type<RepositoryConfig>().notNull(),
 	compressionMode: text("compression_mode").$type<CompressionMode>().default("auto"),
 	status: text().$type<RepositoryStatus>().default("unknown"),
 	lastChecked: int("last_checked", { mode: "number" }),
 	lastError: text("last_error"),
 	doctorResult: text("doctor_result", { mode: "json" }).$type<DoctorResult>(),
+	stats: text("stats", { mode: "json" }).$type<ResticStatsDto | null>(),
+	statsUpdatedAt: int("stats_updated_at", { mode: "number" }),
 	uploadLimitEnabled: int("upload_limit_enabled", { mode: "boolean" }).notNull().default(false),
 	uploadLimitValue: real("upload_limit_value").notNull().default(1),
 	uploadLimitUnit: text("upload_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
@@ -292,6 +295,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	lastBackupError: text("last_backup_error"),
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
+	customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
 	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
 	createdAt: int("created_at", { mode: "number" })
 		.notNull()
@@ -315,7 +319,7 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	name: text().notNull(),
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
 	type: text().$type<NotificationType>().notNull(),
-	config: text("config", { mode: "json" }).$type<typeof notificationConfigSchema.inferOut>().notNull(),
+	config: text("config", { mode: "json" }).$type<NotificationConfig>().notNull(),
 	createdAt: int("created_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),

@@ -4,8 +4,8 @@ import { db } from "~/server/db/db";
 import { account, usersTable, member, organization } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { UnauthorizedError } from "http-errors-enhanced";
-import { cryptoUtils } from "~/server/utils/crypto";
 import { normalizeUsername } from "~/lib/username";
+import { buildDefaultOrganizationData, type DefaultOrganizationData } from "../helpers/create-default-org";
 
 export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) => {
 	const { path, body } = ctx;
@@ -40,27 +40,10 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 
 			const passwordHash = await hashPassword(body.password);
 
-			let newOrganizationData: {
-				id: string;
-				name: string;
-				slug: string;
-				createdAt: Date;
-				metadata: {
-					resticPassword: string;
-				};
-			} | null = null;
+			let newOrganizationData: DefaultOrganizationData | null = null;
 
 			if (!oldMembership?.organization) {
-				const resticPassword = cryptoUtils.generateResticPassword();
-				newOrganizationData = {
-					id: Bun.randomUUIDv7(),
-					name: `${legacyUser.name}'s Workspace`,
-					slug: legacyUser.email.split("@")[0] + "-" + Math.random().toString(36).slice(-4),
-					createdAt: new Date(),
-					metadata: {
-						resticPassword: await cryptoUtils.sealSecret(resticPassword),
-					},
-				};
+				newOrganizationData = await buildDefaultOrganizationData(legacyUser);
 			}
 
 			db.transaction((tx) => {

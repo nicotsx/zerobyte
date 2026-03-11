@@ -15,24 +15,13 @@ import {
 	type DevPanelDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
-import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
+import { requireAdmin, requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
-import { createMiddleware } from "hono/factory";
 import { getOrganizationId } from "~/server/core/request-context";
-
-const requireGlobalAdmin = createMiddleware(async (c, next) => {
-	const user = c.get("user");
-
-	if (!user || user.role !== "admin") {
-		return c.json({ message: "Forbidden" }, 403);
-	}
-
-	await next();
-});
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -53,7 +42,7 @@ export const systemController = new Hono()
 	})
 	.put(
 		"/registration-status",
-		requireGlobalAdmin,
+		requireAdmin,
 		setRegistrationStatusDto,
 		validator("json", registrationStatusBody),
 		async (c) => {

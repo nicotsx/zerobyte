@@ -1,4 +1,3 @@
-import { type } from "arktype";
 import type { RepositoryConfig } from "~/schemas/restic";
 import { resticStatsSchema } from "~/schemas/restic-dto";
 import { safeJsonParse } from "~/server/utils/json";
@@ -26,12 +25,12 @@ export const stats = async (config: RepositoryConfig, options: { organizationId:
 	}
 
 	const parsedJson = safeJsonParse<unknown>(res.stdout);
-	const result = resticStatsSchema(parsedJson);
+	const result = resticStatsSchema.safeParse(parsedJson);
 
-	if (result instanceof type.errors) {
-		logger.error(`Restic stats output validation failed: ${result.summary}`);
-		throw new Error(`Restic stats output validation failed: ${result.summary}`);
+	if (!result.success) {
+		logger.error(`Restic stats output validation failed: ${result.error.message}`);
+		throw new Error(`Restic stats output validation failed: ${result.error.message}`);
 	}
 
-	return result;
+	return result.data;
 };

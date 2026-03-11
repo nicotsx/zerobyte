@@ -16,7 +16,6 @@ import { getVolumePath } from "./helpers";
 import { logger } from "../../utils/logger";
 import { serverEvents } from "../../core/events";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
-import { type } from "arktype";
 import { getOrganizationId } from "~/server/core/request-context";
 import { isNodeJSErrnoException } from "~/server/utils/fs";
 import { asShortId, type ShortId } from "~/server/utils/branded";
@@ -201,10 +200,11 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 		await backend.unmount();
 	}
 
-	const newConfig = volumeConfigSchema(volumeData.config || existing.config);
-	if (newConfig instanceof type.errors) {
+	const newConfigResult = volumeConfigSchema.safeParse(volumeData.config || existing.config);
+	if (!newConfigResult.success) {
 		throw new BadRequestError("Invalid volume configuration");
 	}
+	const newConfig = newConfigResult.data;
 
 	const encryptedConfig = await encryptSensitiveFields(newConfig);
 

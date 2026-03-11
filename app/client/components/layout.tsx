@@ -10,6 +10,7 @@ import { DevPanelListener } from "./dev-panel-listener";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import { AppBreadcrumb } from "./app-breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { ThemeToggle } from "./theme-toggle";
 
 type Props = {
 	loaderData: AppContext;
@@ -35,23 +36,24 @@ export function Layout({ loaderData }: Props) {
 		<SidebarProvider defaultOpen={loaderData.sidebarOpen}>
 			<AppSidebar isInstanceAdmin={loaderData.user?.role === "admin"} />
 			<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">
-				<header className="z-50 bg-card-header border-b border-border/50 shrink-0 h-16.25">
+				<header className="z-50 bg-card-header border-b border-border/80 dark:border-border/50 shrink-0 h-16.25">
 					<div className="flex items-center h-full justify-between px-2 sm:px-8 mx-auto container gap-4">
 						<div className="flex items-center gap-4 min-w-0">
 							<SidebarTrigger />
 							<AppBreadcrumb />
 						</div>
 						{loaderData.user && (
-							<div className="flex items-center bg-muted/30 border border-border/50 px-2 py-1 rounded-full shadow-sm">
+							<div className="flex items-center bg-card dark:bg-muted/30 border border-border/80 dark:border-border/50 px-2 py-1 rounded-full shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] dark:shadow-sm">
 								<span className="text-sm text-muted-foreground hidden md:inline-flex pl-2 mr-5">
 									<span className="text-foreground">{loaderData.user.name}</span>
 								</span>
+								<ThemeToggle />
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
 											variant="ghost"
 											size="icon"
-											className="rounded-full h-7 text-xs text-muted-foreground hover:text-white"
+											className="rounded-full h-7 text-xs text-muted-foreground hover:text-foreground"
 											onClick={handleLogout}
 										>
 											<LogOut className="w-4 h-4" />
@@ -64,7 +66,7 @@ export function Layout({ loaderData }: Props) {
 										<Button
 											variant="ghost"
 											size="icon"
-											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-white"
+											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-foreground"
 										>
 											<a
 												href="https://github.com/nicotsx/zerobyte/issues/new"

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { getRepositoryOptions, updateRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import {
 	CreateRepositoryForm,
+	formSchema,
 	type RepositoryFormValues,
 } from "~/client/modules/repositories/components/create-repository-form";
 import {
@@ -35,11 +36,11 @@ const riskyLocationFieldsByBackend = {
 	rclone: ["remote", "path"],
 } as const;
 
-const hasRiskyLocationChange = (initialConfig: RepositoryConfig, nextConfig: RepositoryFormValues): boolean => {
+const hasRiskyLocationChange = (initialConfig: RepositoryConfig, nextConfig: RepositoryConfig): boolean => {
 	const fields = riskyLocationFieldsByBackend[initialConfig.backend] ?? [];
 
 	return fields.some(
-		(field) => initialConfig[field as keyof RepositoryConfig] !== nextConfig[field as keyof RepositoryFormValues],
+		(field) => initialConfig[field as keyof RepositoryConfig] !== nextConfig[field as keyof RepositoryConfig],
 	);
 };
 
@@ -75,18 +76,20 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 	};
 
 	const submitUpdate = (values: RepositoryFormValues) => {
+		const { name, compressionMode, ...config } = formSchema.parse(values);
+
 		updateRepository.mutate({
 			path: { shortId: repositoryId },
 			body: {
-				name: values.name,
-				compressionMode: values.compressionMode,
-				config: values,
+				name,
+				compressionMode,
+				config,
 			},
 		});
 	};
 
 	const handleSubmit = (values: RepositoryFormValues) => {
-		const nextConfig = values;
+		const { name: _name, compressionMode: _compressionMode, ...nextConfig } = formSchema.parse(values);
 
 		if (hasRiskyLocationChange(initialConfig, nextConfig)) {
 			setPendingValues(values);

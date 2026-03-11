@@ -4,8 +4,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, cancelDoctor, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, devPanelExec, downloadResticPassword, dumpSnapshot, getAdminUsers, getBackupProgress, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getNotificationDestination, getOrgMembers, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getUpdates, getUserDeletionImpact, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, mountVolume, type Options, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setRegistrationStatus, startDoctor, stopBackup, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelDoctorData, CancelDoctorResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DevPanelExecData, DevPanelExecResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, GetAdminUsersData, GetAdminUsersResponse, GetBackupProgressData, GetBackupProgressResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StopBackupData, StopBackupResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
+import { browseFilesystem, cancelDoctor, createBackupSchedule, createNotificationDestination, createRepository, createVolume, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, downloadResticPassword, dumpSnapshot, getAdminUsers, getBackupProgress, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getNotificationDestination, getOrgMembers, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getUpdates, getUserDeletionImpact, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, mountVolume, type Options, refreshRepositoryStats, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setRegistrationStatus, startDoctor, stopBackup, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelDoctorData, CancelDoctorResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, GetAdminUsersData, GetAdminUsersResponse, GetBackupProgressData, GetBackupProgressResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, RefreshRepositoryStatsData, RefreshRepositoryStatsResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StopBackupData, StopBackupResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -57,93 +57,6 @@ export const getStatusOptions = (options?: Options<GetStatusData>) => queryOptio
     },
     queryKey: getStatusQueryKey(options)
 });
-
-export const getPublicSsoProvidersQueryKey = (options?: Options<GetPublicSsoProvidersData>) => createQueryKey('getPublicSsoProviders', options);
-
-/**
- * Get public SSO providers for the instance
- */
-export const getPublicSsoProvidersOptions = (options?: Options<GetPublicSsoProvidersData>) => queryOptions<GetPublicSsoProvidersResponse, DefaultError, GetPublicSsoProvidersResponse, ReturnType<typeof getPublicSsoProvidersQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getPublicSsoProviders({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getPublicSsoProvidersQueryKey(options)
-});
-
-export const getSsoSettingsQueryKey = (options?: Options<GetSsoSettingsData>) => createQueryKey('getSsoSettings', options);
-
-/**
- * Get SSO providers and invitations for the active organization
- */
-export const getSsoSettingsOptions = (options?: Options<GetSsoSettingsData>) => queryOptions<GetSsoSettingsResponse, DefaultError, GetSsoSettingsResponse, ReturnType<typeof getSsoSettingsQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getSsoSettings({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getSsoSettingsQueryKey(options)
-});
-
-/**
- * Delete an SSO provider
- */
-export const deleteSsoProviderMutation = (options?: Partial<Options<DeleteSsoProviderData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteSsoProviderData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteSsoProviderData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteSsoProvider({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Update whether SSO sign-in can auto-link existing accounts by email
- */
-export const updateSsoProviderAutoLinkingMutation = (options?: Partial<Options<UpdateSsoProviderAutoLinkingData>>): UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await updateSsoProviderAutoLinking({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Delete an SSO invitation
- */
-export const deleteSsoInvitationMutation = (options?: Partial<Options<DeleteSsoInvitationData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteSsoInvitationData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteSsoInvitationData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteSsoInvitation({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
 
 export const getAdminUsersQueryKey = (options?: Options<GetAdminUsersData>) => createQueryKey('getAdminUsers', options);
 
@@ -240,6 +153,93 @@ export const removeOrgMemberMutation = (options?: Partial<Options<RemoveOrgMembe
     const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<RemoveOrgMemberData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await removeOrgMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getPublicSsoProvidersQueryKey = (options?: Options<GetPublicSsoProvidersData>) => createQueryKey('getPublicSsoProviders', options);
+
+/**
+ * Get public SSO providers for the instance
+ */
+export const getPublicSsoProvidersOptions = (options?: Options<GetPublicSsoProvidersData>) => queryOptions<GetPublicSsoProvidersResponse, DefaultError, GetPublicSsoProvidersResponse, ReturnType<typeof getPublicSsoProvidersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getPublicSsoProviders({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getPublicSsoProvidersQueryKey(options)
+});
+
+export const getSsoSettingsQueryKey = (options?: Options<GetSsoSettingsData>) => createQueryKey('getSsoSettings', options);
+
+/**
+ * Get SSO providers and invitations for the active organization
+ */
+export const getSsoSettingsOptions = (options?: Options<GetSsoSettingsData>) => queryOptions<GetSsoSettingsResponse, DefaultError, GetSsoSettingsResponse, ReturnType<typeof getSsoSettingsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getSsoSettings({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getSsoSettingsQueryKey(options)
+});
+
+/**
+ * Delete an SSO provider
+ */
+export const deleteSsoProviderMutation = (options?: Partial<Options<DeleteSsoProviderData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteSsoProviderData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteSsoProviderData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteSsoProvider({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Update whether SSO sign-in can auto-link existing accounts by email
+ */
+export const updateSsoProviderAutoLinkingMutation = (options?: Partial<Options<UpdateSsoProviderAutoLinkingData>>): UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateSsoProviderAutoLinking({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete an SSO invitation
+ */
+export const deleteSsoInvitationMutation = (options?: Partial<Options<DeleteSsoInvitationData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteSsoInvitationData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteSsoInvitationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteSsoInvitation({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -457,7 +457,7 @@ export const listFilesInfiniteQueryKey = (options: Options<ListFilesData>): Quer
 /**
  * List files in a volume directory
  */
-export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, string | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
 {
     queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -621,6 +621,23 @@ export const getRepositoryStatsOptions = (options: Options<GetRepositoryStatsDat
 });
 
 /**
+ * Refresh repository storage and compression statistics
+ */
+export const refreshRepositoryStatsMutation = (options?: Partial<Options<RefreshRepositoryStatsData>>): UseMutationOptions<RefreshRepositoryStatsResponse, DefaultError, Options<RefreshRepositoryStatsData>> => {
+    const mutationOptions: UseMutationOptions<RefreshRepositoryStatsResponse, DefaultError, Options<RefreshRepositoryStatsData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await refreshRepositoryStats({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
  * Delete multiple snapshots from a repository
  */
 export const deleteSnapshotsMutation = (options?: Partial<Options<DeleteSnapshotsData>>): UseMutationOptions<DeleteSnapshotsResponse, DefaultError, Options<DeleteSnapshotsData>> => {
@@ -730,7 +747,7 @@ export const listSnapshotFilesInfiniteQueryKey = (options: Options<ListSnapshotF
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, string | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
 // @ts-ignore
 {
     queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -845,23 +862,6 @@ export const tagSnapshotsMutation = (options?: Partial<Options<TagSnapshotsData>
     const mutationOptions: UseMutationOptions<TagSnapshotsResponse, DefaultError, Options<TagSnapshotsData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await tagSnapshots({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Execute a restic command against a repository (dev panel only)
- */
-export const devPanelExecMutation = (options?: Partial<Options<DevPanelExecData>>): UseMutationOptions<DevPanelExecResponse, DefaultError, Options<DevPanelExecData>> => {
-    const mutationOptions: UseMutationOptions<DevPanelExecResponse, DefaultError, Options<DevPanelExecData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await devPanelExec({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

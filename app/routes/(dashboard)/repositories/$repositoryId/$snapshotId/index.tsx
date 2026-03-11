@@ -1,16 +1,30 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getRepositoryOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getRepositoryOptions,
+	getSnapshotDetailsOptions,
+	listBackupSchedulesOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { SnapshotDetailsPage } from "~/client/modules/repositories/routes/snapshot-details";
+import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/")({
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		const res = await context.queryClient.ensureQueryData({
-			...getRepositoryOptions({ path: { shortId: params.repositoryId } }),
-		});
+		const [res] = await Promise.all([
+			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { shortId: params.repositoryId } }) }),
+			context.queryClient.ensureQueryData({ ...listBackupSchedulesOptions() }),
+		]);
 
-		return res;
+		const snapshotOptions = getSnapshotDetailsOptions({
+			path: { shortId: params.repositoryId, snapshotId: params.snapshotId },
+		});
+		await prefetchOrSkip(context.queryClient, snapshotOptions);
+
+		return {
+			...res,
+			snapshot: context.queryClient.getQueryData(snapshotOptions.queryKey),
+		};
 	},
 	staticData: {
 		breadcrumb: (match) => [
@@ -32,6 +46,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
+	const { snapshot } = Route.useLoaderData();
 
-	return <SnapshotDetailsPage repositoryId={repositoryId} snapshotId={snapshotId} />;
+	return <SnapshotDetailsPage repositoryId={repositoryId} snapshotId={snapshotId} initialSnapshot={snapshot} />;
 }

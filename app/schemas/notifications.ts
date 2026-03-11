@@ -1,4 +1,4 @@
-import { type } from "arktype";
+import { z } from "zod";
 
 export const NOTIFICATION_TYPES = {
 	email: "email",
@@ -14,96 +14,98 @@ export const NOTIFICATION_TYPES = {
 
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
-export const emailNotificationConfigSchema = type({
-	type: "'email'",
-	smtpHost: "string",
-	smtpPort: "1 <= number <= 65535",
-	username: "string?",
-	password: "string?",
-	from: "string",
-	fromName: "string?",
-	to: "string[]",
-	useTLS: "boolean",
+export const emailNotificationConfigSchema = z.object({
+	type: z.literal("email"),
+	smtpHost: z.string().min(1),
+	smtpPort: z.number().int().min(1).max(65535),
+	username: z.string().optional(),
+	password: z.string().optional(),
+	from: z.string().min(1),
+	fromName: z.string().optional(),
+	to: z.array(z.string()),
+	useTLS: z.boolean(),
 });
 
-export const slackNotificationConfigSchema = type({
-	type: "'slack'",
-	webhookUrl: "string",
-	channel: "string?",
-	username: "string?",
-	iconEmoji: "string?",
+export const slackNotificationConfigSchema = z.object({
+	type: z.literal("slack"),
+	webhookUrl: z.string().min(1),
+	channel: z.string().optional(),
+	username: z.string().optional(),
+	iconEmoji: z.string().optional(),
 });
 
-export const discordNotificationConfigSchema = type({
-	type: "'discord'",
-	webhookUrl: "string",
-	username: "string?",
-	avatarUrl: "string?",
-	threadId: "string?",
+export const discordNotificationConfigSchema = z.object({
+	type: z.literal("discord"),
+	webhookUrl: z.string().min(1),
+	username: z.string().optional(),
+	avatarUrl: z.string().optional(),
+	threadId: z.string().optional(),
 });
 
-export const gotifyNotificationConfigSchema = type({
-	type: "'gotify'",
-	serverUrl: "string",
-	token: "string",
-	path: "string?",
-	priority: "0 <= number <= 10",
+export const gotifyNotificationConfigSchema = z.object({
+	type: z.literal("gotify"),
+	serverUrl: z.string().min(1),
+	token: z.string().min(1),
+	path: z.string().optional(),
+	priority: z.number().min(0).max(10),
 });
 
-export const ntfyNotificationConfigSchema = type({
-	type: "'ntfy'",
-	serverUrl: "string?",
-	topic: "string",
-	priority: "'max' | 'high' | 'default' | 'low' | 'min'",
-	username: "string?",
-	password: "string?",
-	accessToken: "string?",
+export const ntfyNotificationConfigSchema = z.object({
+	type: z.literal("ntfy"),
+	serverUrl: z.string().optional(),
+	topic: z.string().min(1),
+	priority: z.enum(["max", "high", "default", "low", "min"]),
+	username: z.string().optional(),
+	password: z.string().optional(),
+	accessToken: z.string().optional(),
 });
 
-export const pushoverNotificationConfigSchema = type({
-	type: "'pushover'",
-	userKey: "string",
-	apiToken: "string",
-	devices: "string?",
-	priority: "-1 | 0 | 1",
+export const pushoverNotificationConfigSchema = z.object({
+	type: z.literal("pushover"),
+	userKey: z.string().min(1),
+	apiToken: z.string().min(1),
+	devices: z.string().optional(),
+	priority: z.union([z.literal(-1), z.literal(0), z.literal(1)]),
 });
 
-export const telegramNotificationConfigSchema = type({
-	type: "'telegram'",
-	botToken: "string",
-	chatId: "string",
-	threadId: "string?",
+export const telegramNotificationConfigSchema = z.object({
+	type: z.literal("telegram"),
+	botToken: z.string().min(1),
+	chatId: z.string().min(1),
+	threadId: z.string().optional(),
 });
 
-export const genericNotificationConfigSchema = type({
-	type: "'generic'",
-	url: "string",
-	method: "'GET' | 'POST'",
-	contentType: "string?",
-	headers: "string[]?",
-	useJson: "boolean?",
-	titleKey: "string?",
-	messageKey: "string?",
+export const genericNotificationConfigSchema = z.object({
+	type: z.literal("generic"),
+	url: z.string().min(1),
+	method: z.enum(["GET", "POST"]),
+	contentType: z.string().optional(),
+	headers: z.array(z.string()).optional(),
+	useJson: z.boolean().optional(),
+	titleKey: z.string().optional(),
+	messageKey: z.string().optional(),
 });
 
-export const customNotificationConfigSchema = type({
-	type: "'custom'",
-	shoutrrrUrl: "string",
+export const customNotificationConfigSchema = z.object({
+	type: z.literal("custom"),
+	shoutrrrUrl: z.string().min(1),
 });
 
-export const notificationConfigSchemaBase = emailNotificationConfigSchema
-	.or(slackNotificationConfigSchema)
-	.or(discordNotificationConfigSchema)
-	.or(gotifyNotificationConfigSchema)
-	.or(ntfyNotificationConfigSchema)
-	.or(pushoverNotificationConfigSchema)
-	.or(telegramNotificationConfigSchema)
-	.or(genericNotificationConfigSchema)
-	.or(customNotificationConfigSchema);
+export const notificationConfigSchemaBase = z.discriminatedUnion("type", [
+	emailNotificationConfigSchema,
+	slackNotificationConfigSchema,
+	discordNotificationConfigSchema,
+	gotifyNotificationConfigSchema,
+	ntfyNotificationConfigSchema,
+	pushoverNotificationConfigSchema,
+	telegramNotificationConfigSchema,
+	genericNotificationConfigSchema,
+	customNotificationConfigSchema,
+]);
 
-export const notificationConfigSchema = notificationConfigSchemaBase.onUndeclaredKey("delete");
+export const notificationConfigSchema = notificationConfigSchemaBase;
 
-export type NotificationConfig = typeof notificationConfigSchema.infer;
+export type NotificationConfig = z.infer<typeof notificationConfigSchema>;
 
 export const NOTIFICATION_EVENTS = {
 	start: "start",

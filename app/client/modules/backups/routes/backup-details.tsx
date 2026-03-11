@@ -65,7 +65,9 @@ export function ScheduleDetailsPage(props: Props) {
 	const searchParams = useSearch({ from: "/(dashboard)/backups/$backupId/" });
 	const [isEditMode, setIsEditMode] = useState(false);
 	const formId = useId();
-	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(initialSnapshotId);
+	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(
+		initialSnapshotId ?? loaderData.snapshots?.at(-1)?.short_id,
+	);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 
@@ -183,6 +185,7 @@ export function ScheduleDetailsPage(props: Props) {
 				excludePatterns: formValues.excludePatterns,
 				excludeIfPresent: formValues.excludeIfPresent,
 				oneFileSystem: formValues.oneFileSystem,
+				customResticParams: formValues.customResticParams,
 			},
 		});
 	};
@@ -191,6 +194,7 @@ export function ScheduleDetailsPage(props: Props) {
 		updateSchedule.mutate({
 			path: { shortId: schedule.shortId },
 			body: {
+				name: schedule.name,
 				repositoryId: schedule.repositoryId,
 				enabled,
 				cronExpression: schedule.cronExpression,
@@ -199,6 +203,7 @@ export function ScheduleDetailsPage(props: Props) {
 				excludePatterns: schedule.excludePatterns || [],
 				excludeIfPresent: schedule.excludeIfPresent || [],
 				oneFileSystem: schedule.oneFileSystem,
+				customResticParams: schedule.customResticParams || [],
 			},
 		});
 	};

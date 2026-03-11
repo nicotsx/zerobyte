@@ -4,6 +4,7 @@ import {
 	getSnapshotDetailsOptions,
 	listBackupSchedulesOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import type { GetSnapshotDetailsResponse } from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
@@ -49,7 +50,13 @@ const SnapshotFileBrowserSkeleton = () => (
 	</div>
 );
 
-export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId: string; snapshotId: string }) {
+type Props = {
+	repositoryId: string;
+	snapshotId: string;
+	initialSnapshot?: GetSnapshotDetailsResponse;
+};
+
+export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot }: Props) {
 	const [showAllPaths, setShowAllPaths] = useState(false);
 
 	const { data: repository } = useSuspenseQuery({
@@ -62,6 +69,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId }: { repositoryId
 
 	const { data, error } = useQuery({
 		...getSnapshotDetailsOptions({ path: { shortId: repositoryId, snapshotId: snapshotId } }),
+		initialData: initialSnapshot,
 	});
 	const backupSchedule = schedules?.find((s) => data?.tags?.includes(s.shortId));
 

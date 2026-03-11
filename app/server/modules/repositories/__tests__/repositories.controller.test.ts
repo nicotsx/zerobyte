@@ -1,5 +1,6 @@
 import { test, describe, expect, spyOn } from "bun:test";
 import crypto from "node:crypto";
+import { PassThrough } from "node:stream";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
@@ -73,15 +74,20 @@ describe("repositories security", () => {
 			{ method: "GET", path: "/api/v1/repositories/rclone-remotes" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/stats" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/stats/refresh" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/refresh" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/files" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/dump" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/restore" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/doctor" },
+			{ method: "DELETE", path: "/api/v1/repositories/test-repo/doctor" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/unlock" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/tag" },
 			{ method: "PATCH", path: "/api/v1/repositories/test-repo" },
 		];
 
@@ -93,6 +99,21 @@ describe("repositories security", () => {
 				expect(body.message).toBe("Invalid or expired session");
 			});
 		}
+	});
+
+	describe("dev panel endpoint - requires dev panel access", () => {
+		test("POST /api/v1/repositories/:shortId/exec should return 401 when unauthenticated", async () => {
+			const res = await app.request("/api/v1/repositories/test-repo/exec", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ command: "version" }),
+			});
+			expect(res.status).toBe(401);
+			const body = await res.json();
+			expect(body.message).toBe("Invalid or expired session");
+		});
 	});
 
 	describe("information disclosure", () => {
@@ -119,6 +140,18 @@ describe("repositories security", () => {
 		test("should return 404 for stats of non-existent repository", async () => {
 			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo/stats", {
+				headers,
+			});
+
+			expect(res.status).toBe(404);
+			const body = await res.json();
+			expect(body.message).toBe("Repository not found");
+		});
+
+		test("should return 404 for stats refresh of non-existent repository", async () => {
+			const { headers } = await createTestSession();
+			const res = await app.request("/api/v1/repositories/non-existent-repo/stats/refresh", {
+				method: "POST",
 				headers,
 			});
 
@@ -264,6 +297,44 @@ describe("repositories updates", () => {
 				expect(body.message).toContain("Command failed");
 			} finally {
 				deleteSnapshotSpy.mockRestore();
+			}
+		});
+	});
+
+	describe("dump snapshot", () => {
+		test("continues streaming a download after the request signal aborts", async () => {
+			const { headers, organizationId } = await createTestSession();
+			const repository = await createRepositoryRecord(organizationId);
+			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
+
+			const stream = new PassThrough();
+			const expectedContent = "downloaded snapshot contents";
+
+			const dumpSnapshotSpy = spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+				stream,
+				completion: Promise.resolve(),
+				abort: () => {
+					stream.destroy(new Error("download aborted"));
+				},
+				filename: "snapshot.txt",
+				contentType: "application/octet-stream",
+			});
+
+			try {
+				const controller = new AbortController();
+				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
+					headers,
+					signal: controller.signal,
+				});
+
+				queueMicrotask(() => {
+					controller.abort();
+					stream.end(expectedContent);
+				});
+
+				await expect(response.text()).resolves.toBe(expectedContent);
+			} finally {
+				dumpSnapshotSpy.mockRestore();
 			}
 		});
 	});

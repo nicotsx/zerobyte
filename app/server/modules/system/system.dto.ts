@@ -1,32 +1,32 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
-export const capabilitiesSchema = type({
-	rclone: "boolean",
-	sysAdmin: "boolean",
+export const capabilitiesSchema = z.object({
+	rclone: z.boolean(),
+	sysAdmin: z.boolean(),
 });
 
-export const systemInfoResponse = type({
+export const systemInfoResponse = z.object({
 	capabilities: capabilitiesSchema,
 });
 
-export type SystemInfoDto = typeof systemInfoResponse.infer;
+export type SystemInfoDto = z.infer<typeof systemInfoResponse>;
 
-export const releaseInfoSchema = type({
-	version: "string",
-	url: "string",
-	publishedAt: "string",
-	body: "string",
+export const releaseInfoSchema = z.object({
+	version: z.string(),
+	url: z.string(),
+	publishedAt: z.string(),
+	body: z.string(),
 });
 
-export const updateInfoResponse = type({
-	currentVersion: "string",
-	latestVersion: "string",
-	hasUpdate: "boolean",
+export const updateInfoResponse = z.object({
+	currentVersion: z.string(),
+	latestVersion: z.string(),
+	hasUpdate: z.boolean(),
 	missedReleases: releaseInfoSchema.array(),
 });
 
-export type UpdateInfoDto = typeof updateInfoResponse.infer;
+export type UpdateInfoDto = z.infer<typeof updateInfoResponse>;
 
 export const systemInfoDto = describeRoute({
 	description: "Get system information including available capabilities",
@@ -60,8 +60,8 @@ export const getUpdatesDto = describeRoute({
 	},
 });
 
-export const downloadResticPasswordBodySchema = type({
-	password: "string",
+export const downloadResticPasswordBodySchema = z.object({
+	password: z.string(),
 });
 
 export const downloadResticPasswordDto = describeRoute({
@@ -81,14 +81,14 @@ export const downloadResticPasswordDto = describeRoute({
 	},
 });
 
-export const registrationStatusResponse = type({
-	enabled: "boolean",
+export const registrationStatusResponse = z.object({
+	enabled: z.boolean(),
 });
 
-export type RegistrationStatusDto = typeof registrationStatusResponse.infer;
+export type RegistrationStatusDto = z.infer<typeof registrationStatusResponse>;
 
-export const registrationStatusBody = type({
-	enabled: "boolean",
+export const registrationStatusBody = z.object({
+	enabled: z.boolean(),
 });
 
 export const getRegistrationStatusDto = describeRoute({
@@ -123,11 +123,11 @@ export const setRegistrationStatusDto = describeRoute({
 	},
 });
 
-export const devPanelResponse = type({
-	enabled: "boolean",
+export const devPanelResponse = z.object({
+	enabled: z.boolean(),
 });
 
-export type DevPanelDto = typeof devPanelResponse.infer;
+export type DevPanelDto = z.infer<typeof devPanelResponse>;
 
 export const getDevPanelDto = describeRoute({
 	description: "Get the dev panel status",

@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { assignOrganizationCommand } from "./commands/assign-organization";
+import { changeEmailCommand } from "./commands/change-email";
 import { changeUsernameCommand } from "./commands/change-username";
 import { disable2FACommand } from "./commands/disable-2fa";
 import { rekey2FACommand } from "./commands/rekey-2fa";
@@ -12,6 +13,7 @@ program.name("zerobyte").description("Zerobyte CLI - Backup automation tool buil
 program.addCommand(resetPasswordCommand);
 program.addCommand(disable2FACommand);
 program.addCommand(changeUsernameCommand);
+program.addCommand(changeEmailCommand);
 program.addCommand(rekey2FACommand);
 program.addCommand(assignOrganizationCommand);
 

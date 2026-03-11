@@ -8,6 +8,7 @@ import { toMessage } from "../../utils/errors";
 import { serverEvents } from "../../core/events";
 import { notificationsService } from "../notifications/notifications.service";
 import { repoMutex } from "../../core/repository-mutex";
+import { repositoriesService } from "../repositories/repositories.service";
 import { getOrganizationId } from "~/server/core/request-context";
 import { scheduleQueries, mirrorQueries, repositoryQueries } from "./backups.queries";
 import { calculateNextRun, createBackupOptions } from "./backup.helpers";
@@ -162,6 +163,12 @@ const finalizeSuccessfulBackup = async (
 	});
 
 	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
+
+	void repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
+		logger.error(
+			`Background repository stats refresh failed for schedule ${scheduleId} (${ctx.repository.shortId}): ${toMessage(error)}`,
+		);
+	});
 
 	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {

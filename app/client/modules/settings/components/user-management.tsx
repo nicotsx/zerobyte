@@ -154,7 +154,7 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 									<Badge variant="outline" className={cn("text-red-500 border-red-500", { hidden: !user.banned })}>
 										Banned
 									</Badge>
-									<Badge variant="outline" className={cn("bg-green-500/10 text-emerald-500", { hidden: user.banned })}>
+									<Badge variant="outline" className={cn("bg-success/10 text-success", { hidden: user.banned })}>
 										Active
 									</Badge>
 								</TableCell>

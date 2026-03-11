@@ -27,6 +27,10 @@ staticPasswords:
     hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
     username: "test-local"
     userID: "004"
+  - email: "linkguard@example.com"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "linkguard"
+    userID: "005"
 
 staticClients:
   - id: zerobyte-test

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { type DoctorStep, type DoctorResult, type RepositoryConfig } from "~/schemas/restic";
-import { type } from "arktype";
+import { z } from "zod";
 import { getOrganizationId } from "~/server/core/request-context";
 import { restic } from "~/server/utils/restic";
 import { toMessage } from "~/server/utils/errors";
@@ -61,21 +61,24 @@ const runRepairIndexStep = async (config: RepositoryConfig, signal: AbortSignal)
 };
 
 const parseCheckOutput = (checkOutput: string | null) => {
-	const schema = type({ suggest_repair_index: "boolean", suggest_prune: "boolean" });
+	const schema = z.object({
+		suggest_repair_index: z.boolean(),
+		suggest_prune: z.boolean(),
+	});
 	const parsedJson = safeJsonParse(checkOutput);
 
 	if (parsedJson === null) {
 		return null;
 	}
 
-	const parsed = schema(parsedJson);
+	const parsed = schema.safeParse(parsedJson);
 
-	if (parsed instanceof type.errors) {
-		logger.error(`Invalid check output format: ${parsed.summary}`);
+	if (!parsed.success) {
+		logger.error(`Invalid check output format: ${parsed.error.message}`);
 		return null;
 	}
 
-	return parsed;
+	return parsed.data;
 };
 
 const checkAbortSignal = (signal: AbortSignal | undefined): void => {

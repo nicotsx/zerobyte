@@ -1,12 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { type } from "arktype";
+import { z } from "zod";
 import { fetchUser } from "../route";
 import type { AppContext } from "~/context";
 import { AdminPage } from "~/client/modules/admin/routes/admin-page";
 import { getAdminUsersOptions, getRegistrationStatusOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export const Route = createFileRoute("/(dashboard)/admin/")({
-	validateSearch: type({ tab: "string?" }),
+	validateSearch: z.object({ tab: z.string().optional() }),
 	component: RouteComponent,
 	errorComponent: () => <div>Failed to load admin</div>,
 	loader: async ({ context }) => {

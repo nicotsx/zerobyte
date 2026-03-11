@@ -1,4 +1,4 @@
-import cron, { type ScheduledTask } from "node-cron";
+import CronExpressionParser from "cron-parser";
 import { logger } from "../utils/logger";
 
 export abstract class Job {
@@ -6,6 +6,86 @@ export abstract class Job {
 }
 
 type JobConstructor = new () => Job;
+
+class ScheduledTask {
+	private timer: ReturnType<typeof setTimeout> | null = null;
+	private active = true;
+	private running = false;
+	private readonly timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+
+	constructor(
+		private readonly jobName: string,
+		private readonly cronExpression: string,
+		private readonly run: () => Promise<void>,
+	) {
+		CronExpressionParser.parse(this.cronExpression);
+		this.scheduleNext();
+	}
+
+	private getDelay(fromDate: Date) {
+		const interval = CronExpressionParser.parse(this.cronExpression, {
+			currentDate: fromDate,
+			tz: this.timeZone,
+		});
+		const nextRun = interval.next().toDate();
+		return Math.max(0, nextRun.getTime() - Date.now());
+	}
+
+	private clearTimer() {
+		if (this.timer) {
+			clearTimeout(this.timer);
+			this.timer = null;
+		}
+	}
+
+	private stopScheduling(error: unknown) {
+		this.active = false;
+		this.clearTimer();
+		logger.error(`Stopping scheduled job ${this.jobName} after cron parsing failed:`, error);
+	}
+
+	private scheduleNext(fromDate = new Date()) {
+		if (!this.active) return;
+
+		const delay = this.getDelay(fromDate);
+		this.timer = setTimeout(() => {
+			void this.tick();
+		}, delay);
+	}
+
+	private async tick() {
+		if (!this.active) return;
+		this.timer = null;
+
+		try {
+			this.scheduleNext(new Date());
+		} catch (error) {
+			this.stopScheduling(error);
+			return;
+		}
+
+		if (this.running) {
+			logger.warn(`Skipping overlapping run for job ${this.jobName}`);
+			return;
+		}
+
+		this.running = true;
+		try {
+			await this.run();
+		} finally {
+			this.running = false;
+		}
+	}
+
+	async stop() {
+		this.active = false;
+		this.clearTimer();
+	}
+
+	async destroy() {
+		await this.stop();
+	}
+}
 
 class SchedulerClass {
 	private tasks: ScheduledTask[] = [];
@@ -18,7 +98,7 @@ class SchedulerClass {
 		const job = new JobClass();
 		return {
 			schedule: (cronExpression: string) => {
-				const task = cron.schedule(cronExpression, async () => {
+				const task = new ScheduledTask(JobClass.name, cronExpression, async () => {
 					try {
 						await job.run();
 					} catch (error) {

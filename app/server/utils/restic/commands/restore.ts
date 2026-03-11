@@ -1,5 +1,5 @@
 import path from "node:path";
-import { type } from "arktype";
+import { z } from "zod";
 import { throttle } from "es-toolkit";
 import type { OverwriteMode, RepositoryConfig } from "~/schemas/restic";
 import type { ResticRestoreOutputDto } from "~/schemas/restic-dto";
@@ -13,17 +13,17 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 
-const restoreProgressSchema = type({
-	message_type: "'status' | 'summary'",
-	seconds_elapsed: "number",
-	percent_done: "number = 0",
-	total_files: "number",
-	files_restored: "number = 0",
-	total_bytes: "number = 0",
-	bytes_restored: "number = 0",
+const restoreProgressSchema = z.object({
+	message_type: z.enum(["status", "summary"]),
+	seconds_elapsed: z.number(),
+	percent_done: z.number().default(0),
+	total_files: z.number(),
+	files_restored: z.number().default(0),
+	total_bytes: z.number().default(0),
+	bytes_restored: z.number().default(0),
 });
 
-export type RestoreProgress = typeof restoreProgressSchema.infer;
+export type RestoreProgress = z.infer<typeof restoreProgressSchema>;
 
 export const restore = async (
 	config: RepositoryConfig,
@@ -33,6 +33,7 @@ export const restore = async (
 		basePath?: string;
 		organizationId: string;
 		include?: string[];
+		selectedItemKind?: "file" | "dir";
 		exclude?: string[];
 		excludeXattr?: string[];
 		delete?: boolean;
@@ -47,7 +48,11 @@ export const restore = async (
 	let restoreArg = snapshotId;
 
 	const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
-	const commonAncestor = findCommonAncestor(includes);
+	const commonAncestor =
+		options.selectedItemKind === "file" && includes.length === 1
+			? path.posix.dirname(includes[0] ?? "/")
+			: findCommonAncestor(includes);
+
 	if (target !== "/") {
 		restoreArg = `${snapshotId}:${commonAncestor}`;
 	}
@@ -64,7 +69,7 @@ export const restore = async (
 				args.push("--include", pattern);
 			}
 		} else {
-			const strippedIncludes = options.include.map((pattern) => path.relative(commonAncestor, pattern));
+			const strippedIncludes = options.include.map((pattern) => path.posix.relative(commonAncestor, pattern));
 			const includesCoverRestoreRoot = strippedIncludes.some((pattern) => pattern === "" || pattern === ".");
 
 			if (!includesCoverRestoreRoot) {
@@ -95,11 +100,15 @@ export const restore = async (
 		if (options.onProgress) {
 			try {
 				const jsonData = JSON.parse(data);
-				const progress = restoreProgressSchema(jsonData);
-				if (!(progress instanceof type.errors)) {
-					options.onProgress(progress);
+				if (jsonData.message_type !== "status") {
+					return;
+				}
+
+				const progress = restoreProgressSchema.safeParse(jsonData);
+				if (progress.success) {
+					options.onProgress(progress.data);
 				} else {
-					logger.error(progress.summary);
+					logger.error(progress.error.message);
 				}
 			} catch {
 				// Ignore JSON parse errors for non-JSON lines
@@ -137,10 +146,10 @@ export const restore = async (
 	}
 
 	logger.debug(`Restic restore output last line: ${JSON.stringify(summaryLine)}`);
-	const result = resticRestoreOutputSchema(summaryLine);
+	const result = resticRestoreOutputSchema.safeParse(summaryLine);
 
-	if (result instanceof type.errors) {
-		logger.warn(`Restic restore output validation failed: ${result.summary}`);
+	if (!result.success) {
+		logger.warn(`Restic restore output validation failed: ${result.error.message}`);
 		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
 		const fallback: ResticRestoreOutputDto = {
 			message_type: "summary" as const,
@@ -154,8 +163,8 @@ export const restore = async (
 	}
 
 	logger.info(
-		`Restic restore completed for snapshot ${snapshotId} to target ${target}: ${result.files_restored} restored, ${result.files_skipped} skipped`,
+		`Restic restore completed for snapshot ${snapshotId} to target ${target}: ${result.data.files_restored} restored, ${result.data.files_skipped} skipped`,
 	);
 
-	return result;
+	return result.data;
 };

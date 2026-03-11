@@ -143,7 +143,7 @@ export function RepositoriesPage() {
 										className={cn(
 											"inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500",
 											{
-												"bg-green-500/10 text-emerald-500": repository.status === "healthy",
+												"bg-success/10 text-success": repository.status === "healthy",
 												"bg-red-500/10 text-red-500": repository.status === "error",
 											},
 										)}

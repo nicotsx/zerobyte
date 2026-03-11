@@ -1,4 +1,4 @@
-import { type } from "arktype";
+import { z } from "zod";
 
 export const REPOSITORY_BACKENDS = {
 	local: "local",
@@ -21,98 +21,120 @@ export const BANDWIDTH_UNITS = {
 
 export type BandwidthUnit = keyof typeof BANDWIDTH_UNITS;
 
-export const bandwidthLimitSchema = type({
-	enabled: "boolean = false",
-	value: "number > 0 = 1",
-	unit: type.valueOf(BANDWIDTH_UNITS).default("Mbps"),
+const bandwidthUnitSchema = z.enum(["Kbps", "Mbps", "Gbps"]);
+
+export const bandwidthLimitSchema = z.object({
+	enabled: z.boolean().default(false),
+	value: z.number().positive().default(1),
+	unit: bandwidthUnitSchema.default("Mbps"),
 });
 
-export type BandwidthLimit = typeof bandwidthLimitSchema.infer;
+export type BandwidthLimit = z.infer<typeof bandwidthLimitSchema>;
 
-// Common fields for all repository configs
-const baseRepositoryConfigSchema = type({
-	isExistingRepository: "boolean?",
-	customPassword: "string?",
-	cacert: "string?",
-	insecureTls: "boolean?",
-	// Bandwidth controls
+const baseRepositoryConfigSchema = z.object({
+	isExistingRepository: z.boolean().optional(),
+	customPassword: z.string().optional(),
+	cacert: z.string().optional(),
+	insecureTls: z.boolean().optional(),
 	uploadLimit: bandwidthLimitSchema.optional(),
 	downloadLimit: bandwidthLimitSchema.optional(),
 });
 
-export const s3RepositoryConfigSchema = type({
-	backend: "'s3'",
-	endpoint: "string",
-	bucket: "string",
-	accessKeyId: "string",
-	secretAccessKey: "string",
-}).and(baseRepositoryConfigSchema);
+export const s3RepositoryConfigSchema = z
+	.object({
+		backend: z.literal("s3"),
+		endpoint: z.string().min(1),
+		bucket: z.string().min(1),
+		accessKeyId: z.string().min(1),
+		secretAccessKey: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const r2RepositoryConfigSchema = type({
-	backend: "'r2'",
-	endpoint: "string",
-	bucket: "string",
-	accessKeyId: "string",
-	secretAccessKey: "string",
-}).and(baseRepositoryConfigSchema);
+export const r2RepositoryConfigSchema = z
+	.object({
+		backend: z.literal("r2"),
+		endpoint: z.string().min(1),
+		bucket: z.string().min(1),
+		accessKeyId: z.string().min(1),
+		secretAccessKey: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const localRepositoryConfigSchema = type({
-	backend: "'local'",
-	path: "string",
-}).and(baseRepositoryConfigSchema);
+export const localRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("local"),
+		path: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const gcsRepositoryConfigSchema = type({
-	backend: "'gcs'",
-	bucket: "string",
-	projectId: "string",
-	credentialsJson: "string",
-}).and(baseRepositoryConfigSchema);
+export const gcsRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("gcs"),
+		bucket: z.string().min(1),
+		projectId: z.string().min(1),
+		credentialsJson: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const azureRepositoryConfigSchema = type({
-	backend: "'azure'",
-	container: "string",
-	accountName: "string",
-	accountKey: "string",
-	endpointSuffix: "string?",
-}).and(baseRepositoryConfigSchema);
+export const azureRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("azure"),
+		container: z.string().min(1),
+		accountName: z.string().min(1),
+		accountKey: z.string().min(1),
+		endpointSuffix: z.string().optional(),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const rcloneRepositoryConfigSchema = type({
-	backend: "'rclone'",
-	remote: "string",
-	path: "string",
-}).and(baseRepositoryConfigSchema);
+export const rcloneRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("rclone"),
+		remote: z.string().min(1),
+		path: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const restRepositoryConfigSchema = type({
-	backend: "'rest'",
-	url: "string",
-	username: "string?",
-	password: "string?",
-	path: "string?",
-}).and(baseRepositoryConfigSchema);
+export const restRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("rest"),
+		url: z.string().min(1),
+		username: z.string().optional(),
+		password: z.string().optional(),
+		path: z.string().optional(),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const sftpRepositoryConfigSchema = type({
-	backend: "'sftp'",
-	host: "string",
-	port: type("string.integer").or(type("number")).to("1 <= number <= 65535").default(22),
-	user: "string",
-	path: "string",
-	privateKey: "string",
-	skipHostKeyCheck: "boolean = true",
-	knownHosts: "string?",
-}).and(baseRepositoryConfigSchema);
+export const sftpRepositoryConfigSchema = z
+	.object({
+		backend: z.literal("sftp"),
+		host: z.string().min(1),
+		port: z
+			.union([z.string(), z.number()])
+			.transform((value) => (typeof value === "string" ? Number.parseInt(value, 10) : value))
+			.pipe(z.number().int().min(1).max(65535))
+			.default(22),
+		user: z.string().min(1),
+		path: z.string().min(1),
+		privateKey: z.string().min(1),
+		skipHostKeyCheck: z.boolean().default(true),
+		knownHosts: z.string().optional(),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
 
-export const repositoryConfigSchemaBase = s3RepositoryConfigSchema
-	.or(r2RepositoryConfigSchema)
-	.or(localRepositoryConfigSchema)
-	.or(gcsRepositoryConfigSchema)
-	.or(azureRepositoryConfigSchema)
-	.or(rcloneRepositoryConfigSchema)
-	.or(restRepositoryConfigSchema)
-	.or(sftpRepositoryConfigSchema);
+export const repositoryConfigSchemaBase = z.discriminatedUnion("backend", [
+	s3RepositoryConfigSchema,
+	r2RepositoryConfigSchema,
+	localRepositoryConfigSchema,
+	gcsRepositoryConfigSchema,
+	azureRepositoryConfigSchema,
+	rcloneRepositoryConfigSchema,
+	restRepositoryConfigSchema,
+	sftpRepositoryConfigSchema,
+]);
 
-export const repositoryConfigSchema = repositoryConfigSchemaBase.onUndeclaredKey("delete");
+export const repositoryConfigSchema = repositoryConfigSchemaBase;
 
-export type RepositoryConfig = typeof repositoryConfigSchema.infer;
+export type RepositoryConfig = z.infer<typeof repositoryConfigSchema>;
 
 export const COMPRESSION_MODES = {
 	off: "off",
@@ -132,22 +154,22 @@ export const REPOSITORY_STATUS = {
 
 export type RepositoryStatus = keyof typeof REPOSITORY_STATUS;
 
-export const doctorStepSchema = type({
-	step: "string",
-	success: "boolean",
-	output: "string | null",
-	error: "string | null",
+export const doctorStepSchema = z.object({
+	step: z.string(),
+	success: z.boolean(),
+	output: z.string().nullable(),
+	error: z.string().nullable(),
 });
 
-export type DoctorStep = typeof doctorStepSchema.infer;
+export type DoctorStep = z.infer<typeof doctorStepSchema>;
 
-export const doctorResultSchema = type({
-	success: "boolean",
+export const doctorResultSchema = z.object({
+	success: z.boolean(),
 	steps: doctorStepSchema.array(),
-	completedAt: "number",
+	completedAt: z.number(),
 });
 
-export type DoctorResult = typeof doctorResultSchema.infer;
+export type DoctorResult = z.infer<typeof doctorResultSchema>;
 
 export const OVERWRITE_MODES = {
 	always: "always",

@@ -7,6 +7,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { rateLimiter } from "hono-rate-limiter";
 import { openAPIRouteHandler } from "hono-openapi";
 import { authController } from "./modules/auth/auth.controller";
+import { ssoController } from "./modules/sso/sso.controller";
 import { requireAuth } from "./modules/auth/auth.middleware";
 import { repositoriesController } from "./modules/repositories/repositories.controller";
 import { systemController } from "./modules/system/system.controller";
@@ -74,6 +75,7 @@ export const createApp = () => {
 	app
 		.get("/api/healthcheck", (c) => c.json({ status: "ok" }))
 		.route("/api/v1/auth", authController)
+		.route("/api/v1/auth", ssoController)
 		.route("/api/v1/volumes", volumeController)
 		.route("/api/v1/repositories", repositoriesController)
 		.route("/api/v1/backups", backupScheduleController)

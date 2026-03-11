@@ -135,6 +135,63 @@ describe("repositoriesService.createRepository", () => {
 	});
 });
 
+describe("repositoriesService repository stats", () => {
+	afterEach(() => {
+		mock.restore();
+	});
+
+	test("returns empty stats when repository has not been populated yet", async () => {
+		const { organizationId, user } = await createTestSession();
+		const repository = await createTestRepository(organizationId);
+
+		const stats = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.getRepositoryStats(repository.shortId),
+		);
+
+		expect(stats).toEqual({
+			total_size: 0,
+			total_uncompressed_size: 0,
+			compression_ratio: 0,
+			compression_progress: 0,
+			compression_space_saving: 0,
+			snapshots_count: 0,
+		});
+	});
+
+	test("refreshes and persists repository stats", async () => {
+		const { organizationId, user } = await createTestSession();
+		const repository = await createTestRepository(organizationId);
+		const expectedStats = {
+			total_size: 1024,
+			total_uncompressed_size: 2048,
+			compression_ratio: 2,
+			compression_progress: 50,
+			compression_space_saving: 50,
+			snapshots_count: 3,
+		};
+
+		const statsSpy = spyOn(restic, "stats").mockResolvedValue(expectedStats);
+
+		const refreshed = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.refreshRepositoryStats(repository.shortId),
+		);
+
+		expect(refreshed).toEqual(expectedStats);
+		expect(statsSpy).toHaveBeenCalledTimes(1);
+
+		const persistedRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+		expect(persistedRepository?.stats).toEqual(expectedStats);
+		expect(typeof persistedRepository?.statsUpdatedAt).toBe("number");
+
+		const loaded = await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.getRepositoryStats(repository.shortId),
+		);
+
+		expect(loaded).toEqual(expectedStats);
+		expect(statsSpy).toHaveBeenCalledTimes(1);
+	});
+});
+
 describe("repositoriesService.dumpSnapshot", () => {
 	afterEach(() => {
 		mock.restore();
@@ -335,6 +392,34 @@ describe("repositoriesService.getRetentionCategories", () => {
 describe("repositoriesService.deleteSnapshot", () => {
 	afterEach(() => {
 		mock.restore();
+	});
+
+	test("refreshes repository stats in background after successful deletion", async () => {
+		const { organizationId, user } = await createTestSession();
+		const repository = await createTestRepository(organizationId);
+		const expectedStats = {
+			total_size: 128,
+			total_uncompressed_size: 256,
+			compression_ratio: 2,
+			compression_progress: 50,
+			compression_space_saving: 50,
+			snapshots_count: 1,
+		};
+
+		spyOn(restic, "deleteSnapshot").mockResolvedValue({ success: true });
+		const statsSpy = spyOn(restic, "stats").mockResolvedValue(expectedStats);
+
+		await withContext({ organizationId, userId: user.id }, () =>
+			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(statsSpy).toHaveBeenCalledTimes(1);
+
+		const updatedRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+		expect(updatedRepository?.stats).toEqual(expectedStats);
+		expect(typeof updatedRepository?.statsUpdatedAt).toBe("number");
 	});
 
 	test("should throw original error when restic deleteSnapshot fails", async () => {

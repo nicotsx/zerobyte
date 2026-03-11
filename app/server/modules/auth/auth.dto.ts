@@ -1,89 +1,30 @@
-import { type } from "arktype";
+import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
-const statusResponseSchema = type({
-	hasUsers: "boolean",
+const statusResponseSchema = z.object({
+	hasUsers: z.boolean(),
 });
 
-export const publicSsoProvidersDto = type({
-	providers: type({
-		providerId: "string",
-		organizationSlug: "string",
-	})
-		.onUndeclaredKey("delete")
+export const adminUsersResponse = z.object({
+	users: z
+		.object({
+			id: z.string(),
+			name: z.string().nullable(),
+			email: z.string(),
+			role: z.string(),
+			banned: z.boolean(),
+			accounts: z
+				.object({
+					id: z.string(),
+					providerId: z.string(),
+				})
+				.array(),
+		})
 		.array(),
+	total: z.number(),
 });
 
-export type PublicSsoProvidersDto = typeof publicSsoProvidersDto.infer;
-
-export const getPublicSsoProvidersDto = describeRoute({
-	description: "Get public SSO providers for the instance",
-	operationId: "getPublicSsoProviders",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "List of public SSO providers",
-			content: {
-				"application/json": {
-					schema: resolver(publicSsoProvidersDto),
-				},
-			},
-		},
-	},
-});
-
-export const ssoSettingsResponse = type({
-	providers: type({
-		providerId: "string",
-		type: "string",
-		issuer: "string",
-		domain: "string",
-		autoLinkMatchingEmails: "boolean",
-		organizationId: "string | null",
-	}).array(),
-	invitations: type({
-		id: "string",
-		email: "string",
-		role: "string",
-		status: "string",
-		expiresAt: "string",
-	}).array(),
-});
-
-export type SsoSettingsDto = typeof ssoSettingsResponse.infer;
-
-export const getSsoSettingsDto = describeRoute({
-	description: "Get SSO providers and invitations for the active organization",
-	operationId: "getSsoSettings",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "SSO settings for the active organization",
-			content: {
-				"application/json": {
-					schema: resolver(ssoSettingsResponse),
-				},
-			},
-		},
-	},
-});
-
-export const adminUsersResponse = type({
-	users: type({
-		id: "string",
-		name: "string | null",
-		email: "string",
-		role: "string",
-		banned: "boolean",
-		accounts: type({
-			id: "string",
-			providerId: "string",
-		}).array(),
-	}).array(),
-	total: "number",
-});
-
-export type AdminUsersDto = typeof adminUsersResponse.infer;
+export type AdminUsersDto = z.infer<typeof adminUsersResponse>;
 
 export const getAdminUsersDto = describeRoute({
 	description: "List admin users for settings management",
@@ -117,21 +58,23 @@ export const getStatusDto = describeRoute({
 	},
 });
 
-export type GetStatusDto = typeof statusResponseSchema.infer;
+export type GetStatusDto = z.infer<typeof statusResponseSchema>;
 
-export const userDeletionImpactDto = type({
-	organizations: type({
-		id: "string",
-		name: "string",
-		resources: {
-			volumesCount: "number",
-			repositoriesCount: "number",
-			backupSchedulesCount: "number",
-		},
-	}).array(),
+export const userDeletionImpactDto = z.object({
+	organizations: z
+		.object({
+			id: z.string(),
+			name: z.string(),
+			resources: z.object({
+				volumesCount: z.number(),
+				repositoriesCount: z.number(),
+				backupSchedulesCount: z.number(),
+			}),
+		})
+		.array(),
 });
 
-export type UserDeletionImpactDto = typeof userDeletionImpactDto.infer;
+export type UserDeletionImpactDto = z.infer<typeof userDeletionImpactDto>;
 
 export const getUserDeletionImpactDto = describeRoute({
 	description: "Get impact of deleting a user",
@@ -149,37 +92,6 @@ export const getUserDeletionImpactDto = describeRoute({
 	},
 });
 
-export const deleteSsoProviderDto = describeRoute({
-	description: "Delete an SSO provider",
-	operationId: "deleteSsoProvider",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "SSO provider deleted successfully",
-		},
-		404: {
-			description: "Provider not found",
-		},
-		403: {
-			description: "Forbidden",
-		},
-	},
-});
-
-export const deleteSsoInvitationDto = describeRoute({
-	description: "Delete an SSO invitation",
-	operationId: "deleteSsoInvitation",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "SSO invitation deleted successfully",
-		},
-		403: {
-			description: "Forbidden",
-		},
-	},
-});
-
 export const deleteUserAccountDto = describeRoute({
 	description: "Delete an account linked to a user",
 	operationId: "deleteUserAccount",
@@ -188,8 +100,8 @@ export const deleteUserAccountDto = describeRoute({
 		200: {
 			description: "Account deleted successfully",
 		},
-		403: {
-			description: "Forbidden",
+		404: {
+			description: "Account not found",
 		},
 		409: {
 			description: "Cannot delete the last account",
@@ -197,20 +109,22 @@ export const deleteUserAccountDto = describeRoute({
 	},
 });
 
-export const orgMembersResponse = type({
-	members: type({
-		id: "string",
-		userId: "string",
-		role: "string",
-		createdAt: "string",
-		user: {
-			name: "string | null",
-			email: "string",
-		},
-	}).array(),
+export const orgMembersResponse = z.object({
+	members: z
+		.object({
+			id: z.string(),
+			userId: z.string(),
+			role: z.string(),
+			createdAt: z.string(),
+			user: z.object({
+				name: z.string().nullable(),
+				email: z.string(),
+			}),
+		})
+		.array(),
 });
 
-export type OrgMembersDto = typeof orgMembersResponse.infer;
+export type OrgMembersDto = z.infer<typeof orgMembersResponse>;
 
 export const getOrgMembersDto = describeRoute({
 	description: "Get members of the active organization",
@@ -228,8 +142,8 @@ export const getOrgMembersDto = describeRoute({
 	},
 });
 
-export const updateMemberRoleBody = type({
-	role: "'member' | 'admin'",
+export const updateMemberRoleBody = z.object({
+	role: z.enum(["member", "admin"]),
 });
 
 export const updateMemberRoleDto = describeRoute({
@@ -262,27 +176,6 @@ export const removeOrgMemberDto = describeRoute({
 		},
 		404: {
 			description: "Member not found",
-		},
-	},
-});
-
-export const updateSsoProviderAutoLinkingBody = type({
-	enabled: "boolean",
-});
-
-export const updateSsoProviderAutoLinkingDto = describeRoute({
-	description: "Update whether SSO sign-in can auto-link existing accounts by email",
-	operationId: "updateSsoProviderAutoLinking",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "SSO provider auto-linking setting updated successfully",
-		},
-		403: {
-			description: "Forbidden",
-		},
-		404: {
-			description: "Provider not found",
 		},
 	},
 });

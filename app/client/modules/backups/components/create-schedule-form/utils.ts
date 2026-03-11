@@ -22,6 +22,7 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		excludePatternsText: schedule.excludePatterns?.join("\n") || undefined,
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
+		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
 		...cronValues,
 		...schedule.retentionPolicy,
 	};

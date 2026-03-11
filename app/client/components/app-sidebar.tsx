@@ -69,7 +69,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 
 	return (
 		<Sidebar variant="inset" collapsible="icon" className="p-0">
-			<SidebarHeader className="bg-card-header border-b border-border/50 hidden md:flex h-16.25 flex-row items-center p-4">
+			<SidebarHeader className="bg-card-header border-b border-border/80 dark:border-border/50 hidden md:flex h-16.25 flex-row items-center p-4">
 				<Link to="/volumes" className="flex items-center gap-3 font-semibold pl-2">
 					<img src="/images/zerobyte.png" alt="Zerobyte Logo" className={cn("h-8 w-8 shrink-0 object-contain -ml-2")} />
 					<span
@@ -115,7 +115,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 																/>
 																<span
 																	className={cn({
-																		"text-white font-medium": isActive,
+																		"text-foreground font-medium": isActive,
 																		"text-muted-foreground": !isActive,
 																	})}
 																>
@@ -171,7 +171,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 																	/>
 																	<span
 																		className={cn({
-																			"text-white font-medium": isActive,
+																			"text-foreground font-medium": isActive,
 																			"text-muted-foreground": !isActive,
 																		})}
 																	>
@@ -194,7 +194,7 @@ export function AppSidebar({ isInstanceAdmin }: Props) {
 					</>
 				)}
 			</SidebarContent>
-			<SidebarFooter className="p-4 border-r border-border/50">
+			<SidebarFooter className="p-4 border-r border-border/80 dark:border-border/50">
 				<OrganizationSwitcher />
 				<div className="flex items-center justify-between gap-2">
 					<HoverCard openDelay={200}>

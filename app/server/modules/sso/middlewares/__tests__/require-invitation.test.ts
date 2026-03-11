@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { GenericEndpointContext } from "@better-auth/core";
+import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { isSsoCallbackRequest, requireSsoInvitation } from "../require-sso-invitation";
+import { isSsoCallbackRequest } from "~/server/modules/sso/utils/sso-context";
+import { requireSsoInvitation } from "../require-invitation";
 
 function createMockContext(path: string, params: Record<string, string> = {}): GenericEndpointContext {
 	return {
@@ -72,7 +73,7 @@ describe("requireSsoInvitation", () => {
 	test("throws when context is null", async () => {
 		await createSsoProvider("oidc-acme");
 
-		expect(requireSsoInvitation("user@example.com", null)).rejects.toThrow("Missing SSO context");
+		await expect(requireSsoInvitation("user@example.com", null)).rejects.toThrow("Missing SSO context");
 	});
 
 	test("throws when request is not an SSO callback", async () => {

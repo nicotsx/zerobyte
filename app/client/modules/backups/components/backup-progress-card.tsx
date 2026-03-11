@@ -46,6 +46,7 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 	const currentFile = progress?.current_files?.[0] || "";
 	const fileName = currentFile.split("/").pop() || currentFile;
 	const speed = progress ? formatBytes(progress.bytes_done / progress.seconds_elapsed) : null;
+	const eta = progress?.seconds_remaining ? formatDuration(progress.seconds_remaining) : null;
 
 	return (
 		<Card className="p-4">
@@ -95,6 +96,10 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 					<p className="font-medium">
 						{progress ? (progress.seconds_elapsed > 0 ? `${speed?.text} ${speed?.unit}/s` : "Calculating...") : "—"}
 					</p>
+				</div>
+				<div>
+					<p className="text-xs uppercase text-muted-foreground">ETA</p>
+					<p className="font-medium">{progress ? (eta ?? "Calculating...") : "—"}</p>
 				</div>
 			</div>
 

@@ -63,7 +63,7 @@ const mount = async (config: BackendConfig, path: string) => {
 	};
 
 	try {
-		return await withTimeout(run(), zbConfig.serverIdleTimeout, "Rclone mount");
+		return await withTimeout(run(), zbConfig.serverIdleTimeout * 1000, "Rclone mount");
 	} catch (error) {
 		const errorMsg = toMessage(error);
 

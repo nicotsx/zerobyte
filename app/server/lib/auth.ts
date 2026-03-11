@@ -4,12 +4,11 @@ import {
 	type BetterAuthOptions,
 	type MiddlewareContext,
 	type MiddlewareOptions,
-	type User,
 } from "better-auth";
+import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
 import { createAuthMiddleware } from "better-auth/api";
-import { sso } from "@better-auth/sso";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
@@ -19,12 +18,9 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
 import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
-import { validateSsoCallbackUrls } from "./auth/middlewares/validate-sso-callback-urls";
-import { validateSsoProviderId } from "./auth/middlewares/validate-sso-provider-id";
-import { createUserDefaultOrg } from "./auth/helpers/create-default-org";
-import { isSsoCallbackRequest, requireSsoInvitation } from "./auth/middlewares/require-sso-invitation";
-import { resolveTrustedProvidersForRequest } from "./auth/middlewares/trust-sso-provider-for-linking";
+import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
 import { buildAllowedHosts } from "./auth/base-url";
+import { ssoIntegration } from "../modules/sso/sso.integration";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -51,8 +47,10 @@ export const auth = betterAuth({
 	},
 	hooks: {
 		before: createAuthMiddleware(async (ctx) => {
-			await validateSsoProviderId(ctx);
-			await validateSsoCallbackUrls(ctx);
+			for (const mw of ssoIntegration.beforeMiddlewares) {
+				await mw(ctx);
+			}
+
 			await ensureOnlyOneUser(ctx);
 			await convertLegacyUserOnFirstLogin(ctx);
 		}),
@@ -61,6 +59,20 @@ export const auth = betterAuth({
 		provider: "sqlite",
 	}),
 	databaseHooks: {
+		account: {
+			create: {
+				before: async (account, ctx) => {
+					if (ssoIntegration.isSsoCallback(ctx)) {
+						const allowed = await ssoIntegration.canLinkSsoAccount(account.userId, account.providerId);
+						if (!allowed) {
+							throw new APIError("FORBIDDEN", {
+								message: "SSO account linking is not permitted for users outside this organization",
+							});
+						}
+					}
+				},
+			},
+		},
 		user: {
 			delete: {
 				before: async (user) => {
@@ -69,9 +81,8 @@ export const auth = betterAuth({
 			},
 			create: {
 				before: async (user, ctx) => {
-					if (isSsoCallbackRequest(ctx)) {
-						await requireSsoInvitation(user.email, ctx);
-						user.hasDownloadedResticPassword = true;
+					if (ssoIntegration.isSsoCallback(ctx)) {
+						await ssoIntegration.onUserCreate(user, ctx);
 					}
 
 					const anyUser = await db.query.usersTable.findFirst();
@@ -87,12 +98,23 @@ export const auth = betterAuth({
 
 					return { data: user };
 				},
+				after: async (user, ctx) => {
+					if (ssoIntegration.isSsoCallback(ctx)) {
+						await ssoIntegration.onUserCreated(user, ctx);
+					}
+				},
 			},
 		},
 		session: {
 			create: {
 				before: async (session, ctx) => {
-					const membership = await createUserDefaultOrg(session.userId, ctx);
+					if (ssoIntegration.isSsoCallback(ctx)) {
+						const membership = await ssoIntegration.resolveOrgMembershipOrThrow(session.userId, ctx);
+						return { data: { ...session, activeOrganizationId: membership.organizationId } };
+					}
+
+					const membership = await ensureDefaultOrg(session.userId);
+
 					return { data: { ...session, activeOrganizationId: membership.organizationId } };
 				},
 			},
@@ -104,7 +126,7 @@ export const auth = betterAuth({
 	account: {
 		accountLinking: {
 			enabled: true,
-			trustedProviders: resolveTrustedProvidersForRequest,
+			trustedProviders: ssoIntegration.resolveTrustedProviders,
 		},
 	},
 	user: {
@@ -135,17 +157,7 @@ export const auth = betterAuth({
 		organization({
 			allowUserToCreateOrganization: false,
 		}),
-		sso({
-			trustEmailVerified: false,
-			providersLimit: async (user: User) => {
-				const isOrgAdmin = await authService.isOrgAdminAnywhere(user.id);
-				return isOrgAdmin ? 10 : 0;
-			},
-			organizationProvisioning: {
-				disabled: false,
-				defaultRole: "member",
-			},
-		}),
+		ssoIntegration.plugin,
 		twoFactor({
 			backupCodeOptions: {
 				storeBackupCodes: "encrypted",

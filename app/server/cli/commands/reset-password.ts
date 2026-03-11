@@ -21,10 +21,27 @@ const resetPassword = async (username: string, newPassword: string) => {
 	const legacyHash = user.passwordHash ? await Bun.password.hash(newPassword) : null;
 
 	db.transaction((tx) => {
-		tx.update(account)
-			.set({ password: newPasswordHash })
+		const existingAccount = tx
+			.select()
+			.from(account)
 			.where(and(eq(account.userId, user.id), eq(account.providerId, "credential")))
-			.run();
+			.get();
+
+		if (existingAccount) {
+			tx.update(account).set({ password: newPasswordHash }).where(eq(account.id, existingAccount.id)).run();
+		} else {
+			tx.insert(account)
+				.values({
+					id: crypto.randomUUID(),
+					providerId: "credential",
+					accountId: user.username,
+					userId: user.id,
+					password: newPasswordHash,
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				})
+				.run();
+		}
 
 		if (legacyHash) {
 			tx.update(usersTable).set({ passwordHash: legacyHash }).where(eq(usersTable.id, user.id)).run();

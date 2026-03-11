@@ -18,7 +18,7 @@ export function StorageChart({ statfs }: Props) {
 			{
 				name: "Used",
 				value: statfs.used,
-				fill: "#ff543a",
+				fill: "var(--strong-accent)",
 			},
 			{
 				name: "Free",

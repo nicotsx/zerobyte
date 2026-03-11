@@ -5,7 +5,6 @@ import { logger } from "../../../utils/logger";
 import { toMessage } from "~/server/utils/errors";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { repositoryConfigSchema } from "~/schemas/restic";
-import { type } from "arktype";
 
 type MigrationError = { name: string; error: string };
 
@@ -68,14 +67,15 @@ const execute = async () => {
 
 			config.path = buildPath(currentPath, localRepositoryName);
 
-			const newConfig = repositoryConfigSchema(config);
-			if (newConfig instanceof type.errors) {
+			const newConfigResult = repositoryConfigSchema.safeParse(config);
+			if (!newConfigResult.success) {
 				errors.push({
 					name: `repository:${repository.id}`,
-					error: `Validation failed for updated repository config: ${newConfig.summary}`,
+					error: `Validation failed for updated repository config: ${newConfigResult.error.message}`,
 				});
 				continue;
 			}
+			const newConfig = newConfigResult.data;
 
 			await db
 				.update(repositoriesTable)

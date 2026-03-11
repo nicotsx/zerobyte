@@ -3,6 +3,7 @@ import { Download, KeyRound, User, X, Settings as SettingsIcon, Building2 } from
 import { useState } from "react";
 import { toast } from "sonner";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import {
@@ -21,18 +22,18 @@ import { authClient } from "~/client/lib/auth-client";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { SsoSettingsSection } from "../components/sso/sso-settings-section";
+import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
-import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client";
 
 type Props = {
 	appContext: AppContext;
 	initialMembers?: GetOrgMembersResponse;
 	initialSsoSettings?: GetSsoSettingsResponse;
+	initialOrigin?: string;
 };
 
-export function SettingsPage({ appContext, initialMembers, initialSsoSettings }: Props) {
+export function SettingsPage({ appContext, initialMembers, initialSsoSettings, initialOrigin }: Props) {
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
@@ -163,8 +164,12 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings }:
 							</div>
 							<CardContent className="p-6 space-y-4">
 								<div className="space-y-2">
-									<Label>Username</Label>
-									<Input value={appContext.user?.username || ""} disabled className="max-w-md" />
+									<Label htmlFor="username">Username</Label>
+									<Input id="username" value={appContext.user?.username} disabled className="max-w-md" />
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="email">Email</Label>
+									<Input id="email" type="email" value={appContext.user?.email} disabled className="max-w-md" />
 								</div>
 							</CardContent>
 
@@ -312,7 +317,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings }:
 									<CardDescription className="mt-1.5">Configure OIDC provider settings</CardDescription>
 								</div>
 								<CardContent className="p-6">
-									<SsoSettingsSection initialSettings={initialSsoSettings} />
+									<SsoSettingsSection initialSettings={initialSsoSettings} initialOrigin={initialOrigin} />
 								</CardContent>
 							</Card>
 						</TabsContent>

@@ -30,11 +30,11 @@ function getScenarioNames(runId: string): ScenarioNames {
 	};
 }
 
-function prepareTestFile(runId: string): string {
+function prepareTestFile(runId: string, fileName = "test.json"): string {
 	const runPath = path.join(testDataPath, runId);
 	fs.mkdirSync(runPath, { recursive: true });
 
-	const filePath = path.join(runPath, "test.json");
+	const filePath = path.join(runPath, fileName);
 	fs.writeFileSync(filePath, JSON.stringify({ data: "test file" }));
 
 	return filePath;
@@ -110,6 +110,55 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 
 	const restoredContent = fs.readFileSync(filePath, "utf8");
 	expect(JSON.parse(restoredContent)).toEqual({ data: "test file" });
+});
+
+test("can restore a single selected file to a custom location", async ({ page }, testInfo) => {
+	const runId = getRunId(testInfo);
+	const names = getScenarioNames(runId);
+	const fileName = `single-file-${runId}.json`;
+	const filePath = prepareTestFile(runId, fileName);
+	const restoreTargetPath = path.join(testDataPath, fileName);
+	const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+	fs.rmSync(restoreTargetPath, { force: true });
+
+	await gotoAndWaitForAppReady(page, "/");
+	await expect(page).toHaveURL("/volumes");
+
+	await createBackupScenario(page, names);
+
+	await page.getByRole("button", { name: "Backup now" }).click();
+	await expect(page.getByText("Backup started successfully")).toBeVisible();
+	await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
+
+	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
+
+	await page
+		.getByRole("button", { name: /\d+ B$/ })
+		.first()
+		.click();
+	await page.getByRole("link", { name: "Restore" }).click();
+	await expect(page).toHaveURL(/\/restore/);
+
+	await page.getByRole("button", { name: "Custom location" }).click();
+	await page.getByRole("button", { name: "Change" }).click();
+	await page.getByRole("button", { name: /^test-data$/ }).click();
+	await expect(page.getByText("/test-data", { exact: true })).toBeVisible();
+
+	const runFolderRow = page.getByRole("button", { name: new RegExp(runId) });
+	await runFolderRow.locator("svg").first().click();
+
+	const fileRow = page.getByRole("button", { name: new RegExp(escapedFileName) });
+	await fileRow.getByRole("checkbox").click();
+	await expect(page.getByText("1 item selected")).toBeVisible();
+
+	await page.getByRole("button", { name: "Restore 1 item" }).click();
+	await expect(page.getByText("Restore completed")).toBeVisible({ timeout: 30000 });
+
+	const restoredContent = fs.readFileSync(restoreTargetPath, "utf8");
+	expect(JSON.parse(restoredContent)).toEqual({ data: "test file" });
+
+	fs.rmSync(restoreTargetPath, { force: true });
 });
 
 test("deleting a volume cascades and removes its backup schedule", async ({ page }, testInfo) => {

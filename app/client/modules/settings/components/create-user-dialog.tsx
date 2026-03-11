@@ -1,10 +1,10 @@
-import { arktypeResolver } from "@hookform/resolvers/arktype";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { type } from "arktype";
 import { Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { Button } from "~/client/components/ui/button";
 import {
 	Dialog,
@@ -20,15 +20,15 @@ import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { authClient } from "~/client/lib/auth-client";
 
-const createUserSchema = type({
-	name: "string>=1",
-	username: "string>=1",
-	email: "string",
-	password: "string>=8",
-	role: "'user'|'admin'",
+const createUserSchema = z.object({
+	name: z.string().min(1),
+	username: z.string().min(1),
+	email: z.string().email(),
+	password: z.string().min(8),
+	role: z.enum(["user", "admin"]),
 });
 
-type CreateUserFormValues = typeof createUserSchema.infer;
+type CreateUserFormValues = z.infer<typeof createUserSchema>;
 
 interface CreateUserDialogProps {
 	onUserCreated?: () => void;
@@ -38,7 +38,7 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	const form = useForm<CreateUserFormValues>({
-		resolver: arktypeResolver(createUserSchema),
+		resolver: zodResolver(createUserSchema),
 		defaultValues: {
 			name: "",
 			username: "",

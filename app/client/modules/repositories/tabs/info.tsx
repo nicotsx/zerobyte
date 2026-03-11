@@ -187,7 +187,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 									<p className="text-sm flex items-center gap-2">
 										<span
 											className={cn("w-2 h-2 rounded-full", {
-												"bg-emerald-500": repository.status === "healthy",
+												"bg-success": repository.status === "healthy",
 												"bg-red-500": repository.status === "error",
 												"bg-amber-500": repository.status !== "healthy" && repository.status !== "error",
 												"animate-pulse": repository.status === "doctor",
@@ -209,7 +209,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 								{hasCaCert && (
 									<div className="flex flex-col gap-1">
 										<div className="text-sm font-medium text-muted-foreground">CA Certificate</div>
-										<p className="text-sm text-green-500">Configured</p>
+										<p className="text-sm text-success">Configured</p>
 									</div>
 								)}
 								{hasInsecureTlsConfig && (
@@ -217,7 +217,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 										<div className="text-sm font-medium text-muted-foreground">TLS Validation</div>
 										<p className="text-sm">
 											<span className={cn("text-red-500", { hidden: !isTlsValidationDisabled })}>Disabled</span>
-											<span className={cn("text-green-500", { hidden: isTlsValidationDisabled })}>Enabled</span>
+											<span className={cn("text-success", { hidden: isTlsValidationDisabled })}>Enabled</span>
 										</p>
 									</div>
 								)}

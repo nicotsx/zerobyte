@@ -50,6 +50,7 @@
 		"no-unused-vars": [
 			"warn",
 			{
+				"varsIgnorePattern": "^_",
 				"caughtErrorsIgnorePattern": "^_",
 				"argsIgnorePattern": "^_"
 			}
@@ -114,6 +115,7 @@
 		"unicorn/prefer-set-size": "warn",
 		"unicorn/prefer-string-starts-ends-with": "warn",
 		"import/no-cycle": "error",
+		"import/no-unused-modules": ["error", { "unusedExports": true }],
 		"eslint/no-console": ["warn", { "allow": ["warn", "error", "info"] }]
 	},
 	"settings": {

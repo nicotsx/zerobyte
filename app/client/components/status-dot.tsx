@@ -12,8 +12,8 @@ interface StatusDotProps {
 export const StatusDot = ({ variant, label, animated }: StatusDotProps) => {
 	const statusMapping = {
 		success: {
-			color: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]",
-			colorLight: "bg-emerald-400",
+			color: "bg-success shadow-[0_0_8px_rgba(16,185,129,0.5)]",
+			colorLight: "bg-success/60",
 			animated: animated ?? true,
 		},
 		neutral: {

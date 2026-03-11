@@ -3,16 +3,14 @@ import {
 	usersTable,
 	member,
 	organization,
+	sessionsTable,
 	volumesTable,
 	repositoriesTable,
 	backupSchedulesTable,
-	ssoProvider,
 	account,
-	invitation,
 } from "../../db/schema";
 import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
-import { isReservedSsoProviderId } from "~/server/lib/auth/utils/sso-provider-id";
 
 export class AuthService {
 	/**
@@ -21,21 +19,6 @@ export class AuthService {
 	async hasUsers() {
 		const [user] = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
 		return !!user;
-	}
-
-	/**
-	 * Get public SSO providers for the instance
-	 */
-	async getPublicSsoProviders() {
-		const providers = await db
-			.select({
-				providerId: ssoProvider.providerId,
-				organizationSlug: organization.slug,
-			})
-			.from(ssoProvider)
-			.innerJoin(organization, eq(ssoProvider.organizationId, organization.id));
-
-		return { providers };
 	}
 
 	/**
@@ -100,94 +83,54 @@ export class AuthService {
 		const impact = await this.getUserDeletionImpact(userId);
 		const orgIds = impact.organizations.map((o) => o.id);
 
-		if (orgIds.length > 0) {
-			await db.delete(organization).where(inArray(organization.id, orgIds));
-		}
-	}
-
-	/**
-	 * Delete an SSO provider and its associated accounts
-	 */
-	async deleteSsoProvider(providerId: string, organizationId: string) {
-		return db.transaction(async (tx) => {
-			const provider = await tx.query.ssoProvider.findFirst({
-				where: { AND: [{ providerId }, { organizationId }] },
-				columns: { id: true, providerId: true },
-			});
-
-			if (!provider) {
-				return false;
-			}
-
-			if (isReservedSsoProviderId(provider.providerId)) {
-				await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
-				return true;
-			}
-
-			await tx.delete(account).where(eq(account.providerId, provider.providerId));
-			await tx.delete(ssoProvider).where(eq(ssoProvider.id, provider.id));
-
-			return true;
-		});
-	}
-
-	/**
-	 * Get per-provider auto-linking setting for an organization
-	 */
-	async getSsoProviderAutoLinkingSettings(organizationId: string) {
-		const providers = await db.query.ssoProvider.findMany({
-			columns: { providerId: true, autoLinkMatchingEmails: true },
-			where: { organizationId },
-		});
-
-		return Object.fromEntries(providers.map((provider) => [provider.providerId, provider.autoLinkMatchingEmails]));
-	}
-
-	/**
-	 * Update per-provider auto-linking setting
-	 */
-	async updateSsoProviderAutoLinking(providerId: string, organizationId: string, enabled: boolean) {
-		const existingProvider = await db.query.ssoProvider.findFirst({
-			where: { AND: [{ providerId }, { organizationId }] },
-			columns: { id: true },
-		});
-
-		if (!existingProvider) {
-			return false;
+		if (orgIds.length === 0) {
+			return;
 		}
 
-		await db
-			.update(ssoProvider)
-			.set({ autoLinkMatchingEmails: enabled })
-			.where(and(eq(ssoProvider.providerId, providerId), eq(ssoProvider.organizationId, organizationId)));
+		db.transaction((tx) => {
+			const membersInDeletedOrgs = tx.query.member
+				.findMany({
+					where: {
+						AND: [{ organizationId: { in: orgIds } }, { userId: { ne: userId } }],
+					},
+					columns: { userId: true },
+				})
+				.sync();
 
-		return true;
-	}
+			const affectedUserIds = [...new Set(membersInDeletedOrgs.map((r) => r.userId))];
 
-	/**
-	 * Get an SSO invitation by ID
-	 */
-	async getSsoInvitationById(invitationId: string) {
-		return db.query.invitation.findFirst({
-			where: { id: invitationId },
-			columns: { id: true, organizationId: true },
-		});
-	}
+			if (affectedUserIds.length > 0) {
+				const memberships = tx.query.member
+					.findMany({
+						where: {
+							userId: { in: affectedUserIds },
+						},
+					})
+					.sync();
 
-	/**
-	 * Delete an invitation
-	 */
-	async deleteSsoInvitation(invitationId: string) {
-		await db.delete(invitation).where(eq(invitation.id, invitationId));
-	}
+				const orgIdSet = new Set(orgIds);
+				const fallbackOrgByUser = new Map<string, string | null>(affectedUserIds.map((id) => [id, null]));
 
-	/**
-	 * Check if a user is a member of an organization
-	 */
-	async getUserMembership(userId: string, organizationId: string) {
-		return db.query.member.findFirst({
-			where: { AND: [{ userId }, { organizationId }] },
-			columns: { id: true },
+				for (const { userId, organizationId } of memberships) {
+					if (!orgIdSet.has(organizationId) && fallbackOrgByUser.get(userId) === null) {
+						fallbackOrgByUser.set(userId, organizationId);
+					}
+				}
+
+				for (const [affectedUserId, fallbackOrgId] of fallbackOrgByUser) {
+					tx.update(sessionsTable)
+						.set({ activeOrganizationId: fallbackOrgId })
+						.where(and(eq(sessionsTable.userId, affectedUserId), inArray(sessionsTable.activeOrganizationId, orgIds)))
+						.run();
+				}
+			}
+
+			tx.delete(organization).where(inArray(organization.id, orgIds)).run();
+
+			tx.update(sessionsTable)
+				.set({ activeOrganizationId: null })
+				.where(inArray(sessionsTable.activeOrganizationId, orgIds))
+				.run();
 		});
 	}
 
@@ -207,7 +150,10 @@ export class AuthService {
 			if (!grouped[row.userId]) {
 				grouped[row.userId] = [];
 			}
-			grouped[row.userId].push({ id: row.id, providerId: row.providerId });
+			grouped[row.userId].push({
+				id: row.id,
+				providerId: row.providerId,
+			});
 		}
 		return grouped;
 	}
@@ -274,7 +220,32 @@ export class AuthService {
 			return { found: true, isOwner: true } as const;
 		}
 
-		await db.delete(member).where(eq(member.id, memberId));
+		db.transaction((tx) => {
+			const fallbackMembership = tx.query.member
+				.findFirst({
+					where: {
+						AND: [{ userId: targetMember.userId }, { organizationId: { ne: organizationId } }],
+					},
+					columns: { organizationId: true },
+				})
+				.sync();
+
+			tx.delete(member).where(eq(member.id, memberId)).run();
+
+			if (fallbackMembership?.organizationId) {
+				tx.update(sessionsTable)
+					.set({
+						activeOrganizationId: fallbackMembership.organizationId,
+					})
+					.where(
+						and(eq(sessionsTable.userId, targetMember.userId), eq(sessionsTable.activeOrganizationId, organizationId)),
+					)
+					.run();
+				return;
+			}
+
+			tx.delete(sessionsTable).where(eq(sessionsTable.userId, targetMember.userId)).run();
+		});
 
 		return { found: true, isOwner: false } as const;
 	}
@@ -295,24 +266,36 @@ export class AuthService {
 	/**
 	 * Delete a single account for a user, refusing if it is the last one
 	 */
-	async deleteUserAccount(userId: string, accountId: string, organizationId: string) {
-		const membership = await this.getUserMembership(userId, organizationId);
-		if (!membership) {
-			return { lastAccount: false, forbidden: true };
-		}
+	async deleteUserAccount(userId: string, accountId: string) {
+		return db.transaction((tx) => {
+			const targetAccount = tx.query.account
+				.findFirst({
+					where: {
+						AND: [{ id: accountId }, { userId }],
+					},
+				})
+				.sync();
 
-		return db.transaction(async (tx) => {
-			const userAccounts = await tx.query.account.findMany({
-				where: { userId },
-				columns: { id: true },
-			});
-
-			if (userAccounts.length <= 1) {
-				return { lastAccount: true, forbidden: false };
+			if (!targetAccount) {
+				return { lastAccount: false, notFound: true };
 			}
 
-			await tx.delete(account).where(and(eq(account.id, accountId), eq(account.userId, userId)));
-			return { lastAccount: false, forbidden: false };
+			const userAccounts = tx.query.account
+				.findMany({
+					where: { userId },
+					columns: { id: true },
+				})
+				.sync();
+
+			if (userAccounts.length <= 1) {
+				return { lastAccount: true, notFound: false };
+			}
+
+			tx.delete(account)
+				.where(and(eq(account.id, accountId), eq(account.userId, userId)))
+				.run();
+
+			return { lastAccount: false, notFound: false };
 		});
 	}
 }
