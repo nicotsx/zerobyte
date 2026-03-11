@@ -2,8 +2,6 @@
 	"name": "@zerobyte/core",
 	"private": true,
 	"type": "module",
-	"main": "index.ts",
-	"module": "index.ts",
 	"exports": {
 		"./restic": {
 			"types": "./src/restic/index.ts",
@@ -15,6 +13,10 @@
 			"import": "./src/utils/index.ts",
 			"default": "./src/utils/index.ts"
 		}
+	},
+	"scripts": {
+		"tsc": "tsc --noEmit",
+		"test": "bun test --preload ./test/setup.ts"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

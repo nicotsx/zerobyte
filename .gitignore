@@ -42,3 +42,4 @@ tmp/
 qa-output
 
 .worktrees/
+.turbo
