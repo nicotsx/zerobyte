@@ -2186,7 +2186,7 @@ export type ListSnapshotFilesResponses = {
             id: string;
             short_id: string;
             time: string;
-            hostname: string;
+            hostname?: string;
             paths: Array<string>;
         };
         files: Array<{
@@ -4140,6 +4140,7 @@ export type GetBackupProgressResponses = {
         volumeName: string;
         repositoryName: string;
         seconds_elapsed: number;
+        seconds_remaining?: number;
         percent_done: number;
         total_files: number;
         files_done: number;
