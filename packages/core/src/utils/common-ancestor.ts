@@ -14,8 +14,9 @@ export const findCommonAncestor = (paths: string[]): string => {
 	const commonParts: string[] = [];
 	for (let i = 0; i < minLength; i++) {
 		const partSet = new Set(splitPaths.map((parts) => parts[i]));
-		if (partSet.size === 1) {
-			commonParts.push(splitPaths[0]![i]!);
+		const toPush = splitPaths[0]?.[i];
+		if (partSet.size === 1 && toPush) {
+			commonParts.push(toPush);
 		} else {
 			break;
 		}

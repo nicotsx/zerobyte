@@ -53,12 +53,12 @@ export const ls = async (
 	config: RepositoryConfig,
 	snapshotId: string,
 	organizationId: string,
-	path?: string,
-	options?: { offset?: number; limit?: number },
-	deps?: ResticDeps,
+	path: string | undefined,
+	options: { offset?: number; limit?: number } | undefined,
+	deps: ResticDeps,
 ): Promise<ResticLsResult> => {
 	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, organizationId, deps!);
+	const env = await buildEnv(config, organizationId, deps);
 
 	const args: string[] = ["--repo", repoUrl, "ls", snapshotId, "--long"];
 
@@ -119,7 +119,7 @@ export const ls = async (
 		},
 	});
 
-	await cleanupTemporaryKeys(env, deps!);
+	await cleanupTemporaryKeys(env, deps);
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic ls failed: ${res.error}`);

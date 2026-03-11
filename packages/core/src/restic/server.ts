@@ -25,13 +25,8 @@ export { ResticError } from "./error";
 function withDeps<Args extends unknown[], Result>(
 	command: (...args: [...Args, ResticDeps]) => Result,
 	deps: ResticDeps,
-): (...args: Args) => Result;
-function withDeps<Args extends unknown[], Result>(
-	command: (...args: [...Args, ResticDeps?]) => Result,
-	deps: ResticDeps,
-): (...args: Args) => Result;
-function withDeps(command: (...args: any[]) => any, deps: ResticDeps) {
-	return (...args: any[]) => command(...args, deps);
+): (...args: Args) => Result {
+	return (...args: Args) => command(...args, deps);
 }
 
 export const createRestic = (deps: ResticDeps) => ({
