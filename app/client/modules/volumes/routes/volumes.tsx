@@ -137,7 +137,11 @@ export function VolumesPage() {
 								className="hover:bg-muted/50 hover:cursor-pointer transition-colors h-12"
 								onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
 							>
-								<TableCell className="font-medium font-mono text-strong-accent">{volume.name}</TableCell>
+								<TableCell className="font-medium font-mono text-strong-accent">
+									<div className="flex items-center gap-2">
+										<span>{volume.name}</span>
+									</div>
+								</TableCell>
 								<TableCell className="font-mono text-muted-foreground">
 									<VolumeIcon backend={volume.type} />
 								</TableCell>

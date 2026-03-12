@@ -40,6 +40,29 @@ const createRepositoryRecord = async (organizationId: string) => {
 	return repository;
 };
 
+const createManagedRepositoryRecord = async (organizationId: string) => {
+	const [repository] = await db
+		.insert(repositoriesTable)
+		.values({
+			id: Bun.randomUUIDv7(),
+			provisioningId: `provisioned:${crypto.randomUUID()}`,
+			shortId: generateShortId(),
+			name: `Managed-${crypto.randomUUID()}`,
+			type: "local",
+			config: {
+				backend: "local",
+				path: `/tmp/repository-${crypto.randomUUID()}`,
+				isExistingRepository: true,
+			},
+			compressionMode: "off",
+			status: "healthy",
+			organizationId,
+		})
+		.returning();
+
+	return repository;
+};
+
 describe("repositories security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
 		const res = await app.request("/api/v1/repositories");
@@ -174,6 +197,30 @@ describe("repositories security", () => {
 			});
 
 			expect(res.status).toBe(400);
+		});
+
+		test("should accept env:// values as plain secrets on create", async () => {
+			const { headers } = await createTestSession();
+			const res = await app.request("/api/v1/repositories", {
+				method: "POST",
+				headers: {
+					...headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					name: "S3 repo",
+					compressionMode: "auto",
+					config: {
+						backend: "s3",
+						endpoint: "https://s3.amazonaws.com",
+						bucket: "bucket-name",
+						accessKeyId: "access-key",
+						secretAccessKey: "env://ZEROBYTE_REPOSITORY_SECRET",
+					},
+				}),
+			});
+
+			expect(res.status).not.toBe(400);
 		});
 	});
 });
@@ -337,5 +384,48 @@ describe("repositories updates", () => {
 				dumpSnapshotSpy.mockRestore();
 			}
 		});
+	});
+
+	test("GET marks provisioned repositories as managed", async () => {
+		const { headers, organizationId } = await createTestSession();
+		const repository = await createManagedRepositoryRecord(organizationId);
+
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, { headers });
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.managed).toBe(true);
+	});
+
+	test("PATCH allows updates for managed repositories", async () => {
+		const { headers, organizationId } = await createTestSession();
+		const repository = await createManagedRepositoryRecord(organizationId);
+
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "PATCH",
+			headers: {
+				...headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				name: "Updated repository",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.name).toBe("Updated repository");
+	});
+
+	test("DELETE allows managed repositories", async () => {
+		const { headers, organizationId } = await createTestSession();
+		const repository = await createManagedRepositoryRecord(organizationId);
+
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "DELETE",
+			headers,
+		});
+
+		expect(res.status).toBe(200);
 	});
 });

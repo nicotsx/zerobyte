@@ -24,6 +24,7 @@ import { parseError } from "~/client/lib/errors";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { useNavigate } from "@tanstack/react-router";
+import { ManagedBadge } from "~/client/components/managed-badge";
 
 const riskyLocationFieldsByBackend = {
 	local: ["path"],
@@ -124,7 +125,10 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 							<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
 								<Database className="w-5 h-5 text-primary" />
 							</div>
-							<CardTitle>Edit Repository</CardTitle>
+							<div className="flex items-center gap-2">
+								<CardTitle>Edit Repository</CardTitle>
+								{repository.provisioningId && <ManagedBadge />}
+							</div>
 						</div>
 					</CardHeader>
 					<CardContent className="space-y-6">

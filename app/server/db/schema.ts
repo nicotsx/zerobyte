@@ -203,6 +203,7 @@ export const volumesTable = sqliteTable(
 	{
 		id: int().primaryKey({ autoIncrement: true }),
 		shortId: text("short_id").$type<ShortId>().notNull().unique(),
+		provisioningId: text("provisioning_id"),
 		name: text().notNull(),
 		type: text().$type<BackendType>().notNull(),
 		status: text().$type<BackendStatus>().notNull().default("unmounted"),
@@ -223,7 +224,10 @@ export const volumesTable = sqliteTable(
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
 	},
-	(table) => [unique().on(table.name, table.organizationId)],
+	(table) => [
+		unique().on(table.name, table.organizationId),
+		uniqueIndex("volumes_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
+	],
 );
 export type Volume = typeof volumesTable.$inferSelect;
 export type VolumeInsert = typeof volumesTable.$inferInsert;
@@ -231,35 +235,42 @@ export type VolumeInsert = typeof volumesTable.$inferInsert;
 /**
  * Repositories Table
  */
-export const repositoriesTable = sqliteTable("repositories_table", {
-	id: text().primaryKey(),
-	shortId: text("short_id").$type<ShortId>().notNull().unique(),
-	name: text().notNull(),
-	type: text().$type<RepositoryBackend>().notNull(),
-	config: text("config", { mode: "json" }).$type<RepositoryConfig>().notNull(),
-	compressionMode: text("compression_mode").$type<CompressionMode>().default("auto"),
-	status: text().$type<RepositoryStatus>().default("unknown"),
-	lastChecked: int("last_checked", { mode: "number" }),
-	lastError: text("last_error"),
-	doctorResult: text("doctor_result", { mode: "json" }).$type<DoctorResult>(),
-	stats: text("stats", { mode: "json" }).$type<ResticStatsDto | null>(),
-	statsUpdatedAt: int("stats_updated_at", { mode: "number" }),
-	uploadLimitEnabled: int("upload_limit_enabled", { mode: "boolean" }).notNull().default(false),
-	uploadLimitValue: real("upload_limit_value").notNull().default(1),
-	uploadLimitUnit: text("upload_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
-	downloadLimitEnabled: int("download_limit_enabled", { mode: "boolean" }).notNull().default(false),
-	downloadLimitValue: real("download_limit_value").notNull().default(1),
-	downloadLimitUnit: text("download_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
-	createdAt: int("created_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	organizationId: text("organization_id")
-		.notNull()
-		.references(() => organization.id, { onDelete: "cascade" }),
-});
+export const repositoriesTable = sqliteTable(
+	"repositories_table",
+	{
+		id: text().primaryKey(),
+		shortId: text("short_id").$type<ShortId>().notNull().unique(),
+		provisioningId: text("provisioning_id"),
+		name: text().notNull(),
+		type: text().$type<RepositoryBackend>().notNull(),
+		config: text("config", { mode: "json" }).$type<RepositoryConfig>().notNull(),
+		compressionMode: text("compression_mode").$type<CompressionMode>().default("auto"),
+		status: text().$type<RepositoryStatus>().default("unknown"),
+		lastChecked: int("last_checked", { mode: "number" }),
+		lastError: text("last_error"),
+		doctorResult: text("doctor_result", { mode: "json" }).$type<DoctorResult>(),
+		stats: text("stats", { mode: "json" }).$type<ResticStatsDto | null>(),
+		statsUpdatedAt: int("stats_updated_at", { mode: "number" }),
+		uploadLimitEnabled: int("upload_limit_enabled", { mode: "boolean" }).notNull().default(false),
+		uploadLimitValue: real("upload_limit_value").notNull().default(1),
+		uploadLimitUnit: text("upload_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
+		downloadLimitEnabled: int("download_limit_enabled", { mode: "boolean" }).notNull().default(false),
+		downloadLimitValue: real("download_limit_value").notNull().default(1),
+		downloadLimitUnit: text("download_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: int("updated_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		uniqueIndex("repositories_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
+	],
+);
 export type Repository = typeof repositoriesTable.$inferSelect;
 export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
 

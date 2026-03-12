@@ -1,0 +1,3 @@
+.env
+provisioning.json
+secrets/aws_secret_access_key

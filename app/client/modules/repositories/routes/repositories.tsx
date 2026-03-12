@@ -126,7 +126,11 @@ export function RepositoriesPage() {
 								className="hover:bg-accent/50 hover:cursor-pointer h-12"
 								onClick={() => navigate({ to: `/repositories/${repository.shortId}` })}
 							>
-								<TableCell className="font-medium text-strong-accent">{repository.name}</TableCell>
+								<TableCell className="font-medium text-strong-accent">
+									<div className="flex items-center gap-2">
+										<span>{repository.name}</span>
+									</div>
+								</TableCell>
 								<TableCell>
 									<span className="flex items-center gap-2 text-muted-foreground">
 										<RepositoryIcon backend={repository.type} />

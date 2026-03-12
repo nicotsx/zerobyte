@@ -1,0 +1,28 @@
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:latest
+    container_name: zerobyte
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    ports:
+      - "4096:4096"
+    environment:
+      - TZ=${TZ:-UTC}
+      - BASE_URL=${BASE_URL:?BASE_URL must be set}
+      - APP_SECRET=${APP_SECRET:?APP_SECRET must be set}
+      - PROVISIONING_PATH=/config/provisioning.json
+      - ZEROBYTE_AWS_ACCESS_KEY_ID=${ZEROBYTE_AWS_ACCESS_KEY_ID:?ZEROBYTE_AWS_ACCESS_KEY_ID must be set}
+      - ZEROBYTE_WEBDAV_PASSWORD=${ZEROBYTE_WEBDAV_PASSWORD:?ZEROBYTE_WEBDAV_PASSWORD must be set}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+      - ./provisioning.json:/config/provisioning.json:ro
+    secrets:
+      - aws_secret_access_key
+
+secrets:
+  aws_secret_access_key:
+    file: ./secrets/aws_secret_access_key

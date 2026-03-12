@@ -27,6 +27,7 @@ import {
 import type { UpdateVolumeResponse } from "~/client/api-client/types.gen";
 import { useNavigate } from "@tanstack/react-router";
 import { parseError } from "~/client/lib/errors";
+import { ManagedBadge } from "~/client/components/managed-badge";
 
 type Props = {
 	volume: Volume;
@@ -122,7 +123,10 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 				<Card className="p-6 @container">
 					<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4 mb-6">
 						<div>
-							<span className="text-lg font-semibold">Volume Configuration</span>
+							<div className="flex items-center gap-2">
+								<span className="text-lg font-semibold">Volume Configuration</span>
+								{volume.provisioningId && <ManagedBadge />}
+							</div>
 						</div>
 						<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
 							{volume.status !== "mounted" ? (

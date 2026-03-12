@@ -337,6 +337,7 @@ export type ListVolumesResponses = {
     200: Array<{
         id: number;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
         status: 'mounted' | 'unmounted' | 'error';
@@ -462,6 +463,7 @@ export type CreateVolumeResponses = {
     201: {
         id: number;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
         status: 'mounted' | 'unmounted' | 'error';
@@ -635,6 +637,7 @@ export type GetVolumeResponses = {
         volume: {
             id: number;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
             status: 'mounted' | 'unmounted' | 'error';
@@ -776,6 +779,7 @@ export type UpdateVolumeResponses = {
     200: {
         id: number;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
         status: 'mounted' | 'unmounted' | 'error';
@@ -986,6 +990,7 @@ export type ListRepositoriesResponses = {
     200: Array<{
         id: string;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
@@ -1406,6 +1411,7 @@ export type GetRepositoryResponses = {
     200: {
         id: string;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
@@ -1779,6 +1785,7 @@ export type UpdateRepositoryResponses = {
     200: {
         id: string;
         shortId: string;
+        provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
         config: {
@@ -2435,6 +2442,7 @@ export type ListBackupSchedulesResponses = {
         volume: {
             id: number;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
             status: 'mounted' | 'unmounted' | 'error';
@@ -2495,6 +2503,7 @@ export type ListBackupSchedulesResponses = {
         repository: {
             id: string;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
@@ -2806,6 +2815,7 @@ export type GetBackupScheduleResponses = {
         volume: {
             id: number;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
             status: 'mounted' | 'unmounted' | 'error';
@@ -2866,6 +2876,7 @@ export type GetBackupScheduleResponses = {
         repository: {
             id: string;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
@@ -3158,6 +3169,7 @@ export type GetBackupScheduleForVolumeResponses = {
         volume: {
             id: number;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
             status: 'mounted' | 'unmounted' | 'error';
@@ -3218,6 +3230,7 @@ export type GetBackupScheduleForVolumeResponses = {
         repository: {
             id: string;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
@@ -3687,6 +3700,7 @@ export type GetScheduleMirrorsResponses = {
         repository: {
             id: string;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {
@@ -3898,6 +3912,7 @@ export type UpdateScheduleMirrorsResponses = {
         repository: {
             id: string;
             shortId: string;
+            provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
             config: {

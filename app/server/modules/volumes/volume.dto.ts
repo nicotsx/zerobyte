@@ -5,6 +5,7 @@ import { BACKEND_STATUS, BACKEND_TYPES, volumeConfigSchema } from "~/schemas/vol
 export const volumeSchema = z.object({
 	id: z.number(),
 	shortId: z.string(),
+	provisioningId: z.string().nullable(),
 	name: z.string(),
 	type: z.enum(BACKEND_TYPES),
 	status: z.enum(BACKEND_STATUS),

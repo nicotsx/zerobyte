@@ -14,11 +14,18 @@ import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { cache } from "~/server/utils/cache";
 import { withContext } from "~/server/core/request-context";
 import { backupsService } from "../backups/backups.service";
+import { config } from "~/server/core/config";
+import { syncProvisionedResources } from "../provisioning/provisioning";
+import { toMessage } from "~/server/utils/errors";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
+		if (volume.provisioningId) {
+			continue;
+		}
+
 		await withContext({ organizationId: volume.organizationId }, async () => {
 			await volumeService.updateVolume(volume.shortId, volume).catch((err) => {
 				logger.error(`Failed to update volume ${volume.name}: ${err}`);
@@ -29,6 +36,10 @@ const ensureLatestConfigurationSchema = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({});
 
 	for (const repo of repositories) {
+		if (repo.provisioningId) {
+			continue;
+		}
+
 		await withContext({ organizationId: repo.organizationId }, async () => {
 			await repositoriesService.updateRepository(repo.shortId, {}).catch((err) => {
 				logger.error(`Failed to update repository ${repo.name}: ${err}`);
@@ -52,6 +63,10 @@ export const startup = async () => {
 
 	await Scheduler.start();
 	await Scheduler.clear();
+
+	await syncProvisionedResources(config.provisioningPath).catch((error) => {
+		logger.error(`Provisioning sync failed: ${toMessage(error)}`);
+	});
 
 	await ensureLatestConfigurationSchema();
 

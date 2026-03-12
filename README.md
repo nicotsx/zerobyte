@@ -100,16 +100,19 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
 | `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                                   | `60`                   |
 | `RCLONE_CONFIG_DIR`   | Path to the rclone config directory inside the container. Change this if running as a non-root user.                                      | `/root/.config/rclone` |
+| `PROVISIONING_PATH`   | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
 
-### Secret References
+### Provisioned Resources
 
-For enhanced security, Zerobyte supports dynamic secret resolution for sensitive fields (like passwords, access keys, etc.) in volume and repository configurations. Instead of storing the encrypted secret in the database, you can use one of the following prefixes:
+Zerobyte can sync operator-managed repositories and volumes from a JSON file at startup. This is useful when you want credentials or connection details to live in deployment-time configuration instead of being entered through the UI.
 
-- `env://VAR_NAME`: Reads the secret from the environment variable `VAR_NAME`.
-- `file://SECRET_NAME`: Reads the secret from `/run/secrets/SECRET_NAME` (standard Docker Secrets path).
+Provisioned resources:
 
-**Example:**
-When configuring an S3 repository, you can set the Secret Access Key to `env://S3_SECRET_KEY` and then provide that variable in your `docker-compose.yml`.
+- appear in the normal repositories and volumes screens
+- stay read-only in the UI
+- can resolve credential fields from environment variables or `/run/secrets/*` during startup sync
+
+See `examples/provisioned-resources/README.md` for a full example.
 
 ### Simplified setup (No remote mounts)
 

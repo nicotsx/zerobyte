@@ -1,4 +1,3 @@
-import crypto from "node:crypto";
 import nodePath from "node:path";
 import { and, eq } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
@@ -18,7 +17,6 @@ import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
 import { repositoriesTable, type Repository } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
-import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic/server";
@@ -30,6 +28,7 @@ import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
 import type { ShortId } from "~/server/utils/branded";
+import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -57,94 +56,16 @@ const listRepositories = async () => {
 	return repositories;
 };
 
-const encryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
-	const encryptedConfig: Record<string, unknown> = { ...config };
-
-	if (config.customPassword) {
-		encryptedConfig.customPassword = await cryptoUtils.sealSecret(config.customPassword);
-	}
-
-	if (config.cacert) {
-		encryptedConfig.cacert = await cryptoUtils.sealSecret(config.cacert);
-	}
-
-	switch (config.backend) {
-		case "s3":
-		case "r2":
-			encryptedConfig.accessKeyId = await cryptoUtils.sealSecret(config.accessKeyId);
-			encryptedConfig.secretAccessKey = await cryptoUtils.sealSecret(config.secretAccessKey);
-			break;
-		case "gcs":
-			encryptedConfig.credentialsJson = await cryptoUtils.sealSecret(config.credentialsJson);
-			break;
-		case "azure":
-			encryptedConfig.accountKey = await cryptoUtils.sealSecret(config.accountKey);
-			break;
-		case "rest":
-			if (config.username) {
-				encryptedConfig.username = await cryptoUtils.sealSecret(config.username);
-			}
-			if (config.password) {
-				encryptedConfig.password = await cryptoUtils.sealSecret(config.password);
-			}
-			break;
-		case "sftp":
-			encryptedConfig.privateKey = await cryptoUtils.sealSecret(config.privateKey);
-			break;
-	}
-
-	return encryptedConfig as RepositoryConfig;
-};
-
-const decryptConfig = async (config: RepositoryConfig): Promise<RepositoryConfig> => {
-	const decryptedConfig: Record<string, unknown> = { ...config };
-
-	if (config.customPassword) {
-		decryptedConfig.customPassword = await cryptoUtils.resolveSecret(config.customPassword);
-	}
-
-	if (config.cacert) {
-		decryptedConfig.cacert = await cryptoUtils.resolveSecret(config.cacert);
-	}
-
-	switch (config.backend) {
-		case "s3":
-		case "r2":
-			decryptedConfig.accessKeyId = await cryptoUtils.resolveSecret(config.accessKeyId);
-			decryptedConfig.secretAccessKey = await cryptoUtils.resolveSecret(config.secretAccessKey);
-			break;
-		case "gcs":
-			decryptedConfig.credentialsJson = await cryptoUtils.resolveSecret(config.credentialsJson);
-			break;
-		case "azure":
-			decryptedConfig.accountKey = await cryptoUtils.resolveSecret(config.accountKey);
-			break;
-		case "rest":
-			if (config.username) {
-				decryptedConfig.username = await cryptoUtils.resolveSecret(config.username);
-			}
-			if (config.password) {
-				decryptedConfig.password = await cryptoUtils.resolveSecret(config.password);
-			}
-			break;
-		case "sftp":
-			decryptedConfig.privateKey = await cryptoUtils.resolveSecret(config.privateKey);
-			break;
-	}
-
-	return decryptedConfig as RepositoryConfig;
-};
-
 const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
 	const organizationId = getOrganizationId();
-	const id = crypto.randomUUID();
+	const id = Bun.randomUUIDv7();
 	const shortId = generateShortId();
 
 	if (config.backend === "local" && !config.isExistingRepository) {
 		config.path = `${config.path}/${shortId}`;
 	}
 
-	const encryptedConfig = await encryptConfig(config);
+	const encryptedConfig = await encryptRepositoryConfig(config);
 
 	const [created] = await db
 		.insert(repositoriesTable)
@@ -761,9 +682,9 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		parsedConfig = nextConfig;
 	}
 
-	const decryptedExisting = await decryptConfig(existingConfig);
+	const decryptedExisting = await decryptRepositoryConfig(existingConfig);
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
-	const encryptedConfig = updates.config ? await encryptConfig(parsedConfig) : existingConfig;
+	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
 
 	const updatedAt = Date.now();
 	const updatePayload = {

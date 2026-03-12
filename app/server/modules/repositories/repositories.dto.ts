@@ -14,6 +14,7 @@ import {
 export const repositorySchema = z.object({
 	id: z.string(),
 	shortId: z.string(),
+	provisioningId: z.string().nullable(),
 	name: z.string(),
 	type: z.enum(REPOSITORY_BACKENDS),
 	config: repositoryConfigSchema,

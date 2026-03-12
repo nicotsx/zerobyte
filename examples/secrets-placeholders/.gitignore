@@ -1,5 +1,0 @@
-# Secret files - do not commit
-smb-password.txt
-*-password.txt
-*.secret
-*.key

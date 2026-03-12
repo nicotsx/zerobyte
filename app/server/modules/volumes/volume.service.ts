@@ -5,7 +5,6 @@ import { and, eq } from "drizzle-orm";
 import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
-import { cryptoUtils } from "../../utils/crypto";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { getStatFs, type StatFs } from "../../utils/mountinfo";
@@ -19,29 +18,7 @@ import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { isNodeJSErrnoException } from "~/server/utils/fs";
 import { asShortId, type ShortId } from "~/server/utils/branded";
-
-async function encryptSensitiveFields(config: BackendConfig): Promise<BackendConfig> {
-	switch (config.backend) {
-		case "smb":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
-			};
-		case "webdav":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
-			};
-		case "sftp":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
-				privateKey: config.privateKey ? await cryptoUtils.sealSecret(config.privateKey) : undefined,
-			};
-		default:
-			return config;
-	}
-}
+import { encryptVolumeConfig } from "./volume-config-secrets";
 
 const listVolumes = async () => {
 	const organizationId = getOrganizationId();
@@ -70,7 +47,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	}
 
 	const shortId = generateShortId();
-	const encryptedConfig = await encryptSensitiveFields(backendConfig);
+	const encryptedConfig = await encryptVolumeConfig(backendConfig);
 
 	const [created] = await db
 		.insert(volumesTable)
@@ -206,7 +183,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	}
 	const newConfig = newConfigResult.data;
 
-	const encryptedConfig = await encryptSensitiveFields(newConfig);
+	const encryptedConfig = await encryptVolumeConfig(newConfig);
 
 	const [updated] = await db
 		.update(volumesTable)
@@ -240,19 +217,21 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 
 const testConnection = async (backendConfig: BackendConfig) => {
 	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-test-"));
+	const encryptedConfig = await encryptVolumeConfig(backendConfig);
 
 	const mockVolume = {
 		id: 0,
 		shortId: asShortId("test"),
 		name: "test-connection",
 		path: tempDir,
-		config: backendConfig,
+		config: encryptedConfig,
 		createdAt: Date.now(),
 		updatedAt: Date.now(),
 		lastHealthCheck: Date.now(),
-		type: backendConfig.backend,
+		type: encryptedConfig.backend,
 		status: "unmounted" as const,
 		lastError: null,
+		provisioningId: null,
 		autoRemount: true,
 		organizationId: "test-org",
 	};

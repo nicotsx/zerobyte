@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download, KeyRound, User, X, Settings as SettingsIcon, Building2 } from "lucide-react";
+import { Download, Fingerprint, KeyRound, User, X, Settings as SettingsIcon, Building2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -45,7 +45,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const activeTab = tab || "account";
 
 	const navigate = useNavigate();
-	const { activeMember } = useOrganizationContext();
+	const { activeMember, activeOrganization } = useOrganizationContext();
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
 
 	const handleLogout = async () => {
@@ -295,6 +295,25 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 
 					{isOrgAdmin && (
 						<TabsContent value="organization" className="mt-0 space-y-4">
+							<Card className="p-0 gap-0">
+								<div className="border-b border-border/50 bg-card-header p-6">
+									<CardTitle className="flex items-center gap-2">
+										<Fingerprint className="size-5" />
+										Organization Details
+									</CardTitle>
+									<CardDescription className="mt-1.5">Reference details for the active organization</CardDescription>
+								</div>
+								<CardContent className="p-6 space-y-2">
+									<Label htmlFor="organization-id">Organization ID</Label>
+									<Input
+										id="organization-id"
+										value={activeOrganization.id}
+										readOnly
+										className="max-w-xl font-mono text-sm"
+									/>
+								</CardContent>
+							</Card>
+
 							<Card className="p-0 gap-0">
 								<div className="border-b border-border/50 bg-card-header p-6">
 									<CardTitle className="flex items-center gap-2">

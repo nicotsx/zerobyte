@@ -38,6 +38,7 @@ const envSchema = z
 		APP_SECRET: z.string().min(32).max(256),
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),
+		PROVISIONING_PATH: z.string().optional(),
 	})
 	.transform((s) => ({
 		__prod__: s.NODE_ENV === "production",
@@ -57,6 +58,7 @@ const envSchema = z
 		baseUrl: s.BASE_URL,
 		isSecure: s.BASE_URL?.startsWith("https://") ?? false,
 		enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+		provisioningPath: s.PROVISIONING_PATH,
 	}));
 
 const parseConfig = (env: unknown) => {

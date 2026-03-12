@@ -28,6 +28,7 @@ import { parseError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { CompressionStatsChart } from "../components/compression-stats-chart";
 import { cn } from "~/client/lib/utils";
+import { ManagedBadge } from "~/client/components/managed-badge";
 
 type Props = {
 	repository: Repository;
@@ -109,7 +110,10 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 			<div className="flex flex-col gap-6 @container">
 				<div className="flex flex-col @medium:flex-row items-start @medium:items-center justify-between gap-4">
 					<div>
-						<h2 className="text-lg font-semibold tracking-tight">Repository Settings</h2>
+						<div className="flex items-center gap-2">
+							<h2 className="text-lg font-semibold tracking-tight">Repository Settings</h2>
+							{repository.provisioningId && <ManagedBadge />}
+						</div>
 					</div>
 					<div className="flex flex-wrap items-center gap-2">
 						<Button
@@ -173,6 +177,10 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 								<div className="flex flex-col gap-1">
 									<div className="text-sm font-medium text-muted-foreground">Backend</div>
 									<p className="text-sm">{repository.type}</p>
+								</div>
+								<div className="flex flex-col gap-1">
+									<div className="text-sm font-medium text-muted-foreground">Management</div>
+									<p className="text-sm">{repository.managed ? "Provisioned" : "Manual"}</p>
 								</div>
 								<div className="flex flex-col gap-1">
 									<div className="text-sm font-medium text-muted-foreground">Compression Mode</div>

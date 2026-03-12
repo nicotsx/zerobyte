@@ -1,0 +1,36 @@
+{
+	"version": 1,
+	"repositories": [
+		{
+			"id": "aws-prod",
+			"organizationId": "replace-with-existing-organization-id",
+			"name": "AWS Production Backups",
+			"backend": "s3",
+			"compressionMode": "auto",
+			"config": {
+				"backend": "s3",
+				"endpoint": "https://s3.amazonaws.com",
+				"bucket": "company-backups",
+				"accessKeyId": "env://ZEROBYTE_AWS_ACCESS_KEY_ID",
+				"secretAccessKey": "file://aws_secret_access_key"
+			}
+		}
+	],
+	"volumes": [
+		{
+			"id": "webdav-team-a",
+			"organizationId": "replace-with-existing-organization-id",
+			"name": "Team A WebDAV",
+			"backend": "webdav",
+			"config": {
+				"backend": "webdav",
+				"server": "backup.internal.example.com",
+				"path": "/team-a",
+				"username": "team-a",
+				"password": "env://ZEROBYTE_WEBDAV_PASSWORD",
+				"port": 443,
+				"ssl": true
+			}
+		}
+	]
+}
