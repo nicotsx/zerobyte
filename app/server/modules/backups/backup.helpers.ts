@@ -23,12 +23,26 @@ export const processPattern = (pattern: string, volumePath: string, relative = f
 	const isNegated = pattern.startsWith("!");
 	const p = isNegated ? pattern.slice(1) : pattern;
 
+	const ensurePatternIsWithinVolume = (candidate: string) => {
+		const resolvedVolumePath = path.resolve(volumePath);
+		const resolvedCandidatePath = path.resolve(volumePath, candidate);
+		const relativePath = path.relative(resolvedVolumePath, resolvedCandidatePath);
+
+		if (relativePath === ".." || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+			throw new Error(`Include pattern escapes volume root: ${pattern}`);
+		}
+	};
+
 	if (!p.startsWith("/")) {
 		if (!relative) return pattern;
+		ensurePatternIsWithinVolume(p);
 		const processed = path.join(volumePath, p);
 		return isNegated ? `!${processed}` : processed;
 	}
 
+	if (relative) {
+		ensurePatternIsWithinVolume(p.slice(1));
+	}
 	const processed = path.join(volumePath, p.slice(1));
 	return isNegated ? `!${processed}` : processed;
 };

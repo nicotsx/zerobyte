@@ -100,6 +100,21 @@ describe("executeBackup - include / exclude patterns", () => {
 		expect(processPattern("!*.log", "/volume")).toBe("!*.log");
 	});
 
+	test("rejects include patterns that escape the volume root", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const signal = new AbortController().signal;
+
+		expect(() =>
+			createBackupOptions(
+				createSchedule({
+					includePatterns: ["../../../../etc/shadow", "/../etc/passwd", "!/../../secrets.txt"],
+				}),
+				volumePath,
+				signal,
+			),
+		).toThrow("Include pattern escapes volume root");
+	});
+
 	test("anchors relative glob include patterns to the volume path", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
 		const schedule = createSchedule({
