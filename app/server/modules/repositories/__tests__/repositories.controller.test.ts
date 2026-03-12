@@ -394,7 +394,7 @@ describe("repositories updates", () => {
 
 		expect(res.status).toBe(200);
 		const body = await res.json();
-		expect(body.managed).toBe(true);
+		expect(body.provisioningId).toBeDefined();
 	});
 
 	test("PATCH allows updates for managed repositories", async () => {

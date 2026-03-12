@@ -180,7 +180,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 								</div>
 								<div className="flex flex-col gap-1">
 									<div className="text-sm font-medium text-muted-foreground">Management</div>
-									<p className="text-sm">{repository.managed ? "Provisioned" : "Manual"}</p>
+									<p className="text-sm">{repository.provisioningId ? "Provisioned" : "Manual"}</p>
 								</div>
 								<div className="flex flex-col gap-1">
 									<div className="text-sm font-medium text-muted-foreground">Compression Mode</div>

@@ -125,7 +125,7 @@ describe("volumes security", () => {
 
 			expect(res.status).toBe(200);
 			const body = await res.json();
-			expect(body.volume.managed).toBe(true);
+			expect(body.volume.provisioningId).toBeDefined();
 		});
 
 		test("should allow updates for managed volumes", async () => {
