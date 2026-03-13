@@ -34,6 +34,7 @@ const envSchema = z
 		MIGRATIONS_PATH: z.string().optional(),
 		APP_VERSION: z.string().default("dev"),
 		TRUSTED_ORIGINS: z.string().optional(),
+		TRUST_PROXY: z.string().default("false"),
 		DISABLE_RATE_LIMITING: z.string().default("false"),
 		APP_SECRET: z.string().min(32).max(256),
 		BASE_URL: z.string(),
@@ -53,6 +54,7 @@ const envSchema = z
 			.map((origin) => origin.trim())
 			.filter(Boolean)
 			.concat(s.BASE_URL) ?? [s.BASE_URL],
+		trustProxy: s.TRUST_PROXY === "true",
 		disableRateLimiting: s.DISABLE_RATE_LIMITING === "true",
 		appSecret: s.APP_SECRET,
 		baseUrl: s.BASE_URL,
