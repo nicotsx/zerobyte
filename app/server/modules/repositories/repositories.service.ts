@@ -1,3 +1,4 @@
+import * as os from "node:os";
 import nodePath from "node:path";
 import { and, eq } from "drizzle-orm";
 import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
@@ -8,7 +9,9 @@ import {
 	type ResticStatsDto,
 	repositoryConfigSchema,
 } from "@zerobyte/core/restic";
+import { isPathWithin } from "@zerobyte/core/utils";
 import { config as appConfig } from "~/server/core/config";
+import { DATABASE_URL, RESTORE_BLOCKED_ROOTS, RESTIC_PASS_FILE } from "~/server/core/constants";
 import { serverEvents } from "~/server/core/events";
 import { getOrganizationId } from "~/server/core/request-context";
 import { logger } from "@zerobyte/core/node";
@@ -39,6 +42,16 @@ const emptyRepositoryStats: ResticStatsDto = {
 	compression_progress: 0,
 	compression_space_saving: 0,
 	snapshots_count: 0,
+};
+
+const getBlockedRestoreTargets = () => {
+	return [
+		...RESTORE_BLOCKED_ROOTS,
+		DATABASE_URL === ":memory:" ? undefined : nodePath.dirname(nodePath.resolve(DATABASE_URL)),
+		nodePath.dirname(nodePath.resolve(RESTIC_PASS_FILE)),
+		nodePath.resolve(os.tmpdir()),
+		appConfig.provisioningPath ? nodePath.dirname(nodePath.resolve(appConfig.provisioningPath)) : undefined,
+	].filter((e) => e !== undefined);
 };
 
 const findRepository = async (shortId: ShortId) => {
@@ -309,6 +322,16 @@ const restoreSnapshot = async (
 	}
 
 	const target = options?.targetPath || "/";
+	const resolvedTarget = nodePath.resolve(target);
+	const blockedTargets = getBlockedRestoreTargets();
+
+	for (const blockedTarget of blockedTargets) {
+		if (isPathWithin(blockedTarget, resolvedTarget)) {
+			throw new BadRequestError(
+				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
+			);
+		}
+	}
 
 	const { paths } = await getSnapshotDetails(repository.shortId, snapshotId);
 	const basePath = findCommonAncestor(paths);

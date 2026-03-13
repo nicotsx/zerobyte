@@ -1,3 +1,6 @@
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
@@ -346,6 +349,86 @@ describe("repositoriesService.dumpSnapshot", () => {
 			organizationId,
 			path: "/",
 		});
+	});
+});
+
+describe("repositoriesService.restoreSnapshot", () => {
+	afterEach(() => {
+		mock.restore();
+	});
+
+	const setupRestoreSnapshotScenario = async () => {
+		const { organizationId, user } = await createTestSession();
+		const repository = await createTestRepository(organizationId);
+
+		spyOn(restic, "snapshots").mockResolvedValue([
+			{
+				id: "snapshot-restore",
+				short_id: "snapshot-restore",
+				time: new Date().toISOString(),
+				paths: ["/var/lib/zerobyte/volumes/vol123/_data"],
+				hostname: "host",
+			},
+		]);
+
+		const restoreMock = mock(() =>
+			Promise.resolve({
+				message_type: "summary" as const,
+				seconds_elapsed: 1,
+				percent_done: 100,
+				files_skipped: 0,
+				total_files: 1,
+				files_restored: 1,
+				total_bytes: 1,
+				bytes_restored: 1,
+			}),
+		);
+		spyOn(restic, "restore").mockImplementation(restoreMock);
+
+		return {
+			organizationId,
+			userId: user.id,
+			repositoryShortId: repository.shortId,
+			restoreMock,
+		};
+	};
+
+	test("rejects restore targets inside protected roots", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const targetPath = nodePath.join(os.tmpdir(), "zerobyte-restore-target");
+
+		await expect(
+			withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", { targetPath }),
+			),
+		).rejects.toThrow("Restore target path is not allowed");
+
+		expect(restoreMock).not.toHaveBeenCalled();
+	});
+
+	test("restores to a custom target outside protected roots", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+
+		try {
+			await withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", { targetPath }),
+			);
+		} finally {
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		expect(restoreMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				backend: "local",
+			}),
+			"snapshot-restore",
+			targetPath,
+			expect.objectContaining({
+				organizationId,
+				basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+			}),
+		);
 	});
 });
 

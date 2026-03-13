@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
-import { OPERATION_TIMEOUT } from "../../../core/constants";
+import { OPERATION_TIMEOUT, SSH_KEYS_DIR } from "../../../core/constants";
 import { cryptoUtils } from "../../../utils/crypto";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "@zerobyte/core/node";
@@ -12,8 +12,6 @@ import { withTimeout } from "../../../utils/timeout";
 import type { VolumeBackend } from "../backend";
 import { executeUnmount } from "../utils/backend-utils";
 import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
-
-const SSH_KEYS_DIR = "/var/lib/zerobyte/ssh";
 
 const getPrivateKeyPath = (mountPath: string) => {
 	const name = path.basename(mountPath);

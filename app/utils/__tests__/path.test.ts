@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 describe("normalizeAbsolutePath", () => {
 	test("handles undefined and empty inputs", () => {
@@ -35,5 +35,17 @@ describe("normalizeAbsolutePath", () => {
 		expect(normalizeAbsolutePath("..")).toBe("/");
 		expect(normalizeAbsolutePath("/..")).toBe("/");
 		expect(normalizeAbsolutePath("/foo/../../bar")).toBe("/bar");
+	});
+});
+
+describe("isPathWithin", () => {
+	test("matches the same path and nested paths", () => {
+		expect(isPathWithin("/var/lib/zerobyte", "/var/lib/zerobyte")).toBe(true);
+		expect(isPathWithin("/var/lib/zerobyte", "/var/lib/zerobyte/data/restic.pass")).toBe(true);
+	});
+
+	test("does not match sibling or parent-escape paths", () => {
+		expect(isPathWithin("/var/lib/zerobyte/data", "/var/lib/zerobyte/database")).toBe(false);
+		expect(isPathWithin("/var/lib/zerobyte/data", "/var/lib/zerobyte/data/../ssh")).toBe(false);
 	});
 });

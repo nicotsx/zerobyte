@@ -47,3 +47,12 @@ export const normalizeAbsolutePath = (value?: string): string => {
 
 	return withSingleLeadingSlash || "/";
 };
+
+export const isPathWithin = (base: string, target: string): boolean => {
+	const normalizedBase = normalizeAbsolutePath(base);
+	const normalizedTarget = normalizeAbsolutePath(target);
+
+	return (
+		normalizedBase === "/" || normalizedTarget === normalizedBase || normalizedTarget.startsWith(`${normalizedBase}/`)
+	);
+};

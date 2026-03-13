@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import path from "node:path";
+import { isPathWithin } from "@zerobyte/core/utils";
 
 type MountInfo = {
 	mountPoint: string;
@@ -11,11 +11,6 @@ export type StatFs = {
 	used: number;
 	free: number;
 };
-
-function isPathWithin(base: string, target: string): boolean {
-	const rel = path.posix.relative(base, target);
-	return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
-}
 
 function unescapeMount(s: string): string {
 	return s.replace(/\\([0-7]{3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)));
