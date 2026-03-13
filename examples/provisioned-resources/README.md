@@ -73,7 +73,6 @@ docker compose up -d
 
 - `AWS Production Backups` appears in the repositories list as a managed repository.
 - `Team A WebDAV` appears in the volumes list as a managed volume.
-- Both resources are read-only in the UI, but can still be used by backup schedules.
 - Changes to `provisioning.json`, `.env`, or mounted secret files apply on the next container restart.
 
 ## Rotating or removing provisioned resources
