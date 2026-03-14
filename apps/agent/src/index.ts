@@ -1,5 +1,5 @@
-import { logger } from "~/server/utils/logger";
-import { createAgentMessage, parseControllerMessage, sendAgentMessage } from "./agent-protocol";
+import { createAgentMessage, parseControllerMessage, sendAgentMessage } from "@zerobyte/contracts/agent-protocol";
+import { logger } from "@zerobyte/core/utils";
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 

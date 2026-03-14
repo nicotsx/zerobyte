@@ -1,0 +1,16 @@
+{
+	"name": "agent",
+	"private": true,
+	"type": "module",
+	"module": "index.ts",
+	"dependencies": {
+		"@zerobyte/contracts": "workspace:*",
+		"@zerobyte/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}

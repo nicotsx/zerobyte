@@ -5,8 +5,8 @@ import {
 	parseAgentMessage,
 	sendControllerMessage,
 	type BackupCommandPayload,
-} from "./agent-protocol";
-import { logger } from "~/server/utils/logger";
+} from "@zerobyte/contracts/agent-protocol";
+import { logger } from "@zerobyte/core/utils";
 
 type AgentConnectionData = {
 	id: string;
@@ -42,14 +42,12 @@ const setServer = (server: AgentServer | null) => {
 };
 
 export const spawnLocalAgent = () => {
-	const wsUrl = `ws://localhost:3001`;
-
-	const agentEntryPoint = path.join(process.cwd(), "app", "server", "modules", "agents", "local-agent.ts");
+	const agentEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 
 	const localAgent = spawn("bun", ["run", agentEntryPoint], {
 		env: {
-			...process.env,
-			ZEROBYTE_CONTROLLER_URL: wsUrl,
+			PATH: process.env.PATH,
+			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
 		},
 		stdio: ["ignore", "pipe", "pipe"],
 	});
