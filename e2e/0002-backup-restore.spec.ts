@@ -83,7 +83,12 @@ async function createBackupJob(page: Page, options: BackupJobOptions) {
 	} else {
 		await page.getByRole("link", { name: "Create a backup job" }).first().click();
 	}
-	await page.getByRole("combobox").filter({ hasText: "Choose a volume to backup" }).click();
+	const volumeSelect = page.locator("#volume-select");
+	await expect(async () => {
+		await volumeSelect.focus();
+		await volumeSelect.press("ArrowDown");
+		await expect(volumeSelect).toHaveAttribute("aria-expanded", "true");
+	}).toPass();
 	await page.getByRole("option", { name: options.volumeName }).click();
 	await page.getByRole("textbox", { name: "Backup name" }).fill(options.backupName);
 	await page.getByRole("combobox").filter({ hasText: "Select a repository" }).click();
