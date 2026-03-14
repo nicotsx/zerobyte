@@ -413,6 +413,61 @@ export const appMetadataTable = sqliteTable("app_metadata", {
 });
 export type AppMetadata = typeof appMetadataTable.$inferSelect;
 
+/**
+ * Agents Table
+ */
+export const agentsTable = sqliteTable(
+	"agents",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		createdBy: text("created_by")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+		lastSeenAt: int("last_seen_at", { mode: "number" }),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [
+		index("agents_organization_id_idx").on(table.organizationId),
+		unique("agents_name_org_uidx").on(table.name, table.organizationId),
+	],
+);
+export type Agent = typeof agentsTable.$inferSelect;
+
+/**
+ * Agent Tokens Table
+ */
+export const agentTokensTable = sqliteTable(
+	"agent_tokens",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		tokenHash: text("token_hash").notNull(),
+		tokenPrefix: text("token_prefix").notNull(),
+		agentId: text("agent_id")
+			.notNull()
+			.references(() => agentsTable.id, { onDelete: "cascade" }),
+		createdBy: text("created_by")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
+		lastUsedAt: int("last_used_at", { mode: "number" }),
+		revokedAt: int("revoked_at", { mode: "number" }),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [
+		uniqueIndex("agent_tokens_token_hash_uidx").on(table.tokenHash),
+		index("agent_tokens_agent_id_idx").on(table.agentId),
+	],
+);
+export type AgentToken = typeof agentTokensTable.$inferSelect;
+
 export const twoFactor = sqliteTable(
 	"two_factor",
 	{

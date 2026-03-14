@@ -7,10 +7,13 @@ import {
 	type BackupCommandPayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
+import { validateAgentToken, deriveLocalAgentToken } from "./agent-tokens";
 
 type AgentConnectionData = {
 	id: string;
-	agentId?: string;
+	agentId: string;
+	organizationId: string | null;
+	agentName: string;
 };
 
 type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
@@ -41,13 +44,15 @@ const setServer = (server: AgentServer | null) => {
 	delete globalState[AGENT_SERVER_KEY];
 };
 
-export const spawnLocalAgent = () => {
+export const spawnLocalAgent = async () => {
 	const agentEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
+	const agentToken = await deriveLocalAgentToken();
 
 	const localAgent = spawn("bun", ["run", agentEntryPoint], {
 		env: {
 			PATH: process.env.PATH,
 			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
+			ZEROBYTE_AGENT_TOKEN: agentToken,
 		},
 		stdio: ["ignore", "pipe", "pipe"],
 	});
@@ -79,57 +84,75 @@ export const agentManager = {
 		logger.info("Starting Agent Manager...");
 		const server = Bun.serve<AgentConnectionData>({
 			port: 3001,
-			fetch(req, srv) {
-				const upgraded = srv.upgrade(req, { data: { id: Bun.randomUUIDv7() } });
+			async fetch(req, srv) {
+				const url = new URL(req.url);
+				const token = url.searchParams.get("token");
+
+				if (!token) {
+					return new Response("Missing token", { status: 401 });
+				}
+
+				const result = await validateAgentToken(token);
+				if (!result) {
+					return new Response("Invalid or revoked token", { status: 401 });
+				}
+
+				const upgraded = srv.upgrade(req, {
+					data: {
+						id: Bun.randomUUIDv7(),
+						agentId: result.agentId,
+						organizationId: result.organizationId,
+						agentName: result.agentName,
+					},
+				});
 				if (upgraded) return undefined;
-				return new Response("Agent WebSocket endpoint", { status: 200 });
+				return new Response("WebSocket upgrade failed", { status: 400 });
 			},
 			websocket: {
-				open: (ws) => logger.info(`WebSocket opened with id: ${ws.data.id}`),
+				open: (ws) => {
+					getAgentSockets().set(ws.data.agentId, ws);
+					logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
+				},
 				message: (ws, data) => {
 					if (typeof data !== "string") {
-						logger.warn(`Ignoring non-text message from agent connection ${ws.data.id}`);
+						logger.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
 						return;
 					}
 
 					const parsed = parseAgentMessage(data);
 
 					if (parsed === null) {
-						logger.warn(`Invalid JSON from agent connection ${ws.data.id}`);
+						logger.warn(`Invalid JSON from agent ${ws.data.agentId}`);
 						return;
 					}
 
 					if (!parsed.success) {
-						logger.warn(`Invalid agent message on connection ${ws.data.id}: ${parsed.error.message}`);
+						logger.warn(`Invalid agent message from ${ws.data.agentId}: ${parsed.error.message}`);
 						return;
 					}
 
 					switch (parsed.data.type) {
 						case "agent.ready": {
-							ws.data.agentId = parsed.data.payload.agentId;
-							getAgentSockets().set(parsed.data.payload.agentId, ws);
-							logger.info(`Backup agent ${parsed.data.payload.agentId} is ready on connection ${ws.data.id}`);
+							logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) is ready`);
 							break;
 						}
 						case "backup.started": {
-							logger.info(
-								`Backup started on agent ${ws.data.agentId ?? ws.data.id} for schedule ${parsed.data.payload.scheduleId}`,
-							);
+							logger.info(`Backup started on agent ${ws.data.agentId} for schedule ${parsed.data.payload.scheduleId}`);
 							break;
 						}
 					}
 				},
 				close: (ws) => {
-					if (ws.data.agentId && getAgentSockets().get(ws.data.agentId) === ws) {
+					if (getAgentSockets().get(ws.data.agentId) === ws) {
 						getAgentSockets().delete(ws.data.agentId);
 					}
 
-					logger.info(`WebSocket closed for agent ${ws.data.agentId ?? ws.data.id}`);
+					logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 				},
 			},
 		});
-		setServer(server);
 
+		setServer(server);
 		logger.info(`Agent Manager listening on port ${server.port}`);
 	},
 	sendBackup: (agentId: string, payload: BackupCommandPayload) => {

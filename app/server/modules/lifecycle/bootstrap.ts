@@ -10,7 +10,7 @@ const runBootstrap = async () => {
 	await runMigrations();
 	await startup();
 	agentManager.start();
-	spawnLocalAgent();
+	await spawnLocalAgent();
 };
 
 export const bootstrapApplication = async () => {

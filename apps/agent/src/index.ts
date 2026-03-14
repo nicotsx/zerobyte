@@ -2,25 +2,29 @@ import { createAgentMessage, parseControllerMessage, sendAgentMessage } from "@z
 import { logger } from "@zerobyte/core/node";
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
+const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
 
 class Agent {
 	private ws: WebSocket | null = null;
 
-	constructor(public id: string) {
-		this.connect();
-	}
-
-	private connect() {
+	connect() {
 		if (!controllerUrl) {
 			throw new Error("Env variable ZEROBYTE_CONTROLLER_URL is not set");
 		}
 
-		this.ws = new WebSocket(controllerUrl);
+		if (!agentToken) {
+			throw new Error("Env variable ZEROBYTE_AGENT_TOKEN is not set");
+		}
+
+		const url = new URL(controllerUrl);
+		url.searchParams.set("token", agentToken);
+
+		this.ws = new WebSocket(url.toString());
 		this.ws.onopen = () => {
-			logger.info(`Agent ${this.id} connected to controller`);
+			logger.info("Agent connected to controller");
 
 			if (this.ws) {
-				sendAgentMessage(this.ws, createAgentMessage("agent.ready", { agentId: this.id }));
+				sendAgentMessage(this.ws, createAgentMessage("agent.ready", { agentId: "" }));
 			}
 		};
 
@@ -28,18 +32,18 @@ class Agent {
 			const parsed = parseControllerMessage(event.data);
 
 			if (parsed === null) {
-				console.error(`Agent ${this.id} received invalid JSON`);
+				console.error("Agent received invalid JSON");
 				return;
 			}
 
 			if (!parsed.success) {
-				console.error(`Agent ${this.id} received an invalid message: ${parsed.error.message}`);
+				console.error(`Agent received an invalid message: ${parsed.error.message}`);
 				return;
 			}
 
 			switch (parsed.data.type) {
 				case "backup":
-					logger.info(`Agent ${this.id} starting backup for schedule ${parsed.data.payload.scheduleId}`);
+					logger.info(`Starting backup for schedule ${parsed.data.payload.scheduleId}`);
 					if (this.ws) {
 						sendAgentMessage(
 							this.ws,
@@ -50,12 +54,13 @@ class Agent {
 			}
 		};
 		this.ws.onclose = () => {
-			logger.info(`Agent ${this.id} disconnected from controller`);
+			logger.info("Agent disconnected from controller");
 		};
 		this.ws.onerror = (error) => {
-			logger.error(`Agent ${this.id} encountered an error:`, error);
+			logger.error("Agent encountered an error:", error);
 		};
 	}
 }
 
-new Agent(Bun.randomUUIDv7());
+const agent = new Agent();
+agent.connect();
