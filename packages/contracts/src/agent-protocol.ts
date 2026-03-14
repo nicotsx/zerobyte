@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { safeJsonParse } from "~/server/utils/json";
+import { safeJsonParse } from "@zerobyte/core/utils";
 
 const backupCommandSchema = z
 	.object({
