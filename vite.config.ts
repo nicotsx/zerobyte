@@ -3,7 +3,8 @@ import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
-import viteReact from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
 
 export default defineConfig({
 	plugins: [
@@ -21,11 +22,8 @@ export default defineConfig({
 			preset: "bun",
 			plugins: ["./app/server/plugins/bootstrap.ts"],
 		}),
-		viteReact({
-			babel: {
-				plugins: ["babel-plugin-react-compiler"],
-			},
-		}),
+		viteReact(),
+		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
 	],
 	build: {
