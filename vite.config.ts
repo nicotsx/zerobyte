@@ -2,13 +2,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 
 export default defineConfig({
 	plugins: [
-		tsconfigPaths(),
 		tanstackStart({
 			srcDirectory: "app",
 			router: {
@@ -26,6 +24,9 @@ export default defineConfig({
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
 	],
+	resolve: {
+		tsconfigPaths: true,
+	},
 	build: {
 		outDir: "dist",
 		sourcemap: false,
