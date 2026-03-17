@@ -1,4 +1,4 @@
-import CronExpressionParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import path from "node:path";
 import type { BackupSchedule } from "~/server/db/schema";
 import { toMessage } from "~/server/utils/errors";

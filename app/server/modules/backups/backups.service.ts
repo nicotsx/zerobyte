@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import CronExpressionParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 
 const isValidCron = (expression: string): boolean => {
