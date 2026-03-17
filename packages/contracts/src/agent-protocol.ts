@@ -3,8 +3,15 @@ import { safeJsonParse } from "@zerobyte/core/utils";
 
 const backupCommandSchema = z
 	.object({
-		type: z.literal("backup"),
-		payload: z.object({ scheduleId: z.string() }),
+		type: z.literal("backup.run"),
+		payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
+	})
+	.strict();
+
+const heartbeatPingSchema = z
+	.object({
+		type: z.literal("heartbeat.ping"),
+		payload: z.object({ sentAt: z.number() }),
 	})
 	.strict();
 
@@ -18,12 +25,19 @@ const agentReadySchema = z
 const backupStartedSchema = z
 	.object({
 		type: z.literal("backup.started"),
-		payload: z.object({ scheduleId: z.string() }),
+		payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
 	})
 	.strict();
 
-const controllerMessageSchema = z.discriminatedUnion("type", [backupCommandSchema]);
-const agentMessageSchema = z.discriminatedUnion("type", [agentReadySchema, backupStartedSchema]);
+const heartbeatPongSchema = z
+	.object({
+		type: z.literal("heartbeat.pong"),
+		payload: z.object({ sentAt: z.number() }),
+	})
+	.strict();
+
+const controllerMessageSchema = z.discriminatedUnion("type", [backupCommandSchema, heartbeatPingSchema]);
+const agentMessageSchema = z.discriminatedUnion("type", [agentReadySchema, backupStartedSchema, heartbeatPongSchema]);
 
 export type BackupCommandPayload = z.infer<typeof backupCommandSchema>["payload"];
 export type ControllerMessage = z.infer<typeof controllerMessageSchema>;

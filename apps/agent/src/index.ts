@@ -1,11 +1,12 @@
-import { createAgentMessage, parseControllerMessage, sendAgentMessage } from "@zerobyte/contracts/agent-protocol";
-import { logger } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
+import { createControllerSession, type ControllerSession } from "./controller-session";
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
 
 class Agent {
 	private ws: WebSocket | null = null;
+	private controllerSession: ControllerSession | null = null;
 
 	connect() {
 		if (!controllerUrl) {
@@ -20,40 +21,20 @@ class Agent {
 		url.searchParams.set("token", agentToken);
 
 		this.ws = new WebSocket(url.toString());
+		this.controllerSession = createControllerSession(this.ws);
+
 		this.ws.onopen = () => {
 			logger.info("Agent connected to controller");
-
-			if (this.ws) {
-				sendAgentMessage(this.ws, createAgentMessage("agent.ready", { agentId: "" }));
-			}
+			this.controllerSession?.onOpen();
 		};
 
 		this.ws.onmessage = (event) => {
-			const parsed = parseControllerMessage(event.data);
-
-			if (parsed === null) {
-				console.error("Agent received invalid JSON");
-				return;
-			}
-
-			if (!parsed.success) {
-				console.error(`Agent received an invalid message: ${parsed.error.message}`);
-				return;
-			}
-
-			switch (parsed.data.type) {
-				case "backup":
-					logger.info(`Starting backup for schedule ${parsed.data.payload.scheduleId}`);
-					if (this.ws) {
-						sendAgentMessage(
-							this.ws,
-							createAgentMessage("backup.started", { scheduleId: parsed.data.payload.scheduleId }),
-						);
-					}
-					break;
-			}
+			this.controllerSession?.onMessage(event.data);
 		};
 		this.ws.onclose = () => {
+			this.controllerSession?.close();
+			this.controllerSession = null;
+			this.ws = null;
 			logger.info("Agent disconnected from controller");
 		};
 		this.ws.onerror = (error) => {
