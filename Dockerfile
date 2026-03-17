@@ -91,6 +91,7 @@ RUN bun install --frozen-lockfile
 COPY . .
 
 RUN bun run build
+RUN bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun
 
 FROM base AS production
 

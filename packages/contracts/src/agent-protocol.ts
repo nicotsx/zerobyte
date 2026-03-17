@@ -1,10 +1,58 @@
 import { z } from "zod";
 import { safeJsonParse } from "@zerobyte/core/utils";
+import {
+	repositoryConfigSchema,
+	resticBackupOutputSchema,
+	resticBackupProgressSchema,
+	type CompressionMode,
+} from "@zerobyte/core/restic";
 
-const backupCommandSchema = z
+const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
+
+const backupExecutionOptionsSchema = z
+	.object({
+		tags: z.array(z.string()).optional(),
+		oneFileSystem: z.boolean().optional(),
+		exclude: z.array(z.string()).optional(),
+		excludeIfPresent: z.array(z.string()).optional(),
+		includePaths: z.array(z.string()).optional(),
+		includePatterns: z.array(z.string()).optional(),
+		customResticParams: z.array(z.string()).optional(),
+		compressionMode: compressionModeSchema.optional(),
+	})
+	.strict();
+
+const backupRuntimeSchema = z
+	.object({
+		password: z.string(),
+		cacheDir: z.string(),
+		passFile: z.string(),
+		defaultExcludes: z.array(z.string()),
+		hostname: z.string().optional(),
+	})
+	.strict();
+
+const backupRunSchema = z
 	.object({
 		type: z.literal("backup.run"),
-		payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
+		payload: z
+			.object({
+				jobId: z.string(),
+				scheduleId: z.string(),
+				organizationId: z.string(),
+				sourcePath: z.string(),
+				repositoryConfig: repositoryConfigSchema,
+				options: backupExecutionOptionsSchema,
+				runtime: backupRuntimeSchema,
+			})
+			.strict(),
+	})
+	.strict();
+
+const backupCancelSchema = z
+	.object({
+		type: z.literal("backup.cancel"),
+		payload: z.object({ jobId: z.string(), scheduleId: z.string() }).strict(),
 	})
 	.strict();
 
@@ -29,6 +77,61 @@ const backupStartedSchema = z
 	})
 	.strict();
 
+const backupProgressSchema = z
+	.object({
+		type: z.literal("backup.progress"),
+		payload: z
+			.object({
+				jobId: z.string(),
+				scheduleId: z.string(),
+				progress: resticBackupProgressSchema,
+			})
+			.strict(),
+	})
+	.strict();
+
+const backupCompletedSchema = z
+	.object({
+		type: z.literal("backup.completed"),
+		payload: z
+			.object({
+				jobId: z.string(),
+				scheduleId: z.string(),
+				exitCode: z.number(),
+				result: resticBackupOutputSchema.nullable(),
+				warningDetails: z.string().optional(),
+			})
+			.strict(),
+	})
+	.strict();
+
+const backupFailedSchema = z
+	.object({
+		type: z.literal("backup.failed"),
+		payload: z
+			.object({
+				jobId: z.string(),
+				scheduleId: z.string(),
+				error: z.string(),
+				errorDetails: z.string().optional(),
+			})
+			.strict(),
+	})
+	.strict();
+
+const backupCancelledSchema = z
+	.object({
+		type: z.literal("backup.cancelled"),
+		payload: z
+			.object({
+				jobId: z.string(),
+				scheduleId: z.string(),
+				message: z.string().optional(),
+			})
+			.strict(),
+	})
+	.strict();
+
 const heartbeatPongSchema = z
 	.object({
 		type: z.literal("heartbeat.pong"),
@@ -36,10 +139,28 @@ const heartbeatPongSchema = z
 	})
 	.strict();
 
-const controllerMessageSchema = z.discriminatedUnion("type", [backupCommandSchema, heartbeatPingSchema]);
-const agentMessageSchema = z.discriminatedUnion("type", [agentReadySchema, backupStartedSchema, heartbeatPongSchema]);
+const controllerMessageSchema = z.discriminatedUnion("type", [
+	backupRunSchema,
+	backupCancelSchema,
+	heartbeatPingSchema,
+]);
+const agentMessageSchema = z.discriminatedUnion("type", [
+	agentReadySchema,
+	backupStartedSchema,
+	backupProgressSchema,
+	backupCompletedSchema,
+	backupFailedSchema,
+	backupCancelledSchema,
+	heartbeatPongSchema,
+]);
 
-export type BackupCommandPayload = z.infer<typeof backupCommandSchema>["payload"];
+export type BackupRunPayload = z.infer<typeof backupRunSchema>["payload"];
+export type BackupCancelPayload = z.infer<typeof backupCancelSchema>["payload"];
+export type BackupStartedPayload = z.infer<typeof backupStartedSchema>["payload"];
+export type BackupProgressPayload = z.infer<typeof backupProgressSchema>["payload"];
+export type BackupCompletedPayload = z.infer<typeof backupCompletedSchema>["payload"];
+export type BackupFailedPayload = z.infer<typeof backupFailedSchema>["payload"];
+export type BackupCancelledPayload = z.infer<typeof backupCancelledSchema>["payload"];
 export type ControllerMessage = z.infer<typeof controllerMessageSchema>;
 export type AgentMessage = z.infer<typeof agentMessageSchema>;
 

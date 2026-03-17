@@ -3,6 +3,13 @@ import {
 	createControllerMessage,
 	parseAgentMessage,
 	type AgentMessage,
+	type BackupCancelledPayload,
+	type BackupCompletedPayload,
+	type BackupFailedPayload,
+	type BackupProgressPayload,
+	type BackupRunPayload,
+	type BackupCancelPayload,
+	type BackupStartedPayload,
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
@@ -30,20 +37,27 @@ const toMessage = (error: unknown) => {
 	return String(error);
 };
 
-export type BackupDispatchPayload = {
-	scheduleId: string;
-	jobId?: string;
+type ControllerAgentSessionHandlers = {
+	onBackupStarted?: (payload: BackupStartedPayload) => void;
+	onBackupProgress?: (payload: BackupProgressPayload) => void;
+	onBackupCompleted?: (payload: BackupCompletedPayload) => void;
+	onBackupFailed?: (payload: BackupFailedPayload) => void;
+	onBackupCancelled?: (payload: BackupCancelledPayload) => void;
 };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
 	handleMessage: (data: string) => void;
-	sendBackup: (payload: BackupDispatchPayload) => string;
+	sendBackup: (payload: BackupRunPayload) => string;
+	sendBackupCancel: (payload: BackupCancelPayload) => void;
 	isReady: () => boolean;
 	close: () => void;
 };
 
-export const createControllerAgentSession = (socket: AgentSocket): ControllerAgentSession => {
+export const createControllerAgentSession = (
+	socket: AgentSocket,
+	handlers: ControllerAgentSessionHandlers = {},
+): ControllerAgentSession => {
 	const outboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 	const state = Effect.runSync(
 		Ref.make<SessionState>({
@@ -106,6 +120,27 @@ export const createControllerAgentSession = (socket: AgentSocket): ControllerAge
 				logger.info(
 					`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
 				);
+				handlers.onBackupStarted?.(message.payload);
+				break;
+			}
+			case "backup.progress": {
+				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				handlers.onBackupProgress?.(message.payload);
+				break;
+			}
+			case "backup.completed": {
+				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				handlers.onBackupCompleted?.(message.payload);
+				break;
+			}
+			case "backup.failed": {
+				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				handlers.onBackupFailed?.(message.payload);
+				break;
+			}
+			case "backup.cancelled": {
+				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				handlers.onBackupCancelled?.(message.payload);
 				break;
 			}
 			case "heartbeat.pong": {
@@ -137,14 +172,19 @@ export const createControllerAgentSession = (socket: AgentSocket): ControllerAge
 			handleAgentMessage(parsed.data);
 		},
 		sendBackup: (payload) => {
-			const jobId = payload.jobId ?? Bun.randomUUIDv7();
 			offerOutbound(
 				createControllerMessage("backup.run", {
-					jobId,
-					scheduleId: payload.scheduleId,
+					...payload,
 				}),
 			);
-			return jobId;
+			return payload.jobId;
+		},
+		sendBackupCancel: (payload) => {
+			offerOutbound(
+				createControllerMessage("backup.cancel", {
+					...payload,
+				}),
+			);
 		},
 		isReady: () => Effect.runSync(Ref.get(state)).isReady,
 		close: () => {

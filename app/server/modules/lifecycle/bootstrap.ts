@@ -8,9 +8,9 @@ let bootstrapPromise: Promise<void> | undefined;
 const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
-	await startup();
 	agentManager.start();
 	await spawnLocalAgent();
+	await startup();
 };
 
 export const bootstrapApplication = async () => {

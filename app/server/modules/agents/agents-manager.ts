@@ -1,14 +1,20 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { Effect, Exit, Ref, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
+import type {
+	BackupCancelPayload,
+	BackupCancelledPayload,
+	BackupCompletedPayload,
+	BackupFailedPayload,
+	BackupProgressPayload,
+	BackupRunPayload,
+	BackupStartedPayload,
+} from "@zerobyte/contracts/agent-protocol";
 import { config } from "../../core/config";
 import { validateAgentToken, deriveLocalAgentToken } from "./agent-tokens";
-import {
-	createControllerAgentSession,
-	type BackupDispatchPayload,
-	type ControllerAgentSession,
-} from "./controller-agent-session";
+import { createControllerAgentSession, type ControllerAgentSession } from "./controller-agent-session";
 
 type AgentConnectionData = {
 	id: string;
@@ -17,19 +23,45 @@ type AgentConnectionData = {
 	agentName: string;
 };
 
+type AgentBackupEventContext = {
+	agentId: string;
+	agentName: string;
+	payload:
+		| BackupStartedPayload
+		| BackupProgressPayload
+		| BackupCompletedPayload
+		| BackupFailedPayload
+		| BackupCancelledPayload;
+};
+
+export type AgentBackupEventHandlers = {
+	onBackupStarted?: (context: AgentBackupEventContext & { payload: BackupStartedPayload }) => void;
+	onBackupProgress?: (context: AgentBackupEventContext & { payload: BackupProgressPayload }) => void;
+	onBackupCompleted?: (context: AgentBackupEventContext & { payload: BackupCompletedPayload }) => void;
+	onBackupFailed?: (context: AgentBackupEventContext & { payload: BackupFailedPayload }) => void;
+	onBackupCancelled?: (context: AgentBackupEventContext & { payload: BackupCancelledPayload }) => void;
+};
+
 export const spawnLocalAgent = async () => {
 	const previousAgent = (globalThis as Record<string, unknown>).__localAgent as ChildProcess | undefined;
 	if (previousAgent) {
 		previousAgent.kill();
 	}
 
-	const agentEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
+	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
+	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
+
+	if (config.__prod__ && !existsSync(productionEntryPoint)) {
+		throw new Error(`Local agent entrypoint not found at ${productionEntryPoint}`);
+	}
+
+	const agentEntryPoint = config.__prod__ ? productionEntryPoint : sourceEntryPoint;
 	const agentToken = await deriveLocalAgentToken();
 	const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
 
 	const localAgent = spawn("bun", args, {
 		env: {
-			PATH: process.env.PATH,
+			...process.env,
 			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
 			ZEROBYTE_AGENT_TOKEN: agentToken,
 		},
@@ -55,11 +87,16 @@ export const spawnLocalAgent = async () => {
 
 const createAgentManagerRuntime = () => {
 	const sessionsRef = Effect.runSync(Ref.make<Map<string, ControllerAgentSession>>(new Map()));
+	const backupHandlersRef = Effect.runSync(Ref.make<AgentBackupEventHandlers>({}));
 	let runtimeScope: Scope.CloseableScope | null = null;
 
 	const getSessions = () => Effect.runSync(Ref.get(sessionsRef));
+	const getBackupHandlers = () => Effect.runSync(Ref.get(backupHandlersRef));
 	const setSessions = (sessions: Map<string, ControllerAgentSession>) => {
 		Effect.runSync(Ref.set(sessionsRef, sessions));
+	};
+	const setBackupHandlers = (handlers: AgentBackupEventHandlers) => {
+		Effect.runSync(Ref.set(backupHandlersRef, handlers));
 	};
 
 	const closeAllSessions = () => {
@@ -95,6 +132,26 @@ const createAgentManagerRuntime = () => {
 		setSessions(nextSessions);
 	};
 
+	const handleBackupStarted = (ws: Bun.ServerWebSocket<AgentConnectionData>, payload: BackupStartedPayload) => {
+		getBackupHandlers().onBackupStarted?.({ agentId: ws.data.agentId, agentName: ws.data.agentName, payload });
+	};
+
+	const handleBackupProgress = (ws: Bun.ServerWebSocket<AgentConnectionData>, payload: BackupProgressPayload) => {
+		getBackupHandlers().onBackupProgress?.({ agentId: ws.data.agentId, agentName: ws.data.agentName, payload });
+	};
+
+	const handleBackupCompleted = (ws: Bun.ServerWebSocket<AgentConnectionData>, payload: BackupCompletedPayload) => {
+		getBackupHandlers().onBackupCompleted?.({ agentId: ws.data.agentId, agentName: ws.data.agentName, payload });
+	};
+
+	const handleBackupFailed = (ws: Bun.ServerWebSocket<AgentConnectionData>, payload: BackupFailedPayload) => {
+		getBackupHandlers().onBackupFailed?.({ agentId: ws.data.agentId, agentName: ws.data.agentName, payload });
+	};
+
+	const handleBackupCancelled = (ws: Bun.ServerWebSocket<AgentConnectionData>, payload: BackupCancelledPayload) => {
+		getBackupHandlers().onBackupCancelled?.({ agentId: ws.data.agentId, agentName: ws.data.agentName, payload });
+	};
+
 	const acquireServer = Effect.acquireRelease(
 		Effect.sync(() =>
 			Bun.serve<AgentConnectionData>({
@@ -125,7 +182,16 @@ const createAgentManagerRuntime = () => {
 				},
 				websocket: {
 					open: (ws) => {
-						setSession(ws.data.agentId, createControllerAgentSession(ws));
+						setSession(
+							ws.data.agentId,
+							createControllerAgentSession(ws, {
+								onBackupStarted: (payload) => handleBackupStarted(ws, payload),
+								onBackupProgress: (payload) => handleBackupProgress(ws, payload),
+								onBackupCompleted: (payload) => handleBackupCompleted(ws, payload),
+								onBackupFailed: (payload) => handleBackupFailed(ws, payload),
+								onBackupCancelled: (payload) => handleBackupCancelled(ws, payload),
+							}),
+						);
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 					},
 					message: (ws, data) => {
@@ -187,7 +253,7 @@ const createAgentManagerRuntime = () => {
 
 	return {
 		start,
-		sendBackup: (agentId: string, payload: BackupDispatchPayload) => {
+		sendBackup: (agentId: string, payload: BackupRunPayload) => {
 			const session = getSession(agentId);
 
 			if (!session) {
@@ -195,10 +261,31 @@ const createAgentManagerRuntime = () => {
 				return false;
 			}
 
+			if (!session.isReady()) {
+				logger.warn(`Cannot send backup command. Agent ${agentId} is not ready.`);
+				return false;
+			}
+
 			const jobId = session.sendBackup(payload);
 			logger.info(`Sent backup command ${jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
 			return true;
 		},
+		cancelBackup: (agentId: string, payload: BackupCancelPayload) => {
+			const session = getSession(agentId);
+
+			if (!session) {
+				logger.warn(`Cannot cancel backup command. Agent ${agentId} is not connected.`);
+				return false;
+			}
+
+			session.sendBackupCancel(payload);
+			logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
+			return true;
+		},
+		setBackupEventHandlers: (handlers: AgentBackupEventHandlers) => {
+			setBackupHandlers(handlers);
+		},
+		getBackupEventHandlers: () => getBackupHandlers(),
 		stop,
 	};
 };
@@ -207,7 +294,5 @@ const previous = (globalThis as Record<string, unknown>).__agentManager as
 	| ReturnType<typeof createAgentManagerRuntime>
 	| undefined;
 
-previous?.stop();
-
-export const agentManager = createAgentManagerRuntime();
+export const agentManager = previous ?? createAgentManagerRuntime();
 (globalThis as Record<string, unknown>).__agentManager = agentManager;
