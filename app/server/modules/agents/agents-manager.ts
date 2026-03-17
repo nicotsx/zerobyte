@@ -1,13 +1,14 @@
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
-import {
-	createControllerMessage,
-	parseAgentMessage,
-	sendControllerMessage,
-	type BackupCommandPayload,
-} from "@zerobyte/contracts/agent-protocol";
+import { Effect, Exit, Ref, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
+import { config } from "../../core/config";
 import { validateAgentToken, deriveLocalAgentToken } from "./agent-tokens";
+import {
+	createControllerAgentSession,
+	type BackupDispatchPayload,
+	type ControllerAgentSession,
+} from "./controller-agent-session";
 
 type AgentConnectionData = {
 	id: string;
@@ -16,39 +17,17 @@ type AgentConnectionData = {
 	agentName: string;
 };
 
-type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
-type AgentServer = ReturnType<typeof Bun.serve<AgentConnectionData>>;
-const AGENT_SERVER_KEY = Symbol.for("zerobyte.agent-manager.server");
-const AGENT_SOCKETS_KEY = Symbol.for("zerobyte.agent-manager.sockets");
-
-const globalState = globalThis as typeof globalThis & {
-	[AGENT_SERVER_KEY]?: AgentServer;
-	[AGENT_SOCKETS_KEY]?: Map<string, AgentSocket>;
-};
-
-const getServer = () => globalState[AGENT_SERVER_KEY] ?? null;
-const getAgentSockets = () => {
-	globalState[AGENT_SOCKETS_KEY] ??= new Map<string, AgentSocket>();
-	return globalState[AGENT_SOCKETS_KEY];
-};
-const clearAgentSockets = () => {
-	getAgentSockets().clear();
-};
-
-const setServer = (server: AgentServer | null) => {
-	if (server) {
-		globalState[AGENT_SERVER_KEY] = server;
-		return;
+export const spawnLocalAgent = async () => {
+	const previousAgent = (globalThis as Record<string, unknown>).__localAgent as ChildProcess | undefined;
+	if (previousAgent) {
+		previousAgent.kill();
 	}
 
-	delete globalState[AGENT_SERVER_KEY];
-};
-
-export const spawnLocalAgent = async () => {
 	const agentEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const agentToken = await deriveLocalAgentToken();
+	const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
 
-	const localAgent = spawn("bun", ["run", agentEntryPoint], {
+	const localAgent = spawn("bun", args, {
 		env: {
 			PATH: process.env.PATH,
 			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
@@ -56,6 +35,8 @@ export const spawnLocalAgent = async () => {
 		},
 		stdio: ["ignore", "pipe", "pipe"],
 	});
+
+	(globalThis as Record<string, unknown>).__localAgent = localAgent;
 
 	localAgent.stdout?.on("data", (data: Buffer) => {
 		const line = data.toString().trim();
@@ -72,108 +53,161 @@ export const spawnLocalAgent = async () => {
 	});
 };
 
-export const agentManager = {
-	start: () => {
-		const existingServer = getServer();
-		if (existingServer) {
-			existingServer.stop(true);
-			setServer(null);
-			clearAgentSockets();
+const createAgentManagerRuntime = () => {
+	const sessionsRef = Effect.runSync(Ref.make<Map<string, ControllerAgentSession>>(new Map()));
+	let runtimeScope: Scope.CloseableScope | null = null;
+
+	const getSessions = () => Effect.runSync(Ref.get(sessionsRef));
+	const setSessions = (sessions: Map<string, ControllerAgentSession>) => {
+		Effect.runSync(Ref.set(sessionsRef, sessions));
+	};
+
+	const closeAllSessions = () => {
+		const sessions = getSessions();
+		for (const session of sessions.values()) {
+			session.close();
+		}
+		setSessions(new Map());
+	};
+
+	const getSession = (agentId: string) => getSessions().get(agentId);
+
+	const setSession = (agentId: string, session: ControllerAgentSession) => {
+		const existingSession = getSession(agentId);
+		if (existingSession) {
+			existingSession.close();
+		}
+
+		const nextSessions = new Map(getSessions());
+		nextSessions.set(agentId, session);
+		setSessions(nextSessions);
+	};
+
+	const removeSession = (agentId: string, connectionId: string) => {
+		const session = getSession(agentId);
+		if (!session || session.connectionId !== connectionId) {
+			return;
+		}
+
+		session.close();
+		const nextSessions = new Map(getSessions());
+		nextSessions.delete(agentId);
+		setSessions(nextSessions);
+	};
+
+	const acquireServer = Effect.acquireRelease(
+		Effect.sync(() =>
+			Bun.serve<AgentConnectionData>({
+				port: 3001,
+				async fetch(req, srv) {
+					const url = new URL(req.url);
+					const token = url.searchParams.get("token");
+
+					if (!token) {
+						return new Response("Missing token", { status: 401 });
+					}
+
+					const result = await validateAgentToken(token);
+					if (!result) {
+						return new Response("Invalid or revoked token", { status: 401 });
+					}
+
+					const upgraded = srv.upgrade(req, {
+						data: {
+							id: Bun.randomUUIDv7(),
+							agentId: result.agentId,
+							organizationId: result.organizationId,
+							agentName: result.agentName,
+						},
+					});
+					if (upgraded) return undefined;
+					return new Response("WebSocket upgrade failed", { status: 400 });
+				},
+				websocket: {
+					open: (ws) => {
+						setSession(ws.data.agentId, createControllerAgentSession(ws));
+						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
+					},
+					message: (ws, data) => {
+						if (typeof data !== "string") {
+							logger.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
+							return;
+						}
+
+						const session = getSession(ws.data.agentId);
+						if (!session || session.connectionId !== ws.data.id) {
+							logger.warn(`No active session for agent ${ws.data.agentId} on ${ws.data.id}`);
+							return;
+						}
+
+						session.handleMessage(data);
+					},
+					close: (ws) => {
+						removeSession(ws.data.agentId, ws.data.id);
+						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
+					},
+				},
+			}),
+		),
+		(server) =>
+			Effect.sync(() => {
+				closeAllSessions();
+				server.stop(true);
+			}),
+	);
+
+	const stop = () => {
+		if (!runtimeScope) {
+			return;
+		}
+
+		logger.info("Stopping Agent Manager...");
+		const scope = runtimeScope;
+		runtimeScope = null;
+		Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
+	};
+
+	const start = () => {
+		if (runtimeScope) {
+			stop();
 		}
 
 		logger.info("Starting Agent Manager...");
-		const server = Bun.serve<AgentConnectionData>({
-			port: 3001,
-			async fetch(req, srv) {
-				const url = new URL(req.url);
-				const token = url.searchParams.get("token");
+		const scope = Effect.runSync(Scope.make());
 
-				if (!token) {
-					return new Response("Missing token", { status: 401 });
-				}
-
-				const result = await validateAgentToken(token);
-				if (!result) {
-					return new Response("Invalid or revoked token", { status: 401 });
-				}
-
-				const upgraded = srv.upgrade(req, {
-					data: {
-						id: Bun.randomUUIDv7(),
-						agentId: result.agentId,
-						organizationId: result.organizationId,
-						agentName: result.agentName,
-					},
-				});
-				if (upgraded) return undefined;
-				return new Response("WebSocket upgrade failed", { status: 400 });
-			},
-			websocket: {
-				open: (ws) => {
-					getAgentSockets().set(ws.data.agentId, ws);
-					logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
-				},
-				message: (ws, data) => {
-					if (typeof data !== "string") {
-						logger.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
-						return;
-					}
-
-					const parsed = parseAgentMessage(data);
-
-					if (parsed === null) {
-						logger.warn(`Invalid JSON from agent ${ws.data.agentId}`);
-						return;
-					}
-
-					if (!parsed.success) {
-						logger.warn(`Invalid agent message from ${ws.data.agentId}: ${parsed.error.message}`);
-						return;
-					}
-
-					switch (parsed.data.type) {
-						case "agent.ready": {
-							logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) is ready`);
-							break;
-						}
-						case "backup.started": {
-							logger.info(`Backup started on agent ${ws.data.agentId} for schedule ${parsed.data.payload.scheduleId}`);
-							break;
-						}
-					}
-				},
-				close: (ws) => {
-					if (getAgentSockets().get(ws.data.agentId) === ws) {
-						getAgentSockets().delete(ws.data.agentId);
-					}
-
-					logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
-				},
-			},
-		});
-
-		setServer(server);
-		logger.info(`Agent Manager listening on port ${server.port}`);
-	},
-	sendBackup: (agentId: string, payload: BackupCommandPayload) => {
-		const agentSocket = getAgentSockets().get(agentId);
-
-		if (!agentSocket) {
-			logger.warn(`Cannot send backup command. Agent ${agentId} is not connected.`);
-			return false;
+		try {
+			const server = Effect.runSync(Scope.extend(acquireServer, scope));
+			runtimeScope = scope;
+			logger.info(`Agent Manager listening on port ${server.port}`);
+		} catch (error) {
+			Effect.runSync(Scope.close(scope, Exit.fail(error)));
+			throw error;
 		}
+	};
 
-		sendControllerMessage(agentSocket, createControllerMessage("backup", payload));
-		logger.info(`Sent backup command to agent ${agentId} for schedule ${payload.scheduleId}`);
-		return true;
-	},
-	stop: () => {
-		const server = getServer();
-		if (!server) return;
+	return {
+		start,
+		sendBackup: (agentId: string, payload: BackupDispatchPayload) => {
+			const session = getSession(agentId);
 
-		logger.info("Stopping Agent Manager...");
-		server.stop(true);
-		setServer(null);
-		clearAgentSockets();
-	},
+			if (!session) {
+				logger.warn(`Cannot send backup command. Agent ${agentId} is not connected.`);
+				return false;
+			}
+
+			const jobId = session.sendBackup(payload);
+			logger.info(`Sent backup command ${jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
+			return true;
+		},
+		stop,
+	};
 };
+
+const previous = (globalThis as Record<string, unknown>).__agentManager as
+	| ReturnType<typeof createAgentManagerRuntime>
+	| undefined;
+
+previous?.stop();
+
+export const agentManager = createAgentManagerRuntime();
+(globalThis as Record<string, unknown>).__agentManager = agentManager;

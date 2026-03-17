@@ -5,7 +5,8 @@
 	"module": "index.ts",
 	"dependencies": {
 		"@zerobyte/contracts": "workspace:*",
-		"@zerobyte/core": "workspace:*"
+		"@zerobyte/core": "workspace:*",
+		"effect": "^3.18.4"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
