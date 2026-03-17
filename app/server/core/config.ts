@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import os from "node:os";
-import { z } from "zod";
+import { prettifyError, z } from "zod";
 import "dotenv/config";
+import { buildAllowedHosts } from "../lib/auth/base-url";
 
+const unquote = (str: string) => str.trim().replace(/^(['"])(.*)\1$/, "$2");
 const getResticHostname = () => {
 	try {
 		const mountinfo = readFileSync("/proc/self/mountinfo", "utf-8");
@@ -41,30 +43,48 @@ const envSchema = z
 		ENABLE_DEV_PANEL: z.string().default("false"),
 		PROVISIONING_PATH: z.string().optional(),
 	})
-	.transform((s) => ({
-		__prod__: s.NODE_ENV === "production",
-		environment: s.NODE_ENV,
-		serverIp: s.SERVER_IP,
-		serverIdleTimeout: s.SERVER_IDLE_TIMEOUT,
-		resticHostname: s.RESTIC_HOSTNAME || getResticHostname(),
-		port: s.PORT,
-		migrationsPath: s.MIGRATIONS_PATH,
-		appVersion: s.APP_VERSION,
-		trustedOrigins: s.TRUSTED_ORIGINS?.split(",")
-			.map((origin) => origin.trim())
-			.filter(Boolean)
-			.concat(s.BASE_URL) ?? [s.BASE_URL],
-		trustProxy: s.TRUST_PROXY === "true",
-		disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
-		appSecret: s.APP_SECRET,
-		baseUrl: s.BASE_URL,
-		isSecure: s.BASE_URL?.startsWith("https://") ?? false,
-		enableDevPanel: s.ENABLE_DEV_PANEL === "true",
-		provisioningPath: s.PROVISIONING_PATH,
-	}));
+	.transform((s) => {
+		const baseUrl = unquote(s.BASE_URL);
+		const trustedOrigins = s.TRUSTED_ORIGINS?.split(",").map(unquote).filter(Boolean).concat(baseUrl) ?? [baseUrl];
+		const authOrigins = [baseUrl, ...trustedOrigins];
+		const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
 
-const parseConfig = (env: unknown) => {
+		for (const origin of invalidOrigins) {
+			console.warn(
+				`Ignoring invalid origin in configuration: ${origin}. Make sure it is a valid URL with a protocol (e.g. https://example.com)`,
+			);
+		}
+
+		return {
+			__prod__: s.NODE_ENV === "production",
+			environment: s.NODE_ENV,
+			serverIp: s.SERVER_IP,
+			serverIdleTimeout: s.SERVER_IDLE_TIMEOUT,
+			resticHostname: s.RESTIC_HOSTNAME || getResticHostname(),
+			port: s.PORT,
+			migrationsPath: s.MIGRATIONS_PATH,
+			appVersion: s.APP_VERSION,
+			trustedOrigins: trustedOrigins,
+			trustProxy: s.TRUST_PROXY === "true",
+			disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
+			appSecret: s.APP_SECRET,
+			baseUrl,
+			isSecure: baseUrl.startsWith("https://"),
+			enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+			provisioningPath: s.PROVISIONING_PATH,
+			allowedHosts,
+		};
+	});
+
+export const parseConfig = (env: unknown) => {
 	const result = envSchema.safeParse(env);
+
+	if (result.success && result.data.allowedHosts.length === 0) {
+		console.error(
+			`Configuration error: No valid trusted origins provided. Please check the BASE_URL and TRUSTED_ORIGINS environment variables.`,
+		);
+		process.exit(1);
+	}
 
 	if (!result.success) {
 		if (!process.env.APP_SECRET) {
@@ -89,8 +109,8 @@ const parseConfig = (env: unknown) => {
 			console.error(errorMessage);
 		}
 
-		console.error(`Environment variable validation failed: ${result.error.message}`);
-		throw new Error("Invalid environment variables");
+		console.error(`Environment variable validation failed: ${prettifyError(result.error)}`);
+		process.exit(1);
 	}
 
 	return result.data;

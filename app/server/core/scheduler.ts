@@ -1,4 +1,4 @@
-import CronExpressionParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import { logger } from "@zerobyte/core/node";
 
 export abstract class Job {

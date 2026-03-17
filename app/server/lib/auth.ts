@@ -12,29 +12,20 @@ import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
 import { cryptoUtils } from "../utils/crypto";
-import { logger } from "@zerobyte/core/node";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
 import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
 import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
-import { buildAllowedHosts } from "./auth/base-url";
 import { ssoIntegration } from "../modules/sso/sso.integration";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
-const authOrigins = [config.baseUrl, ...config.trustedOrigins];
-const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
-
-for (const origin of invalidOrigins) {
-	logger.warn(`Ignoring invalid auth origin in configuration: ${origin}`);
-}
-
 export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
 	baseURL: {
-		allowedHosts,
+		allowedHosts: config.allowedHosts,
 		protocol: "auto",
 	},
 	trustedOrigins: config.trustedOrigins,
