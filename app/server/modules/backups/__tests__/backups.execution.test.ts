@@ -10,6 +10,7 @@ import { generateBackupOutput } from "~/test/helpers/restic";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
 import * as spawnModule from "@zerobyte/core/node";
+import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { restic } from "~/server/core/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";
@@ -148,6 +149,32 @@ describe("backup execution - validation failures", () => {
 });
 
 describe("stop backup", () => {
+	test("should keep restic warning details when backup completes with read errors", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementationOnce((params: SafeSpawnParams) => {
+			params.onStderr?.("error: open /mnt/data/private.db: permission denied");
+
+			return Promise.resolve({
+				exitCode: 3,
+				summary: generateBackupOutput(),
+				error: "Warning: at least one source file could not be read",
+			});
+		});
+
+		await backupsExecutionService.executeBackup(schedule.id);
+
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("error: open /mnt/data/private.db: permission denied");
+	});
+
 	test("should stop a running backup", async () => {
 		// arrange
 		const { resticBackupMock } = setup();

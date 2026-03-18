@@ -101,6 +101,7 @@ export const backup = async (
 	const logData = throttle((data: string) => {
 		logger.info(data.trim());
 	}, 5000);
+	const stderrLines: string[] = [];
 
 	const streamProgress = throttle((data: string) => {
 		if (options.onProgress) {
@@ -134,6 +135,13 @@ export const backup = async (
 				streamProgress(data);
 			}
 		},
+		onStderr: (error) => {
+			const line = error.trim();
+			if (line.length > 0) {
+				stderrLines.push(line);
+				logger.error(`restic stderr: ${line}`);
+			}
+		},
 	});
 
 	if (includeFile) {
@@ -146,7 +154,7 @@ export const backup = async (
 
 	if (options.signal?.aborted) {
 		logger.warn("Restic backup was aborted by signal.");
-		return { result: null, exitCode: res.exitCode };
+		return { result: null, exitCode: res.exitCode, warningDetails: null };
 	}
 
 	if (res.exitCode === 3) {
@@ -174,8 +182,16 @@ export const backup = async (
 
 	if (!result.success) {
 		logger.error(`Restic backup output validation failed: ${result.error.message}`);
-		return { result: null, exitCode: res.exitCode };
+		return {
+			result: null,
+			exitCode: res.exitCode,
+			warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+		};
 	}
 
-	return { result: result.data, exitCode: res.exitCode };
+	return {
+		result: result.data,
+		exitCode: res.exitCode,
+		warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+	};
 };

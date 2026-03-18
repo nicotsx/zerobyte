@@ -149,6 +149,7 @@ const finalizeSuccessfulBackup = async (
 	scheduleId: number,
 	exitCode: number,
 	result: ResticBackupOutputDto | null,
+	warningDetails: string | null,
 ) => {
 	const finalStatus = exitCode === 0 ? "success" : "warning";
 
@@ -174,7 +175,7 @@ const finalizeSuccessfulBackup = async (
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupAt: Date.now(),
 		lastBackupStatus: finalStatus,
-		lastBackupError: null,
+		lastBackupError: finalStatus === "warning" ? warningDetails : null,
 		nextBackupAt,
 	});
 
@@ -285,7 +286,13 @@ const executeBackup = async (scheduleId: number, manual = false): Promise<void> 
 
 	try {
 		const backupResult = await runBackupOperation(ctx, abortController.signal);
-		await finalizeSuccessfulBackup(ctx, scheduleId, backupResult.exitCode, backupResult.result);
+		await finalizeSuccessfulBackup(
+			ctx,
+			scheduleId,
+			backupResult.exitCode,
+			backupResult.result,
+			backupResult.warningDetails,
+		);
 	} catch (error) {
 		await handleBackupFailure(scheduleId, ctx.organizationId, error, ctx);
 	} finally {
