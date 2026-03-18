@@ -91,11 +91,6 @@ export const ScheduleSummary = (props: Props) => {
 		handleStopBackup();
 	};
 
-	const backupDetails =
-		schedule.lastBackupStatus === "warning"
-			? (schedule.lastBackupError ?? "Last backup completed with warnings. Check your container logs for more details.")
-			: schedule.lastBackupError;
-
 	return (
 		<div className="space-y-4">
 			<Card className="@container">
@@ -205,7 +200,7 @@ export const ScheduleSummary = (props: Props) => {
 						</p>
 					</div>
 
-					{backupDetails && (schedule.lastBackupStatus === "warning" || schedule.lastBackupStatus === "error") && (
+					{(schedule.lastBackupStatus === "warning" || schedule.lastBackupStatus === "error") && (
 						<div className="@medium:col-span-2 @wide:col-span-4">
 							<Collapsible
 								className={cn("border border-border/50 rounded-lg overflow-hidden", {
@@ -234,7 +229,8 @@ export const ScheduleSummary = (props: Props) => {
 												"text-red-600": schedule.lastBackupStatus === "error",
 											})}
 										>
-											{backupDetails}
+											{schedule.lastBackupError ??
+												"No additional details available. check your container logs for more information."}
 										</p>
 									</div>
 								</CollapsibleContent>
