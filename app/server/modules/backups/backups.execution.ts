@@ -268,6 +268,7 @@ const executeBackup = async (scheduleId: number, manual = false): Promise<void> 
 	}
 
 	const { context: ctx } = result;
+	cache.del(cacheKeys.backup.progress(scheduleId));
 	emitBackupStarted(ctx, scheduleId);
 
 	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);

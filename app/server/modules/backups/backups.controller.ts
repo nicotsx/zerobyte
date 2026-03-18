@@ -47,6 +47,7 @@ import { requireAuth } from "../auth/auth.middleware";
 import { backupsExecutionService } from "./backups.execution";
 import { logger } from "@zerobyte/core/node";
 import { asShortId } from "~/server/utils/branded";
+import { cache, cacheKeys } from "~/server/utils/cache";
 
 export const backupScheduleController = new Hono()
 	.use(requireAuth)
@@ -167,6 +168,10 @@ export const backupScheduleController = new Hono()
 	.get("/:shortId/progress", getBackupProgressDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const schedule = await backupsService.getScheduleByShortId(shortId);
+		if (schedule.lastBackupStatus !== "in_progress") {
+			cache.del(cacheKeys.backup.progress(schedule.id));
+			return c.json<GetBackupProgressDto>(null, 200);
+		}
 		const progress = backupsExecutionService.getBackupProgress(schedule.id);
 
 		return c.json<GetBackupProgressDto>(progress ?? null, 200);
