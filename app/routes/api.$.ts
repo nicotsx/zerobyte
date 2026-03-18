@@ -13,26 +13,35 @@ type NodeRuntimeRequest = Request & {
 	};
 };
 
-export const prepareApiRequest = (request: Request, timeoutMs: number) => {
-	const nodeRequest = request as NodeRuntimeRequest;
-	nodeRequest.runtime?.node?.res?.setTimeout(timeoutMs);
+type RequestInitWithDuplex = RequestInit & {
+	duplex?: "half";
+};
+
+export const prepareApiRequest = (request: NodeRuntimeRequest, timeoutMs: number) => {
+	request.runtime?.node?.res?.setTimeout(timeoutMs);
 
 	if (config.trustProxy && request.headers.has("x-forwarded-for")) {
 		return request.clone();
 	}
 
-	const remoteAddress = nodeRequest.ip;
-	if (remoteAddress) {
-		const headers = new Headers(request.headers);
-		headers.set("x-forwarded-for", remoteAddress);
+	const remoteAddress = request.ip;
+	const headers = new Headers(request.headers);
 
-		return new Request(request, { headers });
+	if (remoteAddress) {
+		headers.set("x-forwarded-for", remoteAddress);
+	} else {
+		headers.delete("x-forwarded-for");
 	}
 
-	const headers = new Headers(request.headers);
-	headers.delete("x-forwarded-for");
+	const init: RequestInitWithDuplex = {
+		method: request.method,
+		headers,
+		body: request.body,
+		signal: request.signal,
+		duplex: request.body ? "half" : undefined,
+	};
 
-	return new Request(request, { headers });
+	return new Request(request.url, init);
 };
 
 const handle = ({ request }: { request: Request }) =>

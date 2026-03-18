@@ -18,7 +18,9 @@ import { fromAny } from "@total-typescript/shoehorn";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 
 const setup = () => {
-	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
+	const resticBackupMock = mock((_: SafeSpawnParams) =>
+		Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
+	);
 	const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
 	const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
 	const refreshStatsMock = mock(() =>
