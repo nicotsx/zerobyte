@@ -17,7 +17,8 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 						</div>
 						<BackupStatusDot
 							enabled={schedule.enabled}
-							hasError={!!schedule.lastBackupError}
+							hasError={schedule.lastBackupStatus === "error"}
+							hasWarning={schedule.lastBackupStatus === "warning"}
 							isInProgress={schedule.lastBackupStatus === "in_progress"}
 						/>
 					</div>

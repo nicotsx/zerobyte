@@ -40,7 +40,7 @@ export const StatusDot = ({ variant, label, animated }: StatusDotProps) => {
 
 	return (
 		<Tooltip>
-			<TooltipTrigger>
+			<TooltipTrigger aria-label={label}>
 				<span className="relative flex size-3 mx-auto">
 					{statusMapping?.animated && (
 						<span
