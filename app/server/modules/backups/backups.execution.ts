@@ -16,10 +16,9 @@ import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type { BackupProgressEventDto } from "~/schemas/events-dto";
 
 const runningBackups = new Map<number, AbortController>();
-const progressCache = new Map<number, BackupProgressEventDto>();
 
 export const getBackupProgress = (scheduleId: number): BackupProgressEventDto | undefined =>
-	progressCache.get(scheduleId);
+	cache.get<BackupProgressEventDto>(cacheKeys.backup.progress(scheduleId));
 
 interface BackupContext {
 	schedule: BackupSchedule;
@@ -123,18 +122,16 @@ const runBackupOperation = async (ctx: BackupContext, signal: AbortSignal) => {
 			compressionMode: ctx.repository.compressionMode ?? "auto",
 			organizationId: ctx.organizationId,
 			onProgress: (progress) => {
-				progressCache.set(ctx.schedule.id, {
+				const progressEvent = {
 					scheduleId: ctx.schedule.shortId,
 					volumeName: ctx.volume.name,
 					repositoryName: ctx.repository.name,
 					...progress,
-				});
+				};
+				cache.set(cacheKeys.backup.progress(ctx.schedule.id), progressEvent, 60 * 60);
 				serverEvents.emit("backup:progress", {
 					organizationId: ctx.organizationId,
-					scheduleId: ctx.schedule.shortId,
-					volumeName: ctx.volume.name,
-					repositoryName: ctx.repository.name,
-					...progress,
+					...progressEvent,
 				});
 			},
 		});
@@ -297,7 +294,7 @@ const executeBackup = async (scheduleId: number, manual = false): Promise<void> 
 		await handleBackupFailure(scheduleId, ctx.organizationId, error, ctx);
 	} finally {
 		runningBackups.delete(scheduleId);
-		progressCache.delete(scheduleId);
+		cache.del(cacheKeys.backup.progress(scheduleId));
 	}
 };
 

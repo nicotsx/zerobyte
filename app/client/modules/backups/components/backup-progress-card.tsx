@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { useServerEvents } from "~/client/hooks/use-server-events";
+import { getBackupProgressOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetBackupProgressResponse } from "~/client/api-client/types.gen";
 import { formatDuration } from "~/utils/utils";
 import { formatBytes } from "~/utils/format-bytes";
@@ -13,34 +13,11 @@ type Props = {
 };
 
 export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) => {
-	const { addEventListener } = useServerEvents();
-	const [progress, setProgress] = useState<GetBackupProgressResponse>(initialProgress ?? null);
-
-	useEffect(() => {
-		const abortController = new AbortController();
-
-		addEventListener(
-			"backup:progress",
-			(progressData) => {
-				if (progressData.scheduleId === scheduleShortId) {
-					setProgress(progressData);
-				}
-			},
-			{ signal: abortController.signal },
-		);
-
-		addEventListener(
-			"backup:completed",
-			(completedData) => {
-				if (completedData.scheduleId === scheduleShortId) {
-					setProgress(null);
-				}
-			},
-			{ signal: abortController.signal },
-		);
-
-		return () => abortController.abort();
-	}, [addEventListener, scheduleShortId]);
+	const { data: progress } = useQuery({
+		...getBackupProgressOptions({ path: { shortId: scheduleShortId } }),
+		initialData: initialProgress,
+		refetchInterval: 1000,
+	});
 
 	const percentDone = progress ? Math.round(progress.percent_done * 100) : 0;
 	const currentFile = progress?.current_files?.[0] || "";

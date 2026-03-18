@@ -76,6 +76,7 @@ export function ScheduleDetailsPage(props: Props) {
 
 	const { data: schedule } = useSuspenseQuery({
 		...getBackupScheduleOptions({ path: { shortId: scheduleId } }),
+		refetchInterval: 1000,
 	});
 
 	const {

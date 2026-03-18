@@ -4,6 +4,7 @@ import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
+import { cache, cacheKeys } from "~/server/utils/cache";
 
 const app = createApp();
 
@@ -81,6 +82,47 @@ describe("backups security", () => {
 	});
 
 	describe("input validation", () => {
+		test("should return cached progress for a running backup", async () => {
+			const { headers, organizationId } = await createTestSession();
+			const volume = await createTestVolume({ organizationId });
+			const repository = await createTestRepository({ organizationId });
+			const schedule = await createTestBackupSchedule({
+				organizationId,
+				volumeId: volume.id,
+				repositoryId: repository.id,
+			});
+
+			cache.set(cacheKeys.backup.progress(schedule.id), {
+				scheduleId: schedule.shortId,
+				volumeName: volume.name,
+				repositoryName: repository.name,
+				message_type: "status",
+				seconds_elapsed: 12,
+				seconds_remaining: 24,
+				percent_done: 0.5,
+				total_files: 100,
+				files_done: 50,
+				total_bytes: 1024,
+				bytes_done: 512,
+				current_files: ["/mnt/data/file.txt"],
+			});
+
+			const res = await app.request(`/api/v1/backups/${schedule.shortId}/progress`, {
+				headers,
+			});
+
+			expect(res.status).toBe(200);
+			const body = await res.json();
+			expect(body).toMatchObject({
+				scheduleId: schedule.shortId,
+				percent_done: 0.5,
+				files_done: 50,
+				current_files: ["/mnt/data/file.txt"],
+			});
+
+			cache.del(cacheKeys.backup.progress(schedule.id));
+		});
+
 		test("should return a schedule when queried by short id", async () => {
 			const { headers, organizationId } = await createTestSession();
 			const volume = await createTestVolume({ organizationId });
