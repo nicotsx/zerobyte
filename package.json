@@ -119,7 +119,7 @@
 		"@vitejs/plugin-react": "^6.0.1",
 		"babel-plugin-react-compiler": "^1.0.0",
 		"dotenv-cli": "^11.0.0",
-		"drizzle-kit": "^1.0.0-beta.16-ea816b6",
+		"drizzle-kit": "^1.0.0-beta.19-d95b7a4",
 		"lefthook": "^2.1.4",
 		"lightningcss": "^1.32.0",
 		"nitro": "^3.0.1-alpha.2",
