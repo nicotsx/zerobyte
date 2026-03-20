@@ -53,7 +53,10 @@ export const createBackupOptions = (schedule: BackupSchedule, volumePath: string
 	signal,
 	exclude: schedule.excludePatterns ? schedule.excludePatterns.map((p) => processPattern(p, volumePath)) : undefined,
 	excludeIfPresent: schedule.excludeIfPresent ?? undefined,
-	include: schedule.includePatterns
+	includePaths: schedule.includePaths
+		? schedule.includePaths.map((p) => processPattern(p, volumePath, true))
+		: undefined,
+	includePatterns: schedule.includePatterns
 		? schedule.includePatterns.map((p) => processPattern(p, volumePath, true))
 		: undefined,
 	customResticParams: schedule.customResticParams ?? undefined,

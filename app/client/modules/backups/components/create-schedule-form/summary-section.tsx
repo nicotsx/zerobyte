@@ -38,22 +38,22 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 						{repositoriesData?.find((r) => r.shortId === formValues.repositoryId)?.name || "—"}
 					</p>
 				</div>
-				{(formValues.includePatterns && formValues.includePatterns.length > 0) || formValues.includePatternsText ? (
+				{(formValues.includePaths && formValues.includePaths.length > 0) || formValues.includePatterns ? (
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Include paths/patterns</p>
 						<div className="flex flex-col gap-1">
-							{formValues.includePatterns?.slice(0, 20).map((path) => (
+							{formValues.includePaths?.slice(0, 20).map((path) => (
 								<span key={path} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
 									{path}
 								</span>
 							))}
-							{formValues.includePatterns && formValues.includePatterns.length > 20 && (
-								<span className="text-xs text-muted-foreground">+ {formValues.includePatterns.length - 20} more</span>
+							{formValues.includePaths && formValues.includePaths.length > 20 && (
+								<span className="text-xs text-muted-foreground">+ {formValues.includePaths.length - 20} more</span>
 							)}
-							{formValues.includePatternsText
+							{formValues.includePatterns
 								?.split("\n")
 								.filter(Boolean)
-								.slice(0, 20 - (formValues.includePatterns?.length || 0))
+								.slice(0, 20 - (formValues.includePaths?.length || 0))
 								.map((pattern) => (
 									<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
 										{pattern.trim()}

@@ -5,8 +5,8 @@ export const internalFormSchema = z.object({
 	repositoryId: z.string(),
 	excludePatternsText: z.string().optional(),
 	excludeIfPresentText: z.string().optional(),
-	includePatternsText: z.string().optional(),
-	includePatterns: z.array(z.string()).optional(),
+	includePatterns: z.string().optional(),
+	includePaths: z.array(z.string()).optional(),
 	frequency: z.string(),
 	dailyTime: z.string().optional(),
 	weeklyDay: z.string().optional(),
@@ -36,9 +36,10 @@ export type InternalFormValues = z.infer<typeof internalFormSchema>;
 
 export type BackupScheduleFormValues = Omit<
 	InternalFormValues,
-	"excludePatternsText" | "excludeIfPresentText" | "includePatternsText" | "customResticParamsText"
+	"excludePatternsText" | "excludeIfPresentText" | "includePatterns" | "customResticParamsText"
 > & {
 	excludePatterns?: string[];
 	excludeIfPresent?: string[];
+	includePatterns?: string[];
 	customResticParams?: string[];
 };

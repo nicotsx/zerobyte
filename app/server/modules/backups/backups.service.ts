@@ -147,6 +147,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			retentionPolicy: data.retentionPolicy ?? null,
 			excludePatterns: data.excludePatterns ?? [],
 			excludeIfPresent: data.excludeIfPresent ?? [],
+			includePaths: data.includePaths ?? [],
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			customResticParams: data.customResticParams ?? [],

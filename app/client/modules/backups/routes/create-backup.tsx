@@ -69,6 +69,7 @@ export function CreateBackupPage() {
 				enabled: true,
 				cronExpression,
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
+				includePaths: formValues.includePaths,
 				includePatterns: formValues.includePatterns,
 				excludePatterns: formValues.excludePatterns,
 				excludeIfPresent: formValues.excludeIfPresent,

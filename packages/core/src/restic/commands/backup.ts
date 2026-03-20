@@ -20,7 +20,8 @@ export const backup = async (
 		organizationId: string;
 		exclude?: string[];
 		excludeIfPresent?: string[];
-		include?: string[];
+		includePaths?: string[];
+		includePatterns?: string[];
 		tags?: string[];
 		oneFileSystem?: boolean;
 		compressionMode?: CompressionMode;
@@ -50,15 +51,27 @@ export const backup = async (
 	}
 
 	let includeFile: string | null = null;
-	const usesSourceArg = !options.include || options.include.length === 0;
+	let rawIncludeFile: string | null = null;
+	const usesSourceArg =
+		(!options.includePaths || options.includePaths.length === 0) &&
+		(!options.includePatterns || options.includePatterns.length === 0);
 
-	if (options.include && options.include.length > 0) {
+	if (options.includePatterns?.length) {
 		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 		includeFile = path.join(tmp, "include.txt");
 
-		await fs.writeFile(includeFile, options.include.join("\n"), "utf-8");
+		await fs.writeFile(includeFile, options.includePatterns.join("\n"), "utf-8");
 
 		args.push("--files-from", includeFile);
+	}
+
+	if (options.includePaths?.length) {
+		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
+		rawIncludeFile = path.join(tmp, "include.raw");
+
+		await fs.writeFile(rawIncludeFile, Buffer.from(`${options.includePaths.join("\0")}\0`, "utf-8"));
+
+		args.push("--files-from-raw", rawIncludeFile);
 	}
 
 	for (const exclude of deps.defaultExcludes) {
@@ -66,7 +79,7 @@ export const backup = async (
 	}
 
 	let excludeFile: string | null = null;
-	if (options.exclude && options.exclude.length > 0) {
+	if (options.exclude?.length) {
 		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-exclude-"));
 		excludeFile = path.join(tmp, "exclude.txt");
 
@@ -75,13 +88,13 @@ export const backup = async (
 		args.push("--exclude-file", excludeFile);
 	}
 
-	if (options.excludeIfPresent && options.excludeIfPresent.length > 0) {
+	if (options.excludeIfPresent?.length) {
 		for (const filename of options.excludeIfPresent) {
 			args.push("--exclude-if-present", filename);
 		}
 	}
 
-	if (options.customResticParams && options.customResticParams.length > 0) {
+	if (options.customResticParams?.length) {
 		const validationError = validateCustomResticParams(options.customResticParams);
 		if (validationError) {
 			throw new Error(`Invalid customResticParams: ${validationError}`);
@@ -146,6 +159,9 @@ export const backup = async (
 
 	if (includeFile) {
 		await fs.unlink(includeFile).catch(() => {});
+	}
+	if (rawIncludeFile) {
+		await fs.unlink(rawIncludeFile).catch(() => {});
 	}
 	if (excludeFile) {
 		await fs.unlink(excludeFile).catch(() => {});

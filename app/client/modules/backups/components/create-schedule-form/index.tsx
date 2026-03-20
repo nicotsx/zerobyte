@@ -40,22 +40,22 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 			const {
 				excludePatternsText,
 				excludeIfPresentText,
-				includePatternsText,
+				includePatterns,
 				customResticParamsText,
-				includePatterns: fileBrowserPatterns,
+				includePaths,
 				cronExpression,
 				...rest
 			} = data;
 			const excludePatterns = parseMultilineEntries(excludePatternsText);
 			const excludeIfPresent = parseMultilineEntries(excludeIfPresentText);
-			const textPatterns = parseMultilineEntries(includePatternsText);
-			const includePatterns = [...(fileBrowserPatterns || []), ...textPatterns];
+			const parsedIncludePatterns = parseMultilineEntries(includePatterns);
 			const customResticParams = parseMultilineEntries(customResticParamsText);
 
 			onSubmit({
 				...rest,
 				cronExpression,
-				includePatterns: includePatterns.length > 0 ? includePatterns : [],
+				includePaths: includePaths?.length ? includePaths : [],
+				includePatterns: parsedIncludePatterns.length > 0 ? parsedIncludePatterns : [],
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
@@ -67,13 +67,13 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 	const frequency = form.watch("frequency");
 	const formValues = form.watch();
 
-	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set(initialValues?.includePatterns || []));
+	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set(initialValues?.includePaths || []));
 	const [showAllSelectedPaths, setShowAllSelectedPaths] = useState(false);
 
 	const handleSelectionChange = useCallback(
 		(paths: Set<string>) => {
 			setSelectedPaths(paths);
-			form.setValue("includePatterns", Array.from(paths));
+			form.setValue("includePaths", Array.from(paths));
 		},
 		[form],
 	);
@@ -83,7 +83,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 			const newPaths = new Set(selectedPaths);
 			newPaths.delete(pathToRemove);
 			setSelectedPaths(newPaths);
-			form.setValue("includePatterns", Array.from(newPaths));
+			form.setValue("includePaths", Array.from(newPaths));
 		},
 		[selectedPaths, form],
 	);

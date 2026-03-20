@@ -9,6 +9,7 @@ const createSchedule = (overrides: Partial<BackupScheduleInput> = {}): BackupSch
 	fromAny({
 		shortId: "sched-1234",
 		oneFileSystem: false,
+		includePaths: [],
 		includePatterns: [],
 		excludePatterns: [],
 		excludeIfPresent: [],
@@ -20,7 +21,8 @@ describe("executeBackup - include / exclude patterns", () => {
 		// arrange
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
 		const schedule = createSchedule({
-			includePatterns: ["*.zip", "/Photos", "!/Temp", "!*.log"],
+			includePaths: ["/Photos"],
+			includePatterns: ["*.zip", "!/Temp", "!*.log"],
 			excludePatterns: [".DS_Store", "/Config", "!/Important", "!*.tmp"],
 			excludeIfPresent: [".nobackup"],
 		});
@@ -31,9 +33,9 @@ describe("executeBackup - include / exclude patterns", () => {
 
 		// assert
 		expect(options).toMatchObject({
-			include: [
+			includePaths: [path.join(volumePath, "Photos")],
+			includePatterns: [
 				path.join(volumePath, "*.zip"),
-				path.join(volumePath, "Photos"),
 				`!${path.join(volumePath, "Temp")}`,
 				`!${path.join(volumePath, "*.log")}`,
 			],
@@ -48,7 +50,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		const volumePath = `/${volumeName}`;
 		const selectedPath = `/${volumeName}`;
 		const schedule = createSchedule({
-			includePatterns: [selectedPath],
+			includePaths: [selectedPath],
 		});
 		const signal = new AbortController().signal;
 
@@ -56,7 +58,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(options.include).toEqual([path.join(volumePath, volumeName)]);
+		expect(options.includePaths).toEqual([path.join(volumePath, volumeName)]);
 	});
 
 	test("should correctly mix relative and absolute patterns", () => {
@@ -73,7 +75,7 @@ describe("executeBackup - include / exclude patterns", () => {
 		const options = createBackupOptions(schedule, volumePath, signal);
 
 		// assert
-		expect(options.include).toEqual([
+		expect(options.includePatterns).toEqual([
 			path.join(volumePath, relativeInclude),
 			path.join(volumePath, "anchored/include"),
 		]);
@@ -91,7 +93,8 @@ describe("executeBackup - include / exclude patterns", () => {
 		const options = createBackupOptions(schedule, "/var/lib/zerobyte/volumes/vol999/_data", signal);
 
 		// assert
-		expect(options.include).toEqual([]);
+		expect(options.includePaths).toEqual([]);
+		expect(options.includePatterns).toEqual([]);
 		expect(options.exclude).toEqual([]);
 	});
 
@@ -124,10 +127,24 @@ describe("executeBackup - include / exclude patterns", () => {
 
 		const options = createBackupOptions(schedule, volumePath, signal);
 
-		expect(options.include).toEqual([
+		expect(options.includePatterns).toEqual([
 			path.join(volumePath, "**/*.xyz"),
 			path.join(volumePath, "*.zip"),
 			`!${path.join(volumePath, "**/*.tmp")}`,
 		]);
+	});
+
+	test("keeps selected include paths separate from include patterns", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const schedule = createSchedule({
+			includePaths: ["/movies [1]"],
+			includePatterns: ["**/*.txt"],
+		});
+		const signal = new AbortController().signal;
+
+		const options = createBackupOptions(schedule, volumePath, signal);
+
+		expect(options.includePaths).toEqual([path.join(volumePath, "movies [1]")]);
+		expect(options.includePatterns).toEqual([path.join(volumePath, "**/*.txt")]);
 	});
 });

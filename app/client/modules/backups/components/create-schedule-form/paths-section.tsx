@@ -68,7 +68,7 @@ export const PathsSection = ({
 			)}
 			<FormField
 				control={form.control}
-				name="includePatternsText"
+				name="includePatterns"
 				render={({ field }) => (
 					<FormItem className="mt-6">
 						<FormLabel>Additional include patterns</FormLabel>

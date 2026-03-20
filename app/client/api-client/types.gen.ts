@@ -2430,6 +2430,7 @@ export type ListBackupSchedulesResponses = {
         } | null;
         excludePatterns: Array<string> | null;
         excludeIfPresent: Array<string> | null;
+        includePaths: Array<string> | null;
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
@@ -2704,6 +2705,7 @@ export type CreateBackupScheduleData = {
         };
         excludePatterns?: Array<string>;
         excludeIfPresent?: Array<string>;
+        includePaths?: Array<string>;
         includePatterns?: Array<string>;
         oneFileSystem?: boolean;
         tags?: Array<string>;
@@ -2737,6 +2739,7 @@ export type CreateBackupScheduleResponses = {
         } | null;
         excludePatterns: Array<string> | null;
         excludeIfPresent: Array<string> | null;
+        includePaths: Array<string> | null;
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
@@ -2803,6 +2806,7 @@ export type GetBackupScheduleResponses = {
         } | null;
         excludePatterns: Array<string> | null;
         excludeIfPresent: Array<string> | null;
+        includePaths: Array<string> | null;
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
@@ -3076,6 +3080,7 @@ export type UpdateBackupScheduleData = {
         };
         excludePatterns?: Array<string>;
         excludeIfPresent?: Array<string>;
+        includePaths?: Array<string>;
         includePatterns?: Array<string>;
         oneFileSystem?: boolean;
         tags?: Array<string>;
@@ -3111,6 +3116,7 @@ export type UpdateBackupScheduleResponses = {
         } | null;
         excludePatterns: Array<string> | null;
         excludeIfPresent: Array<string> | null;
+        includePaths: Array<string> | null;
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
@@ -3157,6 +3163,7 @@ export type GetBackupScheduleForVolumeResponses = {
         } | null;
         excludePatterns: Array<string> | null;
         excludeIfPresent: Array<string> | null;
+        includePaths: Array<string> | null;
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
@@ -4154,13 +4161,13 @@ export type GetBackupProgressResponses = {
         scheduleId: string;
         volumeName: string;
         repositoryName: string;
-        seconds_elapsed: number;
+        seconds_elapsed?: number;
         seconds_remaining?: number;
         percent_done: number;
         total_files: number;
-        files_done: number;
+        files_done?: number;
         total_bytes: number;
-        bytes_done: number;
+        bytes_done?: number;
         current_files?: Array<string>;
     } | null;
 };

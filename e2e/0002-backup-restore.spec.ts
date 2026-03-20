@@ -16,6 +16,7 @@ type ScenarioOptions = {
 	includePatterns?: string;
 	excludePatterns?: string;
 	excludeIfPresent?: string;
+	selectedPaths?: string[];
 };
 
 type BackupJobOptions = ScenarioOptions & {
@@ -98,6 +99,15 @@ async function createBackupJob(page: Page, options: BackupJobOptions) {
 	await page.getByRole("textbox", { name: "Execution time" }).fill("00:00");
 	if (options.includePatterns) {
 		await page.getByLabel("Additional include patterns").fill(options.includePatterns);
+	}
+	if (options.selectedPaths) {
+		for (const selectedPath of options.selectedPaths) {
+			const escapedPath = path.posix.basename(selectedPath).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			await page
+				.getByRole("button", { name: new RegExp(escapedPath) })
+				.getByRole("checkbox")
+				.click();
+		}
 	}
 	if (options.excludePatterns) {
 		await page.getByLabel("Exclusion patterns").fill(options.excludePatterns);
@@ -461,4 +471,39 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 
 	await expect(page.getByRole("button", { name: /\.nobackup/ })).toBeVisible();
 	await expect(page.getByRole("button", { name: /blocked\.xyz/ })).toHaveCount(0);
+});
+
+test("backup can include a selected folder whose name contains brackets", async ({ page }, testInfo) => {
+	const runId = getRunId(testInfo);
+	const names = getScenarioNames(runId);
+	const bracketDir = `movies [${runId}]`;
+	const bracketPath = path.join(testDataPath, bracketDir);
+	const fileName = `inside-${runId}.txt`;
+
+	fs.mkdirSync(bracketPath, { recursive: true });
+	fs.writeFileSync(path.join(bracketPath, fileName), "bracket path content");
+
+	await gotoAndWaitForAppReady(page, "/");
+	await expect(page).toHaveURL("/volumes");
+
+	await createBackupScenario(page, names, {
+		selectedPaths: [`/${bracketDir}`],
+	});
+
+	await page.getByRole("button", { name: "Backup now" }).click();
+	await expect(page.getByText("Backup started successfully")).toBeVisible();
+	await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
+
+	await page
+		.getByRole("button", { name: /\d+ B$/ })
+		.first()
+		.click();
+	const bracketFolderRow = page.getByRole("button", {
+		name: new RegExp(bracketDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+	});
+	await expect(bracketFolderRow).toBeVisible();
+	await bracketFolderRow.locator("svg").first().click();
+	await expect(page.getByRole("button", { name: new RegExp(fileName.replace(".", "\\.")) })).toBeVisible({
+		timeout: 15000,
+	});
 });

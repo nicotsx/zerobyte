@@ -3,6 +3,7 @@ import { v00001 } from "./migrations/00001-retag-snapshots";
 import { v00002 } from "./migrations/00002-isolate-restic-passwords";
 import { v00003 } from "./migrations/00003-assign-organization";
 import { v00004 } from "./migrations/00004-concat-path-name";
+import { v00005 } from "./migrations/00005-split-backup-include-paths";
 import { sql } from "drizzle-orm";
 import { appMetadataTable, usersTable } from "../../db/schema";
 import { db } from "../../db/db";
@@ -37,7 +38,7 @@ type MigrationEntity = {
 	dependsOn?: string[];
 };
 
-const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004];
+const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004, v00005];
 
 export const runMigrations = async () => {
 	const userCount = await db.select({ count: sql<number>`count(*)` }).from(usersTable);
@@ -77,7 +78,7 @@ export const runMigrations = async () => {
 						"Seek support by opening an issue on the Zerobyte GitHub repository if you need assistance.",
 						"================================================================================",
 					];
-					err.forEach((line) => logger.error(line));
+					err.forEach(logger.error);
 					process.exit(1);
 				}
 			}
@@ -105,7 +106,7 @@ export const runMigrations = async () => {
 					"on the Zerobyte GitHub repository if you need assistance.",
 					"================================================================================",
 				];
-				err.forEach((line) => logger.error(line));
+				err.forEach(logger.error);
 				process.exit(1);
 			}
 		}

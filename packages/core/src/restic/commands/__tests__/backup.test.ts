@@ -51,7 +51,7 @@ const config = {
 
 type SetupOptions = {
 	spawnResult?: Partial<SpawnResult>;
-	onSpawnCall?: (params: SafeSpawnParams) => void;
+	onSpawnCall?: (params: SafeSpawnParams) => void | Promise<void>;
 };
 
 /**
@@ -64,8 +64,12 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	const cleanupSpy = spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	spyOn(spawnModule, "safeSpawn").mockImplementation((params) => {
 		capturedArgs = params.args;
-		onSpawnCall?.(params);
-		return Promise.resolve({ exitCode: 0, summary: VALID_SUMMARY, error: "", ...spawnResult });
+		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
+			exitCode: 0,
+			summary: VALID_SUMMARY,
+			error: "",
+			...spawnResult,
+		}));
 	});
 
 	return {
@@ -117,13 +121,49 @@ describe("backup command", () => {
 				"/mnt/data",
 				{
 					organizationId: "org-1",
-					include: ["/mnt/data/docs", "/mnt/data/photos"],
+					includePatterns: ["/mnt/data/docs", "/mnt/data/photos"],
 				},
 				mockDeps,
 			);
 
 			expect(hasFlag("--files-from")).toBe(true);
 			expect(getArgs()).not.toContain("/mnt/data");
+		});
+
+		test("passes include paths via --files-from-raw and include patterns via --files-from", async () => {
+			const literalDir = "/mnt/data/movies [1]";
+			let rawIncludeContent = "";
+			let patternIncludeContent = "";
+			const { hasFlag } = setup({
+				onSpawnCall: async (params) => {
+					const rawIncludeIndex = params.args.indexOf("--files-from-raw");
+					const patternIncludeIndex = params.args.indexOf("--files-from");
+
+					if (rawIncludeIndex > -1) {
+						rawIncludeContent = await Bun.file(params.args[rawIncludeIndex + 1]!).text();
+					}
+
+					if (patternIncludeIndex > -1) {
+						patternIncludeContent = await Bun.file(params.args[patternIncludeIndex + 1]!).text();
+					}
+				},
+			});
+
+			await backup(
+				config,
+				"/mnt/data",
+				{
+					organizationId: "org-1",
+					includePaths: [literalDir],
+					includePatterns: ["/mnt/data/**/*.zip"],
+				},
+				mockDeps,
+			);
+
+			expect(hasFlag("--files-from-raw")).toBe(true);
+			expect(hasFlag("--files-from")).toBe(true);
+			expect(rawIncludeContent).toBe(`${literalDir}\0`);
+			expect(patternIncludeContent).toBe("/mnt/data/**/*.zip");
 		});
 
 		test("adds --tag for each entry in options.tags", async () => {
