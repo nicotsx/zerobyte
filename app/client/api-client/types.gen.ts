@@ -4163,10 +4163,10 @@ export type GetBackupProgressResponses = {
         repositoryName: string;
         seconds_elapsed?: number;
         seconds_remaining?: number;
-        percent_done: number;
-        total_files: number;
+        percent_done?: number;
+        total_files?: number;
         files_done?: number;
-        total_bytes: number;
+        total_bytes?: number;
         bytes_done?: number;
         current_files?: Array<string>;
     } | null;

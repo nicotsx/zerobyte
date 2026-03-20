@@ -27,12 +27,12 @@ const dumpStartedEventSchema = z.object({
 });
 
 const restoreProgressMetricsSchema = z.object({
-	seconds_elapsed: z.number(),
-	percent_done: z.number(),
-	total_files: z.number(),
-	files_restored: z.number(),
-	total_bytes: z.number(),
-	bytes_restored: z.number(),
+	seconds_elapsed: z.number().default(0),
+	percent_done: z.number().default(0),
+	total_files: z.number().default(0),
+	files_restored: z.number().default(0),
+	total_bytes: z.number().default(0),
+	bytes_restored: z.number().default(0),
 });
 
 export const backupStartedEventSchema = backupEventBaseSchema;

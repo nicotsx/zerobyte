@@ -32,10 +32,10 @@ export const resticBackupOutputSchema = resticBackupRunSummarySchema.extend({
 export const resticBackupProgressMetricsSchema = z.object({
 	seconds_elapsed: z.number().default(0),
 	seconds_remaining: z.number().default(0),
-	percent_done: z.number(),
-	total_files: z.number(),
+	percent_done: z.number().default(0),
+	total_files: z.number().default(0),
 	files_done: z.number().default(0),
-	total_bytes: z.number(),
+	total_bytes: z.number().default(0),
 	bytes_done: z.number().default(0),
 	current_files: z.array(z.string()).default([]),
 });

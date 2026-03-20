@@ -14,9 +14,9 @@ import type { ResticDeps } from "../types";
 
 const restoreProgressSchema = z.object({
 	message_type: z.enum(["status", "summary"]),
-	seconds_elapsed: z.number(),
+	seconds_elapsed: z.number().default(0),
 	percent_done: z.number().default(0),
-	total_files: z.number(),
+	total_files: z.number().default(0),
 	files_restored: z.number().default(0),
 	total_bytes: z.number().default(0),
 	bytes_restored: z.number().default(0),

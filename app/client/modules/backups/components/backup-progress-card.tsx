@@ -19,10 +19,19 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 		refetchInterval: 1000,
 	});
 
-	const percentDone = progress ? Math.round(progress.percent_done * 100) : 0;
+	const {
+		percent_done = 0,
+		bytes_done = 0,
+		total_bytes = 0,
+		seconds_elapsed = 0,
+		files_done = 0,
+		total_files = 0,
+	} = progress ?? {};
+
+	const percentDone = progress ? Math.round(percent_done * 100) : 0;
 	const currentFile = progress?.current_files?.[0] || "";
 	const fileName = currentFile.split("/").pop() || currentFile;
-	const speed = progress ? formatBytes(progress.bytes_done / progress.seconds_elapsed) : null;
+	const speed = progress ? formatBytes(bytes_done / seconds_elapsed) : null;
 	const eta = progress?.seconds_remaining ? formatDuration(progress.seconds_remaining) : null;
 
 	return (
@@ -43,7 +52,7 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 					<p className="font-medium">
 						{progress ? (
 							<>
-								{progress.files_done.toLocaleString()} / {progress.total_files.toLocaleString()}
+								{files_done.toLocaleString()} / {total_files.toLocaleString()}
 							</>
 						) : (
 							"—"
@@ -55,9 +64,9 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 					<p className="font-medium">
 						{progress ? (
 							<>
-								<ByteSize bytes={progress.bytes_done} base={1024} />
+								<ByteSize bytes={bytes_done} base={1024} />
 								&nbsp;/&nbsp;
-								<ByteSize bytes={progress.total_bytes} base={1024} />
+								<ByteSize bytes={total_bytes} base={1024} />
 							</>
 						) : (
 							"—"
@@ -66,12 +75,12 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Elapsed</p>
-					<p className="font-medium">{progress ? formatDuration(progress.seconds_elapsed) : "—"}</p>
+					<p className="font-medium">{progress ? formatDuration(seconds_elapsed) : "—"}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Speed</p>
 					<p className="font-medium">
-						{progress ? (progress.seconds_elapsed > 0 ? `${speed?.text} ${speed?.unit}/s` : "Calculating...") : "—"}
+						{progress ? (seconds_elapsed > 0 ? `${speed?.text} ${speed?.unit}/s` : "Calculating...") : "—"}
 					</p>
 				</div>
 				<div>
