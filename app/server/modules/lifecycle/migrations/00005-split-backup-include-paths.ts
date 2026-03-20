@@ -4,7 +4,7 @@ import { db } from "../../../db/db";
 import { backupSchedulesTable } from "../../../db/schema";
 import { toMessage } from "~/server/utils/errors";
 
-const isGlobPattern = (value: string) => /[*?[\]]/.test(value);
+export const isIncludePatternEntry = (value: string) => value.startsWith("!") || /[*?[\]]/.test(value);
 
 const execute = async () => {
 	const errors: Array<{ name: string; error: string }> = [];
@@ -18,12 +18,12 @@ const execute = async () => {
 
 		try {
 			const existingIncludePatterns = schedule.includePatterns ?? [];
-			const includePaths = existingIncludePatterns.filter((value) => !isGlobPattern(value));
+			const includePaths = existingIncludePatterns.filter((value) => !isIncludePatternEntry(value));
 			if (includePaths.length === 0) {
 				continue;
 			}
 
-			const includePatterns = existingIncludePatterns.filter(isGlobPattern);
+			const includePatterns = existingIncludePatterns.filter(isIncludePatternEntry);
 
 			await db
 				.update(backupSchedulesTable)
