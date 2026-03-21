@@ -261,6 +261,23 @@ describe("buildEnv", () => {
 		});
 	});
 
+	describe("rclone backend", () => {
+		test("sets RCLONE_NO_CHECK_CERTIFICATE when insecureTls is enabled", async () => {
+			const env = await buildEnvForTest(
+				withCustomPassword({
+					backend: "rclone" as const,
+					remote: "my-remote",
+					path: "/backups",
+					insecureTls: true,
+				}),
+				"org-1",
+			);
+
+			expect(env._INSECURE_TLS).toBe("true");
+			expect(env.RCLONE_NO_CHECK_CERTIFICATE).toBe("true");
+		});
+	});
+
 	describe("sftp backend", () => {
 		const baseSftpConfig = withCustomPassword({
 			backend: "sftp" as const,

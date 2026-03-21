@@ -142,6 +142,10 @@ export const buildEnv = async (
 
 	if (config.insecureTls) {
 		env._INSECURE_TLS = "true";
+
+		if (config.backend === "rclone") {
+			env.RCLONE_NO_CHECK_CERTIFICATE = "true";
+		}
 	}
 
 	return env;
