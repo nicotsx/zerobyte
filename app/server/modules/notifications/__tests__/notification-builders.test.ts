@@ -182,19 +182,19 @@ describe("notification shoutrrr URL builders", () => {
 		expect(
 			buildTelegramShoutrrrUrl({
 				type: "telegram",
-				botToken: "bot-token",
+				botToken: "123456:ABCdef",
 				chatId: "chat-id",
 			}),
-		).toBe("telegram://bot-token@telegram?channels=chat-id");
+		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id");
 
 		expect(
 			buildTelegramShoutrrrUrl({
 				type: "telegram",
-				botToken: "bot-token",
+				botToken: "123456:ABCdef",
 				chatId: "chat-id",
 				threadId: "thread-id",
 			}),
-		).toBe("telegram://bot-token@telegram?channels=chat-id%3Athread-id");
+		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id:thread-id");
 	});
 
 	test("builds generic URLs with reserved params, transport flags, and headers", () => {
