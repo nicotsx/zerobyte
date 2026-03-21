@@ -235,7 +235,7 @@ describe("stop backup", () => {
 		// assert
 		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
-		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by user");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
 
 	test("should throw ConflictError when trying to stop non-running backup", async () => {

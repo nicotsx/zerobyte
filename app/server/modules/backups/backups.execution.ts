@@ -324,7 +324,7 @@ const stopBackup = async (scheduleId: number) => {
 	} finally {
 		await scheduleQueries.updateStatus(scheduleId, organizationId, {
 			lastBackupStatus: "warning",
-			lastBackupError: "Backup was stopped by user",
+			lastBackupError: "Backup was stopped by the user",
 		});
 	}
 };
