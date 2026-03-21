@@ -83,11 +83,12 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 		child.stderr.setEncoding("utf8");
 
 		const rlErr = createInterface({ input: child.stderr });
+		let rl: ReturnType<typeof createInterface> | undefined;
 
 		if (stdoutMode === "lines") {
 			child.stdout.setEncoding("utf8");
 
-			const rl = createInterface({ input: child.stdout });
+			rl = createInterface({ input: child.stdout });
 
 			rl.on("line", (line) => {
 				if (onStdout) onStdout(line);
@@ -107,6 +108,9 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 		});
 
 		child.on("error", (err) => {
+			rlErr.close();
+			rl?.close();
+
 			resolve({
 				exitCode: -1,
 				summary: lastStdout,
