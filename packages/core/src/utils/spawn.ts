@@ -59,6 +59,7 @@ export type SpawnResult = {
 	exitCode: number;
 	summary: string;
 	error: string;
+	stderr?: string;
 };
 
 export function safeSpawn(params: SafeSpawnParamsLines): Promise<SpawnResult>;
@@ -70,6 +71,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 
 	let lastStdout = "";
 	let lastStderr = "";
+	let stderr = "";
 
 	return new Promise<SpawnResult>((resolve) => {
 		const child = spawn(command, args, {
@@ -101,6 +103,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 
 		rlErr.on("line", (line) => {
 			if (onStderr) onStderr(line);
+			stderr += `${line}\n`;
 			const trimmed = line.trim();
 			if (trimmed.length > 0) {
 				lastStderr = line;
@@ -115,6 +118,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 				exitCode: -1,
 				summary: lastStdout,
 				error: err.message || lastStderr,
+				stderr: stderr.trim(),
 			});
 		});
 
@@ -123,6 +127,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 				exitCode: code ?? -1,
 				summary: lastStdout,
 				error: lastStderr,
+				stderr: stderr.trim(),
 			});
 		});
 	});

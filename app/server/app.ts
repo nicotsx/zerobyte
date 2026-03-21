@@ -92,9 +92,9 @@ export const createApp = () => {
 			logger.error(err.cause.message);
 		}
 
-		const { status, message } = handleServiceError(err);
+		const { status, message, details } = handleServiceError(err);
 
-		return c.json({ message }, status as 500);
+		return c.json(details ? { message, details } : { message }, status as 500);
 	});
 
 	return app;

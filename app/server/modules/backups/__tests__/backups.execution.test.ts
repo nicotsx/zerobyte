@@ -177,6 +177,36 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("error: open /mnt/data/private.db: permission denied");
 	});
 
+	test("should store restic diagnostic details instead of the generic summary on hard failure", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementationOnce((params: SafeSpawnParams) => {
+			params.onStderr?.("Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.");
+			params.onStderr?.("This private key will be ignored.");
+
+			return Promise.resolve({
+				exitCode: 1,
+				summary: "",
+				error: "ssh command exited",
+				stderr: "Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.\nThis private key will be ignored.",
+			});
+		});
+
+		await backupsExecutionService.executeBackup(schedule.id);
+
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("error");
+		expect(updatedSchedule.lastBackupError).toBe(
+			"Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.\nThis private key will be ignored.",
+		);
+	});
+
 	test("should stop a running backup", async () => {
 		// arrange
 		const { resticBackupMock } = setup();

@@ -10,12 +10,16 @@ const resticErrorCodes: Record<number, string> = {
 
 export class ResticError extends Error {
 	code: number;
+	summary: string;
+	details: string;
 
-	constructor(code: number, stderr: string) {
-		const message = resticErrorCodes[code] || `Unknown restic error with code ${code}`;
-		super(`${message}\n${stderr}`);
+	constructor(code: number, details: string) {
+		const summary = resticErrorCodes[code] || `Unknown restic error with code ${code}`;
+		super(details ? `${summary}\n${details}` : summary);
 
 		this.code = code;
+		this.summary = summary;
+		this.details = details;
 		this.name = "ResticError";
 	}
 }

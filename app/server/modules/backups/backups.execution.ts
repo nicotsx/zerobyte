@@ -4,7 +4,7 @@ import { restic } from "../../core/restic";
 import { logger } from "@zerobyte/core/node";
 import { cache, cacheKeys } from "../../utils/cache";
 import { getVolumePath } from "../volumes/helpers";
-import { toMessage } from "../../utils/errors";
+import { toErrorDetails, toMessage } from "../../utils/errors";
 import { serverEvents } from "../../core/events";
 import { notificationsService } from "../notifications/notifications.service";
 import { repoMutex } from "../../core/repository-mutex";
@@ -225,11 +225,12 @@ const handleBackupFailure = async (
 	partialContext?: Partial<BackupContext>,
 ): Promise<void> => {
 	const errorMessage = toMessage(error);
+	const errorDetails = toErrorDetails(error);
 
 	await scheduleQueries.updateStatus(scheduleId, organizationId, {
 		lastBackupAt: Date.now(),
 		lastBackupStatus: "error",
-		lastBackupError: errorMessage,
+		lastBackupError: errorDetails,
 	});
 
 	if (partialContext?.schedule && partialContext?.volume && partialContext?.repository) {
@@ -252,7 +253,7 @@ const handleBackupFailure = async (
 				volumeName: ctx.volume.name,
 				repositoryName: ctx.repository.name,
 				scheduleName: ctx.schedule.name,
-				error: errorMessage,
+				error: errorDetails,
 			})
 			.catch((notifError) => {
 				logger.error(`Failed to send backup failure notification: ${toMessage(notifError)}`);
