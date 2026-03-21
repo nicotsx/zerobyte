@@ -170,7 +170,7 @@ export const backup = async (
 
 	if (options.signal?.aborted) {
 		logger.warn("Restic backup was aborted by signal.");
-		return { result: null, exitCode: res.exitCode, warningDetails: null };
+		return { result: null, exitCode: res.exitCode, warningDetails: "Backup was stopped by the user" };
 	}
 
 	if (res.exitCode === 3) {
