@@ -206,13 +206,22 @@ describe("safeSpawn", () => {
 			expect(result.error).toBe("err_last");
 		});
 
-		test("stderr keeps the full stderr output", async () => {
+		test("stderr keeps the captured stderr output", async () => {
 			const result = await safeSpawn({
 				command: "sh",
 				args: ["-c", "echo err_first >&2 && echo err_last >&2 && exit 1"],
 			});
 
 			expect(result.stderr).toBe("err_first\nerr_last");
+		});
+
+		test("stderr keeps only the last 50 stderr lines", async () => {
+			const result = await safeSpawn({
+				command: "sh",
+				args: ["-c", "i=1; while [ $i -le 55 ]; do echo err_$i >&2; i=$((i+1)); done; exit 1"],
+			});
+
+			expect(result.stderr).toBe(Array.from({ length: 50 }, (_, index) => `err_${index + 6}`).join("\n"));
 		});
 
 		test("returns exitCode -1 when the command is not found", async () => {
