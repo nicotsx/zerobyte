@@ -134,7 +134,7 @@ export const restore = async (
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic restore failed: ${res.error}`);
-		throw new ResticError(res.exitCode, res.error);
+		throw new ResticError(res.exitCode, res.stderr || res.error);
 	}
 
 	const lastLine = res.summary.trim();

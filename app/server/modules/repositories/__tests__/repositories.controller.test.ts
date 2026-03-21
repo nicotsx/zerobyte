@@ -341,7 +341,8 @@ describe("repositories updates", () => {
 
 				expect(res.status).toBe(500);
 				const body = await res.json();
-				expect(body.message).toContain("Command failed");
+				expect(body.message).toBe("Command failed: An error occurred while executing the command.");
+				expect(body.details).toBe("Fatal: unexpected HTTP response (403): 403 Forbidden");
 			} finally {
 				deleteSnapshotSpy.mockRestore();
 			}

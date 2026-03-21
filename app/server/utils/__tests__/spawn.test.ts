@@ -206,6 +206,15 @@ describe("safeSpawn", () => {
 			expect(result.error).toBe("err_last");
 		});
 
+		test("stderr keeps the full stderr output", async () => {
+			const result = await safeSpawn({
+				command: "sh",
+				args: ["-c", "echo err_first >&2 && echo err_last >&2 && exit 1"],
+			});
+
+			expect(result.stderr).toBe("err_first\nerr_last");
+		});
+
 		test("returns exitCode -1 when the command is not found", async () => {
 			const result = await safeSpawn({
 				command: "this-command-does-not-exist-zerobyte",

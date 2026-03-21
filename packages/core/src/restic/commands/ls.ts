@@ -126,7 +126,7 @@ export const ls = async (
 
 	if (res.exitCode !== 0) {
 		logger.error(`Restic ls failed: ${res.error}`);
-		throw new ResticError(res.exitCode, res.error);
+		throw new ResticError(res.exitCode, res.stderr || res.error);
 	}
 
 	if (totalNodes > offset + limit) {

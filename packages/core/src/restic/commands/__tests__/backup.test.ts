@@ -301,6 +301,27 @@ describe("backup command", () => {
 			expect((error as ResticError).code).toBe(12);
 		});
 
+		test("stores restic summary separately from diagnostic stderr", async () => {
+			setup({
+				spawnResult: {
+					exitCode: 1,
+					summary: "",
+					error: "ssh command exited",
+				},
+				onSpawnCall: (params) => {
+					params.onStderr?.("Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.");
+					params.onStderr?.("This private key will be ignored.");
+				},
+			});
+
+			const error = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps).catch((e) => e);
+			expect(error).toBeInstanceOf(ResticError);
+			expect((error as ResticError).summary).toBe("Command failed: An error occurred while executing the command.");
+			expect((error as ResticError).details).toBe(
+				"Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.\nThis private key will be ignored.",
+			);
+		});
+
 		test("returns { result: null } when the abort signal is triggered", async () => {
 			const controller = new AbortController();
 			setup({

@@ -181,7 +181,7 @@ export const backup = async (
 		logger.error(`Restic backup failed: ${res.error}`);
 		logger.error(`Command executed: restic ${args.join(" ")}`);
 
-		throw new ResticError(res.exitCode, res.error);
+		throw new ResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
 	}
 
 	const lastLine = res.summary.trim();
