@@ -95,29 +95,6 @@ export const relations = defineRelations(schema, (r) => ({
 			to: r.usersTable.id,
 		}),
 	},
-	agentsTable: {
-		organization: r.one.organization({
-			from: r.agentsTable.organizationId,
-			to: r.organization.id,
-			optional: false,
-		}),
-		createdByUser: r.one.usersTable({
-			from: r.agentsTable.createdBy,
-			to: r.usersTable.id,
-		}),
-		tokens: r.many.agentTokensTable(),
-	},
-	agentTokensTable: {
-		agent: r.one.agentsTable({
-			from: r.agentTokensTable.agentId,
-			to: r.agentsTable.id,
-			optional: false,
-		}),
-		createdByUser: r.one.usersTable({
-			from: r.agentTokensTable.createdBy,
-			to: r.usersTable.id,
-		}),
-	},
 	organization: {
 		users: r.many.usersTable({
 			alias: "usersTable_id_organization_id_via_member",
@@ -129,7 +106,6 @@ export const relations = defineRelations(schema, (r) => ({
 		members: r.many.member(),
 		invitations: r.many.invitation(),
 		ssoProviders: r.many.ssoProvider(),
-		agents: r.many.agentsTable(),
 	},
 	ssoProvider: {
 		user: r.one.usersTable({
