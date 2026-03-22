@@ -13,6 +13,7 @@ import {
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
+import { toMessage } from "@zerobyte/core/utils";
 
 type AgentConnectionData = {
 	id: string;
@@ -27,14 +28,6 @@ type SessionState = {
 	isReady: boolean;
 	lastSeenAt: number | null;
 	lastPongAt: number | null;
-};
-
-const toMessage = (error: unknown) => {
-	if (error instanceof Error) {
-		return error.message;
-	}
-
-	return String(error);
 };
 
 type ControllerAgentSessionHandlers = {

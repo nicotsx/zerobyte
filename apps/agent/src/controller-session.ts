@@ -2,30 +2,12 @@ import { Effect, Fiber, Queue, Ref } from "effect";
 import {
 	createAgentMessage,
 	parseControllerMessage,
-	type BackupRunPayload,
 	type AgentWireMessage,
-	type BackupCancelPayload,
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
-import { ResticError, type ResticDeps } from "@zerobyte/core/restic";
-import { createRestic } from "@zerobyte/core/restic/server";
-
-const toMessage = (error: unknown) => {
-	if (error instanceof Error) {
-		return error.message;
-	}
-
-	return String(error);
-};
-
-const toErrorDetails = (error: unknown) => {
-	if (error instanceof ResticError) {
-		return error.details || error.summary;
-	}
-
-	return toMessage(error);
-};
+import { toMessage } from "@zerobyte/core/utils";
+import { handleControllerCommand } from "./commands";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -74,6 +56,13 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 		});
 	};
 
+	const commandContext = {
+		getRunningJob,
+		setRunningJob,
+		deleteRunningJob,
+		offerOutbound,
+	};
+
 	const writerFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
@@ -105,145 +94,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					return;
 				}
 
-				switch (parsed.data.type) {
-					case "backup.run": {
-						const runBackup = async (payload: BackupRunPayload) => {
-							const existing = getRunningJob(payload.jobId);
-							if (existing) {
-								offerOutbound(
-									createAgentMessage("backup.failed", {
-										jobId: payload.jobId,
-										scheduleId: payload.scheduleId,
-										error: "Backup job is already running",
-									}),
-								);
-								return;
-							}
-
-							logger.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
-							const abortController = new AbortController();
-							setRunningJob(payload.jobId, { scheduleId: payload.scheduleId, abortController });
-
-							offerOutbound(
-								createAgentMessage("backup.started", {
-									jobId: payload.jobId,
-									scheduleId: payload.scheduleId,
-								}),
-							);
-
-							const deps: ResticDeps = {
-								resolveSecret: async (encrypted) => encrypted,
-								getOrganizationResticPassword: async () => payload.runtime.password,
-								resticCacheDir: payload.runtime.cacheDir,
-								resticPassFile: payload.runtime.passFile,
-								defaultExcludes: payload.runtime.defaultExcludes,
-								hostname: payload.runtime.hostname,
-							};
-
-							const restic = createRestic(deps);
-
-							try {
-								const result = await restic.backup(payload.repositoryConfig, payload.sourcePath, {
-									organizationId: payload.organizationId,
-									tags: payload.options.tags,
-									oneFileSystem: payload.options.oneFileSystem,
-									exclude: payload.options.exclude,
-									excludeIfPresent: payload.options.excludeIfPresent,
-									includePaths: payload.options.includePaths,
-									includePatterns: payload.options.includePatterns,
-									customResticParams: payload.options.customResticParams,
-									compressionMode: payload.options.compressionMode,
-									signal: abortController.signal,
-									onProgress: (progress) => {
-										offerOutbound(
-											createAgentMessage("backup.progress", {
-												jobId: payload.jobId,
-												scheduleId: payload.scheduleId,
-												progress,
-											}),
-										);
-									},
-								});
-
-								if (abortController.signal.aborted) {
-									offerOutbound(
-										createAgentMessage("backup.cancelled", {
-											jobId: payload.jobId,
-											scheduleId: payload.scheduleId,
-											message: "Backup was cancelled",
-										}),
-									);
-									return;
-								}
-
-								offerOutbound(
-									createAgentMessage("backup.completed", {
-										jobId: payload.jobId,
-										scheduleId: payload.scheduleId,
-										exitCode: result.exitCode,
-										result: result.result,
-										warningDetails: result.warningDetails ?? undefined,
-									}),
-								);
-							} catch (error) {
-								if (abortController.signal.aborted) {
-									offerOutbound(
-										createAgentMessage("backup.cancelled", {
-											jobId: payload.jobId,
-											scheduleId: payload.scheduleId,
-											message: "Backup was cancelled",
-										}),
-									);
-									return;
-								}
-
-								offerOutbound(
-									createAgentMessage("backup.failed", {
-										jobId: payload.jobId,
-										scheduleId: payload.scheduleId,
-										error: toMessage(error),
-										errorDetails: toErrorDetails(error),
-									}),
-								);
-							} finally {
-								deleteRunningJob(payload.jobId);
-							}
-						};
-
-						void runBackup(parsed.data.payload);
-						break;
-					}
-					case "backup.cancel": {
-						const cancelBackup = (payload: BackupCancelPayload) => {
-							const running = getRunningJob(payload.jobId);
-							if (!running) {
-								logger.warn(`Backup ${payload.jobId} is not running`);
-								return;
-							}
-
-							if (running.scheduleId !== payload.scheduleId) {
-								logger.warn(
-									`Ignoring cancel for backup ${payload.jobId} due to schedule mismatch ${payload.scheduleId}`,
-								);
-								return;
-							}
-
-							running.abortController.abort();
-						};
-
-						cancelBackup(parsed.data.payload);
-						break;
-					}
-					case "heartbeat.ping": {
-						yield* Queue.offer(
-							outboundQueue,
-							createAgentMessage("heartbeat.pong", {
-								sentAt: parsed.data.payload.sentAt,
-							}),
-						);
-						break;
-					}
-				}
+				yield* handleControllerCommand(commandContext, parsed.data);
 			}),
 		),
 	);
