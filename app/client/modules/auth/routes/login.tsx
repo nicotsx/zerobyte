@@ -9,6 +9,7 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
@@ -65,7 +66,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Login failed", { description: error.message });
 			return;
 		}
@@ -103,7 +104,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Verification failed", { description: error.message });
 			setTotpCode("");
 			return;

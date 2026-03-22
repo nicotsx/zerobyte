@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { logger } from "~/client/lib/logger";
 import type { FileEntry } from "../components/file-tree";
 
 export type FetchFolderResult = {
@@ -135,7 +136,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 
 					setFetchedFolders((prev) => new Set(prev).add(folderPath));
 				} catch (error) {
-					console.error("Failed to fetch folder contents:", error);
+					logger.error("Failed to fetch folder contents:", error);
 				} finally {
 					setLoadingFolders((prev) => {
 						const next = new Set(prev);
@@ -190,7 +191,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 					});
 				}
 			} catch (error) {
-				console.error("Failed to load more files:", error);
+				logger.error("Failed to load more files:", error);
 				setFolderPagination((prev) => {
 					const next = new Map(prev);
 					next.set(folderPath, { ...pagination, isLoadingMore: false });

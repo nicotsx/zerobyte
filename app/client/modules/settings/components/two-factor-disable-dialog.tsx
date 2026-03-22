@@ -12,6 +12,7 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 
 type TwoFactorDisableDialogProps = {
 	open: boolean;
@@ -44,7 +45,7 @@ export const TwoFactorDisableDialog = ({ open, onOpenChange, onSuccess }: TwoFac
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Failed to disable 2FA", { description: error.message });
 			return;
 		}

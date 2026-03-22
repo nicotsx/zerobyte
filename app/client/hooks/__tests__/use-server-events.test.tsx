@@ -53,8 +53,8 @@ const createTestQueryClient = () =>
 		},
 	});
 
-const ConnectionConsumer = () => {
-	useServerEvents();
+const ConnectionConsumer = ({ enabled = true }: { enabled?: boolean }) => {
+	useServerEvents({ enabled });
 	return null;
 };
 
@@ -128,5 +128,25 @@ describe("useServerEvents", () => {
 		cleanup();
 
 		expect(MockEventSource.instances[0]?.close).toHaveBeenCalledTimes(1);
+	});
+
+	test("waits to subscribe until enabled", () => {
+		const queryClient = createTestQueryClient();
+		const view = render(
+			<QueryClientProvider client={queryClient}>
+				<ConnectionConsumer enabled={false} />
+			</QueryClientProvider>,
+		);
+
+		expect(MockEventSource.instances).toHaveLength(0);
+
+		view.rerender(
+			<QueryClientProvider client={queryClient}>
+				<ConnectionConsumer />
+			</QueryClientProvider>,
+		);
+
+		expect(MockEventSource.instances).toHaveLength(1);
+		expect(MockEventSource.instances[0]?.url).toBe("/api/v1/events");
 	});
 });

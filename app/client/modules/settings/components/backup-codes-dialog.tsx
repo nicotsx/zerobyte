@@ -13,6 +13,7 @@ import {
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 
 type BackupCodesDialogProps = {
 	open: boolean;
@@ -45,7 +46,7 @@ export const BackupCodesDialog = ({ open, onOpenChange }: BackupCodesDialogProps
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Failed to generate backup codes", { description: error.message });
 			return;
 		}

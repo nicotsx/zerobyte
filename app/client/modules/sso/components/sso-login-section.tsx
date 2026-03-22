@@ -2,6 +2,7 @@ import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 import { getPublicSsoProvidersOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export function SsoLoginSection() {
@@ -25,7 +26,7 @@ export function SsoLoginSection() {
 			window.location.href = data.url;
 		},
 		onError: (error) => {
-			console.error(error);
+			logger.error(error);
 			toast.error("SSO Login failed", { description: error.message });
 		},
 	});

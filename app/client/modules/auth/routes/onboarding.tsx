@@ -15,6 +15,7 @@ import { AuthLayout } from "~/client/components/auth-layout";
 import { Input } from "~/client/components/ui/input";
 import { Button } from "~/client/components/ui/button";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
@@ -78,7 +79,7 @@ export function OnboardingPage() {
 			toast.success("Admin user created successfully!");
 			void navigate({ to: "/download-recovery-key" });
 		} else if (error) {
-			console.error(error);
+			logger.error(error);
 			const errorMessage = error.message ?? "Unknown error";
 			toast.error("Failed to create admin user", { description: errorMessage });
 		}
