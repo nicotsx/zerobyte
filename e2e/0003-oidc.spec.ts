@@ -1,4 +1,6 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { type Browser, type Page } from "@playwright/test";
+import { expect, test } from "./test";
+import { trackBrowserErrors } from "./helpers/browser-errors";
 import { gotoAndWaitForAppReady, waitForAppReady } from "./helpers/page";
 
 const dexOrigin = process.env.E2E_DEX_ORIGIN ?? "http://dex:5557";
@@ -205,6 +207,7 @@ async function withOidcLoginAttempt(
 			origins: [],
 		},
 	});
+	const browserErrorTracker = trackBrowserErrors(context);
 	const page = await context.newPage();
 
 	try {
@@ -221,6 +224,7 @@ async function withOidcLoginAttempt(
 		}
 
 		await assertions(page);
+		browserErrorTracker.assertNoBrowserErrors();
 	} finally {
 		await context.close().catch(() => undefined);
 	}

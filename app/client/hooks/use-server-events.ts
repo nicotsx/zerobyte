@@ -1,5 +1,6 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
+import { logger } from "~/client/lib/logger";
 import { serverEventNames, type ServerEventPayloadMap } from "~/schemas/server-events";
 
 type LifecycleEventPayloadMap = {
@@ -64,7 +65,7 @@ const refreshQueriesForEvent = (eventName: ServerEventType) => {
 
 	void sharedState.queryClient.invalidateQueries().catch((error) => {
 		if (!isAbortError(error)) {
-			console.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
+			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
 		}
 	});
 };
@@ -80,7 +81,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 
 	eventSource.addEventListener("connected", (event) => {
 		const data = parseEventData<"connected">(event);
-		console.info("[SSE] Connected to server events");
+		logger.info("[SSE] Connected to server events");
 		emit("connected", data);
 	});
 
@@ -91,7 +92,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 	for (const eventName of serverEventNames) {
 		eventSource.addEventListener(eventName, (event) => {
 			const data = parseEventData<typeof eventName>(event);
-			console.info(`[SSE] ${eventName}:`, data);
+			logger.info(`[SSE] ${eventName}:`, data);
 
 			refreshQueriesForEvent(eventName);
 
@@ -107,7 +108,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 	}
 
 	eventSource.onerror = (error) => {
-		console.error("[SSE] Connection error:", error);
+		logger.error("[SSE] Connection error:", error);
 	};
 };
 
@@ -116,7 +117,7 @@ const disconnectEventSource = () => {
 		return;
 	}
 
-	console.info("[SSE] Disconnecting from server events");
+	logger.info("[SSE] Disconnecting from server events");
 	sharedState.eventSource.close();
 	sharedState.eventSource = null;
 	sharedState.queryClient = null;
@@ -159,12 +160,16 @@ const addSharedEventListener = <T extends ServerEventType>(
  * Hook to listen to Server-Sent Events (SSE) from the backend
  * Automatically handles cache invalidation for backup and volume events
  */
-export function useServerEvents() {
+export function useServerEvents({ enabled = true }: { enabled?: boolean } = {}) {
 	const queryClient = useQueryClient();
 	const addEventListener = useCallback(addSharedEventListener, []);
 	const hasMountedRef = useRef(false);
 
 	useEffect(() => {
+		if (!enabled) {
+			return;
+		}
+
 		connectEventSource(queryClient);
 		if (!hasMountedRef.current) {
 			sharedState.subscribers += 1;
@@ -182,7 +187,7 @@ export function useServerEvents() {
 				disconnectEventSource();
 			}
 		};
-	}, [queryClient]);
+	}, [enabled, queryClient]);
 
 	return { addEventListener };
 }

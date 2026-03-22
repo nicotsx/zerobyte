@@ -1,5 +1,5 @@
 import fs from "fs";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./test";
 import { resetDatabase } from "./helpers/db";
 import path from "node:path";
 import { gotoAndWaitForAppReady } from "./helpers/page";

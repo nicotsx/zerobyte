@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { expect, test, type Page, type TestInfo } from "@playwright/test";
+import { type Page, type TestInfo } from "@playwright/test";
+import { expect, test } from "./test";
 import { gotoAndWaitForAppReady } from "./helpers/page";
 
 const testDataPath = path.join(process.cwd(), "playwright", "temp");

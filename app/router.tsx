@@ -2,6 +2,7 @@ import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
 import { MutationCache, QueryClient } from "@tanstack/react-query";
+import { logger } from "./client/lib/logger";
 import { client } from "./client/api-client/client.gen";
 import type { BreadcrumbItemData } from "./client/components/app-breadcrumb";
 
@@ -22,7 +23,7 @@ export function getRouter() {
 				void queryClient.invalidateQueries();
 			},
 			onError: (error) => {
-				console.error("Mutation error:", error);
+				logger.error("Mutation error:", error);
 				void queryClient.invalidateQueries();
 			},
 		}),

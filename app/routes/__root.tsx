@@ -1,4 +1,4 @@
-import { Outlet, HeadContent, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
+import { Outlet, HeadContent, Scripts, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
 import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { ThemeProvider, THEME_COOKIE_NAME } from "~/client/components/theme-provider";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
+import { isAuthRoute } from "~/lib/auth-routes";
 
 const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
 	const themeCookie = getCookie(THEME_COOKIE_NAME);
@@ -46,9 +47,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 	errorComponent: (e) => <div>{e.error.message}</div>,
 });
 
-function RootLayout() {
+export function RootLayout() {
 	const { theme } = Route.useLoaderData();
-	useServerEvents();
+	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	useServerEvents({ enabled: !isAuthRoute(pathname) });
 	useEffect(() => {
 		document.body.setAttribute("data-app-ready", "true");
 		return () => {

@@ -14,6 +14,7 @@ import { Input } from "~/client/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/client/components/ui/input-otp";
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 
 type TwoFactorSetupDialogProps = {
 	open: boolean;
@@ -52,7 +53,7 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Failed to enable 2FA", { description: error.message });
 			return;
 		}
@@ -81,7 +82,7 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 		});
 
 		if (error) {
-			console.error(error);
+			logger.error(error);
 			toast.error("Verification failed", { description: error.message });
 			setVerificationCode("");
 			return;

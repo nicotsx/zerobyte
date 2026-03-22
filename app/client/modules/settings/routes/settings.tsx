@@ -19,6 +19,7 @@ import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { authClient } from "~/client/lib/auth-client";
+import { logger } from "~/client/lib/logger";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
@@ -55,7 +56,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 					void navigate({ to: "/login", replace: true });
 				},
 				onError: ({ error }) => {
-					console.error(error);
+					logger.error(error);
 					toast.error("Logout failed", { description: error.message });
 				},
 			},
