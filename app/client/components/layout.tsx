@@ -2,7 +2,7 @@ import { LifeBuoy, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { type AppContext } from "~/context";
 import { GridBackground } from "./grid-background";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import { SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { AppSidebar } from "./app-sidebar";
 import { authClient } from "../lib/auth-client";
@@ -63,20 +63,19 @@ export function Layout({ loaderData }: Props) {
 								</Tooltip>
 								<Tooltip>
 									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-foreground"
+										<a
+											href="https://github.com/nicotsx/zerobyte/issues/new"
+											target="_blank"
+											rel="noreferrer"
+											className={buttonVariants({
+												variant: "ghost",
+												size: "icon",
+												className:
+													"relative overflow-hidden hidden lg:inline-flex rounded-full h-7 w-7 text-muted-foreground hover:text-foreground",
+											})}
 										>
-											<a
-												href="https://github.com/nicotsx/zerobyte/issues/new"
-												target="_blank"
-												rel="noreferrer"
-												className="flex items-center justify-center w-full h-full"
-											>
-												<LifeBuoy className="w-4 h-4" />
-											</a>
-										</Button>
+											<LifeBuoy className="w-4 h-4" />
+										</a>
 									</TooltipTrigger>
 									<TooltipContent>Report an issue</TooltipContent>
 								</Tooltip>

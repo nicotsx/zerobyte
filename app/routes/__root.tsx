@@ -67,6 +67,10 @@ export function RootLayout() {
 		};
 	}, []);
 
+	window.addEventListener("vite:preloadError", () => {
+		window.location.reload();
+	});
+
 	return (
 		<html lang="en" className={theme === "dark" ? "dark" : undefined} style={{ colorScheme: theme }}>
 			<head>
