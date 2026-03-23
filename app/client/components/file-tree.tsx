@@ -704,5 +704,7 @@ function compareNodes(a: Node, b: Node): number {
 		return a.kind === "folder" ? -1 : 1;
 	}
 
-	return a.name.localeCompare(b.name);
+	if (a.name < b.name) return -1;
+	if (a.name > b.name) return 1;
+	return 0;
 }
