@@ -1,5 +1,5 @@
 import { formatDistanceToNow, isValid } from "date-fns";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Route as RootRoute } from "~/routes/__root";
 
 export type DateInput = Date | string | number | null | undefined;
@@ -97,8 +97,12 @@ export function formatTime(date: DateInput, options: DateFormatOptions = {}): st
 }
 
 // 5 minutes ago
-export function formatTimeAgo(date: DateInput): string {
+export function formatTimeAgo(date: DateInput, now = Date.now()): string {
 	return formatValidDate(date, (validDate) => {
+		if (Math.abs(now - validDate.getTime()) < 120_000) {
+			return "just now";
+		}
+
 		const timeAgo = formatDistanceToNow(validDate, {
 			addSuffix: true,
 			includeSeconds: true,
@@ -109,7 +113,12 @@ export function formatTimeAgo(date: DateInput): string {
 }
 
 export function useTimeFormat() {
-	const { locale, timeZone } = RootRoute.useLoaderData();
+	const { locale, timeZone, now } = RootRoute.useLoaderData();
+	const [currentNow, setCurrentNow] = useState(now);
+
+	useEffect(() => {
+		setCurrentNow(Date.now());
+	}, [now]);
 
 	return useMemo(
 		() => ({
@@ -119,8 +128,8 @@ export function useTimeFormat() {
 			formatShortDate: (date: DateInput) => formatShortDate(date, { locale, timeZone }),
 			formatShortDateTime: (date: DateInput) => formatShortDateTime(date, { locale, timeZone }),
 			formatTime: (date: DateInput) => formatTime(date, { locale, timeZone }),
-			formatTimeAgo,
+			formatTimeAgo: (date: DateInput) => formatTimeAgo(date, currentNow),
 		}),
-		[locale, timeZone],
+		[locale, timeZone, currentNow],
 	);
 }

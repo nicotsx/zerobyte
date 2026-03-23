@@ -52,6 +52,7 @@ jobs:
           echo "ZEROBYTE_DATABASE_URL=./data/zerobyte.db" >> .env.local
           echo "BASE_URL=http://localhost:4096" >> .env.local
           echo "E2E_DEX_ORIGIN=http://dex:5557" >> .env.local
+          echo "TZ=Europe/Zurich" >> .env.local
 
       - name: Start zerobyte-e2e service
         run: bun run start:e2e -- -d

@@ -22,6 +22,7 @@ const fetchTimeConfig = createServerFn({ method: "GET" }).handler(async () => {
 	return {
 		locale: (acceptLanguage?.split(",")[0] || "en-US") as string,
 		timeZone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+		now: Date.now(),
 	};
 });
 
@@ -62,6 +63,10 @@ export function RootLayout() {
 	useServerEvents({ enabled: !isAuthRoute(pathname) });
 	useEffect(() => {
 		document.body.setAttribute("data-app-ready", "true");
+		window.addEventListener("vite:preloadError", () => {
+			window.location.reload();
+		});
+
 		return () => {
 			document.body.removeAttribute("data-app-ready");
 		};

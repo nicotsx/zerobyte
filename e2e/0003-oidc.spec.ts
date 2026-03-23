@@ -207,7 +207,11 @@ async function withOidcLoginAttempt(
 			origins: [],
 		},
 	});
-	const browserErrorTracker = trackBrowserErrors(context);
+	const browserErrorTracker = trackBrowserErrors(context, {
+		attach: async (name, body, contentType) => {
+			await test.info().attach(name, { body, contentType });
+		},
+	});
 	const page = await context.newPage();
 
 	try {
@@ -224,7 +228,7 @@ async function withOidcLoginAttempt(
 		}
 
 		await assertions(page);
-		browserErrorTracker.assertNoBrowserErrors();
+		await browserErrorTracker.assertNoBrowserErrors();
 	} finally {
 		await context.close().catch(() => undefined);
 	}
