@@ -5,11 +5,15 @@ import { changeUsernameCommand } from "./commands/change-username";
 import { disable2FACommand } from "./commands/disable-2fa";
 import { rekey2FACommand } from "./commands/rekey-2fa";
 import { resetPasswordCommand } from "./commands/reset-password";
+import { config } from "../core/config";
 import { db } from "../db/db";
 
 const program = new Command();
 
-program.name("zerobyte").description("Zerobyte CLI - Backup automation tool built on top of Restic").version("1.0.0");
+program
+	.name("zerobyte")
+	.description("Zerobyte CLI - Backup automation tool built on top of Restic")
+	.version(config.appVersion);
 program.addCommand(resetPasswordCommand);
 program.addCommand(disable2FACommand);
 program.addCommand(changeUsernameCommand);

@@ -56,6 +56,13 @@ jobs:
       - name: Start zerobyte-e2e service
         run: bun run start:e2e -- -d
 
+      - name: Check CLI version
+        run: |
+          expected_version=$(docker exec zerobyte printenv APP_VERSION)
+          cli_version=$(docker exec zerobyte bun run --silent cli --version)
+          echo "$cli_version"
+          test "$cli_version" = "$expected_version"
+
       - name: Wait for zerobyte to be ready
         run: |
           timeout 30s bash -c 'until curl -f http://localhost:4096/api/healthcheck; do echo "Waiting for server..." && sleep 2; done'
