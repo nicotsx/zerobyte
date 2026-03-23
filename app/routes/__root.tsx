@@ -62,6 +62,10 @@ export function RootLayout() {
 	useServerEvents({ enabled: !isAuthRoute(pathname) });
 	useEffect(() => {
 		document.body.setAttribute("data-app-ready", "true");
+		window.addEventListener("vite:preloadError", () => {
+			window.location.reload();
+		});
+
 		return () => {
 			document.body.removeAttribute("data-app-ready");
 		};
