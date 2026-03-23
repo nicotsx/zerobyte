@@ -4,7 +4,7 @@ import type { ListSnapshotsResponse } from "~/client/api-client";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardContent } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
-import { formatDateWithMonth, formatShortDate, formatTime } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { RetentionCategoryBadges } from "~/client/components/retention-category-badges";
 
@@ -45,6 +45,7 @@ interface Props {
 export const SnapshotTimeline = (props: Props) => {
 	const { snapshots, snapshotId, loading, onSnapshotSelect, error, initialSortOrder = "asc" } = props;
 	const selectedRef = useRef<HTMLButtonElement>(null);
+	const { formatDateWithMonth, formatShortDate, formatTime } = useTimeFormat();
 	const [sortOrder, setSortOrder] = useState<SnapshotTimelineSortOrder>(initialSortOrder);
 	const sortedSnapshots = useMemo(() => getSortedSnapshots(snapshots, sortOrder), [snapshots, sortOrder]);
 	const snapshotRange = useMemo(() => getSnapshotRange(snapshots), [snapshots]);

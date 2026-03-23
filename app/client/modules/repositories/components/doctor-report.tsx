@@ -1,6 +1,6 @@
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
-import { formatDateTime } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { cn, safeJsonParse } from "~/client/lib/utils";
 import { Card, CardTitle } from "~/client/components/ui/card";
 
@@ -23,6 +23,8 @@ type Props = {
 };
 
 export const DoctorReport = ({ result, repositoryStatus }: Props) => {
+	const { formatDateTime } = useTimeFormat();
+
 	return (
 		<Card className="px-6 py-6 flex flex-col gap-4 h-full">
 			<div className="flex items-center justify-between">

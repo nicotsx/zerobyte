@@ -81,9 +81,9 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 
 	const deleteVol = useMutation({
 		...deleteVolumeMutation(),
-		onSuccess: () => {
+		onSuccess: async () => {
 			toast.success("Volume deleted successfully");
-			void navigate({ to: "/volumes" });
+			await navigate({ to: "/volumes" });
 		},
 		onError: (error) => {
 			toast.error("Failed to delete volume", {

@@ -4,6 +4,7 @@ import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-b
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { logger } from "~/client/lib/logger";
 
 type LocalFileBrowserProps = FileBrowserUiProps & {
 	initialPath?: string;
@@ -26,7 +27,7 @@ export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps
 			return await queryClient.ensureQueryData(browseFilesystemOptions({ query: { path } }));
 		},
 		prefetchFolder: (path) => {
-			void queryClient.prefetchQuery(browseFilesystemOptions({ query: { path } }));
+			void queryClient.prefetchQuery(browseFilesystemOptions({ query: { path } })).catch((e) => logger.error(e));
 		},
 	});
 

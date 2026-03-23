@@ -60,4 +60,8 @@ describe("datetime formatters", () => {
 
 		nowSpy.mockRestore();
 	});
+
+	test("formats calendar values with an explicit locale and timezone", () => {
+		expect(formatShortDateTime(sampleDate, { locale: "en-US", timeZone: "UTC" })).toBe("1/10, 2:30 PM");
+	});
 });

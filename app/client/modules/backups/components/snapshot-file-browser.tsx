@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Button, buttonVariants } from "~/client/components/ui/button";
 import type { Snapshot } from "~/client/lib/types";
-import { formatDateTime } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-tree-browser";
@@ -62,6 +62,7 @@ const TreeBrowserFallback = () => (
 
 export const SnapshotFileBrowser = (props: Props) => {
 	const { snapshot, repositoryId, backupId, basePath, onDeleteSnapshot, isDeletingSnapshot } = props;
+	const { formatDateTime } = useTimeFormat();
 
 	const scheduleShortId = !basePath ? backupId || snapshot.tags?.[0] : undefined;
 

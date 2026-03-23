@@ -1,11 +1,14 @@
 import { CalendarClock, Database, HardDrive } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { TimeAgo } from "~/client/components/time-ago";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { useTimeFormat } from "~/client/lib/datetime";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupStatusDot } from "./backup-status-dot";
-import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
-import { Link } from "@tanstack/react-router";
 
 export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
+	const { formatShortDateTime } = useTimeFormat();
+
 	return (
 		<Link key={schedule.shortId} to="/backups/$backupId" params={{ backupId: schedule.shortId }}>
 			<Card interactive key={schedule.shortId} className="flex flex-col h-full">
@@ -42,7 +45,7 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 						<div className="flex items-center text-sm gap-2">
 							<span className="text-muted-foreground shrink-0">Last backup</span>
 							<div className="flex-1 border-b border-dashed border-border/80 dark:border-border/50" />
-							<span className="text-foreground font-mono text-sm shrink-0">{formatTimeAgo(schedule.lastBackupAt)}</span>
+							<TimeAgo date={schedule.lastBackupAt} className="text-foreground font-mono text-sm shrink-0" />
 						</div>
 						<div className="flex items-center text-sm gap-2">
 							<span className="text-muted-foreground shrink-0">Next backup</span>

@@ -8,7 +8,7 @@ import type { GetSnapshotDetailsResponse } from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
-import { formatDateTime } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { BackupSummaryCard } from "~/client/components/backup-summary-card";
 import { useState } from "react";
 import { Database } from "lucide-react";
@@ -58,6 +58,7 @@ type Props = {
 
 export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot }: Props) {
 	const [showAllPaths, setShowAllPaths] = useState(false);
+	const { formatDateTime } = useTimeFormat();
 
 	const { data: repository } = useSuspenseQuery({
 		...getRepositoryOptions({ path: { shortId: repositoryId } }),

@@ -3,6 +3,7 @@ import { listFilesOptions } from "~/client/api-client/@tanstack/react-query.gen"
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser, type FetchFolderResult } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
+import { logger } from "~/client/lib/logger";
 
 type VolumeFileBrowserProps = FileBrowserUiProps & {
 	volumeId: string;
@@ -29,12 +30,14 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 			);
 		},
 		prefetchFolder: (path) => {
-			void queryClient.prefetchQuery(
-				listFilesOptions({
-					path: { shortId: volumeId },
-					query: { path },
-				}),
-			);
+			void queryClient
+				.prefetchQuery(
+					listFilesOptions({
+						path: { shortId: volumeId },
+						query: { path },
+					}),
+				)
+				.catch((e) => logger.error(e));
 		},
 	});
 

@@ -15,7 +15,6 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import type { Repository } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
-import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import {
 	cancelDoctorMutation,
 	deleteRepositoryMutation,
@@ -23,6 +22,8 @@ import {
 	unlockRepositoryMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
+import { TimeAgo } from "~/client/components/time-ago";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { DoctorReport } from "../components/doctor-report";
 import { parseError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
@@ -41,6 +42,7 @@ const getEffectiveLocalPath = (repository: Repository): string | null => {
 };
 
 export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) => {
+	const { formatDateTime } = useTimeFormat();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const navigate = useNavigate();
 
@@ -206,7 +208,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 								</div>
 								<div className="flex flex-col gap-1">
 									<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
-									<p className="text-sm">{formatTimeAgo(repository.lastChecked)}</p>
+									<TimeAgo date={repository.lastChecked} className="text-sm" />
 								</div>
 								{hasLocalPath && (
 									<div className="flex flex-col gap-1 @medium:col-span-2">

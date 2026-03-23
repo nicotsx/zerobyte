@@ -581,8 +581,10 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 	);
 
 	return (
-		<button
-			type="button"
+		<div
+			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
+			role="button"
+			tabIndex={0}
 			className={cn("flex items-center gap-2 w-full pr-2 text-sm py-1.5 text-left", className)}
 			style={{ paddingLeft }}
 			onClick={onClick}
@@ -591,7 +593,7 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 		>
 			{icon}
 			<div className="truncate w-full flex items-center gap-2">{children}</div>
-		</button>
+		</div>
 	);
 });
 

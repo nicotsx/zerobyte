@@ -8,7 +8,7 @@ import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
 import { ThemeProvider, THEME_COOKIE_NAME } from "~/client/components/theme-provider";
 import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
+import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
 import { isAuthRoute } from "~/lib/auth-routes";
 
 const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
@@ -16,13 +16,22 @@ const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
 	return (themeCookie === "light" ? "light" : "dark") as "light" | "dark";
 });
 
+const fetchTimeConfig = createServerFn({ method: "GET" }).handler(async () => {
+	const acceptLanguage = getRequestHeaders().get("accept-language");
+
+	return {
+		locale: (acceptLanguage?.split(",")[0] || "en-US") as string,
+		timeZone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+	};
+});
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
 		middleware: [apiClientMiddleware],
 	},
 	loader: async () => {
-		const theme = await fetchTheme();
-		return { theme };
+		const [theme, timeConfig] = await Promise.all([fetchTheme(), fetchTimeConfig()]);
+		return { theme, ...timeConfig };
 	},
 	head: () => ({
 		meta: [{ title: "Zerobyte - Open Source Backup Solution" }],

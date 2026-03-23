@@ -5,8 +5,8 @@ import { healthCheckVolumeMutation, updateVolumeMutation } from "~/client/api-cl
 import { OnOff } from "~/client/components/onoff";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { formatTimeAgo } from "~/client/lib/datetime";
 import type { Volume } from "~/client/lib/types";
+import { TimeAgo } from "~/client/components/time-ago";
 
 type Props = {
 	volume: Volume;
@@ -53,9 +53,11 @@ export const HealthchecksCard = ({ volume }: Props) => {
 					{volume.lastError && <span className="text-sm text-red-500 wrap-break-word">{volume.lastError}</span>}
 					{volume.status === "mounted" && <span className="text-md text-success">Healthy</span>}
 					{volume.status !== "unmounted" && (
-						<span className="text-xs text-muted-foreground mb-4">Checked {formatTimeAgo(volume.lastHealthCheck)}</span>
+						<span className="text-xs text-muted-foreground mb-4">
+							Checked <TimeAgo date={volume.lastHealthCheck} />
+						</span>
 					)}
-					<span className="flex justify-between items-center gap-2">
+					<div className="flex justify-between items-center gap-2">
 						<span className="text-sm">Remount on error</span>
 						<OnOff
 							isOn={volume.autoRemount}
@@ -69,7 +71,7 @@ export const HealthchecksCard = ({ volume }: Props) => {
 							enabledLabel="Enabled"
 							disabledLabel="Paused"
 						/>
-					</span>
+					</div>
 				</div>
 				{volume.status !== "unmounted" && (
 					<div className="flex justify-center">

@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "~/client/components/ui/dialog";
 import { ScrollArea } from "~/client/components/ui/scroll-area";
-import { formatDate } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import type { UpdateInfoDto } from "~/server/modules/system/system.dto";
 
 interface ReleaseNotesDialogProps {
@@ -12,6 +12,8 @@ interface ReleaseNotesDialogProps {
 }
 
 export function ReleaseNotesDialog({ open, onOpenChange, updates }: ReleaseNotesDialogProps) {
+	const { formatDate } = useTimeFormat();
+
 	if (!updates) return null;
 
 	return (

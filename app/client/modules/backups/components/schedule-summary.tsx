@@ -16,11 +16,12 @@ import type { BackupSchedule } from "~/client/lib/types";
 import { BackupProgressCard } from "./backup-progress-card";
 import { getBackupProgressOptions, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { handleRepositoryError } from "~/client/lib/errors";
-import { formatShortDateTime, formatTimeAgo } from "~/client/lib/datetime";
-import { Link } from "@tanstack/react-router";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
+import { TimeAgo } from "~/client/components/time-ago";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 
 type Props = {
@@ -35,6 +36,7 @@ type Props = {
 export const ScheduleSummary = (props: Props) => {
 	const { schedule, handleToggleEnabled, handleRunBackupNow, handleStopBackup, handleDeleteSchedule, setIsEditMode } =
 		props;
+	const { formatShortDateTime } = useTimeFormat();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -182,7 +184,7 @@ export const ScheduleSummary = (props: Props) => {
 					</div>
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Last backup</p>
-						<p className="font-medium">{formatTimeAgo(schedule.lastBackupAt)}</p>
+						<TimeAgo date={schedule.lastBackupAt} className="font-medium" />
 					</div>
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Next backup</p>

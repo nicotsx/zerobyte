@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useMemo } from "react";
 import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
-import { formatDateTime } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 
 interface CronInputProps {
@@ -13,6 +13,7 @@ interface CronInputProps {
 }
 
 export function CronInput({ value, onChange, error }: CronInputProps) {
+	const { formatDateTime } = useTimeFormat();
 	const { isValid, nextRuns, parseError } = useMemo(() => {
 		if (!value) {
 			return { isValid: false, nextRuns: [], parseError: null };

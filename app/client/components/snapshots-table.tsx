@@ -25,8 +25,8 @@ import {
 	DialogTitle,
 } from "~/client/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { formatDuration } from "~/utils/utils";
-import { formatDateTime } from "~/client/lib/datetime";
 import {
 	deleteSnapshotsMutation,
 	listSnapshotsQueryKey,
@@ -49,6 +49,7 @@ type Props = {
 export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshotsQueryOptions }: Props) => {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
+	const { formatDateTime } = useTimeFormat();
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);

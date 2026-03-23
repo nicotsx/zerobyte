@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
-import { formatDateWithMonth } from "~/client/lib/datetime";
+import { useTimeFormat } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
 import { cn } from "~/client/lib/utils";
@@ -47,6 +47,7 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 	const { data } = useSuspenseQuery({ queryKey: ["app-origin"], queryFn: originQuery, initialData: initialOrigin });
 
 	const navigate = useNavigate();
+	const { formatDateWithMonth } = useTimeFormat();
 	const { activeOrganization } = useOrganizationContext();
 	const [inviteEmail, setInviteEmail] = useState("");
 	const [inviteRole, setInviteRole] = useState<InvitationRole>("member");
