@@ -24,6 +24,7 @@ const listVolumes = async () => {
 	const organizationId = getOrganizationId();
 	const volumes = await db.query.volumesTable.findMany({
 		where: { organizationId: organizationId },
+		orderBy: { id: "asc" },
 	});
 
 	return volumes;

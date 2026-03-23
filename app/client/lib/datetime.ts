@@ -99,6 +99,10 @@ export function formatTime(date: DateInput, options: DateFormatOptions = {}): st
 // 5 minutes ago
 export function formatTimeAgo(date: DateInput): string {
 	return formatValidDate(date, (validDate) => {
+		if (Math.abs(Date.now() - validDate.getTime()) < 120_000) {
+			return "just now";
+		}
+
 		const timeAgo = formatDistanceToNow(validDate, {
 			addSuffix: true,
 			includeSeconds: true,
