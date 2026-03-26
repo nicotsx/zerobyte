@@ -21,6 +21,8 @@ export const usersTable = sqliteTable("users_table", {
 	username: text().notNull().unique(),
 	passwordHash: text("password_hash"),
 	hasDownloadedResticPassword: int("has_downloaded_restic_password", { mode: "boolean" }).notNull().default(false),
+	dateFormat: text("date_format").notNull().default("MM/DD/YYYY"),
+	timeFormat: text("time_format").notNull().default("12h"),
 	createdAt: int("created_at", { mode: "timestamp_ms" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import {
+	DEFAULT_TIME_FORMAT,
 	formatDate,
 	formatDateTime,
 	formatDateWithMonth,
@@ -63,5 +64,39 @@ describe("datetime formatters", () => {
 
 	test("formats calendar values with an explicit locale and timezone", () => {
 		expect(formatShortDateTime(sampleDate, { locale: "en-US", timeZone: "UTC" })).toBe("1/10, 2:30 PM");
+	});
+
+	test.each([
+		["MM/DD/YYYY", "1/10/2026"],
+		["DD/MM/YYYY", "10/1/2026"],
+		["YYYY/MM/DD", "2026/1/10"],
+	] as const)("formats numeric dates with %s order", (dateFormat, expected) => {
+		expect(formatDate(sampleDate, { locale: "en-US", timeZone: "UTC", dateFormat })).toBe(expected);
+	});
+
+	test.each([
+		["MM/DD/YYYY", "Jan 10, 2026"],
+		["DD/MM/YYYY", "10 Jan 2026"],
+		["YYYY/MM/DD", "2026 Jan 10"],
+	] as const)("formats month dates with %s order", (dateFormat, expected) => {
+		expect(formatDateWithMonth(sampleDate, { locale: "en-US", timeZone: "UTC", dateFormat })).toBe(expected);
+	});
+
+	test.each([
+		[DEFAULT_TIME_FORMAT, "2:30 PM"],
+		["24h", "14:30"],
+	] as const)("formats times with %s clock", (timeFormat, expected) => {
+		expect(formatTime(sampleDate, { locale: "en-US", timeZone: "UTC", timeFormat })).toBe(expected);
+	});
+
+	test("formats combined values with custom date and time preferences", () => {
+		expect(
+			formatDateTime(sampleDate, {
+				locale: "en-US",
+				timeZone: "UTC",
+				dateFormat: "DD/MM/YYYY",
+				timeFormat: "24h",
+			}),
+		).toBe("10/1/2026, 14:30");
 	});
 });

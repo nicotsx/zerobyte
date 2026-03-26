@@ -17,10 +17,19 @@ import {
 } from "~/client/components/ui/dialog";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { authClient } from "~/client/lib/auth-client";
+import {
+	DATE_FORMATS,
+	type DateFormatPreference,
+	formatDateTime,
+	TIME_FORMATS,
+	type TimeFormatPreference,
+} from "~/client/lib/datetime";
 import { logger } from "~/client/lib/logger";
 import { type AppContext } from "~/context";
+import { Route as RootRoute } from "~/routes/__root";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
@@ -41,6 +50,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
+	const { locale, dateFormat, timeFormat } = RootRoute.useLoaderData();
 
 	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
 	const activeTab = tab || "account";
@@ -48,6 +58,12 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const navigate = useNavigate();
 	const { activeMember, activeOrganization } = useOrganizationContext();
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
+	const dateTimePreview = formatDateTime("2026-01-10T14:30:00.000Z", {
+		locale,
+		timeZone: "UTC",
+		dateFormat,
+		timeFormat,
+	});
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -141,6 +157,43 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 		});
 	};
 
+	const handleDateTimeFormatChange = async (
+		nextDateFormat: DateFormatPreference,
+		nextTimeFormat: TimeFormatPreference,
+	) => {
+		await authClient.updateUser({
+			dateFormat: nextDateFormat,
+			timeFormat: nextTimeFormat,
+			fetchOptions: {
+				onError: ({ error }) => {
+					toast.error("Failed to update date and time format", {
+						description: error.message,
+					});
+				},
+				onSuccess: () => {
+					window.location.reload();
+					toast.success("Date and time preferences saved");
+				},
+			},
+		});
+	};
+
+	const handleDateFormatChange = async (nextDateFormat: DateFormatPreference) => {
+		if (nextDateFormat === dateFormat) {
+			return;
+		}
+
+		await handleDateTimeFormatChange(nextDateFormat, timeFormat);
+	};
+
+	const handleTimeFormatChange = async (nextTimeFormat: TimeFormatPreference) => {
+		if (nextTimeFormat === timeFormat) {
+			return;
+		}
+
+		await handleDateTimeFormatChange(dateFormat, nextTimeFormat);
+	};
+
 	const onTabChange = (value: string) => {
 		void navigate({ to: ".", search: () => ({ tab: value }) });
 	};
@@ -171,6 +224,59 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 								<div className="space-y-2">
 									<Label htmlFor="email">Email</Label>
 									<Input id="email" type="email" value={appContext.user?.email} disabled className="max-w-md" />
+								</div>
+							</CardContent>
+
+							<div className="border-t border-border/50 bg-card-header p-6">
+								<CardTitle className="flex items-center gap-2">
+									<SettingsIcon className="size-5" />
+									Date and Time Format
+								</CardTitle>
+								<CardDescription className="mt-1.5">
+									Choose how dates and times are shown throughout the app
+								</CardDescription>
+							</div>
+							<CardContent className="p-6">
+								<div className="space-y-4 max-w-2xl">
+									<div className="grid gap-4 md:grid-cols-2">
+										<div className="space-y-2">
+											<Label htmlFor="date-format">Date format</Label>
+											<Select
+												value={dateFormat}
+												onValueChange={(value) => void handleDateFormatChange(value as DateFormatPreference)}
+											>
+												<SelectTrigger id="date-format">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{DATE_FORMATS.map((value) => (
+														<SelectItem key={value} value={value}>
+															{value}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="space-y-2">
+											<Label htmlFor="time-format">Time format</Label>
+											<Select
+												value={timeFormat}
+												onValueChange={(value) => void handleTimeFormatChange(value as TimeFormatPreference)}
+											>
+												<SelectTrigger id="time-format">
+													<SelectValue />
+												</SelectTrigger>
+												<SelectContent>
+													{TIME_FORMATS.map((value) => (
+														<SelectItem key={value} value={value}>
+															{value}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+									<p className="text-sm text-muted-foreground">Preview: {dateTimePreview}</p>
 								</div>
 							</CardContent>
 

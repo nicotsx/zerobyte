@@ -4,6 +4,8 @@ type User = {
 	username: string;
 	name: string;
 	hasDownloadedResticPassword: boolean;
+	dateFormat: string;
+	timeFormat: string;
 	twoFactorEnabled?: boolean | null;
 	role?: string | null | undefined;
 };

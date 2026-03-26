@@ -138,6 +138,14 @@ export const auth = betterAuth({
 				type: "boolean",
 				returned: true,
 			},
+			dateFormat: {
+				type: "string",
+				returned: true,
+			},
+			timeFormat: {
+				type: "string",
+				returned: true,
+			},
 		},
 	},
 	session: {

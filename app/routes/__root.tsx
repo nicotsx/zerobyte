@@ -10,6 +10,8 @@ import { ThemeProvider, THEME_COOKIE_NAME } from "~/client/components/theme-prov
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
 import { isAuthRoute } from "~/lib/auth-routes";
+import { auth } from "~/server/lib/auth";
+import type { DateFormatPreference, TimeFormatPreference } from "~/client/lib/datetime";
 
 const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
 	const themeCookie = getCookie(THEME_COOKIE_NAME);
@@ -17,11 +19,15 @@ const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
 });
 
 const fetchTimeConfig = createServerFn({ method: "GET" }).handler(async () => {
-	const acceptLanguage = getRequestHeaders().get("accept-language");
+	const headers = getRequestHeaders();
+	const acceptLanguage = headers.get("accept-language");
+	const session = await auth.api.getSession({ headers });
 
 	return {
 		locale: (acceptLanguage?.split(",")[0] || "en-US") as string,
 		timeZone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+		dateFormat: (session?.user.dateFormat ?? "MM/DD/YYYY") as DateFormatPreference,
+		timeFormat: (session?.user.timeFormat ?? "12h") as TimeFormatPreference,
 		now: Date.now(),
 	};
 });
