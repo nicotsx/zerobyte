@@ -66,7 +66,7 @@ export function CreateBackupPage() {
 				name: formValues.name,
 				volumeId: selectedVolumeShortId,
 				repositoryId: formValues.repositoryId,
-				enabled: true,
+				enabled: formValues.frequency !== "manual",
 				cronExpression,
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 				includePaths: formValues.includePaths,

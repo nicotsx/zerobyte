@@ -15,7 +15,7 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		return undefined;
 	}
 
-	const cronValues = cronToFormValues(schedule.cronExpression ?? "0 * * * *");
+	const cronValues = cronToFormValues(schedule.cronExpression ?? "");
 
 	return {
 		name: schedule.name,

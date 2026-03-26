@@ -168,7 +168,7 @@ const finalizeSuccessfulBackup = async (
 		);
 	});
 
-	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
+	const nextBackupAt = ctx.schedule.cronExpression ? calculateNextRun(ctx.schedule.cronExpression) : null;
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupAt: Date.now(),
 		lastBackupStatus: finalStatus,
@@ -272,7 +272,7 @@ const executeBackup = async (scheduleId: number, manual = false): Promise<void> 
 	cache.del(cacheKeys.backup.progress(scheduleId));
 	emitBackupStarted(ctx, scheduleId);
 
-	const nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
+	const nextBackupAt = ctx.schedule.cronExpression ? calculateNextRun(ctx.schedule.cronExpression) : null;
 
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupStatus: "in_progress",

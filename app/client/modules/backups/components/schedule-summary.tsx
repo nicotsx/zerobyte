@@ -56,7 +56,7 @@ export const ScheduleSummary = (props: Props) => {
 	});
 
 	const summary = useMemo(() => {
-		const scheduleLabel = schedule ? schedule.cronExpression : "-";
+		const scheduleLabel = schedule ? schedule.cronExpression || "Manual only" : "-";
 
 		const retentionParts: string[] = [];
 		if (schedule?.retentionPolicy) {
@@ -120,7 +120,11 @@ export const ScheduleSummary = (props: Props) => {
 								</Link>
 							</CardDescription>
 						</div>
-						<div className="flex items-center gap-2 justify-between @medium:justify-start">
+						<div
+							className={cn("flex items-center gap-2 justify-between @medium:justify-start", {
+								hidden: !schedule.cronExpression,
+							})}
+						>
 							<OnOff
 								isOn={schedule.enabled}
 								toggle={handleToggleEnabled}

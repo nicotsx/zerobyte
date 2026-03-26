@@ -39,7 +39,7 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 							<span className="text-muted-foreground shrink-0">Schedule</span>
 							<div className="flex-1 border-b border-dashed border-border/80 dark:border-border/50" />
 							<code className="text-xs text-foreground font-mono bg-muted px-2 py-1 rounded shrink-0">
-								{schedule.cronExpression}
+								{schedule.cronExpression || "Manual only"}
 							</code>
 						</div>
 						<div className="flex items-center text-sm gap-2">

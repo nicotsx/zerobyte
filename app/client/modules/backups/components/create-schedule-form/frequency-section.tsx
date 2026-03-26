@@ -27,6 +27,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 									<SelectValue placeholder="Select frequency" />
 								</SelectTrigger>
 								<SelectContent>
+									<SelectItem value="manual">Manual only</SelectItem>
 									<SelectItem value="hourly">Hourly</SelectItem>
 									<SelectItem value="daily">Daily</SelectItem>
 									<SelectItem value="weekly">Weekly</SelectItem>
@@ -51,7 +52,7 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 				/>
 			)}
 
-			{frequency !== "hourly" && frequency !== "cron" && (
+			{frequency !== "hourly" && frequency !== "cron" && frequency !== "manual" && (
 				<FormField
 					control={form.control}
 					name="dailyTime"

@@ -92,8 +92,11 @@ const getScheduleByIdOrShortId = async (idOrShortId: string | number) => {
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
-	if (!isValidCron(data.cronExpression)) {
+	if (data.cronExpression && !isValidCron(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
+	}
+	if (data.enabled && !data.cronExpression) {
+		throw new BadRequestError("Enabled schedules require a cron expression");
 	}
 
 	const existingName = await db.query.backupSchedulesTable.findFirst({
@@ -134,7 +137,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 		if (paramError) throw new BadRequestError(paramError);
 	}
 
-	const nextBackupAt = calculateNextRun(data.cronExpression);
+	const nextBackupAt = data.cronExpression ? calculateNextRun(data.cronExpression) : null;
 
 	const [newSchedule] = await db
 		.insert(backupSchedulesTable)
@@ -182,6 +185,9 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	if (data.cronExpression && !isValidCron(data.cronExpression)) {
 		throw new BadRequestError("Invalid cron expression");
 	}
+	if ((data.enabled ?? schedule.enabled) && data.cronExpression === "") {
+		throw new BadRequestError("Enabled schedules require a cron expression");
+	}
 
 	if (data.customResticParams && data.customResticParams.length > 0) {
 		const paramError = validateCustomResticParams(data.customResticParams);
@@ -211,7 +217,8 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	}
 
 	const cronExpression = data.cronExpression ?? schedule.cronExpression;
-	const nextBackupAt = data.cronExpression ? calculateNextRun(cronExpression) : schedule.nextBackupAt;
+	const nextBackupAt =
+		data.cronExpression === "" ? null : data.cronExpression ? calculateNextRun(cronExpression) : schedule.nextBackupAt;
 
 	const [updated] = await db
 		.update(backupSchedulesTable)

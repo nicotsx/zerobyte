@@ -7,6 +7,10 @@ export const getCronExpression = (
 	monthlyDays?: string[],
 	cronExpression?: string,
 ): string => {
+	if (frequency === "manual") {
+		return "";
+	}
+
 	if (frequency === "cron" && cronExpression) {
 		return cronExpression;
 	}

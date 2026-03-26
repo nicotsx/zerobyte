@@ -41,7 +41,7 @@ export const scheduleQueries = {
 			lastBackupStatus?: BackupStatusType;
 			lastBackupAt?: number;
 			lastBackupError?: string | null;
-			nextBackupAt?: number;
+			nextBackupAt?: number | null;
 		},
 	) => {
 		return db

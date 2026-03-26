@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
+import { cn } from "~/client/lib/utils";
 import type { Volume } from "~/client/lib/types";
 import type { InternalFormValues } from "./types";
 
 type SummarySectionProps = {
 	volume: Volume;
-	frequency: string;
+	frequency: string | undefined;
 	formValues: InternalFormValues;
 };
 
@@ -30,7 +31,13 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Schedule</p>
-					<p className="font-medium">{frequency ? frequency.charAt(0).toUpperCase() + frequency.slice(1) : "-"}</p>
+					<p className="font-medium">
+						<span className={cn({ hidden: frequency !== "manual" })}>Manual only</span>
+						<span className={cn({ hidden: !frequency || frequency === "manual" })}>
+							{frequency ? frequency.charAt(0).toUpperCase() + frequency.slice(1) : null}
+						</span>
+						<span className={cn({ hidden: Boolean(frequency) })}>-</span>
+					</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Repository</p>

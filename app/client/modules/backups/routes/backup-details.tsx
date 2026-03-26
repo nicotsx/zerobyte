@@ -182,7 +182,7 @@ export function ScheduleDetailsPage(props: Props) {
 			body: {
 				name: formValues.name,
 				repositoryId: formValues.repositoryId,
-				enabled: schedule.enabled,
+				enabled: formValues.frequency === "manual" ? false : schedule.enabled,
 				cronExpression,
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 				includePaths: formValues.includePaths,
