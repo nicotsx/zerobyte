@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, render, screen } from "~/test/test-utils";
 
 await mock.module("@tanstack/react-router", () => ({
 	useNavigate: () => mock(() => {}),
@@ -11,19 +10,6 @@ await mock.module("~/client/modules/sso/components/sso-login-section", () => ({
 }));
 
 import { LoginPage } from "../login";
-
-const createTestQueryClient = () =>
-	new QueryClient({
-		defaultOptions: {
-			queries: {
-				retry: false,
-				gcTime: Infinity,
-			},
-			mutations: {
-				gcTime: Infinity,
-			},
-		},
-	});
 const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 
@@ -33,23 +19,13 @@ afterEach(() => {
 
 describe("LoginPage", () => {
 	test("shows an invite-only message when SSO returns INVITE_REQUIRED code", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="INVITE_REQUIRED" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="INVITE_REQUIRED" />);
 
 		expect(await screen.findByText(inviteOnlyMessage)).toBeTruthy();
 	});
 
 	test("shows account link required message when SSO returns ACCOUNT_LINK_REQUIRED code", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="ACCOUNT_LINK_REQUIRED" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="ACCOUNT_LINK_REQUIRED" />);
 
 		expect(
 			await screen.findByText(
@@ -59,12 +35,7 @@ describe("LoginPage", () => {
 	});
 
 	test("shows banned message when SSO returns BANNED_USER code", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="BANNED_USER" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="BANNED_USER" />);
 
 		expect(
 			await screen.findByText(
@@ -74,34 +45,19 @@ describe("LoginPage", () => {
 	});
 
 	test("shows email not verified message when SSO returns EMAIL_NOT_VERIFIED code", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="EMAIL_NOT_VERIFIED" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="EMAIL_NOT_VERIFIED" />);
 
 		expect(await screen.findByText("Your identity provider did not mark your email as verified.")).toBeTruthy();
 	});
 
 	test("shows generic SSO error message when SSO returns SSO_LOGIN_FAILED code", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="SSO_LOGIN_FAILED" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="SSO_LOGIN_FAILED" />);
 
 		expect(await screen.findByText("SSO authentication failed. Please try again.")).toBeTruthy();
 	});
 
 	test("does not show error message for invalid error codes", async () => {
-		const queryClient = createTestQueryClient();
-		render(
-			<QueryClientProvider client={queryClient}>
-				<LoginPage error="some_random_error" />
-			</QueryClientProvider>,
-		);
+		render(<LoginPage error="some_random_error" />);
 
 		expect(await screen.findByText("Login to your account")).toBeTruthy();
 		expect(screen.queryByText(inviteOnlyMessage)).toBeNull();

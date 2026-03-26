@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
 import { useEffect, useState } from "react";
+import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
 import { useServerEvents } from "../use-server-events";
 
 class MockEventSource {
@@ -39,19 +38,6 @@ class MockEventSource {
 const originalEventSource = globalThis.EventSource;
 const originalConsoleInfo = console.info;
 const originalConsoleError = console.error;
-
-const createTestQueryClient = () =>
-	new QueryClient({
-		defaultOptions: {
-			queries: {
-				retry: false,
-				gcTime: Infinity,
-			},
-			mutations: {
-				gcTime: Infinity,
-			},
-		},
-	});
 
 const ConnectionConsumer = ({ enabled = true }: { enabled?: boolean }) => {
 	useServerEvents({ enabled });
@@ -105,10 +91,11 @@ describe("useServerEvents", () => {
 		queryClient.refetchQueries = refetchQueries as typeof queryClient.refetchQueries;
 
 		render(
-			<QueryClientProvider client={queryClient}>
+			<>
 				<ConnectionConsumer />
 				<BackupCompletedListener scheduleId="0b9c940b" />
-			</QueryClientProvider>,
+			</>,
+			{ queryClient },
 		);
 
 		expect(MockEventSource.instances).toHaveLength(1);
@@ -132,19 +119,11 @@ describe("useServerEvents", () => {
 
 	test("waits to subscribe until enabled", () => {
 		const queryClient = createTestQueryClient();
-		const view = render(
-			<QueryClientProvider client={queryClient}>
-				<ConnectionConsumer enabled={false} />
-			</QueryClientProvider>,
-		);
+		const view = render(<ConnectionConsumer enabled={false} />, { queryClient });
 
 		expect(MockEventSource.instances).toHaveLength(0);
 
-		view.rerender(
-			<QueryClientProvider client={queryClient}>
-				<ConnectionConsumer />
-			</QueryClientProvider>,
-		);
+		view.rerender(<ConnectionConsumer />);
 
 		expect(MockEventSource.instances).toHaveLength(1);
 		expect(MockEventSource.instances[0]?.url).toBe("/api/v1/events");
