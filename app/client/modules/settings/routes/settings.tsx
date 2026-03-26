@@ -172,7 +172,6 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 				},
 				onSuccess: () => {
 					window.location.reload();
-					toast.success("Date and time preferences saved");
 				},
 			},
 		});

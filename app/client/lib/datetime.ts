@@ -1,6 +1,5 @@
 import { formatDistanceToNow, isValid } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { authClient } from "~/client/lib/auth-client";
 import { Route as RootRoute } from "~/routes/__root";
 
 export type DateInput = Date | string | number | null | undefined;
@@ -64,6 +63,7 @@ function getRequiredPart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFo
 
 function formatConfiguredDate(date: Date, options: DateFormatOptions, includeYear: boolean) {
 	const dateFormat = options.dateFormat ?? DEFAULT_DATE_FORMAT;
+	const safeDateFormat = DATE_FORMATS.includes(dateFormat) ? dateFormat : DEFAULT_DATE_FORMAT;
 	const parts = getDateTimeFormat(options.locale, options.timeZone, {
 		month: "numeric",
 		day: "numeric",
@@ -74,7 +74,7 @@ function formatConfiguredDate(date: Date, options: DateFormatOptions, includeYea
 		day: getRequiredPart(parts, "day"),
 		year: getRequiredPart(parts, "year"),
 	};
-	const order = includeYear ? DATE_PART_ORDERS[dateFormat] : SHORT_DATE_PART_ORDERS[dateFormat];
+	const order = includeYear ? DATE_PART_ORDERS[safeDateFormat] : SHORT_DATE_PART_ORDERS[safeDateFormat];
 
 	return order.map((part) => values[part]).join("/");
 }
@@ -163,10 +163,7 @@ export function formatTimeAgo(date: DateInput, now = Date.now()): string {
 
 export function useTimeFormat() {
 	const { locale, timeZone, dateFormat, timeFormat, now } = RootRoute.useLoaderData();
-	const session = authClient.useSession();
 	const [currentNow, setCurrentNow] = useState(now);
-	const currentDateFormat = (session.data?.user.dateFormat ?? dateFormat) as DateFormatPreference;
-	const currentTimeFormat = (session.data?.user.timeFormat ?? timeFormat) as TimeFormatPreference;
 
 	useEffect(() => {
 		const nextNow = Date.now();
@@ -175,20 +172,14 @@ export function useTimeFormat() {
 
 	return useMemo(
 		() => ({
-			formatDateTime: (date: DateInput) =>
-				formatDateTime(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
-			formatDateWithMonth: (date: DateInput) =>
-				formatDateWithMonth(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
-			formatDate: (date: DateInput) =>
-				formatDate(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
-			formatShortDate: (date: DateInput) =>
-				formatShortDate(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
-			formatShortDateTime: (date: DateInput) =>
-				formatShortDateTime(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
-			formatTime: (date: DateInput) =>
-				formatTime(date, { locale, timeZone, dateFormat: currentDateFormat, timeFormat: currentTimeFormat }),
+			formatDateTime: (date: DateInput) => formatDateTime(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatDateWithMonth: (date: DateInput) => formatDateWithMonth(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatDate: (date: DateInput) => formatDate(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatShortDate: (date: DateInput) => formatShortDate(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatShortDateTime: (date: DateInput) => formatShortDateTime(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatTime: (date: DateInput) => formatTime(date, { locale, timeZone, dateFormat, timeFormat }),
 			formatTimeAgo: (date: DateInput) => formatTimeAgo(date, currentNow),
 		}),
-		[locale, timeZone, currentDateFormat, currentTimeFormat, currentNow],
+		[locale, timeZone, currentNow, dateFormat, timeFormat],
 	);
 }

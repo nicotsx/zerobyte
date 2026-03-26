@@ -1,19 +1,74 @@
-import type * as React from "react";
+import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
 import { cn } from "~/client/lib/utils";
 
-function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-	return <SelectPrimitive.Root data-slot="select" {...props} />;
+const SelectSsrValueContext = React.createContext<{
+	items: Map<string, string>;
+	value: string | undefined;
+} | null>(null);
+
+function getSelectItemText(children: React.ReactNode): string {
+	return React.Children.toArray(children)
+		.map((child) => {
+			if (typeof child === "string" || typeof child === "number") {
+				return String(child);
+			}
+
+			if (!React.isValidElement<{ children?: React.ReactNode }>(child)) {
+				return "";
+			}
+
+			return getSelectItemText(child.props.children);
+		})
+		.join("")
+		.trim();
+}
+
+function collectSelectItems(children: React.ReactNode, items = new Map<string, string>()) {
+	for (const child of React.Children.toArray(children)) {
+		if (!React.isValidElement<{ children?: React.ReactNode; value?: string }>(child)) {
+			continue;
+		}
+
+		if ((child.type === SelectItem || child.type === SelectPrimitive.Item) && typeof child.props.value === "string") {
+			items.set(child.props.value, getSelectItemText(child.props.children));
+		}
+
+		if (child.props.children) {
+			collectSelectItems(child.props.children, items);
+		}
+	}
+
+	return items;
+}
+
+function Select({ children, value, ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+	const items = collectSelectItems(children);
+
+	return (
+		<SelectSsrValueContext.Provider value={{ items, value }}>
+			<SelectPrimitive.Root data-slot="select" value={value} {...props}>
+				{children}
+			</SelectPrimitive.Root>
+		</SelectSsrValueContext.Provider>
+	);
 }
 
 function SelectGroup({ ...props }: React.ComponentProps<typeof SelectPrimitive.Group>) {
 	return <SelectPrimitive.Group data-slot="select-group" {...props} />;
 }
 
-function SelectValue({ ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-	return <SelectPrimitive.Value data-slot="select-value" {...props} />;
+function SelectValue({ children, ...props }: React.ComponentProps<typeof SelectPrimitive.Value>) {
+	const context = React.useContext(SelectSsrValueContext);
+	const resolvedChildren = children ?? (context?.value ? context.items.get(context.value) : undefined);
+
+	return (
+		<SelectPrimitive.Value data-slot="select-value" {...props}>
+			{resolvedChildren}
+		</SelectPrimitive.Value>
+	);
 }
 
 function SelectTrigger({
@@ -29,7 +84,7 @@ function SelectTrigger({
 			data-slot="select-trigger"
 			data-size={size}
 			className={cn(
-				"border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+				"border-input data-placeholder:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&+select[aria-hidden=true]]:hidden [&:has(+select[aria-hidden=true]:last-child)]:mb-0",
 				className,
 			)}
 			{...props}
