@@ -33,14 +33,15 @@ interface RestoreFormProps {
 	repository: Repository;
 	snapshotId: string;
 	returnPath: string;
-	basePath?: string;
+	queryBasePath?: string;
+	displayBasePath?: string;
 }
 
-export function RestoreForm({ repository, snapshotId, returnPath, basePath }: RestoreFormProps) {
+export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath, displayBasePath }: RestoreFormProps) {
 	const navigate = useNavigate();
 	const { addEventListener } = useServerEvents();
 
-	const volumeBasePath = basePath ?? "/";
+	const snapshotBasePath = queryBasePath ?? "/";
 
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>("original");
 	const [customTargetPath, setCustomTargetPath] = useState("");
@@ -346,7 +347,8 @@ export function RestoreForm({ repository, snapshotId, returnPath, basePath }: Re
 						<SnapshotTreeBrowser
 							repositoryId={repository.shortId}
 							snapshotId={snapshotId}
-							basePath={volumeBasePath}
+							queryBasePath={snapshotBasePath}
+							displayBasePath={displayBasePath}
 							pageSize={500}
 							className="flex flex-1 min-h-0 flex-col"
 							treeContainerClassName="overflow-auto flex-1 min-h-0 border border-border rounded-md bg-card m-4"

@@ -101,7 +101,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 				<SnapshotFileBrowser
 					repositoryId={repositoryId}
 					snapshot={data}
-					basePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
+					displayBasePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
 				/>
 			) : (
 				<SnapshotFileBrowserSkeleton />

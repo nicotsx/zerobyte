@@ -43,3 +43,4 @@ qa-output
 
 .worktrees/
 .turbo
+.superset

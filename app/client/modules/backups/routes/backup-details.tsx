@@ -34,6 +34,7 @@ import { ScheduleNotificationsConfig } from "../components/schedule-notification
 import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
 import { BackupSummaryCard } from "~/client/components/backup-summary-card";
 import { cn } from "~/client/lib/utils";
+import { getVolumeMountPath } from "~/client/lib/volume-path";
 import type {
 	BackupSchedule,
 	NotificationDestination,
@@ -303,6 +304,7 @@ export function ScheduleDetailsPage(props: Props) {
 					snapshot={selectedSnapshot}
 					repositoryId={schedule.repository.shortId}
 					backupId={schedule.shortId}
+					displayBasePath={getVolumeMountPath(schedule.volume)}
 					onDeleteSnapshot={handleDeleteSnapshot}
 					isDeletingSnapshot={deleteSnapshot.isPending}
 				/>

@@ -3,6 +3,7 @@ import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
+import { findCommonAncestor } from "@zerobyte/core/utils";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -15,16 +16,16 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { shortId: params.repositoryId } }) }),
 		]);
 
-		let basePath: string | undefined;
+		let displayBasePath: string | undefined;
 		const scheduleShortId = snapshot.tags?.[0];
 		if (scheduleShortId) {
 			const scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
 			if (scheduleRes.data) {
-				basePath = getVolumeMountPath(scheduleRes.data.volume);
+				displayBasePath = getVolumeMountPath(scheduleRes.data.volume);
 			}
 		}
 
-		return { snapshot, repository, basePath };
+		return { snapshot, repository, queryBasePath: findCommonAncestor(snapshot.paths), displayBasePath };
 	},
 	staticData: {
 		breadcrumb: (match) => [
@@ -47,14 +48,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { repository, basePath } = Route.useLoaderData();
+	const { repository, queryBasePath, displayBasePath } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			repository={repository}
 			snapshotId={snapshotId}
-			basePath={basePath}
+			queryBasePath={queryBasePath}
+			displayBasePath={displayBasePath}
 		/>
 	);
 }

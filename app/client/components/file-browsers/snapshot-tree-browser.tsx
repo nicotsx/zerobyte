@@ -7,92 +7,91 @@ import { parseError } from "~/client/lib/errors";
 import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
 
+function createPathPrefixFns(basePath: string) {
+	return {
+		strip(path: string) {
+			if (basePath === "/") return path;
+			if (path === basePath) return "/";
+			if (path.startsWith(`${basePath}/`)) return path.slice(basePath.length);
+			return path;
+		},
+		add(displayPath: string) {
+			if (basePath === "/") return displayPath;
+			if (displayPath === "/") return basePath;
+			return `${basePath}${displayPath}`;
+		},
+	};
+}
+
 type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	repositoryId: string;
 	snapshotId: string;
-	basePath?: string;
+	queryBasePath?: string;
+	displayBasePath?: string;
 	pageSize?: number;
 	enabled?: boolean;
 	onSingleSelectionKindChange?: (kind: "file" | "dir" | null) => void;
 };
 
-export const SnapshotTreeBrowser = ({
-	repositoryId,
-	snapshotId,
-	basePath = "/",
-	pageSize = 500,
-	enabled = true,
-	...uiProps
-}: SnapshotTreeBrowserProps) => {
+export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
+	const {
+		repositoryId,
+		snapshotId,
+		queryBasePath = "/",
+		displayBasePath,
+		pageSize = 500,
+		enabled = true,
+		...uiProps
+	} = props;
+
 	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
-	const normalizedBasePath = normalizeAbsolutePath(basePath);
+	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
+	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? normalizedQueryBasePath);
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
 			path: { shortId: repositoryId, snapshotId },
-			query: { path: normalizedBasePath },
+			query: { path: normalizedQueryBasePath },
 		}),
 		enabled,
 	});
 
-	const stripBasePath = useCallback(
-		(path: string): string => {
-			if (normalizedBasePath === "/") return path;
-			if (path === normalizedBasePath) return "/";
-			if (path.startsWith(`${normalizedBasePath}/`)) {
-				return path.slice(normalizedBasePath.length);
-			}
-			return path;
-		},
-		[normalizedBasePath],
-	);
-
-	const addBasePath = useCallback(
-		(displayPath: string): string => {
-			if (normalizedBasePath === "/") return displayPath;
-			if (displayPath === "/") return normalizedBasePath;
-			return `${normalizedBasePath}${displayPath}`;
-		},
-		[normalizedBasePath],
-	);
+	const displayPathFns = useMemo(() => createPathPrefixFns(normalizedDisplayBasePath), [normalizedDisplayBasePath]);
 
 	const displaySelectedPaths = useMemo(() => {
 		if (!selectedPaths) return undefined;
 
 		const displayPaths = new Set<string>();
 		for (const fullPath of selectedPaths) {
-			displayPaths.add(stripBasePath(fullPath));
+			displayPaths.add(displayPathFns.strip(fullPath));
 		}
 
 		return displayPaths;
-	}, [selectedPaths, stripBasePath]);
+	}, [displayPathFns, selectedPaths]);
 
 	const fileBrowser = useFileBrowser({
 		initialData: data,
 		isLoading,
-		fetchFolder: async (path, offset = 0) => {
+		fetchFolder: async (displayPath, offset = 0) => {
 			return await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { shortId: repositoryId, snapshotId },
-					query: { path, offset: offset, limit: pageSize },
+					query: { path: displayPath, offset: offset, limit: pageSize },
 				}),
 			);
 		},
-		prefetchFolder: (path) => {
+		prefetchFolder: (displayPath) => {
 			void queryClient
 				.prefetchQuery(
 					listSnapshotFilesOptions({
 						path: { shortId: repositoryId, snapshotId },
-						query: { path, offset: 0, limit: pageSize },
+						query: { path: displayPath, offset: 0, limit: pageSize },
 					}),
 				)
 				.catch((e) => logger.error(e));
 		},
-		pathTransform: {
-			strip: stripBasePath,
-			add: addBasePath,
-		},
+		pathTransform: displayPathFns,
 	});
 
 	const displayPathKinds = useMemo(() => {
@@ -109,7 +108,7 @@ export const SnapshotTreeBrowser = ({
 
 			const nextFullPaths = new Set<string>();
 			for (const displayPath of nextDisplayPaths) {
-				nextFullPaths.add(addBasePath(displayPath));
+				nextFullPaths.add(displayPathFns.add(displayPath));
 			}
 
 			if (onSingleSelectionKindChange) {
@@ -127,7 +126,7 @@ export const SnapshotTreeBrowser = ({
 
 			onSelectionChange(nextFullPaths);
 		},
-		[onSelectionChange, addBasePath, onSingleSelectionKindChange, displayPathKinds],
+		[displayPathFns, displayPathKinds, onSelectionChange, onSingleSelectionKindChange],
 	);
 
 	return (

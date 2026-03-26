@@ -35,7 +35,7 @@ function getRunId(testInfo: TestInfo) {
 	return `${testInfo.parallelIndex}-${testInfo.retry}-${randomUUID().slice(0, 8)}`;
 }
 
-function getWorkerTestDataPath(runId: string) {
+function getWorkerTestDataPath() {
 	fs.mkdirSync(testDataPath, { recursive: true });
 	return testDataPath;
 }
@@ -49,7 +49,7 @@ function getScenarioNames(runId: string): ScenarioNames {
 }
 
 function prepareTestFile(runId: string, fileName = "test.json"): string {
-	const runPath = path.join(getWorkerTestDataPath(runId), runId);
+	const runPath = path.join(getWorkerTestDataPath(), runId);
 	fs.mkdirSync(runPath, { recursive: true });
 
 	const filePath = path.join(runPath, fileName);
@@ -58,8 +58,8 @@ function prepareTestFile(runId: string, fileName = "test.json"): string {
 	return filePath;
 }
 
-async function createBackupScenario(page: Page, names: ScenarioNames, runId: string, options: ScenarioOptions = {}) {
-	getWorkerTestDataPath(runId);
+async function createBackupScenario(page: Page, names: ScenarioNames, options: ScenarioOptions = {}) {
+	getWorkerTestDataPath();
 
 	const volumeNameInput = page.getByRole("textbox", { name: "Name" });
 	await expect(async () => {
@@ -153,7 +153,7 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -177,7 +177,7 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 test("can restore a single selected file to a custom location", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
-	const workerTestDataPath = getWorkerTestDataPath(runId);
+	const workerTestDataPath = getWorkerTestDataPath();
 	const fileName = `single-file-${runId}.json`;
 	const filePath = prepareTestFile(runId, fileName);
 	const restoreTargetPath = path.join(workerTestDataPath, fileName);
@@ -188,7 +188,7 @@ test("can restore a single selected file to a custom location", async ({ page },
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -234,7 +234,7 @@ test("can re-tag a snapshot to another backup schedule", async ({ page }, testIn
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -277,7 +277,7 @@ test("can delete a snapshot from the repository snapshots tab", async ({ page },
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -302,7 +302,7 @@ test("can delete a snapshot from the repository snapshots tab", async ({ page },
 test("can download a selected snapshot directory as a tar archive", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
-	const workerTestDataPath = getWorkerTestDataPath(runId);
+	const workerTestDataPath = getWorkerTestDataPath();
 	const fileName = `download-${runId}.json`;
 	const filePath = prepareTestFile(runId, fileName);
 	const downloadedPath = path.join(workerTestDataPath, `downloaded-${runId}.tar`);
@@ -312,7 +312,7 @@ test("can download a selected snapshot directory as a tar archive", async ({ pag
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -351,7 +351,7 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId);
+	await createBackupScenario(page, names);
 
 	await gotoAndWaitForAppReady(page, "/backups");
 	await page.getByText(names.backupName, { exact: true }).first().click();
@@ -378,7 +378,7 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 test("backup respects include globs, exclusion patterns, and exclude-if-present", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
-	const workerTestDataPath = getWorkerTestDataPath(runId);
+	const workerTestDataPath = getWorkerTestDataPath();
 
 	const keptDir = `kept-${runId}`;
 	const secondKeptDir = `second-kept-${runId}`;
@@ -433,7 +433,7 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId, {
+	await createBackupScenario(page, names, {
 		includePatterns: [
 			`/${keptDir}`,
 			`/${secondKeptDir}`,
@@ -492,7 +492,7 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 test("backup can include a selected folder whose name contains brackets", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
-	const workerTestDataPath = getWorkerTestDataPath(runId);
+	const workerTestDataPath = getWorkerTestDataPath();
 	const bracketDir = `movies [${runId}]`;
 	const bracketPath = path.join(workerTestDataPath, bracketDir);
 	const fileName = `inside-${runId}.txt`;
@@ -503,7 +503,7 @@ test("backup can include a selected folder whose name contains brackets", async 
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, runId, {
+	await createBackupScenario(page, names, {
 		selectedPaths: [`/${bracketDir}`],
 	});
 

@@ -5,11 +5,20 @@ type Props = {
 	repository: Repository;
 	snapshotId: string;
 	returnPath: string;
-	basePath?: string;
+	queryBasePath?: string;
+	displayBasePath?: string;
 };
 
 export function RestoreSnapshotPage(props: Props) {
-	const { returnPath, snapshotId, repository, basePath } = props;
+	const { returnPath, snapshotId, repository, queryBasePath, displayBasePath } = props;
 
-	return <RestoreForm repository={repository} snapshotId={snapshotId} returnPath={returnPath} basePath={basePath} />;
+	return (
+		<RestoreForm
+			repository={repository}
+			snapshotId={snapshotId}
+			returnPath={returnPath}
+			queryBasePath={queryBasePath}
+			displayBasePath={displayBasePath}
+		/>
+	);
 }
