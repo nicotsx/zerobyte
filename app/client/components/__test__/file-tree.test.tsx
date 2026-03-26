@@ -1,6 +1,6 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: Testing file - non-null assertions are acceptable here */
-import { expect, test, describe } from "bun:test";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { afterEach, expect, test, describe } from "bun:test";
+import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { useState } from "react";
 import { FileTree, type FileEntry } from "../file-tree";
 
@@ -38,6 +38,10 @@ const getSelectedPaths = () => {
 	const selectedPaths = screen.getByLabelText("Selected paths").textContent;
 	return JSON.parse(selectedPaths ?? "[]") as string[];
 };
+
+afterEach(() => {
+	cleanup();
+});
 
 describe("FileTree Pagination", () => {
 	const testFiles: FileEntry[] = [
@@ -180,6 +184,19 @@ describe("FileTree Pagination", () => {
 		);
 
 		expect(screen.queryByText("Load more files")).toBeNull();
+	});
+
+	test("renders missing ancestor folders for nested paths", () => {
+		render(
+			<FileTree
+				files={[
+					{ name: "subdir", path: "/project/subdir", type: "folder" },
+					{ name: "file1", path: "/project/subdir/file1", type: "file" },
+				]}
+			/>,
+		);
+
+		expect(screen.getByRole("button", { name: "project" })).toBeTruthy();
 	});
 });
 

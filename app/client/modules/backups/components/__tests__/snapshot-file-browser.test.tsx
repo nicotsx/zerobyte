@@ -23,6 +23,7 @@ import { SnapshotFileBrowser } from "../snapshot-file-browser";
 
 afterEach(() => {
 	cleanup();
+	mock.restore();
 });
 
 describe("SnapshotFileBrowser", () => {

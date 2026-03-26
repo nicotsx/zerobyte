@@ -78,6 +78,7 @@ const mockScheduleDetailsRequests = () => {
 
 afterEach(() => {
 	cleanup();
+	mock.restore();
 });
 
 describe("ScheduleDetailsPage", () => {

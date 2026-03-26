@@ -20,7 +20,7 @@ const snapshotFiles = {
 
 import { SnapshotTreeBrowser } from "../snapshot-tree-browser";
 
-const mockListSnapshotFiles = () => {
+const mockListSnapshotFiles = (response = snapshotFiles) => {
 	const requests: SnapshotFilesRequest[] = [];
 
 	server.use(
@@ -34,7 +34,7 @@ const mockListSnapshotFiles = () => {
 				limit: url.searchParams.get("limit"),
 			});
 
-			return HttpResponse.json(snapshotFiles);
+			return HttpResponse.json(response);
 		}),
 	);
 
@@ -64,6 +64,49 @@ describe("SnapshotTreeBrowser", () => {
 		renderSnapshotTreeBrowser();
 
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
+	});
+
+	test("renders ancestor folders when the query root is nested multiple levels below the display root", async () => {
+		mockListSnapshotFiles({
+			files: [
+				{ name: "subdir", path: "/mnt/project/subdir", type: "dir" },
+				{ name: "a.txt", path: "/mnt/project/subdir/a.txt", type: "file" },
+			],
+		});
+
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/mnt/project/subdir",
+			displayBasePath: "/mnt",
+		});
+
+		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
+	});
+
+	test("returns the ancestor folder path when selecting above the query root", async () => {
+		mockListSnapshotFiles({
+			files: [
+				{ name: "subdir", path: "/mnt/project/subdir", type: "dir" },
+				{ name: "a.txt", path: "/mnt/project/subdir/a.txt", type: "file" },
+			],
+		});
+
+		let selectedPaths: Set<string> | undefined;
+
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/mnt/project/subdir",
+			displayBasePath: "/mnt",
+			withCheckboxes: true,
+			onSelectionChange: (paths) => {
+				selectedPaths = paths;
+			},
+		});
+
+		const row = await screen.findByRole("button", { name: "project" });
+		const checkbox = within(row).getByRole("checkbox");
+
+		await userEvent.click(checkbox);
+
+		expect(selectedPaths ? Array.from(selectedPaths) : []).toEqual(["/mnt/project"]);
 	});
 
 	test("shows selected folder state when full paths are provided from the parent", async () => {

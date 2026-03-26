@@ -627,6 +627,10 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 		const depth = segments.length - 1;
 		const name = segments[segments.length - 1];
 
+		if (!name) {
+			continue;
+		}
+
 		if (!fileMap.has(file.path)) {
 			const isFile = file.type === "file";
 			fileMap.set(file.path, {
@@ -636,6 +640,33 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 				fullPath: file.path,
 				depth,
 				size: file.size,
+			});
+		}
+
+		let parentPath = file.path;
+		while (true) {
+			const lastSlashIndex = parentPath.lastIndexOf("/");
+			if (lastSlashIndex <= 0) {
+				break;
+			}
+
+			parentPath = parentPath.slice(0, lastSlashIndex);
+			if (fileMap.has(parentPath)) {
+				continue;
+			}
+
+			const parentSegments = parentPath.split("/").filter((segment) => segment);
+			const parentName = parentSegments[parentSegments.length - 1];
+			if (!parentName) {
+				continue;
+			}
+
+			fileMap.set(parentPath, {
+				kind: "folder",
+				id: fileMap.size,
+				name: parentName,
+				fullPath: parentPath,
+				depth: parentSegments.length - 1,
 			});
 		}
 	}
