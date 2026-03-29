@@ -1,16 +1,11 @@
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
+import { HttpResponse, http, server } from "~/test/msw/server";
+import { cleanup, render, screen, waitFor } from "~/test/test-utils";
 import { fromAny } from "@total-typescript/shoehorn";
 
 await mock.module("@tanstack/react-router", () => ({
 	Link: ({ children }: { children?: ReactNode }) => <a href="/">{children}</a>,
-}));
-
-await mock.module("~/client/components/file-browsers/snapshot-tree-browser", () => ({
-	SnapshotTreeBrowser: ({ queryBasePath, displayBasePath }: { queryBasePath?: string; displayBasePath?: string }) => (
-		<div>{`query:${queryBasePath ?? "missing"} display:${displayBasePath ?? "missing"}`}</div>
-	),
 }));
 
 await mock.module("~/client/lib/datetime", () => ({
@@ -23,11 +18,26 @@ import { SnapshotFileBrowser } from "../snapshot-file-browser";
 
 afterEach(() => {
 	cleanup();
-	mock.restore();
 });
 
 describe("SnapshotFileBrowser", () => {
-	test("uses the snapshot common ancestor as query root while keeping a broader display root", () => {
+	test("uses the snapshot common ancestor as query root while keeping a broader display root", async () => {
+		const requests: string[] = [];
+
+		server.use(
+			http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", ({ request }) => {
+				const url = new URL(request.url);
+				requests.push(url.searchParams.get("path") ?? "");
+
+				return HttpResponse.json({
+					files: [
+						{ name: "subdir", path: "/mnt/project/subdir", type: "dir" },
+						{ name: "a.txt", path: "/mnt/project/subdir/a.txt", type: "file" },
+					],
+				});
+			}),
+		);
+
 		render(
 			<SnapshotFileBrowser
 				snapshot={fromAny({
@@ -41,6 +51,10 @@ describe("SnapshotFileBrowser", () => {
 			/>,
 		);
 
-		expect(screen.getByText("query:/mnt/project/subdir display:/mnt")).toBeTruthy();
+		await waitFor(() => {
+			expect(requests[0]).toBe("/mnt/project/subdir");
+		});
+
+		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 	});
 });

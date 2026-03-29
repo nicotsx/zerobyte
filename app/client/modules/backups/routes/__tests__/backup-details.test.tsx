@@ -1,7 +1,42 @@
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen } from "~/test/test-utils";
+
+await mock.module("@tanstack/react-router", () => ({
+	Link: ({ children }: { children?: ReactNode }) => <a href="/">{children}</a>,
+	useNavigate: () => mock(() => {}),
+	useSearch: () => ({}),
+}));
+
+await mock.module("~/client/components/backup-summary-card", () => ({
+	BackupSummaryCard: () => null,
+}));
+
+await mock.module("~/client/modules/backups/components/schedule-summary", () => ({
+	ScheduleSummary: () => null,
+}));
+
+await mock.module("~/client/modules/backups/components/snapshot-timeline", () => ({
+	SnapshotTimeline: () => null,
+}));
+
+await mock.module("~/client/modules/backups/components/schedule-notifications-config", () => ({
+	ScheduleNotificationsConfig: () => null,
+}));
+
+await mock.module("~/client/modules/backups/components/schedule-mirrors-config", () => ({
+	ScheduleMirrorsConfig: () => null,
+}));
+
+await mock.module("~/client/lib/datetime", () => ({
+	useTimeFormat: () => ({
+		formatDateTime: () => "2026-03-26 00:00",
+	}),
+}));
+
+import { ScheduleDetailsPage } from "../backup-details";
 
 const schedule = {
 	shortId: "backup-1",
@@ -32,39 +67,6 @@ const snapshot = {
 	summary: {},
 };
 
-await mock.module("@tanstack/react-router", () => ({
-	useNavigate: () => mock(() => {}),
-	useSearch: () => ({}),
-}));
-
-await mock.module("~/client/components/backup-summary-card", () => ({
-	BackupSummaryCard: () => null,
-}));
-
-await mock.module("~/client/modules/backups/components/schedule-summary", () => ({
-	ScheduleSummary: () => null,
-}));
-
-await mock.module("~/client/modules/backups/components/snapshot-file-browser", () => ({
-	SnapshotFileBrowser: ({ displayBasePath }: { displayBasePath?: string }) => (
-		<div>{displayBasePath ? `display-base-path:${displayBasePath}` : "display-base-path:missing"}</div>
-	),
-}));
-
-await mock.module("~/client/modules/backups/components/snapshot-timeline", () => ({
-	SnapshotTimeline: () => null,
-}));
-
-await mock.module("~/client/modules/backups/components/schedule-notifications-config", () => ({
-	ScheduleNotificationsConfig: () => null,
-}));
-
-await mock.module("~/client/modules/backups/components/schedule-mirrors-config", () => ({
-	ScheduleMirrorsConfig: () => null,
-}));
-
-import { ScheduleDetailsPage } from "../backup-details";
-
 const mockScheduleDetailsRequests = () => {
 	server.use(
 		http.get("/api/v1/backups/:shortId", () => {
@@ -73,12 +75,19 @@ const mockScheduleDetailsRequests = () => {
 		http.get("/api/v1/repositories/:shortId/snapshots", () => {
 			return HttpResponse.json([snapshot]);
 		}),
+		http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () => {
+			return HttpResponse.json({
+				files: [
+					{ name: "project", path: "/mnt/project", type: "dir" },
+					{ name: "a.txt", path: "/mnt/project/a.txt", type: "file" },
+				],
+			});
+		}),
 	);
 };
 
 afterEach(() => {
 	cleanup();
-	mock.restore();
 });
 
 describe("ScheduleDetailsPage", () => {
@@ -103,6 +112,6 @@ describe("ScheduleDetailsPage", () => {
 			{ withSuspense: true },
 		);
 
-		expect(await screen.findByText("display-base-path:/mnt")).toBeTruthy();
+		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 	});
 });
