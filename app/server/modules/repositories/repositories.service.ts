@@ -25,13 +25,13 @@ import { generateShortId } from "../../utils/id";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic/server";
 import { restic, resticDeps } from "../../core/restic";
 import { safeSpawn } from "@zerobyte/core/node";
-import { backupsService } from "../backups/backups.service";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
 import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
 import type { ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
+import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
 
 const runningDoctors = new Map<string, AbortController>();
 
@@ -810,7 +810,7 @@ const getRetentionCategories = async (repositoryId: ShortId, scheduleId?: ShortI
 			return new Map(Object.entries(cached));
 		}
 
-		const schedule = await backupsService.getScheduleByShortId(scheduleId);
+		const schedule = await getScheduleByIdOrShortId(scheduleId);
 
 		if (!schedule?.retentionPolicy) {
 			return new Map<string, RetentionCategory[]>();

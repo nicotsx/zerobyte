@@ -1,5 +1,5 @@
 import { Job } from "../core/scheduler";
-import { backupsExecutionService } from "../modules/backups/backups.execution";
+import { backupsService } from "../modules/backups/backups.service";
 import { logger } from "@zerobyte/core/node";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
@@ -14,7 +14,7 @@ export class BackupExecutionJob extends Job {
 
 		for (const org of organizations) {
 			await withContext({ organizationId: org.id }, async () => {
-				const scheduleIds = await backupsExecutionService.getSchedulesToExecute();
+				const scheduleIds = await backupsService.getSchedulesToExecute();
 
 				if (scheduleIds.length === 0) {
 					return;
@@ -23,7 +23,7 @@ export class BackupExecutionJob extends Job {
 				logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute for organization ${org.name}`);
 
 				for (const scheduleId of scheduleIds) {
-					backupsExecutionService.executeBackup(scheduleId).catch((err: Error) => {
+					backupsService.executeBackup(scheduleId).catch((err: Error) => {
 						logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
 					});
 				}

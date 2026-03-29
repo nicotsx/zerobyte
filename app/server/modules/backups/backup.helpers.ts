@@ -19,6 +19,15 @@ export const calculateNextRun = (cronExpression: string) => {
 	}
 };
 
+export const isValidCron = (expression: string) => {
+	try {
+		CronExpressionParser.parse(expression);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
 export const processPattern = (pattern: string, volumePath: string, relative = false) => {
 	const isNegated = pattern.startsWith("!");
 	const p = isNegated ? pattern.slice(1) : pattern;
@@ -47,7 +56,7 @@ export const processPattern = (pattern: string, volumePath: string, relative = f
 	return isNegated ? `!${processed}` : processed;
 };
 
-export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal: AbortSignal) => ({
+export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal?: AbortSignal) => ({
 	tags: [schedule.shortId],
 	oneFileSystem: schedule.oneFileSystem,
 	signal,

@@ -16,6 +16,7 @@ import { NotFoundError, BadRequestError } from "http-errors-enhanced";
 import { scheduleQueries } from "../backups.queries";
 import { fromAny } from "@total-typescript/shoehorn";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
+import { repoMutex } from "~/server/core/repository-mutex";
 
 const setup = () => {
 	const resticBackupMock = mock((_: SafeSpawnParams) =>
@@ -238,9 +239,8 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
 
-	test("should throw ConflictError when trying to stop non-running backup", async () => {
-		// arrange
-		setup();
+	test("should stop a queued backup before it acquires the repository lock", async () => {
+		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -248,10 +248,54 @@ describe("stop backup", () => {
 			repositoryId: repository.id,
 		});
 
+		const releaseLock = await repoMutex.acquireExclusive(repository.id, "test");
+
+		try {
+			const executePromise = backupsExecutionService.executeBackup(schedule.id);
+
+			await waitForExpect(async () => {
+				const queuedSchedule = await backupsService.getScheduleById(schedule.id);
+				expect(queuedSchedule.lastBackupStatus).toBe("in_progress");
+			});
+
+			expect(resticBackupMock).not.toHaveBeenCalled();
+
+			await backupsExecutionService.stopBackup(schedule.id);
+			releaseLock();
+
+			await executePromise;
+
+			const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+			expect(updatedSchedule.lastBackupStatus).toBe("warning");
+			expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+			expect(resticBackupMock).not.toHaveBeenCalled();
+		} finally {
+			releaseLock();
+		}
+	});
+
+	test("should throw ConflictError when trying to stop non-running backup", async () => {
+		// arrange
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const previousLastBackupAt = 1_700_000_000_000;
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			lastBackupAt: previousLastBackupAt,
+			lastBackupStatus: "in_progress",
+		});
+
 		// act & assert
 		await expect(backupsExecutionService.stopBackup(schedule.id)).rejects.toThrow(
 			"No backup is currently running for this schedule",
 		);
+
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(updatedSchedule.lastBackupAt).toBe(previousLastBackupAt);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
 
 	test("should throw NotFoundError when schedule does not exist", async () => {

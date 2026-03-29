@@ -44,10 +44,10 @@ import {
 } from "../notifications/notifications.dto";
 import { notificationsService } from "../notifications/notifications.service";
 import { requireAuth } from "../auth/auth.middleware";
-import { backupsExecutionService } from "./backups.execution";
 import { logger } from "@zerobyte/core/node";
 import { asShortId } from "~/server/utils/branded";
 import { cache, cacheKeys } from "~/server/utils/cache";
+import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 
 export const backupScheduleController = new Hono()
 	.use(requireAuth)
@@ -58,7 +58,7 @@ export const backupScheduleController = new Hono()
 	})
 	.get("/:shortId", getBackupScheduleDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
+		const schedule = await getScheduleByIdOrShortId(shortId);
 
 		return c.json<GetBackupScheduleDto>(schedule, 200);
 	})
@@ -89,8 +89,8 @@ export const backupScheduleController = new Hono()
 	})
 	.post("/:shortId/run", runBackupNowDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
-		const result = await backupsExecutionService.validateBackupExecution(schedule.id, true);
+		const schedule = await getScheduleByIdOrShortId(shortId);
+		const result = await backupsService.validateBackupExecution(schedule.id, true);
 
 		if (result.type === "failure") {
 			throw result.error;
@@ -100,7 +100,7 @@ export const backupScheduleController = new Hono()
 			return c.json<RunBackupNowDto>({ success: true }, 200);
 		}
 
-		backupsExecutionService.executeBackup(schedule.id, true).catch((err) => {
+		backupsService.executeBackup(schedule.id, true).catch((err) => {
 			logger.error(`Error executing manual backup for schedule ${shortId}:`, err);
 		});
 
@@ -108,21 +108,21 @@ export const backupScheduleController = new Hono()
 	})
 	.post("/:shortId/stop", stopBackupDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
-		await backupsExecutionService.stopBackup(schedule.id);
+		const schedule = await getScheduleByIdOrShortId(shortId);
+		await backupsService.stopBackup(schedule.id);
 
 		return c.json<StopBackupDto>({ success: true }, 200);
 	})
 	.post("/:shortId/forget", runForgetDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
-		await backupsExecutionService.runForget(schedule.id);
+		const schedule = await getScheduleByIdOrShortId(shortId);
+		await backupsService.runForget(schedule.id);
 
 		return c.json<RunForgetDto>({ success: true }, 200);
 	})
 	.get("/:shortId/notifications", getScheduleNotificationsDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
+		const schedule = await getScheduleByIdOrShortId(shortId);
 		const assignments = await notificationsService.getScheduleNotifications(schedule.id);
 
 		return c.json<GetScheduleNotificationsDto>(assignments, 200);
@@ -133,7 +133,7 @@ export const backupScheduleController = new Hono()
 		validator("json", updateScheduleNotificationsBody),
 		async (c) => {
 			const shortId = asShortId(c.req.param("shortId"));
-			const schedule = await backupsService.getScheduleByShortId(shortId);
+			const schedule = await getScheduleByIdOrShortId(shortId);
 			const body = c.req.valid("json");
 			const assignments = await notificationsService.updateScheduleNotifications(schedule.id, body.assignments);
 
@@ -167,12 +167,12 @@ export const backupScheduleController = new Hono()
 	})
 	.get("/:shortId/progress", getBackupProgressDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await backupsService.getScheduleByShortId(shortId);
+		const schedule = await getScheduleByIdOrShortId(shortId);
 		if (schedule.lastBackupStatus !== "in_progress") {
 			cache.del(cacheKeys.backup.progress(schedule.id));
 			return c.json<GetBackupProgressDto>(null, 200);
 		}
-		const progress = backupsExecutionService.getBackupProgress(schedule.id);
+		const progress = backupsService.getBackupProgress(schedule.id);
 
 		return c.json<GetBackupProgressDto>(progress ?? null, 200);
 	});

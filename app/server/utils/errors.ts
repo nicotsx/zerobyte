@@ -1,6 +1,7 @@
 import { HttpError } from "http-errors-enhanced";
 import { sanitizeSensitiveData } from "@zerobyte/core/node";
 import { ResticError } from "@zerobyte/core/restic";
+import { toErrorDetails as getErrorDetails, toMessage as getMessage } from "@zerobyte/core/utils";
 
 export const handleServiceError = (error: unknown) => {
 	if (error instanceof HttpError) {
@@ -19,14 +20,9 @@ export const handleServiceError = (error: unknown) => {
 };
 
 export const toMessage = (err: unknown): string => {
-	const message = err instanceof Error ? err.message : String(err);
-	return sanitizeSensitiveData(message);
+	return sanitizeSensitiveData(getMessage(err));
 };
 
 export const toErrorDetails = (err: unknown): string => {
-	if (err instanceof ResticError) {
-		return sanitizeSensitiveData(err.details || err.summary);
-	}
-
-	return toMessage(err);
+	return sanitizeSensitiveData(getErrorDetails(err));
 };
