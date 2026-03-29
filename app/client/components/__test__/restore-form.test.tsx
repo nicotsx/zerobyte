@@ -70,6 +70,7 @@ describe("RestoreForm", () => {
 			expect(restoreRequestBody).toEqual({
 				snapshotId: "snap-1",
 				include: ["/mnt/project"],
+				selectedItemKind: "dir",
 				overwrite: "always",
 			});
 		});

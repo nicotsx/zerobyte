@@ -82,6 +82,26 @@ describe("SnapshotTreeBrowser", () => {
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 	});
 
+	test("renders a single file when no display base path is available", async () => {
+		const requests = mockListSnapshotFiles({
+			files: [{ name: "report.txt", path: "/mnt/project/report.txt", type: "file" }],
+		});
+
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/mnt/project/report.txt",
+			displayBasePath: undefined,
+		});
+
+		expect(await screen.findByRole("button", { name: "report.txt" })).toBeTruthy();
+		expect(requests[0]).toEqual({
+			shortId: "repo-1",
+			snapshotId: "snap-1",
+			path: "/mnt/project/report.txt",
+			offset: null,
+			limit: null,
+		});
+	});
+
 	test("returns the ancestor folder path when selecting above the query root", async () => {
 		mockListSnapshotFiles({
 			files: [
@@ -91,6 +111,7 @@ describe("SnapshotTreeBrowser", () => {
 		});
 
 		let selectedPaths: Set<string> | undefined;
+		let selectedKind: "file" | "dir" | null = null;
 
 		renderSnapshotTreeBrowser({
 			queryBasePath: "/mnt/project/subdir",
@@ -98,6 +119,9 @@ describe("SnapshotTreeBrowser", () => {
 			withCheckboxes: true,
 			onSelectionChange: (paths) => {
 				selectedPaths = paths;
+			},
+			onSingleSelectionKindChange: (kind) => {
+				selectedKind = kind;
 			},
 		});
 
@@ -107,6 +131,7 @@ describe("SnapshotTreeBrowser", () => {
 		await userEvent.click(checkbox);
 
 		expect(selectedPaths ? Array.from(selectedPaths) : []).toEqual(["/mnt/project"]);
+		expect(selectedKind === "dir").toBe(true);
 	});
 
 	test("shows selected folder state when full paths are provided from the parent", async () => {

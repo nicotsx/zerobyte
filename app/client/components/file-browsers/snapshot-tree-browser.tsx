@@ -47,7 +47,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
-	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? normalizedQueryBasePath);
+	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
@@ -98,6 +98,21 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		const kinds = new Map<string, "file" | "dir">();
 		for (const entry of fileBrowser.fileArray) {
 			kinds.set(entry.path, entry.type === "file" ? "file" : "dir");
+
+			let parentPath = entry.path;
+			while (true) {
+				const lastSlashIndex = parentPath.lastIndexOf("/");
+				if (lastSlashIndex <= 0) {
+					break;
+				}
+
+				parentPath = parentPath.slice(0, lastSlashIndex);
+				if (kinds.has(parentPath)) {
+					continue;
+				}
+
+				kinds.set(parentPath, "dir");
+			}
 		}
 		return kinds;
 	}, [fileBrowser.fileArray]);
