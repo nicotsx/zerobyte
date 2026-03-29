@@ -11,6 +11,7 @@
 !**/components.json
 
 !app/**
+!apps/agent/**
 !packages/**
 !public/**
 
