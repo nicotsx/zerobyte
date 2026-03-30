@@ -3,12 +3,23 @@ import { createControllerSession, type ControllerSession } from "./controller-se
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
+const reconnectDelayMs = 1_000;
 
-class Agent {
+export class Agent {
 	private ws: WebSocket | null = null;
 	private controllerSession: ControllerSession | null = null;
+	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	connect() {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout);
+			this.reconnectTimeout = null;
+		}
+
+		if (this.ws) {
+			return;
+		}
+
 		if (!controllerUrl) {
 			throw new Error("Env variable ZEROBYTE_CONTROLLER_URL is not set");
 		}
@@ -36,6 +47,13 @@ class Agent {
 			this.controllerSession = null;
 			this.ws = null;
 			logger.info("Agent disconnected from controller");
+
+			if (!this.reconnectTimeout) {
+				this.reconnectTimeout = setTimeout(() => {
+					this.reconnectTimeout = null;
+					this.connect();
+				}, reconnectDelayMs);
+			}
 		};
 		this.ws.onerror = (error) => {
 			logger.error("Agent encountered an error:", error);
@@ -43,5 +61,7 @@ class Agent {
 	}
 }
 
-const agent = new Agent();
-agent.connect();
+if (import.meta.main) {
+	const agent = new Agent();
+	agent.connect();
+}
