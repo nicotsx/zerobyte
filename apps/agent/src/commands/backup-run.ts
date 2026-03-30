@@ -43,66 +43,76 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 			const restic = createRestic(deps);
 
-			try {
-				const result = yield* Effect.tryPromise(() =>
-					restic.backup(payload.repositoryConfig, payload.sourcePath, {
-						organizationId: payload.organizationId,
-						...payload.options,
-						signal: abortController.signal,
-						onProgress: (progress) => {
-							context.offerOutbound(
-								createAgentMessage("backup.progress", {
-									jobId: payload.jobId,
-									scheduleId: payload.scheduleId,
-									progress,
-								}),
-							);
+			yield* restic
+				.backup(payload.repositoryConfig, payload.sourcePath, {
+					organizationId: payload.organizationId,
+					...payload.options,
+					signal: abortController.signal,
+					onProgress: (progress) => {
+						context.offerOutbound(
+							createAgentMessage("backup.progress", {
+								jobId: payload.jobId,
+								scheduleId: payload.scheduleId,
+								progress,
+							}),
+						);
+					},
+				})
+				.pipe(
+					Effect.matchEffect({
+						onSuccess: (result) => {
+							return Effect.sync(() => {
+								if (abortController.signal.aborted) {
+									context.offerOutbound(
+										createAgentMessage("backup.cancelled", {
+											jobId: payload.jobId,
+											scheduleId: payload.scheduleId,
+											message: "Backup was cancelled",
+										}),
+									);
+									return;
+								}
+
+								context.offerOutbound(
+									createAgentMessage("backup.completed", {
+										jobId: payload.jobId,
+										scheduleId: payload.scheduleId,
+										exitCode: result.exitCode,
+										result: result.result,
+										warningDetails: result.warningDetails ?? undefined,
+									}),
+								);
+							});
+						},
+						onFailure: (error) => {
+							return Effect.sync(() => {
+								if (abortController.signal.aborted) {
+									context.offerOutbound(
+										createAgentMessage("backup.cancelled", {
+											jobId: payload.jobId,
+											scheduleId: payload.scheduleId,
+											message: "Backup was cancelled",
+										}),
+									);
+									return;
+								}
+
+								context.offerOutbound(
+									createAgentMessage("backup.failed", {
+										jobId: payload.jobId,
+										scheduleId: payload.scheduleId,
+										error: toMessage(error),
+										errorDetails: toErrorDetails(error),
+									}),
+								);
+							});
 						},
 					}),
-				);
-
-				if (abortController.signal.aborted) {
-					context.offerOutbound(
-						createAgentMessage("backup.cancelled", {
-							jobId: payload.jobId,
-							scheduleId: payload.scheduleId,
-							message: "Backup was cancelled",
+					Effect.ensuring(
+						Effect.sync(() => {
+							context.deleteRunningJob(payload.jobId);
 						}),
-					);
-					return;
-				}
-
-				context.offerOutbound(
-					createAgentMessage("backup.completed", {
-						jobId: payload.jobId,
-						scheduleId: payload.scheduleId,
-						exitCode: result.exitCode,
-						result: result.result,
-						warningDetails: result.warningDetails ?? undefined,
-					}),
+					),
 				);
-			} catch (error) {
-				if (abortController.signal.aborted) {
-					context.offerOutbound(
-						createAgentMessage("backup.cancelled", {
-							jobId: payload.jobId,
-							scheduleId: payload.scheduleId,
-							message: "Backup was cancelled",
-						}),
-					);
-					return;
-				}
-
-				context.offerOutbound(
-					createAgentMessage("backup.failed", {
-						jobId: payload.jobId,
-						scheduleId: payload.scheduleId,
-						error: toMessage(error),
-						errorDetails: toErrorDetails(error),
-					}),
-				);
-			} finally {
-				context.deleteRunningJob(payload.jobId);
-			}
 		}),
 	).pipe(Effect.asVoid);

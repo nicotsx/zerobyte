@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { Effect } from "effect";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../utils/spawn";
 import { ResticError } from "../../error";
@@ -62,7 +63,7 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
 
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params) => {
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
 			exitCode: 0,
@@ -87,6 +88,9 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	};
 };
 
+const runBackup = (...args: Parameters<typeof backup>) => Effect.runPromise(backup(...args));
+const runBackupError = (...args: Parameters<typeof backup>) => Effect.runPromise(Effect.flip(backup(...args)));
+
 afterEach(() => {
 	vi.restoreAllMocks();
 });
@@ -95,7 +99,7 @@ describe("backup command", () => {
 	describe("argument construction", () => {
 		test("passes source path as positional arg when no include list is given", async () => {
 			const { getArgs, hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(getArgs()).toContain("/mnt/data");
 			expect(hasFlag("--files-from")).toBe(false);
@@ -105,7 +109,7 @@ describe("backup command", () => {
 			const { getArgs } = setup();
 			const source = "--help";
 
-			await backup(config, source, { organizationId: "org-1" }, mockDeps);
+			await runBackup(config, source, { organizationId: "org-1" }, mockDeps);
 
 			const separatorIndex = getArgs().indexOf("--");
 			expect(separatorIndex).toBeGreaterThan(-1);
@@ -132,7 +136,7 @@ describe("backup command", () => {
 				},
 			});
 
-			await backup(
+			await runBackup(
 				config,
 				"/mnt/data",
 				{
@@ -152,7 +156,7 @@ describe("backup command", () => {
 
 		test("always includes DEFAULT_EXCLUDES as --exclude args", async () => {
 			const { getOptionValues } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(getOptionValues("--exclude").length).toBeGreaterThan(0);
 		});
@@ -161,7 +165,7 @@ describe("backup command", () => {
 	describe("exit code handling", () => {
 		test("returns parsed result on exit code 0", async () => {
 			setup();
-			const { result, exitCode } = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			const { result, exitCode } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(exitCode).toBe(0);
 			expect(result?.snapshot_id).toBe("abcd1234");
@@ -169,7 +173,7 @@ describe("backup command", () => {
 
 		test("returns result without throwing on exit code 3 (partial read errors)", async () => {
 			setup({ spawnResult: { exitCode: 3 } });
-			const { result, exitCode } = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			const { result, exitCode } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(exitCode).toBe(3);
 			expect(result).not.toBeNull();
@@ -178,15 +182,14 @@ describe("backup command", () => {
 		test("throws ResticError on non-zero, non-3 exit codes", async () => {
 			setup({ spawnResult: { exitCode: 1, summary: "", error: "fatal error" } });
 
-			await expect(backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps)).rejects.toBeInstanceOf(
-				ResticError,
-			);
+			const error = await runBackupError(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			expect(error).toBeInstanceOf(ResticError);
 		});
 
 		test("preserves the exit code inside the thrown ResticError", async () => {
 			setup({ spawnResult: { exitCode: 12, summary: "", error: "wrong password" } });
 
-			const error = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps).catch((e) => e);
+			const error = await runBackupError(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 			expect(error).toBeInstanceOf(ResticError);
 			expect((error as ResticError).code).toBe(12);
 		});
@@ -204,7 +207,7 @@ describe("backup command", () => {
 				},
 			});
 
-			const error = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps).catch((e) => e);
+			const error = await runBackupError(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 			expect(error).toBeInstanceOf(ResticError);
 			expect((error as ResticError).summary).toBe("Command failed: An error occurred while executing the command.");
 			expect((error as ResticError).details).toBe(
@@ -219,7 +222,7 @@ describe("backup command", () => {
 				spawnResult: { exitCode: 130, summary: "", error: "" },
 			});
 
-			const { result, exitCode, warningDetails } = await backup(
+			const { result, exitCode, warningDetails } = await runBackup(
 				config,
 				"/mnt/data",
 				{
@@ -238,7 +241,7 @@ describe("backup command", () => {
 	describe("output parsing", () => {
 		test("returns a fully parsed summary object on valid output", async () => {
 			setup();
-			const { result } = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			const { result } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(result).toMatchObject({
 				message_type: "summary",
@@ -249,14 +252,14 @@ describe("backup command", () => {
 
 		test("returns { result: null } when summary line is not valid JSON", async () => {
 			setup({ spawnResult: { summary: "not-json" } });
-			const { result } = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			const { result } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(result).toBeNull();
 		});
 
 		test("returns { result: null } when summary JSON does not satisfy the schema", async () => {
 			setup({ spawnResult: { summary: JSON.stringify({ message_type: "summary" }) } });
-			const { result } = await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+			const { result } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(result).toBeNull();
 		});
@@ -267,7 +270,7 @@ describe("backup command", () => {
 			const progressUpdates: unknown[] = [];
 			setup({ onSpawnCall: (params) => params.onStdout?.(VALID_PROGRESS_LINE) });
 
-			await backup(
+			await runBackup(
 				config,
 				"/mnt/data",
 				{
@@ -294,7 +297,7 @@ describe("backup command", () => {
 			});
 
 			await expect(
-				backup(config, "/mnt/data", { organizationId: "org-1", onProgress: () => {} }, mockDeps),
+				runBackup(config, "/mnt/data", { organizationId: "org-1", onProgress: () => {} }, mockDeps),
 			).resolves.toBeDefined();
 		});
 
@@ -304,7 +307,7 @@ describe("backup command", () => {
 				onSpawnCall: (params) => params.onStdout?.(JSON.stringify({ message_type: "verbose_status", action: "scan" })),
 			});
 
-			await backup(
+			await runBackup(
 				config,
 				"/mnt/data",
 				{
