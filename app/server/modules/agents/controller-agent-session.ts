@@ -51,6 +51,7 @@ export const createControllerAgentSession = (
 	socket: AgentSocket,
 	handlers: ControllerAgentSessionHandlers = {},
 ): ControllerAgentSession => {
+	let isClosed = false;
 	const outboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 	const activeBackupJobs = Effect.runSync(Ref.make<Map<string, string>>(new Map()));
 	const pendingBackupJobs = Effect.runSync(Ref.make<Map<string, string>>(new Map()));
@@ -112,17 +113,62 @@ export const createControllerAgentSession = (
 		);
 	};
 
+	const closeSession = () => {
+		if (isClosed) {
+			return;
+		}
+
+		isClosed = true;
+		updateState((current) => ({ ...current, isReady: false }));
+		const pendingJobs = Effect.runSync(Ref.get(pendingBackupJobs));
+		Effect.runSync(Ref.set(pendingBackupJobs, new Map()));
+
+		for (const [jobId, scheduleId] of pendingJobs) {
+			handlers.onBackupCancelled?.({
+				jobId,
+				scheduleId,
+				message:
+					"The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
+			});
+		}
+
+		const activeJobs = Effect.runSync(Ref.get(activeBackupJobs));
+		Effect.runSync(Ref.set(activeBackupJobs, new Map()));
+		for (const [jobId, scheduleId] of activeJobs) {
+			handlers.onBackupCancelled?.({
+				jobId,
+				scheduleId,
+				message:
+					"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
+			});
+		}
+		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
+		void Effect.runPromise(Fiber.interrupt(heartbeatFiber)).catch(() => {});
+		void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
+	};
+
+	const handleSendFailure = (reason: string) => {
+		logger.error(
+			`Closing session for agent ${socket.data.agentId} on ${socket.data.id} after an outbound websocket send failed: ${reason}`,
+		);
+
+		try {
+			socket.close();
+		} catch (error) {
+			logger.error(`Failed to close socket for agent ${socket.data.agentId} on ${socket.data.id}: ${toMessage(error)}`);
+		}
+
+		closeSession();
+	};
+
 	const writerFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
 				const message = yield* Queue.take(outboundQueue);
 				yield* Effect.sync(() => {
-					try {
-						socket.send(message);
-					} catch (error) {
-						logger.error(
-							`Failed to send message to agent ${socket.data.agentId} on ${socket.data.id}: ${toMessage(error)}`,
-						);
+					const sendResult = socket.send(message);
+					if (sendResult <= 0) {
+						handleSendFailure(sendResult === 0 ? "connection issue" : "backpressure");
 					}
 				});
 			}),
@@ -216,32 +262,6 @@ export const createControllerAgentSession = (
 			offerOutbound(createControllerMessage("backup.cancel", payload));
 		},
 		isReady: () => Effect.runSync(Ref.get(state)).isReady,
-		close: () => {
-			updateState((current) => ({ ...current, isReady: false }));
-			const pendingJobs = Effect.runSync(Ref.get(pendingBackupJobs));
-			Effect.runSync(Ref.set(pendingBackupJobs, new Map()));
-			for (const [jobId, scheduleId] of pendingJobs) {
-				handlers.onBackupCancelled?.({
-					jobId,
-					scheduleId,
-					message:
-						"The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
-				});
-			}
-
-			const activeJobs = Effect.runSync(Ref.get(activeBackupJobs));
-			Effect.runSync(Ref.set(activeBackupJobs, new Map()));
-			for (const [jobId, scheduleId] of activeJobs) {
-				handlers.onBackupCancelled?.({
-					jobId,
-					scheduleId,
-					message:
-						"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
-				});
-			}
-			void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
-			void Effect.runPromise(Fiber.interrupt(heartbeatFiber)).catch(() => {});
-			void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
-		},
+		close: closeSession,
 	};
 };
