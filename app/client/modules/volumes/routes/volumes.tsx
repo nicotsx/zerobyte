@@ -96,6 +96,9 @@ export function VolumesPage() {
 							<SelectItem value="directory">Directory</SelectItem>
 							<SelectItem value="nfs">NFS</SelectItem>
 							<SelectItem value="smb">SMB</SelectItem>
+							<SelectItem value="webdav">WebDAV</SelectItem>
+							<SelectItem value="sftp">SFTP</SelectItem>
+							<SelectItem value="rclone">rclone</SelectItem>
 						</SelectContent>
 					</Select>
 					{(searchQuery || statusFilter || backendFilter) && (
