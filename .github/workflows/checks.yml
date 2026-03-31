@@ -31,6 +31,7 @@ jobs:
         with:
           config: .oxlintrc.json
           deny-warnings: true
+          version: 1.56.0
 
   typecheck:
     timeout-minutes: 10
