@@ -1,0 +1,14 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+	"enabledManagers": ["bun", "github-actions"],
+	"minimumReleaseAge": "7 days",
+	"schedule": ["every day"],
+	"packageRules": [
+		{
+			"matchManagers": ["bun"],
+			"matchUpdateTypes": ["minor", "patch"],
+			"groupName": "bun minor and patch dependencies"
+		}
+	]
+}
