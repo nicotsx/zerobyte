@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import { type ResticDeps } from "@zerobyte/core/restic";
@@ -52,6 +52,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 			};
 
 			const restic = createRestic(deps);
+			const runtime = yield* Effect.runtime<never>();
 
 			yield* restic
 				.backup(payload.repositoryConfig, payload.sourcePath, {
@@ -59,7 +60,8 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					...payload.options,
 					signal: abortController.signal,
 					onProgress: (progress) => {
-						void Effect.runPromise(
+						void Runtime.runPromise(
+							runtime,
 							context.offerOutbound(
 								createAgentMessage("backup.progress", {
 									jobId: payload.jobId,

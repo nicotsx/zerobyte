@@ -100,6 +100,7 @@
 	},
 	"devDependencies": {
 		"@babel/preset-typescript": "^7.28.5",
+		"@effect/language-service": "^0.84.2",
 		"@faker-js/faker": "^10.3.0",
 		"@happy-dom/global-registrator": "^20.8.4",
 		"@hey-api/openapi-ts": "^0.94.4",

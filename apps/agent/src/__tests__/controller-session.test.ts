@@ -1,7 +1,7 @@
 import { afterEach, expect, mock, spyOn, test } from "bun:test";
 import { Effect } from "effect";
 import waitForExpect from "wait-for-expect";
-import { fromAny } from "@total-typescript/shoehorn";
+import { fromPartial } from "@total-typescript/shoehorn";
 import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { createControllerSession } from "../controller-session";
@@ -12,14 +12,14 @@ afterEach(() => {
 
 test("emits backup.failed when a backup command hits a restic error", async () => {
 	spyOn(resticServer, "createRestic").mockReturnValue(
-		fromAny({
-			backup: () => Effect.fail(new Error("source path missing")),
+		fromPartial({
+			backup: () => Effect.fail("source path missing"),
 		}),
 	);
 
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
-		fromAny({
+		fromPartial({
 			send: (message: string) => {
 				outboundMessages.push(message);
 			},
