@@ -99,17 +99,25 @@ const clearActiveExecution = (jobId: string) => {
 	return activeExecution;
 };
 
-const getActiveExecution = (jobId: string, scheduleId: string, eventName: string, executorId: string) => {
+const clearExecutionState = (jobId: string, scheduleId: number) => {
+	requestedCancellationsByScheduleId.delete(scheduleId);
+	clearActiveExecution(jobId);
+};
+
+const resolveExecution = (jobId: string, activeExecution: ActiveBackupExecution, result: BackupExecutionResult) => {
+	clearExecutionState(jobId, activeExecution.scheduleId);
+	activeExecution.resolve(result);
+};
+
+const getActiveExecution = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
 	const activeExecution = activeExecutionsByJobId.get(jobId);
 	if (!activeExecution) {
-		logger.warn(`Received ${eventName} for unknown job ${jobId} from executor ${executorId}`);
+		logger.warn(`Received ${eventName} for unknown job ${jobId} from agent ${agentId}`);
 		return null;
 	}
 
 	if (activeExecution.scheduleShortId !== scheduleId) {
-		logger.warn(
-			`Ignoring ${eventName} for job ${jobId} due to schedule mismatch ${scheduleId} from executor ${executorId}`,
-		);
+		logger.warn(`Ignoring ${eventName} for job ${jobId} due to schedule mismatch ${scheduleId} from agent ${agentId}`);
 		return null;
 	}
 
@@ -134,9 +142,7 @@ agentManager.setBackupEventHandlers({
 			return;
 		}
 
-		requestedCancellationsByScheduleId.delete(activeExecution.scheduleId);
-		clearActiveExecution(payload.jobId);
-		activeExecution.resolve({
+		resolveExecution(payload.jobId, activeExecution, {
 			status: "completed",
 			exitCode: payload.exitCode,
 			result: payload.result,
@@ -149,9 +155,7 @@ agentManager.setBackupEventHandlers({
 			return;
 		}
 
-		requestedCancellationsByScheduleId.delete(activeExecution.scheduleId);
-		clearActiveExecution(payload.jobId);
-		activeExecution.resolve({
+		resolveExecution(payload.jobId, activeExecution, {
 			status: "failed",
 			error: payload.errorDetails ?? payload.error,
 		});
@@ -163,9 +167,7 @@ agentManager.setBackupEventHandlers({
 		}
 
 		const wasRequested = requestedCancellationsByScheduleId.has(activeExecution.scheduleId);
-		requestedCancellationsByScheduleId.delete(activeExecution.scheduleId);
-		clearActiveExecution(payload.jobId);
-		activeExecution.resolve({
+		resolveExecution(payload.jobId, activeExecution, {
 			status: "cancelled",
 			message: wasRequested ? undefined : payload.message,
 		});
@@ -207,8 +209,7 @@ export const backupExecutor = {
 			}
 
 			if (!agentManager.sendBackup(LOCAL_AGENT_ID, payload)) {
-				requestedCancellationsByScheduleId.delete(request.scheduleId);
-				clearActiveExecution(jobId);
+				clearExecutionState(jobId, request.scheduleId);
 				return {
 					status: "unavailable",
 					error: new Error("Local backup agent is not connected"),
@@ -217,8 +218,7 @@ export const backupExecutor = {
 
 			return completion;
 		} catch (error) {
-			requestedCancellationsByScheduleId.delete(request.scheduleId);
-			clearActiveExecution(jobId);
+			clearExecutionState(jobId, request.scheduleId);
 			throw error;
 		}
 	},

@@ -8,6 +8,7 @@ import {
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
+import type { ControllerCommandContext, RunningJob } from "./context";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -18,45 +19,44 @@ export type ControllerSession = {
 export const createControllerSession = (ws: WebSocket): ControllerSession => {
 	const outboundQueue = Effect.runSync(Queue.bounded<AgentWireMessage>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
-	const runningJobsRef = Effect.runSync(
-		Ref.make<Map<string, { scheduleId: string; abortController: AbortController }>>(new Map()),
-	);
+	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
 
-	const getRunningJob = (jobId: string) => Effect.runSync(Ref.get(runningJobsRef)).get(jobId);
+	const getRunningJob = (jobId: string) => Ref.get(runningJobsRef).pipe(Effect.map((map) => map.get(jobId)));
 
-	const setRunningJob = (jobId: string, job: { scheduleId: string; abortController: AbortController }) => {
-		Effect.runSync(
-			Ref.update(runningJobsRef, (current) => {
-				const next = new Map(current);
-				next.set(jobId, job);
-				return next;
-			}),
-		);
+	const setRunningJob = (jobId: string, job: RunningJob) => {
+		return Ref.update(runningJobsRef, (current) => {
+			const next = new Map(current);
+			next.set(jobId, job);
+			return next;
+		});
 	};
 
+	const abortRunningJobs = Effect.gen(function* () {
+		const runningJobs = yield* Ref.modify(runningJobsRef, (current) => [current, new Map()]);
+		yield* Effect.sync(() => {
+			for (const runningJob of runningJobs.values()) {
+				runningJob.abortController.abort();
+			}
+		});
+	});
+
 	const deleteRunningJob = (jobId: string) => {
-		Effect.runSync(
-			Ref.update(runningJobsRef, (current) => {
-				const next = new Map(current);
-				next.delete(jobId);
-				return next;
-			}),
-		);
+		return Ref.update(runningJobsRef, (current) => {
+			const next = new Map(current);
+			next.delete(jobId);
+			return next;
+		});
 	};
 
 	const offerOutbound = (message: AgentWireMessage) => {
-		void Effect.runPromise(Queue.offer(outboundQueue, message)).catch((error) => {
-			logger.error(`Failed to queue outbound controller message: ${toMessage(error)}`);
-		});
+		return Queue.offer(outboundQueue, message);
 	};
 
 	const offerInbound = (message: ControllerWireMessage) => {
-		void Effect.runPromise(Queue.offer(inboundQueue, message)).catch((error) => {
-			logger.error(`Failed to queue inbound controller message: ${toMessage(error)}`);
-		});
+		return Queue.offer(inboundQueue, message);
 	};
 
-	const commandContext = {
+	const commandContext: ControllerCommandContext = {
 		getRunningJob,
 		setRunningJob,
 		deleteRunningJob,
@@ -101,7 +101,9 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 
 	return {
 		onOpen: () => {
-			offerOutbound(createAgentMessage("agent.ready", { agentId: "" }));
+			void Effect.runPromise(offerOutbound(createAgentMessage("agent.ready", { agentId: "" }))).catch((error) => {
+				logger.error(`Failed to queue ready message: ${toMessage(error)}`);
+			});
 		},
 		onMessage: (data) => {
 			if (typeof data !== "string") {
@@ -109,14 +111,12 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 				return;
 			}
 
-			offerInbound(data as ControllerWireMessage);
+			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {
+				logger.error(`Failed to queue inbound message: ${toMessage(error)}`);
+			});
 		},
 		close: () => {
-			const runningJobs = Effect.runSync(Ref.get(runningJobsRef));
-			for (const running of runningJobs.values()) {
-				running.abortController.abort();
-			}
-			Effect.runSync(Ref.set(runningJobsRef, new Map()));
+			void Effect.runPromise(abortRunningJobs).catch(() => {});
 			void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
 			void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
 			void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
