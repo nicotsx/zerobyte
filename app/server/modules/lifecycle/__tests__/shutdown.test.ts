@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
 import { Scheduler } from "../../../core/scheduler";
-import * as agentsManagerModule from "../../agents/agents-manager";
 import * as backendModule from "../../backends/backend";
 import type { VolumeBackend } from "../../backends/backend";
+import * as bootstrapModule from "../bootstrap";
 import { createTestVolume } from "~/test/helpers/volume";
 
 const loadShutdownModule = async () => {
@@ -21,7 +21,7 @@ describe("shutdown", () => {
 		const stopScheduler = mock(async () => {
 			events.push("scheduler.stop");
 		});
-		const stopAgentRuntime = mock(async () => {
+		const stopApplicationRuntime = mock(async () => {
 			events.push("agents.stop");
 		});
 		const unmountVolume = mock(async () => {
@@ -39,7 +39,7 @@ describe("shutdown", () => {
 		});
 
 		spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
-		spyOn(agentsManagerModule, "stopAgentRuntime").mockImplementation(stopAgentRuntime);
+		spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
 		spyOn(backendModule, "createVolumeBackend").mockImplementation(
 			() =>
 				({

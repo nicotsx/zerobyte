@@ -1,5 +1,5 @@
 import { runDbMigrations } from "../../db/db";
-import { agentManager, spawnLocalAgent } from "../agents/agents-manager";
+import { agentManager, spawnLocalAgent, stopAgentRuntime } from "../agents/agents-manager";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
 
@@ -23,5 +23,13 @@ export const bootstrapApplication = async () => {
 	} catch (err) {
 		bootstrapPromise = undefined;
 		throw err;
+	}
+};
+
+export const stopApplicationRuntime = async () => {
+	try {
+		await stopAgentRuntime();
+	} finally {
+		bootstrapPromise = undefined;
 	}
 };

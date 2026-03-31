@@ -2,11 +2,11 @@ import { Scheduler } from "../../core/scheduler";
 import { db } from "../../db/db";
 import { logger } from "@zerobyte/core/node";
 import { createVolumeBackend } from "../backends/backend";
-import { stopAgentRuntime } from "../agents/agents-manager";
+import { stopApplicationRuntime } from "./bootstrap";
 
 export const shutdown = async () => {
 	await Scheduler.stop();
-	await stopAgentRuntime();
+	await stopApplicationRuntime();
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: { status: "mounted" },
