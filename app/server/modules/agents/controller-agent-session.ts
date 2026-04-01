@@ -52,6 +52,7 @@ export const createControllerAgentSession = (
 	handlers: ControllerAgentSessionHandlers = {},
 ): ControllerAgentSession => {
 	const outboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
+	const activeBackupJobs = Effect.runSync(Ref.make<Map<string, string>>(new Map()));
 	const state = Effect.runSync(
 		Ref.make<SessionState>({
 			isReady: false,
@@ -68,6 +69,26 @@ export const createControllerAgentSession = (
 
 	const updateState = (update: (current: SessionState) => SessionState) => {
 		Effect.runSync(Ref.update(state, update));
+	};
+
+	const setActiveBackupJob = (jobId: string, scheduleId: string) => {
+		Effect.runSync(
+			Ref.update(activeBackupJobs, (current) => {
+				const next = new Map(current);
+				next.set(jobId, scheduleId);
+				return next;
+			}),
+		);
+	};
+
+	const deleteActiveBackupJob = (jobId: string) => {
+		Effect.runSync(
+			Ref.update(activeBackupJobs, (current) => {
+				const next = new Map(current);
+				next.delete(jobId);
+				return next;
+			}),
+		);
 	};
 
 	const writerFiber = Effect.runFork(
@@ -110,6 +131,7 @@ export const createControllerAgentSession = (
 			}
 			case "backup.started": {
 				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				setActiveBackupJob(message.payload.jobId, message.payload.scheduleId);
 				logger.info(
 					`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
 				);
@@ -123,16 +145,19 @@ export const createControllerAgentSession = (
 			}
 			case "backup.completed": {
 				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupCompleted?.(message.payload);
 				break;
 			}
 			case "backup.failed": {
 				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupFailed?.(message.payload);
 				break;
 			}
 			case "backup.cancelled": {
 				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupCancelled?.(message.payload);
 				break;
 			}
@@ -182,6 +207,16 @@ export const createControllerAgentSession = (
 		isReady: () => Effect.runSync(Ref.get(state)).isReady,
 		close: () => {
 			updateState((current) => ({ ...current, isReady: false }));
+			const pendingJobs = Effect.runSync(Ref.get(activeBackupJobs));
+			Effect.runSync(Ref.set(activeBackupJobs, new Map()));
+			for (const [jobId, scheduleId] of pendingJobs) {
+				handlers.onBackupCancelled?.({
+					jobId,
+					scheduleId,
+					message:
+						"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
+				});
+			}
 			void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
 			void Effect.runPromise(Fiber.interrupt(heartbeatFiber)).catch(() => {});
 			void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
