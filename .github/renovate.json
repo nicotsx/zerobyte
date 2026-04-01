@@ -3,7 +3,6 @@
 	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
 	"enabledManagers": ["bun", "github-actions"],
 	"minimumReleaseAge": "7 days",
-	"schedule": ["every day"],
 	"packageRules": [
 		{
 			"matchManagers": ["bun"],
