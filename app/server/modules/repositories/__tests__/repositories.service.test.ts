@@ -252,18 +252,21 @@ describe("repositoriesService.dumpSnapshot", () => {
 			},
 		]);
 
-		const dumpMock = vi.fn(
-			(_config: unknown, snapshotRef: string, options: { organizationId: string; path: string; archive?: false }) =>
-				Promise.resolve(
-					createDumpResult(
-						JSON.stringify({
-							snapshotRef,
-							path: options.path,
-							archive: options.archive !== false,
-						}),
-					),
+		const dumpMock = vi.fn((_config: unknown, snapshotRef: string, options: Parameters<typeof restic.dump>[2]) => {
+			if (!options.path) {
+				throw new Error("Expected dump path in test");
+			}
+
+			return Promise.resolve(
+				createDumpResult(
+					JSON.stringify({
+						snapshotRef,
+						path: options.path,
+						archive: options.archive !== false,
+					}),
 				),
-		);
+			);
+		});
 		vi.spyOn(restic, "dump").mockImplementation(dumpMock);
 
 		return {

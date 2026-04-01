@@ -7,7 +7,7 @@ import {
 	createTestSessionWithRegularMember,
 	getAuthHeaders,
 } from "~/test/helpers/auth";
-import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
+import { account } from "~/server/db/schema";
 import { db } from "~/server/db/db";
 
 const app = createApp();
