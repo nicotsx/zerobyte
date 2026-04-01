@@ -1,15 +1,29 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { db } from "~/server/db/db";
-import { backupSchedulesTable, repositoriesTable } from "~/server/db/schema";
+import { backupSchedulesTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { restic } from "~/server/core/restic";
 import { createTestSession } from "~/test/helpers/auth";
 import { generateShortId } from "~/server/utils/id";
 import { provisionedResourcesSchema, readProvisionedResourcesFile, syncProvisionedResources } from "./provisioning";
 
 describe("provisioning", () => {
+	let session: Awaited<ReturnType<typeof createTestSession>>;
+
+	beforeAll(async () => {
+		session = await createTestSession();
+	});
+
+	beforeEach(async () => {
+		vi.spyOn(restic, "init").mockResolvedValue({ success: true, error: null });
+
+		await db.delete(backupSchedulesTable);
+		await db.delete(volumesTable);
+		await db.delete(repositoriesTable);
+	});
+
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -46,7 +60,7 @@ describe("provisioning", () => {
 	});
 
 	test("syncs provisioned repositories and volumes into the database", async () => {
-		const { organizationId } = await createTestSession();
+		const { organizationId } = session;
 
 		process.env.ZEROBYTE_PROVISIONED_ACCESS_KEY = "access-key-from-env";
 
@@ -113,7 +127,7 @@ describe("provisioning", () => {
 	});
 
 	test("removes managed resources when delete is set", async () => {
-		const { organizationId } = await createTestSession();
+		const { organizationId } = session;
 
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
@@ -196,7 +210,7 @@ describe("provisioning", () => {
 	});
 
 	test("renaming a provisioned volume updates it in place", async () => {
-		const { organizationId } = await createTestSession();
+		const { organizationId } = session;
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
 		const provisionedVolumeId = "shared-directory";
@@ -296,7 +310,7 @@ describe("provisioning", () => {
 	});
 
 	test("does not partially sync resources when resolving a provisioned secret fails", async () => {
-		const { organizationId } = await createTestSession();
+		const { organizationId } = session;
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
 
@@ -344,7 +358,7 @@ describe("provisioning", () => {
 	});
 
 	test("initializes a non-existing provisioned repository on first sync", async () => {
-		const { organizationId } = await createTestSession();
+		const { organizationId } = session;
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
 		const initMock = vi.fn(() => Promise.resolve({ success: true, error: null }));

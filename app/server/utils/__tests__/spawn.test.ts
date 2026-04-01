@@ -41,7 +41,7 @@ describe("safeExec", () => {
 			const result = await safeExec({
 				command: "sleep",
 				args: ["10"],
-				timeout: 100,
+				timeout: 20,
 			});
 
 			expect(result.timedOut).toBe(true);

@@ -3,7 +3,7 @@ import * as os from "node:os";
 import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { serverEvents } from "~/server/core/events";
@@ -37,6 +37,12 @@ const createTestRepository = async (organizationId: string) => {
 	return repository;
 };
 
+let session: Awaited<ReturnType<typeof createTestSession>>;
+
+beforeAll(async () => {
+	session = await createTestSession();
+});
+
 describe("repositoriesService.createRepository", () => {
 	const initMock = vi.fn(() => Promise.resolve({ success: true, error: null }));
 
@@ -51,11 +57,10 @@ describe("repositoriesService.createRepository", () => {
 
 	test("creates a shortId-scoped repository path when using the repository base directory", async () => {
 		// arrange
-		const { organizationId, user } = await createTestSession();
 		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
 
 		// act
-		const result = await withContext({ organizationId, userId: user.id }, () =>
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.createRepository("main repo", config),
 		);
 
@@ -80,12 +85,11 @@ describe("repositoriesService.createRepository", () => {
 
 	test("creates a shortId-scoped repository path when using a custom directory", async () => {
 		// arrange
-		const { organizationId, user } = await createTestSession();
 		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
 		const config: RepositoryConfig = { backend: "local", path: explicitPath };
 
 		// act
-		const result = await withContext({ organizationId, userId: user.id }, () =>
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.createRepository("custom repo", config),
 		);
 
@@ -109,14 +113,13 @@ describe("repositoriesService.createRepository", () => {
 
 	test("keeps an explicit local repository path unchanged when importing existing repository", async () => {
 		// arrange
-		const { organizationId, user } = await createTestSession();
 		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
 		const config: RepositoryConfig = { backend: "local", path: explicitPath, isExistingRepository: true };
 
 		vi.spyOn(restic, "snapshots").mockImplementation(() => Promise.resolve([]));
 
 		// act
-		const result = await withContext({ organizationId, userId: user.id }, () =>
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.createRepository("existing repo", config),
 		);
 
@@ -144,10 +147,9 @@ describe("repositoriesService repository stats", () => {
 	});
 
 	test("returns empty stats when repository has not been populated yet", async () => {
-		const { organizationId, user } = await createTestSession();
-		const repository = await createTestRepository(organizationId);
+		const repository = await createTestRepository(session.organizationId);
 
-		const stats = await withContext({ organizationId, userId: user.id }, () =>
+		const stats = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.getRepositoryStats(repository.shortId),
 		);
 
@@ -162,8 +164,7 @@ describe("repositoriesService repository stats", () => {
 	});
 
 	test("refreshes and persists repository stats", async () => {
-		const { organizationId, user } = await createTestSession();
-		const repository = await createTestRepository(organizationId);
+		const repository = await createTestRepository(session.organizationId);
 		const expectedStats = {
 			total_size: 1024,
 			total_uncompressed_size: 2048,
@@ -175,7 +176,7 @@ describe("repositoriesService repository stats", () => {
 
 		const statsSpy = vi.spyOn(restic, "stats").mockResolvedValue(expectedStats);
 
-		const refreshed = await withContext({ organizationId, userId: user.id }, () =>
+		const refreshed = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.refreshRepositoryStats(repository.shortId),
 		);
 
@@ -186,7 +187,7 @@ describe("repositoriesService repository stats", () => {
 		expect(persistedRepository?.stats).toEqual(expectedStats);
 		expect(typeof persistedRepository?.statsUpdatedAt).toBe("number");
 
-		const loaded = await withContext({ organizationId, userId: user.id }, () =>
+		const loaded = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.getRepositoryStats(repository.shortId),
 		);
 
@@ -215,7 +216,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 		basePath: string;
 		snapshotPaths?: string[];
 	}) => {
-		const { organizationId, user } = await createTestSession();
+		const organizationId = session.organizationId;
 		const shortId = generateShortId();
 
 		await db.insert(repositoriesTable).values({
@@ -247,7 +248,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 
 		return {
 			organizationId,
-			userId: user.id,
+			userId: session.user.id,
 			shortId,
 			basePath,
 			dumpMock,
@@ -358,7 +359,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 	});
 
 	const setupRestoreSnapshotScenario = async () => {
-		const { organizationId, user } = await createTestSession();
+		const organizationId = session.organizationId;
 		const repository = await createTestRepository(organizationId);
 
 		vi.spyOn(restic, "snapshots").mockResolvedValue([
@@ -387,7 +388,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 
 		return {
 			organizationId,
-			userId: user.id,
+			userId: session.user.id,
 			repositoryShortId: repository.shortId,
 			restoreMock,
 		};
@@ -438,7 +439,7 @@ describe("repositoriesService.getRetentionCategories", () => {
 	});
 
 	test("recomputes retention categories after repository cache invalidation", async () => {
-		const { organizationId, user } = await createTestSession();
+		const organizationId = session.organizationId;
 		const schedule = await createTestBackupSchedule({ organizationId, retentionPolicy: { keepLast: 1 } });
 
 		const repository = await db.query.repositoriesTable.findFirst({ where: { id: schedule.repositoryId } });
@@ -480,7 +481,7 @@ describe("repositoriesService.getRetentionCategories", () => {
 		forgetSpy.mockResolvedValueOnce(buildForgetResponse(oldSnapshotId));
 		forgetSpy.mockResolvedValueOnce(buildForgetResponse(newSnapshotId));
 
-		const firstCategories = await withContext({ organizationId, userId: user.id }, () =>
+		const firstCategories = await withContext({ organizationId, userId: session.user.id }, () =>
 			repositoriesService.getRetentionCategories(repository.shortId, schedule.shortId),
 		);
 
@@ -488,7 +489,7 @@ describe("repositoriesService.getRetentionCategories", () => {
 
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 
-		const secondCategories = await withContext({ organizationId, userId: user.id }, () =>
+		const secondCategories = await withContext({ organizationId, userId: session.user.id }, () =>
 			repositoriesService.getRetentionCategories(repository.shortId, schedule.shortId),
 		);
 
@@ -504,8 +505,7 @@ describe("repositoriesService.deleteSnapshot", () => {
 	});
 
 	test("refreshes repository stats in background after successful deletion", async () => {
-		const { organizationId, user } = await createTestSession();
-		const repository = await createTestRepository(organizationId);
+		const repository = await createTestRepository(session.organizationId);
 		const expectedStats = {
 			total_size: 128,
 			total_uncompressed_size: 256,
@@ -518,7 +518,7 @@ describe("repositoriesService.deleteSnapshot", () => {
 		vi.spyOn(restic, "deleteSnapshot").mockResolvedValue({ success: true });
 		const statsSpy = vi.spyOn(restic, "stats").mockResolvedValue(expectedStats);
 
-		await withContext({ organizationId, userId: user.id }, () =>
+		await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
 		);
 
@@ -532,15 +532,14 @@ describe("repositoriesService.deleteSnapshot", () => {
 	});
 
 	test("should throw original error when restic deleteSnapshot fails", async () => {
-		const { organizationId, user } = await createTestSession();
-		const repository = await createTestRepository(organizationId);
+		const repository = await createTestRepository(session.organizationId);
 
 		vi.spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
 			throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
 		});
 
 		await expect(
-			withContext({ organizationId, userId: user.id }, () =>
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 				repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
 			),
 		).rejects.toThrow("Fatal: unexpected HTTP response");

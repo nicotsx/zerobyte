@@ -8,8 +8,6 @@ export default defineConfig({
 		},
 	},
 	test: {
-		pool: "forks",
-		maxWorkers: 4,
 		server: {
 			deps: {
 				inline: ["zod"],

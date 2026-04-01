@@ -1,8 +1,18 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } from "~/test/helpers/auth";
+import { systemService } from "../system.service";
+import * as authHelpers from "~/server/modules/auth/helpers";
 
 const app = createApp();
+
+let session: Awaited<ReturnType<typeof createTestSession>>;
+let globalAdminSession: Awaited<ReturnType<typeof createTestSessionWithGlobalAdmin>>;
+
+beforeAll(async () => {
+	session = await createTestSession();
+	globalAdminSession = await createTestSessionWithGlobalAdmin();
+});
 
 describe("system security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
@@ -22,10 +32,8 @@ describe("system security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { headers } = await createTestSession();
-
 		const res = await app.request("/api/v1/system/info", {
-			headers,
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -53,19 +61,17 @@ describe("system security", () => {
 
 	describe("registration-status endpoint", () => {
 		test("GET /api/v1/system/registration-status should be accessible with valid session", async () => {
-			const { headers } = await createTestSession();
-			const res = await app.request("/api/v1/system/registration-status", { headers });
+			const res = await app.request("/api/v1/system/registration-status", { headers: session.headers });
 			expect(res.status).toBe(200);
 			const body = await res.json();
 			expect(typeof body.enabled).toBe("boolean");
 		});
 
 		test("PUT /api/v1/system/registration-status should return 403 for non-admin users", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/system/registration-status", {
 				method: "PUT",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({ enabled: false }),
@@ -76,11 +82,10 @@ describe("system security", () => {
 		});
 
 		test("PUT /api/v1/system/registration-status should be accessible to global admin", async () => {
-			const { headers } = await createTestSessionWithGlobalAdmin();
 			const res = await app.request("/api/v1/system/registration-status", {
 				method: "PUT",
 				headers: {
-					...headers,
+					...globalAdminSession.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({ enabled: false }),
@@ -91,8 +96,7 @@ describe("system security", () => {
 
 	describe("dev-panel endpoint", () => {
 		test("GET /api/v1/system/dev-panel should be accessible with valid session", async () => {
-			const { headers } = await createTestSession();
-			const res = await app.request("/api/v1/system/dev-panel", { headers });
+			const res = await app.request("/api/v1/system/dev-panel", { headers: session.headers });
 			expect(res.status).toBe(200);
 			const body = await res.json();
 			expect(typeof body.enabled).toBe("boolean");
@@ -101,19 +105,24 @@ describe("system security", () => {
 
 	describe("updates endpoint", () => {
 		test("GET /api/v1/system/updates should be accessible with valid session", async () => {
-			const { headers } = await createTestSession();
-			const res = await app.request("/api/v1/system/updates", { headers });
+			vi.spyOn(systemService, "getUpdates").mockResolvedValue({
+				currentVersion: "1.0.0",
+				latestVersion: "1.0.0",
+				hasUpdate: false,
+				missedReleases: [],
+			});
+
+			const res = await app.request("/api/v1/system/updates", { headers: session.headers });
 			expect(res.status).toBe(200);
 		});
 	});
 
 	describe("input validation", () => {
 		test("should return 400 for invalid payload on restic-password", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({}),
@@ -123,11 +132,12 @@ describe("system security", () => {
 		});
 
 		test("should return 401 for incorrect password on restic-password", async () => {
-			const { headers } = await createTestSession();
+			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValue(false);
+
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

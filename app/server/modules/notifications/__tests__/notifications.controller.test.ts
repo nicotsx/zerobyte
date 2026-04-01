@@ -1,8 +1,14 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 
 const app = createApp();
+
+let session: Awaited<ReturnType<typeof createTestSession>>;
+
+beforeAll(async () => {
+	session = await createTestSession();
+});
 
 describe("notifications security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
@@ -22,10 +28,8 @@ describe("notifications security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { headers } = await createTestSession();
-
 		const res = await app.request("/api/v1/notifications/destinations", {
-			headers,
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -62,18 +66,16 @@ describe("notifications security", () => {
 
 	describe("input validation", () => {
 		test("should return 404 for malformed destination ID", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/not-a-number", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
 		});
 
 		test("should return 404 for non-existent destination ID", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/notifications/destinations/999999", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -82,12 +84,10 @@ describe("notifications security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { headers } = await createTestSession();
-
 			const res = await app.request("/api/v1/notifications/destinations", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({

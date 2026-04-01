@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import {
 	createTestSession,
@@ -13,13 +13,16 @@ import { db } from "~/server/db/db";
 const app = createApp();
 
 describe("auth controller security", () => {
-	beforeEach(async () => {
-		await db.delete(member);
-		await db.delete(account);
-		await db.delete(invitation);
-		await db.delete(ssoProvider);
-		await db.delete(organization);
-		await db.delete(usersTable);
+	let regularUserSession: Awaited<ReturnType<typeof createTestSession>>;
+	let regularMemberSession: Awaited<ReturnType<typeof createTestSessionWithRegularMember>>;
+	let orgAdminSession: Awaited<ReturnType<typeof createTestSessionWithOrgAdmin>>;
+	let globalAdminSession: Awaited<ReturnType<typeof createTestSessionWithGlobalAdmin>>;
+
+	beforeAll(async () => {
+		regularUserSession = await createTestSession();
+		regularMemberSession = await createTestSessionWithRegularMember();
+		orgAdminSession = await createTestSessionWithOrgAdmin();
+		globalAdminSession = await createTestSessionWithGlobalAdmin();
 	});
 
 	describe("public endpoints - no auth required", () => {
@@ -59,10 +62,9 @@ describe("auth controller security", () => {
 			});
 
 			test(`${method} ${path} should return 403 for regular members`, async () => {
-				const { headers } = await createTestSessionWithRegularMember();
 				const res = await app.request(path, {
 					method,
-					headers,
+					headers: regularMemberSession.headers,
 					body: method !== "GET" && method !== "DELETE" ? JSON.stringify({}) : undefined,
 				});
 				expect(res.status).toBe(403);
@@ -71,10 +73,9 @@ describe("auth controller security", () => {
 			});
 
 			test(`${method} ${path} should be accessible to org admins`, async () => {
-				const { headers } = await createTestSessionWithOrgAdmin();
 				const res = await app.request(path, {
 					method,
-					headers,
+					headers: orgAdminSession.headers,
 					body: method !== "GET" && method !== "DELETE" ? JSON.stringify({}) : undefined,
 				});
 				// Should not be 401 or 403 - actual response depends on endpoint logic
@@ -85,11 +86,10 @@ describe("auth controller security", () => {
 
 		describe("PATCH /api/v1/auth/sso-providers/:providerId/auto-linking specific", () => {
 			test("should return 400 for invalid payload", async () => {
-				const { headers } = await createTestSessionWithOrgAdmin();
 				const res = await app.request("/api/v1/auth/sso-providers/test-provider/auto-linking", {
 					method: "PATCH",
 					headers: {
-						...headers,
+						...orgAdminSession.headers,
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({}),
@@ -100,11 +100,10 @@ describe("auth controller security", () => {
 
 		describe("PATCH /api/v1/auth/org-members/:memberId/role specific", () => {
 			test("should return 400 for invalid payload", async () => {
-				const { headers } = await createTestSessionWithOrgAdmin();
 				const res = await app.request("/api/v1/auth/org-members/test-member/role", {
 					method: "PATCH",
 					headers: {
-						...headers,
+						...orgAdminSession.headers,
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({}),
@@ -130,31 +129,27 @@ describe("auth controller security", () => {
 			});
 
 			test(`${method} ${path} should return 403 for regular users`, async () => {
-				const { headers } = await createTestSession();
-				const res = await app.request(path, { method, headers });
+				const res = await app.request(path, { method, headers: regularUserSession.headers });
 				expect(res.status).toBe(403);
 				const body = await res.json();
 				expect(body.message).toBe("Forbidden");
 			});
 
 			test(`${method} ${path} should return 403 for org admins`, async () => {
-				const { headers } = await createTestSessionWithOrgAdmin();
-				const res = await app.request(path, { method, headers });
+				const res = await app.request(path, { method, headers: orgAdminSession.headers });
 				expect(res.status).toBe(403);
 				const body = await res.json();
 				expect(body.message).toBe("Forbidden");
 			});
 
 			test(`${method} ${path} should not return 401 for global admins`, async () => {
-				const { headers } = await createTestSessionWithGlobalAdmin();
-				const res = await app.request(path, { method, headers });
+				const res = await app.request(path, { method, headers: globalAdminSession.headers });
 				// Should not be 401 - actual response depends on endpoint logic
 				expect(res.status).not.toBe(401);
 			});
 		}
 
 		test("global admins can delete an account for a user outside their active organization", async () => {
-			const { headers } = await createTestSessionWithGlobalAdmin();
 			const target = await createTestSession();
 
 			const retainedAccountId = Bun.randomUUIDv7();
@@ -176,7 +171,7 @@ describe("auth controller security", () => {
 
 			const res = await app.request(`/api/v1/auth/admin-users/${target.user.id}/accounts/${removableAccountId}`, {
 				method: "DELETE",
-				headers,
+				headers: globalAdminSession.headers,
 			});
 
 			expect(res.status).toBe(200);

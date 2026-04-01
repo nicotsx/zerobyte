@@ -1,11 +1,22 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+vi.mock("better-auth/crypto", () => ({
+	hashPassword: vi.fn(async () => "test-account-password-hash"),
+}));
+
 import { convertLegacyUserOnFirstLogin } from "../convert-legacy-user";
 import { db } from "~/server/db/db";
 import { usersTable, account, organization, member } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 
 describe("convertLegacyUserOnFirstLogin", () => {
+	const legacyPasswordHash = "legacy-password-hash";
+	const verifyPassword = vi.spyOn(Bun.password, "verify");
+
 	beforeEach(async () => {
+		verifyPassword.mockReset();
+		verifyPassword.mockImplementation(async (password) => password === "correct-password");
+
 		await db.delete(member);
 		await db.delete(account);
 		await db.delete(organization);
@@ -46,8 +57,6 @@ describe("convertLegacyUserOnFirstLogin", () => {
 	});
 
 	test("should throw UnauthorizedError for invalid password", async () => {
-		const hashedPassword = await Bun.password.hash("correct-password");
-
 		// Create a legacy user with a hashed password
 		const userId = crypto.randomUUID();
 		await db.insert(usersTable).values({
@@ -55,7 +64,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			username: "legacy-user",
 			email: "legacy@test.com",
 			name: "Legacy User",
-			passwordHash: hashedPassword,
+			passwordHash: legacyPasswordHash,
 		});
 
 		const ctx = createContext("/sign-in/username", {
@@ -70,12 +79,11 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			where: { username: "legacy-user" },
 		});
 		expect(user).toBeDefined();
-		expect(user?.passwordHash).toBe(hashedPassword);
+		expect(user?.passwordHash).toBe(legacyPasswordHash);
 	});
 
 	test("should migrate legacy user with existing organization membership", async () => {
 		const password = "correct-password";
-		const hashedPassword = await Bun.password.hash(password);
 
 		// Create legacy user
 		const userId = crypto.randomUUID();
@@ -84,7 +92,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			username: "legacy-with-org",
 			email: "legacy-org@test.com",
 			name: "Legacy With Org",
-			passwordHash: hashedPassword,
+			passwordHash: legacyPasswordHash,
 			role: "admin",
 		});
 
@@ -150,7 +158,6 @@ describe("convertLegacyUserOnFirstLogin", () => {
 
 	test("should migrate legacy user and create new organization when no membership exists", async () => {
 		const password = "correct-password";
-		const hashedPassword = await Bun.password.hash(password);
 
 		// Create legacy user without organization membership
 		const userId = crypto.randomUUID();
@@ -159,7 +166,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			username: "legacy-no-org",
 			email: "legacy-noorg@test.com",
 			name: "Legacy No Org",
-			passwordHash: hashedPassword,
+			passwordHash: legacyPasswordHash,
 			hasDownloadedResticPassword: true,
 		});
 
@@ -208,7 +215,6 @@ describe("convertLegacyUserOnFirstLogin", () => {
 
 	test("should be case-insensitive for username", async () => {
 		const password = "correct-password";
-		const hashedPassword = await Bun.password.hash(password);
 
 		const userId = crypto.randomUUID();
 		await db.insert(usersTable).values({
@@ -216,7 +222,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			username: "legacy-user",
 			email: "legacy@test.com",
 			name: "Legacy User",
-			passwordHash: hashedPassword,
+			passwordHash: legacyPasswordHash,
 		});
 
 		// Try login with uppercase username
@@ -241,7 +247,6 @@ describe("convertLegacyUserOnFirstLogin", () => {
 
 	test("should trim whitespace from username", async () => {
 		const password = "correct-password";
-		const hashedPassword = await Bun.password.hash(password);
 
 		const userId = crypto.randomUUID();
 		await db.insert(usersTable).values({
@@ -249,7 +254,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 			username: "legacy-user",
 			email: "legacy@test.com",
 			name: "Legacy User",
-			passwordHash: hashedPassword,
+			passwordHash: legacyPasswordHash,
 		});
 
 		// Try login with whitespace

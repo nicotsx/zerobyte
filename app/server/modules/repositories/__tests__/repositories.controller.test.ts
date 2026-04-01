@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import crypto from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createApp } from "~/server/app";
@@ -7,8 +7,23 @@ import { repositoriesTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
+import { restic } from "~/server/core/restic";
 
 const app = createApp();
+
+let session: Awaited<ReturnType<typeof createTestSession>>;
+
+beforeAll(async () => {
+	session = await createTestSession();
+});
+
+beforeEach(() => {
+	vi.spyOn(restic, "init").mockResolvedValue({ success: true, error: null });
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 const createRepositoryRecord = async (organizationId: string) => {
 	const [repository] = await db
@@ -81,10 +96,8 @@ describe("repositories security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { headers } = await createTestSession();
-
 		const res = await app.request("/api/v1/repositories", {
-			headers,
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -150,9 +163,8 @@ describe("repositories security", () => {
 
 	describe("input validation", () => {
 		test("should return 404 for non-existent repository", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -161,9 +173,8 @@ describe("repositories security", () => {
 		});
 
 		test("should return 404 for stats of non-existent repository", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo/stats", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -172,10 +183,9 @@ describe("repositories security", () => {
 		});
 
 		test("should return 404 for stats refresh of non-existent repository", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories/non-existent-repo/stats/refresh", {
 				method: "POST",
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -184,11 +194,10 @@ describe("repositories security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
@@ -200,11 +209,10 @@ describe("repositories security", () => {
 		});
 
 		test("should accept env:// values as plain secrets on create", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/repositories", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
@@ -227,14 +235,13 @@ describe("repositories security", () => {
 
 describe("repositories updates", () => {
 	test("PATCH updates full config and metadata using shortId", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createRepositoryRecord(organizationId);
+		const repository = await createRepositoryRecord(session.organizationId);
 		const nextPath = `/tmp/updated-${crypto.randomUUID()}`;
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...headers,
+				...session.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -276,13 +283,12 @@ describe("repositories updates", () => {
 	});
 
 	test("PATCH rejects backend changes", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createRepositoryRecord(organizationId);
+		const repository = await createRepositoryRecord(session.organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...headers,
+				...session.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -302,13 +308,12 @@ describe("repositories updates", () => {
 	});
 
 	test("PATCH rejects invalid config payload", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createRepositoryRecord(organizationId);
+		const repository = await createRepositoryRecord(session.organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...headers,
+				...session.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -323,8 +328,7 @@ describe("repositories updates", () => {
 
 	describe("delete snapshot", () => {
 		test("should return 500 when restic deleteSnapshot throws ResticError", async () => {
-			const { headers, organizationId } = await createTestSession();
-			const repository = await createRepositoryRecord(organizationId);
+			const repository = await createRepositoryRecord(session.organizationId);
 
 			const { restic } = await import("~/server/core/restic");
 			const { ResticError } = await import("@zerobyte/core/restic");
@@ -336,7 +340,7 @@ describe("repositories updates", () => {
 			try {
 				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
 					method: "DELETE",
-					headers,
+					headers: session.headers,
 				});
 
 				expect(res.status).toBe(500);
@@ -351,8 +355,7 @@ describe("repositories updates", () => {
 
 	describe("dump snapshot", () => {
 		test("continues streaming a download after the request signal aborts", async () => {
-			const { headers, organizationId } = await createTestSession();
-			const repository = await createRepositoryRecord(organizationId);
+			const repository = await createRepositoryRecord(session.organizationId);
 			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
 
 			const stream = new PassThrough();
@@ -371,7 +374,7 @@ describe("repositories updates", () => {
 			try {
 				const controller = new AbortController();
 				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
-					headers,
+					headers: session.headers,
 					signal: controller.signal,
 				});
 
@@ -387,8 +390,7 @@ describe("repositories updates", () => {
 		});
 
 		test("returns a valid content-disposition header for non-ascii filenames", async () => {
-			const { headers, organizationId } = await createTestSession();
-			const repository = await createRepositoryRecord(organizationId);
+			const repository = await createRepositoryRecord(session.organizationId);
 			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
 
 			const stream = new PassThrough();
@@ -406,7 +408,7 @@ describe("repositories updates", () => {
 				stream.end("downloaded snapshot contents");
 
 				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
-					headers,
+					headers: session.headers,
 				});
 
 				expect(response.status).toBe(200);
@@ -420,10 +422,9 @@ describe("repositories updates", () => {
 	});
 
 	test("GET marks provisioned repositories as managed", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createManagedRepositoryRecord(organizationId);
+		const repository = await createManagedRepositoryRecord(session.organizationId);
 
-		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, { headers });
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, { headers: session.headers });
 
 		expect(res.status).toBe(200);
 		const body = await res.json();
@@ -431,13 +432,12 @@ describe("repositories updates", () => {
 	});
 
 	test("PATCH allows updates for managed repositories", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createManagedRepositoryRecord(organizationId);
+		const repository = await createManagedRepositoryRecord(session.organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "PATCH",
 			headers: {
-				...headers,
+				...session.headers,
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
@@ -451,12 +451,11 @@ describe("repositories updates", () => {
 	});
 
 	test("DELETE allows managed repositories", async () => {
-		const { headers, organizationId } = await createTestSession();
-		const repository = await createManagedRepositoryRecord(organizationId);
+		const repository = await createManagedRepositoryRecord(session.organizationId);
 
 		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
 			method: "DELETE",
-			headers,
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(200);

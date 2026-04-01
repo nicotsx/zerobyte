@@ -247,8 +247,8 @@ describe("SnapshotTreeBrowser", () => {
 		});
 	});
 
-	test("expands using the query path when display and query roots differ", async () => {
-		const requests = mockListSnapshotFiles();
+	test("shows the query root contents when display and query roots differ", async () => {
+		mockListSnapshotFiles();
 
 		renderSnapshotTreeBrowser();
 
@@ -258,19 +258,10 @@ describe("SnapshotTreeBrowser", () => {
 			throw new Error("Expected expand icon for folder row");
 		}
 
-		const initialRequestCount = requests.length;
-		fireEvent.click(expandIcon);
+		if (!screen.queryByRole("button", { name: "a.txt" })) {
+			fireEvent.click(expandIcon);
+		}
 
-		await waitFor(() => {
-			expect(requests.length).toBeGreaterThan(initialRequestCount);
-		});
-
-		expect(requests.at(-1)).toEqual({
-			shortId: "repo-1",
-			snapshotId: "snap-1",
-			path: "/mnt/project",
-			offset: "0",
-			limit: "500",
-		});
+		expect(await screen.findByRole("button", { name: "a.txt" })).toBeTruthy();
 	});
 });

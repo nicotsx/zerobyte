@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -6,6 +6,12 @@ import { createTestRepository } from "~/test/helpers/repository";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 
 const app = createApp();
+
+let session: Awaited<ReturnType<typeof createTestSession>>;
+
+beforeAll(async () => {
+	session = await createTestSession();
+});
 
 describe("backups security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
@@ -25,10 +31,8 @@ describe("backups security", () => {
 	});
 
 	test("should return 200 if session is valid", async () => {
-		const { headers } = await createTestSession();
-
 		const res = await app.request("/api/v1/backups", {
-			headers,
+			headers: session.headers,
 		});
 
 		expect(res.status).toBe(200);
@@ -82,17 +86,16 @@ describe("backups security", () => {
 
 	describe("input validation", () => {
 		test("should return a schedule when queried by short id", async () => {
-			const { headers, organizationId } = await createTestSession();
-			const volume = await createTestVolume({ organizationId });
-			const repository = await createTestRepository({ organizationId });
+			const volume = await createTestVolume({ organizationId: session.organizationId });
+			const repository = await createTestRepository({ organizationId: session.organizationId });
 			const schedule = await createTestBackupSchedule({
-				organizationId,
+				organizationId: session.organizationId,
 				volumeId: volume.id,
 				repositoryId: repository.id,
 			});
 
 			const res = await app.request(`/api/v1/backups/${schedule.shortId}`, {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(200);
@@ -102,18 +105,16 @@ describe("backups security", () => {
 		});
 
 		test("should return 404 for malformed schedule ID", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups/not-a-number", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
 		});
 
 		test("should return 404 for non-existent schedule ID", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups/999999", {
-				headers,
+				headers: session.headers,
 			});
 
 			expect(res.status).toBe(404);
@@ -122,11 +123,10 @@ describe("backups security", () => {
 		});
 
 		test("should return 400 for invalid payload on create", async () => {
-			const { headers } = await createTestSession();
 			const res = await app.request("/api/v1/backups", {
 				method: "POST",
 				headers: {
-					...headers,
+					...session.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
