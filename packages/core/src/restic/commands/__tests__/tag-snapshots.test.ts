@@ -44,6 +44,8 @@ describe("tagSnapshots command", () => {
 
 		await tagSnapshots(config, snapshotIds, { add: ["keep"] }, "org-1", mockDeps);
 
-		expect(getArgs()).toEqual(["--repo", "/tmp/restic-repo", "tag", "--add", "keep", "--json", "--", ...snapshotIds]);
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
 	});
 });

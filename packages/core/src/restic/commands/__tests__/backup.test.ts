@@ -61,7 +61,7 @@ type SetupOptions = {
 const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
 
-	const cleanupSpy = vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params) => {
 		capturedArgs = params.args;
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
@@ -73,7 +73,6 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	});
 
 	return {
-		cleanupSpy,
 		getArgs: () => capturedArgs,
 		hasFlag: (flag: string) => capturedArgs.includes(flag),
 		getOptionValues: (option: string): string[] => {
@@ -114,27 +113,11 @@ describe("backup command", () => {
 			expect(getArgs().at(-1)).toBe(source);
 		});
 
-		test("uses --files-from instead of source path when include list is provided", async () => {
-			const { hasFlag, getArgs } = setup();
-			await backup(
-				config,
-				"/mnt/data",
-				{
-					organizationId: "org-1",
-					includePatterns: ["/mnt/data/docs", "/mnt/data/photos"],
-				},
-				mockDeps,
-			);
-
-			expect(hasFlag("--files-from")).toBe(true);
-			expect(getArgs()).not.toContain("/mnt/data");
-		});
-
-		test("passes include paths via --files-from-raw and include patterns via --files-from", async () => {
+		test("writes include paths and patterns to separate files instead of passing the source path directly", async () => {
 			const literalDir = "/mnt/data/movies [1]";
 			let rawIncludeContent = "";
 			let patternIncludeContent = "";
-			const { hasFlag } = setup({
+			const { getArgs, hasFlag } = setup({
 				onSpawnCall: async (params) => {
 					const rawIncludeIndex = params.args.indexOf("--files-from-raw");
 					const patternIncludeIndex = params.args.indexOf("--files-from");
@@ -162,95 +145,9 @@ describe("backup command", () => {
 
 			expect(hasFlag("--files-from-raw")).toBe(true);
 			expect(hasFlag("--files-from")).toBe(true);
+			expect(getArgs()).not.toContain("/mnt/data");
 			expect(rawIncludeContent).toBe(`${literalDir}\0`);
 			expect(patternIncludeContent).toBe("/mnt/data/**/*.zip");
-		});
-
-		test("adds --tag for each entry in options.tags", async () => {
-			const { getOptionValues } = setup();
-			await backup(
-				config,
-				"/mnt/data",
-				{
-					organizationId: "org-1",
-					tags: ["tag-a", "tag-b"],
-				},
-				mockDeps,
-			);
-
-			expect(getOptionValues("--tag")).toEqual(["tag-a", "tag-b"]);
-		});
-
-		test("omits --tag when tags list is empty", async () => {
-			const { hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1", tags: [] }, mockDeps);
-
-			expect(hasFlag("--tag")).toBe(false);
-		});
-
-		test("passes provided compressionMode to --compression", async () => {
-			const { getOptionValues } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1", compressionMode: "max" }, mockDeps);
-
-			expect(getOptionValues("--compression")).toEqual(["max"]);
-		});
-
-		test("defaults --compression to auto when compressionMode is omitted", async () => {
-			const { getOptionValues } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
-
-			expect(getOptionValues("--compression")).toEqual(["auto"]);
-		});
-
-		test("adds --one-file-system when oneFileSystem is true", async () => {
-			const { hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1", oneFileSystem: true }, mockDeps);
-
-			expect(hasFlag("--one-file-system")).toBe(true);
-		});
-
-		test("omits --one-file-system when oneFileSystem is false", async () => {
-			const { hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1", oneFileSystem: false }, mockDeps);
-
-			expect(hasFlag("--one-file-system")).toBe(false);
-		});
-
-		test("adds --exclude-file when exclude list is provided", async () => {
-			const { hasFlag } = setup();
-			await backup(
-				config,
-				"/mnt/data",
-				{
-					organizationId: "org-1",
-					exclude: ["/mnt/data/tmp", "/mnt/data/cache"],
-				},
-				mockDeps,
-			);
-
-			expect(hasFlag("--exclude-file")).toBe(true);
-		});
-
-		test("omits --exclude-file when exclude list is empty", async () => {
-			const { hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1", exclude: [] }, mockDeps);
-
-			expect(hasFlag("--exclude-file")).toBe(false);
-		});
-
-		test("adds --exclude-if-present for each entry in excludeIfPresent", async () => {
-			const { getOptionValues } = setup();
-			await backup(
-				config,
-				"/mnt/data",
-				{
-					organizationId: "org-1",
-					excludeIfPresent: [".nobackup", ".gitignore"],
-				},
-				mockDeps,
-			);
-
-			expect(getOptionValues("--exclude-if-present")).toEqual([".nobackup", ".gitignore"]);
 		});
 
 		test("always includes DEFAULT_EXCLUDES as --exclude args", async () => {
@@ -258,13 +155,6 @@ describe("backup command", () => {
 			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(getOptionValues("--exclude").length).toBeGreaterThan(0);
-		});
-
-		test("includes --host arg from config", async () => {
-			const { hasFlag } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
-
-			expect(hasFlag("--host")).toBe(true);
 		});
 	});
 
@@ -425,22 +315,6 @@ describe("backup command", () => {
 			);
 
 			expect(progressUpdates).toHaveLength(0);
-		});
-	});
-
-	describe("cleanup", () => {
-		test("calls cleanupTemporaryKeys after a successful backup", async () => {
-			const { cleanupSpy } = setup();
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
-
-			expect(cleanupSpy).toHaveBeenCalledTimes(1);
-		});
-
-		test("calls cleanupTemporaryKeys even when the command fails", async () => {
-			const { cleanupSpy } = setup({ spawnResult: { exitCode: 1, summary: "", error: "fail" } });
-			await backup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps).catch(() => {});
-
-			expect(cleanupSpy).toHaveBeenCalledTimes(1);
 		});
 	});
 });

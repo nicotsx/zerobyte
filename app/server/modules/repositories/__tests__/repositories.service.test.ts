@@ -1,3 +1,4 @@
+import waitForExpect from "wait-for-expect";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import nodePath from "node:path";
@@ -6,7 +7,6 @@ import { Readable } from "node:stream";
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
-import { serverEvents } from "~/server/core/events";
 import { withContext } from "~/server/core/request-context";
 import { db } from "~/server/db/db";
 import { repositoriesTable } from "~/server/db/schema";
@@ -201,11 +201,20 @@ describe("repositoriesService.dumpSnapshot", () => {
 		vi.restoreAllMocks();
 	});
 
-	const createDumpResult = () => ({
-		stream: Readable.from([]),
+	const createDumpResult = (payload: string) => ({
+		stream: Readable.from([payload]),
 		completion: Promise.resolve(),
 		abort: () => {},
 	});
+
+	const readStreamText = async (stream: Readable) => {
+		const chunks: Buffer[] = [];
+		for await (const chunk of stream) {
+			chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+		}
+
+		return Buffer.concat(chunks).toString("utf8");
+	};
 
 	const setupDumpSnapshotScenario = async ({
 		snapshotId,
@@ -243,7 +252,18 @@ describe("repositoriesService.dumpSnapshot", () => {
 			},
 		]);
 
-		const dumpMock = vi.fn(() => Promise.resolve(createDumpResult()));
+		const dumpMock = vi.fn(
+			(_config: unknown, snapshotRef: string, options: { organizationId: string; path: string; archive?: false }) =>
+				Promise.resolve(
+					createDumpResult(
+						JSON.stringify({
+							snapshotRef,
+							path: options.path,
+							archive: options.archive !== false,
+						}),
+					),
+				),
+		);
 		vi.spyOn(restic, "dump").mockImplementation(dumpMock);
 
 		return {
@@ -251,45 +271,33 @@ describe("repositoriesService.dumpSnapshot", () => {
 			userId: session.user.id,
 			shortId,
 			basePath,
-			dumpMock,
 		};
 	};
 
-	test("calls restic.dump with common-ancestor selector and stripped path", async () => {
-		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+	test("returns a tar download rooted at the selected directory within the snapshot", async () => {
+		const { organizationId, userId, shortId, basePath } = await setupDumpSnapshotScenario({
 			snapshotId: "snapshot-123",
 			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
-		const emitSpy = vi.spyOn(serverEvents, "emit");
 
-		await withContext({ organizationId, userId }, () =>
+		const result = await withContext({ organizationId, userId }, () =>
 			repositoriesService.dumpSnapshot(shortId, "snapshot-123", `${basePath}/documents`, "dir"),
 		);
 
-		expect(dumpMock).toHaveBeenCalledTimes(1);
-		expect(dumpMock).toHaveBeenCalledWith(
-			expect.objectContaining({
-				backend: "local",
-			}),
-			`snapshot-123:${basePath}`,
-			{
-				organizationId,
+		expect(result.filename).toBe("snapshot-snapshot-123.tar");
+		expect(result.contentType).toBe("application/x-tar");
+		expect(await readStreamText(result.stream)).toBe(
+			JSON.stringify({
+				snapshotRef: `snapshot-123:${basePath}`,
 				path: "/documents",
-			},
-		);
-		expect(emitSpy).toHaveBeenCalledWith(
-			"dump:started",
-			expect.objectContaining({
-				organizationId,
-				repositoryId: shortId,
-				snapshotId: "snapshot-123",
-				path: "/documents",
+				archive: true,
 			}),
 		);
+		await expect(result.completion).resolves.toBeUndefined();
 	});
 
 	test("streams a single file directly when selected path is a file", async () => {
-		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+		const { organizationId, userId, shortId, basePath } = await setupDumpSnapshotScenario({
 			snapshotId: "snapshot-file",
 			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
@@ -298,31 +306,38 @@ describe("repositoriesService.dumpSnapshot", () => {
 			repositoriesService.dumpSnapshot(shortId, "snapshot-file", `${basePath}/documents/report.txt`, "file"),
 		);
 
-		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-file:${basePath}`, {
-			organizationId,
-			path: "/documents/report.txt",
-			archive: false,
-		});
 		expect(result.filename).toBe("report.txt");
 		expect(result.contentType).toBe("application/octet-stream");
+		expect(await readStreamText(result.stream)).toBe(
+			JSON.stringify({
+				snapshotRef: `snapshot-file:${basePath}`,
+				path: "/documents/report.txt",
+				archive: false,
+			}),
+		);
 	});
 
 	test("downloads a selected parent directory when snapshot paths point to a nested file", async () => {
 		const parentPath = "/var/lib/zerobyte/volumes/vol123/_data/documents";
-		const { organizationId, userId, shortId, dumpMock } = await setupDumpSnapshotScenario({
+		const { organizationId, userId, shortId } = await setupDumpSnapshotScenario({
 			snapshotId: "snapshot-parent-dir",
 			basePath: `${parentPath}/report.txt`,
 			snapshotPaths: [`${parentPath}/report.txt`],
 		});
 
-		await withContext({ organizationId, userId }, () =>
+		const result = await withContext({ organizationId, userId }, () =>
 			repositoriesService.dumpSnapshot(shortId, "snapshot-parent-dir", parentPath, "dir"),
 		);
 
-		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-parent-dir:${parentPath}`, {
-			organizationId,
-			path: "/",
-		});
+		expect(result.filename).toBe("snapshot-snapshot-parent-dir.tar");
+		expect(result.contentType).toBe("application/x-tar");
+		expect(await readStreamText(result.stream)).toBe(
+			JSON.stringify({
+				snapshotRef: `snapshot-parent-dir:${parentPath}`,
+				path: "/",
+				archive: true,
+			}),
+		);
 	});
 
 	test("rejects path downloads without a kind", async () => {
@@ -338,18 +353,25 @@ describe("repositoriesService.dumpSnapshot", () => {
 		).rejects.toThrow("Path kind is required when downloading a specific snapshot path");
 	});
 
-	test("downloads full snapshot relative to common ancestor when path is omitted", async () => {
-		const { organizationId, userId, shortId, basePath, dumpMock } = await setupDumpSnapshotScenario({
+	test("downloads the full snapshot from the common ancestor when path is omitted", async () => {
+		const { organizationId, userId, shortId, basePath } = await setupDumpSnapshotScenario({
 			snapshotId: "snapshot-999",
 			basePath: "/var/lib/zerobyte/volumes/vol555/_data",
 		});
 
-		await withContext({ organizationId, userId }, () => repositoriesService.dumpSnapshot(shortId, "snapshot-999"));
+		const result = await withContext({ organizationId, userId }, () =>
+			repositoriesService.dumpSnapshot(shortId, "snapshot-999"),
+		);
 
-		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-999:${basePath}`, {
-			organizationId,
-			path: "/",
-		});
+		expect(result.filename).toBe("snapshot-snapshot-999.tar");
+		expect(result.contentType).toBe("application/x-tar");
+		expect(await readStreamText(result.stream)).toBe(
+			JSON.stringify({
+				snapshotRef: `snapshot-999:${basePath}`,
+				path: "/",
+				archive: true,
+			}),
+		);
 	});
 });
 
@@ -522,9 +544,9 @@ describe("repositoriesService.deleteSnapshot", () => {
 			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
 		);
 
-		await new Promise((resolve) => setTimeout(resolve, 20));
-
-		expect(statsSpy).toHaveBeenCalledTimes(1);
+		await waitForExpect(() => {
+			expect(statsSpy).toHaveBeenCalledTimes(1);
+		});
 
 		const updatedRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
 		expect(updatedRepository?.stats).toEqual(expectedStats);

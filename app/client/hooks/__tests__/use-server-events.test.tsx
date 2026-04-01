@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
 import { useServerEvents } from "../use-server-events";
 
@@ -67,6 +68,15 @@ const BackupCompletedListener = ({ scheduleId }: { scheduleId: string }) => {
 	return <div>{status}</div>;
 };
 
+const QueryStatusConsumer = ({ getValue }: { getValue: () => string }) => {
+	const { data } = useQuery({
+		queryKey: ["backup-status"],
+		queryFn: async () => getValue(),
+	});
+
+	return <div>{data}</div>;
+};
+
 describe("useServerEvents", () => {
 	beforeEach(() => {
 		MockEventSource.reset();
@@ -83,22 +93,23 @@ describe("useServerEvents", () => {
 		MockEventSource.reset();
 	});
 
-	test("shares one EventSource across consumers and invalidates queries once on backup completion", async () => {
+	test("shares one EventSource across consumers and refreshes active queries on backup completion", async () => {
 		const queryClient = createTestQueryClient();
-		const invalidateQueries = vi.fn(async () => undefined);
-		const refetchQueries = vi.fn(async () => undefined);
-		queryClient.invalidateQueries = invalidateQueries as typeof queryClient.invalidateQueries;
-		queryClient.refetchQueries = refetchQueries as typeof queryClient.refetchQueries;
+		let queryValue = "before";
 
-		render(
+		const view = render(
 			<>
 				<ConnectionConsumer />
 				<BackupCompletedListener scheduleId="0b9c940b" />
+				<QueryStatusConsumer getValue={() => queryValue} />
 			</>,
 			{ queryClient },
 		);
 
 		expect(MockEventSource.instances).toHaveLength(1);
+		expect(await screen.findByText("before")).toBeTruthy();
+
+		queryValue = "after";
 
 		MockEventSource.instances[0]?.emit("backup:completed", {
 			organizationId: "default-org",
@@ -109,10 +120,9 @@ describe("useServerEvents", () => {
 		});
 
 		expect(await screen.findByText("success")).toBeTruthy();
-		expect(invalidateQueries).toHaveBeenCalledTimes(1);
-		expect(refetchQueries).not.toHaveBeenCalled();
+		expect(await screen.findByText("after")).toBeTruthy();
 
-		cleanup();
+		view.unmount();
 
 		expect(MockEventSource.instances[0]?.close).toHaveBeenCalledTimes(1);
 	});

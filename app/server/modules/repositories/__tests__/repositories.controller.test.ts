@@ -356,19 +356,22 @@ describe("repositories updates", () => {
 	describe("dump snapshot", () => {
 		test("continues streaming a download after the request signal aborts", async () => {
 			const repository = await createRepositoryRecord(session.organizationId);
-			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
-
 			const stream = new PassThrough();
 			const expectedContent = "downloaded snapshot contents";
 
-			const dumpSnapshotSpy = vi.spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockResolvedValue([
+				{
+					id: "test-snapshot",
+					short_id: "test-snapshot",
+					time: new Date().toISOString(),
+					paths: ["/mnt/project"],
+					hostname: "host",
+				},
+			]);
+			const dumpSpy = vi.spyOn(restic, "dump").mockResolvedValue({
 				stream,
 				completion: Promise.resolve(),
-				abort: () => {
-					stream.destroy(new Error("download aborted"));
-				},
-				filename: "snapshot.txt",
-				contentType: "application/octet-stream",
+				abort: vi.fn(),
 			});
 
 			try {
@@ -385,38 +388,48 @@ describe("repositories updates", () => {
 
 				await expect(response.text()).resolves.toBe(expectedContent);
 			} finally {
-				dumpSnapshotSpy.mockRestore();
+				snapshotsSpy.mockRestore();
+				dumpSpy.mockRestore();
 			}
 		});
 
 		test("returns a valid content-disposition header for non-ascii filenames", async () => {
 			const repository = await createRepositoryRecord(session.organizationId);
-			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
 
 			const stream = new PassThrough();
-			const dumpSnapshotSpy = vi.spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockResolvedValue([
+				{
+					id: "test-snapshot",
+					short_id: "test-snapshot",
+					time: new Date().toISOString(),
+					paths: ["/mnt/project"],
+					hostname: "host",
+				},
+			]);
+			const dumpSpy = vi.spyOn(restic, "dump").mockResolvedValue({
 				stream,
 				completion: Promise.resolve(),
-				abort: () => {
-					stream.destroy(new Error("download aborted"));
-				},
-				filename: "möte.txt",
-				contentType: "application/octet-stream",
+				abort: vi.fn(),
 			});
 
 			try {
 				stream.end("downloaded snapshot contents");
 
-				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
-					headers: session.headers,
-				});
+				const encodedPath = encodeURIComponent("/mnt/project/möte.txt");
+				const response = await app.request(
+					`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump?path=${encodedPath}&kind=file`,
+					{
+						headers: session.headers,
+					},
+				);
 
 				expect(response.status).toBe(200);
 				expect(response.headers.get("Content-Disposition")).toBe(
 					`attachment; filename="m?te.txt"; filename*=UTF-8''m%C3%B6te.txt`,
 				);
 			} finally {
-				dumpSnapshotSpy.mockRestore();
+				snapshotsSpy.mockRestore();
+				dumpSpy.mockRestore();
 			}
 		});
 	});

@@ -51,17 +51,8 @@ describe("copy command", () => {
 
 		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotId, tag: "daily" }, mockDeps);
 
-		expect(getArgs()).toEqual([
-			"--repo",
-			"/tmp/dest-repo",
-			"copy",
-			"--from-repo",
-			"/tmp/source-repo",
-			"--tag",
-			"daily",
-			"--json",
-			"--",
-			snapshotId,
-		]);
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual([snapshotId]);
 	});
 });

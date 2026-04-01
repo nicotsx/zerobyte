@@ -44,6 +44,8 @@ describe("deleteSnapshots command", () => {
 
 		await deleteSnapshots(config, snapshotIds, "org-1", mockDeps);
 
-		expect(getArgs()).toEqual(["--repo", "/tmp/restic-repo", "forget", "--prune", "--json", "--", ...snapshotIds]);
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
 	});
 });

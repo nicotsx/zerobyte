@@ -110,6 +110,9 @@ describe("execute backup", () => {
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalled();
+		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		expect(updatedSchedule.lastBackupAt).not.toBeNull();
 	});
 
 	test("should keep next backup time empty for manual-only schedules after a manual run", async () => {

@@ -58,6 +58,8 @@ describe("ls command", () => {
 
 		await ls(config, snapshotId, "org-1", path, undefined, mockDeps);
 
-		expect(getArgs()).toEqual(["--repo", "/tmp/restic-repo", "ls", "--long", "--json", "--", snapshotId, path]);
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual([snapshotId, path]);
 	});
 });

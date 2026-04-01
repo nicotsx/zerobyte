@@ -105,15 +105,20 @@ describe("system security", () => {
 
 	describe("updates endpoint", () => {
 		test("GET /api/v1/system/updates should be accessible with valid session", async () => {
-			vi.spyOn(systemService, "getUpdates").mockResolvedValue({
+			const expectedUpdates = {
 				currentVersion: "1.0.0",
 				latestVersion: "1.0.0",
 				hasUpdate: false,
 				missedReleases: [],
+			};
+
+			vi.spyOn(systemService, "getUpdates").mockResolvedValue({
+				...expectedUpdates,
 			});
 
 			const res = await app.request("/api/v1/system/updates", { headers: session.headers });
 			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual(expectedUpdates);
 		});
 	});
 
