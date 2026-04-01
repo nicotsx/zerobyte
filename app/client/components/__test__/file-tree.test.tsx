@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: Testing file - non-null assertions are acceptable here */
-import { afterEach, expect, test, describe } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { useState } from "react";
 import { FileTree, type FileEntry } from "../file-tree";

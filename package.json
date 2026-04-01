@@ -22,9 +22,9 @@
 		"gen:api-client": "dotenv -e .env.local -- openapi-ts",
 		"gen:migrations": "dotenv -e .env.local -- drizzle-kit generate",
 		"studio": "drizzle-kit studio",
-		"test:server": "dotenv -e .env.test -- bun test app/server --preload ./app/test/setup.ts",
-		"test:client": "dotenv -e .env.test -- bun test app/client --preload ./app/test/setup-client.ts",
-		"test": "bun run test:server && bun run test:client && turbo run test",
+		"test:server": "dotenv -e .env.test -- bunx --bun vitest run --project server",
+		"test:client": "dotenv -e .env.test -- bunx --bun vitest run --project client",
+		"test": "dotenv -e .env.test -- bunx --bun vitest run && turbo run test",
 		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- playwright test",
 		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- playwright test --ui",
 		"test:codegen": "playwright codegen localhost:4096"
@@ -135,6 +135,7 @@
 		"typescript": "^5.9.3",
 		"vite": "^8.0.1",
 		"vite-bundle-analyzer": "^1.2.3",
+		"vitest": "^4.1.1",
 		"wait-for-expect": "^4.0.0"
 	},
 	"overrides": {

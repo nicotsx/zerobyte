@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
 import { useServerEvents } from "../use-server-events";
@@ -7,7 +7,7 @@ class MockEventSource {
 	static instances: MockEventSource[] = [];
 
 	public onerror: ((event: Event) => void) | null = null;
-	public close = mock(() => {});
+	public close = vi.fn(() => {});
 	private listeners = new Map<string, Set<(event: Event) => void>>();
 
 	constructor(public url: string) {
@@ -71,8 +71,8 @@ describe("useServerEvents", () => {
 	beforeEach(() => {
 		MockEventSource.reset();
 		globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
-		console.info = mock(() => {});
-		console.error = mock(() => {});
+		console.info = vi.fn(() => {});
+		console.error = vi.fn(() => {});
 	});
 
 	afterEach(() => {
@@ -85,8 +85,8 @@ describe("useServerEvents", () => {
 
 	test("shares one EventSource across consumers and invalidates queries once on backup completion", async () => {
 		const queryClient = createTestQueryClient();
-		const invalidateQueries = mock(async () => undefined);
-		const refetchQueries = mock(async () => undefined);
+		const invalidateQueries = vi.fn(async () => undefined);
+		const refetchQueries = vi.fn(async () => undefined);
 		queryClient.invalidateQueries = invalidateQueries as typeof queryClient.invalidateQueries;
 		queryClient.refetchQueries = refetchQueries as typeof queryClient.refetchQueries;
 

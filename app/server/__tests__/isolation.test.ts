@@ -1,4 +1,4 @@
-import { test, describe, expect } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession } from "~/test/helpers/auth";
 import { db } from "~/server/db/db";

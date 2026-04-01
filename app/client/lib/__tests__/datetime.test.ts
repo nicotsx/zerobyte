@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
 	DEFAULT_TIME_FORMAT,
 	formatDate,
@@ -12,7 +12,7 @@ import {
 } from "../datetime";
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 const sampleDate = new Date("2026-01-10T14:30:00.000Z");
@@ -56,7 +56,7 @@ describe("datetime formatters", () => {
 	});
 
 	test("formats relative times without approximation prefixes", () => {
-		const nowSpy = spyOn(Date, "now").mockReturnValue(new Date("2026-01-10T14:35:00.000Z").getTime());
+		const nowSpy = vi.spyOn(Date, "now").mockReturnValue(new Date("2026-01-10T14:35:00.000Z").getTime());
 
 		expect(formatTimeAgo(sampleDate)).toBe("5 minutes ago");
 

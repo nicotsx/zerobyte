@@ -1,5 +1,5 @@
 import waitForExpect from "wait-for-expect";
-import { test, describe, mock, expect, afterEach, spyOn } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -16,8 +16,8 @@ import { backupsExecutionService } from "../backups.execution";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 
 const setup = () => {
-	const resticBackupMock = mock(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
-	const refreshStatsMock = mock(() =>
+	const resticBackupMock = vi.fn(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
 			total_uncompressed_size: 0,
@@ -27,9 +27,9 @@ const setup = () => {
 			snapshots_count: 0,
 		}),
 	);
-	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
-	spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
-	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
+	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
+	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
@@ -38,7 +38,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("execute backup", () => {

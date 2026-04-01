@@ -24,7 +24,7 @@ bun run tsc
 bun run test
 
 # Run a specific test file
-bunx dotenv-cli -e .env.test -- bun test --preload ./app/test/setup.ts path/to/test.ts
+bunx dotenv-cli -e .env.test -- bunx --bun vitest run --project server path/to/test.ts
 ```
 
 ### Building

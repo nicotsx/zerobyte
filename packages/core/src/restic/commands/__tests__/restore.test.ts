@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as spawnModule from "../../../utils/spawn";
 import { restore } from "../restore";
 import type { ResticDeps } from "../../types";
@@ -33,7 +33,7 @@ const config = {
 const setup = () => {
 	let capturedArgs: string[] = [];
 
-	spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
 		return Promise.resolve({ exitCode: 0, summary: successfulRestoreSummary, error: "" });
 	});
@@ -64,7 +64,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("restore command", () => {

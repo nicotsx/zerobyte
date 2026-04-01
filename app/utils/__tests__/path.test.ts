@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 describe("normalizeAbsolutePath", () => {

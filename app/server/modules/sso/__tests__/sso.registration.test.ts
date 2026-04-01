@@ -1,12 +1,11 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
-import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { createTestSession, createTestSessionWithOrgAdmin } from "~/test/helpers/auth";
 
 const app = createApp();
-const ssoRegisterUrl = new URL("/api/auth/sso/register", config.baseUrl).toString();
+const ssoRegisterUrl = new URL("/api/auth/sso/register", "http://localhost:3000").toString();
 
 function buildRegisterBody(organizationId: string, suffix: string) {
 	return {

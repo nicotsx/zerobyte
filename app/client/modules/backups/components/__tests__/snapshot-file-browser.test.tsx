@@ -1,18 +1,29 @@
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, waitFor } from "~/test/test-utils";
 import { fromAny } from "@total-typescript/shoehorn";
 
-await mock.module("@tanstack/react-router", () => ({
-	Link: ({ children }: { children?: ReactNode }) => <a href="/">{children}</a>,
-}));
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
 
-await mock.module("~/client/lib/datetime", () => ({
-	useTimeFormat: () => ({
-		formatDateTime: () => "2026-03-26 00:00",
-	}),
-}));
+	return {
+		...actual,
+		Link: (({ children }: { children?: ReactNode }) => <a href="/">{children}</a>) as typeof actual.Link,
+	};
+});
+
+vi.mock("~/client/lib/datetime", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("~/client/lib/datetime")>();
+
+	return {
+		...actual,
+		useTimeFormat: () => ({
+			...actual.useTimeFormat(),
+			formatDateTime: () => "2026-03-26 00:00",
+		}),
+	};
+});
 
 import { SnapshotFileBrowser } from "../snapshot-file-browser";
 

@@ -1,4 +1,4 @@
-import { test, describe, expect } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { scheduleQueries } from "../backups.queries";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestVolume } from "~/test/helpers/volume";

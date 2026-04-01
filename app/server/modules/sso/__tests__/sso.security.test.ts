@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
-import { config } from "~/server/core/config";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
 import { db } from "~/server/db/db";
 
 const app = createApp();
-const ssoSignInUrl = new URL("/api/auth/sign-in/sso", config.baseUrl).toString();
+const ssoSignInUrl = new URL("/api/auth/sign-in/sso", "http://localhost:3000").toString();
 
 function postSsoSignIn(body: Record<string, unknown>) {
 	return app.request(ssoSignInUrl, {

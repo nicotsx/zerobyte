@@ -3,7 +3,7 @@ import * as os from "node:os";
 import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { serverEvents } from "~/server/core/events";
@@ -38,15 +38,15 @@ const createTestRepository = async (organizationId: string) => {
 };
 
 describe("repositoriesService.createRepository", () => {
-	const initMock = mock(() => Promise.resolve({ success: true, error: null }));
+	const initMock = vi.fn(() => Promise.resolve({ success: true, error: null }));
 
 	beforeEach(() => {
 		initMock.mockClear();
-		spyOn(restic, "init").mockImplementation(initMock);
+		vi.spyOn(restic, "init").mockImplementation(initMock);
 	});
 
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	test("creates a shortId-scoped repository path when using the repository base directory", async () => {
@@ -113,7 +113,7 @@ describe("repositoriesService.createRepository", () => {
 		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
 		const config: RepositoryConfig = { backend: "local", path: explicitPath, isExistingRepository: true };
 
-		spyOn(restic, "snapshots").mockImplementation(() => Promise.resolve([]));
+		vi.spyOn(restic, "snapshots").mockImplementation(() => Promise.resolve([]));
 
 		// act
 		const result = await withContext({ organizationId, userId: user.id }, () =>
@@ -140,7 +140,7 @@ describe("repositoriesService.createRepository", () => {
 
 describe("repositoriesService repository stats", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	test("returns empty stats when repository has not been populated yet", async () => {
@@ -173,7 +173,7 @@ describe("repositoriesService repository stats", () => {
 			snapshots_count: 3,
 		};
 
-		const statsSpy = spyOn(restic, "stats").mockResolvedValue(expectedStats);
+		const statsSpy = vi.spyOn(restic, "stats").mockResolvedValue(expectedStats);
 
 		const refreshed = await withContext({ organizationId, userId: user.id }, () =>
 			repositoriesService.refreshRepositoryStats(repository.shortId),
@@ -197,7 +197,7 @@ describe("repositoriesService repository stats", () => {
 
 describe("repositoriesService.dumpSnapshot", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	const createDumpResult = () => ({
@@ -232,7 +232,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 			organizationId,
 		});
 
-		spyOn(restic, "snapshots").mockResolvedValue([
+		vi.spyOn(restic, "snapshots").mockResolvedValue([
 			{
 				id: snapshotId,
 				short_id: snapshotId,
@@ -242,8 +242,8 @@ describe("repositoriesService.dumpSnapshot", () => {
 			},
 		]);
 
-		const dumpMock = mock(() => Promise.resolve(createDumpResult()));
-		spyOn(restic, "dump").mockImplementation(dumpMock);
+		const dumpMock = vi.fn(() => Promise.resolve(createDumpResult()));
+		vi.spyOn(restic, "dump").mockImplementation(dumpMock);
 
 		return {
 			organizationId,
@@ -259,7 +259,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 			snapshotId: "snapshot-123",
 			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
-		const emitSpy = spyOn(serverEvents, "emit");
+		const emitSpy = vi.spyOn(serverEvents, "emit");
 
 		await withContext({ organizationId, userId }, () =>
 			repositoriesService.dumpSnapshot(shortId, "snapshot-123", `${basePath}/documents`, "dir"),
@@ -330,7 +330,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
 		});
 
-		expect(
+		await expect(
 			withContext({ organizationId, userId }, () =>
 				repositoriesService.dumpSnapshot(shortId, "snapshot-no-kind", `${basePath}/documents/report.txt`),
 			),
@@ -354,14 +354,14 @@ describe("repositoriesService.dumpSnapshot", () => {
 
 describe("repositoriesService.restoreSnapshot", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	const setupRestoreSnapshotScenario = async () => {
 		const { organizationId, user } = await createTestSession();
 		const repository = await createTestRepository(organizationId);
 
-		spyOn(restic, "snapshots").mockResolvedValue([
+		vi.spyOn(restic, "snapshots").mockResolvedValue([
 			{
 				id: "snapshot-restore",
 				short_id: "snapshot-restore",
@@ -371,7 +371,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			},
 		]);
 
-		const restoreMock = mock(() =>
+		const restoreMock = vi.fn(() =>
 			Promise.resolve({
 				message_type: "summary" as const,
 				seconds_elapsed: 1,
@@ -383,7 +383,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 				bytes_restored: 1,
 			}),
 		);
-		spyOn(restic, "restore").mockImplementation(restoreMock);
+		vi.spyOn(restic, "restore").mockImplementation(restoreMock);
 
 		return {
 			organizationId,
@@ -434,7 +434,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 
 describe("repositoriesService.getRetentionCategories", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	test("recomputes retention categories after repository cache invalidation", async () => {
@@ -476,7 +476,7 @@ describe("repositoriesService.getRetentionCategories", () => {
 			],
 		});
 
-		const forgetSpy = spyOn(restic, "forget");
+		const forgetSpy = vi.spyOn(restic, "forget");
 		forgetSpy.mockResolvedValueOnce(buildForgetResponse(oldSnapshotId));
 		forgetSpy.mockResolvedValueOnce(buildForgetResponse(newSnapshotId));
 
@@ -500,7 +500,7 @@ describe("repositoriesService.getRetentionCategories", () => {
 
 describe("repositoriesService.deleteSnapshot", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	test("refreshes repository stats in background after successful deletion", async () => {
@@ -515,8 +515,8 @@ describe("repositoriesService.deleteSnapshot", () => {
 			snapshots_count: 1,
 		};
 
-		spyOn(restic, "deleteSnapshot").mockResolvedValue({ success: true });
-		const statsSpy = spyOn(restic, "stats").mockResolvedValue(expectedStats);
+		vi.spyOn(restic, "deleteSnapshot").mockResolvedValue({ success: true });
+		const statsSpy = vi.spyOn(restic, "stats").mockResolvedValue(expectedStats);
 
 		await withContext({ organizationId, userId: user.id }, () =>
 			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
@@ -535,11 +535,11 @@ describe("repositoriesService.deleteSnapshot", () => {
 		const { organizationId, user } = await createTestSession();
 		const repository = await createTestRepository(organizationId);
 
-		spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
+		vi.spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
 			throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
 		});
 
-		expect(
+		await expect(
 			withContext({ organizationId, userId: user.id }, () =>
 				repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
 			),

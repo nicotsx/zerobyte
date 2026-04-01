@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { validateSsoProviderId } from "../validate-provider-id";
 

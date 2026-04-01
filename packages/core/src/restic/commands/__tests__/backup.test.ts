@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../utils/spawn";
 import { ResticError } from "../../error";
@@ -61,8 +61,8 @@ type SetupOptions = {
 const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
 
-	const cleanupSpy = spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	spyOn(spawnModule, "safeSpawn").mockImplementation((params) => {
+	const cleanupSpy = vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params) => {
 		capturedArgs = params.args;
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
 			exitCode: 0,
@@ -89,7 +89,7 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("backup command", () => {

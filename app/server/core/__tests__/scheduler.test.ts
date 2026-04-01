@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test, vi } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { logger } from "@zerobyte/core/node";
 import { Job, Scheduler } from "../scheduler";
 
@@ -9,17 +9,17 @@ const flushMicrotasks = async () => {
 const mockTimeZone = (timeZone: string) => {
 	// oxlint-disable-next-line typescript/unbound-method
 	const resolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
-	return spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(
-		function (this: Intl.DateTimeFormat) {
+	return vi
+		.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+		.mockImplementation(function (this: Intl.DateTimeFormat) {
 			return { ...resolvedOptions.call(this), timeZone };
-		},
-	);
+		});
 };
 
 describe("Scheduler", () => {
 	afterEach(async () => {
 		await Scheduler.clear();
-		mock.restore();
+		vi.restoreAllMocks();
 		vi.useRealTimers();
 	});
 
@@ -28,7 +28,7 @@ describe("Scheduler", () => {
 
 		let runCount = 0;
 		let releaseRun: (() => void) | undefined;
-		const warn = spyOn(logger, "warn");
+		const warn = vi.spyOn(logger, "warn");
 
 		class TestJob extends Job {
 			async run() {

@@ -26,7 +26,7 @@
 	},
 	"scripts": {
 		"tsc": "tsc --noEmit",
-		"test": "bun test --preload ./test/setup.ts"
+		"test": "bunx vitest run --config ./vitest.config.ts"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

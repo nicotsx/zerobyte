@@ -1,12 +1,17 @@
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, render, screen } from "~/test/test-utils";
 
-await mock.module("@tanstack/react-router", () => ({
-	useNavigate: () => mock(() => {}),
-}));
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
 
-await mock.module("~/client/modules/sso/components/sso-login-section", () => ({
-	SsoLoginSection: () => null,
+	return {
+		...actual,
+		useNavigate: (() => vi.fn(async () => {})) as typeof actual.useNavigate,
+	};
+});
+
+vi.mock("~/client/modules/sso/components/sso-login-section", () => ({
+	SsoLoginSection: () => <></>,
 }));
 
 import { LoginPage } from "../login";

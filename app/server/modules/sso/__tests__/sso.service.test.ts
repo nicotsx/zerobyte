@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { db, sqlite } from "~/server/db/db";
 import { account, invitation, member, organization, sessionsTable, ssoProvider, usersTable } from "~/server/db/schema";
 import { ssoService } from "../sso.service";

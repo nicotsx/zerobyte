@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../utils/spawn";
 import { ls } from "../ls";
@@ -34,8 +34,8 @@ const snapshotLine = JSON.stringify({
 const setup = () => {
 	let capturedArgs: string[] = [];
 
-	spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
+	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
 		params.onStdout?.(snapshotLine);
 		return Promise.resolve({ exitCode: 0, summary: snapshotLine, error: "" });
@@ -47,7 +47,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("ls command", () => {

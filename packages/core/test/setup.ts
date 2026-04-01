@@ -1,6 +1,6 @@
-import { mock } from "bun:test";
+import { vi } from "vitest";
 
-void mock.module("../src/utils/logger.ts", () => ({
+vi.mock(import("../src/utils/logger.ts"), () => ({
 	logger: {
 		debug: () => {},
 		info: () => {},

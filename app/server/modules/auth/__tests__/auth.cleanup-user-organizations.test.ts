@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { db, sqlite } from "~/server/db/db";
 import { member, organization, sessionsTable, usersTable } from "~/server/db/schema";
 import { authService } from "../auth.service";

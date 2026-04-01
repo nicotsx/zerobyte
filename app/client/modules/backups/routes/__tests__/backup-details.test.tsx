@@ -1,40 +1,51 @@
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen } from "~/test/test-utils";
 
-await mock.module("@tanstack/react-router", () => ({
-	Link: ({ children }: { children?: ReactNode }) => <a href="/">{children}</a>,
-	useNavigate: () => mock(() => {}),
-	useSearch: () => ({}),
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
+
+	return {
+		...actual,
+		Link: (({ children }: { children?: ReactNode }) => <a href="/">{children}</a>) as typeof actual.Link,
+		useNavigate: (() => vi.fn(async () => {})) as typeof actual.useNavigate,
+		useSearch: (() => ({})) as typeof actual.useSearch,
+	};
+});
+
+vi.mock("~/client/components/backup-summary-card", () => ({
+	BackupSummaryCard: () => <></>,
 }));
 
-await mock.module("~/client/components/backup-summary-card", () => ({
-	BackupSummaryCard: () => null,
+vi.mock("~/client/modules/backups/components/schedule-summary", () => ({
+	ScheduleSummary: () => <></>,
 }));
 
-await mock.module("~/client/modules/backups/components/schedule-summary", () => ({
-	ScheduleSummary: () => null,
+vi.mock("~/client/modules/backups/components/snapshot-timeline", () => ({
+	SnapshotTimeline: () => <></>,
 }));
 
-await mock.module("~/client/modules/backups/components/snapshot-timeline", () => ({
-	SnapshotTimeline: () => null,
+vi.mock("~/client/modules/backups/components/schedule-notifications-config", () => ({
+	ScheduleNotificationsConfig: () => <></>,
 }));
 
-await mock.module("~/client/modules/backups/components/schedule-notifications-config", () => ({
-	ScheduleNotificationsConfig: () => null,
+vi.mock("~/client/modules/backups/components/schedule-mirrors-config", () => ({
+	ScheduleMirrorsConfig: () => <></>,
 }));
 
-await mock.module("~/client/modules/backups/components/schedule-mirrors-config", () => ({
-	ScheduleMirrorsConfig: () => null,
-}));
+vi.mock("~/client/lib/datetime", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("~/client/lib/datetime")>();
 
-await mock.module("~/client/lib/datetime", () => ({
-	useTimeFormat: () => ({
-		formatDateTime: () => "2026-03-26 00:00",
-	}),
-}));
+	return {
+		...actual,
+		useTimeFormat: () => ({
+			...actual.useTimeFormat(),
+			formatDateTime: () => "2026-03-26 00:00",
+		}),
+	};
+});
 
 import { ScheduleDetailsPage } from "../backup-details";
 

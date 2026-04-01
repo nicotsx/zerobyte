@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -11,7 +11,7 @@ import { provisionedResourcesSchema, readProvisionedResourcesFile, syncProvision
 
 describe("provisioning", () => {
 	afterEach(() => {
-		mock.restore();
+		vi.restoreAllMocks();
 	});
 
 	test("rejects duplicate ids for the same organization", () => {
@@ -347,9 +347,9 @@ describe("provisioning", () => {
 		const { organizationId } = await createTestSession();
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
-		const initMock = mock(() => Promise.resolve({ success: true, error: null }));
+		const initMock = vi.fn(() => Promise.resolve({ success: true, error: null }));
 
-		spyOn(restic, "init").mockImplementation(initMock);
+		vi.spyOn(restic, "init").mockImplementation(initMock);
 
 		await fs.writeFile(
 			provisioningPath,

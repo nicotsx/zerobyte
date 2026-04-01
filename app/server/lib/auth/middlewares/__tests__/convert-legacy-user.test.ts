@@ -1,4 +1,4 @@
-import { test, describe, beforeEach, expect } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { convertLegacyUserOnFirstLogin } from "../convert-legacy-user";
 import { db } from "~/server/db/db";
 import { usersTable, account, organization, member } from "~/server/db/schema";

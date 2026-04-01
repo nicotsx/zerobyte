@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, fireEvent, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 

@@ -1,4 +1,4 @@
-import { test, describe, expect } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { repoMutex } from "../repository-mutex";
 
 describe("RepositoryMutex", () => {

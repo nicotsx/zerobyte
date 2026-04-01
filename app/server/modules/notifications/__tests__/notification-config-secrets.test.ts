@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { mapNotificationConfigSecrets } from "../notification-config-secrets";
 
 describe("mapNotificationConfigSecrets", () => {

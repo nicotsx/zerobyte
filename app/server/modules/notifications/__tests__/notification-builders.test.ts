@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { buildCustomShoutrrrUrl } from "../builders/custom";
 import { buildDiscordShoutrrrUrl } from "../builders/discord";
 import { buildEmailShoutrrrUrl } from "../builders/email";

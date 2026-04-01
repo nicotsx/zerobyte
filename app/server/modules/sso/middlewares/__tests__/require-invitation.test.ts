@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
@@ -80,7 +80,7 @@ describe("requireSsoInvitation", () => {
 		await createSsoProvider("oidc-acme");
 
 		const ctx = createMockContext("/sign-up/email");
-		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("Missing providerId");
+		await expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("Missing providerId");
 	});
 
 	test("detects whether current request is an SSO callback", async () => {
@@ -97,7 +97,7 @@ describe("requireSsoInvitation", () => {
 		await createSsoProvider("oidc-acme");
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
-		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
+		await expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
 	});
 
 	test("blocks SSO callback when invitation is expired", async () => {
@@ -115,7 +115,7 @@ describe("requireSsoInvitation", () => {
 		});
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
-		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
+		await expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("must be invited");
 	});
 
 	test("allows SSO callback when a matching pending invitation exists", async () => {
@@ -133,11 +133,11 @@ describe("requireSsoInvitation", () => {
 		});
 
 		const ctx = createMockSsoCallbackContext("oidc-acme");
-		expect(requireSsoInvitation("  USER@EXAMPLE.COM  ", ctx)).resolves.toBeUndefined();
+		await expect(requireSsoInvitation("  USER@EXAMPLE.COM  ", ctx)).resolves.toBeUndefined();
 	});
 
 	test("throws when provider is not registered", async () => {
 		const ctx = createMockSsoCallbackContext("missing-provider");
-		expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("SSO provider not found");
+		await expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("SSO provider not found");
 	});
 });

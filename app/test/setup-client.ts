@@ -1,10 +1,9 @@
-import "./setup.ts";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { afterAll, afterEach, beforeAll, mock } from "bun:test";
+import "./setup-shared";
+import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { client } from "~/client/api-client/client.gen";
 import { server } from "~/test/msw/server";
 
-void mock.module("~/client/hooks/use-root-loader-data", () => ({
+vi.mock(import("~/client/hooks/use-root-loader-data"), () => ({
 	useRootLoaderData: () => ({
 		theme: "dark",
 		locale: "en-US",
@@ -14,8 +13,6 @@ void mock.module("~/client/hooks/use-root-loader-data", () => ({
 		now: Date.now(),
 	}),
 }));
-
-GlobalRegistrator.register({ url: "http://localhost:3000" });
 
 client.setConfig({
 	baseUrl: "http://localhost:3000",

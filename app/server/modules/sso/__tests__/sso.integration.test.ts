@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import type { GenericEndpointContext } from "better-auth";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";

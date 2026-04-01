@@ -1,11 +1,16 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 import { fromAny } from "@total-typescript/shoehorn";
 
-await mock.module("@tanstack/react-router", () => ({
-	useNavigate: () => mock(() => {}),
-}));
+vi.mock("@tanstack/react-router", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
+
+	return {
+		...actual,
+		useNavigate: (() => vi.fn(async () => {})) as typeof actual.useNavigate,
+	};
+});
 
 import { RestoreForm } from "../restore-form";
 

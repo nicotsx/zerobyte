@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { copy } from "../copy";
@@ -29,8 +29,8 @@ const destConfig = {
 const setup = () => {
 	let capturedArgs: string[] = [];
 
-	spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
+	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
 		capturedArgs = args ?? [];
 		return { exitCode: 0, stdout: "copied", stderr: "", timedOut: false };
 	});
@@ -41,7 +41,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("copy command", () => {

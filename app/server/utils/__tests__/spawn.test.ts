@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { safeExec, safeSpawn } from "@zerobyte/core/node";
 
 describe("safeExec", () => {

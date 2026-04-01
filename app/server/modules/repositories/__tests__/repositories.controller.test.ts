@@ -1,4 +1,4 @@
-import { test, describe, expect, spyOn } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 import crypto from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createApp } from "~/server/app";
@@ -329,7 +329,7 @@ describe("repositories updates", () => {
 			const { restic } = await import("~/server/core/restic");
 			const { ResticError } = await import("@zerobyte/core/restic");
 
-			const deleteSnapshotSpy = spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
+			const deleteSnapshotSpy = vi.spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
 				throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
 			});
 
@@ -358,7 +358,7 @@ describe("repositories updates", () => {
 			const stream = new PassThrough();
 			const expectedContent = "downloaded snapshot contents";
 
-			const dumpSnapshotSpy = spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+			const dumpSnapshotSpy = vi.spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
 				stream,
 				completion: Promise.resolve(),
 				abort: () => {
@@ -392,7 +392,7 @@ describe("repositories updates", () => {
 			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
 
 			const stream = new PassThrough();
-			const dumpSnapshotSpy = spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+			const dumpSnapshotSpy = vi.spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
 				stream,
 				completion: Promise.resolve(),
 				abort: () => {
