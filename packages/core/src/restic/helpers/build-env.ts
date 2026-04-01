@@ -44,6 +44,10 @@ export const buildEnv = async (
 			env.AWS_REGION = "auto";
 			env.AWS_S3_FORCE_PATH_STYLE = "true";
 			break;
+		case "b2":
+			env.B2_ACCOUNT_ID = await deps.resolveSecret(config.accountId);
+			env.B2_ACCOUNT_KEY = await deps.resolveSecret(config.accountKey);
+			break;
 		case "gcs": {
 			const decryptedCredentials = await deps.resolveSecret(config.credentialsJson);
 			const credentialsPath = path.join("/tmp", `zerobyte-gcs-${crypto.randomBytes(8).toString("hex")}.json`);

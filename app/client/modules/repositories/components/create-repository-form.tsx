@@ -26,6 +26,7 @@ import {
 	gcsRepositoryConfigSchema,
 	localRepositoryConfigSchema,
 	r2RepositoryConfigSchema,
+	b2RepositoryConfigSchema,
 	rcloneRepositoryConfigSchema,
 	restRepositoryConfigSchema,
 	s3RepositoryConfigSchema,
@@ -46,6 +47,7 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { B2RepositoryForm } from "./repository-forms/b2-repository-form";
 
 const formBaseFields = {
 	name: z.string().min(2).max(32),
@@ -56,6 +58,7 @@ export const formSchema = z
 	.discriminatedUnion("backend", [
 		localRepositoryConfigSchema.extend(formBaseFields),
 		s3RepositoryConfigSchema.extend(formBaseFields),
+		b2RepositoryConfigSchema.extend(formBaseFields),
 		r2RepositoryConfigSchema.extend(formBaseFields),
 		gcsRepositoryConfigSchema.extend(formBaseFields),
 		azureRepositoryConfigSchema.extend(formBaseFields),
@@ -87,6 +90,7 @@ type Props = {
 const defaultValuesForType = (repoBase: string) => ({
 	local: { backend: "local" as const, compressionMode: "auto" as const, path: repoBase },
 	s3: { backend: "s3" as const, compressionMode: "auto" as const },
+	b2: { backend: "b2" as const, compressionMode: "auto" as const },
 	r2: { backend: "r2" as const, compressionMode: "auto" as const },
 	gcs: { backend: "gcs" as const, compressionMode: "auto" as const },
 	azure: { backend: "azure" as const, compressionMode: "auto" as const },
@@ -185,6 +189,7 @@ export const CreateRepositoryForm = ({
 									<SelectItem value="local">Local</SelectItem>
 									<SelectItem value="s3">S3</SelectItem>
 									<SelectItem value="r2">Cloudflare R2</SelectItem>
+									<SelectItem value="b2">Backblaze B2</SelectItem>
 									<SelectItem value="gcs">Google Cloud Storage</SelectItem>
 									<SelectItem value="azure">Azure Blob Storage</SelectItem>
 									<SelectItem value="rest">REST Server</SelectItem>
@@ -313,6 +318,7 @@ export const CreateRepositoryForm = ({
 
 				{watchedBackend === "local" && <LocalRepositoryForm form={form} />}
 				{watchedBackend === "s3" && <S3RepositoryForm form={form} />}
+				{watchedBackend === "b2" && <B2RepositoryForm form={form} />}
 				{watchedBackend === "r2" && <R2RepositoryForm form={form} />}
 				{watchedBackend === "gcs" && <GCSRepositoryForm form={form} />}
 				{watchedBackend === "azure" && <AzureRepositoryForm form={form} />}
