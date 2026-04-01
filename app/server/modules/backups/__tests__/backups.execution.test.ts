@@ -239,6 +239,54 @@ describe("stop backup", () => {
 		);
 	});
 
+	test("should block forget on the same repository until the active backup completes", async () => {
+		const { resticBackupMock, resticForgetMock, sendBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepHourly: 24 },
+		});
+
+		let completeBackup: (() => void) | undefined;
+		resticBackupMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					completeBackup = () => resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" });
+				}),
+		);
+
+		const backupPromise = backupsExecutionService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(sendBackupMock).toHaveBeenCalledTimes(1);
+		});
+
+		let forgetFinished = false;
+		const forgetPromise = backupsExecutionService.runForget(schedule.id).finally(() => {
+			forgetFinished = true;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(resticForgetMock).not.toHaveBeenCalled();
+		expect(forgetFinished).toBe(false);
+
+		expect(completeBackup).toBeDefined();
+		completeBackup?.();
+
+		await backupPromise;
+		await forgetPromise;
+
+		expect(resticForgetMock).toHaveBeenCalled();
+		expect(resticForgetMock).toHaveBeenCalledWith(
+			repository.config,
+			expect.objectContaining({ keepHourly: 24 }),
+			expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+		);
+	});
+
 	test("should stop a running backup", async () => {
 		// arrange
 		const { resticBackupMock } = setup();
