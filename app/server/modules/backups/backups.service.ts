@@ -44,7 +44,6 @@ const getScheduleById = async (scheduleId: number) => {
 const getScheduleByShortId = async (shortId: ShortId) => {
 	return getScheduleByIdOrShortId(shortId);
 };
-
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
 	if (data.cronExpression && !isValidCron(data.cronExpression)) {
@@ -434,6 +433,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				case "failed":
 					return handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, ctx);
 				case "cancelled":
+					if (abortController.signal.aborted) {
+						return;
+					}
+
 					return handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
 			}
 		} finally {

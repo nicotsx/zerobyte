@@ -12,10 +12,10 @@ import { db } from "~/server/db/db";
 import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
-import { backupsExecutionService } from "../backups.execution";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
+import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: unknown) => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
@@ -66,10 +66,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.nextBackupAt).not.toBeNull();
 
 		const nextBackupAt = new Date(updatedSchedule.nextBackupAt ?? 0);
@@ -91,7 +91,7 @@ describe("execute backup", () => {
 		});
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, true);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalled();
@@ -139,7 +139,7 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, true);
 
 		// assert
 		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
@@ -162,13 +162,13 @@ describe("execute backup", () => {
 		});
 
 		// act
-		void backupsExecutionService.executeBackup(schedule.id);
+		void backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(() => {
 			expect(resticBackupMock).toHaveBeenCalledTimes(1);
 		});
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalledTimes(1);
@@ -189,10 +189,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 	});
 
@@ -211,10 +211,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 	});
 });
@@ -236,7 +236,7 @@ describe("getSchedulesToExecute", () => {
 		});
 
 		// act
-		const schedulesToExecute = await backupsExecutionService.getSchedulesToExecute();
+		const schedulesToExecute = await backupsService.getSchedulesToExecute();
 
 		// assert
 		expect(schedulesToExecute).toContain(schedule.id);
@@ -253,7 +253,7 @@ describe("getScheduleByIdOrShortId", () => {
 			repositoryId: repository.id,
 		});
 
-		const found = await backupsService.getScheduleByIdOrShortId(String(schedule.id));
+		const found = await getScheduleByIdOrShortId(String(schedule.id));
 
 		expect(found.id).toBe(schedule.id);
 		expect(found.shortId).toBe(schedule.shortId);
@@ -268,7 +268,7 @@ describe("getScheduleByIdOrShortId", () => {
 			repositoryId: repository.id,
 		});
 
-		const found = await backupsService.getScheduleByIdOrShortId(schedule.shortId);
+		const found = await getScheduleByIdOrShortId(schedule.shortId);
 
 		expect(found.id).toBe(schedule.id);
 		expect(found.shortId).toBe(schedule.shortId);
@@ -281,10 +281,8 @@ describe("getScheduleByIdOrShortId", () => {
 			organizationId: otherOrgId,
 		});
 
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow(
-			"Backup schedule not found",
-		);
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
+		await expect(getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow("Backup schedule not found");
+		await expect(getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
 	});
 });
 

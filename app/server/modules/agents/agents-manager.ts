@@ -268,7 +268,7 @@ const createAgentManagerRuntime = () => {
 		(server) =>
 			Effect.sync(() => {
 				closeAllSessions();
-				server.stop(true);
+				void server.stop(true);
 			}),
 	);
 
