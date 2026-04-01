@@ -15,7 +15,7 @@ import {
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 
-type AgentConnectionData = {
+export type AgentConnectionData = {
 	id: string;
 	agentId: string;
 	organizationId: string | null;
@@ -123,14 +123,15 @@ export const createControllerAgentSession = (
 	);
 
 	const handleAgentMessage = (message: AgentMessage) => {
+		updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
+
 		switch (message.type) {
 			case "agent.ready": {
-				updateState((current) => ({ ...current, isReady: true, lastSeenAt: Date.now() }));
+				updateState((current) => ({ ...current, isReady: true }));
 				logger.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
 				break;
 			}
 			case "backup.started": {
-				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
 				setActiveBackupJob(message.payload.jobId, message.payload.scheduleId);
 				logger.info(
 					`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
@@ -139,34 +140,26 @@ export const createControllerAgentSession = (
 				break;
 			}
 			case "backup.progress": {
-				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
 				handlers.onBackupProgress?.(message.payload);
 				break;
 			}
 			case "backup.completed": {
-				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
 				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupCompleted?.(message.payload);
 				break;
 			}
 			case "backup.failed": {
-				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
 				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupFailed?.(message.payload);
 				break;
 			}
 			case "backup.cancelled": {
-				updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
 				deleteActiveBackupJob(message.payload.jobId);
 				handlers.onBackupCancelled?.(message.payload);
 				break;
 			}
 			case "heartbeat.pong": {
-				updateState((current) => ({
-					...current,
-					lastSeenAt: Date.now(),
-					lastPongAt: message.payload.sentAt,
-				}));
+				updateState((current) => ({ ...current, lastPongAt: message.payload.sentAt }));
 				break;
 			}
 		}
@@ -190,19 +183,11 @@ export const createControllerAgentSession = (
 			handleAgentMessage(parsed.data);
 		},
 		sendBackup: (payload) => {
-			offerOutbound(
-				createControllerMessage("backup.run", {
-					...payload,
-				}),
-			);
+			offerOutbound(createControllerMessage("backup.run", payload));
 			return payload.jobId;
 		},
 		sendBackupCancel: (payload) => {
-			offerOutbound(
-				createControllerMessage("backup.cancel", {
-					...payload,
-				}),
-			);
+			offerOutbound(createControllerMessage("backup.cancel", payload));
 		},
 		isReady: () => Effect.runSync(Ref.get(state)).isReady,
 		close: () => {

@@ -14,14 +14,11 @@ import type {
 } from "@zerobyte/contracts/agent-protocol";
 import { config } from "../../core/config";
 import { validateAgentToken, deriveLocalAgentToken } from "./agent-tokens";
-import { createControllerAgentSession, type ControllerAgentSession } from "./controller-agent-session";
-
-type AgentConnectionData = {
-	id: string;
-	agentId: string;
-	organizationId: string | null;
-	agentName: string;
-};
+import {
+	createControllerAgentSession,
+	type AgentConnectionData,
+	type ControllerAgentSession,
+} from "./controller-agent-session";
 
 type AgentBackupEventContext = {
 	agentId: string;
@@ -42,11 +39,37 @@ export type AgentBackupEventHandlers = {
 	onBackupCancelled?: (context: AgentBackupEventContext & { payload: BackupCancelledPayload }) => void;
 };
 
-export const spawnLocalAgent = async () => {
-	const previousAgent = (globalThis as Record<string, unknown>).__localAgent as ChildProcess | undefined;
-	if (previousAgent) {
-		previousAgent.kill();
+type AgentManagerRuntime = ReturnType<typeof createAgentManagerRuntime>;
+type AgentRuntimeState = {
+	agentManager: AgentManagerRuntime;
+	localAgent: ChildProcess | null;
+};
+
+type ProcessWithAgentRuntime = NodeJS.Process & {
+	__zerobyteAgentRuntime?: AgentRuntimeState;
+};
+
+const getAgentRuntimeState = () => {
+	const runtimeProcess = process as ProcessWithAgentRuntime;
+	const existingRuntime = runtimeProcess.__zerobyteAgentRuntime;
+
+	if (existingRuntime) {
+		return existingRuntime;
 	}
+
+	const runtime = {
+		agentManager: createAgentManagerRuntime(),
+		localAgent: null,
+	};
+
+	runtimeProcess.__zerobyteAgentRuntime = runtime;
+	return runtime;
+};
+
+const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
+
+export const spawnLocalAgent = async () => {
+	await stopLocalAgent();
 
 	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
@@ -59,7 +82,8 @@ export const spawnLocalAgent = async () => {
 	const agentToken = await deriveLocalAgentToken();
 	const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
 
-	const localAgent = spawn("bun", args, {
+	const runtime = getAgentRuntimeState();
+	const agentProcess = spawn("bun", args, {
 		env: {
 			...process.env,
 			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
@@ -68,21 +92,47 @@ export const spawnLocalAgent = async () => {
 		stdio: ["ignore", "pipe", "pipe"],
 	});
 
-	(globalThis as Record<string, unknown>).__localAgent = localAgent;
+	runtime.localAgent = agentProcess;
 
-	localAgent.stdout?.on("data", (data: Buffer) => {
+	agentProcess.stdout?.on("data", (data: Buffer) => {
 		const line = data.toString().trim();
 		if (line) logger.info(`[agent] ${line}`);
 	});
 
-	localAgent.stderr?.on("data", (data: Buffer) => {
+	agentProcess.stderr?.on("data", (data: Buffer) => {
 		const line = data.toString().trim();
 		if (line) logger.error(`[agent] ${line}`);
 	});
 
-	localAgent.on("exit", (code, signal) => {
+	agentProcess.on("exit", (code, signal) => {
+		if (runtime.localAgent === agentProcess) {
+			runtime.localAgent = null;
+		}
 		logger.info(`Agent process exited with code ${code} and signal ${signal}`);
 	});
+};
+
+export const stopLocalAgent = async () => {
+	const runtime = getAgentRuntimeState();
+	if (!runtime.localAgent) {
+		return;
+	}
+
+	const agentProcess = runtime.localAgent;
+	runtime.localAgent = null;
+
+	if (agentProcess.exitCode !== null || agentProcess.signalCode !== null) {
+		return;
+	}
+
+	const exited = new Promise<void>((resolve) => {
+		agentProcess.once("exit", () => {
+			resolve();
+		});
+	});
+
+	agentProcess.kill();
+	await exited;
 };
 
 const createAgentManagerRuntime = () => {
@@ -290,9 +340,9 @@ const createAgentManagerRuntime = () => {
 	};
 };
 
-const previous = (globalThis as Record<string, unknown>).__agentManager as
-	| ReturnType<typeof createAgentManagerRuntime>
-	| undefined;
+export const agentManager = getAgentManagerRuntime();
 
-export const agentManager = previous ?? createAgentManagerRuntime();
-(globalThis as Record<string, unknown>).__agentManager = agentManager;
+export const stopAgentRuntime = async () => {
+	getAgentManagerRuntime().stop();
+	await stopLocalAgent();
+};

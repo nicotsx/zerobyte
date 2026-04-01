@@ -168,10 +168,6 @@ type Brand<TValue, TBrand extends string> = TValue & {
 	readonly __brand: TBrand;
 };
 
-type MessageSender = {
-	send(message: string): unknown;
-};
-
 export type ControllerWireMessage = Brand<string, "ControllerWireMessage">;
 export type AgentWireMessage = Brand<string, "AgentWireMessage">;
 
@@ -221,13 +217,3 @@ export const createAgentMessage = <TType extends AgentMessage["type"]>(
 			payload,
 		}),
 	) as AgentWireMessage;
-
-export const sendControllerMessage = (target: MessageSender, message: ControllerWireMessage) => {
-	target.send(message);
-};
-
-export const sendAgentMessage = (target: MessageSender, message: AgentWireMessage) => {
-	target.send(message);
-};
-
-export type ControllerData = MessageEvent<ControllerWireMessage>;
