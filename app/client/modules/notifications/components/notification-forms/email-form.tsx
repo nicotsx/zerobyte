@@ -7,9 +7,10 @@ import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
 	form: UseFormReturn<NotificationFormValues>;
+	readOnly?: boolean;
 };
 
-export const EmailForm = ({ form }: Props) => {
+export const EmailForm = ({ form, readOnly = false }: Props) => {
 	return (
 		<>
 			<FormField
@@ -128,7 +129,7 @@ export const EmailForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem className="flex flex-row items-center space-x-3">
 						<FormControl>
-							<Checkbox checked={field.value} onCheckedChange={field.onChange} />
+							<Checkbox checked={field.value} disabled={readOnly} onCheckedChange={field.onChange} />
 						</FormControl>
 						<div className="space-y-1 leading-none">
 							<FormLabel>Use TLS</FormLabel>

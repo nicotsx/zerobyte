@@ -7,9 +7,10 @@ import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
 	form: UseFormReturn<NotificationFormValues>;
+	readOnly?: boolean;
 };
 
-export const NtfyForm = ({ form }: Props) => {
+export const NtfyForm = ({ form, readOnly = false }: Props) => {
 	return (
 		<>
 			<FormField
@@ -90,7 +91,7 @@ export const NtfyForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Priority</FormLabel>
-						<Select onValueChange={field.onChange} value={String(field.value)}>
+						<Select disabled={readOnly} onValueChange={field.onChange} value={String(field.value)}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select priority" />

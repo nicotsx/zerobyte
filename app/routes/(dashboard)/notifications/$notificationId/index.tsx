@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getNotificationDestinationOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { NotificationDetailsPage } from "~/client/modules/notifications/routes/notification-details";
 
-export const Route = createFileRoute("/(dashboard)/notifications/$notificationId")({
+export const Route = createFileRoute("/(dashboard)/notifications/$notificationId/")({
 	component: RouteComponent,
 	errorComponent: () => <div>Failed to load notification</div>,
 	loader: async ({ params, context }) => {
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/(dashboard)/notifications/$notificationId
 			{ title: `Zerobyte - ${loaderData?.name}` },
 			{
 				name: "description",
-				content: "View and edit notification destination settings.",
+				content: "View notification destination settings.",
 			},
 		],
 	}),

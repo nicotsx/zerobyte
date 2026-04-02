@@ -10,6 +10,7 @@ import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
 	form: UseFormReturn<NotificationFormValues>;
+	readOnly?: boolean;
 };
 
 const WebhookPreview = ({ values }: { values: Partial<NotificationFormValues> }) => {
@@ -48,7 +49,7 @@ ${body}`;
 	);
 };
 
-export const GenericForm = ({ form }: Props) => {
+export const GenericForm = ({ form, readOnly = false }: Props) => {
 	const watchedValues = useWatch({ control: form.control });
 	const useJson = useWatch({ control: form.control, name: "useJson" });
 
@@ -74,7 +75,7 @@ export const GenericForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Method</FormLabel>
-						<Select onValueChange={field.onChange} value={field.value ?? ""}>
+						<Select disabled={readOnly} onValueChange={field.onChange} value={field.value ?? ""}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select method" />
@@ -127,7 +128,11 @@ export const GenericForm = ({ form }: Props) => {
 				render={({ field }) => (
 					<FormItem className="flex flex-row items-center space-x-3">
 						<FormControl>
-							<Checkbox checked={field.value} onCheckedChange={(checked) => field.onChange(checked)} />
+							<Checkbox
+								checked={field.value}
+								disabled={readOnly}
+								onCheckedChange={(checked) => field.onChange(checked)}
+							/>
 						</FormControl>
 						<div className="space-y-1 leading-none">
 							<FormLabel>Use JSON Template</FormLabel>
