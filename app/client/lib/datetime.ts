@@ -149,7 +149,7 @@ export function inferDateTimePreferences(locale?: string) {
 }
 
 // 1/10/2026, 2:30 PM
-export function formatDateTime(date: DateInput, options: DateFormatOptions = {}): string {
+function formatDateTime(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(
 		date,
 		(validDate) => `${formatConfiguredDate(validDate, options, true)}, ${formatConfiguredTime(validDate, options)}`,
@@ -157,22 +157,22 @@ export function formatDateTime(date: DateInput, options: DateFormatOptions = {})
 }
 
 // Jan 10, 2026
-export function formatDateWithMonth(date: DateInput, options: DateFormatOptions = {}): string {
+function formatDateWithMonth(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(date, (validDate) => formatConfiguredDateWithMonth(validDate, options));
 }
 
 // 1/10/2026
-export function formatDate(date: DateInput, options: DateFormatOptions = {}): string {
+function formatDate(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(date, (validDate) => formatConfiguredDate(validDate, options, true));
 }
 
 // 1/10
-export function formatShortDate(date: DateInput, options: DateFormatOptions = {}): string {
+function formatShortDate(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(date, (validDate) => formatConfiguredDate(validDate, options, false));
 }
 
 // 1/10, 2:30 PM
-export function formatShortDateTime(date: DateInput, options: DateFormatOptions = {}): string {
+function formatShortDateTime(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(
 		date,
 		(validDate) => `${formatConfiguredDate(validDate, options, false)}, ${formatConfiguredTime(validDate, options)}`,
@@ -180,12 +180,12 @@ export function formatShortDateTime(date: DateInput, options: DateFormatOptions 
 }
 
 // 2:30 PM
-export function formatTime(date: DateInput, options: DateFormatOptions = {}): string {
+function formatTime(date: DateInput, options: DateFormatOptions = {}): string {
 	return formatValidDate(date, (validDate) => formatConfiguredTime(validDate, options));
 }
 
 // 5 minutes ago
-export function formatTimeAgo(date: DateInput, now = Date.now()): string {
+function formatTimeAgo(date: DateInput, now = Date.now()): string {
 	return formatValidDate(date, (validDate) => {
 		if (Math.abs(now - validDate.getTime()) < 120_000) {
 			return "just now";
@@ -222,3 +222,13 @@ export function useTimeFormat() {
 		[locale, timeZone, currentNow, dateFormat, timeFormat],
 	);
 }
+
+export const rawFormatters = {
+	formatDateTime,
+	formatDateWithMonth,
+	formatDate,
+	formatShortDate,
+	formatShortDateTime,
+	formatTime,
+	formatTimeAgo,
+};

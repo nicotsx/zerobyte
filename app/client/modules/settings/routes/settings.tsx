@@ -24,9 +24,9 @@ import { authClient } from "~/client/lib/auth-client";
 import {
 	DATE_FORMATS,
 	type DateFormatPreference,
-	formatDateTime,
 	TIME_FORMATS,
 	type TimeFormatPreference,
+	useTimeFormat,
 } from "~/client/lib/datetime";
 import { logger } from "~/client/lib/logger";
 import { type AppContext } from "~/context";
@@ -50,7 +50,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
-	const { locale, dateFormat, timeFormat } = useRootLoaderData();
+	const { dateFormat, timeFormat } = useRootLoaderData();
 
 	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
 	const activeTab = tab || "account";
@@ -58,12 +58,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const navigate = useNavigate();
 	const { activeMember, activeOrganization } = useOrganizationContext();
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
-	const dateTimePreview = formatDateTime("2026-01-10T14:30:00.000Z", {
-		locale,
-		timeZone: "UTC",
-		dateFormat,
-		timeFormat,
-	});
+	const { formatDateTime } = useTimeFormat();
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -275,7 +270,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											</Select>
 										</div>
 									</div>
-									<p className="text-sm text-muted-foreground">Preview: {dateTimePreview}</p>
+									<p className="text-sm text-muted-foreground">Preview: {formatDateTime(new Date())}</p>
 								</div>
 							</CardContent>
 

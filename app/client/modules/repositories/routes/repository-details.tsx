@@ -31,13 +31,13 @@ import {
 } from "~/client/components/ui/dropdown-menu";
 import { Separator } from "~/client/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
-import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
 import type { BackupSchedule, Snapshot } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 export default function RepositoryDetailsPage({
 	repositoryId,
@@ -50,6 +50,7 @@ export default function RepositoryDetailsPage({
 	initialBackupSchedules?: BackupSchedule[];
 	initialStats?: GetRepositoryStatsResponse;
 }) {
+	const { formatDateTime, formatTimeAgo } = useTimeFormat();
 	const navigate = useNavigate();
 	const { tab } = useSearch({ from: "/(dashboard)/repositories/$repositoryId/" });
 	const activeTab = tab || "info";

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import {
-	DEFAULT_TIME_FORMAT,
+import { DEFAULT_TIME_FORMAT, inferDateTimePreferences, rawFormatters } from "../datetime";
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
+
+const {
 	formatDate,
 	formatDateTime,
 	formatDateWithMonth,
@@ -8,12 +13,7 @@ import {
 	formatShortDateTime,
 	formatTime,
 	formatTimeAgo,
-	inferDateTimePreferences,
-} from "../datetime";
-
-afterEach(() => {
-	vi.restoreAllMocks();
-});
+} = rawFormatters;
 
 const sampleDate = new Date("2026-01-10T14:30:00.000Z");
 

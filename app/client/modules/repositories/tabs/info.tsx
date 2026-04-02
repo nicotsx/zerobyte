@@ -2,11 +2,11 @@ import { Archive, Clock, FolderOpen, HardDrive, Lock, Settings, Shield } from "l
 import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import type { Repository } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
-import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { DoctorReport } from "../components/doctor-report";
 import { CompressionStatsChart } from "../components/compression-stats-chart";
 import { cn } from "~/client/lib/utils";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 type Props = {
 	repository: Repository;
@@ -33,6 +33,7 @@ function ConfigRow({ icon, label, value, mono, valueClassName }: ConfigRowProps)
 
 export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) => {
 	const effectiveLocalPath = getEffectiveLocalPath(repository);
+	const { formatDateTime, formatTimeAgo } = useTimeFormat();
 
 	const config = repository.config as RepositoryConfig;
 	const hasLocalPath = Boolean(effectiveLocalPath);

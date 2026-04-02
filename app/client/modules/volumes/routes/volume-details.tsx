@@ -35,16 +35,17 @@ import { Separator } from "~/client/components/ui/separator";
 import { Switch } from "~/client/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { ManagedBadge } from "~/client/components/managed-badge";
-import { formatDateTime, formatTimeAgo } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
 import { VolumeInfoTabContent } from "../tabs/info";
 import { FilesTabContent } from "../tabs/files";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
 	const searchParams = useSearch({ from: "/(dashboard)/volumes/$volumeId/" });
 	const activeTab = searchParams.tab || "info";
+	const { formatDateTime, formatTimeAgo } = useTimeFormat();
 
 	const { data } = useSuspenseQuery({
 		...getVolumeOptions({ path: { shortId: volumeId } }),
