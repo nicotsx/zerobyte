@@ -9,6 +9,7 @@ import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { cn } from "~/client/lib/utils";
+import { StatusDot } from "~/client/components/status-dot";
 import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -143,17 +144,14 @@ export function RepositoriesPage() {
 									</span>
 								</TableCell>
 								<TableCell className="text-center">
-									<span
-										className={cn(
-											"inline-flex items-center gap-2 px-2 py-1 rounded-md text-xs bg-gray-500/10 text-gray-500",
-											{
-												"bg-success/10 text-success": repository.status === "healthy",
-												"bg-red-500/10 text-red-500": repository.status === "error",
-											},
-										)}
-									>
-										{repository.status || "unknown"}
-									</span>
+									<StatusDot
+										variant={
+											repository.status === "healthy" ? "success" : repository.status === "error" ? "error" : "warning"
+										}
+										label={
+											repository.status ? repository.status[0].toUpperCase() + repository.status.slice(1) : "Unknown"
+										}
+									/>
 								</TableCell>
 							</TableRow>
 						))}

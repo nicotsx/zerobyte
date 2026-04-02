@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Plug, Trash2, Unplug } from "lucide-react";
+import { ChevronDown, Pencil, Plug, Trash2, Unplug } from "lucide-react";
 import { CreateVolumeForm } from "~/client/modules/volumes/components/create-volume-form";
 import {
 	AlertDialog,
@@ -15,6 +15,13 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import { Button } from "~/client/components/ui/button";
 import { Card } from "~/client/components/ui/card";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "~/client/components/ui/dropdown-menu";
 import type { StatFs, Volume } from "~/client/lib/types";
 import { HealthchecksCard } from "../components/healthchecks-card";
 import { StorageChart } from "../components/storage-chart";
@@ -37,26 +44,10 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 
 	const mountVol = useMutation({
 		...mountVolumeMutation(),
-		onSuccess: () => {
-			toast.success("Volume mounted successfully");
-		},
-		onError: (error) => {
-			toast.error("Failed to mount volume", {
-				description: parseError(error)?.message,
-			});
-		},
 	});
 
 	const unmountVol = useMutation({
 		...unmountVolumeMutation(),
-		onSuccess: () => {
-			toast.success("Volume unmounted successfully");
-		},
-		onError: (error) => {
-			toast.error("Failed to unmount volume", {
-				description: parseError(error)?.message,
-			});
-		},
 	});
 
 	const deleteVol = useMutation({
@@ -89,23 +80,21 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 						<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4 mb-6">
 							<div>
 								<div className="flex items-center gap-2">
-									<span className="text-lg font-semibold">Volume Configuration</span>
+									<h2 className="text-lg font-semibold tracking-tight">Volume Configuration</h2>
 									{volume.provisioningId && <ManagedBadge />}
 								</div>
 							</div>
-							<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => navigate({ to: `/volumes/${volume.shortId}/edit` })}
-								>
-									<Pencil className="h-4 w-4 mr-2" />
-									Edit
-								</Button>
+							<div className="flex items-center gap-2">
 								{volume.status !== "mounted" ? (
 									<Button
 										type="button"
-										onClick={() => mountVol.mutate({ path: { shortId: volume.shortId } })}
+										onClick={() =>
+											toast.promise(mountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
+												loading: "Mounting volume...",
+												success: "Volume mounted successfully",
+												error: (error) => parseError(error)?.message || "Failed to mount volume",
+											})
+										}
 										loading={mountVol.isPending}
 									>
 										<Plug className="h-4 w-4 mr-2" />
@@ -115,22 +104,42 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 									<Button
 										type="button"
 										variant="secondary"
-										onClick={() => unmountVol.mutate({ path: { shortId: volume.shortId } })}
+										onClick={() =>
+											toast.promise(unmountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
+												loading: "Unmounting volume...",
+												success: "Volume unmounted successfully",
+												error: (error) => parseError(error)?.message || "Failed to unmount volume",
+											})
+										}
 										loading={unmountVol.isPending}
 									>
 										<Unplug className="h-4 w-4 mr-2" />
 										Unmount
 									</Button>
 								)}
-								<Button
-									type="button"
-									variant="destructive"
-									onClick={() => setShowDeleteConfirm(true)}
-									disabled={deleteVol.isPending}
-								>
-									<Trash2 className="h-4 w-4 mr-2" />
-									Delete
-								</Button>
+								<DropdownMenu>
+									<DropdownMenuTrigger asChild>
+										<Button variant="outline">
+											Actions
+											<ChevronDown className="h-4 w-4 ml-1" />
+										</Button>
+									</DropdownMenuTrigger>
+									<DropdownMenuContent align="end">
+										<DropdownMenuItem onClick={() => navigate({ to: `/volumes/${volume.shortId}/edit` })}>
+											<Pencil />
+											Edit
+										</DropdownMenuItem>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem
+											variant="destructive"
+											onClick={() => setShowDeleteConfirm(true)}
+											disabled={deleteVol.isPending}
+										>
+											<Trash2 />
+											Delete
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</div>
 						</div>
 						<CreateVolumeForm

@@ -1,4 +1,4 @@
-import { Check, Database, Eraser, HardDrive, Pencil, Play, Square, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Database, Eraser, HardDrive, Pencil, Play, Square, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { OnOff } from "~/client/components/onoff";
 import { Button } from "~/client/components/ui/button";
@@ -12,6 +12,13 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "~/client/components/ui/dropdown-menu";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupProgressCard } from "./backup-progress-card";
 import { getBackupProgressOptions, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -46,9 +53,6 @@ export const ScheduleSummary = (props: Props) => {
 
 	const runForget = useMutation({
 		...runForgetMutation(),
-		onSuccess: () => {
-			toast.success("Retention policy applied successfully");
-		},
 		onError: (error) => {
 			handleRepositoryError("Failed to apply retention policy", error, schedule.repository.shortId);
 		},
@@ -83,7 +87,10 @@ export const ScheduleSummary = (props: Props) => {
 
 	const handleConfirmForget = () => {
 		setShowForgetConfirm(false);
-		runForget.mutate({ path: { shortId: schedule.shortId } });
+		toast.promise(runForget.mutateAsync({ path: { shortId: schedule.shortId } }), {
+			loading: "Running cleanup...",
+			success: "Retention policy applied successfully",
+		});
 	};
 
 	const handleConfirmStop = () => {
@@ -132,53 +139,45 @@ export const ScheduleSummary = (props: Props) => {
 							/>
 						</div>
 					</div>
-					<div className="flex flex-col @wide:flex-row gap-2">
+					<div className="flex items-center gap-2">
 						{schedule.lastBackupStatus === "in_progress" ? (
-							<Button
-								variant="destructive"
-								size="sm"
-								onClick={() => setShowStopConfirm(true)}
-								className="w-full @medium:w-auto"
-							>
+							<Button variant="destructive" size="sm" onClick={() => setShowStopConfirm(true)}>
 								<Square className="h-4 w-4 mr-2" />
 								<span>Stop backup</span>
 							</Button>
 						) : (
-							<Button variant="default" size="sm" onClick={handleRunBackupNow} className="w-full @medium:w-auto">
+							<Button variant="default" size="sm" onClick={handleRunBackupNow}>
 								<Play className="h-4 w-4 mr-2" />
 								<span>Backup now</span>
 							</Button>
 						)}
-						{schedule.retentionPolicy && (
-							<Button
-								variant="outline"
-								size="sm"
-								loading={runForget.isPending}
-								onClick={() => setShowForgetConfirm(true)}
-								className="w-full @medium:w-auto"
-							>
-								<Eraser className="h-4 w-4 mr-2" />
-								<span>Run cleanup</span>
-							</Button>
-						)}
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => navigate({ to: "/backups/$backupId/edit", params: { backupId: schedule.shortId } })}
-							className="w-full @medium:w-auto"
-						>
-							<Pencil className="h-4 w-4 mr-2" />
-							<span>Edit schedule</span>
-						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => setShowDeleteConfirm(true)}
-							className="text-destructive hover:text-destructive w-full @medium:w-auto"
-						>
-							<Trash2 className="h-4 w-4 mr-2" />
-							<span>Delete</span>
-						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm">
+									Actions
+									<ChevronDown className="h-4 w-4 ml-1" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								{schedule.retentionPolicy && (
+									<DropdownMenuItem onClick={() => setShowForgetConfirm(true)} disabled={runForget.isPending}>
+										<Eraser />
+										Run cleanup
+									</DropdownMenuItem>
+								)}
+								<DropdownMenuItem
+									onClick={() => navigate({ to: "/backups/$backupId/edit", params: { backupId: schedule.shortId } })}
+								>
+									<Pencil />
+									Edit schedule
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+									<Trash2 />
+									Delete
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				</CardHeader>
 				<CardContent className="grid gap-4 grid-cols-1 @medium:grid-cols-2 @wide:grid-cols-4">
