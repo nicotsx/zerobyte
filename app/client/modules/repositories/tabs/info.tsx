@@ -155,10 +155,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 										toast.promise(unlockRepo.mutateAsync({ path: { shortId: repository.shortId } }), {
 											loading: "Unlocking repo",
 											success: "Repository unlocked successfully",
-											error: (e) =>
-												toast.error("Failed to unlock repository", {
-													description: parseError(e)?.message,
-												}),
+											error: (e) => parseError(e)?.message || "Failed to unlock repository",
 										})
 									}
 									disabled={unlockRepo.isPending}
