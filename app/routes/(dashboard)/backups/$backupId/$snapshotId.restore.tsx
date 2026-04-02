@@ -26,12 +26,15 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			}),
 		]);
 
+		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+
 		return {
 			snapshot,
 			repository,
 			schedule: schedule.data,
-			queryBasePath: findCommonAncestor(snapshot.paths),
+			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
 			displayBasePath: getVolumeMountPath(schedule.data.volume),
+			hasNonPosixSnapshotPaths,
 		};
 	},
 	head: ({ params }) => ({
@@ -55,7 +58,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath } = Route.useLoaderData();
+	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
@@ -64,6 +67,7 @@ function RouteComponent() {
 			repository={repository}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
+			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 		/>
 	);
 }

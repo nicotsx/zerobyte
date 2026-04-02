@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronDown, Download, FolderOpen, RotateCcw } from "lucide-react";
+import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
@@ -22,6 +23,7 @@ import { RestoreProgress } from "~/client/components/restore-progress";
 import { restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { type RestoreCompletedEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
+import { isPathWithin } from "@zerobyte/core/utils";
 import type { Repository } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
@@ -35,15 +37,27 @@ interface RestoreFormProps {
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
+	hasNonPosixSnapshotPaths?: boolean;
 }
 
-export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath, displayBasePath }: RestoreFormProps) {
+export function RestoreForm({
+	repository,
+	snapshotId,
+	returnPath,
+	queryBasePath,
+	displayBasePath,
+	hasNonPosixSnapshotPaths = false,
+}: RestoreFormProps) {
 	const navigate = useNavigate();
 	const { addEventListener } = useServerEvents();
 
 	const snapshotBasePath = queryBasePath ?? "/";
+	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
+	const restoreRequiresCustomTarget = hasNonPosixSnapshotPaths || hasMismatchedDisplayBasePath;
 
-	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>("original");
+	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>(
+		restoreRequiresCustomTarget ? "custom" : "original",
+	);
 	const [customTargetPath, setCustomTargetPath] = useState("");
 	const [overwriteMode, setOverwriteMode] = useState<OverwriteMode>("always");
 	const [showAdvanced, setShowAdvanced] = useState(false);
@@ -55,6 +69,15 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 	const [selectedPathKind, setSelectedPathKind] = useState<"file" | "dir" | null>(null);
+	const trimmedCustomTargetPath = customTargetPath.trim();
+	const hasCustomTargetPath = trimmedCustomTargetPath !== "";
+	const selectedPathCount = selectedPaths.size;
+
+	useEffect(() => {
+		if (restoreRequiresCustomTarget) {
+			setRestoreLocation("custom");
+		}
+	}, [restoreRequiresCustomTarget]);
 
 	useEffect(() => {
 		const abortController = new AbortController();
@@ -114,13 +137,13 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 	});
 
 	const handleRestore = useCallback(() => {
-		const excludeXattrArray = excludeXattr
-			?.split(",")
-			.map((s) => s.trim())
+		const excludeXattrValues = excludeXattr
+			.split(",")
+			.map((value) => value.trim())
 			.filter(Boolean);
 
 		const isCustomLocation = restoreLocation === "custom";
-		const targetPath = isCustomLocation && customTargetPath.trim() ? customTargetPath.trim() : undefined;
+		const targetPath = isCustomLocation && hasCustomTargetPath ? trimmedCustomTargetPath : undefined;
 
 		const includePaths = Array.from(selectedPaths);
 
@@ -135,7 +158,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 				snapshotId,
 				include: includePaths.length > 0 ? includePaths : undefined,
 				selectedItemKind: includePaths.length === 1 ? (selectedPathKind ?? undefined) : undefined,
-				excludeXattr: excludeXattrArray && excludeXattrArray.length > 0 ? excludeXattrArray : undefined,
+				excludeXattr: excludeXattrValues.length > 0 ? excludeXattrValues : undefined,
 				targetPath,
 				overwrite: overwriteMode,
 			},
@@ -144,8 +167,9 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 		repository.shortId,
 		snapshotId,
 		excludeXattr,
+		hasCustomTargetPath,
 		restoreLocation,
-		customTargetPath,
+		trimmedCustomTargetPath,
 		selectedPaths,
 		selectedPathKind,
 		overwriteMode,
@@ -182,13 +206,15 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 		}
 	}, []);
 
-	const canRestore = restoreLocation === "original" || customTargetPath.trim();
-	const canDownload = selectedPaths.size <= 1;
+	const canRestore = restoreRequiresCustomTarget
+		? hasCustomTargetPath
+		: restoreLocation === "original" || hasCustomTargetPath;
+	const canDownload = selectedPathCount <= 1;
 	const isRestoreRunning = isRestoring || isRestoreActive;
 
 	function getDownloadButtonText(): string {
-		if (selectedPaths.size > 0) {
-			return `Download ${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"}`;
+		if (selectedPathCount > 0) {
+			return `Download ${selectedPathCount} ${selectedPathCount === 1 ? "item" : "items"}`;
 		}
 		return "Download All";
 	}
@@ -197,8 +223,8 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 		if (isRestoreRunning) {
 			return "Restoring...";
 		}
-		if (selectedPaths.size > 0) {
-			return `Restore ${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"}`;
+		if (selectedPathCount > 0) {
+			return `Restore ${selectedPathCount} ${selectedPathCount === 1 ? "item" : "items"}`;
 		}
 		return "Restore All";
 	}
@@ -240,6 +266,18 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 				<div className="space-y-6">
 					{isRestoreRunning && <RestoreProgress repositoryId={repository.shortId} snapshotId={snapshotId} />}
 
+					{restoreRequiresCustomTarget && (
+						<Alert variant="warning">
+							<AlertTriangle className="size-4" />
+							<AlertTitle>Source paths do not match</AlertTitle>
+							<AlertDescription>
+								This snapshot was created from source paths that do not match this Zerobyte server or the current linked
+								volume. Restoring to the original location is unavailable. Restore it to a custom location, or download
+								it instead.
+							</AlertDescription>
+						</Alert>
+					)}
+
 					<Card>
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
@@ -253,6 +291,7 @@ export function RestoreForm({ repository, snapshotId, returnPath, queryBasePath,
 									size="sm"
 									className="flex justify-start gap-2"
 									onClick={() => setRestoreLocation("original")}
+									disabled={!!restoreRequiresCustomTarget}
 								>
 									<RotateCcw size={16} className="mr-1" />
 									Original location

@@ -25,7 +25,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			}
 		}
 
-		return { snapshot, repository, queryBasePath: findCommonAncestor(snapshot.paths), displayBasePath };
+		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+
+		return {
+			snapshot,
+			repository,
+			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
+			displayBasePath,
+			hasNonPosixSnapshotPaths,
+		};
 	},
 	staticData: {
 		breadcrumb: (match) => [
@@ -48,7 +56,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath } = Route.useLoaderData();
+	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
@@ -57,6 +65,7 @@ function RouteComponent() {
 			snapshotId={snapshotId}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
+			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 		/>
 	);
 }

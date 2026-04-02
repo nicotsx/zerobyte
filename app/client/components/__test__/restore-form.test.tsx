@@ -102,6 +102,12 @@ describe("RestoreForm", () => {
 					filesSkipped: 0,
 				});
 			}),
+			http.get("/api/v1/volumes/filesystem/browse", () => {
+				return HttpResponse.json({
+					path: "/",
+					directories: [{ name: "restore-target", path: "/restore-target", type: "dir" }],
+				});
+			}),
 		);
 
 		render(
@@ -114,8 +120,26 @@ describe("RestoreForm", () => {
 			/>,
 		);
 
+		expect(
+			screen.getByText(
+				"This snapshot was created from source paths that do not match this Zerobyte server or the current linked volume. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
+			),
+		).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
+
+		await userEvent.click(screen.getByRole("button", { name: "Change" }));
+		await userEvent.click(await screen.findByRole("button", { name: "restore-target" }));
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(false);
+		});
+
 		const row = await screen.findByRole("button", { name: "mnt" });
 		await userEvent.click(within(row).getByRole("checkbox"));
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: "Restore 1 item" }).hasAttribute("disabled")).toBe(false);
+		});
+
 		await userEvent.click(screen.getByRole("button", { name: "Restore 1 item" }));
 
 		await waitFor(() => {
@@ -123,6 +147,7 @@ describe("RestoreForm", () => {
 				snapshotId: "snap-1",
 				include: ["/mnt"],
 				selectedItemKind: "dir",
+				targetPath: "/restore-target",
 				overwrite: "always",
 			});
 		});

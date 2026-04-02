@@ -68,4 +68,39 @@ describe("SnapshotFileBrowser", () => {
 
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 	});
+
+	test("renders snapshots backed up from Windows absolute paths", async () => {
+		const requests: string[] = [];
+
+		server.use(
+			http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", ({ request }) => {
+				const url = new URL(request.url);
+				requests.push(url.searchParams.get("path") ?? "");
+
+				return HttpResponse.json({
+					files: [
+						{ name: "tmp", path: "/tmp", type: "dir" },
+						{ name: "source", path: "/tmp/source", type: "dir" },
+					],
+				});
+			}),
+		);
+
+		render(
+			<SnapshotFileBrowser
+				snapshot={fromAny({
+					short_id: "snap-1",
+					time: "2026-04-02T00:00:00.000Z",
+					paths: ["d:\\some\\path"],
+				})}
+				repositoryId="repo-1"
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(requests[0]).toBe("/");
+		});
+
+		expect(await screen.findByRole("button", { name: "tmp" })).toBeTruthy();
+	});
 });

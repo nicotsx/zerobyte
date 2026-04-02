@@ -16,7 +16,8 @@ export const prepareSnapshotDump = (params: {
 
 	const archiveFilename = `snapshot-${sanitizeFilenamePart(snapshotId)}.tar`;
 	const normalizedRequestedPath = normalizeAbsolutePath(requestedPath);
-	const basePath = normalizeAbsolutePath(findCommonAncestor(snapshotPaths));
+	const hasNonPosixSnapshotPaths = snapshotPaths.some((snapshotPath) => !snapshotPath.startsWith("/"));
+	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshotPaths);
 
 	if (basePath === "/") {
 		return {

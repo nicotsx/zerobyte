@@ -7,10 +7,11 @@ type Props = {
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
+	hasNonPosixSnapshotPaths?: boolean;
 };
 
 export function RestoreSnapshotPage(props: Props) {
-	const { returnPath, snapshotId, repository, queryBasePath, displayBasePath } = props;
+	const { returnPath, snapshotId, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths } = props;
 
 	return (
 		<RestoreForm
@@ -19,6 +20,7 @@ export function RestoreSnapshotPage(props: Props) {
 			returnPath={returnPath}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
+			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 		/>
 	);
 }

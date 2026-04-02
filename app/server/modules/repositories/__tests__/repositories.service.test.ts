@@ -376,6 +376,28 @@ describe("repositoriesService.dumpSnapshot", () => {
 			}),
 		);
 	});
+
+	test("downloads the full snapshot from root when source paths are non-posix", async () => {
+		const { organizationId, userId, shortId } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-windows",
+			basePath: "/tmp/repro/source",
+			snapshotPaths: ["d:\\some\\path"],
+		});
+
+		const result = await withContext({ organizationId, userId }, () =>
+			repositoriesService.dumpSnapshot(shortId, "snapshot-windows"),
+		);
+
+		expect(result.filename).toBe("snapshot-snapshot-windows.tar");
+		expect(result.contentType).toBe("application/x-tar");
+		expect(await readStreamText(result.stream)).toBe(
+			JSON.stringify({
+				snapshotRef: "snapshot-windows",
+				path: "/",
+				archive: true,
+			}),
+		);
+	});
 });
 
 describe("repositoriesService.restoreSnapshot", () => {
@@ -383,7 +405,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 		vi.restoreAllMocks();
 	});
 
-	const setupRestoreSnapshotScenario = async () => {
+	const setupRestoreSnapshotScenario = async (paths = ["/var/lib/zerobyte/volumes/vol123/_data"]) => {
 		const organizationId = session.organizationId;
 		const repository = await createTestRepository(organizationId);
 
@@ -392,7 +414,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 				id: "snapshot-restore",
 				short_id: "snapshot-restore",
 				time: new Date().toISOString(),
-				paths: ["/var/lib/zerobyte/volumes/vol123/_data"],
+				paths,
 				hostname: "host",
 			},
 		]);
@@ -453,6 +475,50 @@ describe("repositoriesService.restoreSnapshot", () => {
 			expect.objectContaining({
 				organizationId,
 				basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+			}),
+		);
+	});
+
+	test("rejects original-location restore for snapshots with non-posix source paths", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
+			"d:\\some\\path",
+		]);
+
+		await expect(
+			withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", {
+					include: ["/tmp/source"],
+					selectedItemKind: "dir",
+				}),
+			),
+		).rejects.toThrow("Original location restore is unavailable for this snapshot");
+
+		expect(restoreMock).not.toHaveBeenCalled();
+	});
+
+	test("allows restore-all to a custom target for snapshots with non-posix source paths", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
+			"d:\\some\\path",
+		]);
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+
+		try {
+			await withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", { targetPath }),
+			);
+		} finally {
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		expect(restoreMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				backend: "local",
+			}),
+			"snapshot-restore",
+			targetPath,
+			expect.objectContaining({
+				organizationId,
+				basePath: "/",
 			}),
 		);
 	});

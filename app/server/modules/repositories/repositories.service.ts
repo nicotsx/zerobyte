@@ -307,6 +307,7 @@ const restoreSnapshot = async (
 	snapshotId: string,
 	options?: {
 		include?: string[];
+		selectedItemKind?: "file" | "dir";
 		exclude?: string[];
 		excludeXattr?: string[];
 		delete?: boolean;
@@ -334,7 +335,15 @@ const restoreSnapshot = async (
 	}
 
 	const { paths } = await getSnapshotDetails(repository.shortId, snapshotId);
-	const basePath = findCommonAncestor(paths);
+	const hasNonPosixSnapshotPaths = paths.some((path) => !path.startsWith("/"));
+
+	if (hasNonPosixSnapshotPaths && !options?.targetPath) {
+		throw new BadRequestError(
+			"Original location restore is unavailable for this snapshot. Restore it to a custom location instead.",
+		);
+	}
+
+	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(paths);
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {

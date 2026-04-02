@@ -30,7 +30,8 @@ export const SnapshotFileBrowser = (props: Props) => {
 	const { snapshot, repositoryId, backupId, displayBasePath, onDeleteSnapshot, isDeletingSnapshot } = props;
 	const { formatDateTime } = useTimeFormat();
 
-	const queryBasePath = findCommonAncestor(snapshot.paths);
+	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+	const queryBasePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
 
 	return (
 		<div className="space-y-4">
