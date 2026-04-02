@@ -162,7 +162,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 									{repository.provisioningId && <Badge variant="secondary">Managed</Badge>}
 								</div>
 								<p className="text-sm text-muted-foreground mt-0.5">
-									Created {formatDateTime(repository.createdAt)} &middot; Last checked{" "}
+									Created {formatDateTime(repository.createdAt)} &middot; Last checked&nbsp;
 									{formatTimeAgo(repository.lastChecked)}
 								</p>
 							</div>
