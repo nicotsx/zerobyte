@@ -50,9 +50,9 @@ export function EditBackupPage({ backupId }: { backupId: string }) {
 		updateSchedule.mutate({
 			path: { shortId: schedule.shortId },
 			body: {
+				...formValues,
 				cronExpression,
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
-				...formValues,
 			},
 		});
 	};
