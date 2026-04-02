@@ -16,7 +16,7 @@ import type { BackupSchedule } from "~/client/lib/types";
 import { BackupProgressCard } from "./backup-progress-card";
 import { getBackupProgressOptions, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
@@ -30,13 +30,12 @@ type Props = {
 	handleRunBackupNow: () => void;
 	handleStopBackup: () => void;
 	handleDeleteSchedule: () => void;
-	setIsEditMode: (isEdit: boolean) => void;
 };
 
 export const ScheduleSummary = (props: Props) => {
-	const { schedule, handleToggleEnabled, handleRunBackupNow, handleStopBackup, handleDeleteSchedule, setIsEditMode } =
-		props;
+	const { schedule, handleToggleEnabled, handleRunBackupNow, handleStopBackup, handleDeleteSchedule } = props;
 	const { formatShortDateTime } = useTimeFormat();
+	const navigate = useNavigate();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -162,7 +161,12 @@ export const ScheduleSummary = (props: Props) => {
 								<span>Run cleanup</span>
 							</Button>
 						)}
-						<Button variant="outline" size="sm" onClick={() => setIsEditMode(true)} className="w-full @medium:w-auto">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => navigate({ to: "/backups/$backupId/edit", params: { backupId: schedule.shortId } })}
+							className="w-full @medium:w-auto"
+						>
 							<Pencil className="h-4 w-4 mr-2" />
 							<span>Edit schedule</span>
 						</Button>

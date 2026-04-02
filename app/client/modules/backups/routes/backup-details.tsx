@@ -1,9 +1,7 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Save, X } from "lucide-react";
-import { Button } from "~/client/components/ui/button";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,8 +23,6 @@ import {
 	deleteSnapshotMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError, handleRepositoryError } from "~/client/lib/errors";
-import { getCronExpression } from "~/utils/utils";
-import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { ScheduleSummary } from "../components/schedule-summary";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
 import { SnapshotTimeline } from "../components/snapshot-timeline";
@@ -67,8 +63,6 @@ export function ScheduleDetailsPage(props: Props) {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const searchParams = useSearch({ from: "/(dashboard)/backups/$backupId/" });
-	const [isEditMode, setIsEditMode] = useState(false);
-	const formId = useId();
 	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(
 		initialSnapshotId ?? loaderData.snapshots?.at(-1)?.short_id,
 	);
@@ -93,7 +87,6 @@ export function ScheduleDetailsPage(props: Props) {
 		...updateBackupScheduleMutation(),
 		onSuccess: () => {
 			toast.success("Backup schedule saved successfully");
-			setIsEditMode(false);
 		},
 		onError: (error) => {
 			toast.error("Failed to save backup schedule", {
@@ -159,43 +152,6 @@ export function ScheduleDetailsPage(props: Props) {
 		},
 	});
 
-	const handleSubmit = (formValues: BackupScheduleFormValues) => {
-		if (!schedule) return;
-
-		const cronExpression = getCronExpression(
-			formValues.frequency,
-			formValues.dailyTime,
-			formValues.weeklyDay,
-			formValues.monthlyDays,
-			formValues.cronExpression,
-		);
-
-		const retentionPolicy: Record<string, number> = {};
-		if (formValues.keepLast) retentionPolicy.keepLast = formValues.keepLast;
-		if (formValues.keepHourly) retentionPolicy.keepHourly = formValues.keepHourly;
-		if (formValues.keepDaily) retentionPolicy.keepDaily = formValues.keepDaily;
-		if (formValues.keepWeekly) retentionPolicy.keepWeekly = formValues.keepWeekly;
-		if (formValues.keepMonthly) retentionPolicy.keepMonthly = formValues.keepMonthly;
-		if (formValues.keepYearly) retentionPolicy.keepYearly = formValues.keepYearly;
-
-		updateSchedule.mutate({
-			path: { shortId: schedule.shortId },
-			body: {
-				name: formValues.name,
-				repositoryId: formValues.repositoryId,
-				enabled: formValues.frequency === "manual" ? false : schedule.enabled,
-				cronExpression,
-				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
-				includePaths: formValues.includePaths,
-				includePatterns: formValues.includePatterns,
-				excludePatterns: formValues.excludePatterns,
-				excludeIfPresent: formValues.excludeIfPresent,
-				oneFileSystem: formValues.oneFileSystem,
-				customResticParams: formValues.customResticParams,
-			},
-		});
-	};
-
 	const handleToggleEnabled = (enabled: boolean) => {
 		updateSchedule.mutate({
 			path: { shortId: schedule.shortId },
@@ -244,24 +200,6 @@ export function ScheduleDetailsPage(props: Props) {
 		});
 	};
 
-	if (isEditMode) {
-		return (
-			<div>
-				<CreateScheduleForm volume={schedule.volume} initialValues={schedule} onSubmit={handleSubmit} formId={formId} />
-				<div className="flex justify-end mt-4 gap-2">
-					<Button type="submit" className="ml-auto" variant="primary" form={formId} loading={updateSchedule.isPending}>
-						<Save className="h-4 w-4 mr-2" />
-						Update schedule
-					</Button>
-					<Button variant="outline" onClick={() => setIsEditMode(false)}>
-						<X className="h-4 w-4 mr-2" />
-						Cancel
-					</Button>
-				</div>
-			</div>
-		);
-	}
-
 	const selectedSnapshot = snapshots?.find((s) => s.short_id === selectedSnapshotId);
 
 	return (
@@ -271,7 +209,6 @@ export function ScheduleDetailsPage(props: Props) {
 				handleRunBackupNow={() => runBackupNow.mutate({ path: { shortId: schedule.shortId } })}
 				handleStopBackup={() => stopBackup.mutate({ path: { shortId: schedule.shortId } })}
 				handleDeleteSchedule={() => deleteSchedule.mutate({ path: { shortId: schedule.shortId } })}
-				setIsEditMode={setIsEditMode}
 				schedule={schedule}
 			/>
 			<div className={cn({ hidden: !loaderData.notifs?.length })}>
