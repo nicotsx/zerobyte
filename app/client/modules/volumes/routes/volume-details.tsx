@@ -140,36 +140,35 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							</div>
 						</div>
 						<div className="flex items-center gap-2">
-							{isMounted ? (
-								<Button
-									variant="secondary"
-									onClick={() =>
-										toast.promise(unmountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
-											loading: "Unmounting volume...",
-											success: "Volume unmounted successfully",
-											error: (error) => parseError(error)?.message || "Failed to unmount volume",
-										})
-									}
-									loading={unmountVol.isPending}
-								>
-									<Unplug className="h-4 w-4 mr-2" />
-									Unmount
-								</Button>
-							) : (
-								<Button
-									onClick={() =>
-										toast.promise(mountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
-											loading: "Mounting volume...",
-											success: "Volume mounted successfully",
-											error: (error) => parseError(error)?.message || "Failed to mount volume",
-										})
-									}
-									loading={mountVol.isPending}
-								>
-									<Plug className="h-4 w-4 mr-2" />
-									Mount
-								</Button>
-							)}
+							<Button
+								className={cn({ hidden: !isMounted })}
+								variant="secondary"
+								onClick={() =>
+									toast.promise(unmountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
+										loading: "Unmounting volume...",
+										success: "Volume unmounted successfully",
+										error: (error) => parseError(error)?.message || "Failed to unmount volume",
+									})
+								}
+								loading={unmountVol.isPending}
+							>
+								<Unplug className="h-4 w-4 mr-2" />
+								Unmount
+							</Button>
+							<Button
+								className={cn({ hidden: isMounted })}
+								onClick={() =>
+									toast.promise(mountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
+										loading: "Mounting volume...",
+										success: "Volume mounted successfully",
+										error: (error) => parseError(error)?.message || "Failed to mount volume",
+									})
+								}
+								loading={mountVol.isPending}
+							>
+								<Plug className="h-4 w-4 mr-2" />
+								Mount
+							</Button>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<Button variant="outline">
@@ -203,19 +202,18 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							<div className="flex items-center gap-2">
 								<HeartIcon className="h-4 w-4 text-muted-foreground" />
 								<span className="text-sm font-medium">Health</span>
-								{isError ? (
-									<Badge variant="destructive" className="ml-1">
-										Error
-									</Badge>
-								) : isMounted ? (
-									<Badge variant="outline" className="text-success border-success/30 bg-success/10 ml-1">
-										Healthy
-									</Badge>
-								) : (
-									<Badge variant="secondary" className="ml-1">
-										Unmounted
-									</Badge>
-								)}
+								<Badge variant="destructive" className={cn("ml-1", { hidden: !isError })}>
+									Error
+								</Badge>
+								<Badge
+									variant="outline"
+									className={cn("text-success border-success/30 bg-success/10 ml-1", { hidden: !isMounted })}
+								>
+									Healthy
+								</Badge>
+								<Badge variant="secondary" className={cn("ml-1", { hidden: isMounted || isError })}>
+									Unmounted
+								</Badge>
 							</div>
 							<Separator orientation="vertical" className="h-4 hidden @lg:block" />
 							<span className="text-sm text-muted-foreground">Checked {formatTimeAgo(volume.lastHealthCheck)}</span>
@@ -248,14 +246,12 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 					</div>
 				</Card>
 
-				{volume.lastError && (
-					<Card className="px-6 py-6">
-						<div className="space-y-2">
-							<p className="text-sm font-medium text-destructive">Last Error</p>
-							<p className="text-sm text-muted-foreground wrap-break-word">{volume.lastError}</p>
-						</div>
-					</Card>
-				)}
+				<Card className={cn("px-6 py-6", { hidden: !volume.lastError })}>
+					<div className="space-y-2">
+						<p className="text-sm font-medium text-destructive">Last Error</p>
+						<p className="text-sm text-muted-foreground wrap-break-word">{volume.lastError}</p>
+					</div>
+				</Card>
 
 				<Tabs value={activeTab} onValueChange={(value) => navigate({ to: ".", search: () => ({ tab: value }) })}>
 					<TabsList className="mb-2">

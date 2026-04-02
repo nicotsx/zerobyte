@@ -3,7 +3,7 @@ import { FolderOpen, HardDrive, Settings, Unplug } from "lucide-react";
 import { Label, Pie, PieChart } from "recharts";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardTitle } from "~/client/components/ui/card";
-import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "~/client/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/client/components/ui/chart";
 import type { StatFs, Volume } from "~/client/lib/types";
 import { cn } from "~/client/lib/utils";
 
@@ -21,17 +21,14 @@ const backendLabels: Record<Volume["type"], string> = {
 	sftp: "SFTP",
 };
 
-function ConfigRow({
-	icon,
-	label,
-	value,
-	mono,
-}: {
+type ConfigRowProps = {
 	icon: React.ReactNode;
 	label: string;
 	value: string;
 	mono?: boolean;
-}) {
+};
+
+function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 	return (
 		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
@@ -95,14 +92,12 @@ function DonutChart({ statfs }: { statfs: StatFs }) {
 		[statfs],
 	);
 
-	const chartConfig = {} satisfies ChartConfig;
-
 	const usagePercentage = useMemo(() => {
 		return Math.round((statfs.used / statfs.total) * 100);
 	}, [statfs]);
 
 	return (
-		<ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[200px]">
+		<ChartContainer config={{}} className="mx-auto aspect-square max-h-[200px]">
 			<PieChart>
 				<ChartTooltip
 					cursor={false}

@@ -1,5 +1,5 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ChevronDown, Database, Pencil, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
@@ -134,7 +134,7 @@ export default function RepositoryDetailsPage({
 									{repository.provisioningId && <Badge variant="secondary">Managed</Badge>}
 								</div>
 								<p className="text-sm text-muted-foreground mt-0.5">
-									Created {formatDateTime(repository.createdAt)} &middot; Last checked{" "}
+									Created {formatDateTime(repository.createdAt)} &middot; Last checked&nbsp;
 									{formatTimeAgo(repository.lastChecked)}
 								</p>
 							</div>
@@ -222,13 +222,11 @@ export default function RepositoryDetailsPage({
 						<RepositoryInfoTabContent repository={repository} initialStats={initialStats} />
 					</TabsContent>
 					<TabsContent value="snapshots">
-						<Suspense>
-							<RepositorySnapshotsTabContent
-								repository={repository}
-								initialSnapshots={initialSnapshots}
-								initialBackupSchedules={initialBackupSchedules}
-							/>
-						</Suspense>
+						<RepositorySnapshotsTabContent
+							repository={repository}
+							initialSnapshots={initialSnapshots}
+							initialBackupSchedules={initialBackupSchedules}
+						/>
 					</TabsContent>
 				</Tabs>
 			</div>

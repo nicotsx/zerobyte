@@ -64,7 +64,7 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 
 	const hasStats = !!stats && (storedSize > 0 || uncompressedSize > 0 || snapshotsCount > 0);
 
-	const storedPercent = uncompressedSize > 0 ? (storedSize / uncompressedSize) * 100 : 0;
+	const storedPercent = Math.min(100, Math.max(0, uncompressedSize > 0 ? (storedSize / uncompressedSize) * 100 : 0));
 
 	return (
 		<Card className="flex flex-col px-6 py-6">
