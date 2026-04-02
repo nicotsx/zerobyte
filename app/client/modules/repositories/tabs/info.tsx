@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Pencil, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
+import { ChevronDown, Pencil, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
 import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
 import {
@@ -13,6 +13,13 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "~/client/components/ui/dropdown-menu";
 import type { Repository } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
 import {
@@ -84,14 +91,6 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 
 	const unlockRepo = useMutation({
 		...unlockRepositoryMutation(),
-		onSuccess: () => {
-			toast.success("Repository unlocked successfully");
-		},
-		onError: (error) => {
-			toast.error("Failed to unlock repository", {
-				description: parseError(error)?.message,
-			});
-		},
 	});
 
 	const handleConfirmDelete = () => {
@@ -117,53 +116,64 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 							{repository.provisioningId && <ManagedBadge />}
 						</div>
 					</div>
-					<div className="flex flex-wrap items-center gap-2">
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
-						>
-							<Pencil className="h-4 w-4 mr-2" />
-							Edit
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							className={cn({ hidden: !isDoctorRunning })}
-							loading={cancelDoctor.isPending}
-							onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
-						>
-							<Square className="h-4 w-4 mr-2" />
-							<span>Cancel doctor</span>
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							className={cn({ hidden: isDoctorRunning })}
-							onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
-							disabled={startDoctor.isPending}
-						>
-							<Stethoscope className="h-4 w-4 mr-2" />
-							Run doctor
-						</Button>
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => unlockRepo.mutate({ path: { shortId: repository.shortId } })}
-							loading={unlockRepo.isPending}
-						>
-							<Unlock className="h-4 w-4 mr-2" />
-							Unlock
-						</Button>
-						<Button
-							type="button"
-							variant="destructive"
-							onClick={() => setShowDeleteConfirm(true)}
-							disabled={deleteRepo.isPending}
-						>
-							<Trash2 className="h-4 w-4 mr-2" />
-							Delete
-						</Button>
+					<div className="flex items-center gap-2">
+						{isDoctorRunning ? (
+							<Button
+								type="button"
+								variant="destructive"
+								loading={cancelDoctor.isPending}
+								onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
+							>
+								<Square className="h-4 w-4 mr-2" />
+								Cancel doctor
+							</Button>
+						) : (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => startDoctor.mutate({ path: { shortId: repository.shortId } })}
+								disabled={startDoctor.isPending}
+							>
+								<Stethoscope className="h-4 w-4 mr-2" />
+								Run doctor
+							</Button>
+						)}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline">
+									Actions
+									<ChevronDown className="h-4 w-4 ml-1" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}>
+									<Pencil />
+									Edit
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() =>
+										toast.promise(unlockRepo.mutateAsync({ path: { shortId: repository.shortId } }), {
+											loading: "Unlocking repo",
+											success: "Repository unlocked successfully",
+											error: (e) => parseError(e)?.message || "Failed to unlock repository",
+										})
+									}
+									disabled={unlockRepo.isPending}
+								>
+									<Unlock />
+									Unlock
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									variant="destructive"
+									onClick={() => setShowDeleteConfirm(true)}
+									disabled={deleteRepo.isPending}
+								>
+									<Trash2 />
+									Delete
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 					</div>
 				</div>
 

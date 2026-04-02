@@ -18,10 +18,16 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "~/client/components/ui/dropdown-menu";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { Bell, Save, TestTube2, Trash2 } from "lucide-react";
+import { Bell, ChevronDown, Save, TestTube2, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { CreateNotificationForm, type NotificationFormValues } from "../components/create-notification-form";
 import { useNavigate } from "@tanstack/react-router";
@@ -105,7 +111,7 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 					</span>
 					<span className="text-xs bg-primary/10 rounded-md px-2 py-1 capitalize">{data.type}</span>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex items-center gap-2">
 					<Button
 						onClick={handleTest}
 						disabled={testDestination.isPending || !data.enabled}
@@ -115,14 +121,24 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 						<TestTube2 className="h-4 w-4 mr-2" />
 						Test
 					</Button>
-					<Button
-						onClick={() => setShowDeleteConfirm(true)}
-						variant="destructive"
-						loading={deleteDestination.isPending}
-					>
-						<Trash2 className="h-4 w-4 mr-2" />
-						Delete
-					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline">
+								Actions
+								<ChevronDown className="h-4 w-4 ml-1" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end">
+							<DropdownMenuItem
+								variant="destructive"
+								onClick={() => setShowDeleteConfirm(true)}
+								disabled={deleteDestination.isPending}
+							>
+								<Trash2 />
+								Delete
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
 			</div>
 
