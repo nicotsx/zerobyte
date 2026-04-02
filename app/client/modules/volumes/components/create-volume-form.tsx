@@ -72,15 +72,7 @@ const defaultValuesForType = {
 	sftp: { backend: "sftp" as const, port: 22, path: "/", skipHostKeyCheck: false },
 };
 
-export const CreateVolumeForm = ({
-	onSubmit,
-	mode = "create",
-	initialValues,
-	formId,
-	loading,
-	className,
-	readOnly = false,
-}: Props) => {
+export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
@@ -146,7 +138,7 @@ export const CreateVolumeForm = ({
 				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
 				className={cn("space-y-4", className)}
 			>
-				<fieldset disabled={readOnly} className="space-y-4">
+				<fieldset className="space-y-4">
 					<FormField
 						control={form.control}
 						name="name"
@@ -169,7 +161,6 @@ export const CreateVolumeForm = ({
 							<FormItem>
 								<FormLabel>Backend</FormLabel>
 								<Select
-									disabled={readOnly}
 									onValueChange={(value) => {
 										field.onChange(value);
 										if (mode === "create") {
@@ -259,13 +250,13 @@ export const CreateVolumeForm = ({
 						)}
 					/>
 					{watchedBackend === "directory" && <DirectoryForm form={form} />}
-					{watchedBackend === "nfs" && <NFSForm form={form} readOnly={readOnly} />}
+					{watchedBackend === "nfs" && <NFSForm form={form} />}
 					{watchedBackend === "webdav" && <WebDAVForm form={form} />}
-					{watchedBackend === "smb" && <SMBForm form={form} readOnly={readOnly} />}
-					{watchedBackend === "rclone" && <RcloneForm form={form} readOnly={readOnly} />}
-					{watchedBackend === "sftp" && <SFTPForm form={form} readOnly={readOnly} />}
+					{watchedBackend === "smb" && <SMBForm form={form} />}
+					{watchedBackend === "rclone" && <RcloneForm form={form} />}
+					{watchedBackend === "sftp" && <SFTPForm form={form} />}
 				</fieldset>
-				{!readOnly && watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
+				{watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
 					<div className="space-y-3">
 						<div className="flex items-center gap-2">
 							<Button
@@ -304,7 +295,7 @@ export const CreateVolumeForm = ({
 						)}
 					</div>
 				)}
-				{!readOnly && mode === "update" && !formId && (
+				{mode === "update" && !formId && (
 					<Button type="submit" className="w-full" loading={loading}>
 						<Save className="h-4 w-4 mr-2" />
 						Save changes

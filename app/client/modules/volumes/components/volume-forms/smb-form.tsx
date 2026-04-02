@@ -14,10 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 type Props = {
 	form: UseFormReturn<FormValues>;
-	readOnly?: boolean;
 };
 
-export const SMBForm = ({ form, readOnly = false }: Props) => {
+export const SMBForm = ({ form }: Props) => {
 	const guest = useWatch({ control: form.control, name: "guest" });
 
 	return (
@@ -117,7 +116,7 @@ export const SMBForm = ({ form, readOnly = false }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>SMB Version</FormLabel>
-						<Select disabled={readOnly} onValueChange={field.onChange} value={field.value}>
+						<Select onValueChange={field.onChange} value={field.value}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select SMB version" />

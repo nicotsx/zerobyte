@@ -15,10 +15,9 @@ import { Switch } from "../../../../components/ui/switch";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
-	readOnly?: boolean;
 };
 
-export const SFTPForm = ({ form, readOnly = false }: Props) => {
+export const SFTPForm = ({ form }: Props) => {
 	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
 
 	return (
@@ -130,7 +129,7 @@ export const SFTPForm = ({ form, readOnly = false }: Props) => {
 							</FormDescription>
 						</div>
 						<FormControl>
-							<Switch checked={field.value} disabled={readOnly} onCheckedChange={field.onChange} />
+							<Switch checked={field.value} onCheckedChange={field.onChange} />
 						</FormControl>
 					</FormItem>
 				)}

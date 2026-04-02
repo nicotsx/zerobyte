@@ -18,10 +18,9 @@ import { useQuery } from "@tanstack/react-query";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
-	readOnly?: boolean;
 };
 
-export const RcloneForm = ({ form, readOnly = false }: Props) => {
+export const RcloneForm = ({ form }: Props) => {
 	const { capabilities } = useSystemInfo();
 
 	const { data: rcloneRemotes, isPending } = useQuery({
@@ -29,7 +28,7 @@ export const RcloneForm = ({ form, readOnly = false }: Props) => {
 		enabled: capabilities.rclone,
 	});
 
-	if (!readOnly && !isPending && !rcloneRemotes?.length) {
+	if (!isPending && !rcloneRemotes?.length) {
 		return (
 			<Alert>
 				<AlertDescription className="space-y-2">
@@ -59,7 +58,7 @@ export const RcloneForm = ({ form, readOnly = false }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Remote</FormLabel>
-						<Select disabled={readOnly} onValueChange={(v) => field.onChange(v)} value={field.value ?? ""}>
+						<Select onValueChange={(v) => field.onChange(v)} value={field.value ?? ""}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select an rclone remote" />

@@ -13,10 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 
 type Props = {
 	form: UseFormReturn<FormValues>;
-	readOnly?: boolean;
 };
 
-export const NFSForm = ({ form, readOnly = false }: Props) => {
+export const NFSForm = ({ form }: Props) => {
 	return (
 		<>
 			<FormField
@@ -74,7 +73,7 @@ export const NFSForm = ({ form, readOnly = false }: Props) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Version</FormLabel>
-						<Select disabled={readOnly} onValueChange={field.onChange} value={field.value}>
+						<Select onValueChange={field.onChange} value={field.value}>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select NFS version" />
