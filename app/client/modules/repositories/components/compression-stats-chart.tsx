@@ -60,7 +60,6 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 	const rawCompressionProgress = toSafeNumber(stats?.compression_progress);
 	const compressionProgressPercent = Math.min(100, Math.max(0, rawCompressionProgress));
 
-	const spaceSavingPercent = toSafeNumber(stats?.compression_space_saving);
 	const snapshotsCount = Math.round(toSafeNumber(stats?.snapshots_count));
 
 	const hasStats = !!stats && (storedSize > 0 || uncompressedSize > 0 || snapshotsCount > 0);
@@ -94,61 +93,53 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 				Stats will be populated after your first backup. You can also refresh them manually.
 			</p>
 			<div className={cn({ hidden: isPending || !!error || !hasStats })}>
-				<div className="space-y-4 mb-6">
-					<div>
-						<div className="flex items-center justify-between text-sm mb-1.5">
-							<span className="text-muted-foreground">Stored</span>
-							<ByteSize base={1024} bytes={storedSize} className="font-mono font-semibold text-sm" />
+				<div className="mb-6">
+					<div className="flex items-center justify-between text-sm mb-3">
+						<span className="text-muted-foreground">
+							<ByteSize base={1024} bytes={uncompressedSize} className="font-mono font-semibold text-foreground" /> of
+							data across <span className="font-mono font-semibold text-foreground">{snapshotsCount}</span> snapshots
+						</span>
+					</div>
+					<div className="h-9 rounded overflow-hidden flex">
+						<div
+							className="h-full bg-strong-accent/80 flex items-center px-3 text-xs font-medium text-white transition-all"
+							style={{ width: `${storedPercent}%` }}
+						>
+							On disk
 						</div>
-						<div className="h-3 bg-muted/50 rounded-full overflow-hidden">
-							<div
-								className="h-full bg-strong-accent/80 rounded-full transition-all"
-								style={{ width: `${storedPercent}%` }}
-							/>
+						<div
+							className={cn(
+								"h-full bg-muted-foreground/10 flex items-center px-3 text-xs font-medium text-muted-foreground transition-all border-l border-border/30",
+							)}
+							style={{ width: `${100 - storedPercent}%` }}
+						>
+							<span className={cn({ hidden: storedPercent >= 80 })}>Freed by compression</span>
 						</div>
 					</div>
-					<div>
-						<div className="flex items-center justify-between text-sm mb-1.5">
-							<span className="text-muted-foreground">Uncompressed</span>
-							<ByteSize base={1024} bytes={uncompressedSize} className="font-mono font-semibold text-sm" />
-						</div>
-						<div className="h-3 bg-muted/50 rounded-full overflow-hidden">
-							<div className="h-full bg-muted-foreground/30 rounded-full" style={{ width: "100%" }} />
-						</div>
+					<div className="flex items-center justify-between mt-2 text-sm">
+						<ByteSize base={1024} bytes={storedSize} className="font-mono font-semibold" />
+						<span className="font-mono text-muted-foreground">
+							<ByteSize base={1024} bytes={savedSize} /> freed
+						</span>
 					</div>
 				</div>
 				<Separator className="mb-4" />
-				<div className="grid grid-cols-2 gap-4">
-					<div className="flex flex-col gap-1.5">
-						<div className="text-sm font-medium text-muted-foreground">Space Saved</div>
-						<div className="flex items-baseline gap-2">
-							<span className="text-xl font-semibold text-foreground font-mono">{spaceSavingPercent.toFixed(1)}%</span>
-							<ByteSize base={1024} bytes={savedSize} className="text-xs text-muted-foreground font-mono" />
-						</div>
+				<div className="flex items-center gap-6 text-sm">
+					<div className="flex items-center gap-2">
+						<span className="text-muted-foreground">Ratio</span>
+						<span className="font-mono font-semibold">
+							{compressionRatio > 0 ? `${compressionRatio.toFixed(2)}x` : "-"}
+						</span>
 					</div>
-					<div className="flex flex-col gap-1.5">
-						<div className="text-sm font-medium text-muted-foreground">Ratio</div>
-						<div className="flex items-baseline gap-2">
-							<span className="text-xl font-semibold text-foreground font-mono">
-								{compressionRatio > 0 ? `${compressionRatio.toFixed(2)}x` : "-"}
-							</span>
-						</div>
+					<Separator orientation="vertical" className="h-4" />
+					<div className="flex items-center gap-2">
+						<span className="text-muted-foreground">Snapshots</span>
+						<span className="font-mono font-semibold">{snapshotsCount.toLocaleString(locale)}</span>
 					</div>
-					<div className="flex flex-col gap-1.5">
-						<div className="text-sm font-medium text-muted-foreground">Snapshots</div>
-						<div className="flex items-baseline gap-2">
-							<span className="text-xl font-semibold text-foreground font-mono">
-								{snapshotsCount.toLocaleString(locale)}
-							</span>
-						</div>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<div className="text-sm font-medium text-muted-foreground">Compressed</div>
-						<div className="flex items-baseline gap-2">
-							<span className="text-xl font-semibold text-foreground font-mono">
-								{compressionProgressPercent.toFixed(1)}%
-							</span>
-						</div>
+					<Separator orientation="vertical" className="h-4" />
+					<div className="flex items-center gap-2">
+						<span className="text-muted-foreground">Compressed</span>
+						<span className="font-mono font-semibold">{compressionProgressPercent.toFixed(0)}%</span>
 					</div>
 				</div>
 			</div>
