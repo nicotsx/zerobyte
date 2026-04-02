@@ -28,7 +28,6 @@ import { Badge } from "~/client/components/ui/badge";
 import { Card, CardTitle } from "~/client/components/ui/card";
 import { Separator } from "~/client/components/ui/separator";
 import { parseError } from "~/client/lib/errors";
-import { formatDateTime } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import {
 	Bell,
@@ -53,6 +52,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import type { GetNotificationDestinationResponse } from "~/client/api-client/types.gen";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 type NotificationConfig = GetNotificationDestinationResponse["config"];
 type Props = {
@@ -175,6 +175,7 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 export function NotificationDetailsPage({ notificationId }: { notificationId: string }) {
 	const navigate = useNavigate();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+	const { formatDateTime } = useTimeFormat();
 
 	const { data } = useSuspenseQuery({
 		...getNotificationDestinationOptions({ path: { id: notificationId } }),
