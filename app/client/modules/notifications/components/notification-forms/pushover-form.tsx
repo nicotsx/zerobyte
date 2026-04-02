@@ -7,10 +7,9 @@ import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
 	form: UseFormReturn<NotificationFormValues>;
-	readOnly?: boolean;
 };
 
-export const PushoverForm = ({ form, readOnly = false }: Props) => {
+export const PushoverForm = ({ form }: Props) => {
 	return (
 		<>
 			<FormField
@@ -62,7 +61,6 @@ export const PushoverForm = ({ form, readOnly = false }: Props) => {
 					<FormItem>
 						<FormLabel>Priority</FormLabel>
 						<Select
-							disabled={readOnly}
 							onValueChange={(value) => field.onChange(Number(value))}
 							defaultValue={String(field.value)}
 							value={String(field.value)}

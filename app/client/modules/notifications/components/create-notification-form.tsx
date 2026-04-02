@@ -59,7 +59,6 @@ type Props = {
 	initialValues?: Partial<NotificationFormValues>;
 	formId?: string;
 	className?: string;
-	readOnly?: boolean;
 };
 
 const defaultValuesForType = {
@@ -123,14 +122,7 @@ const defaultValuesForType = {
 	},
 };
 
-export const CreateNotificationForm = ({
-	onSubmit,
-	mode = "create",
-	initialValues,
-	formId,
-	className,
-	readOnly = false,
-}: Props) => {
+export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValues, formId, className }: Props) => {
 	const form = useForm<NotificationFormValues>({
 		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
@@ -153,7 +145,7 @@ export const CreateNotificationForm = ({
 				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
 				className={cn("space-y-4", className)}
 			>
-				<fieldset disabled={readOnly} className="space-y-4">
+				<fieldset className="space-y-4">
 					<FormField
 						control={form.control}
 						name="name"
@@ -161,7 +153,7 @@ export const CreateNotificationForm = ({
 							<FormItem>
 								<FormLabel>Name</FormLabel>
 								<FormControl>
-									<Input {...field} placeholder="My notification" max={32} min={2} disabled={readOnly} />
+									<Input {...field} placeholder="My notification" max={32} min={2} />
 								</FormControl>
 								<FormDescription>Unique identifier for this notification destination.</FormDescription>
 								<FormMessage />
@@ -186,10 +178,10 @@ export const CreateNotificationForm = ({
 										}
 									}}
 									value={field.value ?? ""}
-									disabled={mode === "update" || readOnly}
+									disabled={mode === "update"}
 								>
 									<FormControl>
-										<SelectTrigger className={mode === "update" || readOnly ? "bg-gray-50" : ""}>
+										<SelectTrigger className={mode === "update" ? "bg-gray-50" : ""}>
 											<SelectValue placeholder="Select notification type" />
 										</SelectTrigger>
 									</FormControl>
@@ -211,14 +203,14 @@ export const CreateNotificationForm = ({
 						)}
 					/>
 
-					{watchedType === "email" && <EmailForm form={form} readOnly={readOnly} />}
+					{watchedType === "email" && <EmailForm form={form} />}
 					{watchedType === "slack" && <SlackForm form={form} />}
 					{watchedType === "discord" && <DiscordForm form={form} />}
 					{watchedType === "gotify" && <GotifyForm form={form} />}
-					{watchedType === "ntfy" && <NtfyForm form={form} readOnly={readOnly} />}
-					{watchedType === "pushover" && <PushoverForm form={form} readOnly={readOnly} />}
+					{watchedType === "ntfy" && <NtfyForm form={form} />}
+					{watchedType === "pushover" && <PushoverForm form={form} />}
 					{watchedType === "telegram" && <TelegramForm form={form} />}
-					{watchedType === "generic" && <GenericForm form={form} readOnly={readOnly} />}
+					{watchedType === "generic" && <GenericForm form={form} />}
 					{watchedType === "custom" && <CustomForm form={form} />}
 				</fieldset>
 			</form>
