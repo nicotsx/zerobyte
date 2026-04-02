@@ -9,7 +9,7 @@ import { useNavigate } from "@tanstack/react-router";
 
 export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
-	const searchParams = useSearch({ from: "/(dashboard)/volumes/$volumeId" });
+	const searchParams = useSearch({ from: "/(dashboard)/volumes/$volumeId/" });
 
 	const activeTab = searchParams.tab || "info";
 

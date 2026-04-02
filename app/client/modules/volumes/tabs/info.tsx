@@ -1,8 +1,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Check, Plug, Trash2, Unplug } from "lucide-react";
-import { CreateVolumeForm, formSchema, type FormValues } from "~/client/modules/volumes/components/create-volume-form";
+import { Pencil, Plug, Trash2, Unplug } from "lucide-react";
+import { CreateVolumeForm } from "~/client/modules/volumes/components/create-volume-form";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,9 +22,7 @@ import {
 	deleteVolumeMutation,
 	mountVolumeMutation,
 	unmountVolumeMutation,
-	updateVolumeMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import type { UpdateVolumeResponse } from "~/client/api-client/types.gen";
 import { useNavigate } from "@tanstack/react-router";
 import { parseError } from "~/client/lib/errors";
 import { ManagedBadge } from "~/client/components/managed-badge";
@@ -36,24 +34,6 @@ type Props = {
 
 export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const navigate = useNavigate();
-
-	const updateMutation = useMutation({
-		...updateVolumeMutation(),
-		onSuccess: (data: UpdateVolumeResponse) => {
-			toast.success("Volume updated successfully");
-			setOpen(false);
-			setPendingValues(null);
-
-			if (data.name !== volume.name) {
-				void navigate({ to: `/volumes/${data.shortId}` });
-			}
-		},
-		onError: (error) => {
-			toast.error("Failed to update volume", { description: error.message });
-			setOpen(false);
-			setPendingValues(null);
-		},
-	});
 
 	const mountVol = useMutation({
 		...mountVolumeMutation(),
@@ -92,81 +72,83 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 		},
 	});
 
-	const [open, setOpen] = useState(false);
-	const [pendingValues, setPendingValues] = useState<FormValues | null>(null);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-	const handleSubmit = (values: FormValues) => {
-		setPendingValues(values);
-		setOpen(true);
-	};
-
-	const confirmUpdate = () => {
-		if (pendingValues) {
-			const { name, ...config } = formSchema.parse(pendingValues);
-
-			updateMutation.mutate({
-				path: { shortId: volume.shortId },
-				body: { name, config },
-			});
-		}
-	};
 
 	const handleConfirmDelete = () => {
 		setShowDeleteConfirm(false);
 		deleteVol.mutate({ path: { shortId: volume.shortId } });
 	};
 
+	const hasLastError = Boolean(volume.lastError);
+
 	return (
 		<>
 			<div className="grid gap-4 xl:grid-cols-[minmax(0,2.3fr)_minmax(320px,1fr)]">
-				<Card className="p-6 @container">
-					<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4 mb-6">
-						<div>
-							<div className="flex items-center gap-2">
-								<span className="text-lg font-semibold">Volume Configuration</span>
-								{volume.provisioningId && <ManagedBadge />}
+				<div className="flex flex-col gap-4">
+					<Card className="p-6 @container">
+						<div className="flex flex-col @xl:flex-row items-start @xl:items-center justify-between gap-4 mb-6">
+							<div>
+								<div className="flex items-center gap-2">
+									<span className="text-lg font-semibold">Volume Configuration</span>
+									{volume.provisioningId && <ManagedBadge />}
+								</div>
+							</div>
+							<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									onClick={() => navigate({ to: `/volumes/${volume.shortId}/edit` })}
+								>
+									<Pencil className="h-4 w-4 mr-2" />
+									Edit
+								</Button>
+								{volume.status !== "mounted" ? (
+									<Button
+										type="button"
+										onClick={() => mountVol.mutate({ path: { shortId: volume.shortId } })}
+										loading={mountVol.isPending}
+									>
+										<Plug className="h-4 w-4 mr-2" />
+										Mount
+									</Button>
+								) : (
+									<Button
+										type="button"
+										variant="secondary"
+										onClick={() => unmountVol.mutate({ path: { shortId: volume.shortId } })}
+										loading={unmountVol.isPending}
+									>
+										<Unplug className="h-4 w-4 mr-2" />
+										Unmount
+									</Button>
+								)}
+								<Button
+									type="button"
+									variant="destructive"
+									onClick={() => setShowDeleteConfirm(true)}
+									disabled={deleteVol.isPending}
+								>
+									<Trash2 className="h-4 w-4 mr-2" />
+									Delete
+								</Button>
 							</div>
 						</div>
-						<div className="flex flex-col @xl:flex-row w-full @xl:w-auto gap-2">
-							{volume.status !== "mounted" ? (
-								<Button
-									type="button"
-									onClick={() => mountVol.mutate({ path: { shortId: volume.shortId } })}
-									loading={mountVol.isPending}
-								>
-									<Plug className="h-4 w-4 mr-2" />
-									Mount
-								</Button>
-							) : (
-								<Button
-									type="button"
-									variant="secondary"
-									onClick={() => unmountVol.mutate({ path: { shortId: volume.shortId } })}
-									loading={unmountVol.isPending}
-								>
-									<Unplug className="h-4 w-4 mr-2" />
-									Unmount
-								</Button>
-							)}
-							<Button
-								type="button"
-								variant="destructive"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={deleteVol.isPending}
-							>
-								<Trash2 className="h-4 w-4 mr-2" />
-								Delete
-							</Button>
-						</div>
-					</div>
-					<CreateVolumeForm
-						initialValues={{ ...volume, ...volume.config }}
-						onSubmit={handleSubmit}
-						mode="update"
-						loading={updateMutation.isPending}
-					/>
-				</Card>
+						<CreateVolumeForm
+							initialValues={{ ...volume, ...volume.config }}
+							onSubmit={() => {}}
+							mode="update"
+							readOnly
+						/>
+					</Card>
+					{hasLastError && (
+						<Card className="p-6">
+							<div className="space-y-2">
+								<p className="text-sm font-medium text-destructive">Last Error</p>
+								<p className="text-sm text-muted-foreground wrap-break-word">{volume.lastError}</p>
+							</div>
+						</Card>
+					)}
+				</div>
 				<div className="flex flex-col gap-4">
 					<div className="self-start w-full">
 						<HealthchecksCard volume={volume} />
@@ -176,24 +158,6 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 					</div>
 				</div>
 			</div>
-			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Update Volume Configuration</AlertDialogTitle>
-						<AlertDialogDescription>
-							Editing the volume will remount it with the new config immediately. This may temporarily disrupt access to
-							the volume. Continue?
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={confirmUpdate}>
-							<Check className="h-4 w-4" />
-							Update
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
 					<AlertDialogHeader>

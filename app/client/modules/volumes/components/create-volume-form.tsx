@@ -60,6 +60,7 @@ type Props = {
 	formId?: string;
 	loading?: boolean;
 	className?: string;
+	readOnly?: boolean;
 };
 
 const defaultValuesForType = {
@@ -71,7 +72,15 @@ const defaultValuesForType = {
 	sftp: { backend: "sftp" as const, port: 22, path: "/", skipHostKeyCheck: false },
 };
 
-export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
+export const CreateVolumeForm = ({
+	onSubmit,
+	mode = "create",
+	initialValues,
+	formId,
+	loading,
+	className,
+	readOnly = false,
+}: Props) => {
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
@@ -137,123 +146,126 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 				onSubmit={form.handleSubmit(onSubmit, scrollToFirstError)}
 				className={cn("space-y-4", className)}
 			>
-				<FormField
-					control={form.control}
-					name="name"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Name</FormLabel>
-							<FormControl>
-								<Input {...field} placeholder="Volume name" maxLength={32} minLength={2} />
-							</FormControl>
-							<FormDescription>Unique identifier for the volume.</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<FormField
-					control={form.control}
-					name="backend"
-					defaultValue="directory"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Backend</FormLabel>
-							<Select
-								onValueChange={(value) => {
-									field.onChange(value);
-									if (mode === "create") {
-										form.reset({
-											name: form.getValues().name,
-											...defaultValuesForType[value as keyof typeof defaultValuesForType],
-										});
-									}
-								}}
-								value={field.value}
-							>
+				<fieldset disabled={readOnly} className="space-y-4">
+					<FormField
+						control={form.control}
+						name="name"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Name</FormLabel>
 								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select a backend" />
-									</SelectTrigger>
+									<Input {...field} placeholder="Volume name" maxLength={32} minLength={2} />
 								</FormControl>
-								<SelectContent>
-									<SelectItem value="directory">Directory</SelectItem>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div>
-												<SelectItem disabled={!capabilities.sysAdmin} value="nfs">
-													NFS
-												</SelectItem>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-											<p>Remote mounts require SYS_ADMIN capability</p>
-										</TooltipContent>
-									</Tooltip>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div>
-												<SelectItem disabled={!capabilities.sysAdmin} value="smb">
-													SMB
-												</SelectItem>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-											<p>Remote mounts require SYS_ADMIN capability</p>
-										</TooltipContent>
-									</Tooltip>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div>
-												<SelectItem disabled={!capabilities.sysAdmin} value="webdav">
-													WebDAV
-												</SelectItem>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-											<p>Remote mounts require SYS_ADMIN capability</p>
-										</TooltipContent>
-									</Tooltip>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div>
-												<SelectItem disabled={!capabilities.sysAdmin} value="sftp">
-													SFTP
-												</SelectItem>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-											<p>Remote mounts require SYS_ADMIN capability</p>
-										</TooltipContent>
-									</Tooltip>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<div>
-												<SelectItem disabled={!capabilities.rclone || !capabilities.sysAdmin} value="rclone">
-													rclone
-												</SelectItem>
-											</div>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-											<p>Remote mounts require SYS_ADMIN capability</p>
-										</TooltipContent>
-										<TooltipContent className={cn({ hidden: !capabilities.sysAdmin || capabilities.rclone })}>
-											<p>Setup rclone to use this backend</p>
-										</TooltipContent>
-									</Tooltip>
-								</SelectContent>
-							</Select>
-							<FormDescription>Choose the storage backend for this volume.</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				{watchedBackend === "directory" && <DirectoryForm form={form} />}
-				{watchedBackend === "nfs" && <NFSForm form={form} />}
-				{watchedBackend === "webdav" && <WebDAVForm form={form} />}
-				{watchedBackend === "smb" && <SMBForm form={form} />}
-				{watchedBackend === "rclone" && <RcloneForm form={form} />}
-				{watchedBackend === "sftp" && <SFTPForm form={form} />}
-				{watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
+								<FormDescription>Unique identifier for the volume.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="backend"
+						defaultValue="directory"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Backend</FormLabel>
+								<Select
+									disabled={readOnly}
+									onValueChange={(value) => {
+										field.onChange(value);
+										if (mode === "create") {
+											form.reset({
+												name: form.getValues().name,
+												...defaultValuesForType[value as keyof typeof defaultValuesForType],
+											});
+										}
+									}}
+									value={field.value}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a backend" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										<SelectItem value="directory">Directory</SelectItem>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div>
+													<SelectItem disabled={!capabilities.sysAdmin} value="nfs">
+														NFS
+													</SelectItem>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+												<p>Remote mounts require SYS_ADMIN capability</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div>
+													<SelectItem disabled={!capabilities.sysAdmin} value="smb">
+														SMB
+													</SelectItem>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+												<p>Remote mounts require SYS_ADMIN capability</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div>
+													<SelectItem disabled={!capabilities.sysAdmin} value="webdav">
+														WebDAV
+													</SelectItem>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+												<p>Remote mounts require SYS_ADMIN capability</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div>
+													<SelectItem disabled={!capabilities.sysAdmin} value="sftp">
+														SFTP
+													</SelectItem>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+												<p>Remote mounts require SYS_ADMIN capability</p>
+											</TooltipContent>
+										</Tooltip>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<div>
+													<SelectItem disabled={!capabilities.rclone || !capabilities.sysAdmin} value="rclone">
+														rclone
+													</SelectItem>
+												</div>
+											</TooltipTrigger>
+											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
+												<p>Remote mounts require SYS_ADMIN capability</p>
+											</TooltipContent>
+											<TooltipContent className={cn({ hidden: !capabilities.sysAdmin || capabilities.rclone })}>
+												<p>Setup rclone to use this backend</p>
+											</TooltipContent>
+										</Tooltip>
+									</SelectContent>
+								</Select>
+								<FormDescription>Choose the storage backend for this volume.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+					{watchedBackend === "directory" && <DirectoryForm form={form} />}
+					{watchedBackend === "nfs" && <NFSForm form={form} readOnly={readOnly} />}
+					{watchedBackend === "webdav" && <WebDAVForm form={form} />}
+					{watchedBackend === "smb" && <SMBForm form={form} readOnly={readOnly} />}
+					{watchedBackend === "rclone" && <RcloneForm form={form} readOnly={readOnly} />}
+					{watchedBackend === "sftp" && <SFTPForm form={form} readOnly={readOnly} />}
+				</fieldset>
+				{!readOnly && watchedBackend && watchedBackend !== "directory" && watchedBackend !== "rclone" && (
 					<div className="space-y-3">
 						<div className="flex items-center gap-2">
 							<Button
@@ -292,7 +304,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 						)}
 					</div>
 				)}
-				{mode === "update" && (
+				{!readOnly && mode === "update" && !formId && (
 					<Button type="submit" className="w-full" loading={loading}>
 						<Save className="h-4 w-4 mr-2" />
 						Save changes
