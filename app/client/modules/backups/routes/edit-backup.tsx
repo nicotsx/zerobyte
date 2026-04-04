@@ -51,6 +51,7 @@ export function EditBackupPage({ backupId }: { backupId: string }) {
 			path: { shortId: schedule.shortId },
 			body: {
 				...formValues,
+				enabled: formValues.frequency === "manual" ? false : schedule.enabled,
 				cronExpression,
 				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
 			},
