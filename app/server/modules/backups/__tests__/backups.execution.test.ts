@@ -525,4 +525,60 @@ describe("mirror operations", () => {
 		// assert
 		expect(resticForgetMock).not.toHaveBeenCalled();
 	});
+
+	test("should serialize mirror copies for schedules that share the same mirror repository", async () => {
+		const { resticCopyMock } = setup();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const firstVolume = await createTestVolume();
+		const secondVolume = await createTestVolume();
+		const firstSchedule = await createTestBackupSchedule({
+			volumeId: firstVolume.id,
+			repositoryId: sourceRepository.id,
+		});
+		const secondSchedule = await createTestBackupSchedule({
+			volumeId: secondVolume.id,
+			repositoryId: sourceRepository.id,
+		});
+
+		await createTestBackupScheduleMirror(firstSchedule.id, mirrorRepository.id);
+		await createTestBackupScheduleMirror(secondSchedule.id, mirrorRepository.id);
+
+		let releaseFirstCopy = () => {};
+		let resolveFirstCopyStarted = () => {};
+		const firstCopyStarted = new Promise<void>((resolve) => {
+			resolveFirstCopyStarted = resolve;
+		});
+
+		resticCopyMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					resolveFirstCopyStarted();
+					releaseFirstCopy = () => resolve({ success: true, output: "" });
+				}),
+		);
+		resticCopyMock.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
+
+		const firstCopyPromise = backupsExecutionService.copyToMirrors(firstSchedule.id, sourceRepository, null);
+		await firstCopyStarted;
+
+		const secondCopyPromise = backupsExecutionService.copyToMirrors(secondSchedule.id, sourceRepository, null);
+
+		try {
+			const secondCopyState = await Promise.race<"resolved" | "timeout">([
+				secondCopyPromise.then(() => "resolved"),
+				new Promise((resolve) => {
+					setTimeout(() => resolve("timeout"), 50);
+				}),
+			]);
+
+			expect(secondCopyState).toBe("timeout");
+			expect(resticCopyMock).toHaveBeenCalledTimes(1);
+		} finally {
+			releaseFirstCopy();
+			await Promise.all([firstCopyPromise, secondCopyPromise]);
+		}
+
+		expect(resticCopyMock).toHaveBeenCalledTimes(2);
+	});
 });
