@@ -92,15 +92,16 @@ async function copyToSingleMirror(
 			lastCopyError: null,
 		});
 
-		const releaseSource = await repoMutex.acquireShared(sourceRepository.id, `mirror_source:${scheduleId}`);
-		const releaseMirror = await repoMutex.acquireExclusive(mirror.repository.id, `mirror:${scheduleId}`);
+		const releaseLocks = await repoMutex.acquireMany([
+			{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_source:${scheduleId}` },
+			{ repositoryId: mirror.repository.id, type: "exclusive", operation: `mirror:${scheduleId}` },
+		]);
 
 		try {
 			await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId, organizationId });
 			cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));
 		} finally {
-			releaseSource();
-			releaseMirror();
+			releaseLocks();
 		}
 
 		if (retentionPolicy) {

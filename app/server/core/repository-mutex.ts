@@ -2,6 +2,12 @@ import { logger } from "@zerobyte/core/node";
 
 export type LockType = "shared" | "exclusive";
 
+export interface LockRequest {
+	repositoryId: string;
+	type: LockType;
+	operation: string;
+}
+
 interface LockHolder {
 	id: string;
 	operation: string;
@@ -156,6 +162,54 @@ class RepositoryMutex {
 		logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation} (${lockId})`);
 
 		return this.createRelease("exclusive", repositoryId, lockId!);
+	}
+
+	async acquireMany(requests: LockRequest[], signal?: AbortSignal) {
+		if (signal?.aborted) {
+			throw signal.reason || new Error("Operation aborted");
+		}
+
+		if (requests.length === 0) {
+			return () => {};
+		}
+
+		const seenRepositoryIds = new Set<string>();
+		for (const request of requests) {
+			if (seenRepositoryIds.has(request.repositoryId)) {
+				throw new Error(`Duplicate repository lock request: ${request.repositoryId}`);
+			}
+			seenRepositoryIds.add(request.repositoryId);
+		}
+
+		const sortedRequests = [...requests].sort((a, b) => a.repositoryId.localeCompare(b.repositoryId));
+		const releases: Array<() => void> = [];
+
+		try {
+			for (const request of sortedRequests) {
+				const release =
+					request.type === "shared"
+						? await this.acquireShared(request.repositoryId, request.operation, signal)
+						: await this.acquireExclusive(request.repositoryId, request.operation, signal);
+				releases.push(release);
+			}
+		} catch (error) {
+			for (const release of releases.toReversed()) {
+				release();
+			}
+			throw error;
+		}
+
+		let released = false;
+		return () => {
+			if (released) {
+				return;
+			}
+
+			released = true;
+			for (const release of releases.toReversed()) {
+				release();
+			}
+		};
 	}
 
 	private releaseShared(repositoryId: string, lockId: string): void {

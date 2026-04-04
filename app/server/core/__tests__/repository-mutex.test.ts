@@ -232,6 +232,76 @@ describe("RepositoryMutex", () => {
 		releaseS3();
 	});
 
+	test("should acquire many locks in repository order", async () => {
+		const releaseSharedB = await repoMutex.acquireShared("repo-b", "holder-b");
+		const results: string[] = [];
+
+		const manyPromise = repoMutex
+			.acquireMany([
+				{ repositoryId: "repo-b", type: "exclusive", operation: "many-b" },
+				{ repositoryId: "repo-a", type: "shared", operation: "many-a" },
+			])
+			.then((release) => {
+				results.push("many");
+				return release;
+			});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		const exclusiveAPromise = repoMutex.acquireExclusive("repo-a", "exclusive-a").then((release) => {
+			results.push("exclusive-a");
+			return release;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(results).toEqual([]);
+
+		releaseSharedB();
+
+		const releaseMany = await manyPromise;
+		expect(results).toEqual(["many"]);
+
+		releaseMany();
+
+		const releaseExclusiveA = await exclusiveAPromise;
+		expect(results).toEqual(["many", "exclusive-a"]);
+
+		releaseExclusiveA();
+	});
+
+	test("should release earlier locks when acquireMany is aborted", async () => {
+		const releaseExclusiveB = await repoMutex.acquireExclusive("repo-b", "holder-b");
+		const controller = new AbortController();
+
+		const manyPromise = repoMutex.acquireMany(
+			[
+				{ repositoryId: "repo-b", type: "exclusive", operation: "many-b" },
+				{ repositoryId: "repo-a", type: "shared", operation: "many-a" },
+			],
+			controller.signal,
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		let exclusiveAAcquired = false;
+		const exclusiveAPromise = repoMutex.acquireExclusive("repo-a", "exclusive-a").then((release) => {
+			exclusiveAAcquired = true;
+			return release;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		expect(exclusiveAAcquired).toBe(false);
+
+		controller.abort(new Error("stop"));
+		await expect(manyPromise).rejects.toThrow("stop");
+
+		const releaseExclusiveA = await exclusiveAPromise;
+		expect(exclusiveAAcquired).toBe(true);
+
+		releaseExclusiveA();
+		releaseExclusiveB();
+	});
+
 	test("should safely handle multiple calls to the release function", async () => {
 		const repoId = "idempotent-release";
 
