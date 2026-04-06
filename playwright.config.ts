@@ -12,6 +12,7 @@ export default defineConfig({
 		baseURL: `http://${process.env.SERVER_IP}:4096`,
 		video: "retain-on-failure",
 		trace: "retain-on-failure",
+		ignoreHTTPSErrors: true,
 	},
 	projects: [
 		{
@@ -24,7 +25,7 @@ export default defineConfig({
 			use: {
 				...devices["Desktop Chrome"],
 				launchOptions: {
-					args: ["--host-rules=MAP dex 127.0.0.1"],
+					args: ["--host-rules=MAP tinyauth.example.com 127.0.0.1"],
 				},
 			},
 			dependencies: ["setup"],

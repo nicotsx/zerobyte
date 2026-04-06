@@ -4,10 +4,11 @@ import { expect, test } from "./test";
 import { trackBrowserErrors } from "./helpers/browser-errors";
 import { gotoAndWaitForAppReady, waitForAppReady } from "./helpers/page";
 
-const dexOrigin = process.env.E2E_DEX_ORIGIN ?? "http://dex:5557";
-const issuer = `${dexOrigin}/dex`;
+const tinyauthOrigin = process.env.E2E_TINYAUTH_ORIGIN ?? "https://tinyauth.example.com:5557";
+const issuer = tinyauthOrigin;
 const discoveryEndpoint = `${issuer}/.well-known/openid-configuration`;
 const appBaseUrl = `http://${process.env.SERVER_IP ?? "localhost"}:4096`;
+const appOrigin = new URL(appBaseUrl).origin;
 const setupAuthFile = path.join(process.cwd(), "playwright", ".auth", "user.json");
 
 const providerIds = {
@@ -17,7 +18,7 @@ const providerIds = {
 	autoLink: "test-oidc-autolink",
 } as const;
 
-const dexPassword = "password";
+const tinyauthPassword = "password";
 const uninvitedUserEmail = "admin@example.com";
 const invitedUserEmail = "user@example.com";
 const autoLinkUninvitedLocalEmail = "linkguard@example.com";
@@ -48,6 +49,8 @@ type SsoSettingsResponse = {
 type SsoSignInResponse = {
 	url?: string;
 };
+
+type OidcUiState = "app" | "authorize" | "loading" | "login";
 
 async function openSsoSettings(page: Page) {
 	await gotoAndWaitForAppReady(page, "/settings?tab=organization");
@@ -98,7 +101,7 @@ async function createLocalUser(browser: Browser, email: string, username: string
 			},
 			data: {
 				email,
-				password: dexPassword,
+				password: tinyauthPassword,
 				name: "SSO Link Target",
 				role: "user",
 				data: {
@@ -206,10 +209,45 @@ async function startSsoLogin(page: Page, providerId: string) {
 	return body.url;
 }
 
+async function getOidcUiState(page: Page) {
+	const currentUrl = new URL(page.url());
+
+	if (currentUrl.origin === appOrigin) {
+		return "app" satisfies OidcUiState;
+	}
+
+	const tinyauthLoginInput = page.locator('input[name="username"]');
+	if (await tinyauthLoginInput.isVisible().catch(() => false)) {
+		return "login" satisfies OidcUiState;
+	}
+
+	const authorizeButton = page.getByRole("button", { name: /authorize|allow/i });
+	if (await authorizeButton.isVisible().catch(() => false)) {
+		return "authorize" satisfies OidcUiState;
+	}
+
+	return "loading" satisfies OidcUiState;
+}
+
+async function waitForOidcUiState(page: Page, expectedStates: OidcUiState[], timeout = 15000) {
+	const expectedPattern = new RegExp(`^(?:${expectedStates.join("|")})$`);
+
+	await expect
+		.poll(
+			async () => {
+				return getOidcUiState(page);
+			},
+			{ timeout },
+		)
+		.toMatch(expectedPattern);
+
+	return getOidcUiState(page);
+}
+
 async function withOidcLoginAttempt(
 	browser: Browser,
 	providerId: string,
-	dexLogin: string,
+	tinyauthLogin: string,
 	assertions: (page: Page) => Promise<void>,
 ) {
 	const context = await browser.newContext({
@@ -229,13 +267,19 @@ async function withOidcLoginAttempt(
 		const ssoUrl = await startSsoLogin(page, providerId);
 		await page.goto(ssoUrl);
 
-		const dexLoginInput = page.locator('input[name="login"]');
-		const dexLoginIsVisible = await dexLoginInput.isVisible({ timeout: 5000 }).catch(() => false);
+		let oidcUiState = await waitForOidcUiState(page, ["app", "authorize", "login"]);
 
-		if (dexLoginIsVisible) {
-			await dexLoginInput.fill(dexLogin);
-			await page.locator('input[name="password"]').fill(dexPassword);
+		if (oidcUiState === "login") {
+			const tinyauthLoginInput = page.locator('input[name="username"]');
+			await tinyauthLoginInput.fill(tinyauthLogin);
+			await page.locator('input[name="password"]').fill(tinyauthPassword);
 			await page.locator('button[type="submit"]').click();
+
+			oidcUiState = await waitForOidcUiState(page, ["app", "authorize"]);
+		}
+
+		if (oidcUiState === "authorize") {
+			await page.getByRole("button", { name: /authorize|allow/i }).click();
 		}
 
 		await assertions(page);
@@ -246,12 +290,13 @@ async function withOidcLoginAttempt(
 }
 
 function isLoginPath(url: string): boolean {
-	const pathname = new URL(url).pathname;
-	return pathname === "/login" || pathname === "/login/error";
+	const parsedUrl = new URL(url);
+	return parsedUrl.origin === appOrigin && (parsedUrl.pathname === "/login" || parsedUrl.pathname === "/login/error");
 }
 
 function isSsoCallbackPath(url: string): boolean {
-	return new URL(url).pathname.startsWith("/api/auth/sso/callback/");
+	const parsedUrl = new URL(url);
+	return parsedUrl.origin === appOrigin && parsedUrl.pathname.startsWith("/api/auth/sso/callback/");
 }
 
 async function expectInviteOnlyLoginError(page: Page) {

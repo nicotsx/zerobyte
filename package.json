@@ -17,7 +17,7 @@
 		"tsc": "tsc --noEmit && turbo run tsc",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
-		"start:e2e": "docker compose down && rm -rf playwright/data/* playwright/.auth/user.json playwright/restic.pass && mkdir -p playwright/temp && rm -rf playwright/temp/* && docker compose up --build zerobyte-e2e",
+		"start:e2e": "docker compose down && mkdir -p playwright/data playwright/temp playwright/tinyauth/app-data playwright/tinyauth/caddy-data && rm -rf playwright/data/* playwright/.auth/user.json playwright/restic.pass playwright/temp/* playwright/tinyauth/app-data/* && docker compose up --build zerobyte-e2e",
 		"start:distroless": "docker compose down && docker compose up --build zerobyte-distroless",
 		"gen:api-client": "dotenv -e .env.local -- openapi-ts",
 		"gen:migrations": "dotenv -e .env.local -- drizzle-kit generate",

@@ -61,7 +61,9 @@ services:
       - DISABLE_RATE_LIMITING=true
       - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
       - BASE_URL=http://localhost:4096
-      - TRUSTED_ORIGINS=http://dex:5557,http://localhost:5557
+      - TRUSTED_ORIGINS=https://tinyauth.example.com:5557,https://localhost:5557
+      - NODE_EXTRA_CA_CERTS=/tinyauth-ca/caddy/pki/authorities/local/root.crt
+      - SSL_CERT_FILE=/tinyauth-ca/caddy/pki/authorities/local/root.crt
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:
@@ -69,17 +71,56 @@ services:
     ports:
       - "4096:4096"
     depends_on:
-      - dex
+      tinyauth:
+        condition: service_healthy
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./playwright/data:/var/lib/zerobyte/data
       - ./playwright/temp:/test-data
+      - ./playwright/tinyauth/caddy-data:/tinyauth-ca:ro
 
-  dex:
-    image: ghcr.io/dexidp/dex:latest
+  tinyauth-app:
+    image: ghcr.io/steveiliop56/tinyauth:v5
     restart: unless-stopped
+    environment:
+      - TINYAUTH_APPURL=https://tinyauth.example.com:5557
+      - TINYAUTH_SERVER_PORT=3000
+      - TINYAUTH_SERVER_ADDRESS=0.0.0.0
+      - TINYAUTH_DATABASE_PATH=/data/tinyauth.db
+      - TINYAUTH_AUTH_USERSFILE=/config/users.txt
+      - TINYAUTH_OIDC_PRIVATEKEYPATH=/data/tinyauth_oidc_key
+      - TINYAUTH_OIDC_PUBLICKEYPATH=/data/tinyauth_oidc_key.pub
+      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_CLIENTID=zerobyte-test
+      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_CLIENTSECRET=test-secret-12345
+      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_TRUSTEDREDIRECTURIS=http://localhost:4096/api/auth/sso/callback/test-oidc-register,http://localhost:4096/api/auth/sso/callback/test-oidc-uninvited,http://localhost:4096/api/auth/sso/callback/test-oidc-invited,http://localhost:4096/api/auth/sso/callback/test-oidc-autolink
+      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_NAME=Zerobyte Test
+      - TINYAUTH_LOG_LEVEL=debug
+      - TINYAUTH_LOG_JSON=true
+    volumes:
+      - ./playwright/tinyauth/users.txt:/config/users.txt:ro
+      - ./playwright/tinyauth/app-data:/data
+
+  tinyauth:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - tinyauth-app
     ports:
       - "5557:5557"
     volumes:
-      - ./playwright/dex-config.yaml:/etc/dex/cfg.yaml:ro
-    command: dex serve /etc/dex/cfg.yaml
+      - ./playwright/tinyauth/caddy.json:/etc/caddy/caddy.json:ro
+      - ./playwright/tinyauth/caddy-data:/data
+    command: caddy run --config /etc/caddy/caddy.json
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /data/caddy/pki/authorities/local/root.crt && wget -qO- --no-check-certificate https://localhost:5557/.well-known/openid-configuration >/dev/null",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    networks:
+      default:
+        aliases:
+          - tinyauth.example.com

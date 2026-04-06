@@ -46,12 +46,14 @@ jobs:
           mkdir -p data
           mkdir -p playwright/temp
           mkdir -p playwright/data
+          mkdir -p playwright/tinyauth/app-data
+          mkdir -p playwright/tinyauth/caddy-data
           chmod -R 777 playwright/temp
           touch .env.local
           echo "SERVER_IP=localhost" >> .env.local
           echo "ZEROBYTE_DATABASE_URL=./data/zerobyte.db" >> .env.local
           echo "BASE_URL=http://localhost:4096" >> .env.local
-          echo "E2E_DEX_ORIGIN=http://dex:5557" >> .env.local
+          echo "E2E_TINYAUTH_ORIGIN=https://tinyauth.example.com:5557" >> .env.local
           echo "TZ=Europe/Zurich" >> .env.local
 
       - name: Start zerobyte-e2e service
@@ -68,13 +70,13 @@ jobs:
         run: |
           timeout 30s bash -c 'until curl -f http://localhost:4096/api/healthcheck; do echo "Waiting for server..." && sleep 2; done'
 
-      - name: Wait for Dex to be ready
+      - name: Wait for Tinyauth to be ready
         run: |
-          timeout 30s bash -c 'until curl -sf http://localhost:5557/dex/.well-known/openid-configuration; do echo "Waiting for Dex..." && sleep 2; done'
+          timeout 30s bash -c 'until curl -skf https://localhost:5557/.well-known/openid-configuration; do echo "Waiting for Tinyauth..." && sleep 2; done'
 
       - name: Print docker logs if failed to start
         if: failure()
-        run: docker compose logs zerobyte-e2e dex || true
+        run: docker compose logs zerobyte-e2e tinyauth tinyauth-app || true
 
       - name: Make playwright directory writable
         run: sudo chmod 777 playwright/data/zerobyte.db
@@ -85,9 +87,9 @@ jobs:
       - name: Dump container logs in playwright-report folder
         if: always()
         run: |
-          tree playwright
+          tree playwright || true
           docker compose logs zerobyte-e2e > playwright-report/container-logs.txt || true
-          docker compose logs dex > playwright-report/dex-logs.txt || true
+          docker compose logs tinyauth tinyauth-app > playwright-report/tinyauth-logs.txt || true
 
       - name: Debug - print content of /test-data in container
         if: failure()

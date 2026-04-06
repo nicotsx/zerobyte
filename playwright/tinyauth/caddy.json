@@ -1,0 +1,45 @@
+{
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [":5557"],
+					"routes": [
+						{
+							"match": [
+								{
+									"host": ["tinyauth.example.com", "localhost"]
+								}
+							],
+							"handle": [
+								{
+									"handler": "reverse_proxy",
+									"upstreams": [
+										{
+											"dial": "tinyauth-app:3000"
+										}
+									]
+								}
+							],
+							"terminal": true
+						}
+					]
+				}
+			}
+		},
+		"tls": {
+			"automation": {
+				"policies": [
+					{
+						"subjects": ["tinyauth.example.com", "localhost"],
+						"issuers": [
+							{
+								"module": "internal"
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

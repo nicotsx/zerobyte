@@ -29,6 +29,8 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /playwright/*.pass
+/playwright/tinyauth/app-data/
+/playwright/tinyauth/caddy-data/
 
 playwright/.auth
 playwright/temp
