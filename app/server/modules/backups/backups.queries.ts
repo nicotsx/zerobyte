@@ -60,6 +60,13 @@ export const mirrorQueries = {
 		});
 	},
 
+	findByScheduleAndRepository: async (scheduleId: number, repositoryId: string) => {
+		return db.query.backupScheduleMirrorsTable.findFirst({
+			where: { scheduleId, repositoryId },
+			with: { repository: true },
+		});
+	},
+
 	updateStatus: async (scheduleId: number, repositoryId: string, status: MirrorStatusUpdate) => {
 		return db
 			.update(backupScheduleMirrorsTable)

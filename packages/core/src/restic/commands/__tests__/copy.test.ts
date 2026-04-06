@@ -48,12 +48,46 @@ afterEach(() => {
 describe("copy command", () => {
 	test("treats flag-like snapshot IDs as positional args", async () => {
 		const { getArgs } = setup();
-		const snapshotId = "--help";
 
-		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotId, tag: "daily" }, mockDeps);
+		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: ["--help"], tag: "daily" }, mockDeps);
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);
-		expect(getArgs().slice(separatorIndex + 1)).toEqual([snapshotId]);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(["--help"]);
+	});
+
+	test("defaults to 'latest' when no snapshotIds are provided", async () => {
+		const { getArgs } = setup();
+
+		await copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps);
+
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
+	});
+
+	test("passes multiple snapshot IDs after separator", async () => {
+		const { getArgs } = setup();
+
+		await copy(
+			sourceConfig,
+			destConfig,
+			{ organizationId: "org-1", snapshotIds: ["abc123", "def456", "ghi789"], tag: "daily" },
+			mockDeps,
+		);
+
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(["abc123", "def456", "ghi789"]);
+	});
+
+	test("defaults to 'latest' when snapshotIds is empty array", async () => {
+		const { getArgs } = setup();
+
+		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: [], tag: "daily" }, mockDeps);
+
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
 	});
 });

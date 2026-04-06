@@ -66,6 +66,114 @@ export async function copyToMirrors(
 	}
 }
 
+export async function syncSnapshotsToMirror(
+	scheduleId: number,
+	mirrorRepositoryId: string,
+	organizationIdOverride?: string,
+	snapshotIds?: string[],
+) {
+	const organizationId = organizationIdOverride ?? getOrganizationId();
+	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
+
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	const mirror = await mirrorQueries.findByScheduleAndRepository(scheduleId, mirrorRepositoryId);
+
+	if (!mirror) {
+		throw new NotFoundError("Mirror not found for this schedule");
+	}
+
+	const sourceRepository = await repositoryQueries.findById(schedule.repositoryId, organizationId);
+
+	if (!sourceRepository) {
+		throw new NotFoundError("Source repository not found");
+	}
+
+	const mirrorRepository = await repositoryQueries.findById(mirrorRepositoryId, organizationId);
+
+	if (!mirrorRepository) {
+		throw new NotFoundError("Mirror repository not found");
+	}
+
+	try {
+		logger.info(`[Background] Syncing all snapshots to mirror repository: ${mirrorRepository.name}`);
+
+		serverEvents.emit("mirror:started", {
+			organizationId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirrorRepository.shortId,
+			repositoryName: mirrorRepository.name,
+		});
+
+		await mirrorQueries.updateStatus(scheduleId, mirrorRepositoryId, {
+			lastCopyStatus: "in_progress",
+			lastCopyError: null,
+		});
+
+		const releaseLocks = await repoMutex.acquireMany([
+			{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_sync_source:${scheduleId}` },
+			{ repositoryId: mirrorRepository.id, type: "exclusive", operation: `mirror_sync:${scheduleId}` },
+		]);
+
+		try {
+			await restic.copy(sourceRepository.config, mirrorRepository.config, {
+				tag: schedule.shortId,
+				organizationId,
+				snapshotIds,
+			});
+			cache.delByPrefix(cacheKeys.repository.all(mirrorRepository.id));
+		} finally {
+			releaseLocks();
+		}
+
+		if (schedule.retentionPolicy) {
+			void runForget(scheduleId, mirrorRepository.id, organizationId).catch((error) => {
+				logger.error(
+					`Failed to run retention policy for mirror repository ${mirrorRepository.name}: ${toMessage(error)}`,
+				);
+			});
+		}
+
+		await mirrorQueries.updateStatus(scheduleId, mirrorRepositoryId, {
+			lastCopyAt: Date.now(),
+			lastCopyStatus: "success",
+			lastCopyError: null,
+		});
+
+		logger.info(`[Background] Successfully synced all snapshots to mirror repository: ${mirrorRepository.name}`);
+
+		serverEvents.emit("mirror:completed", {
+			organizationId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirrorRepository.shortId,
+			repositoryName: mirrorRepository.name,
+			status: "success",
+		});
+	} catch (error) {
+		const errorMessage = toMessage(error);
+		logger.error(
+			`[Background] Failed to sync all snapshots to mirror repository ${mirrorRepository.name}: ${errorMessage}`,
+		);
+
+		await mirrorQueries.updateStatus(scheduleId, mirrorRepositoryId, {
+			lastCopyAt: Date.now(),
+			lastCopyStatus: "error",
+			lastCopyError: errorMessage,
+		});
+
+		serverEvents.emit("mirror:completed", {
+			organizationId,
+			scheduleId: schedule.shortId,
+			repositoryId: mirrorRepository.shortId,
+			repositoryName: mirrorRepository.name,
+			status: "error",
+			error: errorMessage,
+		});
+	}
+}
+
 async function copyToSingleMirror(
 	scheduleId: number,
 	schedule: BackupSchedule,

@@ -4114,6 +4114,63 @@ export type UpdateScheduleMirrorsResponses = {
 
 export type UpdateScheduleMirrorsResponse = UpdateScheduleMirrorsResponses[keyof UpdateScheduleMirrorsResponses];
 
+export type GetMirrorSyncStatusData = {
+    body?: never;
+    path: {
+        shortId: string;
+        mirrorShortId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{shortId}/mirrors/{mirrorShortId}/status';
+};
+
+export type GetMirrorSyncStatusResponses = {
+    /**
+     * Mirror sync status with missing snapshots
+     */
+    200: {
+        sourceCount: number;
+        mirrorCount: number;
+        missingSnapshots: Array<{
+            short_id: string;
+            time: string;
+            size: number;
+        }>;
+    };
+};
+
+export type GetMirrorSyncStatusResponse = GetMirrorSyncStatusResponses[keyof GetMirrorSyncStatusResponses];
+
+export type SyncMirrorData = {
+    body: {
+        snapshotIds?: Array<string>;
+    };
+    path: {
+        shortId: string;
+        mirrorShortId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{shortId}/mirrors/{mirrorShortId}/sync';
+};
+
+export type SyncMirrorErrors = {
+    /**
+     * Mirror is already syncing
+     */
+    409: unknown;
+};
+
+export type SyncMirrorResponses = {
+    /**
+     * Mirror sync started successfully
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type SyncMirrorResponse = SyncMirrorResponses[keyof SyncMirrorResponses];
+
 export type GetMirrorCompatibilityData = {
     body?: never;
     path: {

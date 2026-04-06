@@ -5,8 +5,10 @@ import {
 	createBackupScheduleDto,
 	deleteBackupScheduleDto,
 	getBackupScheduleDto,
+	getBackupScheduleResponse,
 	getBackupScheduleForVolumeDto,
 	listBackupSchedulesDto,
+	listBackupSchedulesResponse,
 	runBackupNowDto,
 	runForgetDto,
 	stopBackupDto,
@@ -16,9 +18,12 @@ import {
 	updateScheduleMirrorsDto,
 	updateScheduleMirrorsBody,
 	getMirrorCompatibilityDto,
+	getMirrorSyncStatusDto,
 	reorderBackupSchedulesDto,
 	reorderBackupSchedulesBody,
 	getBackupProgressDto,
+	syncMirrorBody,
+	syncMirrorDto,
 	type CreateBackupScheduleDto,
 	type DeleteBackupScheduleDto,
 	type GetBackupScheduleDto,
@@ -33,8 +38,8 @@ import {
 	type GetMirrorCompatibilityDto,
 	type ReorderBackupSchedulesDto,
 	type GetBackupProgressDto,
-	listBackupSchedulesResponse,
-	getBackupScheduleResponse,
+	type GetMirrorSyncStatusDto,
+	type SyncMirrorDto,
 } from "./backups.dto";
 import { backupsService } from "./backups.service";
 import {
@@ -154,6 +159,21 @@ export const backupScheduleController = new Hono()
 		const mirrors = await backupsService.updateMirrors(shortId, body);
 
 		return c.json<UpdateScheduleMirrorsDto>(mirrors, 200);
+	})
+	.get("/:shortId/mirrors/:mirrorShortId/status", getMirrorSyncStatusDto, async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const mirrorShortId = asShortId(c.req.param("mirrorShortId"));
+		const status = await backupsService.getMirrorSyncStatus(shortId, mirrorShortId);
+
+		return c.json<GetMirrorSyncStatusDto>(status, 200);
+	})
+	.post("/:shortId/mirrors/:mirrorShortId/sync", syncMirrorDto, validator("json", syncMirrorBody), async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const mirrorShortId = asShortId(c.req.param("mirrorShortId"));
+		const body = c.req.valid("json");
+		const result = await backupsService.syncMirror(shortId, mirrorShortId, body.snapshotIds);
+
+		return c.json<SyncMirrorDto>(result, 200);
 	})
 	.get("/:shortId/mirrors/compatibility", getMirrorCompatibilityDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
