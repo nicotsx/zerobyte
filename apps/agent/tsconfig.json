@@ -7,7 +7,6 @@
 		"module": "Preserve",
 		"moduleDetection": "force",
 		"jsx": "react-jsx",
-		"types": ["bun", "node"],
 		"allowJs": true,
 
 		// Bundler mode

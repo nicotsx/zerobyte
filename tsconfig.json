@@ -1,6 +1,7 @@
 {
 	"include": ["app/**/*"],
 	"compilerOptions": {
+		"plugins": [{ "name": "@effect/language-service" }],
 		"lib": ["DOM", "DOM.Iterable", "ES2023"],
 		"types": ["bun", "node", "vite/client"],
 		"target": "ES2022",
