@@ -1,0 +1,24 @@
+{
+	"name": "@zerobyte/contracts",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./agent-protocol": {
+			"types": "./src/agent-protocol.ts",
+			"import": "./src/agent-protocol.ts",
+			"default": "./src/agent-protocol.ts"
+		}
+	},
+	"scripts": {
+		"tsc": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@zerobyte/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	}
+}

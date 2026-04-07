@@ -34,6 +34,7 @@
         "@tanstack/react-router": "^1.168.1",
         "@tanstack/react-router-ssr-query": "^1.166.10",
         "@tanstack/react-start": "^1.167.1",
+        "@zerobyte/contracts": "workspace:*",
         "@zerobyte/core": "workspace:*",
         "better-auth": "^1.5.5",
         "class-variance-authority": "^0.7.1",
@@ -112,6 +113,18 @@
         "vite-bundle-analyzer": "^1.2.3",
         "vitest": "^4.1.1",
         "wait-for-expect": "^4.0.0",
+      },
+    },
+    "packages/contracts": {
+      "name": "@zerobyte/contracts",
+      "dependencies": {
+        "@zerobyte/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
       },
     },
     "packages/core": {
@@ -1043,6 +1056,8 @@
     "@xmldom/is-dom-node": ["@xmldom/is-dom-node@1.0.1", "", {}, "sha512-CJDxIgE5I0FH+ttq/Fxy6nRpxP70+e2O048EPe85J2use3XKdatVM7dDVvFNjQudd9B49NPoZ+8PG49zj4Er8Q=="],
 
     "@xmldom/xmldom": ["@xmldom/xmldom@0.8.11", "", {}, "sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw=="],
+
+    "@zerobyte/contracts": ["@zerobyte/contracts@workspace:packages/contracts"],
 
     "@zerobyte/core": ["@zerobyte/core@workspace:packages/core"],
 
