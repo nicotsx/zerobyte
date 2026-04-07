@@ -64,6 +64,8 @@ COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
 COPY ./package.json ./bun.lock ./
 COPY ./packages/core/package.json ./packages/core/package.json
+COPY ./packages/contracts/package.json ./packages/contracts/package.json
+COPY ./apps/agent/package.json ./apps/agent/package.json
 
 RUN bun install --frozen-lockfile --ignore-scripts
 
@@ -86,11 +88,14 @@ WORKDIR /app
 
 COPY ./package.json ./bun.lock ./
 COPY ./packages/core/package.json ./packages/core/package.json
+COPY ./packages/contracts/package.json ./packages/contracts/package.json
+COPY ./apps/agent/package.json ./apps/agent/package.json
 RUN bun install --frozen-lockfile
 
 COPY . .
 
 RUN bun run build
+RUN bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun
 
 FROM base AS production
 
