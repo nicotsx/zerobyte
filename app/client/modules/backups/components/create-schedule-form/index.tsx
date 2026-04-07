@@ -44,6 +44,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				customResticParamsText,
 				includePaths,
 				cronExpression,
+				maxRetries,
+				retryDelay,
 				...rest
 			} = data;
 			const excludePatterns = parseMultilineEntries(excludePatternsText);
@@ -59,6 +61,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
+				maxRetries,
+				retryDelay: retryDelay ? retryDelay * 60 * 1000 : 3600000,
 			});
 		},
 		[onSubmit],

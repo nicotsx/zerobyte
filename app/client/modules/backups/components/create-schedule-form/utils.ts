@@ -26,6 +26,8 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
 		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
+		maxRetries: schedule.maxRetries ?? 5,
+		retryDelay: schedule.retryDelay ? schedule.retryDelay / (60 * 60 * 1000) : 1, // Convert ms to hours
 		...cronValues,
 		...schedule.retentionPolicy,
 	};

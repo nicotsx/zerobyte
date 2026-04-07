@@ -20,6 +20,8 @@ export const internalFormSchema = z.object({
 	keepYearly: z.number().optional(),
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
+	maxRetries: z.number().min(0).max(32).optional(),
+	retryDelay: z.number().min(1).max(1440).optional(),
 });
 
 export const weeklyDays = [
@@ -42,4 +44,6 @@ export type BackupScheduleFormValues = Omit<
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
+	maxRetries?: number;
+	retryDelay?: number;
 };

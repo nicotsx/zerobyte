@@ -237,8 +237,10 @@ export async function handleBackupFailure(
 			failureRetryCount: currentRetryCount + 1,
 		});
 
+		const delayMinutes = Math.round((schedule.retryDelay / (60 * 1000)) * 10) / 10;
+
 		logger.warn(
-			`Backup ${schedule?.name} failed. Scheduling retry ${currentRetryCount + 1}/${maxRetries} for 1 hour from now: ${errorMessage}`,
+			`Backup ${schedule?.name} failed. Scheduling retry ${currentRetryCount + 1}/${maxRetries} for ${delayMinutes} minutes from now: ${errorMessage}`,
 		);
 
 		if (partialContext?.volume && partialContext?.repository) {
@@ -255,7 +257,7 @@ export async function handleBackupFailure(
 					volumeName: partialContext.volume.name,
 					repositoryName: partialContext.repository.name,
 					scheduleName: schedule!.name,
-					error: `${errorDetails}\n\nRetrying in 1 hour (attempt ${currentRetryCount + 1}/${maxRetries})`,
+					error: `${errorDetails}\n\nRetrying in ${delayMinutes} minutes (attempt ${currentRetryCount + 1}/${maxRetries})`,
 				})
 				.catch((notifError) => {
 					logger.error(`Failed to send backup failure notification: ${toMessage(notifError)}`);
