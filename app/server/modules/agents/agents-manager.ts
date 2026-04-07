@@ -43,6 +43,8 @@ type AgentManagerRuntime = ReturnType<typeof createAgentManagerRuntime>;
 type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime;
 	localAgent: ChildProcess | null;
+	isStoppingLocalAgent: boolean;
+	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
 };
 
 type ProcessWithAgentRuntime = NodeJS.Process & {
@@ -60,6 +62,8 @@ const getAgentRuntimeState = () => {
 	const runtime = {
 		agentManager: createAgentManagerRuntime(),
 		localAgent: null,
+		isStoppingLocalAgent: false,
+		localAgentRestartTimeout: null,
 	};
 
 	runtimeProcess.__zerobyteAgentRuntime = runtime;
@@ -105,28 +109,48 @@ export const spawnLocalAgent = async () => {
 	});
 
 	agentProcess.on("exit", (code, signal) => {
+		const shouldRestart = runtime.localAgent === agentProcess && !runtime.isStoppingLocalAgent;
 		if (runtime.localAgent === agentProcess) {
 			runtime.localAgent = null;
 		}
 		logger.info(`Agent process exited with code ${code} and signal ${signal}`);
+
+		if (!shouldRestart) {
+			return;
+		}
+
+		runtime.localAgentRestartTimeout = setTimeout(() => {
+			runtime.localAgentRestartTimeout = null;
+			void spawnLocalAgent().catch((error) => {
+				logger.error(`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`);
+			});
+		}, 1_000);
 	});
 };
 
 export const stopLocalAgent = async () => {
 	const runtime = getAgentRuntimeState();
+	if (runtime.localAgentRestartTimeout) {
+		clearTimeout(runtime.localAgentRestartTimeout);
+		runtime.localAgentRestartTimeout = null;
+	}
+
 	if (!runtime.localAgent) {
 		return;
 	}
 
 	const agentProcess = runtime.localAgent;
 	runtime.localAgent = null;
+	runtime.isStoppingLocalAgent = true;
 
 	if (agentProcess.exitCode !== null || agentProcess.signalCode !== null) {
+		runtime.isStoppingLocalAgent = false;
 		return;
 	}
 
 	const exited = new Promise<void>((resolve) => {
 		agentProcess.once("exit", () => {
+			runtime.isStoppingLocalAgent = false;
 			resolve();
 		});
 	});
