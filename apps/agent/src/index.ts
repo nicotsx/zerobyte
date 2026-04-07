@@ -5,7 +5,7 @@ const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
 const RECONNECT_DELAY_MS = 1000;
 
-class Agent {
+export class Agent {
 	private ws: WebSocket | null = null;
 	private controllerSession: ControllerSession | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -22,6 +22,10 @@ class Agent {
 	}
 
 	connect() {
+		if (this.reconnectTimeout) {
+			clearTimeout(this.reconnectTimeout);
+			this.reconnectTimeout = null;
+		}
 		if (this.ws) {
 			return;
 		}

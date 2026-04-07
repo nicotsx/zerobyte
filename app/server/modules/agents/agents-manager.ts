@@ -8,6 +8,8 @@ export type { AgentBackupEventHandlers } from "./controller/server";
 type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime | null;
 	localAgent: ChildProcess | null;
+	isStoppingLocalAgent: boolean;
+	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
 };
 
 type ProcessWithAgentRuntime = NodeJS.Process & {
@@ -25,6 +27,8 @@ const getAgentRuntimeState = () => {
 	const runtime = {
 		agentManager: null,
 		localAgent: null,
+		isStoppingLocalAgent: false,
+		localAgentRestartTimeout: null,
 	};
 
 	runtimeProcess.__zerobyteAgentRuntime = runtime;
@@ -43,11 +47,11 @@ export const startAgentRuntime = async () => {
 	}
 
 	const { createAgentManagerRuntime } = await import("./controller/server");
-	const agentManager = createAgentManagerRuntime();
-	agentManager.setBackupEventHandlers(backupEventHandlers);
+	const nextAgentManager = createAgentManagerRuntime();
+	nextAgentManager.setBackupEventHandlers(backupEventHandlers);
 
-	await agentManager.start();
-	runtime.agentManager = agentManager;
+	await nextAgentManager.start();
+	runtime.agentManager = nextAgentManager;
 };
 
 export const agentManager = {

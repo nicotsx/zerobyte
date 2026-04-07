@@ -70,3 +70,25 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 		session.close();
 	}
 });
+
+test("closes the websocket when an outbound send throws", async () => {
+	const close = vi.fn(() => undefined);
+	const session = createControllerSession(
+		fromPartial({
+			send: () => {
+				throw new Error("socket write failed");
+			},
+			close,
+		}),
+	);
+
+	try {
+		session.onOpen();
+
+		await waitForExpect(() => {
+			expect(close).toHaveBeenCalledTimes(1);
+		});
+	} finally {
+		session.close();
+	}
+});
