@@ -1,5 +1,6 @@
 import type { ChildProcess } from "node:child_process";
-import type { AgentManagerRuntime } from "./controller/server";
+import type { BackupCancelPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { AgentBackupEventHandlers, AgentManagerRuntime } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 
 export type { AgentBackupEventHandlers } from "./controller/server";
@@ -32,6 +33,8 @@ const getAgentRuntimeState = () => {
 
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 
+let backupEventHandlers: AgentBackupEventHandlers = {};
+
 export const startAgentRuntime = async () => {
 	const runtime = getAgentRuntimeState();
 
@@ -41,9 +44,36 @@ export const startAgentRuntime = async () => {
 
 	const { createAgentManagerRuntime } = await import("./controller/server");
 	const agentManager = createAgentManagerRuntime();
+	agentManager.setBackupEventHandlers(backupEventHandlers);
 
 	await agentManager.start();
 	runtime.agentManager = agentManager;
+};
+
+export const agentManager = {
+	sendBackup: (agentId: string, payload: BackupRunPayload) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) {
+			return false;
+		}
+
+		return runtime.sendBackup(agentId, payload);
+	},
+	cancelBackup: (agentId: string, payload: BackupCancelPayload) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) {
+			return false;
+		}
+
+		return runtime.cancelBackup(agentId, payload);
+	},
+	setBackupEventHandlers: (handlers: AgentBackupEventHandlers) => {
+		backupEventHandlers = handlers;
+		getAgentManagerRuntime()?.setBackupEventHandlers(handlers);
+	},
+	getBackupEventHandlers: () => {
+		return getAgentManagerRuntime()?.getBackupEventHandlers() ?? backupEventHandlers;
+	},
 };
 
 export const spawnLocalAgent = async () => {

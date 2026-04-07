@@ -231,7 +231,7 @@ export function createAgentManagerRuntime() {
 
 	return {
 		start,
-		sendBackup: async (agentId: string, payload: BackupRunPayload) => {
+		sendBackup: (agentId: string, payload: BackupRunPayload) => {
 			const session = getSession(agentId);
 
 			if (!session) {
@@ -244,7 +244,7 @@ export function createAgentManagerRuntime() {
 				return false;
 			}
 
-			if (!(await Effect.runPromise(session.sendBackup(payload)))) {
+			if (!Effect.runSync(session.sendBackup(payload))) {
 				logger.warn(`Cannot send backup command. Agent ${agentId} is no longer accepting commands.`);
 				return false;
 			}
@@ -252,7 +252,7 @@ export function createAgentManagerRuntime() {
 			logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
 			return true;
 		},
-		cancelBackup: async (agentId: string, payload: BackupCancelPayload) => {
+		cancelBackup: (agentId: string, payload: BackupCancelPayload) => {
 			const session = getSession(agentId);
 
 			if (!session) {
@@ -260,7 +260,7 @@ export function createAgentManagerRuntime() {
 				return false;
 			}
 
-			if (!(await Effect.runPromise(session.sendBackupCancel(payload)))) {
+			if (!Effect.runSync(session.sendBackupCancel(payload))) {
 				logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
 				return false;
 			}

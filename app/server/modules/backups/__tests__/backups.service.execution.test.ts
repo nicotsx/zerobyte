@@ -1,7 +1,6 @@
 import waitForExpect from "wait-for-expect";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { backupsService } from "../backups.service";
-import { backupsExecutionService } from "../backups.execution";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
@@ -14,9 +13,14 @@ import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { logger } from "@zerobyte/core/node";
 import { restic } from "~/server/core/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
+import { fromAny } from "@total-typescript/shoehorn";
+import { scheduleQueries } from "../backups.queries";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 import { repoMutex } from "~/server/core/repository-mutex";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
+import { agentManager } from "~/server/modules/agents/agents-manager";
+import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
+import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -24,6 +28,7 @@ const setup = () => {
 	);
 	const resticForgetMock = vi.fn(() => Promise.resolve({ success: true, data: null }));
 	const resticCopyMock = vi.fn(() => Promise.resolve({ success: true, output: "" }));
+	const { sendBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
@@ -39,12 +44,16 @@ const setup = () => {
 	vi.spyOn(restic, "forget").mockImplementation(resticForgetMock);
 	vi.spyOn(restic, "copy").mockImplementation(resticCopyMock);
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
+	vi.spyOn(agentManager, "sendBackup").mockImplementation(sendBackupMock);
+	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
 		resticForgetMock,
 		resticCopyMock,
+		sendBackupMock,
+		cancelBackupMock,
 		refreshStatsMock,
 	};
 };
@@ -65,7 +74,7 @@ describe("backup execution - validation failures", () => {
 		});
 
 		// act
-		const result = await backupsExecutionService.validateBackupExecution(schedule.id);
+		const result = await backupsService.validateBackupExecution(schedule.id);
 
 		// assert
 		expect(result.type).toBe("failure");
@@ -76,10 +85,70 @@ describe("backup execution - validation failures", () => {
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 
+	test("should fail backup when volume does not exist", async () => {
+		// arrange
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
+		expect(hydratedSchedule).toBeDefined();
+		const scheduleWithoutVolume = {
+			...hydratedSchedule,
+			volume: null,
+		};
+		vi.spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutVolume));
+
+		// act
+		const result = await backupsService.validateBackupExecution(schedule.id);
+
+		// assert
+		expect(result.type).toBe("failure");
+		if (result.type === "failure") {
+			expect(result.error).toBeInstanceOf(NotFoundError);
+			expect(result.error.message).toBe("Volume not found");
+			expect(result.partialContext?.schedule).toBeDefined();
+		}
+	});
+
+	test("should fail backup when repository does not exist", async () => {
+		// arrange
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
+		expect(hydratedSchedule).toBeDefined();
+		const scheduleWithoutRepository = {
+			...hydratedSchedule,
+			repository: null,
+		};
+		vi.spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutRepository));
+
+		// act
+		const result = await backupsService.validateBackupExecution(schedule.id);
+
+		// assert
+		expect(result.type).toBe("failure");
+		if (result.type === "failure") {
+			expect(result.error).toBeInstanceOf(NotFoundError);
+			expect(result.error.message).toBe("Repository not found");
+			expect(result.partialContext?.schedule).toBeDefined();
+			expect(result.partialContext?.volume).toBeDefined();
+		}
+	});
 	test("should fail backup when schedule does not exist", async () => {
 		setup();
 		// act
-		const result = await backupsExecutionService.validateBackupExecution(99999);
+		const result = await backupsService.validateBackupExecution(99999);
 
 		// assert
 		expect(result.type).toBe("failure");
@@ -106,7 +175,7 @@ describe("backup execution - validation failures", () => {
 			Promise.resolve({ exitCode: 1, summary: generateBackupOutput(), error: "failed" }),
 		);
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		expect(notificationSpy).toHaveBeenCalled();
 		expect(notificationSpy.mock.calls.at(-1)?.[2]?.error).toBe("failed");
@@ -128,7 +197,7 @@ describe("backup execution - validation failures", () => {
 			Promise.resolve({ exitCode: 1, summary: generateBackupOutput(), error: "manual failure" }),
 		);
 
-		await backupsExecutionService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, true);
 
 		expect(
 			errorSpy.mock.calls.some(([message]) => String(message).includes('Failed to parse cron expression ""')),
@@ -156,9 +225,9 @@ describe("stop backup", () => {
 			});
 		});
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("error: open /mnt/data/private.db: permission denied");
 	});
@@ -184,12 +253,60 @@ describe("stop backup", () => {
 			});
 		});
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 		expect(updatedSchedule.lastBackupError).toBe(
 			"Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.\nThis private key will be ignored.",
+		);
+	});
+
+	test("should block forget on the same repository until the active backup completes", async () => {
+		const { resticBackupMock, resticForgetMock, sendBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepHourly: 24 },
+		});
+
+		let completeBackup: (() => void) | undefined;
+		resticBackupMock.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					completeBackup = () => resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" });
+				}),
+		);
+
+		const backupPromise = backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(sendBackupMock).toHaveBeenCalledTimes(1);
+		});
+
+		let forgetFinished = false;
+		const forgetPromise = backupsService.runForget(schedule.id).finally(() => {
+			forgetFinished = true;
+		});
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(resticForgetMock).not.toHaveBeenCalled();
+		expect(forgetFinished).toBe(false);
+
+		expect(completeBackup).toBeDefined();
+		completeBackup?.();
+
+		await backupPromise;
+		await forgetPromise;
+
+		expect(resticForgetMock).toHaveBeenCalled();
+		expect(resticForgetMock).toHaveBeenCalledWith(
+			repository.config,
+			expect.objectContaining({ keepHourly: 24 }),
+			expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
 		);
 	});
 
@@ -220,19 +337,19 @@ describe("stop backup", () => {
 			});
 		});
 
-		const executePromise = backupsExecutionService.executeBackup(schedule.id);
+		const executePromise = backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(async () => {
-			const runningSchedule = await backupsService.getScheduleById(schedule.id);
+			const runningSchedule = await getScheduleByIdOrShortId(schedule.id);
 			expect(runningSchedule.lastBackupStatus).toBe("in_progress");
 		});
 
 		// act
-		await backupsExecutionService.stopBackup(schedule.id);
+		await backupsService.stopBackup(schedule.id);
 		await executePromise;
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
@@ -246,36 +363,25 @@ describe("stop backup", () => {
 			repositoryId: repository.id,
 		});
 
-		vi.spyOn(repoMutex, "acquireShared").mockImplementation((_repositoryId, _operation, signal) => {
-			return new Promise((_, reject) => {
-				if (signal?.aborted) {
-					reject(signal.reason instanceof Error ? signal.reason : new Error("Operation aborted"));
-					return;
-				}
+		const releaseLock = await repoMutex.acquireExclusive(repository.id, "test");
+		const executePromise = backupsService.executeBackup(schedule.id);
 
-				signal?.addEventListener(
-					"abort",
-					() => {
-						reject(signal.reason instanceof Error ? signal.reason : new Error("Operation aborted"));
-					},
-					{ once: true },
-				);
+		try {
+			await waitForExpect(async () => {
+				const queuedSchedule = await getScheduleByIdOrShortId(schedule.id);
+				expect(queuedSchedule.lastBackupStatus).toBe("in_progress");
 			});
-		});
 
-		const executePromise = backupsExecutionService.executeBackup(schedule.id);
+			expect(resticBackupMock).not.toHaveBeenCalled();
 
-		await waitForExpect(async () => {
-			const queuedSchedule = await backupsService.getScheduleById(schedule.id);
-			expect(queuedSchedule.lastBackupStatus).toBe("in_progress");
-		});
+			await backupsService.stopBackup(schedule.id);
+		} finally {
+			releaseLock();
+		}
 
-		expect(resticBackupMock).not.toHaveBeenCalled();
-
-		await backupsExecutionService.stopBackup(schedule.id);
 		await executePromise;
 
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 		expect(resticBackupMock).not.toHaveBeenCalled();
@@ -297,7 +403,7 @@ describe("stop backup", () => {
 			Promise.resolve({ exitCode: 1, summary: generateBackupOutput(), error: "retry me" }),
 		);
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		const failedSchedule = await backupsService.getScheduleById(schedule.id);
 		expect(failedSchedule.failureRetryCount).toBe(1);
@@ -319,14 +425,14 @@ describe("stop backup", () => {
 			});
 		});
 
-		const executePromise = backupsExecutionService.executeBackup(schedule.id);
+		const executePromise = backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(async () => {
 			const retryingSchedule = await backupsService.getScheduleById(schedule.id);
 			expect(retryingSchedule.lastBackupStatus).toBe("in_progress");
 		});
 
-		await backupsExecutionService.stopBackup(schedule.id);
+		await backupsService.stopBackup(schedule.id);
 		await executePromise;
 
 		const cancelledSchedule = await backupsService.getScheduleById(schedule.id);
@@ -348,12 +454,32 @@ describe("stop backup", () => {
 		});
 
 		// act & assert
-		await expect(backupsExecutionService.stopBackup(schedule.id)).rejects.toThrow(
+		await expect(backupsService.stopBackup(schedule.id)).rejects.toThrow(
 			"No backup is currently running for this schedule",
 		);
 
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupAt).toBe(previousLastBackupAt);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+	});
+
+	test("should reset a stuck in_progress status even when no backup is running", async () => {
+		// arrange
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			lastBackupStatus: "in_progress",
+		});
+
+		// act
+		await backupsService.stopBackup(schedule.id).catch(() => {});
+
+		// assert
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
@@ -361,7 +487,7 @@ describe("stop backup", () => {
 	test("should throw NotFoundError when schedule does not exist", async () => {
 		setup();
 		// act & assert
-		await expect(backupsExecutionService.stopBackup(99999)).rejects.toThrow("Backup schedule not found");
+		await expect(backupsService.stopBackup(99999)).rejects.toThrow("Backup schedule not found");
 	});
 });
 
@@ -382,7 +508,7 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act
-		await backupsExecutionService.runForget(schedule.id);
+		await backupsService.runForget(schedule.id);
 
 		// assert
 		expect(resticForgetMock).toHaveBeenCalledWith(
@@ -411,7 +537,7 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act & assert
-		await expect(backupsExecutionService.runForget(schedule.id)).rejects.toThrow(
+		await expect(backupsService.runForget(schedule.id)).rejects.toThrow(
 			"No retention policy configured for this schedule",
 		);
 	});
@@ -419,7 +545,7 @@ describe("retention policy - runForget", () => {
 	test("should throw NotFoundError when schedule does not exist", async () => {
 		setup();
 		// act & assert
-		await expect(backupsExecutionService.runForget(99999)).rejects.toThrow("Backup schedule not found");
+		await expect(backupsService.runForget(99999)).rejects.toThrow("Backup schedule not found");
 	});
 
 	test("should throw NotFoundError when repository does not exist", async () => {
@@ -432,9 +558,7 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act & assert
-		await expect(backupsExecutionService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow(
-			"Repository not found",
-		);
+		await expect(backupsService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow("Repository not found");
 	});
 });
 
@@ -453,7 +577,7 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
 
 		// assert
 		expect(resticCopyMock).toHaveBeenCalledWith(
@@ -480,7 +604,7 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id, { enabled: false });
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
 
 		// assert
 		expect(resticCopyMock).not.toHaveBeenCalled();
@@ -500,7 +624,7 @@ describe("mirror operations", () => {
 		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
 
 		// assert
 		const mirrors = await backupsService.getMirrors(schedule.id);
@@ -531,7 +655,7 @@ describe("mirror operations", () => {
 		});
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
 
 		// assert
 		const mirrors = await backupsService.getMirrors(schedule.id);
@@ -558,7 +682,7 @@ describe("mirror operations", () => {
 		resticCopyMock.mockImplementationOnce(() => Promise.reject(new Error("Copy failed")));
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
 
 		// assert
 		const mirrors = await backupsService.getMirrors(schedule.id);
@@ -586,7 +710,7 @@ describe("mirror operations", () => {
 		resticCopyMock.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
 
 		await waitForExpect(() => {
 			expect(resticCopyMock).toHaveBeenCalled();
@@ -617,7 +741,7 @@ describe("mirror operations", () => {
 		resticForgetMock.mockClear();
 
 		// act
-		await backupsExecutionService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
 
 		await waitForExpect(() => {
 			expect(resticCopyMock).toHaveBeenCalled();
@@ -660,10 +784,10 @@ describe("mirror operations", () => {
 		);
 		resticCopyMock.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
 
-		const firstCopyPromise = backupsExecutionService.copyToMirrors(firstSchedule.id, sourceRepository, null);
+		const firstCopyPromise = backupsService.copyToMirrors(firstSchedule.id, sourceRepository, null);
 		await firstCopyStarted;
 
-		const secondCopyPromise = backupsExecutionService.copyToMirrors(secondSchedule.id, sourceRepository, null);
+		const secondCopyPromise = backupsService.copyToMirrors(secondSchedule.id, sourceRepository, null);
 
 		try {
 			const secondCopyState = await Promise.race<"resolved" | "timeout">([

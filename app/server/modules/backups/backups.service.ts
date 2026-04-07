@@ -37,14 +37,6 @@ const listSchedules = async () => {
 	return schedules.filter((schedule) => schedule.volume && schedule.repository);
 };
 
-const getScheduleById = async (scheduleId: number) => {
-	return getScheduleByIdOrShortId(scheduleId);
-};
-
-const getScheduleByShortId = async (shortId: ShortId) => {
-	return getScheduleByIdOrShortId(shortId);
-};
-
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
 	if (data.cronExpression && !isValidCron(data.cronExpression)) {
@@ -479,9 +471,6 @@ const stopBackup = async (scheduleId: number) => {
 
 export const backupsService = {
 	listSchedules,
-	getScheduleById,
-	getScheduleByShortId,
-	getScheduleByIdOrShortId,
 	createSchedule,
 	updateSchedule,
 	deleteSchedule,
