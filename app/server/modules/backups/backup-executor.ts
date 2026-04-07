@@ -1,3 +1,4 @@
+import { Effect } from "effect";
 import { restic } from "../../core/restic";
 import type { BackupSchedule, Repository, Volume } from "../../db/schema";
 import type { ResticBackupOutputDto, ResticBackupProgressDto } from "@zerobyte/core/restic";
@@ -55,12 +56,14 @@ export const backupExecutor = {
 			const volumePath = getVolumePath(volume);
 			const backupOptions = createBackupOptions(schedule, volumePath, signal);
 
-			const result = await restic.backup(repository.config, volumePath, {
-				...backupOptions,
-				compressionMode: repository.compressionMode ?? "auto",
-				organizationId,
-				onProgress,
-			});
+			const result = await Effect.runPromise(
+				restic.backup(repository.config, volumePath, {
+					...backupOptions,
+					compressionMode: repository.compressionMode ?? "auto",
+					organizationId,
+					onProgress,
+				}),
+			);
 
 			return {
 				status: "completed",
