@@ -3,6 +3,9 @@
 	"private": true,
 	"type": "module",
 	"module": "index.ts",
+	"scripts": {
+		"tsc": "tsc --noEmit"
+	},
 	"dependencies": {
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
