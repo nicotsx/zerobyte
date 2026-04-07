@@ -106,6 +106,11 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 			});
 		},
 		onMessage: (data) => {
+			if (typeof data !== "string") {
+				logger.warn("Agent received a non-text message");
+				return;
+			}
+
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {
 				logger.error(`Failed to queue inbound message: ${toMessage(error)}`);
 			});
