@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { Data, Effect } from "effect";
 import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "../schemas";
 import { type ResticBackupProgressDto, resticBackupOutputSchema, resticBackupProgressSchema } from "../restic-dto";
@@ -12,8 +13,14 @@ import { validateCustomResticParams } from "../helpers/validate-custom-params";
 import { ResticError } from "../error";
 import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
+import { toMessage } from "../../utils";
 
-export const backup = async (
+class ResticBackupCommandError extends Data.TaggedError("ResticBackupCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
+
+export const backup = (
 	config: RepositoryConfig,
 	source: string,
 	options: {
@@ -31,183 +38,197 @@ export const backup = async (
 	},
 	deps: ResticDeps,
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, options.organizationId, deps);
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	const args: string[] = ["--repo", repoUrl, "backup", "--compression", options.compressionMode ?? "auto"];
+			const args: string[] = ["--repo", repoUrl, "backup", "--compression", options.compressionMode ?? "auto"];
 
-	if (options.oneFileSystem) {
-		args.push("--one-file-system");
-	}
+			if (options.oneFileSystem) {
+				args.push("--one-file-system");
+			}
 
-	if (deps.hostname) {
-		args.push("--host", deps.hostname);
-	}
+			if (deps.hostname) {
+				args.push("--host", deps.hostname);
+			}
 
-	if (options.tags && options.tags.length > 0) {
-		for (const tag of options.tags) {
-			args.push("--tag", tag);
-		}
-	}
+			if (options.tags && options.tags.length > 0) {
+				for (const tag of options.tags) {
+					args.push("--tag", tag);
+				}
+			}
 
-	let includeFile: string | null = null;
-	let rawIncludeFile: string | null = null;
-	const usesSourceArg =
-		(!options.includePaths || options.includePaths.length === 0) &&
-		(!options.includePatterns || options.includePatterns.length === 0);
+			let includeFile: string | null = null;
+			let rawIncludeFile: string | null = null;
+			const usesSourceArg =
+				(!options.includePaths || options.includePaths.length === 0) &&
+				(!options.includePatterns || options.includePatterns.length === 0);
 
-	if (options.includePatterns?.length) {
-		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
-		includeFile = path.join(tmp, "include.txt");
+			if (options.includePatterns?.length) {
+				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
+				includeFile = path.join(tmp, "include.txt");
 
-		await fs.writeFile(includeFile, options.includePatterns.join("\n"), "utf-8");
+				await fs.writeFile(includeFile, options.includePatterns.join("\n"), "utf-8");
 
-		args.push("--files-from", includeFile);
-	}
+				args.push("--files-from", includeFile);
+			}
 
-	if (options.includePaths?.length) {
-		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
-		rawIncludeFile = path.join(tmp, "include.raw");
+			if (options.includePaths?.length) {
+				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
+				rawIncludeFile = path.join(tmp, "include.raw");
 
-		await fs.writeFile(rawIncludeFile, Buffer.from(`${options.includePaths.join("\0")}\0`, "utf-8"));
+				await fs.writeFile(rawIncludeFile, Buffer.from(`${options.includePaths.join("\0")}\0`, "utf-8"));
 
-		args.push("--files-from-raw", rawIncludeFile);
-	}
+				args.push("--files-from-raw", rawIncludeFile);
+			}
 
-	for (const exclude of deps.defaultExcludes) {
-		args.push("--exclude", exclude);
-	}
+			for (const exclude of deps.defaultExcludes) {
+				args.push("--exclude", exclude);
+			}
 
-	let excludeFile: string | null = null;
-	if (options.exclude?.length) {
-		const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-exclude-"));
-		excludeFile = path.join(tmp, "exclude.txt");
+			let excludeFile: string | null = null;
+			if (options.exclude?.length) {
+				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-exclude-"));
+				excludeFile = path.join(tmp, "exclude.txt");
 
-		await fs.writeFile(excludeFile, options.exclude.join("\n"), "utf-8");
+				await fs.writeFile(excludeFile, options.exclude.join("\n"), "utf-8");
 
-		args.push("--exclude-file", excludeFile);
-	}
+				args.push("--exclude-file", excludeFile);
+			}
 
-	if (options.excludeIfPresent?.length) {
-		for (const filename of options.excludeIfPresent) {
-			args.push("--exclude-if-present", filename);
-		}
-	}
+			if (options.excludeIfPresent?.length) {
+				for (const filename of options.excludeIfPresent) {
+					args.push("--exclude-if-present", filename);
+				}
+			}
 
-	if (options.customResticParams?.length) {
-		const validationError = validateCustomResticParams(options.customResticParams);
-		if (validationError) {
-			throw new Error(`Invalid customResticParams: ${validationError}`);
-		}
-		for (const param of options.customResticParams) {
-			const tokens = param.trim().split(/\s+/).filter(Boolean);
-			args.push(...tokens);
-		}
-	}
+			if (options.customResticParams?.length) {
+				const validationError = validateCustomResticParams(options.customResticParams);
+				if (validationError) {
+					throw new Error(`Invalid customResticParams: ${validationError}`);
+				}
+				for (const param of options.customResticParams) {
+					const tokens = param.trim().split(/\s+/).filter(Boolean);
+					args.push(...tokens);
+				}
+			}
 
-	addCommonArgs(args, env, config);
+			addCommonArgs(args, env, config);
 
-	if (usesSourceArg) {
-		args.push("--", source);
-	}
+			if (usesSourceArg) {
+				args.push("--", source);
+			}
 
-	const logData = throttle((data: string) => {
-		logger.info(data.trim());
-	}, 5000);
-	const stderrLines: string[] = [];
+			const logData = throttle((data: string) => {
+				logger.info(data.trim());
+			}, 5000);
+			const stderrLines: string[] = [];
 
-	const streamProgress = throttle((data: string) => {
-		if (options.onProgress) {
+			const streamProgress = throttle((data: string) => {
+				if (options.onProgress) {
+					try {
+						const jsonData = JSON.parse(data);
+						if (jsonData.message_type !== "status") {
+							return;
+						}
+
+						const progressResult = resticBackupProgressSchema.safeParse(jsonData);
+						if (progressResult.success) {
+							options.onProgress(progressResult.data);
+						} else {
+							logger.error(progressResult.error.message);
+						}
+					} catch {
+						// Ignore JSON parse errors for non-JSON lines
+					}
+				}
+			}, 1000);
+
+			logger.debug(`Executing: restic ${args.join(" ")}`);
+			const res = await safeSpawn({
+				command: "restic",
+				args,
+				env,
+				signal: options.signal,
+				onStdout: (data) => {
+					logData(data);
+					if (options.onProgress) {
+						streamProgress(data);
+					}
+				},
+				onStderr: (error) => {
+					const line = error.trim();
+					if (line.length > 0) {
+						stderrLines.push(line);
+						logger.error(`restic stderr: ${line}`);
+					}
+				},
+			});
+
+			if (includeFile) {
+				await fs.unlink(includeFile).catch(() => {});
+			}
+			if (rawIncludeFile) {
+				await fs.unlink(rawIncludeFile).catch(() => {});
+			}
+			if (excludeFile) {
+				await fs.unlink(excludeFile).catch(() => {});
+			}
+			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic backup was aborted by signal.");
+				return { result: null, exitCode: res.exitCode, warningDetails: "Backup was stopped by the user" };
+			}
+
+			if (res.exitCode === 3) {
+				logger.error(`Restic backup encountered read errors: ${res.error}`);
+			}
+
+			if (res.exitCode !== 0 && res.exitCode !== 3) {
+				logger.error(`Restic backup failed: ${res.error}`);
+				logger.error(`Command executed: restic ${args.join(" ")}`);
+
+				throw new ResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
+			}
+
+			const lastLine = res.summary.trim();
+			let summaryLine: unknown = {};
 			try {
-				const jsonData = JSON.parse(data);
-				if (jsonData.message_type !== "status") {
-					return;
-				}
-
-				const progressResult = resticBackupProgressSchema.safeParse(jsonData);
-				if (progressResult.success) {
-					options.onProgress(progressResult.data);
-				} else {
-					logger.error(progressResult.error.message);
-				}
+				summaryLine = JSON.parse(lastLine ?? "{}");
 			} catch {
-				// Ignore JSON parse errors for non-JSON lines
+				logger.warn("Failed to parse restic backup output JSON summary.", lastLine);
+				summaryLine = {};
 			}
-		}
-	}, 1000);
 
-	logger.debug(`Executing: restic ${args.join(" ")}`);
-	const res = await safeSpawn({
-		command: "restic",
-		args,
-		env,
-		signal: options.signal,
-		onStdout: (data) => {
-			logData(data);
-			if (options.onProgress) {
-				streamProgress(data);
+			logger.debug(`Restic backup output last line: ${JSON.stringify(summaryLine)}`);
+			const result = resticBackupOutputSchema.safeParse(summaryLine);
+
+			if (!result.success) {
+				logger.error(`Restic backup output validation failed: ${result.error.message}`);
+				return {
+					result: null,
+					exitCode: res.exitCode,
+					warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+				};
 			}
+
+			return {
+				result: result.data,
+				exitCode: res.exitCode,
+				warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+			};
 		},
-		onStderr: (error) => {
-			const line = error.trim();
-			if (line.length > 0) {
-				stderrLines.push(line);
-				logger.error(`restic stderr: ${line}`);
+		catch: (error) => {
+			if (error instanceof ResticError) {
+				return error;
 			}
+
+			return new ResticBackupCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
 		},
 	});
-
-	if (includeFile) {
-		await fs.unlink(includeFile).catch(() => {});
-	}
-	if (rawIncludeFile) {
-		await fs.unlink(rawIncludeFile).catch(() => {});
-	}
-	if (excludeFile) {
-		await fs.unlink(excludeFile).catch(() => {});
-	}
-	await cleanupTemporaryKeys(env, deps);
-
-	if (options.signal?.aborted) {
-		logger.warn("Restic backup was aborted by signal.");
-		return { result: null, exitCode: res.exitCode, warningDetails: "Backup was stopped by the user" };
-	}
-
-	if (res.exitCode === 3) {
-		logger.error(`Restic backup encountered read errors: ${res.error}`);
-	}
-
-	if (res.exitCode !== 0 && res.exitCode !== 3) {
-		logger.error(`Restic backup failed: ${res.error}`);
-		logger.error(`Command executed: restic ${args.join(" ")}`);
-
-		throw new ResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
-	}
-
-	const lastLine = res.summary.trim();
-	let summaryLine: unknown = {};
-	try {
-		summaryLine = JSON.parse(lastLine ?? "{}");
-	} catch {
-		logger.warn("Failed to parse restic backup output JSON summary.", lastLine);
-		summaryLine = {};
-	}
-
-	logger.debug(`Restic backup output last line: ${JSON.stringify(summaryLine)}`);
-	const result = resticBackupOutputSchema.safeParse(summaryLine);
-
-	if (!result.success) {
-		logger.error(`Restic backup output validation failed: ${result.error.message}`);
-		return {
-			result: null,
-			exitCode: res.exitCode,
-			warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
-		};
-	}
-
-	return {
-		result: result.data,
-		exitCode: res.exitCode,
-		warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
-	};
 };
