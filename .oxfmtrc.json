@@ -1,7 +1,0 @@
-{
-	"$schema": "./node_modules/oxfmt/configuration_schema.json",
-	"printWidth": 120,
-	"useTabs": true,
-	"endOfLine": "lf",
-	"ignorePatterns": ["*.gen.ts"]
-}

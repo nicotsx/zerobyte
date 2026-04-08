@@ -27,11 +27,9 @@ jobs:
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
 
-      - uses: oxc-project/oxlint-action@0cc5d219e22e8cdfd8f67be492213ad3860e25e4 # latest
-        with:
-          config: .oxlintrc.json
-          deny-warnings: true
-          version: 1.56.0
+      - name: Run lint
+        shell: bash
+        run: bun run lint -- --deny-warnings
 
   typecheck:
     timeout-minutes: 10
