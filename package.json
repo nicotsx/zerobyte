@@ -7,6 +7,7 @@
 	],
 	"type": "module",
 	"scripts": {
+		"postinstall": "vp config",
 		"fmt": "vp fmt",
 		"lint": "bunx --bun vp lint",
 		"dev": "NODE_ENV=development bunx --bun vite",
