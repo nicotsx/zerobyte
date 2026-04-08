@@ -142,10 +142,8 @@ type PayloadForMessage<TMessage extends { type: string; payload: unknown }, TTyp
 	{ type: TType }
 >["payload"];
 
-const parseJsonMessage = (data: string) => safeJsonParse<unknown>(data);
-
-export const parseControllerMessage = (data: ControllerWireMessage) => {
-	const parsed = parseJsonMessage(data);
+export const parseControllerMessage = (data: string) => {
+	const parsed = safeJsonParse(data);
 	if (parsed === null) {
 		return null;
 	}
@@ -154,7 +152,7 @@ export const parseControllerMessage = (data: ControllerWireMessage) => {
 };
 
 export const parseAgentMessage = (data: string) => {
-	const parsed = parseJsonMessage(data);
+	const parsed = safeJsonParse(data);
 	if (parsed === null) {
 		return null;
 	}
