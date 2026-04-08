@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { Effect, Exit, Scope } from "effect";
+import { Effect, Exit, Fiber, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
 import type {
 	BackupCancelPayload,
@@ -43,6 +43,12 @@ type AgentManagerRuntime = ReturnType<typeof createAgentManagerRuntime>;
 type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime;
 	localAgent: ChildProcess | null;
+};
+
+type ControllerAgentSessionHandle = {
+	session: ControllerAgentSession;
+	runFiber: Fiber.RuntimeFiber<void, never>;
+	scope: Scope.CloseableScope;
 };
 
 type ProcessWithAgentRuntime = NodeJS.Process & {
@@ -136,36 +142,59 @@ export const stopLocalAgent = async () => {
 };
 
 const createAgentManagerRuntime = () => {
-	let sessions = new Map<string, ControllerAgentSession>();
+	let sessions = new Map<string, ControllerAgentSessionHandle>();
 	let backupHandlers: AgentBackupEventHandlers = {};
 	let runtimeScope: Scope.CloseableScope | null = null;
 
-	const closeAllSessions = () => {
-		for (const session of sessions.values()) {
-			session.close();
-		}
-		sessions = new Map();
+	const closeSession = (sessionHandle: ControllerAgentSessionHandle) => {
+		Effect.runSync(Fiber.interrupt(sessionHandle.runFiber));
+		Effect.runSync(Scope.close(sessionHandle.scope, Exit.succeed(undefined)));
 	};
 
-	const getSession = (agentId: string) => sessions.get(agentId);
+	const closeAllSessions = () => {
+		const currentSessions = sessions;
+		sessions = new Map();
+		for (const sessionHandle of currentSessions.values()) {
+			closeSession(sessionHandle);
+		}
+	};
 
-	const setSession = (agentId: string, session: ControllerAgentSession) => {
-		const existingSession = getSession(agentId);
+	const getSessionHandle = (agentId: string) => sessions.get(agentId);
+
+	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
+
+	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>) => {
+		// Manual scope management because we are out of Effect
+		const scope = Effect.runSync(Scope.make());
+
+		try {
+			const session = Effect.runSync(Scope.extend(createControllerAgentSession(ws, createSessionHandlers(ws)), scope));
+			const runFiber = Effect.runFork(Scope.extend(session.run, scope));
+
+			return { session, runFiber, scope };
+		} catch (error) {
+			Effect.runSync(Scope.close(scope, Exit.fail(error)));
+			throw error;
+		}
+	};
+
+	const setSession = (agentId: string, sessionHandle: ControllerAgentSessionHandle) => {
+		const existingSession = getSessionHandle(agentId);
 		if (existingSession) {
-			existingSession.close();
+			closeSession(existingSession);
 		}
 
-		sessions.set(agentId, session);
+		sessions.set(agentId, sessionHandle);
 	};
 
 	const removeSession = (agentId: string, connectionId: string) => {
-		const session = getSession(agentId);
-		if (!session || session.connectionId !== connectionId) {
+		const sessionHandle = getSessionHandle(agentId);
+		if (!sessionHandle || sessionHandle.session.connectionId !== connectionId) {
 			return;
 		}
 
-		session.close();
 		sessions.delete(agentId);
+		closeSession(sessionHandle);
 	};
 
 	const createSessionHandlers = (ws: Bun.ServerWebSocket<AgentConnectionData>) => {
@@ -221,7 +250,7 @@ const createAgentManagerRuntime = () => {
 				},
 				websocket: {
 					open: (ws) => {
-						setSession(ws.data.agentId, createControllerAgentSession(ws, createSessionHandlers(ws)));
+						setSession(ws.data.agentId, createSession(ws));
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 					},
 					message: (ws, data) => {
@@ -236,7 +265,7 @@ const createAgentManagerRuntime = () => {
 							return;
 						}
 
-						session.handleMessage(data);
+						Effect.runSync(session.handleMessage(data));
 					},
 					close: (ws) => {
 						removeSession(ws.data.agentId, ws.data.id);
@@ -291,12 +320,12 @@ const createAgentManagerRuntime = () => {
 				return false;
 			}
 
-			if (!session.isReady()) {
+			if (!Effect.runSync(session.isReady())) {
 				logger.warn(`Cannot send backup command. Agent ${agentId} is not ready.`);
 				return false;
 			}
 
-			session.sendBackup(payload);
+			Effect.runSync(session.sendBackup(payload));
 			logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
 			return true;
 		},
@@ -308,7 +337,7 @@ const createAgentManagerRuntime = () => {
 				return false;
 			}
 
-			session.sendBackupCancel(payload);
+			Effect.runSync(session.sendBackupCancel(payload));
 			logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
 			return true;
 		},

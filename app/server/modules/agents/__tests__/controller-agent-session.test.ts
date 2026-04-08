@@ -1,3 +1,4 @@
+import { Effect, Exit, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
@@ -10,20 +11,40 @@ const createSocket = () => {
 	});
 };
 
+const createSession = (handlers: Parameters<typeof createControllerAgentSession>[1] = {}) => {
+	const scope = Effect.runSync(Scope.make());
+
+	try {
+		const session = Effect.runSync(Scope.extend(createControllerAgentSession(createSocket(), handlers), scope));
+
+		return {
+			session,
+			close: () => {
+				Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
+			},
+		};
+	} catch (error) {
+		Effect.runSync(Scope.close(scope, Exit.fail(error)));
+		throw error;
+	}
+};
+
 test("close emits a synthetic backup.cancelled for a started backup", () => {
 	const onBackupCancelled = vi.fn();
-	const session = createControllerAgentSession(createSocket(), {
+	const { session, close } = createSession({
 		onBackupCancelled,
 	});
 
-	session.handleMessage(
-		createAgentMessage("backup.started", {
-			jobId: "job-1",
-			scheduleId: "schedule-1",
-		}),
+	Effect.runSync(
+		session.handleMessage(
+			createAgentMessage("backup.started", {
+				jobId: "job-1",
+				scheduleId: "schedule-1",
+			}),
+		),
 	);
 
-	session.close();
+	close();
 
 	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
 	expect(onBackupCancelled).toHaveBeenCalledWith({
@@ -71,47 +92,51 @@ test.each([
 	},
 ])("close does not emit an extra synthetic backup.cancelled after $name", (testCase) => {
 	const onBackupCancelled = vi.fn();
-	const session = createControllerAgentSession(createSocket(), {
+	const { session, close } = createSession({
 		onBackupCancelled,
 	});
 
-	session.handleMessage(
-		createAgentMessage("backup.started", {
-			jobId: testCase.jobId,
-			scheduleId: testCase.scheduleId,
-		}),
+	Effect.runSync(
+		session.handleMessage(
+			createAgentMessage("backup.started", {
+				jobId: testCase.jobId,
+				scheduleId: testCase.scheduleId,
+			}),
+		),
 	);
-	session.handleMessage(testCase.terminalMessage);
-	session.close();
+	Effect.runSync(session.handleMessage(testCase.terminalMessage));
+	close();
 
 	expect(onBackupCancelled).toHaveBeenCalledTimes(testCase.expectedCancelledCalls);
 });
 
 test("close emits a synthetic backup.cancelled for a queued backup", () => {
 	const onBackupCancelled = vi.fn();
-	const session = createControllerAgentSession(createSocket(), {
+	const { session, close } = createSession({
 		onBackupCancelled,
 	});
 
-	session.sendBackup({
-		jobId: "job-queued",
-		scheduleId: "schedule-queued",
-		organizationId: "org-1",
-		sourcePath: "/tmp/source",
-		repositoryConfig: {
-			backend: "local",
-			path: "/tmp/repository",
-		},
-		options: {},
-		runtime: {
-			password: "password",
-			cacheDir: "/tmp/cache",
-			passFile: "/tmp/pass",
-			defaultExcludes: [],
-		},
-	});
+	Effect.runSync(
+		session.sendBackup({
+			jobId: "job-queued",
+			scheduleId: "schedule-queued",
+			organizationId: "org-1",
+			sourcePath: "/tmp/source",
+			repositoryConfig: {
+				backend: "local",
+				path: "/tmp/repository",
+			},
+			options: {},
+			runtime: {
+				password: "password",
+				cacheDir: "/tmp/cache",
+				passFile: "/tmp/pass",
+				defaultExcludes: [],
+			},
+		}),
+	);
 
-	session.close();
+	close();
 
 	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
 	expect(onBackupCancelled).toHaveBeenCalledWith({
