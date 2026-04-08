@@ -8,7 +8,7 @@
 	"type": "module",
 	"scripts": {
 		"fmt": "vp fmt",
-		"lint": "vp lint",
+		"lint": "bunx --bun vp lint",
 		"dev": "NODE_ENV=development bunx --bun vite",
 		"build": "vite build",
 		"start": "bun run .output/server/index.mjs",
