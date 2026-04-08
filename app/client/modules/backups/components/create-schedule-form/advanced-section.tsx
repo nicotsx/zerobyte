@@ -28,7 +28,7 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 								onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
 							/>
 						</FormControl>
-						<FormDescription>Maximum number of retry attempts if a backup fails (default: 0).</FormDescription>
+						<FormDescription>Maximum number of retry attempts if a backup fails (default: 3).</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -43,7 +43,7 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 							<Input
 								{...field}
 								type="number"
-								min={0}
+								min={1}
 								max={1440}
 								step={1}
 								placeholder="e.g., 60"

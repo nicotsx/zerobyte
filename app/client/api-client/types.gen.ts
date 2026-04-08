@@ -2712,6 +2712,8 @@ export type CreateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        maxRetries?: number;
+        retryDelay?: number;
     };
     path?: never;
     query?: never;
@@ -3091,6 +3093,8 @@ export type UpdateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        maxRetries?: number;
+        retryDelay?: number;
     };
     path: {
         shortId: string;

@@ -130,6 +130,8 @@ export const createBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	maxRetries: z.number().optional(),
+	retryDelay: z.number().optional(),
 });
 
 export type CreateBackupScheduleBody = z.infer<typeof createBackupScheduleBody>;
@@ -167,6 +169,8 @@ export const updateBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	maxRetries: z.number().optional(),
+	retryDelay: z.number().optional(),
 });
 
 export type UpdateBackupScheduleBody = z.infer<typeof updateBackupScheduleBody>;

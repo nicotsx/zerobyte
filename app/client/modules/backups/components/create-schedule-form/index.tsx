@@ -62,7 +62,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludeIfPresent,
 				customResticParams,
 				maxRetries,
-				retryDelay: retryDelay ? retryDelay * 60 * 1000 : 3600000,
+				retryDelay,
 			});
 		},
 		[onSubmit],

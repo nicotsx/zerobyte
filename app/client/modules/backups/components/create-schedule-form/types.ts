@@ -44,6 +44,4 @@ export type BackupScheduleFormValues = Omit<
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
-	maxRetries?: number;
-	retryDelay?: number;
 };
