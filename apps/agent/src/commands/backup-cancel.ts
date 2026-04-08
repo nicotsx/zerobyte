@@ -3,8 +3,8 @@ import { type BackupCancelPayload } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import type { ControllerCommandContext } from "../context";
 
-export const handleBackupCancelCommand = (context: ControllerCommandContext, payload: BackupCancelPayload) =>
-	Effect.gen(function* () {
+export const handleBackupCancelCommand = (context: ControllerCommandContext, payload: BackupCancelPayload) => {
+	return Effect.gen(function* () {
 		const running = yield* context.getRunningJob(payload.jobId);
 		if (!running) {
 			logger.warn(`Backup ${payload.jobId} is not running`);
@@ -18,3 +18,4 @@ export const handleBackupCancelCommand = (context: ControllerCommandContext, pay
 
 		running.abortController.abort();
 	});
+};

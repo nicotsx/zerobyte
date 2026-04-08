@@ -56,26 +56,28 @@ export const backupExecutor = {
 			const volumePath = getVolumePath(volume);
 			const backupOptions = createBackupOptions(schedule, volumePath, signal);
 
-			const result = await Effect.runPromise(
-				restic.backup(repository.config, volumePath, {
-					...backupOptions,
-					compressionMode: repository.compressionMode ?? "auto",
-					organizationId,
-					onProgress,
-				}),
+			const execution = await Effect.runPromise(
+				restic
+					.backup(repository.config, volumePath, {
+						...backupOptions,
+						compressionMode: repository.compressionMode ?? "auto",
+						organizationId,
+						onProgress,
+					})
+					.pipe(
+						Effect.map((result) => ({ success: true as const, result })),
+						Effect.catchAll((error) => Effect.succeed({ success: false as const, error })),
+					),
 			);
 
-			return {
-				status: "completed",
-				exitCode: result.exitCode,
-				result: result.result,
-				warningDetails: result.warningDetails,
-			} satisfies BackupExecutionResult;
+			if (!execution.success) {
+				throw execution.error;
+			}
+
+			const { exitCode, result, warningDetails } = execution.result;
+			return { status: "completed", exitCode, result, warningDetails };
 		} catch (error) {
-			return {
-				status: "failed",
-				error,
-			} satisfies BackupExecutionResult;
+			return { status: "failed", error };
 		}
 	},
 	cancel: (scheduleId: number) => {

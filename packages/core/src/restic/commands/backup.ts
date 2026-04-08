@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "../schemas";
 import { type ResticBackupProgressDto, resticBackupOutputSchema, resticBackupProgressSchema } from "../restic-dto";
@@ -13,6 +13,12 @@ import { validateCustomResticParams } from "../helpers/validate-custom-params";
 import { ResticError } from "../error";
 import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
+import { toMessage } from "../../utils";
+
+class ResticBackupCommandError extends Data.TaggedError("ResticBackupCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
 
 export const backup = (
 	config: RepositoryConfig,
@@ -31,8 +37,8 @@ export const backup = (
 		customResticParams?: string[];
 	},
 	deps: ResticDeps,
-) =>
-	Effect.tryPromise({
+) => {
+	return Effect.tryPromise({
 		try: async () => {
 			const repoUrl = buildRepoUrl(config);
 			const env = await buildEnv(config, options.organizationId, deps);
@@ -214,5 +220,15 @@ export const backup = (
 				warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
 			};
 		},
-		catch: (error) => (error instanceof Error ? error : new Error(String(error))),
+		catch: (error) => {
+			if (error instanceof ResticError) {
+				return error;
+			}
+
+			return new ResticBackupCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
 	});
+};

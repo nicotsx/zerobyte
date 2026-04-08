@@ -6,8 +6,8 @@ import { createRestic } from "@zerobyte/core/restic/server";
 import { toErrorDetails, toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
 
-export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) =>
-	Effect.fork(
+export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
+	return Effect.fork(
 		Effect.gen(function* () {
 			const existing = yield* context.getRunningJob(payload.jobId);
 			if (existing) {
@@ -110,3 +110,4 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 				);
 		}),
 	).pipe(Effect.asVoid);
+};

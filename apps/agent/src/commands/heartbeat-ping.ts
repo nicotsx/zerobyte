@@ -3,9 +3,10 @@ import type { ControllerCommandContext } from "../context";
 
 type HeartbeatPingPayload = Extract<ControllerMessage, { type: "heartbeat.ping" }>["payload"];
 
-export const handleHeartbeatPingCommand = (context: ControllerCommandContext, payload: HeartbeatPingPayload) =>
-	context.offerOutbound(
+export const handleHeartbeatPingCommand = (context: ControllerCommandContext, payload: HeartbeatPingPayload) => {
+	return context.offerOutbound(
 		createAgentMessage("heartbeat.pong", {
 			sentAt: payload.sentAt,
 		}),
 	);
+};

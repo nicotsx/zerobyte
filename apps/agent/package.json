@@ -2,7 +2,7 @@
 	"name": "agent",
 	"private": true,
 	"type": "module",
-	"module": "index.ts",
+	"module": "src/index.ts",
 	"scripts": {
 		"tsc": "tsc --noEmit"
 	},
@@ -15,6 +15,6 @@
 		"@types/bun": "latest"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^6"
 	}
 }
