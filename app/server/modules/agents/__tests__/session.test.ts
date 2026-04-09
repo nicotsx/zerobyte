@@ -2,7 +2,7 @@ import { Effect, Exit, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
-import { createControllerAgentSession } from "../controller-agent-session";
+import { createControllerAgentSession } from "../controller/session";
 
 const createSocket = () => {
 	return fromPartial<Parameters<typeof createControllerAgentSession>[0]>({
@@ -50,8 +50,7 @@ test("close emits a synthetic backup.cancelled for a started backup", () => {
 	expect(onBackupCancelled).toHaveBeenCalledWith({
 		jobId: "job-1",
 		scheduleId: "schedule-1",
-		message:
-			"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
+		message: "The connection to the backup agent was lost. Restart the backup to ensure it completes.",
 	});
 });
 
@@ -142,7 +141,6 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 	expect(onBackupCancelled).toHaveBeenCalledWith({
 		jobId: "job-queued",
 		scheduleId: "schedule-queued",
-		message:
-			"The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
+		message: "The connection to the backup agent was lost. Restart the backup to ensure it completes.",
 	});
 });
