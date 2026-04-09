@@ -12,6 +12,10 @@ type LocalAgentState = {
 export async function spawnLocalAgentProcess(runtime: LocalAgentState) {
 	await stopLocalAgentProcess(runtime);
 
+	if (!config.flags.enableLocalAgent) {
+		return;
+	}
+
 	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
 

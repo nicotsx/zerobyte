@@ -1,4 +1,4 @@
-import { afterEach, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, expect, test, vi } from "vitest";
 import { Effect } from "effect";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
@@ -18,17 +18,19 @@ const createDeferred = <T>() => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 test("waits for running-job registration before returning to the processor loop", async () => {
 	const outboundMessages: string[] = [];
 	const runningJobs = new Map<string, RunningJob>();
 	const setRunningJobGate = createDeferred<void>();
+	const processorLoopGate = createDeferred<void>();
+	const commandCompleted = createDeferred<void>();
 	const backupGate = createDeferred<{ exitCode: number; result: null; warningDetails: null }>();
 	let registeredAbortController: AbortController | undefined;
 
-	spyOn(resticServer, "createRestic").mockReturnValue(
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
 			backup: () =>
 				Effect.async<{ exitCode: number; result: null; warningDetails: null }, never>((resume) => {
@@ -82,11 +84,21 @@ test("waits for running-job registration before returning to the processor loop"
 		scheduleId: "schedule-1",
 	});
 
-	const runPromise = Effect.runPromise(handleBackupRunCommand(context, runPayload));
+	const processorLoopPromise = Effect.runPromise(
+		Effect.gen(function* () {
+			yield* handleBackupRunCommand(context, runPayload);
+			commandCompleted.resolve(undefined);
+			yield* Effect.async<void, never>((resume) => {
+				void processorLoopGate.promise.then(() => {
+					resume(Effect.void);
+				});
+			});
+		}),
+	);
 
 	try {
 		const returnedBeforeRegistration = await Promise.race([
-			runPromise.then(() => true),
+			commandCompleted.promise.then(() => true),
 			new Promise<false>((resolve) => {
 				setTimeout(() => resolve(false), 0);
 			}),
@@ -95,7 +107,7 @@ test("waits for running-job registration before returning to the processor loop"
 		expect(returnedBeforeRegistration).toBe(false);
 
 		setRunningJobGate.resolve(undefined);
-		await runPromise;
+		await commandCompleted.promise;
 
 		await Effect.runPromise(handleBackupCancelCommand(context, cancelPayload));
 		expect(registeredAbortController?.signal.aborted).toBe(true);
@@ -111,7 +123,9 @@ test("waits for running-job registration before returning to the processor loop"
 			expect(runningJobs.has("job-1")).toBe(false);
 		});
 	} finally {
+		processorLoopGate.resolve(undefined);
 		setRunningJobGate.resolve(undefined);
 		backupGate.resolve({ exitCode: 0, result: null, warningDetails: null });
+		await processorLoopPromise;
 	}
 });

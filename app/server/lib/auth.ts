@@ -30,13 +30,13 @@ export const auth = betterAuth({
 	},
 	trustedOrigins: config.trustedOrigins,
 	rateLimit: {
-		enabled: !config.disableRateLimiting,
+		enabled: !config.flags.disableRateLimiting,
 	},
 	advanced: {
 		cookiePrefix: "zerobyte",
 		useSecureCookies: config.isSecure,
 		ipAddress: {
-			disableIpTracking: config.disableRateLimiting,
+			disableIpTracking: config.flags.disableRateLimiting,
 		},
 	},
 	onAPIError: {

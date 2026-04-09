@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
 import * as backendModule from "../../backends/backend";
 import type { VolumeBackend } from "../../backends/backend";
@@ -12,19 +12,19 @@ const loadShutdownModule = async () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("shutdown", () => {
 	test("stops the agent runtime before unmounting mounted volumes", async () => {
 		const events: string[] = [];
-		const stopScheduler = mock(async () => {
+		const stopScheduler = vi.fn(async () => {
 			events.push("scheduler.stop");
 		});
-		const stopApplicationRuntime = mock(async () => {
+		const stopApplicationRuntime = vi.fn(async () => {
 			events.push("agents.stop");
 		});
-		const unmountVolume = mock(async () => {
+		const unmountVolume = vi.fn(async () => {
 			events.push("backend.unmount");
 			return { status: "unmounted" as const };
 		});
@@ -38,9 +38,9 @@ describe("shutdown", () => {
 			status: "mounted",
 		});
 
-		spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
-		spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
-		spyOn(backendModule, "createVolumeBackend").mockImplementation(
+		vi.spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
+		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
+		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation(
 			() =>
 				({
 					mount: async () => ({ status: "mounted" as const }),

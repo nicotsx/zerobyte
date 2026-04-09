@@ -1,4 +1,4 @@
-import { afterEach, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, expect, test, vi } from "vitest";
 import { Effect } from "effect";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
@@ -7,11 +7,11 @@ import * as resticServer from "@zerobyte/core/restic/server";
 import { createControllerSession } from "../controller-session";
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 test("emits backup.failed when a backup command hits a restic error", async () => {
-	spyOn(resticServer, "createRestic").mockReturnValue(
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
 			backup: () => Effect.fail("source path missing"),
 		}),

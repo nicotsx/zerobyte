@@ -58,7 +58,7 @@ export const createApp = () => {
 			limit: 1000,
 			keyGenerator: (c) => c.req.header("x-forwarded-for") ?? "",
 			skip: () => {
-				return config.disableRateLimiting;
+				return config.flags.disableRateLimiting;
 			},
 		}),
 	);

@@ -43,6 +43,7 @@ const envSchema = z
 		APP_SECRET_FILE: z.string().optional(),
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),
+		ENABLE_LOCAL_AGENT: z.string().default("false"),
 		PROVISIONING_PATH: z.string().optional(),
 	})
 	.transform((s, ctx) => {
@@ -125,11 +126,14 @@ const envSchema = z
 			appVersion: s.APP_VERSION,
 			trustedOrigins: trustedOrigins,
 			trustProxy: s.TRUST_PROXY === "true",
-			disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
 			appSecret: appSecret ?? "",
 			baseUrl,
 			isSecure: baseUrl.startsWith("https://"),
-			enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+			flags: {
+				disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
+				enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+				enableLocalAgent: s.ENABLE_LOCAL_AGENT === "true",
+			},
 			provisioningPath: s.PROVISIONING_PATH,
 			allowedHosts,
 		};

@@ -47,18 +47,19 @@ export function createAgentManagerRuntime() {
 	let backupHandlers: AgentBackupEventHandlers = {};
 	let runtimeScope: Scope.CloseableScope | null = null;
 
-	const closeSession = (sessionHandle: ControllerAgentSessionHandle) => {
-		Effect.runSync(Fiber.interrupt(sessionHandle.runFiber));
-		Effect.runSync(Scope.close(sessionHandle.scope, Exit.succeed(undefined)));
-	};
+	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
+		Effect.gen(function* () {
+			yield* Fiber.interrupt(sessionHandle.runFiber);
+			yield* Scope.close(sessionHandle.scope, Exit.succeed(undefined));
+		});
 
-	const closeAllSessions = () => {
+	const closeAllSessions = Effect.gen(function* () {
 		const currentSessions = sessions;
 		sessions = new Map();
 		for (const sessionHandle of currentSessions.values()) {
-			closeSession(sessionHandle);
+			yield* closeSession(sessionHandle);
 		}
-	};
+	});
 
 	const getSessionHandle = (agentId: string) => sessions.get(agentId);
 
@@ -105,7 +106,9 @@ export function createAgentManagerRuntime() {
 	const setSession = (agentId: string, sessionHandle: ControllerAgentSessionHandle) => {
 		const existingSession = getSessionHandle(agentId);
 		if (existingSession) {
-			closeSession(existingSession);
+			void Effect.runPromise(closeSession(existingSession)).catch((error) => {
+				logger.error(`Failed to close existing agent session for ${agentId}: ${toMessage(error)}`);
+			});
 		}
 
 		sessions.set(agentId, sessionHandle);
@@ -118,7 +121,9 @@ export function createAgentManagerRuntime() {
 		}
 
 		sessions.delete(agentId);
-		closeSession(sessionHandle);
+		void Effect.runPromise(closeSession(sessionHandle)).catch((error) => {
+			logger.error(`Failed to close agent session for ${agentId}: ${toMessage(error)}`);
+		});
 	};
 
 	const acquireServer = Effect.acquireRelease(
@@ -180,7 +185,7 @@ export function createAgentManagerRuntime() {
 			}),
 		),
 		(server) =>
-			Effect.sync(closeAllSessions).pipe(
+			closeAllSessions.pipe(
 				Effect.andThen(
 					Effect.tryPromise({
 						try: () => server.stop(true),
