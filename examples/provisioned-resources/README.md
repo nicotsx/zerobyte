@@ -37,7 +37,7 @@ cp secrets/aws_secret_access_key.example secrets/aws_secret_access_key
 
 2. Edit `.env`:
 
-- Set `APP_SECRET` to a real secret, for example `openssl rand -hex 32`
+- Set `APP_SECRET` to a real secret, for example `openssl rand -hex 32`, or set `APP_SECRET_FILE` to a mounted secret file
 - Set `ZEROBYTE_AWS_ACCESS_KEY_ID`
 - Set `ZEROBYTE_WEBDAV_PASSWORD`
 - Adjust `BASE_URL` and `TZ` if needed

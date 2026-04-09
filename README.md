@@ -97,6 +97,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :--------------------- |
 | `BASE_URL`            | **Required.** The base URL of your Zerobyte instance (e.g., `https://zerobyte.example.com`). See [Authentication](#authentication) below. | (none)                 |
 | `APP_SECRET`          | **Required.** A random secret key (32+ chars) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`.       | (none)                 |
+| `APP_SECRET_FILE`     | Path to a file containing `APP_SECRET`, useful with Docker or Kubernetes secrets. Mutually exclusive with `APP_SECRET`.                     | (none)                 |
 | `PORT`                | The port the web interface and API will listen on.                                                                                        | `4096`                 |
 | `RESTIC_HOSTNAME`     | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                        | `zerobyte`             |
 | `TZ`                  | Timezone for the container (e.g., `Europe/Zurich`). **Crucial for accurate backup scheduling.**                                           | `UTC`                  |
