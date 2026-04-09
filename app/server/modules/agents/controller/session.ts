@@ -46,8 +46,8 @@ type ControllerAgentSessionHandlers = {
 export type ControllerAgentSession = {
 	readonly connectionId: string;
 	handleMessage: (data: string) => Effect.Effect<void>;
-	sendBackup: (payload: BackupRunPayload) => Effect.Effect<void>;
-	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<void>;
+	sendBackup: (payload: BackupRunPayload) => Effect.Effect<boolean>;
+	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
@@ -70,6 +70,7 @@ export const createControllerAgentSession = (
 				Effect.catchAllCause((cause) =>
 					Effect.sync(() => {
 						logger.error(`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`);
+						return false;
 					}),
 				),
 			);
@@ -232,8 +233,13 @@ export const createControllerAgentSession = (
 			},
 			sendBackup: (payload) => {
 				return Effect.gen(function* () {
-					yield* setTrackedBackupJob(payload.jobId, { scheduleId: payload.scheduleId, state: "pending" });
-					yield* offerOutbound(createControllerMessage("backup.run", payload));
+					const queued = yield* offerOutbound(createControllerMessage("backup.run", payload));
+
+					if (queued) {
+						yield* setTrackedBackupJob(payload.jobId, { scheduleId: payload.scheduleId, state: "pending" });
+					}
+
+					return queued;
 				});
 			},
 			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),

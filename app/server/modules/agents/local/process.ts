@@ -24,7 +24,7 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState) {
 	const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
 	const agentProcess = spawn("bun", args, {
 		env: {
-			PATH: process.env.PATH,
+			...process.env,
 			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
 			ZEROBYTE_AGENT_TOKEN: agentToken,
 		},

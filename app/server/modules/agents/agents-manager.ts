@@ -43,6 +43,6 @@ export const stopLocalAgent = async () => {
 export const agentManager = getAgentManagerRuntime();
 
 export const stopAgentRuntime = async () => {
-	getAgentManagerRuntime().stop();
+	await getAgentManagerRuntime().stop();
 	await stopLocalAgent();
 };

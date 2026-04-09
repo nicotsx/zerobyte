@@ -1,5 +1,6 @@
-import { Effect, Exit, Fiber, Scope } from "effect";
+import { Data, Effect, Exit, Fiber, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
+import { toMessage } from "@zerobyte/core/utils";
 import type {
 	BackupCancelPayload,
 	BackupCancelledPayload,
@@ -36,6 +37,10 @@ type ControllerAgentSessionHandle = {
 	runFiber: Fiber.RuntimeFiber<void, never>;
 	scope: Scope.CloseableScope;
 };
+
+class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServerError")<{
+	cause: unknown;
+}> {}
 
 export function createAgentManagerRuntime() {
 	let sessions = new Map<string, ControllerAgentSessionHandle>();
@@ -171,13 +176,22 @@ export function createAgentManagerRuntime() {
 			}),
 		),
 		(server) =>
-			Effect.sync(() => {
-				closeAllSessions();
-				void server.stop(true);
-			}),
+			Effect.sync(closeAllSessions).pipe(
+				Effect.andThen(
+					Effect.tryPromise({
+						try: () => server.stop(true),
+						catch: (error) => new StopAgentManagerServerError({ cause: error }),
+					}),
+				),
+				Effect.catchAll((error) =>
+					Effect.sync(() => {
+						logger.error(`Failed to stop Agent Manager server: ${toMessage(error.cause)}`);
+					}),
+				),
+			),
 	);
 
-	const stop = () => {
+	const stop = async () => {
 		if (!runtimeScope) {
 			return;
 		}
@@ -185,12 +199,12 @@ export function createAgentManagerRuntime() {
 		logger.info("Stopping Agent Manager...");
 		const scope = runtimeScope;
 		runtimeScope = null;
-		Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
+		await Effect.runPromise(Scope.close(scope, Exit.succeed(undefined)));
 	};
 
-	const start = () => {
+	const start = async () => {
 		if (runtimeScope) {
-			stop();
+			await stop();
 		}
 
 		logger.info("Starting Agent Manager...");
@@ -201,7 +215,7 @@ export function createAgentManagerRuntime() {
 			runtimeScope = scope;
 			logger.info(`Agent Manager listening on port ${server.port}`);
 		} catch (error) {
-			Effect.runSync(Scope.close(scope, Exit.fail(error)));
+			await Effect.runPromise(Scope.close(scope, Exit.fail(error)));
 			throw error;
 		}
 	};
@@ -221,7 +235,11 @@ export function createAgentManagerRuntime() {
 				return false;
 			}
 
-			Effect.runSync(session.sendBackup(payload));
+			if (!Effect.runSync(session.sendBackup(payload))) {
+				logger.warn(`Cannot send backup command. Agent ${agentId} is no longer accepting commands.`);
+				return false;
+			}
+
 			logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
 			return true;
 		},
@@ -233,7 +251,11 @@ export function createAgentManagerRuntime() {
 				return false;
 			}
 
-			Effect.runSync(session.sendBackupCancel(payload));
+			if (!Effect.runSync(session.sendBackupCancel(payload))) {
+				logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
+				return false;
+			}
+
 			logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
 			return true;
 		},
