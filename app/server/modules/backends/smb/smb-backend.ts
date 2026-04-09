@@ -39,7 +39,7 @@ const mount = async (config: BackendConfig, path: string) => {
 		const source = `//${config.server}/${config.share}`;
 		const { uid, gid } = os.userInfo();
 
-		const options = [`port=${config.port}`, `uid=${uid}`, `gid=${gid}`];
+		const options = [`port=${config.port}`, `uid=${uid}`, `gid=${gid}`, "iocharset=utf8"];
 
 		if (config.guest) {
 			options.push("username=guest", "password=");
