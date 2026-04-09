@@ -126,7 +126,7 @@ const envSchema = z
 			trustedOrigins: trustedOrigins,
 			trustProxy: s.TRUST_PROXY === "true",
 			disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
-			appSecret,
+			appSecret: appSecret ?? "",
 			baseUrl,
 			isSecure: baseUrl.startsWith("https://"),
 			enableDevPanel: s.ENABLE_DEV_PANEL === "true",
@@ -140,6 +140,13 @@ export const parseConfig = (env: unknown) => {
 
 	if (!result.success) {
 		console.error(`Environment variable validation failed: ${prettifyError(result.error)}`);
+		process.exit(1);
+	}
+
+	if (!result.data.appSecret) {
+		console.error(
+			"APP_SECRET is required but was not provided. Please set the APP_SECRET environment variable or provide a file with APP_SECRET_FILE.",
+		);
 		process.exit(1);
 	}
 

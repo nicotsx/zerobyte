@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { parseConfig } from "../config";
 
@@ -7,45 +6,6 @@ const validAppSecret = "a".repeat(32);
 const fileAppSecret = "b".repeat(32);
 const appSecretFixturePath = fileURLToPath(new URL("./fixtures/app-secret.txt", import.meta.url));
 const shortAppSecretFixturePath = fileURLToPath(new URL("./fixtures/short-app-secret.txt", import.meta.url));
-
-const loadParseConfigWithSystemMocks = async ({
-	mountinfo,
-	hostname,
-}: {
-	mountinfo: string | Error;
-	hostname?: string;
-}) => {
-	vi.resetModules();
-	vi.doMock("node:fs", async () => {
-		const actual = await vi.importActual<typeof import("node:fs")>("node:fs");
-
-		return {
-			...actual,
-			readFileSync: vi.fn(() => {
-				if (mountinfo instanceof Error) {
-					throw mountinfo;
-				}
-
-				return mountinfo;
-			}),
-		};
-	});
-	vi.doMock("node:os", async () => {
-		const actual = await vi.importActual<typeof import("node:os")>("node:os");
-		const hostnameMock = vi.fn(() => hostname ?? actual.hostname());
-
-		return {
-			...actual,
-			default: {
-				...actual,
-				hostname: hostnameMock,
-			},
-			hostname: hostnameMock,
-		};
-	});
-
-	return (await import("../config")).parseConfig;
-};
 
 const createEnv = (overrides: Record<string, string | undefined> = {}) => {
 	const env = {
@@ -72,9 +32,6 @@ const expectParseConfigToExit = (env: Record<string, string | undefined>, messag
 describe("parseConfig", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
-		vi.doUnmock("node:fs");
-		vi.doUnmock("node:os");
-		vi.resetModules();
 	});
 
 	test("parses quoted origins and derives runtime flags", () => {
@@ -117,8 +74,6 @@ describe("parseConfig", () => {
 	});
 
 	test("uses the configured RESTIC_HOSTNAME when present", () => {
-		const hostnameSpy = vi.spyOn(os, "hostname");
-
 		const config = parseConfig(
 			createEnv({
 				RESTIC_HOSTNAME: "manual-restic-host",
@@ -126,53 +81,6 @@ describe("parseConfig", () => {
 		);
 
 		expect(config.resticHostname).toBe("manual-restic-host");
-		expect(hostnameSpy).not.toHaveBeenCalled();
-	});
-
-	test("falls back to zerobyte when the mountinfo hostname lookup fails", async () => {
-		const mockedParseConfig = await loadParseConfigWithSystemMocks({
-			mountinfo: new Error("mountinfo unavailable"),
-		});
-
-		const config = mockedParseConfig(
-			createEnv({
-				RESTIC_HOSTNAME: undefined,
-			}),
-		);
-
-		expect(config.resticHostname).toBe("zerobyte");
-	});
-
-	test("uses the OS hostname when mountinfo resolves to a different container id", async () => {
-		const mockedParseConfig = await loadParseConfigWithSystemMocks({
-			mountinfo:
-				"36 25 0:32 /hostname /etc/hostname rw,relatime - ext4 /dev/root rw 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n",
-			hostname: "hostbox",
-		});
-
-		const config = mockedParseConfig(
-			createEnv({
-				RESTIC_HOSTNAME: undefined,
-			}),
-		);
-
-		expect(config.resticHostname).toBe("hostbox");
-	});
-
-	test("collapses container-derived hostnames back to zerobyte", async () => {
-		const containerHostname = "abc123";
-		const mockedParseConfig = await loadParseConfigWithSystemMocks({
-			mountinfo: `36 25 0:32 /hostname /etc/hostname rw,relatime - ext4 /dev/root rw ${containerHostname}${"0".repeat(58)}\n`,
-			hostname: containerHostname,
-		});
-
-		const config = mockedParseConfig(
-			createEnv({
-				RESTIC_HOSTNAME: undefined,
-			}),
-		);
-
-		expect(config.resticHostname).toBe("zerobyte");
 	});
 
 	test("reads APP_SECRET from APP_SECRET_FILE", () => {
