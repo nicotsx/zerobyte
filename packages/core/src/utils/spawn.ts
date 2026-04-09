@@ -28,7 +28,7 @@ export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecPr
 		return {
 			exitCode: typeof execError.code === "number" ? execError.code : 1,
 			stdout: execError.stdout || "",
-			stderr: timedOut ? "Command timed out before completing" : execError.stderr || "",
+			stderr: timedOut ? "Command timed out before completing" : execError.stderr || execError.message || "",
 			timedOut,
 		};
 	}

@@ -5,7 +5,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { resticSnapshotSummarySchema } from "../restic-dto";
 import type { RepositoryConfig } from "../schemas";
-import { logger, safeExec } from "../../node";
+import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
 
 const snapshotInfoSchema = z.object({
@@ -43,15 +43,24 @@ export const snapshots = async (
 
 	addCommonArgs(args, env, config);
 
-	const res = await safeExec({ command: "restic", args, env });
+	const stdoutLines: string[] = [];
+	const res = await safeSpawn({
+		command: "restic",
+		args,
+		env,
+		onStdout: (line) => {
+			stdoutLines.push(line);
+		},
+	});
 	await cleanupTemporaryKeys(env, deps);
 
 	if (res.exitCode !== 0) {
-		logger.error(`Restic snapshots retrieval failed: ${res.stderr}`);
-		throw new Error(`Restic snapshots retrieval failed: ${res.stderr}`);
+		const errorMessage = res.stderr || res.error;
+		logger.error(`Restic snapshots retrieval failed: ${errorMessage}`);
+		throw new Error(`Restic snapshots retrieval failed: ${errorMessage}`);
 	}
 
-	const result = snapshotInfoSchema.array().safeParse(JSON.parse(res.stdout));
+	const result = snapshotInfoSchema.array().safeParse(JSON.parse(stdoutLines.join("\n")));
 
 	if (!result.success) {
 		logger.error(`Restic snapshots output validation failed: ${result.error.message}`);
