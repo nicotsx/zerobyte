@@ -3526,7 +3526,6 @@ export type GetScheduleNotificationsResponses = {
             } | {
                 type: 'slack';
                 webhookUrl: string;
-                channel?: string;
                 username?: string;
                 iconEmoji?: string;
             } | {
@@ -3628,7 +3627,6 @@ export type UpdateScheduleNotificationsResponses = {
             } | {
                 type: 'slack';
                 webhookUrl: string;
-                channel?: string;
                 username?: string;
                 iconEmoji?: string;
             } | {
@@ -4203,7 +4201,6 @@ export type ListNotificationDestinationsResponses = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {
@@ -4273,7 +4270,6 @@ export type CreateNotificationDestinationData = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {
@@ -4348,7 +4344,6 @@ export type CreateNotificationDestinationResponses = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {
@@ -4467,7 +4462,6 @@ export type GetNotificationDestinationResponses = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {
@@ -4538,7 +4532,6 @@ export type UpdateNotificationDestinationData = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {
@@ -4622,7 +4615,6 @@ export type UpdateNotificationDestinationResponses = {
         } | {
             type: 'slack';
             webhookUrl: string;
-            channel?: string;
             username?: string;
             iconEmoji?: string;
         } | {

@@ -29,20 +29,6 @@ export const SlackForm = ({ form }: Props) => {
 			/>
 			<FormField
 				control={form.control}
-				name="channel"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Channel (Optional)</FormLabel>
-						<FormControl>
-							<Input {...field} placeholder="#backups" />
-						</FormControl>
-						<FormDescription>Override the default channel (use # for channels, @ for users).</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
 				name="username"
 				render={({ field }) => (
 					<FormItem>

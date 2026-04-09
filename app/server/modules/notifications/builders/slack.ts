@@ -14,9 +14,6 @@ export const buildSlackShoutrrrUrl = (config: Extract<NotificationConfig, { type
 	shoutrrrUrl.password = `${tokenA}-${tokenB}-${tokenC}`;
 	shoutrrrUrl.hostname = "webhook";
 
-	if (config.channel) {
-		shoutrrrUrl.searchParams.append("channel", config.channel);
-	}
 	if (config.username) {
 		shoutrrrUrl.searchParams.append("username", config.username);
 	}

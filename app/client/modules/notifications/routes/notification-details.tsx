@@ -78,7 +78,6 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 			return (
 				<>
 					<ConfigRow icon={<Globe className="h-4 w-4" />} label="Webhook URL" value={config.webhookUrl} mono />
-					<ConfigRow icon={<Hash className="h-4 w-4" />} label="Channel" value={config.channel || "—"} />
 					<ConfigRow icon={<Bot className="h-4 w-4" />} label="Bot Username" value={config.username || "—"} />
 					<ConfigRow icon={<Smile className="h-4 w-4" />} label="Icon Emoji" value={config.iconEmoji || "—"} />
 				</>

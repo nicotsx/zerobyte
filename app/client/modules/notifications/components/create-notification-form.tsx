@@ -75,7 +75,6 @@ const defaultValuesForType = {
 	slack: {
 		type: "slack" as const,
 		webhookUrl: "",
-		channel: "",
 		username: "",
 		iconEmoji: "",
 	},

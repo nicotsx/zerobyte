@@ -7,7 +7,6 @@ describe("mapNotificationConfigSecrets", () => {
 			{
 				type: "slack",
 				webhookUrl: "https://hooks.slack.test/services/a/b/c",
-				channel: "#alerts",
 				username: "zerobyte",
 				iconEmoji: ":wave:",
 			},
@@ -17,7 +16,6 @@ describe("mapNotificationConfigSecrets", () => {
 		expect(transformed).toEqual({
 			type: "slack",
 			webhookUrl: "sealed:https://hooks.slack.test/services/a/b/c",
-			channel: "#alerts",
 			username: "zerobyte",
 			iconEmoji: ":wave:",
 		});

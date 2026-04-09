@@ -152,7 +152,7 @@ describe("notification shoutrrr URL builders", () => {
 		).toBe("pushover://shoutrrr:api-token@user-key/?devices=iphone%2Cipad&priority=1");
 	});
 
-	test("builds slack URLs and rejects invalid webhook formats", () => {
+	test("builds upstream-compatible slack webhook URLs and rejects invalid webhook formats", () => {
 		expect(
 			buildSlackShoutrrrUrl({
 				type: "slack",
@@ -164,11 +164,10 @@ describe("notification shoutrrr URL builders", () => {
 			buildSlackShoutrrrUrl({
 				type: "slack",
 				webhookUrl: "https://hooks.slack.com/services/T000/B000/XXX",
-				channel: "#alerts",
 				username: "Alert Bot",
 				iconEmoji: ":robot_face:",
 			}),
-		).toBe("slack://hook:T000-B000-XXX@webhook?channel=%23alerts&username=Alert+Bot&icon_emoji=%3Arobot_face%3A");
+		).toBe("slack://hook:T000-B000-XXX@webhook?username=Alert+Bot&icon_emoji=%3Arobot_face%3A");
 
 		expect(() =>
 			buildSlackShoutrrrUrl({

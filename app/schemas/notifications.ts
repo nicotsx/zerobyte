@@ -29,7 +29,6 @@ export const emailNotificationConfigSchema = z.object({
 export const slackNotificationConfigSchema = z.object({
 	type: z.literal("slack"),
 	webhookUrl: z.string().min(1),
-	channel: z.string().optional(),
 	username: z.string().optional(),
 	iconEmoji: z.string().optional(),
 });
