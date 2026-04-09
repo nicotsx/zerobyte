@@ -27,7 +27,7 @@
 		"studio": "drizzle-kit studio",
 		"test:server": "dotenv -e .env.test -- bunx --bun vitest run --project server",
 		"test:client": "dotenv -e .env.test -- bunx --bun vitest run --project client",
-		"test": "dotenv -e .env.test -- bunx --bun vitest run && vp run -r test",
+		"test": "dotenv -e .env.test -- bunx --bun vitest run && vp run -F './apps/*' -F './packages/*' test",
 		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- playwright test",
 		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- playwright test --ui",
 		"test:codegen": "playwright codegen localhost:4096"

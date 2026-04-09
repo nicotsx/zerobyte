@@ -63,11 +63,14 @@ describe("parseConfig", () => {
 			appVersion: "1.2.3",
 			trustedOrigins: ["https://admin.example.com", "http://localhost:3000", "https://example.com"],
 			trustProxy: true,
-			disableRateLimiting: true,
 			appSecret: validAppSecret,
 			baseUrl: "https://example.com",
 			isSecure: true,
-			enableDevPanel: true,
+			flags: {
+				disableRateLimiting: true,
+				enableDevPanel: true,
+				enableLocalAgent: false,
+			},
 			provisioningPath: "/tmp/provisioning",
 			allowedHosts: ["example.com", "admin.example.com", "localhost:3000"],
 		});
