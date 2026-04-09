@@ -35,9 +35,11 @@ class Agent {
 		}
 
 		const url = new URL(controllerUrl);
-		url.searchParams.set("token", agentToken);
-
-		this.ws = new WebSocket(url.toString());
+		this.ws = new WebSocket(url.toString(), {
+			headers: {
+				authorization: `Bearer ${agentToken}`,
+			},
+		});
 		this.controllerSession = createControllerSession(this.ws);
 
 		this.ws.onopen = () => {

@@ -121,8 +121,8 @@ export function createAgentManagerRuntime() {
 			Bun.serve<AgentConnectionData>({
 				port: 3001,
 				async fetch(req, srv) {
-					const url = new URL(req.url);
-					const token = url.searchParams.get("token");
+					const authorizationHeader = req.headers.get("authorization");
+					const token = authorizationHeader?.slice("Bearer ".length);
 
 					if (!token) {
 						return new Response("Missing token", { status: 401 });
