@@ -39,7 +39,7 @@ const envSchema = z
 		TRUSTED_ORIGINS: z.string().optional(),
 		TRUST_PROXY: z.string().default("false"),
 		DISABLE_RATE_LIMITING: z.string().default("false"),
-		APP_SECRET: z.string().min(32).max(256).optional(),
+		APP_SECRET: z.preprocess((value) => (value === "" ? undefined : value), z.string().min(32).max(256).optional()),
 		APP_SECRET_FILE: z.string().optional(),
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),

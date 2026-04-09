@@ -94,6 +94,17 @@ describe("parseConfig", () => {
 		expect(config.appSecret).toBe(fileAppSecret);
 	});
 
+	test("reads APP_SECRET from APP_SECRET_FILE when APP_SECRET is empty", () => {
+		const config = parseConfig(
+			createEnv({
+				APP_SECRET: "",
+				APP_SECRET_FILE: appSecretFixturePath,
+			}),
+		);
+
+		expect(config.appSecret).toBe(fileAppSecret);
+	});
+
 	test("exits when APP_SECRET is missing", () => {
 		expectParseConfigToExit(
 			createEnv({
