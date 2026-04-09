@@ -8,8 +8,10 @@ let bootstrapPromise: Promise<void> | undefined;
 const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
-	await agentManager.start();
-	await spawnLocalAgent();
+	if (process.env.ENABLE_LOCAL_AGENT === "true") {
+		await agentManager.start();
+		await spawnLocalAgent();
+	}
 	await startup();
 };
 
