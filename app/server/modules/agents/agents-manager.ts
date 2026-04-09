@@ -1,11 +1,11 @@
 import type { ChildProcess } from "node:child_process";
-import { createAgentManagerRuntime, type AgentManagerRuntime } from "./controller/server";
+import type { AgentManagerRuntime } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 
 export type { AgentBackupEventHandlers } from "./controller/server";
 
 type AgentRuntimeState = {
-	agentManager: AgentManagerRuntime;
+	agentManager: AgentManagerRuntime | null;
 	localAgent: ChildProcess | null;
 };
 
@@ -22,7 +22,7 @@ const getAgentRuntimeState = () => {
 	}
 
 	const runtime = {
-		agentManager: createAgentManagerRuntime(),
+		agentManager: null,
 		localAgent: null,
 	};
 
@@ -32,6 +32,20 @@ const getAgentRuntimeState = () => {
 
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 
+export const startAgentRuntime = async () => {
+	const runtime = getAgentRuntimeState();
+
+	if (runtime.agentManager) {
+		await runtime.agentManager.stop();
+	}
+
+	const { createAgentManagerRuntime } = await import("./controller/server");
+	const agentManager = createAgentManagerRuntime();
+
+	await agentManager.start();
+	runtime.agentManager = agentManager;
+};
+
 export const spawnLocalAgent = async () => {
 	await spawnLocalAgentProcess(getAgentRuntimeState());
 };
@@ -40,9 +54,7 @@ export const stopLocalAgent = async () => {
 	await stopLocalAgentProcess(getAgentRuntimeState());
 };
 
-export const agentManager = getAgentManagerRuntime();
-
 export const stopAgentRuntime = async () => {
-	await getAgentManagerRuntime().stop();
+	await getAgentManagerRuntime()?.stop();
 	await stopLocalAgent();
 };

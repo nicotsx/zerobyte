@@ -1,5 +1,5 @@
 import { runDbMigrations } from "../../db/db";
-import { agentManager, spawnLocalAgent, stopAgentRuntime } from "../agents/agents-manager";
+import { spawnLocalAgent, startAgentRuntime, stopAgentRuntime } from "../agents/agents-manager";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
 
@@ -9,7 +9,7 @@ const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
 	if (process.env.ENABLE_LOCAL_AGENT === "true") {
-		await agentManager.start();
+		await startAgentRuntime();
 		await spawnLocalAgent();
 	}
 	await startup();
