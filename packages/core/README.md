@@ -3,7 +3,7 @@
 To install dependencies:
 
 ```bash
-bun install
+vp install
 ```
 
 To run:

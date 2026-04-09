@@ -55,7 +55,7 @@ bun run gen:api-client
 
 ```bash
 # Format
-bunx oxfmt format --write <path>
+vp fmt <path> --write
 
 # Lint
 bun run lint
