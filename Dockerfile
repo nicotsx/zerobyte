@@ -90,7 +90,7 @@ COPY ./package.json ./bun.lock ./
 COPY ./packages/core/package.json ./packages/core/package.json
 COPY ./packages/contracts/package.json ./packages/contracts/package.json
 COPY ./apps/agent/package.json ./apps/agent/package.json
-RUN bun install --frozen-lockfile
+RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile
 
 COPY . .
 
