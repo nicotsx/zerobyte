@@ -9,7 +9,7 @@
 	"scripts": {
 		"postinstall": "vp config",
 		"fmt": "vp fmt",
-		"lint": "bunx --bun vp lint",
+		"lint": "vp lint --type-aware",
 		"dev": "NODE_ENV=development bunx --bun vite",
 		"build": "vite build",
 		"start": "bun run .output/server/index.mjs",

@@ -14,6 +14,11 @@ runs:
       with:
         bun-version: "1.3.11"
 
+    - uses: voidzero-dev/setup-vp@v1
+      with:
+        node-version: '24'
+        cache: true
+
     - name: Install dependencies
       shell: bash
-      run: sfw bun install --frozen-lockfile
+      run: sfw vp install --frozen-lockfile
