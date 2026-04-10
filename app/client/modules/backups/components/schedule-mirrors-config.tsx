@@ -358,11 +358,13 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 											</TableCell>
 											<TableCell>
 												<div className="flex items-center gap-2">
-													<StatusDot
-														variant={getStatusVariant(assignment.lastCopyStatus)}
-														label={getStatusLabel(assignment)}
-														animated={isSyncing(assignment)}
-													/>
+													<div className="w-3 shrink-0 mr-1">
+														<StatusDot
+															variant={getStatusVariant(assignment.lastCopyStatus)}
+															label={getStatusLabel(assignment)}
+															animated={isSyncing(assignment)}
+														/>
+													</div>
 													<span className="text-sm text-muted-foreground">{getLabel(assignment)}</span>
 												</div>
 											</TableCell>
