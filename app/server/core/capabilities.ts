@@ -1,5 +1,5 @@
 import * as fs from "node:fs/promises";
-import { RCLONE_CONFIG_DIR } from "./constants";
+import { RCLONE_CONFIG_DIR, RCLONE_CONFIG_FILE } from "./constants";
 import { logger } from "@zerobyte/core/node";
 
 export type SystemCapabilities = {
@@ -35,17 +35,11 @@ async function detectCapabilities(): Promise<SystemCapabilities> {
 
 /**
  * Checks if rclone is available by:
- * 1. Checking if the rclone config directory exists and is accessible
+ * 1. Checking if the rclone config file exists and is accessible
  */
 async function detectRclone(): Promise<boolean> {
 	try {
-		await fs.access(RCLONE_CONFIG_DIR);
-
-		// Make sure the folder is not empty
-		const files = await fs.readdir(RCLONE_CONFIG_DIR);
-		if (files.length === 0) {
-			throw new Error("rclone config directory is empty");
-		}
+		await fs.access(RCLONE_CONFIG_FILE);
 
 		logger.info("rclone capability: enabled");
 		return true;

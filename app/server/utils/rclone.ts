@@ -1,13 +1,18 @@
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "./errors";
 import { safeExec } from "@zerobyte/core/node";
+import { RCLONE_CONFIG_FILE } from "../core/constants";
+
+const rcloneEnv = {
+	RCLONE_CONFIG: RCLONE_CONFIG_FILE,
+};
 
 /**
  * List all configured rclone remotes
  * @returns Array of remote names
  */
 export async function listRcloneRemotes(): Promise<string[]> {
-	const result = await safeExec({ command: "rclone", args: ["listremotes"] });
+	const result = await safeExec({ command: "rclone", args: ["listremotes"], env: rcloneEnv });
 
 	if (result.exitCode !== 0) {
 		logger.error(`Failed to list rclone remotes: ${result.stderr.toString()}`);
@@ -34,7 +39,7 @@ export async function getRcloneRemoteInfo(
 	remote: string,
 ): Promise<{ type: string; config: Record<string, string> } | null> {
 	try {
-		const result = await safeExec({ command: "rclone", args: ["config", "show", remote] });
+		const result = await safeExec({ command: "rclone", args: ["config", "show", remote], env: rcloneEnv });
 
 		if (result.exitCode !== 0) {
 			logger.error(`Failed to get info for remote ${remote}: ${result.stderr.toString()}`);

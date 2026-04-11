@@ -44,6 +44,7 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 					cacheDir: "/tmp/restic-cache",
 					passFile: "/tmp/restic-pass",
 					defaultExcludes: [],
+					rcloneConfigFile: "/root/.config/rclone/rclone.conf",
 				},
 			}),
 		);

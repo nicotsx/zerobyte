@@ -7,6 +7,7 @@ export interface ResticDeps {
 	resticCacheDir: string;
 	resticPassFile: string;
 	defaultExcludes: string[];
+	rcloneConfigFile: string;
 	hostname?: string;
 }
 
