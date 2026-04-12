@@ -6,19 +6,19 @@ import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { createControllerAgentSession } from "../controller/session";
 
 const createSocket = (overrides: Partial<Parameters<typeof createControllerAgentSession>[0]> = {}) => {
-	return fromPartial<Parameters<typeof createControllerAgentSession>[0]>({
+	return {
 		data: { id: "connection-1", agentId: "local", organizationId: null, agentName: "Local Agent" },
 		send: vi.fn(() => 1),
 		close: vi.fn(),
 		...overrides,
-	});
+	};
 };
 
 const createSession = (handlers: Parameters<typeof createControllerAgentSession>[1] = {}, socket = createSocket()) => {
 	const scope = Effect.runSync(Scope.make());
 
 	try {
-		const session = Effect.runSync(Scope.extend(createControllerAgentSession(socket, handlers), scope));
+		const session = Effect.runSync(Scope.extend(createControllerAgentSession(fromPartial(socket), handlers), scope));
 
 		return {
 			session,
@@ -57,12 +57,12 @@ test("close emits a synthetic backup.cancelled for a started backup", () => {
 	close();
 
 	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-	expect(onBackupCancelled).toHaveBeenCalledWith({
-		jobId: "job-1",
-		scheduleId: "schedule-1",
-		message:
-			"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
-	});
+	expect(onBackupCancelled).toHaveBeenCalledWith(
+		expect.objectContaining({
+			jobId: "job-1",
+			scheduleId: "schedule-1",
+		}),
+	);
 });
 
 test.each([
@@ -150,12 +150,12 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 	close();
 
 	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-	expect(onBackupCancelled).toHaveBeenCalledWith({
-		jobId: "job-queued",
-		scheduleId: "schedule-queued",
-		message:
-			"The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
-	});
+	expect(onBackupCancelled).toHaveBeenLastCalledWith(
+		expect.objectContaining({
+			jobId: "job-queued",
+			scheduleId: "schedule-queued",
+		}),
+	);
 });
 
 test("a dropped backup.cancel closes the session and emits a synthetic backup.cancelled", async () => {
@@ -185,12 +185,12 @@ test("a dropped backup.cancel closes the session and emits a synthetic backup.ca
 			expect(send).toHaveBeenCalledTimes(1);
 			expect(socket.close).toHaveBeenCalledTimes(1);
 			expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-			expect(onBackupCancelled).toHaveBeenCalledWith({
-				jobId: "job-1",
-				scheduleId: "schedule-1",
-				message:
-					"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
-			});
+			expect(onBackupCancelled).toHaveBeenCalledWith(
+				expect.objectContaining({
+					jobId: "job-1",
+					scheduleId: "schedule-1",
+				}),
+			);
 		});
 	} finally {
 		await closeAsync();

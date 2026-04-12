@@ -1,22 +1,13 @@
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { fromPartial } from "@total-typescript/shoehorn";
-import { agentManager } from "../agents-manager";
+import { fromAny, fromPartial } from "@total-typescript/shoehorn";
+import { agentManager, type ProcessWithAgentRuntime } from "../agents-manager";
 import type { AgentManagerRuntime } from "../controller/server";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 
-type ProcessWithAgentRuntime = NodeJS.Process & {
-	__zerobyteAgentRuntime?: {
-		agentManager: AgentManagerRuntime | null;
-		localAgent: null;
-		isStoppingLocalAgent: boolean;
-		localAgentRestartTimeout: null;
-	};
-};
-
 const setAgentRuntime = (agentManagerRuntime: Partial<AgentManagerRuntime> | null) => {
 	(process as ProcessWithAgentRuntime).__zerobyteAgentRuntime = {
-		agentManager: agentManagerRuntime ? fromPartial<AgentManagerRuntime>(agentManagerRuntime) : null,
+		agentManager: fromAny(agentManagerRuntime),
 		localAgent: null,
 		isStoppingLocalAgent: false,
 		localAgentRestartTimeout: null,

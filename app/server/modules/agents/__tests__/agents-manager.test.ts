@@ -1,16 +1,11 @@
 import { EventEmitter } from "node:events";
-import type * as childProcess from "node:child_process";
 import { PassThrough } from "node:stream";
 import { afterEach, expect, test, vi } from "vitest";
 
 const spawnMock = vi.fn();
 
 vi.mock("node:child_process", async () => {
-	const actual = await vi.importActual<typeof import("node:child_process")>("node:child_process");
-	return {
-		...actual,
-		spawn: spawnMock,
-	};
+	return { spawn: spawnMock };
 });
 
 const { spawnLocalAgent, stopLocalAgent } = await import("../agents-manager");
@@ -51,9 +46,7 @@ test("respawns the local agent after an unexpected exit", async () => {
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
-	spawnMock
-		.mockReturnValueOnce(firstChild as unknown as ReturnType<typeof childProcess.spawn>)
-		.mockReturnValueOnce(secondChild as unknown as ReturnType<typeof childProcess.spawn>);
+	spawnMock.mockReturnValueOnce(firstChild).mockReturnValueOnce(secondChild);
 
 	await spawnLocalAgent();
 
@@ -69,7 +62,7 @@ test("does not respawn the local agent after an intentional stop", async () => {
 	vi.useFakeTimers();
 
 	const child = createFakeChild();
-	spawnMock.mockReturnValue(child as unknown as ReturnType<typeof childProcess.spawn>);
+	spawnMock.mockReturnValue(child);
 
 	await spawnLocalAgent();
 	await stopLocalAgent();

@@ -19,38 +19,6 @@ export type AgentRunBackupRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-type AgentRuntimeState = {
-	agentManager: AgentManagerRuntime | null;
-	localAgent: ChildProcess | null;
-	isStoppingLocalAgent: boolean;
-	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
-};
-
-type ProcessWithAgentRuntime = NodeJS.Process & {
-	__zerobyteAgentRuntime?: AgentRuntimeState;
-};
-
-const getAgentRuntimeState = () => {
-	const runtimeProcess = process as ProcessWithAgentRuntime;
-	const existingRuntime = runtimeProcess.__zerobyteAgentRuntime;
-
-	if (existingRuntime) {
-		return existingRuntime;
-	}
-
-	const runtime = {
-		agentManager: null,
-		localAgent: null,
-		isStoppingLocalAgent: false,
-		localAgentRestartTimeout: null,
-	};
-
-	runtimeProcess.__zerobyteAgentRuntime = runtime;
-	return runtime;
-};
-
-const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
-
 type ActiveBackupRun = {
 	scheduleId: number;
 	jobId: string;
@@ -60,8 +28,53 @@ type ActiveBackupRun = {
 	cancellationRequested: boolean;
 };
 
-const activeBackupsByScheduleId = new Map<number, ActiveBackupRun>();
-const activeBackupScheduleIdsByJobId = new Map<string, number>();
+type AgentRuntimeState = {
+	agentManager: AgentManagerRuntime | null;
+	localAgent: ChildProcess | null;
+	isStoppingLocalAgent: boolean;
+	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
+	activeBackupsByScheduleId: Map<number, ActiveBackupRun>;
+	activeBackupScheduleIdsByJobId: Map<string, number>;
+};
+
+type LegacyAgentRuntimeState = Omit<AgentRuntimeState, "activeBackupsByScheduleId" | "activeBackupScheduleIdsByJobId"> &
+	Partial<Pick<AgentRuntimeState, "activeBackupsByScheduleId" | "activeBackupScheduleIdsByJobId">>;
+
+export type ProcessWithAgentRuntime = NodeJS.Process & {
+	__zerobyteAgentRuntime?: LegacyAgentRuntimeState;
+};
+
+const getAgentRuntimeState = () => {
+	const runtimeProcess = process as ProcessWithAgentRuntime;
+	const existingRuntime = runtimeProcess.__zerobyteAgentRuntime;
+
+	if (existingRuntime) {
+		const runtime: AgentRuntimeState = {
+			...existingRuntime,
+			activeBackupsByScheduleId: existingRuntime.activeBackupsByScheduleId ?? new Map<number, ActiveBackupRun>(),
+			activeBackupScheduleIdsByJobId: existingRuntime.activeBackupScheduleIdsByJobId ?? new Map<string, number>(),
+		};
+
+		runtimeProcess.__zerobyteAgentRuntime = runtime;
+		return runtime;
+	}
+
+	const runtime: AgentRuntimeState = {
+		agentManager: null,
+		localAgent: null,
+		isStoppingLocalAgent: false,
+		localAgentRestartTimeout: null,
+		activeBackupsByScheduleId: new Map(),
+		activeBackupScheduleIdsByJobId: new Map(),
+	};
+
+	runtimeProcess.__zerobyteAgentRuntime = runtime;
+	return runtime;
+};
+
+const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
+const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
+const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
 
 const getUnavailableError = (agentId: string) => {
 	if (agentId === "local") {
@@ -72,6 +85,8 @@ const getUnavailableError = (agentId: string) => {
 };
 
 const clearActiveBackupRun = (scheduleId: number) => {
+	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
+	const activeBackupScheduleIdsByJobId = getActiveBackupScheduleIdsByJobId();
 	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
 	if (!activeBackupRun) {
 		return null;
@@ -93,13 +108,13 @@ const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResul
 };
 
 const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
-	const trackedScheduleId = activeBackupScheduleIdsByJobId.get(jobId);
+	const trackedScheduleId = getActiveBackupScheduleIdsByJobId().get(jobId);
 	if (trackedScheduleId === undefined) {
 		logger.warn(`Received ${eventName} for unknown job ${jobId} from agent ${agentId}`);
 		return null;
 	}
 
-	const activeBackupRun = activeBackupsByScheduleId.get(trackedScheduleId);
+	const activeBackupRun = getActiveBackupsByScheduleId().get(trackedScheduleId);
 	if (!activeBackupRun) {
 		logger.warn(`Received ${eventName} for inactive job ${jobId} from agent ${agentId}`);
 		return null;
@@ -114,7 +129,7 @@ const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string
 };
 
 const requestBackupCancellation = async (agentId: string, scheduleId: number) => {
-	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
+	const activeBackupRun = getActiveBackupsByScheduleId().get(scheduleId);
 	if (!activeBackupRun) {
 		return false;
 	}
@@ -223,7 +238,7 @@ export const agentManager = {
 		}
 
 		const completion = new Promise<BackupExecutionResult>((resolve) => {
-			activeBackupsByScheduleId.set(request.scheduleId, {
+			getActiveBackupsByScheduleId().set(request.scheduleId, {
 				scheduleId: request.scheduleId,
 				jobId: request.payload.jobId,
 				scheduleShortId: request.payload.scheduleId,
@@ -231,7 +246,7 @@ export const agentManager = {
 				resolve,
 				cancellationRequested: false,
 			});
-			activeBackupScheduleIdsByJobId.set(request.payload.jobId, request.scheduleId);
+			getActiveBackupScheduleIdsByJobId().set(request.payload.jobId, request.scheduleId);
 		});
 
 		try {
