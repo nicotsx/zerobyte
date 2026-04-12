@@ -69,6 +69,9 @@ export const buildEnv = async (
 			}
 			break;
 		}
+		case "rclone":
+			env.RCLONE_CONFIG = deps.rcloneConfigFile;
+			break;
 		case "sftp": {
 			const decryptedKey = await deps.resolveSecret(config.privateKey);
 			const keyPath = path.join("/tmp", `zerobyte-ssh-${crypto.randomBytes(8).toString("hex")}`);

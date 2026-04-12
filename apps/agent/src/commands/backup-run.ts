@@ -50,6 +50,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					resticPassFile: payload.runtime.passFile,
 					defaultExcludes: payload.runtime.defaultExcludes,
 					hostname: payload.runtime.hostname,
+					rcloneConfigFile: payload.runtime.rcloneConfigFile,
 				};
 
 				const restic = createRestic(deps);

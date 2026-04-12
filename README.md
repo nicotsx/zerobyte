@@ -105,7 +105,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `TRUSTED_ORIGINS`     | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                                | (none)                 |
 | `LOG_LEVEL`           | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
 | `SERVER_IDLE_TIMEOUT` | Idle timeout for the server in seconds.                                                                                                   | `60`                   |
-| `RCLONE_CONFIG_DIR`   | Path to the rclone config directory inside the container. Change this if running as a non-root user.                                      | `/root/.config/rclone` |
+| `RCLONE_CONFIG_DIR`   | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`   | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
 
 ### Provisioned Resources
@@ -258,7 +258,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    +     - ~/.config/rclone:/root/.config/rclone:ro
    ```
 
-   > **Note for non-root users:** If your container runs as a different user (e.g., TrueNAS apps), mount your config to the appropriate location and set `RCLONE_CONF_DIR`:
+   > **Note for non-root users:** If your container runs as a different user (e.g., TrueNAS apps), mount your config to the appropriate location and set `RCLONE_CONFIG_DIR`:
    >
    > ```yaml
    > environment:

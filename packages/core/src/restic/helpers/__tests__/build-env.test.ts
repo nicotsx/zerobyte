@@ -12,6 +12,7 @@ const makeDeps = (overrides: Partial<ResticDeps> = {}): ResticDeps => ({
 	resticCacheDir: RESTIC_CACHE_DIR,
 	resticPassFile: RESTIC_PASS_FILE,
 	defaultExcludes: [RESTIC_PASS_FILE, "/var/lib/zerobyte/repositories"],
+	rcloneConfigFile: "/tmp/rclone.conf",
 	...overrides,
 });
 

@@ -14,6 +14,7 @@ const mockDeps: ResticDeps = {
 	resticPassFile: "/tmp/restic.pass",
 	defaultExcludes: ["/tmp/restic.pass", "/var/lib/zerobyte/repositories"],
 	hostname: "zerobyte",
+	rcloneConfigFile: "/root/.config/rclone/rclone.conf",
 };
 
 const VALID_SUMMARY = JSON.stringify({
@@ -61,10 +62,12 @@ type SetupOptions = {
  */
 const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
+	let capturedEnv: SafeSpawnParams["env"];
 
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
+		capturedEnv = params.env;
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
 			exitCode: 0,
 			summary: VALID_SUMMARY,
@@ -75,6 +78,7 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 
 	return {
 		getArgs: () => capturedArgs,
+		getEnv: () => capturedEnv,
 		hasFlag: (flag: string) => capturedArgs.includes(flag),
 		getOptionValues: (option: string): string[] => {
 			const values: string[] = [];
@@ -159,6 +163,25 @@ describe("backup command", () => {
 			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(getOptionValues("--exclude").length).toBeGreaterThan(0);
+		});
+
+		test("passes RCLONE_CONFIG when backing up to an rclone repository", async () => {
+			const { getEnv } = setup();
+
+			await runBackup(
+				{
+					backend: "rclone",
+					remote: "remote",
+					path: "/repo",
+					isExistingRepository: true,
+					customPassword: "custom-password",
+				},
+				"/mnt/data",
+				{ organizationId: "org-1" },
+				mockDeps,
+			);
+
+			expect(getEnv()?.RCLONE_CONFIG).toBe(mockDeps.rcloneConfigFile);
 		});
 	});
 

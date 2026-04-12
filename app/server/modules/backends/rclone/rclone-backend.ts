@@ -1,6 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
-import { OPERATION_TIMEOUT } from "../../../core/constants";
+import { OPERATION_TIMEOUT, RCLONE_CONFIG_FILE } from "../../../core/constants";
 import { toMessage } from "../../../utils/errors";
 import { logger } from "@zerobyte/core/node";
 import { getMountForPath } from "../../../utils/mountinfo";
@@ -51,7 +51,12 @@ const mount = async (config: BackendConfig, path: string) => {
 		logger.debug(`Mounting rclone volume ${path}...`);
 		logger.info(`Executing rclone: rclone ${args.join(" ")}`);
 
-		const result = await safeExec({ command: "rclone", args, timeout: zbConfig.serverIdleTimeout * 1000 });
+		const result = await safeExec({
+			command: "rclone",
+			args,
+			env: { RCLONE_CONFIG: RCLONE_CONFIG_FILE },
+			timeout: zbConfig.serverIdleTimeout * 1000,
+		});
 
 		if (result.exitCode !== 0) {
 			const errorMsg = result.stderr.toString() || result.stdout.toString() || "Unknown error";

@@ -10,6 +10,7 @@ const mockDeps: ResticDeps = {
 	resticCacheDir: "/tmp/restic-cache",
 	resticPassFile: "/tmp/restic.pass",
 	defaultExcludes: ["/tmp/restic.pass", "/var/lib/zerobyte/repositories"],
+	rcloneConfigFile: "/root/.config/rclone/rclone.conf",
 };
 
 const sourceConfig = {

@@ -131,6 +131,7 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 				cacheDir: "/tmp/cache",
 				passFile: "/tmp/pass",
 				defaultExcludes: [],
+				rcloneConfigFile: "/tmp/rclone.conf",
 			},
 		}),
 	);

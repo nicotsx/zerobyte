@@ -26,6 +26,7 @@ const backupRuntimeSchema = z.object({
 	passFile: z.string(),
 	defaultExcludes: z.array(z.string()),
 	hostname: z.string().optional(),
+	rcloneConfigFile: z.string(),
 });
 
 const backupRunSchema = z.object({

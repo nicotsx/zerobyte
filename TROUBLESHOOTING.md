@@ -283,9 +283,8 @@ If you're experiencing rclone issues, verify all of the following:
 **Diagnosis:**
 
 ```bash
-# Check if config is accessible inside container
-docker exec zerobyte ls -la /root/.config/rclone/
-docker exec zerobyte cat /root/.config/rclone/rclone.conf
+# Check which config file rclone will use inside the container
+docker exec zerobyte sh -lc 'echo HOME=$HOME; rclone config file'
 ```
 
 **Solutions:**
