@@ -311,6 +311,9 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
 	customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
 	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
+	failureRetryCount: int("failure_retry_count").notNull().default(0),
+	maxRetries: int("max_retries").notNull().default(2),
+	retryDelay: int("retry_delay").notNull().default(900000),
 	createdAt: int("created_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),

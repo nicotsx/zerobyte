@@ -2434,6 +2434,8 @@ export type ListBackupSchedulesResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        maxRetries: number;
+        retryDelay: number;
         lastBackupAt: number | null;
         lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
         lastBackupError: string | null;
@@ -2710,6 +2712,8 @@ export type CreateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        maxRetries?: number;
+        retryDelay?: number;
     };
     path?: never;
     query?: never;
@@ -2743,6 +2747,8 @@ export type CreateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        maxRetries: number;
+        retryDelay: number;
         lastBackupAt: number | null;
         lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
         lastBackupError: string | null;
@@ -2810,6 +2816,8 @@ export type GetBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        maxRetries: number;
+        retryDelay: number;
         lastBackupAt: number | null;
         lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
         lastBackupError: string | null;
@@ -3085,6 +3093,8 @@ export type UpdateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        maxRetries?: number;
+        retryDelay?: number;
     };
     path: {
         shortId: string;
@@ -3120,6 +3130,8 @@ export type UpdateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        maxRetries: number;
+        retryDelay: number;
         lastBackupAt: number | null;
         lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
         lastBackupError: string | null;
@@ -3167,6 +3179,8 @@ export type GetBackupScheduleForVolumeResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        maxRetries: number;
+        retryDelay: number;
         lastBackupAt: number | null;
         lastBackupStatus: 'success' | 'error' | 'in_progress' | 'warning' | null;
         lastBackupError: string | null;

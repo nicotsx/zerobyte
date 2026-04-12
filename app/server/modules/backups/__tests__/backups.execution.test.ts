@@ -233,6 +233,59 @@ describe("stop backup", () => {
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 
+	test("should clear failureRetryCount when a scheduled retry is cancelled", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			cronExpression: "0 0 1 1 *",
+			maxRetries: 3,
+			retryDelay: 60 * 1000,
+		});
+
+		resticBackupMock.mockImplementationOnce(() =>
+			Promise.resolve({ exitCode: 1, summary: generateBackupOutput(), error: "retry me" }),
+		);
+
+		await backupsExecutionService.executeBackup(schedule.id);
+
+		const failedSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(failedSchedule.failureRetryCount).toBe(1);
+
+		resticBackupMock.mockImplementationOnce(({ signal }: SafeSpawnParams) => {
+			return new Promise((resolve) => {
+				if (signal?.aborted) {
+					resolve({ exitCode: 1, summary: "", error: "" });
+					return;
+				}
+
+				signal?.addEventListener(
+					"abort",
+					() => {
+						resolve({ exitCode: 1, summary: "", error: "" });
+					},
+					{ once: true },
+				);
+			});
+		});
+
+		const executePromise = backupsExecutionService.executeBackup(schedule.id);
+
+		await waitForExpect(async () => {
+			const retryingSchedule = await backupsService.getScheduleById(schedule.id);
+			expect(retryingSchedule.lastBackupStatus).toBe("in_progress");
+		});
+
+		await backupsExecutionService.stopBackup(schedule.id);
+		await executePromise;
+
+		const cancelledSchedule = await backupsService.getScheduleById(schedule.id);
+		expect(cancelledSchedule.lastBackupStatus).toBe("warning");
+		expect(cancelledSchedule.failureRetryCount).toBe(0);
+	});
+
 	test("should throw ConflictError when trying to stop non-running backup", async () => {
 		// arrange
 		setup();
