@@ -15,10 +15,6 @@ vi.mock("node:child_process", async () => {
 
 const { spawnLocalAgent, stopLocalAgent } = await import("../agents-manager");
 
-const flushMicrotasks = async () => {
-	await Promise.resolve();
-};
-
 type FakeChildProcess = EventEmitter & {
 	stdout: PassThrough;
 	stderr: PassThrough;
@@ -64,8 +60,7 @@ test("respawns the local agent after an unexpected exit", async () => {
 	firstChild.exitCode = 1;
 	firstChild.emit("exit", 1, null);
 
-	vi.advanceTimersByTime(1_000);
-	await flushMicrotasks();
+	await vi.advanceTimersByTimeAsync(1_000);
 
 	expect(spawnMock).toHaveBeenCalledTimes(2);
 });
@@ -79,8 +74,7 @@ test("does not respawn the local agent after an intentional stop", async () => {
 	await spawnLocalAgent();
 	await stopLocalAgent();
 
-	vi.advanceTimersByTime(1_000);
-	await flushMicrotasks();
+	await vi.advanceTimersByTimeAsync(1_000);
 
 	expect(spawnMock).toHaveBeenCalledTimes(1);
 	expect(child.kill).toHaveBeenCalledTimes(1);

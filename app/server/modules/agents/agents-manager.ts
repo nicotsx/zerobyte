@@ -1,9 +1,23 @@
 import type { ChildProcess } from "node:child_process";
-import type { BackupCancelPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { logger } from "@zerobyte/core/node";
+import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
+import type { BackupProgressPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import type { AgentBackupEventHandlers, AgentManagerRuntime } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 
-export type { AgentBackupEventHandlers } from "./controller/server";
+export type BackupExecutionProgress = BackupProgressPayload["progress"];
+export type BackupExecutionResult =
+	| { status: "unavailable"; error: Error }
+	| { status: "completed"; exitCode: number; result: ResticBackupOutputDto | null; warningDetails: string | null }
+	| { status: "failed"; error: string }
+	| { status: "cancelled"; message?: string };
+
+export type AgentRunBackupRequest = {
+	scheduleId: number;
+	payload: BackupRunPayload;
+	signal: AbortSignal;
+	onProgress: (progress: BackupExecutionProgress) => void;
+};
 
 type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime | null;
@@ -37,7 +51,147 @@ const getAgentRuntimeState = () => {
 
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 
-let backupEventHandlers: AgentBackupEventHandlers = {};
+type ActiveBackupRun = {
+	scheduleId: number;
+	jobId: string;
+	scheduleShortId: string;
+	onProgress: (progress: BackupExecutionProgress) => void;
+	resolve: (result: BackupExecutionResult) => void;
+	cancellationRequested: boolean;
+};
+
+const activeBackupsByScheduleId = new Map<number, ActiveBackupRun>();
+const activeBackupScheduleIdsByJobId = new Map<string, number>();
+
+const getUnavailableError = (agentId: string) => {
+	if (agentId === "local") {
+		return new Error("Local backup agent is not connected");
+	}
+
+	return new Error(`Backup agent ${agentId} is not connected`);
+};
+
+const clearActiveBackupRun = (scheduleId: number) => {
+	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
+	if (!activeBackupRun) {
+		return null;
+	}
+
+	activeBackupsByScheduleId.delete(scheduleId);
+	activeBackupScheduleIdsByJobId.delete(activeBackupRun.jobId);
+	return activeBackupRun;
+};
+
+const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResult) => {
+	const activeBackupRun = clearActiveBackupRun(scheduleId);
+	if (!activeBackupRun) {
+		return false;
+	}
+
+	activeBackupRun.resolve(result);
+	return true;
+};
+
+const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
+	const trackedScheduleId = activeBackupScheduleIdsByJobId.get(jobId);
+	if (trackedScheduleId === undefined) {
+		logger.warn(`Received ${eventName} for unknown job ${jobId} from agent ${agentId}`);
+		return null;
+	}
+
+	const activeBackupRun = activeBackupsByScheduleId.get(trackedScheduleId);
+	if (!activeBackupRun) {
+		logger.warn(`Received ${eventName} for inactive job ${jobId} from agent ${agentId}`);
+		return null;
+	}
+
+	if (activeBackupRun.scheduleShortId !== scheduleId) {
+		logger.warn(`Ignoring ${eventName} for job ${jobId} due to schedule mismatch ${scheduleId} from agent ${agentId}`);
+		return null;
+	}
+
+	return activeBackupRun;
+};
+
+const requestBackupCancellation = async (agentId: string, scheduleId: number) => {
+	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
+	if (!activeBackupRun) {
+		return false;
+	}
+
+	if (activeBackupRun.cancellationRequested) {
+		return true;
+	}
+
+	activeBackupRun.cancellationRequested = true;
+
+	const runtime = getAgentManagerRuntime();
+	if (!runtime) {
+		resolveActiveBackupRun(scheduleId, { status: "cancelled" });
+		return true;
+	}
+
+	if (
+		await runtime.cancelBackup(agentId, {
+			jobId: activeBackupRun.jobId,
+			scheduleId: activeBackupRun.scheduleShortId,
+		})
+	) {
+		return true;
+	}
+
+	resolveActiveBackupRun(scheduleId, { status: "cancelled" });
+	return true;
+};
+
+const backupEventHandlers: AgentBackupEventHandlers = {
+	onBackupStarted: ({ agentId, payload }) => {
+		getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.started", agentId);
+	},
+	onBackupProgress: ({ agentId, payload }) => {
+		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.progress", agentId);
+		if (!activeBackupRun) {
+			return;
+		}
+
+		activeBackupRun.onProgress(payload.progress);
+	},
+	onBackupCompleted: ({ agentId, payload }) => {
+		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.completed", agentId);
+		if (!activeBackupRun) {
+			return;
+		}
+
+		resolveActiveBackupRun(activeBackupRun.scheduleId, {
+			status: "completed",
+			exitCode: payload.exitCode,
+			result: payload.result,
+			warningDetails: payload.warningDetails ?? null,
+		});
+	},
+	onBackupFailed: ({ agentId, payload }) => {
+		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.failed", agentId);
+		if (!activeBackupRun) {
+			return;
+		}
+
+		resolveActiveBackupRun(activeBackupRun.scheduleId, {
+			status: "failed",
+			error: payload.errorDetails ?? payload.error,
+		});
+	},
+	onBackupCancelled: ({ agentId, payload }) => {
+		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.cancelled", agentId);
+		if (!activeBackupRun) {
+			return;
+		}
+
+		resolveActiveBackupRun(activeBackupRun.scheduleId, {
+			status: "cancelled",
+			message: activeBackupRun.cancellationRequested ? undefined : payload.message,
+		});
+	},
+};
 
 export const startAgentRuntime = async () => {
 	const runtime = getAgentRuntimeState();
@@ -55,28 +209,52 @@ export const startAgentRuntime = async () => {
 };
 
 export const agentManager = {
-	sendBackup: (agentId: string, payload: BackupRunPayload) => {
+	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
 		const runtime = getAgentManagerRuntime();
 		if (!runtime) {
-			return false;
+			return {
+				status: "unavailable",
+				error: getUnavailableError(agentId),
+			} satisfies BackupExecutionResult;
 		}
 
-		return runtime.sendBackup(agentId, payload);
-	},
-	cancelBackup: (agentId: string, payload: BackupCancelPayload) => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			return false;
+		if (request.signal.aborted) {
+			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		return runtime.cancelBackup(agentId, payload);
+		const completion = new Promise<BackupExecutionResult>((resolve) => {
+			activeBackupsByScheduleId.set(request.scheduleId, {
+				scheduleId: request.scheduleId,
+				jobId: request.payload.jobId,
+				scheduleShortId: request.payload.scheduleId,
+				onProgress: request.onProgress,
+				resolve,
+				cancellationRequested: false,
+			});
+			activeBackupScheduleIdsByJobId.set(request.payload.jobId, request.scheduleId);
+		});
+
+		try {
+			if (!(await runtime.sendBackup(agentId, request.payload))) {
+				clearActiveBackupRun(request.scheduleId);
+				return {
+					status: "unavailable",
+					error: getUnavailableError(agentId),
+				} satisfies BackupExecutionResult;
+			}
+
+			if (request.signal.aborted) {
+				await requestBackupCancellation(agentId, request.scheduleId);
+			}
+
+			return completion;
+		} catch (error) {
+			clearActiveBackupRun(request.scheduleId);
+			throw error;
+		}
 	},
-	setBackupEventHandlers: (handlers: AgentBackupEventHandlers) => {
-		backupEventHandlers = handlers;
-		getAgentManagerRuntime()?.setBackupEventHandlers(handlers);
-	},
-	getBackupEventHandlers: () => {
-		return getAgentManagerRuntime()?.getBackupEventHandlers() ?? backupEventHandlers;
+	cancelBackup: async (agentId: string, scheduleId: number) => {
+		return requestBackupCancellation(agentId, scheduleId);
 	},
 };
 

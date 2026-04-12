@@ -5,9 +5,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { createControllerAgentSession } from "../controller/session";
 
-const createSocket = (
-	overrides: Partial<Parameters<typeof createControllerAgentSession>[0]> = {},
-) => {
+const createSocket = (overrides: Partial<Parameters<typeof createControllerAgentSession>[0]> = {}) => {
 	return fromPartial<Parameters<typeof createControllerAgentSession>[0]>({
 		data: { id: "connection-1", agentId: "local", organizationId: null, agentName: "Local Agent" },
 		send: vi.fn(() => 1),
@@ -16,10 +14,7 @@ const createSocket = (
 	});
 };
 
-const createSession = (
-	handlers: Parameters<typeof createControllerAgentSession>[1] = {},
-	socket = createSocket(),
-) => {
+const createSession = (handlers: Parameters<typeof createControllerAgentSession>[1] = {}, socket = createSocket()) => {
 	const scope = Effect.runSync(Scope.make());
 
 	try {
@@ -28,11 +23,14 @@ const createSession = (
 		return {
 			session,
 			run: () => {
-				Effect.runSync(Scope.extend(Effect.forkScoped(session.run), scope));
+				Effect.runFork(Scope.extend(session.run, scope));
 			},
 			socket,
 			close: () => {
 				Effect.runSync(Scope.close(scope, Exit.succeed(undefined)));
+			},
+			closeAsync: () => {
+				return Effect.runPromise(Scope.close(scope, Exit.succeed(undefined)));
 			},
 		};
 	} catch (error) {
@@ -62,7 +60,8 @@ test("close emits a synthetic backup.cancelled for a started backup", () => {
 	expect(onBackupCancelled).toHaveBeenCalledWith({
 		jobId: "job-1",
 		scheduleId: "schedule-1",
-		message: "The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
+		message:
+			"The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.",
 	});
 });
 
@@ -154,7 +153,8 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 	expect(onBackupCancelled).toHaveBeenCalledWith({
 		jobId: "job-queued",
 		scheduleId: "schedule-queued",
-		message: "The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
+		message:
+			"The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes.",
 	});
 });
 
@@ -162,7 +162,7 @@ test("a dropped backup.cancel closes the session and emits a synthetic backup.ca
 	const send = vi.fn(() => 0);
 	const socket = createSocket({ send, close: vi.fn() });
 	const onBackupCancelled = vi.fn();
-	const { session, run, close: closeSession } = createSession({ onBackupCancelled }, socket);
+	const { session, run, closeAsync } = createSession({ onBackupCancelled }, socket);
 
 	try {
 		run();
@@ -193,6 +193,6 @@ test("a dropped backup.cancel closes the session and emits a synthetic backup.ca
 			});
 		});
 	} finally {
-		closeSession();
+		await closeAsync();
 	}
 });

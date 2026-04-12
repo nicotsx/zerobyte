@@ -28,7 +28,7 @@ const setup = () => {
 	);
 	const resticForgetMock = vi.fn(() => Promise.resolve({ success: true, data: null }));
 	const resticCopyMock = vi.fn(() => Promise.resolve({ success: true, output: "" }));
-	const { sendBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
+	const { runBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
@@ -44,7 +44,7 @@ const setup = () => {
 	vi.spyOn(restic, "forget").mockImplementation(resticForgetMock);
 	vi.spyOn(restic, "copy").mockImplementation(resticCopyMock);
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
-	vi.spyOn(agentManager, "sendBackup").mockImplementation(sendBackupMock);
+	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
@@ -52,7 +52,7 @@ const setup = () => {
 		resticBackupMock,
 		resticForgetMock,
 		resticCopyMock,
-		sendBackupMock,
+		runBackupMock,
 		cancelBackupMock,
 		refreshStatsMock,
 	};
@@ -203,6 +203,27 @@ describe("backup execution - validation failures", () => {
 			errorSpy.mock.calls.some(([message]) => String(message).includes('Failed to parse cron expression ""')),
 		).toBe(false);
 	});
+
+	test("should fail backup when the local agent is unavailable", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		runBackupMock.mockResolvedValueOnce({
+			status: "unavailable",
+			error: new Error("Local backup agent is not connected"),
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("error");
+		expect(updatedSchedule.lastBackupError).toBe("Local backup agent is not connected");
+	});
 });
 
 describe("stop backup", () => {
@@ -263,7 +284,7 @@ describe("stop backup", () => {
 	});
 
 	test("should block forget on the same repository until the active backup completes", async () => {
-		const { resticBackupMock, resticForgetMock, sendBackupMock } = setup();
+		const { resticBackupMock, resticForgetMock, runBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -283,7 +304,7 @@ describe("stop backup", () => {
 		const backupPromise = backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(() => {
-			expect(sendBackupMock).toHaveBeenCalledTimes(1);
+			expect(runBackupMock).toHaveBeenCalledTimes(1);
 		});
 
 		let forgetFinished = false;
@@ -354,6 +375,33 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
 
+	test("should stop a running backup when the cancel command cannot be delivered", async () => {
+		const { resticBackupMock, cancelBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementation(() => new Promise(() => {}));
+		cancelBackupMock.mockResolvedValueOnce(false);
+
+		const executePromise = backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(async () => {
+			const runningSchedule = await getScheduleByIdOrShortId(schedule.id);
+			expect(runningSchedule.lastBackupStatus).toBe("in_progress");
+		});
+
+		await backupsService.stopBackup(schedule.id);
+		await executePromise;
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+	});
+
 	test("should stop a queued backup before it acquires the repository lock", async () => {
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
@@ -405,7 +453,7 @@ describe("stop backup", () => {
 
 		await backupsService.executeBackup(schedule.id);
 
-		const failedSchedule = await backupsService.getScheduleById(schedule.id);
+		const failedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(failedSchedule.failureRetryCount).toBe(1);
 
 		resticBackupMock.mockImplementationOnce(({ signal }: SafeSpawnParams) => {
@@ -428,14 +476,14 @@ describe("stop backup", () => {
 		const executePromise = backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(async () => {
-			const retryingSchedule = await backupsService.getScheduleById(schedule.id);
+			const retryingSchedule = await getScheduleByIdOrShortId(schedule.id);
 			expect(retryingSchedule.lastBackupStatus).toBe("in_progress");
 		});
 
 		await backupsService.stopBackup(schedule.id);
 		await executePromise;
 
-		const cancelledSchedule = await backupsService.getScheduleById(schedule.id);
+		const cancelledSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(cancelledSchedule.lastBackupStatus).toBe("warning");
 		expect(cancelledSchedule.failureRetryCount).toBe(0);
 	});

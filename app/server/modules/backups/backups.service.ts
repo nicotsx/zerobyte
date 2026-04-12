@@ -459,7 +459,7 @@ const stopBackup = async (scheduleId: number) => {
 	}
 
 	try {
-		if (!backupExecutor.cancel(scheduleId)) {
+		if (!(await backupExecutor.cancel(scheduleId))) {
 			throw new ConflictError("No backup is currently running for this schedule");
 		}
 

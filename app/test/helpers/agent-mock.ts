@@ -1,105 +1,95 @@
 import { vi } from "vitest";
-import { fromAny } from "@total-typescript/shoehorn";
-import { agentManager } from "~/server/modules/agents/agents-manager";
+import { fromAny, fromPartial } from "@total-typescript/shoehorn";
+import type { SafeSpawnParams } from "@zerobyte/core/node";
+import type { BackupExecutionResult } from "~/server/modules/agents/agents-manager";
 
 export const createAgentBackupMocks = (
-	resticBackupMock: (params: never) => Promise<{
+	resticBackupMock: (params: SafeSpawnParams) => Promise<{
 		exitCode: number;
 		summary: string;
 		error: string;
 		stderr?: string;
 	}>,
 ) => {
-	const runningJobs = new Map<string, { scheduleId: string; cancelled: boolean }>();
+	const runningBackups = new Map<number, { resolve: (result: BackupExecutionResult) => void; cancelled: boolean }>();
 
-	const sendBackupMock = vi.fn((_agentId: string, payload: { jobId: string; scheduleId: string }) => {
-		const handlers = agentManager.getBackupEventHandlers();
+	const runBackupMock = vi.fn(
+		async (_agentId: string, request: { scheduleId: number; payload: { jobId: string }; signal: AbortSignal }) => {
+			return new Promise<BackupExecutionResult>((resolve) => {
+				runningBackups.set(request.scheduleId, { resolve, cancelled: false });
 
-		runningJobs.set(payload.jobId, { scheduleId: payload.scheduleId, cancelled: false });
+				request.signal.addEventListener(
+					"abort",
+					() => {
+						const running = runningBackups.get(request.scheduleId);
+						if (!running || running.cancelled) {
+							return;
+						}
 
-		handlers.onBackupStarted?.({
-			agentId: "local",
-			agentName: "local",
-			payload: { jobId: payload.jobId, scheduleId: payload.scheduleId },
-		});
-
-		void (async () => {
-			const stderrLines: string[] = [];
-			const result = await resticBackupMock(
-				fromAny({
-					onStderr: (line: string) => {
-						stderrLines.push(line);
+						running.cancelled = true;
+						runningBackups.delete(request.scheduleId);
+						resolve({ status: "cancelled" });
 					},
-				}),
-			);
-			const running = runningJobs.get(payload.jobId);
-			if (!running || running.cancelled) {
-				return;
-			}
+					{ once: true },
+				);
 
-			if (result.exitCode === 0 || result.exitCode === 3) {
-				let parsedResult: Record<string, unknown> | null = null;
-				if (result.summary) {
-					try {
-						parsedResult = JSON.parse(result.summary) as Record<string, unknown>;
-					} catch {
-						parsedResult = null;
+				void (async () => {
+					const stderrLines: string[] = [];
+					const result = await resticBackupMock(
+						fromPartial<SafeSpawnParams>({
+							signal: request.signal,
+							onStderr: (line: string) => {
+								stderrLines.push(line);
+							},
+						}),
+					);
+					const running = runningBackups.get(request.scheduleId);
+					if (!running || running.cancelled) {
+						return;
 					}
-				}
 
-				handlers.onBackupCompleted?.({
-					agentId: "local",
-					agentName: "local",
-					payload: {
-						jobId: payload.jobId,
-						scheduleId: payload.scheduleId,
-						exitCode: result.exitCode,
-						result: fromAny(parsedResult),
-						warningDetails: stderrLines.join("\n") || undefined,
-					},
-				});
-			} else {
-				const resultWithStderr = result as typeof result & { stderr?: string };
-				const errorDetails = stderrLines.join("\n") || resultWithStderr.stderr || result.error;
+					runningBackups.delete(request.scheduleId);
 
-				handlers.onBackupFailed?.({
-					agentId: "local",
-					agentName: "local",
-					payload: {
-						jobId: payload.jobId,
-						scheduleId: payload.scheduleId,
-						error: result.error || `Backup failed with code ${result.exitCode}`,
-						errorDetails,
-					},
-				});
-			}
+					if (result.exitCode === 0 || result.exitCode === 3) {
+						let parsedResult: Record<string, unknown> | null = null;
+						if (result.summary) {
+							try {
+								parsedResult = JSON.parse(result.summary) as Record<string, unknown>;
+							} catch {
+								parsedResult = null;
+							}
+						}
 
-			runningJobs.delete(payload.jobId);
-		})().catch(() => {});
+						resolve({
+							status: "completed",
+							exitCode: result.exitCode,
+							result: fromAny(parsedResult),
+							warningDetails: stderrLines.join("\n") || null,
+						});
+						return;
+					}
 
-		return true;
-	});
+					const resultWithStderr = result as typeof result & { stderr?: string };
+					resolve({
+						status: "failed",
+						error: stderrLines.join("\n") || resultWithStderr.stderr || result.error,
+					});
+				})().catch(() => {});
+			});
+		},
+	);
 
-	const cancelBackupMock = vi.fn((_agentId: string, payload: { jobId: string; scheduleId: string }) => {
-		const running = runningJobs.get(payload.jobId);
+	const cancelBackupMock = vi.fn(async (_agentId: string, scheduleId: number) => {
+		const running = runningBackups.get(scheduleId);
 		if (!running) {
 			return false;
 		}
 
 		running.cancelled = true;
-		const handlers = agentManager.getBackupEventHandlers();
-		handlers.onBackupCancelled?.({
-			agentId: "local",
-			agentName: "local",
-			payload: {
-				jobId: payload.jobId,
-				scheduleId: payload.scheduleId,
-				message: "Backup was stopped by user",
-			},
-		});
-		runningJobs.delete(payload.jobId);
+		runningBackups.delete(scheduleId);
+		running.resolve({ status: "cancelled" });
 		return true;
 	});
 
-	return { sendBackupMock, cancelBackupMock };
+	return { runBackupMock, cancelBackupMock };
 };

@@ -57,6 +57,7 @@ export const createControllerAgentSession = (
 	handlers: ControllerAgentSessionHandlers = {},
 ): Effect.Effect<ControllerAgentSession, never, Scope.Scope> =>
 	Effect.gen(function* () {
+		let isClosed = false;
 		const outboundQueue = yield* Queue.bounded<ControllerWireMessage>(64);
 		const trackedBackupJobs = yield* Ref.make<Map<string, TrackedBackupJob>>(new Map());
 		const state = yield* Ref.make<SessionState>({
@@ -102,10 +103,7 @@ export const createControllerAgentSession = (
 			yield* updateState((current) => ({ ...current, isReady: false }));
 			const trackedJobs = yield* takeTrackedBackupJobs;
 			for (const [jobId, trackedJob] of trackedJobs) {
-				const message =
-					trackedJob.state === "pending"
-						? "The connection to the backup agent was lost before this backup started. Restart the backup to ensure it completes."
-						: "The connection to the backup agent was lost while this backup was running. Restart the backup to ensure it completes.";
+				const message = "The connection to the backup agent was lost. Restart the backup to ensure it completes.";
 
 				yield* Effect.sync(() => {
 					handlers.onBackupCancelled?.({ jobId, scheduleId: trackedJob.scheduleId, message });
@@ -115,36 +113,48 @@ export const createControllerAgentSession = (
 			yield* Queue.shutdown(outboundQueue);
 		});
 
-		yield* Effect.addFinalizer(() => releaseSession);
+		const closeSession = () =>
+			Effect.suspend(() => {
+				if (isClosed) {
+					return Effect.sync(() => undefined);
+				}
+
+				isClosed = true;
+				return releaseSession;
+			});
+
+		yield* Effect.addFinalizer(() => closeSession());
 
 		const handleSendFailure = (reason: string) => {
 			logger.error(
 				`Closing session for agent ${socket.data.agentId} on ${socket.data.id} after an outbound websocket send failed: ${reason}`,
 			);
 
-			try {
-				socket.close();
-			} catch (error) {
-				logger.error(`Failed to close socket for agent ${socket.data.agentId} on ${socket.data.id}: ${toMessage(error)}`);
-			}
+			socket.close();
+
+			void Effect.runPromise(closeSession()).catch((error) => {
+				logger.error(
+					`Failed to close session for agent ${socket.data.agentId} on ${socket.data.id}: ${toMessage(error)}`,
+				);
+			});
 		};
 
 		const run = Effect.gen(function* () {
 			yield* Effect.forkScoped(
 				Effect.forever(
-				Effect.gen(function* () {
-					const message = yield* Queue.take(outboundQueue);
-					yield* Effect.sync(() => {
-						try {
-							const sendResult = socket.send(message);
-							if (sendResult <= 0) {
-								handleSendFailure(sendResult === 0 ? "connection issue" : "backpressure");
+					Effect.gen(function* () {
+						const message = yield* Queue.take(outboundQueue);
+						yield* Effect.sync(() => {
+							try {
+								const sendResult = socket.send(message);
+								if (sendResult <= 0) {
+									handleSendFailure(sendResult === 0 ? "connection issue" : "backpressure");
+								}
+							} catch (error) {
+								handleSendFailure(toMessage(error));
 							}
-						} catch (error) {
-							handleSendFailure(toMessage(error));
-						}
-					});
-				}),
+						});
+					}),
 				),
 			);
 

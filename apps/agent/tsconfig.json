@@ -2,12 +2,12 @@
 	"compilerOptions": {
 		"plugins": [{ "name": "@effect/language-service" }],
 		// Environment setup & latest features
-		"lib": ["DOM", "ESNext"],
+		"lib": ["ESNext"],
 		"target": "ESNext",
 		"module": "Preserve",
 		"moduleDetection": "force",
 		"jsx": "react-jsx",
-		"types": ["node", "bun"],
+		"types": ["bun", "node"],
 		"allowJs": true,
 
 		// Bundler mode

@@ -8,6 +8,7 @@ import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
 import * as spawnModule from "@zerobyte/core/node";
+import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { db } from "~/server/db/db";
 import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
@@ -18,8 +19,8 @@ import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 
 const setup = () => {
-	const resticBackupMock = vi.fn((_: unknown) => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
-	const { sendBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
+	const resticBackupMock = vi.fn((_: SafeSpawnParams) => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	const { runBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
@@ -32,13 +33,13 @@ const setup = () => {
 	);
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
-	vi.spyOn(agentManager, "sendBackup").mockImplementation(sendBackupMock);
+	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
-		sendBackupMock,
+		runBackupMock,
 		cancelBackupMock,
 		refreshStatsMock,
 	};

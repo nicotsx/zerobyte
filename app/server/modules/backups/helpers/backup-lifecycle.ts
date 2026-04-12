@@ -10,7 +10,7 @@ import { getOrganizationId } from "~/server/core/request-context";
 import type { BackupProgressEventDto } from "~/schemas/events-dto";
 import { calculateNextRun } from "../backup.helpers";
 import { scheduleQueries } from "../backups.queries";
-import type { BackupExecutionProgress } from "../backup-executor";
+import type { BackupExecutionProgress } from "../../agents/agents-manager";
 import { repositoriesService } from "../../repositories/repositories.service";
 import { copyToMirrors, runForget } from "./backup-maintenance";
 
