@@ -1,10 +1,13 @@
+import { Effect } from "effect";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
-import { resticDeps } from "../../core/restic";
+import { config } from "../../core/config";
+import { restic, resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { getVolumePath } from "../volumes/helpers";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
+import { toErrorDetails } from "../../utils/errors";
 
 const LOCAL_AGENT_ID = "local";
 
@@ -56,6 +59,47 @@ const createBackupRunPayload = async ({
 	};
 };
 
+const executeBackupWithoutAgent = async (
+	payload: BackupRunPayload,
+	{ signal, onProgress }: Pick<BackupExecutionRequest, "signal" | "onProgress">,
+) => {
+	try {
+		const execution = await Effect.runPromise(
+			restic
+				.backup(payload.repositoryConfig, payload.sourcePath, {
+					...payload.options,
+					organizationId: payload.organizationId,
+					signal,
+					onProgress,
+				})
+				.pipe(
+					Effect.map((result) => ({ success: true as const, result })),
+					Effect.catchAll((error) => Effect.succeed({ success: false as const, error })),
+				),
+		);
+
+		if (!execution.success) {
+			return {
+				status: "failed" as const,
+				error: toErrorDetails(execution.error),
+			};
+		}
+
+		const { exitCode, result, warningDetails } = execution.result;
+		return {
+			status: "completed" as const,
+			exitCode,
+			result,
+			warningDetails,
+		};
+	} catch (error) {
+		return {
+			status: "failed" as const,
+			error: toErrorDetails(error),
+		};
+	}
+};
+
 export const backupExecutor = {
 	track: (scheduleId: number) => {
 		const abortController = new AbortController();
@@ -73,10 +117,11 @@ export const backupExecutor = {
 			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
 		}
 
-		const jobId = Bun.randomUUIDv7();
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
+
+		const jobId = Bun.randomUUIDv7();
 
 		const payload = await createBackupRunPayload({ ...request, jobId });
 
@@ -84,12 +129,18 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		return agentManager.runBackup(LOCAL_AGENT_ID, {
+		const executionResult = await agentManager.runBackup(LOCAL_AGENT_ID, {
 			scheduleId: request.scheduleId,
 			payload,
 			signal: request.signal,
 			onProgress: request.onProgress,
 		});
+
+		if (executionResult.status === "unavailable" && !config.flags.enableLocalAgent) {
+			return executeBackupWithoutAgent(payload, request);
+		}
+
+		return executionResult;
 	},
 	cancel: async (scheduleId: number) => {
 		const abortController = activeControllersByScheduleId.get(scheduleId);
