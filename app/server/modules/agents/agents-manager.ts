@@ -1,16 +1,15 @@
-import type { ChildProcess } from "node:child_process";
 import { logger } from "@zerobyte/core/node";
-import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
-import type { BackupProgressPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import type { AgentBackupEventHandlers, AgentManagerRuntime } from "./controller/server";
+import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { config } from "../../core/config";
+import type { AgentBackupEventHandlers } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
+import type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
+import { createAgentRuntimeState } from "./helpers/runtime-state";
+import { getDevAgentRuntimeState } from "./helpers/runtime-state.dev";
+export type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
+export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
 
-export type BackupExecutionProgress = BackupProgressPayload["progress"];
-export type BackupExecutionResult =
-	| { status: "unavailable"; error: Error }
-	| { status: "completed"; exitCode: number; result: ResticBackupOutputDto | null; warningDetails: string | null }
-	| { status: "failed"; error: string }
-	| { status: "cancelled"; message?: string };
+const productionRuntimeState = createAgentRuntimeState();
 
 export type AgentRunBackupRequest = {
 	scheduleId: number;
@@ -19,70 +18,10 @@ export type AgentRunBackupRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-type ActiveBackupRun = {
-	scheduleId: number;
-	jobId: string;
-	scheduleShortId: string;
-	onProgress: (progress: BackupExecutionProgress) => void;
-	resolve: (result: BackupExecutionResult) => void;
-	cancellationRequested: boolean;
-};
-
-type AgentRuntimeState = {
-	agentManager: AgentManagerRuntime | null;
-	localAgent: ChildProcess | null;
-	isStoppingLocalAgent: boolean;
-	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
-	activeBackupsByScheduleId: Map<number, ActiveBackupRun>;
-	activeBackupScheduleIdsByJobId: Map<string, number>;
-};
-
-type LegacyAgentRuntimeState = Omit<AgentRuntimeState, "activeBackupsByScheduleId" | "activeBackupScheduleIdsByJobId"> &
-	Partial<Pick<AgentRuntimeState, "activeBackupsByScheduleId" | "activeBackupScheduleIdsByJobId">>;
-
-export type ProcessWithAgentRuntime = NodeJS.Process & {
-	__zerobyteAgentRuntime?: LegacyAgentRuntimeState;
-};
-
-const getAgentRuntimeState = () => {
-	const runtimeProcess = process as ProcessWithAgentRuntime;
-	const existingRuntime = runtimeProcess.__zerobyteAgentRuntime;
-
-	if (existingRuntime) {
-		const runtime: AgentRuntimeState = {
-			...existingRuntime,
-			activeBackupsByScheduleId: existingRuntime.activeBackupsByScheduleId ?? new Map<number, ActiveBackupRun>(),
-			activeBackupScheduleIdsByJobId: existingRuntime.activeBackupScheduleIdsByJobId ?? new Map<string, number>(),
-		};
-
-		runtimeProcess.__zerobyteAgentRuntime = runtime;
-		return runtime;
-	}
-
-	const runtime: AgentRuntimeState = {
-		agentManager: null,
-		localAgent: null,
-		isStoppingLocalAgent: false,
-		localAgentRestartTimeout: null,
-		activeBackupsByScheduleId: new Map(),
-		activeBackupScheduleIdsByJobId: new Map(),
-	};
-
-	runtimeProcess.__zerobyteAgentRuntime = runtime;
-	return runtime;
-};
-
+const getAgentRuntimeState = () => (config.__prod__ ? productionRuntimeState : getDevAgentRuntimeState());
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
-
-const getUnavailableError = (agentId: string) => {
-	if (agentId === "local") {
-		return new Error("Local backup agent is not connected");
-	}
-
-	return new Error(`Backup agent ${agentId} is not connected`);
-};
 
 const clearActiveBackupRun = (scheduleId: number) => {
 	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
@@ -229,7 +168,7 @@ export const agentManager = {
 		if (!runtime) {
 			return {
 				status: "unavailable",
-				error: getUnavailableError(agentId),
+				error: new Error(`Backup agent ${agentId} is not connected`),
 			} satisfies BackupExecutionResult;
 		}
 
@@ -254,7 +193,7 @@ export const agentManager = {
 				clearActiveBackupRun(request.scheduleId);
 				return {
 					status: "unavailable",
-					error: getUnavailableError(agentId),
+					error: new Error(`Failed to send backup command to agent ${agentId}`),
 				} satisfies BackupExecutionResult;
 			}
 
