@@ -8,15 +8,19 @@ import { createTestRepository } from "~/test/helpers/repository";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { faker } from "@faker-js/faker";
 import * as spawnModule from "@zerobyte/core/node";
+import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { db } from "~/server/db/db";
 import { backupScheduleMirrorsTable, repositoriesTable, volumesTable } from "~/server/db/schema";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
-import { backupsExecutionService } from "../backups.execution";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
+import { agentManager } from "~/server/modules/agents/agents-manager";
+import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
+import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 
 const setup = () => {
-	const resticBackupMock = vi.fn(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	const resticBackupMock = vi.fn((_: SafeSpawnParams) => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	const { runBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
@@ -29,10 +33,14 @@ const setup = () => {
 	);
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
+	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
+	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
+		runBackupMock,
+		cancelBackupMock,
 		refreshStatsMock,
 	};
 };
@@ -59,10 +67,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.nextBackupAt).not.toBeNull();
 
 		const nextBackupAt = new Date(updatedSchedule.nextBackupAt ?? 0);
@@ -84,7 +92,7 @@ describe("execute backup", () => {
 		});
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).not.toHaveBeenCalled();
@@ -106,11 +114,11 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, true);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalled();
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("success");
 		expect(updatedSchedule.lastBackupAt).not.toBeNull();
 	});
@@ -132,10 +140,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id, true);
+		await backupsService.executeBackup(schedule.id, true);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.nextBackupAt).toBeNull();
 	});
 
@@ -155,13 +163,13 @@ describe("execute backup", () => {
 		});
 
 		// act
-		void backupsExecutionService.executeBackup(schedule.id);
+		void backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(() => {
 			expect(resticBackupMock).toHaveBeenCalledTimes(1);
 		});
 
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalledTimes(1);
@@ -182,10 +190,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 	});
 
@@ -204,10 +212,10 @@ describe("execute backup", () => {
 		);
 
 		// act
-		await backupsExecutionService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await backupsService.getScheduleById(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 	});
 });
@@ -229,7 +237,7 @@ describe("getSchedulesToExecute", () => {
 		});
 
 		// act
-		const schedulesToExecute = await backupsExecutionService.getSchedulesToExecute();
+		const schedulesToExecute = await backupsService.getSchedulesToExecute();
 
 		// assert
 		expect(schedulesToExecute).toContain(schedule.id);
@@ -246,7 +254,7 @@ describe("getScheduleByIdOrShortId", () => {
 			repositoryId: repository.id,
 		});
 
-		const found = await backupsService.getScheduleByIdOrShortId(String(schedule.id));
+		const found = await getScheduleByIdOrShortId(String(schedule.id));
 
 		expect(found.id).toBe(schedule.id);
 		expect(found.shortId).toBe(schedule.shortId);
@@ -261,7 +269,7 @@ describe("getScheduleByIdOrShortId", () => {
 			repositoryId: repository.id,
 		});
 
-		const found = await backupsService.getScheduleByIdOrShortId(schedule.shortId);
+		const found = await getScheduleByIdOrShortId(schedule.shortId);
 
 		expect(found.id).toBe(schedule.id);
 		expect(found.shortId).toBe(schedule.shortId);
@@ -274,10 +282,8 @@ describe("getScheduleByIdOrShortId", () => {
 			organizationId: otherOrgId,
 		});
 
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow(
-			"Backup schedule not found",
-		);
-		await expect(backupsService.getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
+		await expect(getScheduleByIdOrShortId(schedule.shortId)).rejects.toThrow("Backup schedule not found");
+		await expect(getScheduleByIdOrShortId(schedule.id)).rejects.toThrow("Backup schedule not found");
 	});
 });
 

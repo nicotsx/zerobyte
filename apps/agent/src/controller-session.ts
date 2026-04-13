@@ -17,6 +17,7 @@ export type ControllerSession = {
 };
 
 export const createControllerSession = (ws: WebSocket): ControllerSession => {
+	let isClosed = false;
 	const outboundQueue = Effect.runSync(Queue.bounded<AgentWireMessage>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
@@ -63,6 +64,31 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 		offerOutbound,
 	};
 
+	const closeSession = () => {
+		if (isClosed) {
+			return;
+		}
+
+		isClosed = true;
+		void Effect.runPromise(abortRunningJobs).catch(() => {});
+		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
+		void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
+		void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
+		void Effect.runPromise(Queue.shutdown(inboundQueue)).catch(() => {});
+	};
+
+	const handleSendFailure = (reason: string) => {
+		logger.error(`Closing agent session after an outbound websocket send failed: ${reason}`);
+
+		try {
+			ws.close();
+		} catch (error) {
+			logger.error(`Failed to close controller websocket after send failure: ${toMessage(error)}`);
+		}
+
+		closeSession();
+	};
+
 	const writerFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
@@ -71,7 +97,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					try {
 						ws.send(message);
 					} catch (error) {
-						logger.error(`Failed to send controller message: ${toMessage(error)}`);
+						handleSendFailure(toMessage(error));
 					}
 				});
 			}),
@@ -106,16 +132,15 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 			});
 		},
 		onMessage: (data) => {
+			if (typeof data !== "string") {
+				logger.warn("Agent received a non-text message");
+				return;
+			}
+
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {
 				logger.error(`Failed to queue inbound message: ${toMessage(error)}`);
 			});
 		},
-		close: () => {
-			void Effect.runPromise(abortRunningJobs).catch(() => {});
-			void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
-			void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
-			void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
-			void Effect.runPromise(Queue.shutdown(inboundQueue)).catch(() => {});
-		},
+		close: closeSession,
 	};
 };
