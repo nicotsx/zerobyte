@@ -4,7 +4,19 @@ import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } f
 import { systemService } from "../system.service";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { db } from "~/server/db/db";
-import { appMetadataTable, organization, sessionsTable, usersTable } from "~/server/db/schema";
+import {
+	appMetadataTable,
+	backupScheduleMirrorsTable,
+	backupScheduleNotificationsTable,
+	backupSchedulesTable,
+	notificationDestinationsTable,
+	organization,
+	repositoriesTable,
+	sessionsTable,
+	usersTable,
+	volumesTable,
+} from "~/server/db/schema";
+import { generateShortId } from "~/server/utils/id";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { config } from "~/server/core/config";
@@ -91,6 +103,8 @@ describe("system security", () => {
 			{ method: "GET", path: "/api/v1/system/password-login-status" },
 			{ method: "PUT", path: "/api/v1/system/password-login-status" },
 			{ method: "POST", path: "/api/v1/system/restic-password" },
+			{ method: "POST", path: "/api/v1/system/config-export" },
+			{ method: "POST", path: "/api/v1/system/config-import" },
 			{ method: "GET", path: "/api/v1/system/dev-panel" },
 		];
 
@@ -355,6 +369,230 @@ describe("system security", () => {
 			expect(res.status).toBe(401);
 			const body = await res.json();
 			expect(body.message).toBe("Invalid password");
+		});
+
+		test("should return 400 for invalid payload on config-import", async () => {
+			const { headers } = await createTestSession();
+			const res = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ encryptedConfig: "" }),
+			});
+
+			expect(res.status).toBe(400);
+		});
+	});
+
+	describe("configuration transfer", () => {
+		test("should export and import encrypted organization configuration", async () => {
+			const sourceSession = await createTestSession();
+
+			const [sourceVolume] = await db
+				.insert(volumesTable)
+				.values({
+					shortId: generateShortId(),
+					name: "Source Volume",
+					type: "directory",
+					config: { backend: "directory", path: "/tmp/source-volume" },
+					status: "mounted",
+					autoRemount: true,
+					organizationId: sourceSession.organizationId,
+				})
+				.returning();
+
+			const [sourceRepository] = await db
+				.insert(repositoriesTable)
+				.values({
+					id: crypto.randomUUID(),
+					shortId: generateShortId(),
+					name: "Source Repository",
+					type: "local",
+					config: { backend: "local", path: "/tmp/source-repository" },
+					status: "healthy",
+					organizationId: sourceSession.organizationId,
+				})
+				.returning();
+
+			const [mirrorRepository] = await db
+				.insert(repositoriesTable)
+				.values({
+					id: crypto.randomUUID(),
+					shortId: generateShortId(),
+					name: "Mirror Repository",
+					type: "local",
+					config: { backend: "local", path: "/tmp/mirror-repository" },
+					status: "healthy",
+					organizationId: sourceSession.organizationId,
+				})
+				.returning();
+
+			const [sourceSchedule] = await db
+				.insert(backupSchedulesTable)
+				.values({
+					shortId: generateShortId(),
+					name: "Source Schedule",
+					volumeId: sourceVolume.id,
+					repositoryId: sourceRepository.id,
+					enabled: true,
+					cronExpression: "0 * * * *",
+					nextBackupAt: Date.now() + 60_000,
+					oneFileSystem: false,
+					organizationId: sourceSession.organizationId,
+				})
+				.returning();
+
+			const [sourceDestination] = await db
+				.insert(notificationDestinationsTable)
+				.values({
+					name: "Source Notification",
+					enabled: true,
+					type: "generic",
+					config: {
+						type: "generic",
+						url: "https://example.com/webhook",
+						method: "POST",
+					},
+					organizationId: sourceSession.organizationId,
+				})
+				.returning();
+
+			await db.insert(backupScheduleMirrorsTable).values({
+				scheduleId: sourceSchedule.id,
+				repositoryId: mirrorRepository.id,
+				enabled: true,
+			});
+
+			await db.insert(backupScheduleNotificationsTable).values({
+				scheduleId: sourceSchedule.id,
+				destinationId: sourceDestination.id,
+				notifyOnStart: true,
+				notifyOnSuccess: true,
+				notifyOnWarning: true,
+				notifyOnFailure: true,
+			});
+
+			const exportRes = await app.request("/api/v1/system/config-export", {
+				method: "POST",
+				headers: sourceSession.headers,
+			});
+
+			expect(exportRes.status).toBe(200);
+			const encryptedConfig = await exportRes.text();
+			expect(encryptedConfig.startsWith("zbcfgv1:")).toBe(true);
+
+			await db
+				.delete(backupScheduleNotificationsTable)
+				.where(eq(backupScheduleNotificationsTable.scheduleId, sourceSchedule.id));
+			await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, sourceSchedule.id));
+			await db
+				.delete(backupSchedulesTable)
+				.where(eq(backupSchedulesTable.organizationId, sourceSession.organizationId));
+			await db
+				.delete(notificationDestinationsTable)
+				.where(eq(notificationDestinationsTable.organizationId, sourceSession.organizationId));
+			await db.delete(volumesTable).where(eq(volumesTable.organizationId, sourceSession.organizationId));
+			await db.delete(repositoriesTable).where(eq(repositoriesTable.organizationId, sourceSession.organizationId));
+
+			const targetSession = await createTestSession();
+			const importRes = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...targetSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					encryptedConfig,
+					resticPassword: "test-restic-password",
+				}),
+			});
+			expect(importRes.status).toBe(200);
+
+			const importedRepositories = await db.query.repositoriesTable.findMany({
+				where: { organizationId: targetSession.organizationId },
+			});
+			const importedVolumes = await db.query.volumesTable.findMany({
+				where: { organizationId: targetSession.organizationId },
+			});
+			const importedSchedules = await db.query.backupSchedulesTable.findMany({
+				where: { organizationId: targetSession.organizationId },
+			});
+			const importedDestinations = await db.query.notificationDestinationsTable.findMany({
+				where: { organizationId: targetSession.organizationId },
+			});
+
+			expect(importedRepositories).toHaveLength(2);
+			expect(importedVolumes).toHaveLength(1);
+			expect(importedSchedules).toHaveLength(1);
+			expect(importedDestinations).toHaveLength(1);
+
+			const importedMirrors = await db.query.backupScheduleMirrorsTable.findMany({
+				where: { scheduleId: importedSchedules[0].id },
+			});
+			const importedScheduleNotifications = await db.query.backupScheduleNotificationsTable.findMany({
+				where: { scheduleId: importedSchedules[0].id },
+			});
+
+			expect(importedMirrors).toHaveLength(1);
+			expect(importedScheduleNotifications).toHaveLength(1);
+
+			const targetOrg = await db.query.organization.findFirst({ where: { id: targetSession.organizationId } });
+			expect(targetOrg?.metadata?.resticPassword).toBe("test-restic-password");
+
+			const targetUser = await db.query.usersTable.findFirst({ where: { id: targetSession.user.id } });
+			expect(targetUser?.hasDownloadedResticPassword).toBe(true);
+		});
+
+		test("should return 409 when importing after onboarding", async () => {
+			const { headers, user } = await createTestSession();
+
+			await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, user.id));
+
+			const res = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					encryptedConfig: "zbcfgv1:invalid",
+					resticPassword: "test-restic-password",
+				}),
+			});
+
+			expect(res.status).toBe(409);
+			const body = await res.json();
+			expect(body.message).toBe("Configuration import is only available during onboarding");
+		});
+
+		test("should return 400 for invalid restic password on config-import", async () => {
+			const sourceSession = await createTestSession();
+			const exportRes = await app.request("/api/v1/system/config-export", {
+				method: "POST",
+				headers: sourceSession.headers,
+			});
+
+			expect(exportRes.status).toBe(200);
+			const encryptedConfig = await exportRes.text();
+
+			const targetSession = await createTestSession();
+			const importRes = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...targetSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					encryptedConfig,
+					resticPassword: "wrong-password",
+				}),
+			});
+
+			expect(importRes.status).toBe(400);
+			const body = await importRes.json();
+			expect(body.message).toBe("Invalid export file or Restic password");
 		});
 	});
 });
