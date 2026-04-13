@@ -84,7 +84,58 @@ export const downloadResticPasswordDto = describeRoute({
 	},
 });
 
-const registrationStatusResponse = z.object({
+export const exportConfigDto = describeRoute({
+	description: "Export encrypted organization configuration using the organization's Restic password",
+	tags: ["System"],
+	operationId: "exportConfig",
+	responses: {
+		200: {
+			description: "Encrypted configuration export",
+			content: {
+				"text/plain": {
+					schema: { type: "string" },
+				},
+			},
+		},
+	},
+});
+
+export const importConfigBodySchema = z.object({
+	encryptedConfig: z.string().min(1),
+	resticPassword: z.string().min(1),
+});
+
+export const importConfigResponse = z.object({
+	message: z.string(),
+	imported: z.object({
+		repositories: z.number(),
+		volumes: z.number(),
+		backupSchedules: z.number(),
+		notificationDestinations: z.number(),
+		backupScheduleMirrors: z.number(),
+		backupScheduleNotifications: z.number(),
+	}),
+});
+
+export type ImportConfigResponseDto = z.infer<typeof importConfigResponse>;
+
+export const importConfigDto = describeRoute({
+	description: "Import an encrypted organization configuration during onboarding",
+	tags: ["System"],
+	operationId: "importConfig",
+	responses: {
+		200: {
+			description: "Configuration imported successfully",
+			content: {
+				"application/json": {
+					schema: resolver(importConfigResponse),
+				},
+			},
+		},
+	},
+});
+
+export const registrationStatusResponse = z.object({
 	enabled: z.boolean(),
 });
 

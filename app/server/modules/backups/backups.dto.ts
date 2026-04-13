@@ -43,14 +43,19 @@ const backupScheduleSchema = z.object({
 	repository: repositorySchema,
 });
 
-const scheduleMirrorSchema = z.object({
+export const scheduleMirrorStatusSchema = z.enum(["success", "error", "in_progress"]);
+
+export const scheduleMirrorAssignmentSchema = z.object({
 	scheduleId: z.string(),
 	repositoryId: z.string(),
 	enabled: z.boolean(),
 	lastCopyAt: z.number().nullable(),
-	lastCopyStatus: z.enum(["success", "error", "in_progress"]).nullable(),
+	lastCopyStatus: scheduleMirrorStatusSchema.nullable(),
 	lastCopyError: z.string().nullable(),
 	createdAt: z.number(),
+});
+
+const scheduleMirrorSchema = scheduleMirrorAssignmentSchema.extend({
 	repository: repositorySchema,
 });
 

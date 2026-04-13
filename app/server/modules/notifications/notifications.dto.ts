@@ -2,7 +2,7 @@ import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { NOTIFICATION_TYPES, notificationConfigSchema } from "~/schemas/notifications";
 
-const notificationDestinationSchema = z.object({
+export const notificationDestinationSchema = z.object({
 	id: z.number(),
 	name: z.string(),
 	enabled: z.boolean(),
@@ -162,7 +162,7 @@ export const testDestinationDto = describeRoute({
 	},
 });
 
-const scheduleNotificationAssignmentSchema = z.object({
+export const scheduleNotificationAssignmentSchema = z.object({
 	scheduleId: z.number(),
 	destinationId: z.number(),
 	notifyOnStart: z.boolean(),

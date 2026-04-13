@@ -21,62 +21,81 @@ export const transformOptionalSecret = async (
 	return await transformSecret(value);
 };
 
+type EncryptionOptions = {
+	prefix: string;
+	secret: string;
+};
+
+type DecryptionOptions = EncryptionOptions & {
+	passthroughIfNotEncrypted?: boolean;
+};
+
+const deriveEncryptionKey = (secret: string, salt: Buffer) => {
+	return crypto.pbkdf2Sync(secret, salt, 100000, keyLength, "sha256");
+};
+
+const isEncryptedWithPrefix = (value: string | undefined, prefix: string): boolean => {
+	return typeof value === "string" && value.startsWith(prefix);
+};
+
 /**
  * Checks if a given string is encrypted by looking for the encryption prefix.
  */
 const isEncrypted = (val?: string): boolean => {
-	return typeof val === "string" && val.startsWith(encryptionPrefix);
+	return isEncryptedWithPrefix(val, encryptionPrefix);
 };
 
-/**
- * Given a string, encrypts it using a randomly generated salt and the APP_SECRET.
- * Returns the input unchanged if it's empty or already encrypted.
- */
-const encrypt = async (data: string) => {
+const encryptWithSecret = async (data: string, { prefix, secret }: EncryptionOptions) => {
 	if (!data) {
 		return data;
 	}
 
-	if (isEncrypted(data)) {
+	if (isEncryptedWithPrefix(data, prefix)) {
 		try {
-			await decrypt(data);
+			await decryptWithSecret(data, { prefix, secret });
 			return data;
 		} catch {
 			throw new Error(
-				"You have provided an encrypted value that cannot be decrypted with the current APP_SECRET. Please use a plain text value.",
+				prefix === encryptionPrefix
+					? "You have provided an encrypted value that cannot be decrypted with the current APP_SECRET. Please use a plain text value."
+					: "You have provided an encrypted value that cannot be decrypted with the current secret. Please use a plain text value.",
 			);
 		}
 	}
 
 	const salt = crypto.randomBytes(16);
-	const key = crypto.pbkdf2Sync(config.appSecret, salt, 100000, keyLength, "sha256");
 	const iv = crypto.randomBytes(12);
-
+	const key = deriveEncryptionKey(secret, salt);
 	const cipher = crypto.createCipheriv(algorithm, key, iv);
 	const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
-
 	const tag = cipher.getAuthTag();
-	return `${encryptionPrefix}${salt.toString("hex")}:${iv.toString("hex")}:${encrypted.toString("hex")}:${tag.toString("hex")}`;
+
+	return `${prefix}${salt.toString("hex")}:${iv.toString("hex")}:${encrypted.toString("hex")}:${tag.toString("hex")}`;
 };
 
-/**
- * Given an encrypted string, decrypts it using the salt stored in the string and the APP_SECRET.
- * Returns the input unchanged if it's not encrypted (for backward compatibility).
- */
-const decrypt = async (encryptedData: string) => {
-	if (!isEncrypted(encryptedData)) {
-		return encryptedData;
+const decryptWithSecret = async (
+	encryptedData: string,
+	{ passthroughIfNotEncrypted = false, prefix, secret }: DecryptionOptions,
+) => {
+	if (!isEncryptedWithPrefix(encryptedData, prefix)) {
+		if (passthroughIfNotEncrypted) {
+			return encryptedData;
+		}
+
+		throw new Error("Invalid encrypted payload");
 	}
 
-	const parts = encryptedData.split(":").slice(1); // Remove prefix
-	const saltHex = parts.shift() as string;
+	const parts = encryptedData.slice(prefix.length).split(":");
+	if (parts.length !== 4) {
+		throw new Error("Invalid encrypted payload");
+	}
+
+	const [saltHex, ivHex, encryptedHex, tagHex] = parts;
 	const salt = Buffer.from(saltHex, "hex");
-
-	const key = crypto.pbkdf2Sync(config.appSecret, salt, 100000, keyLength, "sha256");
-
-	const iv = Buffer.from(parts.shift() as string, "hex");
-	const encrypted = Buffer.from(parts.shift() as string, "hex");
-	const tag = Buffer.from(parts.shift() as string, "hex");
+	const iv = Buffer.from(ivHex, "hex");
+	const encrypted = Buffer.from(encryptedHex, "hex");
+	const tag = Buffer.from(tagHex, "hex");
+	const key = deriveEncryptionKey(secret, salt);
 	const decipher = crypto.createDecipheriv(algorithm, key, iv);
 
 	decipher.setAuthTag(tag);
@@ -85,6 +104,29 @@ const decrypt = async (encryptedData: string) => {
 	decrypted = Buffer.concat([decrypted, decipher.final()]);
 
 	return decrypted.toString();
+};
+
+/**
+ * Given a string, encrypts it using a randomly generated salt and the APP_SECRET.
+ * Returns the input unchanged if it's empty or already encrypted.
+ */
+const encrypt = async (data: string) => {
+	return encryptWithSecret(data, {
+		prefix: encryptionPrefix,
+		secret: config.appSecret,
+	});
+};
+
+/**
+ * Given an encrypted string, decrypts it using the salt stored in the string and the APP_SECRET.
+ * Returns the input unchanged if it's not encrypted (for backward compatibility).
+ */
+const decrypt = async (encryptedData: string) => {
+	return decryptWithSecret(encryptedData, {
+		passthroughIfNotEncrypted: true,
+		prefix: encryptionPrefix,
+		secret: config.appSecret,
+	});
 };
 
 /**
@@ -130,6 +172,8 @@ function timingSafeEqualString(provided: string, expected: string): boolean {
 }
 
 export const cryptoUtils = {
+	decryptWithSecret,
+	encryptWithSecret,
 	resolveSecret,
 	sealSecret,
 	sealOptionalSecret,

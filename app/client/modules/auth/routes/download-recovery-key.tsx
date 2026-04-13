@@ -1,19 +1,20 @@
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, Download } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { AlertTriangle, Download, Upload } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { downloadResticPasswordMutation, importConfigMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
-import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadFile } from "~/client/lib/download";
 import { parseError } from "~/client/lib/errors";
 import {
 	RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_MAX_AGE,
 	RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME,
 } from "~/lib/recovery-key-skip";
-import { useNavigate } from "@tanstack/react-router";
 
 const RECOVERY_KEY_PASSWORD_REQUIRED_MESSAGE =
 	"Downloading the recovery key requires a local password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
@@ -28,19 +29,17 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 	const navigate = useNavigate();
 	const [password, setPassword] = useState("");
 	const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
+	const [importFile, setImportFile] = useState<File | null>(null);
+	const [importResticPassword, setImportResticPassword] = useState("");
 
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
 		onSuccess: (data) => {
-			const blob = new Blob([data], { type: "text/plain" });
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "restic.pass";
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+			downloadFile({
+				content: data,
+				contentType: "text/plain",
+				fileName: "restic.pass",
+			});
 
 			toast.success("Recovery key downloaded successfully!");
 			setBlockedMessage(null);
@@ -50,6 +49,17 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 			const message = parseError(error)?.message;
 			setBlockedMessage(message?.includes("local password") ? message : null);
 			toast.error("Failed to download recovery key", { description: message });
+		},
+	});
+
+	const importConfig = useMutation({
+		...importConfigMutation(),
+		onSuccess: () => {
+			toast.success("Configuration imported successfully!");
+			void navigate({ to: "/volumes", replace: true });
+		},
+		onError: (error) => {
+			toast.error("Failed to import configuration", { description: error.message });
 		},
 	});
 
@@ -72,6 +82,29 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 
 		document.cookie = `${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME}=${userId}; path=/; max-age=${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_MAX_AGE}`;
 		void navigate({ to: "/volumes", replace: true });
+	};
+
+	const handleImportSubmit = async (e: React.SubmitEvent) => {
+		e.preventDefault();
+
+		if (!importFile) {
+			toast.error("Export file is required");
+			return;
+		}
+
+		if (!importResticPassword) {
+			toast.error("Restic password is required");
+			return;
+		}
+
+		const encryptedConfig = await importFile.text();
+
+		importConfig.mutate({
+			body: {
+				encryptedConfig,
+				resticPassword: importResticPassword,
+			},
+		});
 	};
 
 	return (
@@ -111,9 +144,7 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 							required
 							disabled={downloadResticPassword.isPending}
 						/>
-						<p className="text-xs text-muted-foreground">
-							Enter your account password to download the recovery key
-						</p>
+						<p className="text-xs text-muted-foreground">Enter your account password to download the recovery key</p>
 					</div>
 				)}
 
@@ -132,6 +163,50 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 						className="w-full"
 					>
 						Skip
+					</Button>
+				</div>
+			</form>
+
+			<div className="my-6 border-t border-border/60" />
+
+			<form onSubmit={handleImportSubmit} className="space-y-4">
+				<div className="space-y-1">
+					<h2 className="text-sm font-medium">Or import a previous configuration</h2>
+					<p className="text-xs text-muted-foreground">
+						Use an encrypted export file from another Zerobyte instance and your previous Restic password.
+					</p>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="config-file">Encrypted export file</Label>
+					<Input
+						id="config-file"
+						type="file"
+						accept=".zbex,.txt"
+						onChange={(e) => {
+							setImportFile(e.target.files?.[0] ?? null);
+						}}
+						disabled={importConfig.isPending}
+					/>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="import-restic-password">Previous Restic password</Label>
+					<Input
+						id="import-restic-password"
+						type="password"
+						value={importResticPassword}
+						onChange={(e) => setImportResticPassword(e.target.value)}
+						placeholder="Enter your previous Restic password"
+						required
+						disabled={importConfig.isPending}
+					/>
+				</div>
+
+				<div className="flex flex-col gap-2">
+					<Button type="submit" variant="outline" loading={importConfig.isPending} className="w-full">
+						<Upload size={16} className="mr-2" />
+						Import configuration
 					</Button>
 				</div>
 			</form>

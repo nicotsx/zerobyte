@@ -3,10 +3,14 @@ import { validator } from "hono-openapi";
 import {
 	downloadResticPasswordBodySchema,
 	downloadResticPasswordDto,
+	exportConfigDto,
 	getUpdatesDto,
 	systemInfoDto,
 	type SystemInfoDto,
 	type UpdateInfoDto,
+	importConfigBodySchema,
+	importConfigDto,
+	type ImportConfigResponseDto,
 	setRegistrationStatusDto,
 	getRegistrationStatusDto,
 	registrationStatusBody,
@@ -19,13 +23,18 @@ import {
 	type DevPanelDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
-import { requireAuth, requirePermission } from "../auth/auth.middleware";
+import { requireAuth, requireOrgAdmin, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { userHasPassword, verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { getOrganizationId } from "~/server/core/request-context";
+import {
+	createEncryptedOrganizationConfigExport,
+	importEncryptedOrganizationConfig,
+	isOrganizationConfigEmpty,
+} from "./system-config-transfer";
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -125,6 +134,60 @@ export const systemController = new Hono()
 			return c.json<PasswordLoginStatusDto>({ disabled: body.disabled }, 200);
 		},
 	)
+	.post("/config-export", requireOrgAdmin, exportConfigDto, async (c) => {
+		const organizationId = getOrganizationId();
+
+		try {
+			const org = await db.query.organization.findFirst({ where: { id: organizationId } });
+
+			if (!org?.metadata?.resticPassword) {
+				return c.json({ message: "Organization Restic password not found" }, 404);
+			}
+
+			const resticPassword = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
+			const content = await createEncryptedOrganizationConfigExport(organizationId, resticPassword);
+
+			c.header("Content-Type", "text/plain");
+			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');
+
+			return c.text(content);
+		} catch (_error) {
+			return c.json({ message: "Failed to export configuration" }, 500);
+		}
+	})
+	.post("/config-import", requireOrgAdmin, importConfigDto, validator("json", importConfigBodySchema), async (c) => {
+		const user = c.get("user");
+		const organizationId = getOrganizationId();
+		const body = c.req.valid("json");
+
+		if (user.hasDownloadedResticPassword) {
+			return c.json({ message: "Configuration import is only available during onboarding" }, 409);
+		}
+
+		const isEmpty = await isOrganizationConfigEmpty(organizationId);
+		if (!isEmpty) {
+			return c.json({ message: "Organization already contains configuration" }, 409);
+		}
+
+		try {
+			const imported = await importEncryptedOrganizationConfig(
+				organizationId,
+				user.id,
+				body.encryptedConfig,
+				body.resticPassword,
+			);
+
+			return c.json<ImportConfigResponseDto>(
+				{
+					message: "Configuration imported successfully",
+					imported,
+				},
+				200,
+			);
+		} catch (_error) {
+			return c.json({ message: "Invalid export file or Restic password" }, 400);
+		}
+	})
 	.get("/dev-panel", getDevPanelDto, async (c) => {
 		const enabled = systemService.isDevPanelEnabled();
 
