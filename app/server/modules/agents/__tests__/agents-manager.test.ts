@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import type { ProcessWithAgentRuntime } from "../helpers/runtime-state.dev";
 
 const spawnMock = vi.fn();
 
@@ -8,7 +9,19 @@ vi.mock("node:child_process", async () => {
 	return { spawn: spawnMock };
 });
 
-const { spawnLocalAgent, stopLocalAgent } = await import("../agents-manager");
+let spawnLocalAgent: (typeof import("../agents-manager"))["spawnLocalAgent"];
+let stopLocalAgent: (typeof import("../agents-manager"))["stopLocalAgent"];
+
+const processWithAgentRuntime = process as ProcessWithAgentRuntime;
+
+const setAgentRuntime = () => {
+	processWithAgentRuntime.__zerobyteAgentRuntime = {
+		agentManager: null,
+		localAgent: null,
+		isStoppingLocalAgent: false,
+		localAgentRestartTimeout: null,
+	};
+};
 
 type FakeChildProcess = EventEmitter & {
 	stdout: PassThrough;
@@ -34,8 +47,15 @@ const createFakeChild = () => {
 	return child;
 };
 
+beforeEach(async () => {
+	vi.resetModules();
+	setAgentRuntime();
+	({ spawnLocalAgent, stopLocalAgent } = await import("../agents-manager"));
+});
+
 afterEach(async () => {
 	await stopLocalAgent();
+	delete processWithAgentRuntime.__zerobyteAgentRuntime;
 	spawnMock.mockReset();
 	vi.restoreAllMocks();
 	vi.useRealTimers();

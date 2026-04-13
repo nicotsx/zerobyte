@@ -152,6 +152,7 @@ export const startAgentRuntime = async () => {
 
 	if (runtime.agentManager) {
 		await runtime.agentManager.stop();
+		runtime.agentManager = null;
 	}
 
 	const { createAgentManagerRuntime } = await import("./controller/server");

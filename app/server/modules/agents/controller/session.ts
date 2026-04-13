@@ -147,8 +147,8 @@ export const createControllerAgentSession = (
 						yield* Effect.sync(() => {
 							try {
 								const sendResult = socket.send(message);
-								if (sendResult <= 0) {
-									handleSendFailure(sendResult === 0 ? "connection issue" : "backpressure");
+								if (sendResult === 0) {
+									handleSendFailure("connection issue");
 								}
 							} catch (error) {
 								handleSendFailure(toMessage(error));

@@ -283,6 +283,29 @@ describe("stop backup", () => {
 		);
 	});
 
+	test("should settle and mark the backup as failed when the backup process throws", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementationOnce(() => Promise.reject(new Error("restic crashed")));
+
+		const result = await Promise.race([
+			backupsService.executeBackup(schedule.id).then(() => "settled"),
+			new Promise<string>((resolve) => setTimeout(() => resolve("timed-out"), 100)),
+		]);
+
+		expect(result).toBe("settled");
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("error");
+		expect(updatedSchedule.lastBackupError).toBe("Error: restic crashed");
+	});
+
 	test("should block forget on the same repository until the active backup completes", async () => {
 		const { resticBackupMock, resticForgetMock, runBackupMock } = setup();
 		const volume = await createTestVolume();

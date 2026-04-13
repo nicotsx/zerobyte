@@ -74,7 +74,10 @@ export const createAgentBackupMocks = (
 						status: "failed",
 						error: stderrLines.join("\n") || resultWithStderr.stderr || result.error,
 					});
-				})().catch(() => {});
+				})().catch((err) => {
+					runningBackups.delete(request.scheduleId);
+					resolve({ status: "failed", error: String(err) });
+				});
 			});
 		},
 	);
