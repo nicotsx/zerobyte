@@ -147,7 +147,7 @@ const backupEventHandlers: AgentBackupEventHandlers = {
 	},
 };
 
-export const startAgentRuntime = async () => {
+export const startAgentController = async () => {
 	const runtime = getAgentRuntimeState();
 
 	if (runtime.agentManager) {
@@ -161,6 +161,13 @@ export const startAgentRuntime = async () => {
 
 	await nextAgentManager.start();
 	runtime.agentManager = nextAgentManager;
+};
+
+export const stopAgentController = async () => {
+	const runtime = getAgentRuntimeState();
+	const agentManagerRuntime = runtime.agentManager;
+	runtime.agentManager = null;
+	await agentManagerRuntime?.stop();
 };
 
 export const agentManager = {
@@ -213,16 +220,11 @@ export const agentManager = {
 	},
 };
 
-export const spawnLocalAgent = async () => {
+export const startLocalAgent = async () => {
 	await spawnLocalAgentProcess(getAgentRuntimeState());
 };
 
 // fallow-ignore-next-line unused-export
 export const stopLocalAgent = async () => {
 	await stopLocalAgentProcess(getAgentRuntimeState());
-};
-
-export const stopAgentRuntime = async () => {
-	await getAgentManagerRuntime()?.stop();
-	await stopLocalAgent();
 };

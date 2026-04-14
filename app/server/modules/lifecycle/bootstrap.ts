@@ -1,5 +1,6 @@
 import { runDbMigrations } from "../../db/db";
-import { spawnLocalAgent, startAgentRuntime, stopAgentRuntime } from "../agents/agents-manager";
+import { config } from "../../core/config";
+import { startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } from "../agents/agents-manager";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
 
@@ -8,11 +9,20 @@ let bootstrapPromise: Promise<void> | undefined;
 const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
-	if (process.env.ENABLE_LOCAL_AGENT === "true") {
-		await startAgentRuntime();
-		await spawnLocalAgent();
+
+	try {
+		await startAgentController();
+
+		if (config.flags.enableLocalAgent) {
+			await startLocalAgent();
+		}
+
+		await startup();
+	} catch (error) {
+		await stopLocalAgent();
+		await stopAgentController();
+		throw error;
 	}
-	await startup();
 };
 
 export const bootstrapApplication = async () => {
@@ -30,7 +40,8 @@ export const bootstrapApplication = async () => {
 
 export const stopApplicationRuntime = async () => {
 	try {
-		await stopAgentRuntime();
+		await stopLocalAgent();
+		await stopAgentController();
 	} finally {
 		bootstrapPromise = undefined;
 	}
