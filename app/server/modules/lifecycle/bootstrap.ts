@@ -1,6 +1,7 @@
 import { runDbMigrations } from "../../db/db";
 import { config } from "../../core/config";
 import { startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } from "../agents/agents-manager";
+import { agentsService } from "../agents/agents.service";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
 
@@ -9,6 +10,7 @@ let bootstrapPromise: Promise<void> | undefined;
 const runBootstrap = async () => {
 	await runDbMigrations();
 	await runMigrations();
+	await agentsService.ensureLocalAgent();
 
 	try {
 		await startAgentController();

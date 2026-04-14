@@ -198,6 +198,36 @@ export const ssoProvider = sqliteTable("sso_provider", {
 		.default(sql`(unixepoch() * 1000)`),
 });
 
+export type AgentKind = "local" | "remote";
+export type AgentStatus = "offline" | "connecting" | "online" | "degraded";
+export type AgentCapabilities = Record<string, unknown>;
+
+export const agentsTable = sqliteTable(
+	"agents_table",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id").references(() => organization.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		kind: text("kind").$type<AgentKind>().notNull(),
+		status: text("status").$type<AgentStatus>().notNull().default("offline"),
+		capabilities: text("capabilities", { mode: "json" }).$type<AgentCapabilities>().notNull().default({}),
+		lastSeenAt: int("last_seen_at", { mode: "number" }),
+		lastReadyAt: int("last_ready_at", { mode: "number" }),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: int("updated_at", { mode: "number" })
+			.notNull()
+			.$onUpdate(() => Date.now())
+			.default(sql`(unixepoch() * 1000)`),
+	},
+	(table) => [
+		index("agents_table_organization_id_idx").on(table.organizationId),
+		index("agents_table_status_idx").on(table.status),
+	],
+);
+export type Agent = typeof agentsTable.$inferSelect;
+
 /**
  * Volumes Table
  */

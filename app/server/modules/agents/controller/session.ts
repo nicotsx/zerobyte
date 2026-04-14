@@ -1,4 +1,5 @@
 import { Effect, Queue, Ref, type Scope } from "effect";
+import type { AgentKind } from "../../../db/schema";
 import {
 	createControllerMessage,
 	parseAgentMessage,
@@ -20,6 +21,7 @@ export type AgentConnectionData = {
 	agentId: string;
 	organizationId: string | null;
 	agentName: string;
+	agentKind: AgentKind;
 };
 
 type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
@@ -35,12 +37,22 @@ type TrackedBackupJob = {
 	state: "pending" | "active";
 };
 
+type AgentRuntimeEventPayload = {
+	agentId: string;
+	agentName: string;
+	organizationId: string | null;
+	agentKind: AgentKind;
+	at: number;
+};
+
 type ControllerAgentSessionHandlers = {
-	onBackupStarted?: (payload: BackupStartedPayload) => void;
-	onBackupProgress?: (payload: BackupProgressPayload) => void;
-	onBackupCompleted?: (payload: BackupCompletedPayload) => void;
-	onBackupFailed?: (payload: BackupFailedPayload) => void;
-	onBackupCancelled?: (payload: BackupCancelledPayload) => void;
+	onReady: (payload: AgentRuntimeEventPayload) => Effect.Effect<void>;
+	onHeartbeatPong: (payload: AgentRuntimeEventPayload) => Effect.Effect<void>;
+	onBackupStarted: (payload: BackupStartedPayload) => Effect.Effect<void>;
+	onBackupProgress: (payload: BackupProgressPayload) => Effect.Effect<void>;
+	onBackupCompleted: (payload: BackupCompletedPayload) => Effect.Effect<void>;
+	onBackupFailed: (payload: BackupFailedPayload) => Effect.Effect<void>;
+	onBackupCancelled: (payload: BackupCancelledPayload) => Effect.Effect<void>;
 };
 
 export type ControllerAgentSession = {
@@ -54,7 +66,7 @@ export type ControllerAgentSession = {
 
 export const createControllerAgentSession = (
 	socket: AgentSocket,
-	handlers: ControllerAgentSessionHandlers = {},
+	handlers: ControllerAgentSessionHandlers,
 ): Effect.Effect<ControllerAgentSession, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		let isClosed = false;
@@ -105,9 +117,7 @@ export const createControllerAgentSession = (
 			for (const [jobId, trackedJob] of trackedJobs) {
 				const message = "The connection to the backup agent was lost. Restart the backup to ensure it completes.";
 
-				yield* Effect.sync(() => {
-					handlers.onBackupCancelled?.({ jobId, scheduleId: trackedJob.scheduleId, message });
-				});
+				yield* handlers.onBackupCancelled({ jobId, scheduleId: trackedJob.scheduleId, message });
 			}
 
 			yield* Queue.shutdown(outboundQueue);
@@ -177,11 +187,19 @@ export const createControllerAgentSession = (
 
 		const handleAgentMessage = (message: AgentMessage) =>
 			Effect.gen(function* () {
-				yield* updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
-
 				switch (message.type) {
 					case "agent.ready": {
-						yield* updateState((current) => ({ ...current, isReady: true }));
+						const readyAt = Date.now();
+						yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
+
+						yield* handlers.onReady({
+							agentId: socket.data.agentId,
+							agentName: socket.data.agentName,
+							organizationId: socket.data.organizationId,
+							agentKind: socket.data.agentKind,
+							at: readyAt,
+						});
+
 						yield* Effect.sync(() => {
 							logger.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
 						});
@@ -192,43 +210,42 @@ export const createControllerAgentSession = (
 							scheduleId: message.payload.scheduleId,
 							state: "active",
 						});
-						yield* Effect.sync(() => {
-							logger.info(
-								`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
-							);
-							handlers.onBackupStarted?.(message.payload);
-						});
+						logger.info(
+							`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
+						);
+						yield* handlers.onBackupStarted(message.payload);
 						break;
 					}
 					case "backup.progress": {
-						yield* Effect.sync(() => {
-							handlers.onBackupProgress?.(message.payload);
-						});
+						yield* handlers.onBackupProgress(message.payload);
 						break;
 					}
 					case "backup.completed": {
 						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupCompleted?.(message.payload);
-						});
+						yield* handlers.onBackupCompleted(message.payload);
 						break;
 					}
 					case "backup.failed": {
 						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupFailed?.(message.payload);
-						});
+						yield* handlers.onBackupFailed(message.payload);
 						break;
 					}
 					case "backup.cancelled": {
 						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupCancelled?.(message.payload);
-						});
+						yield* handlers.onBackupCancelled(message.payload);
 						break;
 					}
 					case "heartbeat.pong": {
-						yield* updateState((current) => ({ ...current, lastPongAt: message.payload.sentAt }));
+						const seenAt = Date.now();
+						yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
+
+						yield* handlers.onHeartbeatPong({
+							agentId: socket.data.agentId,
+							agentName: socket.data.agentName,
+							organizationId: socket.data.organizationId,
+							agentKind: socket.data.agentKind,
+							at: seenAt,
+						});
 						break;
 					}
 				}
