@@ -3,22 +3,44 @@ import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
+import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
 const createSocket = (overrides: Partial<Parameters<typeof createControllerAgentSession>[0]> = {}) => {
 	return {
-		data: { id: "connection-1", agentId: "local", organizationId: null, agentName: "Local Agent" },
+		data: {
+			id: "connection-1",
+			agentId: LOCAL_AGENT_ID,
+			organizationId: null,
+			agentName: LOCAL_AGENT_NAME,
+			agentKind: LOCAL_AGENT_KIND,
+		},
 		send: vi.fn(() => 1),
 		close: vi.fn(),
 		...overrides,
 	};
 };
 
-const createSession = (handlers: Parameters<typeof createControllerAgentSession>[1] = {}, socket = createSocket()) => {
+const createSession = (
+	handlers: Partial<Parameters<typeof createControllerAgentSession>[1]> = {},
+	socket = createSocket(),
+) => {
 	const scope = Effect.runSync(Scope.make());
+	const sessionHandlers: Parameters<typeof createControllerAgentSession>[1] = {
+		onReady: () => Effect.void,
+		onHeartbeatPong: () => Effect.void,
+		onBackupStarted: () => Effect.void,
+		onBackupProgress: () => Effect.void,
+		onBackupCompleted: () => Effect.void,
+		onBackupFailed: () => Effect.void,
+		onBackupCancelled: () => Effect.void,
+		...handlers,
+	};
 
 	try {
-		const session = Effect.runSync(Scope.extend(createControllerAgentSession(fromPartial(socket), handlers), scope));
+		const session = Effect.runSync(
+			Scope.extend(createControllerAgentSession(fromPartial(socket), sessionHandlers), scope),
+		);
 
 		return {
 			session,
@@ -40,9 +62,10 @@ const createSession = (handlers: Parameters<typeof createControllerAgentSession>
 };
 
 test("close emits a synthetic backup.cancelled for a started backup", () => {
-	const onBackupCancelled = vi.fn();
+	const onBackupCancelled = vi.fn(() => Effect.void);
 	const { session, close } = createSession({
 		onBackupCancelled,
+		onBackupStarted: vi.fn(() => Effect.void),
 	});
 
 	Effect.runSync(
@@ -101,10 +124,8 @@ test.each([
 		expectedCancelledCalls: 1,
 	},
 ])("close does not emit an extra synthetic backup.cancelled after $name", (testCase) => {
-	const onBackupCancelled = vi.fn();
-	const { session, close } = createSession({
-		onBackupCancelled,
-	});
+	const onBackupCancelled = vi.fn(() => Effect.void);
+	const { session, close } = createSession({ onBackupCancelled });
 
 	Effect.runSync(
 		session.handleMessage(
@@ -121,10 +142,8 @@ test.each([
 });
 
 test("close emits a synthetic backup.cancelled for a queued backup", () => {
-	const onBackupCancelled = vi.fn();
-	const { session, close } = createSession({
-		onBackupCancelled,
-	});
+	const onBackupCancelled = vi.fn(() => Effect.void);
+	const { session, close } = createSession({ onBackupCancelled });
 
 	Effect.runSync(
 		session.sendBackup({
@@ -162,7 +181,7 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 test("a dropped backup.cancel closes the session and emits a synthetic backup.cancelled", async () => {
 	const send = vi.fn(() => 0);
 	const socket = createSocket({ send, close: vi.fn() });
-	const onBackupCancelled = vi.fn();
+	const onBackupCancelled = vi.fn(() => Effect.void);
 	const { session, run, closeAsync } = createSession({ onBackupCancelled }, socket);
 
 	try {

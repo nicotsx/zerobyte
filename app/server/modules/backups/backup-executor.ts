@@ -5,12 +5,11 @@ import { config } from "../../core/config";
 import { restic, resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 import { getVolumePath } from "../volumes/helpers";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
 import { toErrorDetails } from "../../utils/errors";
-
-const LOCAL_AGENT_ID = "local";
 
 type BackupExecutionRequest = {
 	scheduleId: number;

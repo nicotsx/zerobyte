@@ -11,6 +11,7 @@ import type {
 	BackupStartedPayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { createControllerAgentSession, type AgentConnectionData, type ControllerAgentSession } from "./session";
+import { agentsService } from "../agents.service";
 import { validateAgentToken } from "../helpers/tokens";
 
 type AgentBackupEventContext = {
@@ -70,20 +71,26 @@ export function createAgentManagerRuntime() {
 		const agentName = ws.data.agentName;
 
 		return {
+			onReady: ({ at }: { at: number }) => {
+				return Effect.promise(() => agentsService.markAgentOnline(agentId, at));
+			},
+			onHeartbeatPong: ({ at }: { at: number }) => {
+				return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
+			},
 			onBackupStarted: (payload: BackupStartedPayload) => {
-				backupHandlers.onBackupStarted?.({ agentId, agentName, payload });
+				return Effect.sync(() => backupHandlers.onBackupStarted?.({ agentId, agentName, payload }));
 			},
 			onBackupProgress: (payload: BackupProgressPayload) => {
-				backupHandlers.onBackupProgress?.({ agentId, agentName, payload });
+				return Effect.sync(() => backupHandlers.onBackupProgress?.({ agentId, agentName, payload }));
 			},
 			onBackupCompleted: (payload: BackupCompletedPayload) => {
-				backupHandlers.onBackupCompleted?.({ agentId, agentName, payload });
+				return Effect.sync(() => backupHandlers.onBackupCompleted?.({ agentId, agentName, payload }));
 			},
 			onBackupFailed: (payload: BackupFailedPayload) => {
-				backupHandlers.onBackupFailed?.({ agentId, agentName, payload });
+				return Effect.sync(() => backupHandlers.onBackupFailed?.({ agentId, agentName, payload }));
 			},
 			onBackupCancelled: (payload: BackupCancelledPayload) => {
-				backupHandlers.onBackupCancelled?.({ agentId, agentName, payload });
+				return Effect.sync(() => backupHandlers.onBackupCancelled?.({ agentId, agentName, payload }));
 			},
 		};
 	};
@@ -117,13 +124,14 @@ export function createAgentManagerRuntime() {
 	const removeSession = (agentId: string, connectionId: string) => {
 		const sessionHandle = getSessionHandle(agentId);
 		if (!sessionHandle || sessionHandle.session.connectionId !== connectionId) {
-			return;
+			return false;
 		}
 
 		sessions.delete(agentId);
 		void Effect.runPromise(closeSession(sessionHandle)).catch((error) => {
 			logger.error(`Failed to close agent session for ${agentId}: ${toMessage(error)}`);
 		});
+		return true;
 	};
 
 	const acquireServer = Effect.acquireRelease(
@@ -149,6 +157,7 @@ export function createAgentManagerRuntime() {
 							agentId: result.agentId,
 							organizationId: result.organizationId,
 							agentName: result.agentName,
+							agentKind: result.agentKind,
 						},
 					});
 					if (upgraded) return undefined;
@@ -157,6 +166,16 @@ export function createAgentManagerRuntime() {
 				websocket: {
 					open: (ws) => {
 						setSession(ws.data.agentId, createSession(ws));
+						void agentsService
+							.markAgentConnecting({
+								agentId: ws.data.agentId,
+								organizationId: ws.data.organizationId,
+								agentName: ws.data.agentName,
+								agentKind: ws.data.agentKind,
+							})
+							.catch((error) => {
+								logger.error(`Failed to mark agent ${ws.data.agentId} as connecting: ${toMessage(error)}`);
+							});
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 					},
 					message: (ws, data) => {
@@ -179,6 +198,9 @@ export function createAgentManagerRuntime() {
 					},
 					close: (ws) => {
 						removeSession(ws.data.agentId, ws.data.id);
+						void agentsService.markAgentOffline(ws.data.agentId).catch((error) => {
+							logger.error(`Failed to mark agent ${ws.data.agentId} as offline: ${toMessage(error)}`);
+						});
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 					},
 				},
