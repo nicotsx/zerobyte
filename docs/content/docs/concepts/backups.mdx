@@ -9,10 +9,10 @@ Learn how backup jobs connect volumes to repositories with scheduling, retention
 
 A backup job is the central piece of Zerobyte. It defines four things:
 
-- **What** to back up — a [volume](/docs/concepts/volumes) (your data source)
-- **Where** to store it — a [repository](/docs/concepts/repositories) (your encrypted storage destination)
-- **When** to run — a cron schedule
-- **How long** to keep snapshots — a retention policy
+- **What** to back up, a [volume](/docs/concepts/volumes) (your data source)
+- **Where** to store it, a [repository](/docs/concepts/repositories) (your encrypted storage destination)
+- **When** to run, a cron schedule
+- **How long** to keep snapshots, a retention policy
 
 Each time a backup job runs, Restic creates an incremental, encrypted snapshot of the volume's contents and stores it in the repository.
 
@@ -20,10 +20,10 @@ Each time a backup job runs, Restic creates an incremental, encrypted snapshot o
 
 To create a backup job, navigate to **Backups** in the sidebar and click **Create a backup job**. First choose a volume, then fill in the backup form:
 
-- **Backup name** — A descriptive name for the job (e.g., "Daily Database Backup")
-- **Backup repository** — Select from your configured repositories
-- **Backup frequency** — Choose `Manual only`, `Hourly`, `Daily`, `Weekly`, `Specific days`, or `Custom (Cron)`
-- **Retention policy** — Optionally define how many snapshots to keep
+- **Backup name**, a descriptive name for the job (e.g., "Daily Database Backup")
+- **Backup repository**, select from your configured repositories
+- **Backup frequency**, choose `Manual only`, `Hourly`, `Daily`, `Weekly`, `Specific days`, or `Custom (Cron)`
+- **Retention policy**, optionally define how many snapshots to keep
 
 <Callout type="info">
   Choose **Manual only** if you want to create the job without scheduled runs and trigger it yourself.
@@ -65,10 +65,10 @@ You can configure the following retention rules:
 
 A balanced policy for most workloads:
 
-- **Keep Daily**: 7 — One snapshot per day for the past week
-- **Keep Weekly**: 4 — One snapshot per week for the past month
-- **Keep Monthly**: 6 — One snapshot per month for the past half year
-- **Keep Yearly**: 1 — One snapshot per year for long-term archival
+- **Keep Daily**: 7, one snapshot per day for the past week
+- **Keep Weekly**: 4, one snapshot per week for the past month
+- **Keep Monthly**: 6, one snapshot per month for the past half year
+- **Keep Yearly**: 1, one snapshot per year for long-term archival
 
 <Callout type="info">
   Retention rules are additive. A snapshot that satisfies any rule is kept. Restic determines which snapshots best represent each time period automatically.
@@ -86,10 +86,10 @@ Specify subdirectories within the volume to back up. Only these paths will be in
 
 Exclude files or directories that do not need to be backed up. Common patterns:
 
-- `*.tmp` — Temporary files
-- `node_modules/` — Dependency directories
-- `.cache/` — Cache directories
-- `*.log` — Log files
+- `*.tmp`, temporary files
+- `node_modules/`, dependency directories
+- `.cache/`, cache directories
+- `*.log`, log files
 
 <Callout type="warn">
   Exclude patterns use Restic's pattern matching. Test your patterns after the first backup by browsing the snapshot contents to confirm the right files are included.
@@ -105,8 +105,8 @@ Available modes are **auto** (default), **off**, and **max**. See [Repositories]
 
 There are two ways to run a backup job:
 
-- **Scheduled** — The job runs automatically according to its cron schedule. No intervention required.
-- **Manual** — Click **Backup now** on any backup job to trigger it immediately, regardless of the schedule.
+- **Scheduled**, the job runs automatically according to its cron schedule. No intervention required.
+- **Manual**, click **Backup now** on any backup job to trigger it immediately, regardless of the schedule.
 
 Both methods produce identical snapshots. Manual runs are useful for verifying a new backup job or creating an extra snapshot before a major change.
 
@@ -120,15 +120,15 @@ The UI exposes two related status views:
 
 - In the **Backups** list, the status dot shows **Active**, **Paused**, **Error**, **Warning**, or **Backup in progress**
 - In the backup job details page, the last run status shows **Success**, **Error**, **Warning**, or **in progress**
-- If a backup job has not completed a run yet, the details page shows `—`
+- If a backup job has not completed a run yet, the details page shows no last run value
 
 ## Snapshots
 
 Each successful backup creates a snapshot in the repository. Snapshots have several important properties:
 
-- **Immutable** — Once created, a snapshot cannot be modified
-- **Incremental** — Only changed data since the last snapshot is uploaded
-- **Browsable** — You can explore snapshot contents directly in the web interface, viewing file sizes, modification times, and directory structure
+- **Immutable**, once created, a snapshot cannot be modified
+- **Incremental**, only changed data since the last snapshot is uploaded
+- **Browsable**, you can explore snapshot contents directly in the web interface, viewing file sizes, modification times, and directory structure
 
 The first backup uploads all data and may take longer. Subsequent backups are significantly faster because Restic deduplicates data at the chunk level and only transfers new or changed blocks.
 
@@ -186,9 +186,9 @@ Click **Restore** and wait for the operation to complete.
 
 You can optionally copy snapshots to additional repositories after each backup. Mirrors provide:
 
-- **Geographic redundancy** — Store copies in different regions or data centers
-- **Provider diversification** — Avoid depending on a single cloud provider
-- **Compliance** — Meet data locality or regulatory requirements
+- **Geographic redundancy**, store copies in different regions or data centers
+- **Provider diversification**, avoid depending on a single cloud provider
+- **Compliance**, meet data locality or regulatory requirements
 
 Mirrors are configured per backup job. After each successful backup, snapshots are automatically copied to all enabled mirror repositories.
 
@@ -198,12 +198,12 @@ For a practical pattern that combines fast local restores with an offsite copy, 
 
 The Zerobyte web interface provides visibility into each backup job:
 
-- **Schedule** — The cron expression or `Manual only` configuration for the job
-- **Last backup** — When the most recent run happened
-- **Next backup** — When the job is expected to run next
-- **Snapshot history** — The list of snapshots created for that job
-- **Snapshot statistics** — Data added, data stored, files processed, bytes processed, and duration for the selected snapshot
-- **Restore actions** — Restore or download data from the selected snapshot
+- **Schedule**, the cron expression or `Manual only` configuration for the job
+- **Last backup**, when the most recent run happened
+- **Next backup**, when the job is expected to run next
+- **Snapshot history**, the list of snapshots created for that job
+- **Snapshot statistics**, data added, data stored, files processed, bytes processed, and duration for the selected snapshot
+- **Restore actions**, restore or download data from the selected snapshot
 
 ## Best practices
 

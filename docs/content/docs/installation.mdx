@@ -3,7 +3,7 @@ title: Installation
 description: Deploy Zerobyte with Docker and Docker Compose
 ---
 
-import { Rocket, Settings, LifeBuoy } from "lucide-react";
+import { Check, LifeBuoy, Rocket, Settings, X } from "lucide-react";
 import { Step, Steps } from "fumadocs-ui/components/steps";
 
 Zerobyte runs as a Docker container and requires Docker and Docker Compose to be installed on your server.
@@ -196,10 +196,24 @@ services:
 
 **Trade-offs:**
 
-* ✅ Improved security by removing `SYS_ADMIN` capability
-* ✅ Support for local directories mounted into the container
-* ✅ All repository types still supported (local, S3, GCS, Azure, rclone)
-* ❌ Cannot mount remote shares (NFS, SMB, WebDAV, SFTP) from within Zerobyte
+<ul className="my-4 list-none space-y-2 pl-0">
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Improved security by removing `SYS_ADMIN` capability</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Support for local directories mounted into the container</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>All repository types still supported (local, S3, GCS, Azure, rclone)</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <X className="mt-1.5 h-4 w-4 shrink-0 text-red-600" />
+    <span>Cannot mount remote shares (NFS, SMB, WebDAV, SFTP) from within Zerobyte</span>
+  </li>
+</ul>
 
 <Callout type="info">
 If you need remote mount capabilities later, you can update your `docker-compose.yml` to add back the `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse` directives.
@@ -213,13 +227,13 @@ To back up directories from your host system, mount them into the container:
 volumes:
   - /etc/localtime:/etc/localtime:ro
   - /var/lib/zerobyte:/var/lib/zerobyte
-  - /path/to/your/photos:/photos:ro
-  - /path/to/your/documents:/documents:ro
-  - /path/to/your/media:/media:ro
+  - /path/to/your/photos:/photos
+  - /path/to/your/documents:/documents
+  - /path/to/your/media:/media
 ```
 
 <Callout type="info">
-Use read-only mounts (`:ro`) when possible to prevent accidental modifications during backup operations.
+Use read-only mounts (`:ro`) if you want to prevent Zerobyte from modifying the source data. But you won't be able to restore files back to the original location if you use read-only mounts.
 </Callout>
 
 After adding volume mounts, restart the container:

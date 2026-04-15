@@ -7,15 +7,15 @@ Repositories are encrypted storage destinations where your backup snapshots are 
 
 ## What are repositories?
 
-A repository is a Restic-powered storage location that holds your backup snapshots. When you create a backup job, you point it at a repository — that is where the encrypted data goes.
+A repository is a Restic-powered storage location that holds your backup snapshots. When you create a backup job, you point it at a repository, and that is where the encrypted data goes.
 
 Repositories provide:
 
-- **End-to-end encryption** — all data is encrypted before it leaves your machine, so even your storage provider cannot read it
-- **Deduplication** — identical data blocks are stored only once, even across different backups
-- **Compression** — configurable compression reduces storage costs
-- **Immutable snapshots** — once a snapshot is created, it cannot be modified
-- **Incremental backups** — only changed data is transferred and stored after the initial backup
+- **End-to-end encryption**, all data is encrypted before it leaves your machine, so even your storage provider cannot read it
+- **Deduplication**, identical data blocks are stored only once, even across different backups
+- **Compression**, configurable compression reduces storage costs
+- **Immutable snapshots**, once a snapshot is created, it cannot be modified
+- **Incremental backups**, only changed data is transferred and stored after the initial backup
 
 Each repository is self-contained. You can store repositories on local disks, cloud object storage, remote servers, or any of 40+ backends supported through rclone.
 
@@ -139,8 +139,8 @@ Compression is set when creating a repository and applies to all backups stored 
 
 You can configure upload and download speed limits per repository to prevent backups from saturating your network. Limits are set in the repository settings with the following units: **Kbps**, **Mbps**, or **Gbps**.
 
-- **Upload limit** — controls the speed at which data is sent to the repository during backups. Useful for avoiding bandwidth contention during business hours or staying within ISP caps.
-- **Download limit** — controls the speed at which data is retrieved during restores or snapshot browsing. Helps manage egress costs on cloud providers.
+- **Upload limit**, controls the speed at which data is sent to the repository during backups. Useful for avoiding bandwidth contention during business hours or staying within ISP caps.
+- **Download limit**, controls the speed at which data is retrieved during restores or snapshot browsing. Helps manage egress costs on cloud providers.
 
 <Callout type="info">
   Bandwidth limits are enforced at the application layer. Actual network usage may be slightly higher due to protocol overhead.
@@ -172,7 +172,7 @@ The refresh button in **Compression Statistics** recalculates stored-size, compr
 
 ## Snapshots
 
-Each backup creates an immutable snapshot in the repository. Snapshots are incremental — after the initial full backup, only changed data is stored in subsequent snapshots. This means the 10th backup of a 100 GB dataset might only add a few megabytes if little has changed.
+Each backup creates an immutable snapshot in the repository. Snapshots are incremental, so after the initial full backup, only changed data is stored in subsequent snapshots. This means the 10th backup of a 100 GB dataset might only add a few megabytes if little has changed.
 
 You can browse the contents of any snapshot and restore individual files or entire directories from the Zerobyte interface.
 
@@ -180,9 +180,9 @@ You can browse the contents of any snapshot and restore individual files or enti
 
 You can configure backup jobs to copy snapshots to additional repositories after each successful backup. This provides:
 
-- **Geographic redundancy** — store copies in different regions or data centers
-- **Provider diversification** — avoid depending on a single cloud provider
-- **Compliance** — meet data locality or multi-copy retention requirements
+- **Geographic redundancy**, store copies in different regions or data centers
+- **Provider diversification**, avoid depending on a single cloud provider
+- **Compliance**, meet data locality or multi-copy retention requirements
 
 Mirrors are configured per backup job. See [Backups](/docs/concepts/backups) for details on setting up mirror repositories.
 
@@ -192,8 +192,8 @@ All sensitive fields (passwords, access keys, private keys, service account cred
 
 Provisioned repositories also support secret references:
 
-- **`env://VARIABLE_NAME`** — resolves the value from the specified environment variable during provisioning
-- **`file://secret_name`** — resolves the value from a Docker secret file at `/run/secrets/secret_name` during provisioning
+- **`env://VARIABLE_NAME`**, resolves the value from the specified environment variable during provisioning
+- **`file://secret_name`**, resolves the value from a Docker secret file at `/run/secrets/secret_name` during provisioning
 
 During provisioning, Zerobyte resolves these references on startup and stores the resolved value encrypted in the database.
 

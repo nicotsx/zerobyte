@@ -6,7 +6,7 @@ description: Learn about Zerobyte, a powerful backup automation platform built o
 Zerobyte is a backup automation tool that helps you protect your data across multiple storage backends. Built on top of [Restic](https://restic.net/), it provides a modern web interface to schedule, manage, and monitor encrypted backups.
 
 <Callout type="warn">
-  Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active development. Expect bugs and breaking changes.
+  Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active development
 </Callout>
 
 ## Key Features
@@ -35,25 +35,25 @@ Zerobyte is a backup automation tool that helps you protect your data across mul
 
 Volumes represent the data you want to protect:
 
-- **Local directories** — Directories mounted into the container
-- **NFS** — Network File System shares (v3, v4, v4.1)
-- **SMB/CIFS** — Windows and Samba shares
-- **WebDAV** — WebDAV-compatible storage (Nextcloud, ownCloud, etc.)
-- **SFTP** — SSH File Transfer Protocol servers
-- **Rclone** — 40+ cloud storage providers via rclone (Google Drive, Dropbox, OneDrive, etc.)
+- **Local directories**, directories mounted into the container
+- **NFS**, Network File System shares (v3, v4, v4.1)
+- **SMB/CIFS**, Windows and Samba shares
+- **WebDAV**, WebDAV-compatible storage (Nextcloud, ownCloud, etc.)
+- **SFTP**, SSH File Transfer Protocol servers
+- **Rclone**, 40+ cloud storage providers via rclone (Google Drive, Dropbox, OneDrive, etc.)
 
 ### Repository Destinations (Where to Store Backups)
 
 Repositories are encrypted storage locations for your backup snapshots:
 
-- **Local directories** — Store backups on local disk
-- **S3-compatible storage** — Amazon S3, MinIO, Wasabi, Backblaze B2, DigitalOcean Spaces, and more
-- **Cloudflare R2** — S3-compatible with zero egress fees
-- **Google Cloud Storage** — Google's cloud storage service
-- **Azure Blob Storage** — Microsoft Azure storage
-- **SFTP** — Remote servers accessible via SSH
-- **REST server** — Restic REST server protocol
-- **Rclone remotes** — 40+ cloud storage providers via rclone
+- **Local directories**, store backups on local disk
+- **S3-compatible storage**, Amazon S3, MinIO, Wasabi, Backblaze B2, DigitalOcean Spaces, and more
+- **Cloudflare R2**, S3-compatible with zero egress fees
+- **Google Cloud Storage**, Google's cloud storage service
+- **Azure Blob Storage**, Microsoft Azure storage
+- **SFTP**, remote servers accessible via SSH
+- **REST server**, Restic REST server protocol
+- **Rclone remotes**, 40+ cloud storage providers via rclone
 
 ## How It Works
 
@@ -113,12 +113,12 @@ Configure **backup jobs** that connect volumes to repositories with scheduling r
 
 Zerobyte is built on [Restic](https://restic.net/) because it offers:
 
-- **Fast and efficient** — Incremental backups with content-defined chunking
-- **Secure by design** — Strong encryption and authenticated snapshots
-- **Deduplication** — Only unique data is stored, saving space
-- **Verification** — Built-in integrity checking for peace of mind
-- **Cross-platform** — Works across different operating systems
-- **Well-maintained** — Active open-source project with regular updates
+- **Fast and efficient**, incremental backups with content-defined chunking
+- **Secure by design**, strong encryption and authenticated snapshots
+- **Deduplication**, only unique data is stored, saving space
+- **Verification**, built-in integrity checking for peace of mind
+- **Cross-platform**, works across different operating systems
+- **Well-maintained**, an active open-source project with regular updates
 
 ## Next Steps
 

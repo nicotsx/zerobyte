@@ -7,10 +7,10 @@ Zerobyte can sync operator-managed repositories and volumes from a JSON configur
 
 ## Why Use Provisioning?
 
-- **Infrastructure as code** — Define repositories and volumes in version-controlled config files
-- **Secret management** — Keep credentials in environment variables or Docker secrets, not in the UI
-- **Easy rotation** — Rotate secrets by updating env vars or secret files and restarting
-- **Consistent deployments** — Same configuration across staging and production
+- **Infrastructure as code**, define repositories and volumes in version-controlled config files
+- **Secret management**, keep credentials in environment variables or Docker secrets, not in the UI
+- **Easy rotation**, rotate secrets by updating env vars or secret files and restarting
+- **Consistent deployments**, use the same configuration across staging and production
 
 Provisioned resources appear in the normal UI alongside manually created ones, marked as managed entries.
 
@@ -120,7 +120,7 @@ Provisioned resources support two types of secret references for sensitive field
   `file://` references always resolve from `/run/secrets/` and must be a single filename, not a nested path.
 </Callout>
 
-Resolved values are encrypted before Zerobyte stores them in the database — the plaintext never persists on disk.
+Resolved values are encrypted before Zerobyte stores them in the database, and the plaintext never persists on disk.
 
 ## Rotating Secrets
 

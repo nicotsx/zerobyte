@@ -140,7 +140,7 @@ docker exec zerobyte ls -la /dev/fuse
 ```
 
 <Callout type="info">
-  `/dev/fuse` is **not required** for SMB/CIFS or NFS mounts — only for SFTP and rclone volumes.
+  `/dev/fuse` is **not required** for SMB/CIFS or NFS mounts, only for SFTP and rclone volumes.
 </Callout>
 
 ## Rclone Issues
@@ -161,7 +161,7 @@ rclone ls myremote:path/to/test
 ```
 
 **If these commands fail on the host, fix your rclone configuration first.** Common causes:
-- Expired OAuth tokens — run `rclone config` to re-authenticate
+- Expired OAuth tokens, run `rclone config` to re-authenticate
 - Incorrect credentials
 - Missing permissions on the cloud provider side
 - Network or firewall issues

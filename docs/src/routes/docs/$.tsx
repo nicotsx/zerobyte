@@ -11,6 +11,7 @@ import { baseOptions } from "@/lib/layout.shared";
 import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { Suspense } from "react";
 import { Card, Cards } from "@/components/DocsCard";
+import { DocsMdxLink } from "@/components/DocsMdxLink";
 
 export const Route = createFileRoute("/docs/$")({
 	component: Page,
@@ -59,6 +60,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
 							<MDX
 								components={{
 									...defaultMdxComponents,
+									a: DocsMdxLink,
 									Accordion,
 									Accordions,
 									Card,

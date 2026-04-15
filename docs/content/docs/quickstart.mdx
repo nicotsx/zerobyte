@@ -50,7 +50,7 @@ On a brand new Zerobyte install with no users yet, the app starts with onboardin
 
 ### Open Zerobyte
 
-Navigate to the URL you configured in `BASE_URL` during installation. In local development, this is usually `http://localhost:3000`.
+Navigate to the URL you configured in `BASE_URL` during installation. This is usually `http://<server-ip>:4096`.
 
 </Step>
 
@@ -135,7 +135,7 @@ docker compose up -d
 
 ### Navigate to Volumes
 
-After downloading the recovery key, you are already on **Volumes**. If you navigate away, click **Volumes** in the sidebar.
+After logging in, you are already on **Volumes**. If you navigate away, click **Volumes** in the sidebar.
 
 </Step>
 
@@ -549,7 +549,7 @@ You should see snapshot details such as:
 Use the inline file browser to inspect the snapshot contents. You can:
 
 - Navigate the directory structure
-- View file sizes and modification times
+- View file sizes
 - Confirm the expected files are present
 
 </Step>
@@ -578,7 +578,7 @@ The UI exposes two related status views:
 
 - In the **Backups** list, the status dot shows **Active**, **Paused**, **Error**, **Warning**, or **Backup in progress**
 - In the backup job details page, the last run status shows **✓ Success**, **✗ Error**, **! Warning**, or **⟳ in progress...**
-- If a backup job has not completed a run yet, the details page shows `—`
+- If a backup job has not completed a run yet, the details page shows no last run value
 
 <Callout type="info">
   Click any backup job to view its snapshot history, restore actions, schedule summary, and repository links. If a run fails and the UI does not show enough detail, check your container logs with `docker compose logs -f zerobyte`.
@@ -792,14 +792,31 @@ If you encounter issues:
 
 You've successfully:
 
-- ✅ Created an admin account and downloaded the recovery key
-- ✅ Added a volume to backup
-- ✅ Created a repository for encrypted storage
-- ✅ Configured and ran your first backup job
-- ✅ Verified your backup was successful
+<ul className="my-4 list-none space-y-2 pl-0">
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Created an admin account and downloaded the recovery key</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Added a volume to backup</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Created a repository for encrypted storage</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Configured and ran your first backup job</span>
+  </li>
+  <li className="flex items-start gap-2">
+    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+    <span>Verified your backup was successful</span>
+  </li>
+</ul>
 
 Your data is now protected with encrypted, deduplicated backups. Zerobyte will continue to run backups automatically according to your schedule.
 
-import { FolderPlus, Cloud, Bell, History, FileText, Github, BookOpen, Users } from "lucide-react";
+import { FolderPlus, Cloud, Bell, History, FileText, Github, BookOpen, Users, Check } from "lucide-react";
 import { Tab, Tabs } from "fumadocs-ui/components/tabs";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";

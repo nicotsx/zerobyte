@@ -121,9 +121,9 @@ The `BASE_URL` determines how authentication cookies behave:
 
 | BASE_URL | Cookie Behavior |
 |----------|----------------|
-| `http://192.168.1.50:4096` | Secure cookies **disabled** — allows login over HTTP |
-| `http://localhost:4096` | Secure cookies **disabled** — allows local development |
-| `https://zerobyte.example.com` | Secure cookies **enabled** — requires HTTPS |
+| `http://192.168.1.50:4096` | Secure cookies **disabled**, allows login over HTTP |
+| `http://localhost:4096` | Secure cookies **disabled**, allows local development |
+| `https://zerobyte.example.com` | Secure cookies **enabled**, requires HTTPS |
 
 <Callout type="info">
   If `BASE_URL` starts with `https://`, browsers will only send auth cookies over HTTPS connections. Plain HTTP access may show the login page but authentication will fail.
