@@ -24,6 +24,10 @@ jobs:
         with:
           workingDirectory: docs
 
+      - name: Build docs
+        working-directory: docs
+        run: bun run build
+
       - name: Build and deploy docs
         uses: cloudflare/wrangler-action@v3
         with:
