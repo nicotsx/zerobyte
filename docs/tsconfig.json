@@ -4,11 +4,10 @@
 		"target": "ES2022",
 		"jsx": "react-jsx",
 		"module": "ESNext",
-		"baseUrl": ".",
 		"paths": {
 			"#/*": ["./src/*"],
 			"@/*": ["./src/*"],
-			"fumadocs-mdx:collections/*": [".source/*"]
+			"fumadocs-mdx:collections/*": ["./.source/*"]
 		},
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"types": ["vite/client"],
