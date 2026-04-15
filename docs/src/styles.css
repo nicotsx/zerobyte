@@ -321,6 +321,10 @@ body:has([data-docs-page])::before {
 	mask-image: radial-gradient(ellipse at top, black 70%, transparent 100%);
 }
 
+.landing-hero-glow {
+	background: radial-gradient(ellipse at center, var(--hero-a) 0%, var(--hero-b) 28%, transparent 68%);
+}
+
 /* Ensure prose body text is readable against the dark background */
 .prose {
 	--tw-prose-body: var(--sea-ink);

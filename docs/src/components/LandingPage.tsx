@@ -191,37 +191,69 @@ const faqs = [
 	},
 ];
 
+function BrowserMockup() {
+	return (
+		<div className="w-full overflow-hidden rounded-lg border border-border bg-card shadow-2xl">
+			<div className="relative flex items-center border-b border-border bg-secondary/80 px-4 py-2">
+				<div className="flex gap-1.5">
+					<div className="h-3 w-3 rounded-full bg-red-500" />
+					<div className="h-3 w-3 rounded-full bg-yellow-500" />
+					<div className="h-3 w-3 rounded-full bg-green-500" />
+				</div>
+				<div className="pointer-events-none absolute inset-0 flex items-center justify-center px-10 sm:px-20">
+					<div className="w-full max-w-md rounded bg-background/80 px-3 py-0.5 text-center text-xs text-muted-foreground">
+						localhost:4096
+					</div>
+				</div>
+			</div>
+			<div className="aspect-video bg-background/80">
+				<img
+					src="/images/screenshot.png"
+					alt="Zerobyte backups dashboard"
+					className="h-full w-full object-cover object-top"
+				/>
+			</div>
+		</div>
+	);
+}
+
 export default function LandingPage() {
 	return (
 		<div data-landing-page className="bg-background text-foreground">
 			<main>
 				<section className="relative overflow-hidden border-b border-border">
 					<div aria-hidden className="landing-hero-docs-grid pointer-events-none absolute inset-0" />
-					<div className="relative mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32 lg:py-40">
-						<div className="mx-auto max-w-3xl text-center">
-							<p className="mb-4 text-sm font-medium uppercase tracking-wider text-strong-accent">
-								Open Source Backup Control Plane
-							</p>
-							<h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-								Backups you can finally forget about
-							</h1>
-							<p className="mx-auto mt-6 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
-								Zerobyte gives you a clean web interface to schedule, monitor, restore, and maintain encrypted backups
-								across local disks, NAS shares, remote servers, and cloud storage.
-							</p>
-							<div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-								<Link to="/docs/$" params={{ _splat: "" }} className={primaryButtonClass}>
-									Documentation
-									<ArrowRight className="h-4 w-4" />
-								</Link>
-								<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
-									<Github className="h-4 w-4" />
-									View on GitHub
-								</a>
+					<div aria-hidden className="landing-hero-glow pointer-events-none absolute inset-0" />
+					<div className="relative mx-auto max-w-[90rem] px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
+						<div className="grid items-center gap-12 min-[1100px]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] min-[1100px]:gap-8 lg:gap-12">
+							<div className="text-left">
+								<p className="mb-4 text-sm font-medium uppercase tracking-wider text-strong-accent">
+									Open Source Backup Control Plane
+								</p>
+								<h1 className="text-balance text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+									Backups you can finally forget about
+								</h1>
+								<p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+									Zerobyte gives you a clean web interface to schedule, monitor, restore, and maintain encrypted backups
+									across local disks, NAS shares, remote servers, and cloud storage.
+								</p>
+								<div className="mt-10 flex flex-wrap gap-3">
+									<Link to="/docs/$" params={{ _splat: "" }} className={primaryButtonClass}>
+										Documentation
+										<ArrowRight className="h-4 w-4" />
+									</Link>
+									<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
+										<Github className="h-4 w-4" />
+										View on GitHub
+									</a>
+								</div>
+								<p className="mt-6 max-w-xl text-sm text-muted-foreground">
+									Self-hosted. Restic-powered. Built for operators who want fewer scripts and more visibility.
+								</p>
 							</div>
-							<p className="mt-8 text-sm text-muted-foreground">
-								Self-hosted. Restic-powered. Built for operators who want fewer scripts and more visibility.
-							</p>
+							<div className="min-[1100px]:-mr-8 xl:-mr-12">
+								<BrowserMockup />
+							</div>
 						</div>
 					</div>
 				</section>
