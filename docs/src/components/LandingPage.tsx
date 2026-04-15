@@ -194,14 +194,14 @@ const faqs = [
 function BrowserMockup() {
 	return (
 		<div className="w-full overflow-hidden rounded-lg border border-border bg-card shadow-2xl">
-			<div className="relative flex items-center border-b border-border bg-secondary/80 px-4 py-2">
-				<div className="flex gap-1.5">
+			<div className="relative flex items-center gap-3 border-b border-border bg-secondary/80 px-4 py-2">
+				<div className="flex shrink-0 gap-1.5">
 					<div className="h-3 w-3 rounded-full bg-red-500" />
 					<div className="h-3 w-3 rounded-full bg-yellow-500" />
 					<div className="h-3 w-3 rounded-full bg-green-500" />
 				</div>
-				<div className="pointer-events-none absolute inset-0 flex items-center justify-center px-10 sm:px-20">
-					<div className="w-full max-w-md rounded bg-background/80 px-3 py-0.5 text-center text-xs text-muted-foreground">
+				<div className="min-w-0 flex-1 sm:pointer-events-none sm:absolute sm:inset-0 sm:flex sm:items-center sm:justify-center sm:px-20">
+					<div className="w-full rounded bg-background/80 px-3 py-0.5 text-center text-xs text-muted-foreground sm:max-w-md">
 						localhost:4096
 					</div>
 				</div>
@@ -353,7 +353,10 @@ export default function LandingPage() {
 							<div className="absolute left-6 top-0 hidden h-full w-px bg-border lg:left-1/2 lg:block" />
 							<div className="space-y-8 lg:space-y-12">
 								{steps.map((step, index) => (
-									<div key={step.number} className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-12">
+									<div
+										key={step.number}
+										className="relative flex flex-col gap-6 pl-16 lg:flex-row lg:items-center lg:gap-12 lg:pl-0"
+									>
 										<div className={`lg:w-1/2 ${index % 2 === 0 ? "lg:pr-12 lg:text-right" : "lg:order-2 lg:pl-12"}`}>
 											<h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
 											<p className="mt-2 text-muted-foreground">{step.description}</p>

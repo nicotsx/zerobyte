@@ -5,6 +5,9 @@ import Header from "../components/Header";
 
 import appCss from "../styles.css?url";
 
+const siteUrl = "https://zerobyte.app";
+const ogImageUrl = `${siteUrl}/images/og.png`;
+
 export const Route = createRootRoute({
 	head: () => ({
 		meta: [
@@ -22,6 +25,56 @@ export const Route = createRootRoute({
 				name: "description",
 				content:
 					"Zerobyte is a web control plane for Restic backups with scheduling, encrypted repositories, monitoring, and restore workflows.",
+			},
+			{
+				property: "og:title",
+				content: "Zerobyte | Backup automation for Restic",
+			},
+			{
+				property: "og:description",
+				content:
+					"Zerobyte is a web control plane for Restic backups with scheduling, encrypted repositories, monitoring, and restore workflows.",
+			},
+			{
+				property: "og:type",
+				content: "website",
+			},
+			{
+				property: "og:url",
+				content: siteUrl,
+			},
+			{
+				property: "og:image",
+				content: ogImageUrl,
+			},
+			{
+				property: "og:image:width",
+				content: "2048",
+			},
+			{
+				property: "og:image:height",
+				content: "1152",
+			},
+			{
+				property: "og:image:alt",
+				content: "Zerobyte backups dashboard preview",
+			},
+			{
+				name: "twitter:card",
+				content: "summary_large_image",
+			},
+			{
+				name: "twitter:title",
+				content: "Zerobyte | Backup automation for Restic",
+			},
+			{
+				name: "twitter:description",
+				content:
+					"Zerobyte is a web control plane for Restic backups with scheduling, encrypted repositories, monitoring, and restore workflows.",
+			},
+			{
+				name: "twitter:image",
+				content: ogImageUrl,
 			},
 		],
 		links: [
