@@ -1,6 +1,11 @@
 name: Install dependencies
 
 description: Install dependencies
+inputs:
+  workingDirectory:
+    description: "The working directory to install dependencies in"
+    required: false
+    default: "."
 
 runs:
   using: "composite"
@@ -21,4 +26,6 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: sfw vp install --frozen-lockfile
+      run: |
+        cd ${{ inputs.workingDirectory }}
+        sfw vp install --frozen-lockfile

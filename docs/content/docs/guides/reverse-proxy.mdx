@@ -1,0 +1,193 @@
+---
+title: Reverse Proxy
+description: Run Zerobyte behind Nginx, Caddy, or Traefik with HTTPS
+---
+
+When running Zerobyte behind a reverse proxy, you need to configure the `BASE_URL` environment variable with your HTTPS domain and ensure your proxy passes the correct headers.
+
+## Prerequisites
+
+Set the following environment variables in your `docker-compose.yml`:
+
+```yaml docker-compose.yml
+environment:
+  - BASE_URL=https://zerobyte.example.com
+  - TRUST_PROXY=true  # Optional: trust X-Forwarded-For headers from your proxy
+```
+
+Restart the container after making changes:
+
+```bash
+docker compose down && docker compose up -d
+```
+
+## How BASE_URL affects cookie security
+
+Zerobyte uses `BASE_URL` to determine whether authentication cookies should be marked as `Secure`. This directly affects how login sessions work:
+
+| BASE_URL value | Cookie behavior |
+|---|---|
+| `http://` or IP address (e.g., `http://192.168.1.100:4096`) | Secure cookies **disabled** — cookies sent over HTTP. Suitable for local network access. |
+| `https://` with domain (e.g., `https://zerobyte.example.com`) | Secure cookies **enabled** — cookies only sent over HTTPS. Required for production. |
+
+<Callout type="warn">
+If `BASE_URL` is set to an `https://` address, browsers will **only** send authentication cookies over HTTPS connections. Accessing Zerobyte over plain HTTP will fail with login loops or session errors. Make sure your reverse proxy terminates TLS before forwarding to Zerobyte.
+</Callout>
+
+## Proxy configurations
+
+<Tabs items={["Nginx", "Caddy", "Traefik"]}>
+<Tab value="Nginx">
+
+### Nginx
+
+Create a server block for Zerobyte. This configuration handles TLS termination and forwards requests to the container:
+
+```nginx nginx.conf
+server {
+    listen 443 ssl http2;
+    server_name zerobyte.example.com;
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:4096;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Reload Nginx after saving:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+</Tab>
+
+<Tab value="Caddy">
+
+### Caddy
+
+Caddy automatically provisions and renews TLS certificates from Let's Encrypt. Add this to your `Caddyfile`:
+
+```text Caddyfile
+zerobyte.example.com {
+    reverse_proxy localhost:4096
+}
+```
+
+Reload Caddy after saving:
+
+```bash
+sudo systemctl reload caddy
+```
+
+Caddy automatically handles `X-Forwarded-For`, `X-Forwarded-Proto`, and TLS — no extra configuration needed.
+
+</Tab>
+
+<Tab value="Traefik">
+
+### Traefik
+
+If you run Traefik as your reverse proxy, add labels to the Zerobyte service in your `docker-compose.yml`:
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:v0.29
+    container_name: zerobyte
+    restart: unless-stopped
+    environment:
+      - BASE_URL=https://zerobyte.example.com
+      - APP_SECRET=your-secret-here
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zerobyte.rule=Host(`zerobyte.example.com`)"
+      - "traefik.http.routers.zerobyte.entrypoints=websecure"
+      - "traefik.http.routers.zerobyte.tls.certresolver=letsencrypt"
+      - "traefik.http.services.zerobyte.loadbalancer.server.port=4096"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+```
+
+Make sure your Traefik instance is configured with a `websecure` entrypoint and a `letsencrypt` certificate resolver.
+
+</Tab>
+</Tabs>
+
+## Binding to localhost
+
+If you are using a reverse proxy on the same machine, bind the Zerobyte port to `127.0.0.1` so it is not directly accessible from the network:
+
+```yaml docker-compose.yml
+ports:
+  - "127.0.0.1:4096:4096"
+```
+
+This ensures all traffic goes through your reverse proxy, which handles TLS and authentication headers.
+
+## Security considerations
+
+<Callout type="warn">
+**Exposing Zerobyte to the internet requires care.** Even behind a reverse proxy with HTTPS, make sure you:
+
+- Bind the container port to localhost only (`127.0.0.1:4096:4096`) so it cannot be accessed directly.
+- Use a strong `APP_SECRET` (generated with `openssl rand -hex 32`).
+- Keep Zerobyte updated to the latest version.
+- Consider placing Zerobyte behind a secure tunnel (Cloudflare Tunnel, Tailscale, WireGuard) for an additional layer of protection.
+</Callout>
+
+### A note on TRUSTED_ORIGINS
+
+The `TRUSTED_ORIGINS` environment variable allows you to add additional CORS origins for cross-origin requests. It does **not** make HTTP work when `BASE_URL` is set to HTTPS. If your `BASE_URL` uses `https://`, all access must go through HTTPS regardless of what is listed in `TRUSTED_ORIGINS`.
+
+```yaml
+# TRUSTED_ORIGINS only adds allowed CORS origins — it does NOT downgrade HTTPS to HTTP
+environment:
+  - BASE_URL=https://zerobyte.example.com
+  - TRUSTED_ORIGINS=https://other-app.example.com
+```
+
+## Verifying your setup
+
+After configuring your reverse proxy:
+
+<Steps>
+<Step>
+
+### Test HTTPS access
+
+Open `https://zerobyte.example.com` in your browser. You should see the Zerobyte login page with a valid TLS certificate.
+
+</Step>
+
+<Step>
+
+### Check headers
+
+Verify that your proxy is forwarding the correct headers. In the Zerobyte container logs, you should see requests coming from your proxy:
+
+```bash
+docker compose logs -f zerobyte
+```
+
+</Step>
+
+<Step>
+
+### Confirm login works
+
+Log in with your admin credentials. If login fails or loops, double-check that `BASE_URL` matches the URL you are accessing and that cookies are being set correctly over HTTPS.
+
+</Step>
+</Steps>
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";

@@ -1,0 +1,145 @@
+---
+title: 3-2-1 Backup Strategy
+description: Build a practical 3-2-1 backup setup in Zerobyte with a fast local copy and an offsite encrypted mirror
+---
+
+The 3-2-1 backup strategy is a simple rule for reducing backup risk:
+
+- Keep **3 copies** of your data
+- Use **2 different storage systems**
+- Keep **1 copy offsite**
+
+In Zerobyte, that usually looks like this:
+
+- Your live data on a server, NAS, or workstation
+- A primary backup repository on fast local storage
+- A mirrored repository on an offsite backend such as S3, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, SFTP, or a remote REST server
+
+## Why 3-2-1 is a good strategy
+
+A single backup copy can still fail for the same reason as the original data. The 3-2-1 rule reduces correlated failure, so one bad delete, dead disk, provider issue, or site-level incident is less likely to wipe out every copy at once.
+
+| Failure scenario | What goes wrong without 3-2-1 | How 3-2-1 helps |
+| --- | --- | --- |
+| Accidental deletion or bad change | Your only backup may be too recent or incomplete | Older snapshots give you a clean restore point |
+| Disk or NAS failure | Data and backup can be lost together | A second storage system still has the data |
+| Ransomware or host compromise | Local storage may be affected too | An offsite copy gives you another recovery path |
+| Fire, theft, or power event | Everything in one building can disappear together | The offsite copy survives |
+| Provider or account problem | One backend outage blocks restore | Different backends reduce that single point of failure |
+
+Zerobyte fits this strategy well because it already gives you the building blocks:
+
+- **Encrypted repositories** so offsite copies stay private
+- **Incremental, deduplicated snapshots** so keeping multiple copies is more storage-efficient
+- **Mirror repositories** so one backup job can copy snapshots to additional destinations
+- **Browsable restores** so you can test recovery without dropping to the CLI
+
+## How 3-2-1 maps to Zerobyte
+
+| 3-2-1 element | Zerobyte example |
+| --- | --- |
+| **3 copies** | Live data + primary repository + mirror repository |
+| **2 different storage systems** | Local disk or NAS for the primary copy, object storage or remote server for the second copy |
+| **1 offsite copy** | A repository in another building, region, or provider |
+
+<Callout type="info">
+  Historically, the "2" in 3-2-1 meant two different kinds of media. In modern setups, different storage systems and failure domains matter more than literal media type. A local disk plus cloud object storage is a strong practical interpretation.
+</Callout>
+
+## How to do it with Zerobyte
+
+<Steps>
+  <Step>
+
+### Create the volume for your live data
+
+Add the directory or remote share you want to protect as a [volume](/docs/concepts/volumes).
+
+  </Step>
+
+  <Step>
+
+### Create a primary repository for fast restores
+
+Use a backend that is quick and close to the source, such as a local disk, mounted NAS path, nearby REST server, or nearby SFTP host. This gives you a fast day-to-day restore target.
+
+  </Step>
+
+  <Step>
+
+### Create a second repository in a different failure domain
+
+Create another repository on an offsite backend such as S3-compatible storage, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, or a remote SFTP or REST server in another location.
+
+If you want a strong "2" in 3-2-1, avoid putting both repositories on the same host, in the same rack, or behind the same provider account.
+
+  </Step>
+
+  <Step>
+
+### Create the backup job and add the offsite copy as a mirror
+
+Set the primary repository as the main backup repository, then configure the offsite repository as a mirror repository. After each successful backup, Zerobyte copies that snapshot to the mirror repository automatically.
+
+  </Step>
+
+  <Step>
+
+### Add a schedule and retention policy
+
+Pick a schedule that matches how often the data changes. A solid starting point for many workloads is:
+
+- Schedule: `0 2 * * *` (daily at 2:00 AM)
+- Keep Daily: `7`
+- Keep Weekly: `4`
+- Keep Monthly: `6`
+- Keep Yearly: `1`
+
+Adjust this based on your recovery needs and storage budget.
+
+  </Step>
+
+  <Step>
+
+### Store the recovery key outside Zerobyte
+
+Keep the organization's recovery key in a password manager, secret vault, or other secure place outside the Zerobyte server. The offsite copy only helps if you can still decrypt it during an outage.
+
+  </Step>
+
+  <Step>
+
+### Run a manual backup and test restore
+
+Use **Backup now** to create the first snapshot, then test a restore to a non-production path. A backup strategy is only real once you have verified that recovery works.
+
+  </Step>
+</Steps>
+
+## Example Zerobyte layout
+
+| Copy | Example |
+| --- | --- |
+| Live data | `/srv/data` on your server |
+| Local backup copy | Local repository on `/mnt/backup-disk/zerobyte` |
+| Offsite backup copy | Cloudflare R2 bucket or remote SFTP repository |
+
+One backup job can then write to the local repository and mirror each successful snapshot to the offsite repository.
+
+## Common mistakes
+
+- Keeping the live data and primary repository on the same physical disk
+- Calling a second copy "offsite" when it is still in the same building
+- Storing every copy under the same provider account without any separation
+- Forgetting to protect the recovery key or imported repository password
+- Never testing restores
+
+## Related docs
+
+- [Quickstart](/docs/quickstart)
+- [Backups](/docs/concepts/backups)
+- [Repositories](/docs/concepts/repositories)
+- [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords)
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";

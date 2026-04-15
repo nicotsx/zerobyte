@@ -1,0 +1,64 @@
+---
+title: Zerobyte Documentation
+description: Backup automation platform built on Restic
+---
+
+Welcome to Zerobyte, a powerful backup automation platform built on [Restic](https://restic.net/).
+
+## Getting Started
+
+<Cards>
+  <Card title="Introduction" icon={<BookOpen />} href="/docs/introduction">
+    Learn about Zerobyte's features and capabilities
+  </Card>
+
+  <Card title="Installation" icon={<Download />} href="/docs/installation">
+    Deploy Zerobyte with Docker and Docker Compose
+  </Card>
+
+  <Card title="Quick Start" icon={<Rocket />} href="/docs/quickstart">
+    Set up your first backup in minutes
+  </Card>
+
+  <Card title="3-2-1 Strategy" icon={<ShieldCheck />} href="/docs/guides/3-2-1-backup-strategy">
+    Learn why 3-2-1 backups matter and how to set them up in Zerobyte
+  </Card>
+</Cards>
+
+## What is Zerobyte?
+
+Zerobyte simplifies backup management by providing an intuitive web interface on top of Restic's powerful backup engine. Whether you're backing up local directories, NFS shares, or cloud storage, Zerobyte handles encryption, compression, scheduling, and retention policies automatically.
+
+### Key Capabilities
+
+- **Automated backups** with encryption, compression, and retention policies
+- **Flexible scheduling** with cron-like expressions
+- **Multi-protocol support** for NFS, SMB, WebDAV, SFTP, and local directories
+- **Cloud storage** via S3, Google Cloud Storage, Azure Blob, and 40+ rclone backends
+- **Snapshot browsing and restore** directly from the web interface
+
+<Callout type="warn">
+  Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active development. Expect bugs and breaking changes.
+</Callout>
+
+## Explore the Docs
+
+<Cards>
+  <Card title="Concepts" icon={<Layers />} href="/docs/concepts/volumes">
+    Understand volumes, repositories, and backup jobs
+  </Card>
+
+  <Card title="Guides" icon={<BookMarked />} href="/docs/guides/rclone">
+    Step-by-step guides for rclone, reverse proxies, Tailscale, and more
+  </Card>
+
+  <Card title="Configuration" icon={<Settings />} href="/docs/configuration">
+    Environment variables and Docker configuration reference
+  </Card>
+
+  <Card title="Troubleshooting" icon={<LifeBuoy />} href="/docs/troubleshooting">
+    Solve common issues with permissions, mounts, and rclone
+  </Card>
+</Cards>
+
+import { BookOpen, Download, Rocket, ShieldCheck, Layers, BookMarked, Settings, LifeBuoy } from "lucide-react";

@@ -1,0 +1,110 @@
+---
+title: SSO
+description: Register OIDC providers, control access with invitations, and understand account-linking behavior
+---
+
+Zerobyte's current SSO implementation is organization-scoped and OIDC-based. You register providers under **Settings > Organization > Single Sign-On**, or directly at `/settings/sso/new`.
+
+<Callout type="warn">
+  Zerobyte SSO is invite-oriented. Enabling auto-linking does **not** mean "anyone with that email can join".
+</Callout>
+
+## What Zerobyte supports
+
+- Each SSO provider belongs to exactly one organization.
+- The login page exposes registered providers as `Log in with {providerId}` buttons.
+- Organization owners can register new providers.
+- Organization owners and admins can manage invitations, toggle per-provider auto-linking, and delete existing providers.
+- Zerobyte currently registers OIDC providers with the `openid`, `email`, and `profile` scopes.
+
+## Required values
+
+| Zerobyte field | What it means | Example |
+| --- | --- | --- |
+| `Provider ID` | Stable unique identifier for this provider. It is used in the callback URL and is what users see on the login button. | `acme-oidc` |
+| `Organization Domain` | Domain recorded with the provider and used for provider discovery metadata. | `example.com` |
+| `Issuer URL` | The OIDC issuer published by your identity provider. | `https://idp.example.com/realms/acme` |
+| `Discovery Endpoint` | The provider's `.well-known/openid-configuration` URL. | `https://idp.example.com/.well-known/openid-configuration` |
+| `Client ID` | OIDC client identifier from your IdP. | `zerobyte` |
+| `Client Secret` | OIDC client secret from your IdP. | `(secret)` |
+| `Link matching emails to existing accounts` | Per-provider trust switch for matching an existing Zerobyte account by email. | `Off` by default |
+
+## Callback URL
+
+Register this exact redirect URI in your identity provider:
+
+```text
+${BASE_URL}/api/auth/sso/callback/${providerId}
+```
+
+Example:
+
+```text
+https://backup.example.com/api/auth/sso/callback/acme-oidc
+```
+
+## Setup checklist
+
+1. In your identity provider, create a confidential or web OIDC client for Zerobyte.
+2. Register the callback URL above as an allowed redirect URI.
+3. Make sure the provider returns `email` and an email-verification claim.
+4. In Zerobyte, open **Settings > Organization > Single Sign-On** and click **Register new**.
+5. Fill in the provider details and save.
+6. Decide whether `Link matching emails to existing accounts` should be enabled for this provider.
+7. Invite users before asking them to sign in, unless their existing local account already belongs to the organization.
+
+## How access is decided
+
+The important rule is that Zerobyte checks **organization membership** and **pending invitations** in addition to whatever your identity provider says.
+
+| Situation | Result | Why |
+| --- | --- | --- |
+| Brand-new user, no membership, no invitation | Blocked | There is no valid organization membership or pending invitation. |
+| Brand-new user with a pending invitation | Allowed | Zerobyte creates the membership on first successful SSO login and marks the invitation as `accepted`. |
+| Existing local account already belongs to the organization, auto-linking is `off` | Blocked with an account-linking error | The provider is not trusted to auto-link by email yet. |
+| Existing local account already belongs to the organization, auto-linking is `on` | Allowed | The provider is trusted for matching-email account linking inside that organization. |
+| Existing local account has the same email, has a pending invitation, but is **not already a member** of the organization | Blocked with an account-linking error | Zerobyte refuses to merge an existing account that is outside the organization, even if the email matches and there is a pending invitation. |
+| User was invited before, signed in once, was later removed from the organization, then tries SSO again | Blocked | The old invitation remains `accepted`; it is not reopened automatically after removal. |
+
+In practice, an **eligible local account** means an account that already belongs to the organization you are signing into. A matching email plus a pending invitation is **not** enough to merge an unrelated existing account.
+
+## Invitations and membership lifecycle
+
+- Invitations are email-based, organization-specific, and role-bearing.
+- A successful first SSO login for an invited user creates the membership and marks the invitation as `accepted`.
+- Pending invitations must still be unexpired to work.
+- Expired, cancelled, or already accepted invitations do not grant first-time access.
+- If a user is removed later, create a **new** invitation before they try SSO again.
+
+The invitation UI lets you assign `member`, `admin`, or `owner` at invite time. The accepted membership is created with that invited role.
+
+## Auto-linking semantics
+
+- Auto-linking is stored **per provider**, not globally.
+- Turning it on for one provider does not affect other providers.
+- It only applies when the IdP email matches an existing Zerobyte account.
+- It does **not** grant organization membership by email alone.
+- It does **not** override invite-only access for brand-new users.
+- It does **not** merge a matching account that is outside the organization.
+- Leaving it off is the safest default for new rollouts.
+
+<Callout type="info">
+  The safest mental model is: auto-linking can help an already eligible account add SSO, but it is not an open-enrollment feature.
+</Callout>
+
+## Common failure cases
+
+| What the user sees | Typical cause | What to do |
+| --- | --- | --- |
+| `Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.` | No pending invitation, invitation expired, invitation was cancelled, or the user was removed after an earlier accepted invite | Create a new pending invitation or restore membership before retrying. |
+| `SSO sign-in was blocked because this email already belongs to another user in this instance.` | Zerobyte found an existing account with the same email, but that account is not eligible for auto-linking with this provider | Confirm whether the account already belongs to the organization and whether auto-linking should be enabled on this trusted provider. |
+| `Your identity provider did not mark your email as verified.` | The IdP did not send a verified email claim | Fix email verification in the IdP before retrying. |
+| `You have been banned from this application.` | The user is banned at the application level | Remove the ban or use a different account. |
+| `SSO authentication failed. Please try again.` | Generic provider or callback failure | Check IdP redirect URI, client credentials, issuer, and discovery endpoint. |
+
+## Related docs
+
+- [Organizations, members, and roles](/docs/concepts/organizations)
+- [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords)
+
+import { Callout } from "fumadocs-ui/components/callout";

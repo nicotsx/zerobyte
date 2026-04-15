@@ -1,0 +1,299 @@
+---
+title: Volumes
+description: Understand volume types, mounting, and how Zerobyte connects to your data sources
+---
+
+Volumes are the data sources you want to protect with Zerobyte. Each volume represents a filesystem -- a local directory, a network share, or a remote storage location -- that Zerobyte mounts and reads from when running backups.
+
+## What are volumes?
+
+A volume tells Zerobyte *where* your data lives. When you create a volume, you provide connection details (a path, a server address, credentials) and Zerobyte takes care of mounting that filesystem, monitoring its health, and making it available to your backup jobs.
+
+Volumes support a range of protocols, from simple local directories to NFS shares, Windows/Samba file servers, WebDAV endpoints, SFTP connections, and cloud storage via rclone. Once a volume is mounted, you can browse its contents directly in the UI, assign it to one or more backup jobs, and let Zerobyte handle the rest.
+
+## Supported volume types
+
+Zerobyte supports six volume types. Each one is configured through the web UI when you create or edit a volume.
+
+<Tabs items={["Directory", "NFS", "SMB/CIFS", "WebDAV", "SFTP", "Rclone"]}>
+  <Tab value="Directory">
+    ### Directory (local)
+
+    A local directory on the host machine, mounted into the Zerobyte container via your `docker-compose.yml` file.
+
+    **Use cases:**
+
+    - Backing up application data, configuration files, or databases on the host
+    - Testing backup configurations before adding remote volumes
+    - Protecting Docker volume data or bind-mounted directories
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Path** -- The path *inside the container* where the directory is mounted (e.g., `/data`)
+
+    <Callout type="info">
+      You must first mount the host directory into the Zerobyte container by adding it to the `volumes` section of your `docker-compose.yml`. For example, to back up `/home/user/photos` on the host, add `- /home/user/photos:/photos:ro` to your compose file, restart the container, then create a Directory volume in the UI with the path `/photos`.
+    </Callout>
+  </Tab>
+
+  <Tab value="NFS">
+    ### NFS (Network File System)
+
+    Mount NFS exports from a NAS, file server, or any system that shares directories over the NFS protocol.
+
+    **Use cases:**
+
+    - Backing up NAS devices (Synology, QNAP, TrueNAS, etc.)
+    - Enterprise file server protection
+    - Shared storage in Linux environments
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Server** -- Hostname or IP address of the NFS server
+    - **Export Path** -- The exported directory on the server (e.g., `/volume1/data`)
+    - **NFS Version** -- Protocol version: `3`, `4`, or `4.1`
+    - **Port** -- NFS port (default: `2049`)
+    - **Read Only** -- Mount the share in read-only mode
+
+    <Callout type="warn">
+      NFS volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for details on enabling `cap_add: [SYS_ADMIN]`.
+    </Callout>
+  </Tab>
+
+  <Tab value="SMB/CIFS">
+    ### SMB/CIFS
+
+    Connect to Windows file shares or Samba servers using the SMB/CIFS protocol.
+
+    **Use cases:**
+
+    - Windows file server backups
+    - Samba shares on Linux or NAS devices
+    - Active Directory-integrated storage
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Server** -- Hostname or IP address of the SMB server
+    - **Share** -- Name of the shared folder (e.g., `documents`)
+    - **Guest Mode** -- Enable unauthenticated access if the share allows it
+    - **Username** -- Account used to connect when guest mode is disabled
+    - **Password** -- Account password when guest mode is disabled
+    - **Domain** -- Windows domain (optional)
+    - **SMB Version** -- Protocol version: `1.0`, `2.0`, `2.1`, or `3.0`
+    - **Port** -- SMB port (default: `445`)
+    - **Read Only** -- Mount the share in read-only mode
+
+    <Callout type="info">
+      Guest access is supported through the **Guest Mode** option.
+    </Callout>
+
+    <Callout type="warn">
+      SMB volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
+    </Callout>
+  </Tab>
+
+  <Tab value="WebDAV">
+    ### WebDAV
+
+    Mount storage over HTTP/HTTPS using the WebDAV protocol. This is a common option for self-hosted cloud platforms.
+
+    **Use cases:**
+
+    - Nextcloud or ownCloud instances
+    - Web-based file storage services
+    - Any server that exposes a WebDAV endpoint
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Server** -- Hostname or IP of the WebDAV server
+    - **Path** -- Path on the server (e.g., `/remote.php/dav/files/username`)
+    - **Username** -- WebDAV account username (optional)
+    - **Password** -- WebDAV account password (optional)
+    - **Port** -- Server port (e.g., `443` for HTTPS)
+    - **SSL** -- Enable HTTPS connection
+    - **Read Only** -- Mount in read-only mode
+
+    <Callout type="warn">
+      WebDAV volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
+    </Callout>
+  </Tab>
+
+  <Tab value="SFTP">
+    ### SFTP (SSH File Transfer Protocol)
+
+    Mount remote directories over SSH. Supports both password-based and private key authentication.
+
+    **Use cases:**
+
+    - Remote Linux server backups
+    - VPS data protection
+    - Any SSH-accessible storage
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Host** -- Hostname or IP of the SSH server
+    - **Port** -- SSH port (default: `22`)
+    - **Username** -- SSH account username
+    - **Password** -- Password authentication (optional if using a private key)
+    - **Private Key** -- SSH private key authentication (optional if using a password)
+    - **Path** -- Directory path on the remote server
+    - **Skip Host Key Verification** -- Disable host key checking (not recommended for production)
+    - **Known Hosts** -- Required unless host key verification is skipped
+    - **Read Only** -- Mount in read-only mode
+
+    <Callout type="warn">
+      SFTP volumes require both the `SYS_ADMIN` capability and access to `/dev/fuse` in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
+    </Callout>
+  </Tab>
+
+  <Tab value="Rclone">
+    ### Rclone (40+ cloud providers)
+
+    Access cloud storage from providers like Google Drive, Dropbox, OneDrive, Backblaze B2, and many more through rclone.
+
+    **Use cases:**
+
+    - Backing up data stored in cloud services to an encrypted repository
+    - Consolidating data from multiple cloud providers
+    - Accessing specialized storage backends not natively supported
+
+    **Form fields:**
+
+    - **Name** -- A descriptive label for this volume
+    - **Remote** -- The rclone remote name as defined in your rclone configuration (e.g., `gdrive`)
+    - **Path** -- Path within the remote (e.g., `/documents`)
+    - **Read Only** -- Mount in read-only mode
+
+    <Callout type="info">
+      Rclone must be configured on your host first, and the configuration directory must be mounted into the Zerobyte container. See the [Installation guide](/docs/installation#mounting-rclone-configuration) for instructions on mounting your rclone config.
+    </Callout>
+
+    <Callout type="warn">
+      Rclone volumes require both the `SYS_ADMIN` capability and access to `/dev/fuse` in your Docker container configuration.
+    </Callout>
+  </Tab>
+</Tabs>
+
+## Volume status
+
+Every volume is in one of three states, visible at a glance in the Volumes list.
+
+<Steps>
+  <Step>
+
+### Mounted
+
+The volume is connected and accessible. Backup jobs can read from this volume.
+
+  </Step>
+
+  <Step>
+
+### Unmounted
+
+The volume exists in Zerobyte but is not currently connected. Backups that depend on this volume will not run until it is mounted again.
+
+  </Step>
+
+  <Step>
+
+### Error
+
+Something went wrong -- the mount failed, the network is unreachable, or credentials were rejected. The volume detail view shows the specific error message. If auto-remount is enabled, Zerobyte will attempt to recover automatically.
+
+  </Step>
+</Steps>
+
+## Auto-remount
+
+Auto-remount is enabled by default for every volume. When a mounted volume enters an error state (for example, due to a temporary network outage or a server restart), Zerobyte automatically attempts to re-establish the connection without any manual action.
+
+This is especially valuable for network-based volume types (NFS, SMB, WebDAV, SFTP, Rclone) where transient connectivity issues are common. Auto-remount ensures your scheduled backups continue to run even after brief disruptions.
+
+You can disable auto-remount for any volume if you prefer to handle reconnections manually.
+
+## File browsing
+
+Once a volume is mounted, you can browse its contents directly from the Zerobyte web interface. File browsing lets you:
+
+- Verify that the volume mounted correctly and points to the expected data
+- Explore the directory structure to identify paths you want to include or exclude in your backup jobs
+- Confirm that the files and folders you need to protect are accessible
+
+This is a read-only view of the volume's contents -- browsing does not modify any files.
+
+## Read-only mode
+
+All six volume types support mounting in read-only mode. When enabled, Zerobyte can still read and back up files, but write operations are blocked at the filesystem level.
+
+<Callout type="info">
+  Read-only mode adds an extra layer of safety when backing up production data. It guarantees that the backup process cannot accidentally modify or delete source files.
+</Callout>
+
+## Credential security
+
+Sensitive fields -- passwords, private keys, and other secrets -- are encrypted before they are stored. Zerobyte never saves credentials in plain text.
+
+Provisioned volumes also support secret references:
+
+- **`env://VARIABLE_NAME`** -- Resolves the value from an environment variable set in your `docker-compose.yml` during provisioning
+- **`file://secret_name`** -- Resolves the value from a Docker secrets file at `/run/secrets/secret_name` during provisioning
+
+During provisioning, Zerobyte resolves these references on startup and stores the resolved value encrypted in the database.
+
+The regular volume form in the UI currently expects the actual credential value. Entering `env://...` or `file://...` there will not resolve it at runtime.
+
+<Callout type="info">
+  For a complete walkthrough of managing secrets through environment variables, Docker secrets, and provisioning files, see the [Provisioning guide](/docs/guides/provisioning).
+</Callout>
+
+## Best practices
+
+<Accordions>
+  <Accordion title="Name volumes descriptively">
+    Use names that clearly identify what data the volume contains and where it comes from. Good examples:
+
+    - `production-database-dumps`
+    - `customer-uploads-nfs`
+    - `accounting-smb-share`
+
+    Avoid generic names like `volume1` or `backup` -- they become confusing as you add more volumes.
+  </Accordion>
+
+  <Accordion title="Enable auto-remount for network volumes">
+    Network shares can experience transient failures from server restarts, brief network outages, or DNS hiccups. Keep auto-remount enabled so Zerobyte recovers on its own and your scheduled backups are not disrupted.
+  </Accordion>
+
+  <Accordion title="Use read-only mode when possible">
+    Mounting volumes in read-only mode prevents any chance of the backup process modifying source data. This is especially important for:
+
+    - Live production systems
+    - Archive or compliance data
+    - Shared storage used by multiple applications
+  </Accordion>
+
+  <Accordion title="Monitor volume health">
+    A volume in error state will cause its associated backup jobs to fail. Check the Volumes list regularly, or set up notifications to alert you when a volume loses its connection. Catching mount issues early prevents gaps in your backup coverage.
+  </Accordion>
+</Accordions>
+
+## Next steps
+
+<Cards>
+  <Card title="Repositories" href="/docs/concepts/repositories">
+    Learn about encrypted storage destinations where your backup snapshots are kept
+  </Card>
+
+  <Card title="Backups" href="/docs/concepts/backups">
+    Configure backup jobs that connect your volumes to repositories with scheduling and retention
+  </Card>
+</Cards>
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";

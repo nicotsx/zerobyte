@@ -1,0 +1,75 @@
+---
+title: Organizations
+description: Understand how Zerobyte scopes resources, invitations, and roles
+---
+
+Zerobyte is organization-scoped. Repositories, volumes, backup schedules, notification destinations, SSO providers, and invitations all belong to an organization.
+
+## What an organization controls
+
+- Every request runs inside an active organization context.
+- Resource lists and mutations are filtered to that active organization.
+- Membership determines who can access organization-scoped features.
+- The organization ID shown in **Settings > Organization** is the same ID used by provisioning.
+
+## How organizations are created
+
+For a normal local signup, if the new user has no existing membership, Zerobyte creates a default workspace named like `Alice's Workspace` and makes that user an `owner`.
+
+Invited SSO users behave differently: Zerobyte creates their membership in the invited organization during the first successful SSO callback, so they land in that organization instead of getting a separate default workspace.
+
+## Organization roles
+
+| Role | What it means in practice |
+| --- | --- |
+| `member` | Standard organization member. Can use the organization, but cannot access organization-management actions such as member management or SSO settings. |
+| `admin` | Can access the **Organization** settings tab, manage members, manage invitations, toggle SSO auto-linking, and download the active organization's recovery key. |
+| `owner` | Has all admin capabilities and is additionally required for registering new SSO providers. Owners cannot be demoted or removed through the current organization member-management endpoints. |
+
+<Callout type="info">
+  Zerobyte also has an instance-wide user role named `admin` for global tasks such as registration control and user management. That global role is separate from organization roles like `member`, `admin`, and `owner`.
+</Callout>
+
+## Invitations
+
+Organization invitations carry four important pieces of data:
+
+- The invitee email address
+- The role to grant on acceptance
+- The invitation status
+- The expiration time
+
+In the current UI, invitation management lives inside **Settings > Organization > Single Sign-On** because SSO access is invite-oriented.
+
+### Role assignment by invitation
+
+New invitations can assign one of these organization roles immediately:
+
+- `member`
+- `admin`
+- `owner`
+
+That matters because the current **Members** table only lets you toggle existing members between `member` and `admin`. If you want to add another owner, invite that person as an `owner` from the invitation flow.
+
+## Member management behavior
+
+- Organization admins and owners can promote `member -> admin`.
+- Organization admins and owners can demote `admin -> member`.
+- Owners cannot be demoted through the member-management API.
+- Owners cannot be removed through the member-management API.
+- Removing a member immediately removes their access to that organization's resources.
+
+If the removed user belongs to another organization, Zerobyte rehomes their active session to a fallback organization membership. If they do not belong to any other organization, Zerobyte revokes their sessions and they must sign in again after being re-added.
+
+## Organization ID
+
+The **Organization ID** shown in **Settings > Organization** is primarily a reference value, but it is important for operator-managed setups because provisioning entries must point at an existing organization ID.
+
+See [Provisioning](/docs/guides/provisioning) if you manage repositories and volumes declaratively.
+
+## Related docs
+
+- [OIDC and Single Sign-On](/docs/guides/oidc-sso)
+- [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords)
+
+import { Callout } from "fumadocs-ui/components/callout";

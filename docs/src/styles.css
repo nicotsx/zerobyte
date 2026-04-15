@@ -1,0 +1,877 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+	--font-sans:
+		"Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+		"Noto Color Emoji";
+	--font-display: "Geist", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+	--background:
+		oklch(1 0 0);
+	--foreground:
+		oklch(0.145 0 0);
+	--card:
+		oklch(1 0 0);
+	--card-foreground:
+		oklch(0.145 0 0);
+	--card-header: #1b1b1b;
+	--popover:
+		oklch(1 0 0);
+	--popover-foreground:
+		oklch(0.145 0 0);
+	--primary:
+		oklch(0.205 0 0);
+	--primary-foreground:
+		oklch(0.985 0 0);
+	--secondary:
+		oklch(0.97 0 0);
+	--secondary-foreground:
+		oklch(0.205 0 0);
+	--muted:
+		oklch(0.97 0 0);
+	--muted-foreground:
+		oklch(0.556 0 0);
+	--accent:
+		oklch(0.97 0 0);
+	--accent-foreground:
+		oklch(0.205 0 0);
+	--destructive:
+		oklch(0.577 0.245 27.325);
+	--destructive-foreground: #fff;
+	--border:
+		oklch(0.922 0 0);
+	--input:
+		oklch(0.922 0 0);
+	--ring:
+		oklch(0.708 0 0);
+	--strong-accent: #ff543a;
+	--sea-ink: var(--foreground);
+	--sea-ink-soft: var(--muted-foreground);
+	--lagoon: var(--strong-accent);
+	--lagoon-deep: var(--strong-accent);
+	--palm: oklch(0.556 0 0);
+	--sand: #0b0b0b;
+	--foam: var(--card-header);
+	--surface: rgba(19, 19, 19, 0.8);
+	--surface-strong: rgba(27, 27, 27, 0.92);
+	--line: var(--border);
+	--inset-glint: rgba(255, 255, 255, 0.05);
+	--kicker: var(--muted-foreground);
+	--bg-base: var(--background);
+	--header-bg: var(--background);
+	--chip-bg: var(--card-header);
+	--chip-line: var(--border);
+	--link-bg-hover: rgba(255, 255, 255, 0.07);
+	--hero-a: color-mix(in oklab, var(--strong-accent) 8%, transparent);
+	--hero-b: color-mix(in oklab, var(--strong-accent) 4%, transparent);
+	--site-header-offset: calc(4rem + 1px);
+	--chart-1:
+		oklch(0.87 0 0);
+	--chart-2:
+		oklch(0.556 0 0);
+	--chart-3:
+		oklch(0.439 0 0);
+	--chart-4:
+		oklch(0.371 0 0);
+	--chart-5:
+		oklch(0.269 0 0);
+	--radius:
+		0.625rem;
+	--sidebar:
+		oklch(0.985 0 0);
+	--sidebar-foreground:
+		oklch(0.145 0 0);
+	--sidebar-primary:
+		oklch(0.205 0 0);
+	--sidebar-primary-foreground:
+		oklch(0.985 0 0);
+	--sidebar-accent:
+		oklch(0.97 0 0);
+	--sidebar-accent-foreground:
+		oklch(0.205 0 0);
+	--sidebar-border:
+		oklch(0.922 0 0);
+	--sidebar-ring:
+		oklch(0.708 0 0);
+}
+
+@theme inline {
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-card-header: var(--card-header);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-strong-accent: var(--strong-accent);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--font-heading:
+		var(--font-mono);
+	--font-mono:
+		'JetBrains Mono Variable', monospace;
+	--color-sidebar-ring:
+		var(--sidebar-ring);
+	--color-sidebar-border:
+		var(--sidebar-border);
+	--color-sidebar-accent-foreground:
+		var(--sidebar-accent-foreground);
+	--color-sidebar-accent:
+		var(--sidebar-accent);
+	--color-sidebar-primary-foreground:
+		var(--sidebar-primary-foreground);
+	--color-sidebar-primary:
+		var(--sidebar-primary);
+	--color-sidebar-foreground:
+		var(--sidebar-foreground);
+	--color-sidebar:
+		var(--sidebar);
+	--color-chart-5:
+		var(--chart-5);
+	--color-chart-4:
+		var(--chart-4);
+	--color-chart-3:
+		var(--chart-3);
+	--color-chart-2:
+		var(--chart-2);
+	--color-chart-1:
+		var(--chart-1);
+	--radius-sm:
+		calc(var(--radius) * 0.6);
+	--radius-md:
+		calc(var(--radius) * 0.8);
+	--radius-lg:
+		var(--radius);
+	--radius-xl:
+		calc(var(--radius) * 1.4);
+	--radius-2xl:
+		calc(var(--radius) * 1.8);
+	--radius-3xl:
+		calc(var(--radius) * 2.2);
+	--radius-4xl:
+		calc(var(--radius) * 2.6);
+}
+
+.dark {
+	color-scheme: dark;
+	--color-fd-background: var(--background);
+	--color-fd-foreground: var(--foreground);
+	--color-fd-muted: var(--muted);
+	--color-fd-muted-foreground: var(--muted-foreground);
+	--color-fd-popover: var(--popover);
+	--color-fd-popover-foreground: var(--popover-foreground);
+	--color-fd-card: var(--card);
+	--color-fd-card-foreground: var(--card-foreground);
+	--color-fd-border: var(--border);
+	--color-fd-primary: var(--primary);
+	--color-fd-primary-foreground: var(--primary-foreground);
+	--color-fd-secondary: var(--secondary);
+	--color-fd-secondary-foreground: var(--secondary-foreground);
+	--color-fd-accent: var(--accent);
+	--color-fd-accent-foreground: var(--accent-foreground);
+	--color-fd-ring: var(--ring);
+	--card:
+		oklch(0.205 0 0);
+	--background:
+		oklch(0.145 0 0);
+	--foreground:
+		oklch(0.985 0 0);
+	--card-foreground:
+		oklch(0.985 0 0);
+	--popover:
+		oklch(0.205 0 0);
+	--popover-foreground:
+		oklch(0.985 0 0);
+	--primary:
+		oklch(0.922 0 0);
+	--primary-foreground:
+		oklch(0.205 0 0);
+	--secondary:
+		oklch(0.269 0 0);
+	--secondary-foreground:
+		oklch(0.985 0 0);
+	--muted:
+		oklch(0.269 0 0);
+	--muted-foreground:
+		oklch(0.708 0 0);
+	--accent:
+		oklch(0.269 0 0);
+	--accent-foreground:
+		oklch(0.985 0 0);
+	--destructive:
+		oklch(0.704 0.191 22.216);
+	--border:
+		oklch(1 0 0 / 10%);
+	--input:
+		oklch(1 0 0 / 15%);
+	--ring:
+		oklch(0.556 0 0);
+	--chart-1:
+		oklch(0.87 0 0);
+	--chart-2:
+		oklch(0.556 0 0);
+	--chart-3:
+		oklch(0.439 0 0);
+	--chart-4:
+		oklch(0.371 0 0);
+	--chart-5:
+		oklch(0.269 0 0);
+	--sidebar:
+		oklch(0.205 0 0);
+	--sidebar-foreground:
+		oklch(0.985 0 0);
+	--sidebar-primary:
+		oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground:
+		oklch(0.985 0 0);
+	--sidebar-accent:
+		oklch(0.269 0 0);
+	--sidebar-accent-foreground:
+		oklch(0.985 0 0);
+	--sidebar-border:
+		oklch(1 0 0 / 10%);
+	--sidebar-ring:
+		oklch(0.556 0 0);
+}
+
+.dark #nd-sidebar {
+	--color-fd-background: var(--background);
+	--color-fd-muted: var(--card-header);
+	--color-fd-secondary: var(--accent);
+	--color-fd-muted-foreground: var(--muted-foreground);
+	--color-fd-border: var(--border);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	color: var(--sea-ink);
+	font-family: var(--font-sans);
+	background-color: var(--bg-base);
+	overflow-x: hidden;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+body::before {
+	content: "";
+	position: fixed;
+	inset: 0;
+	pointer-events: none;
+	z-index: -1;
+	background-image:
+		linear-gradient(to right, rgba(38, 38, 38, 0.6) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(38, 38, 38, 0.6) 1px, transparent 1px);
+	background-size: 40px 40px;
+	mask-image: radial-gradient(ellipse at top, black 70%, transparent 100%);
+}
+
+body:has([data-landing-page]) {
+	color: var(--foreground);
+	background-color: var(--background);
+}
+
+body:has([data-landing-page])::before {
+	display: none;
+}
+
+body:has([data-docs-page]) {
+	color: var(--foreground);
+	background-color: var(--background);
+}
+
+body:has([data-docs-page])::before {
+	display: none;
+}
+
+.landing-hero-docs-grid {
+	background-image:
+		linear-gradient(to right, rgba(38, 38, 38, 0.6) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(38, 38, 38, 0.6) 1px, transparent 1px);
+	background-size: 40px 40px;
+	mask-image: radial-gradient(ellipse at top, black 70%, transparent 100%);
+}
+
+/* Ensure prose body text is readable against the dark background */
+.prose {
+	--tw-prose-body: var(--sea-ink);
+	--tw-prose-headings: var(--sea-ink);
+	--tw-prose-lead: var(--sea-ink-soft);
+	--tw-prose-bold: var(--sea-ink);
+	--tw-prose-counters: var(--sea-ink-soft);
+	--tw-prose-bullets: var(--sea-ink-soft);
+	--tw-prose-code: var(--sea-ink);
+	--tw-prose-quotes: var(--sea-ink);
+}
+
+/* Custom styling to bring some orange flavor to headers/links if desired without ruining active states */
+.prose a {
+	color: var(--lagoon);
+	text-decoration-color: rgba(255, 84, 58, 0.4);
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+
+.prose a:hover {
+	color: var(--lagoon-deep);
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+	color: var(--sea-ink);
+	font-family: var(--font-display);
+}
+
+/* Fix heading links not to be orange */
+.prose h1 a,
+.prose h2 a,
+.prose h3 a,
+.prose h4 a,
+.prose h5 a,
+.prose h6 a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.page-wrap {
+	width: min(1320px, calc(100% - 2rem));
+	margin-inline: auto;
+}
+
+.display-title {
+	font-family: var(--font-display);
+}
+
+.marketing-panel {
+	position: relative;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(16, 18, 22, 0.94), rgba(9, 11, 14, 0.9));
+	box-shadow:
+		0 1px 0 var(--inset-glint) inset,
+		0 28px 80px rgba(0, 0, 0, 0.42),
+		0 10px 32px rgba(0, 0, 0, 0.28);
+	backdrop-filter: blur(18px);
+}
+
+.marketing-window {
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+	box-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.04) inset,
+		0 20px 44px rgba(0, 0, 0, 0.28);
+	backdrop-filter: blur(14px);
+}
+
+.marketing-grid-bg {
+	background-image:
+		linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+	background-size: 40px 40px;
+	mask-image: radial-gradient(ellipse at center, black 54%, transparent 100%);
+}
+
+.marketing-kicker {
+	margin: 0;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--sea-ink-soft);
+}
+
+.marketing-title,
+.marketing-section-title {
+	font-family: var(--font-display);
+	letter-spacing: -0.05em;
+	text-wrap: balance;
+}
+
+.marketing-button-primary,
+.marketing-button-secondary {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+	border-radius: 1rem;
+	padding: 0.92rem 1.3rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	text-decoration: none;
+	transition:
+		transform 180ms ease,
+		background-color 180ms ease,
+		border-color 180ms ease,
+		color 180ms ease,
+		box-shadow 180ms ease;
+}
+
+.marketing-button-primary {
+	border: 1px solid rgba(255, 84, 58, 0.22);
+	background: linear-gradient(180deg, rgba(255, 84, 58, 0.98), rgba(229, 64, 38, 0.94));
+	color: white;
+	box-shadow: 0 14px 36px rgba(255, 84, 58, 0.2);
+}
+
+.marketing-button-primary:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 18px 44px rgba(255, 84, 58, 0.24);
+}
+
+.marketing-button-secondary {
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.035);
+	color: var(--sea-ink);
+}
+
+.marketing-button-secondary:hover {
+	transform: translateY(-1px);
+	border-color: rgba(255, 255, 255, 0.16);
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.marketing-button-primary:active,
+.marketing-button-secondary:active {
+	transform: translateY(1px);
+}
+
+.marketing-button-primary:focus-visible,
+.marketing-button-secondary:focus-visible,
+.marketing-link:focus-visible,
+.nav-link:focus-visible {
+	outline: 2px solid rgba(255, 84, 58, 0.55);
+	outline-offset: 3px;
+}
+
+.marketing-link {
+	color: var(--sea-ink-soft);
+	text-decoration: none;
+	transition: color 160ms ease;
+}
+
+.marketing-link:hover {
+	color: var(--sea-ink);
+}
+
+.marketing-stat {
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012));
+	box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+	backdrop-filter: blur(12px);
+}
+
+.marketing-check {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.9rem;
+}
+
+.marketing-dot {
+	display: inline-flex;
+	height: 0.62rem;
+	width: 0.62rem;
+	border-radius: 999px;
+}
+
+.marketing-keycap {
+	display: flex;
+	min-height: 3.4rem;
+	align-items: center;
+	justify-content: center;
+	border-radius: 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.015));
+	color: var(--sea-ink-soft);
+	font-size: 0.78rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.marketing-keycap.is-active {
+	border-color: rgba(255, 84, 58, 0.22);
+	background: linear-gradient(180deg, rgba(255, 84, 58, 0.2), rgba(255, 84, 58, 0.08));
+	color: var(--sea-ink);
+	box-shadow: 0 0 0 1px rgba(255, 84, 58, 0.08) inset;
+}
+
+.island-shell {
+	border: 1px solid var(--line);
+	background: linear-gradient(165deg, var(--surface-strong), var(--surface));
+	box-shadow:
+		0 1px 0 var(--inset-glint) inset,
+		0 22px 44px rgba(0, 0, 0, 0.3),
+		0 6px 18px rgba(0, 0, 0, 0.2);
+	backdrop-filter: blur(4px);
+}
+
+.feature-card {
+	background: linear-gradient(165deg, color-mix(in oklab, var(--surface-strong) 93%, black 7%), var(--surface));
+	box-shadow:
+		0 1px 0 var(--inset-glint) inset,
+		0 18px 34px rgba(0, 0, 0, 0.3),
+		0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+.feature-card:hover {
+	border-color: color-mix(in oklab, var(--lagoon-deep) 35%, var(--line));
+}
+
+button,
+.island-shell,
+.prose a,
+.marketing-panel,
+.marketing-window,
+.marketing-stat {
+	transition:
+		background-color 180ms ease,
+		color 180ms ease,
+		border-color 180ms ease,
+		transform 180ms ease;
+}
+
+@media (max-width: 640px) {
+	.marketing-button-primary,
+	.marketing-button-secondary {
+		width: 100%;
+	}
+}
+
+.island-kicker {
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	font-weight: 700;
+	font-size: 0.69rem;
+	color: var(--kicker);
+}
+
+.nav-link {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	text-decoration: none;
+	color: var(--sea-ink-soft);
+}
+
+.nav-link::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	bottom: -6px;
+	width: 100%;
+	height: 2px;
+	transform: scaleX(0);
+	transform-origin: left;
+	background: var(--lagoon);
+	transition: transform 170ms ease;
+}
+
+.nav-link:hover,
+.nav-link.is-active {
+	color: var(--sea-ink);
+}
+
+.nav-link:hover::after,
+.nav-link.is-active::after {
+	transform: scaleX(1);
+}
+
+@media (max-width: 640px) {
+	.nav-link::after {
+		bottom: -4px;
+	}
+}
+
+.site-footer {
+	border-top: 1px solid var(--line);
+	background: color-mix(in oklab, var(--header-bg) 84%, transparent 16%);
+}
+
+.rise-in {
+	animation: rise-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Docs refinements
+   ───────────────────────────────────────────────────────────────── */
+
+/* --- Scrollbar -------------------------------------------------- */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.12);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- Sidebar ---------------------------------------------------- */
+
+/* Active link: soft orange tint + left accent bar */
+.dark #nd-sidebar a[data-active="true"] {
+	background-color: transparent;
+	color: var(--sea-ink);
+	border-radius: 0;
+	box-shadow: none;
+	position: relative;
+}
+
+.dark #nd-sidebar a[data-active="true"]::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 8px;
+	bottom: 8px;
+	width: 2px;
+	border-radius: 0;
+	background: var(--lagoon);
+}
+
+/* Hover: subtler than default */
+.dark #nd-sidebar a:not([data-active="true"]):hover {
+	background-color: transparent;
+	color: var(--sea-ink);
+}
+
+/* Sidebar transitions */
+.dark #nd-sidebar a {
+	border-radius: 0;
+	transition:
+		background-color 150ms ease,
+		color 150ms ease;
+}
+
+/* Sidebar search trigger — field-like appearance */
+.dark #nd-sidebar button[data-search] {
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 0;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/* --- Table of Contents ------------------------------------------ */
+
+/* "On this page" title: uppercase kicker style, hide the icon */
+#nd-toc > h3 {
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	color: var(--kicker);
+}
+
+#nd-toc > h3 svg {
+	display: none;
+}
+
+/* TOC: color the floating active indicator bar orange */
+#nd-toc .bg-fd-primary {
+	background-color: var(--lagoon);
+}
+
+/* TOC link: active text + hover state */
+#nd-toc a {
+	transition: color 150ms ease;
+}
+
+#nd-toc a[data-active="true"] {
+	color: var(--sea-ink);
+}
+
+#nd-toc a:not([data-active="true"]):hover {
+	color: oklch(0.85 0 0);
+}
+
+/* --- Headings --------------------------------------------------- */
+.prose h2 {
+	margin-top: 2.5em;
+	padding-bottom: 0.5em;
+	border-bottom: 1px solid var(--line);
+}
+
+/* --- Body text -------------------------------------------------- */
+.prose {
+	--tw-prose-body: oklch(0.78 0 0);
+}
+
+/* --- List markers ----------------------------------------------- */
+.prose :where(ul > li)::marker {
+	color: rgba(255, 84, 58, 0.5);
+}
+
+.prose :where(ol > li)::marker {
+	color: var(--lagoon);
+	font-family: var(--font-display);
+	font-weight: 600;
+}
+
+/* --- Cards ------------------------------------------------------ */
+[data-card="true"] {
+	border-radius: 0 !important;
+	background: color-mix(in oklab, var(--card) 88%, var(--card-header) 12%);
+	border-color: var(--line);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+	transition:
+		border-color 180ms ease,
+		transform 180ms ease,
+		background-color 180ms ease,
+		box-shadow 180ms ease;
+}
+
+a[data-card="true"]:hover {
+	border-color: color-mix(in oklab, var(--lagoon) 22%, var(--line));
+	transform: translateY(-1px);
+	box-shadow:
+		inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+		0 18px 36px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* Card icon containers */
+[data-card="true"] .not-prose.w-fit {
+	background: rgba(255, 84, 58, 0.06);
+	border-color: rgba(255, 84, 58, 0.15);
+	border-radius: 0 !important;
+	color: var(--lagoon);
+	box-shadow: none;
+}
+
+/* --- Steps ------------------------------------------------------ */
+.fd-step::before {
+	color: var(--lagoon);
+}
+
+/* --- Callouts --------------------------------------------------- */
+div[style*="--callout-color"] {
+	border-radius: 8px;
+	background: color-mix(in oklab, var(--card) 88%, var(--callout-color) 12%);
+	border-color: var(--line);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/* --- Tables ----------------------------------------------------- */
+.prose table th,
+.prose table td {
+	vertical-align: top;
+	white-space: normal;
+	word-break: normal;
+	overflow-wrap: break-word;
+}
+
+/* --- Bottom prev/next nav --------------------------------------- */
+#nd-page > div:last-child > a {
+	border-radius: 0;
+	background: color-mix(in oklab, var(--card) 88%, var(--card-header) 12%);
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+	transition:
+		border-color 180ms ease,
+		transform 180ms ease,
+		background-color 180ms ease;
+}
+
+#nd-page > div:last-child > a:hover {
+	border-color: color-mix(in oklab, var(--lagoon) 18%, var(--line));
+	transform: translateY(-1px);
+	background: color-mix(in oklab, var(--card-header) 24%, var(--card) 76%);
+}
+
+/* --- Code blocks ------------------------------------------------ */
+.prose figure.shiki {
+	border: 1px solid var(--line);
+	box-shadow: none;
+	background: #0b0b0b;
+}
+
+.prose figure.shiki > [role="region"] {
+	background: #0b0b0b;
+}
+
+.prose figure.shiki pre {
+	border: 0;
+	background: transparent;
+}
+
+/* --- Inline code ------------------------------------------------ */
+.prose :where(code):not(:where(pre *)) {
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 5px;
+	padding: 0.15em 0.35em;
+	font-size: 0.875em;
+}
+
+/* --- Sticky header offset --------------------------------------- */
+#nd-docs-layout {
+	background: var(--background);
+	/* Treat the global site header as the docs layout banner offset. */
+	--fd-banner-height: var(--site-header-offset);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+	}
+  body {
+    @apply bg-background text-foreground;
+	}
+  html {
+    @apply font-mono;
+	}
+}

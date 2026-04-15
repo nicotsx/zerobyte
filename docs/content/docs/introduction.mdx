@@ -1,0 +1,137 @@
+---
+title: Introduction
+description: Learn about Zerobyte, a powerful backup automation platform built on Restic
+---
+
+Zerobyte is a backup automation tool that helps you protect your data across multiple storage backends. Built on top of [Restic](https://restic.net/), it provides a modern web interface to schedule, manage, and monitor encrypted backups.
+
+<Callout type="warn">
+  Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active development. Expect bugs and breaking changes.
+</Callout>
+
+## Key Features
+
+<Cards>
+  <Card title="Automated Backups" icon={<Clock />}>
+    Schedule encrypted, compressed backups with fine-grained retention policies powered by Restic
+  </Card>
+
+  <Card title="Flexible Scheduling" icon={<Calendar />}>
+    Configure automated backup jobs with cron expressions and sophisticated retention rules
+  </Card>
+
+  <Card title="End-to-End Encryption" icon={<Lock />}>
+    Your data is always protected with strong encryption at rest, ensuring security for every snapshot
+  </Card>
+
+  <Card title="Multi-Protocol Support" icon={<Network />}>
+    Back up from NFS, SMB, WebDAV, SFTP, or local directories with ease
+  </Card>
+</Cards>
+
+## Supported Storage
+
+### Volume Sources (What to Back Up)
+
+Volumes represent the data you want to protect:
+
+- **Local directories** — Directories mounted into the container
+- **NFS** — Network File System shares (v3, v4, v4.1)
+- **SMB/CIFS** — Windows and Samba shares
+- **WebDAV** — WebDAV-compatible storage (Nextcloud, ownCloud, etc.)
+- **SFTP** — SSH File Transfer Protocol servers
+- **Rclone** — 40+ cloud storage providers via rclone (Google Drive, Dropbox, OneDrive, etc.)
+
+### Repository Destinations (Where to Store Backups)
+
+Repositories are encrypted storage locations for your backup snapshots:
+
+- **Local directories** — Store backups on local disk
+- **S3-compatible storage** — Amazon S3, MinIO, Wasabi, Backblaze B2, DigitalOcean Spaces, and more
+- **Cloudflare R2** — S3-compatible with zero egress fees
+- **Google Cloud Storage** — Google's cloud storage service
+- **Azure Blob Storage** — Microsoft Azure storage
+- **SFTP** — Remote servers accessible via SSH
+- **REST server** — Restic REST server protocol
+- **Rclone remotes** — 40+ cloud storage providers via rclone
+
+## How It Works
+
+Zerobyte operates on three core concepts:
+
+<Steps>
+  <Step>
+
+### Volumes
+
+Define **volumes** as the source data you want to back up. These can be local directories, network shares, or cloud storage mounted via various protocols. Zerobyte handles mounting, health monitoring, and auto-recovery automatically.
+
+  </Step>
+
+  <Step>
+
+### Repositories
+
+Create **repositories** as encrypted storage destinations. Repositories use Restic's deduplication and encryption to store your backups efficiently and securely. Choose from local disks, cloud object storage, or any of 40+ rclone backends.
+
+  </Step>
+
+  <Step>
+
+### Backup Jobs
+
+Configure **backup jobs** that connect volumes to repositories with scheduling rules and retention policies. Jobs run automatically according to your schedule, with real-time progress monitoring in the web interface.
+
+  </Step>
+</Steps>
+
+<Callout type="info">
+  All backups are encrypted using Restic's encryption. Your encryption password is securely stored and never leaves your server.
+</Callout>
+
+## Use Cases
+
+<Accordions>
+  <Accordion title="Home Server Backups">
+    Back up your home server data (photos, documents, media) to cloud storage or an external drive with automatic scheduling and retention.
+  </Accordion>
+
+  <Accordion title="NAS Data Protection">
+    Protect your NAS data by backing up critical shares to offsite cloud storage with encryption and versioning.
+  </Accordion>
+
+  <Accordion title="Development Server Backups">
+    Automatically back up development servers, databases, and configuration files to ensure quick recovery.
+  </Accordion>
+
+  <Accordion title="Multi-Site Backups">
+    Centralize backup management for multiple locations, backing up various sources to different repository types.
+  </Accordion>
+</Accordions>
+
+## Why Restic?
+
+Zerobyte is built on [Restic](https://restic.net/) because it offers:
+
+- **Fast and efficient** — Incremental backups with content-defined chunking
+- **Secure by design** — Strong encryption and authenticated snapshots
+- **Deduplication** — Only unique data is stored, saving space
+- **Verification** — Built-in integrity checking for peace of mind
+- **Cross-platform** — Works across different operating systems
+- **Well-maintained** — Active open-source project with regular updates
+
+## Next Steps
+
+<Cards>
+  <Card title="Installation" icon={<Download />} href="/docs/installation">
+    Deploy Zerobyte with Docker and Docker Compose
+  </Card>
+
+  <Card title="Quick Start" icon={<Rocket />} href="/docs/quickstart">
+    Set up your first backup in minutes
+  </Card>
+</Cards>
+
+import { Clock, Calendar, Lock, Network, Download, Rocket } from "lucide-react";
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";

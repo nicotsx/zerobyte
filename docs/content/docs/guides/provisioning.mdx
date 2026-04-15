@@ -1,0 +1,156 @@
+---
+title: Provisioned Resources
+description: Manage repositories and volumes through a configuration file with secret references
+---
+
+Zerobyte can sync operator-managed repositories and volumes from a JSON configuration file at startup. This is useful when you want credentials and connection details to live in deployment-time configuration (environment variables, Docker secrets) instead of being entered through the UI.
+
+## Why Use Provisioning?
+
+- **Infrastructure as code** — Define repositories and volumes in version-controlled config files
+- **Secret management** — Keep credentials in environment variables or Docker secrets, not in the UI
+- **Easy rotation** — Rotate secrets by updating env vars or secret files and restarting
+- **Consistent deployments** — Same configuration across staging and production
+
+Provisioned resources appear in the normal UI alongside manually created ones, marked as managed entries.
+
+## Prerequisites
+
+- A running Zerobyte instance with an organization ID (found in Settings after first-run setup)
+- The `PROVISIONING_PATH` environment variable pointing to your JSON file
+
+## Setup
+
+<Steps>
+<Step>
+
+### Create the provisioning file
+
+Create a `provisioning.json` file:
+
+```json provisioning.json
+{
+  "version": 1,
+  "repositories": [
+    {
+      "id": "aws-prod",
+      "organizationId": "your-organization-id",
+      "name": "AWS Production Backups",
+      "backend": "s3",
+      "compressionMode": "auto",
+      "config": {
+        "backend": "s3",
+        "endpoint": "https://s3.amazonaws.com",
+        "bucket": "company-backups",
+        "accessKeyId": "env://AWS_ACCESS_KEY_ID",
+        "secretAccessKey": "file://aws_secret_access_key"
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "id": "webdav-team-a",
+      "organizationId": "your-organization-id",
+      "name": "Team A WebDAV",
+      "backend": "webdav",
+      "config": {
+        "backend": "webdav",
+        "server": "cloud.example.com",
+        "path": "/team-a",
+        "username": "team-a",
+        "password": "env://WEBDAV_PASSWORD",
+        "port": 443,
+        "ssl": true
+      }
+    }
+  ]
+}
+```
+
+</Step>
+<Step>
+
+### Configure docker-compose.yml
+
+Mount the provisioning file and set the environment variable:
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:latest
+    environment:
+      - PROVISIONING_PATH=/config/provisioning.json
+      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+      - WEBDAV_PASSWORD=your-webdav-password
+    volumes:
+      - ./provisioning.json:/config/provisioning.json:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+    secrets:
+      - aws_secret_access_key
+
+secrets:
+  aws_secret_access_key:
+    file: ./secrets/aws_secret_access_key
+```
+
+</Step>
+<Step>
+
+### Start or restart Zerobyte
+
+```bash
+docker compose up -d
+```
+
+On startup, Zerobyte reads the provisioning file, resolves all secret references, encrypts the resolved values, and syncs the resources into the database.
+
+</Step>
+</Steps>
+
+## Secret References
+
+Provisioned resources support two types of secret references for sensitive fields (passwords, access keys, etc.):
+
+| Reference | Resolves From | Example |
+|-----------|--------------|---------|
+| `env://VARIABLE_NAME` | Container environment variable | `env://AWS_ACCESS_KEY_ID` |
+| `file://secret_name` | `/run/secrets/secret_name` (Docker secrets) | `file://aws_secret_access_key` |
+
+<Callout type="info">
+  `file://` references always resolve from `/run/secrets/` and must be a single filename, not a nested path.
+</Callout>
+
+Resolved values are encrypted before Zerobyte stores them in the database — the plaintext never persists on disk.
+
+## Rotating Secrets
+
+To rotate a secret:
+
+1. Update the environment variable or secret file with the new value
+2. Restart the Zerobyte container: `docker compose restart`
+
+Zerobyte re-resolves all secret references on each startup.
+
+## Removing Provisioned Resources
+
+To remove a provisioned resource, add `"delete": true` to the entry in your provisioning file, then restart:
+
+```json
+{
+  "id": "aws-prod",
+  "delete": true
+}
+```
+
+## Important Notes
+
+<Callout type="warn">
+  Each provisioned entry must reference an existing `organizationId`. Complete first-run setup before enabling provisioning so you have a valid organization ID.
+</Callout>
+
+- Changes to `provisioning.json` only apply on container restart
+- Each entry needs both a top-level `backend` and the matching `config.backend` field
+- Provisioned resources can be viewed in the UI but credential fields managed by provisioning will be re-synced from the config file on restart
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";

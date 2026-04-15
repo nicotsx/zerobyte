@@ -1,0 +1,124 @@
+---
+title: Repository Maintenance
+description: Interpret repository health states and use Doctor, Unlock, and stats refresh correctly
+---
+
+The repository details page exposes a small set of maintenance tools, but they do different jobs. This guide explains what each status means and what the built-in actions actually do.
+
+## Repository status values
+
+| Status | What it means in Zerobyte | What to do next |
+| --- | --- | --- |
+| `healthy` | The last stored health verdict finished without errors | Keep monitoring and refresh stats when you want updated size metrics |
+| `error` | The last health or doctor run recorded an error | Review **Last Error** and the **Doctor Report**, fix the underlying issue, then rerun maintenance if needed |
+| `unknown` | Zerobyte does not currently have a fresh health verdict, or repository settings were changed and the old verdict was cleared | Expect this after some config changes; verify access and consider running Doctor |
+| `doctor` | A Doctor run is in progress | Wait for it to finish or cancel it during a maintenance window |
+| `cancelled` | A Doctor run was aborted before completion | Review any partial Doctor output and rerun Doctor if you still need validation |
+
+Repository status is stored metadata inside Zerobyte. It is not a continuous live probe.
+
+## What each action really does
+
+| Action | What it does | What it does **not** do |
+| --- | --- | --- |
+| `Run doctor` | Runs `unlock`, then `check`, then `repair-index` if restic says it is needed. Saves step output into the Doctor Report. | It does **not** run a full `check --read-data` scrub, it does **not** prune unused data, and it does **not** refresh the stats card. |
+| `Unlock` | Runs `restic unlock --remove-all` to clear stale repository locks. | It does **not** validate repository integrity and it does **not** change the stored health status by itself. |
+| Stats refresh button | Runs `restic stats --mode raw-data` and updates stored size and snapshot metrics. | It does **not** change repository health status, **Last Checked**, or the Doctor Report. |
+
+## Run doctor in detail
+
+Doctor is the deepest repository-maintenance action currently exposed in the normal UI.
+
+During a Doctor run, Zerobyte:
+
+1. Sets the repository status to `doctor`
+2. Acquires an exclusive repository lock inside the app
+3. Runs an unlock step
+4. Runs `restic check`
+5. Runs `restic repair-index` only if the check output suggests that repair
+6. Saves the step-by-step result and updates the final status to `healthy`, `error`, or `cancelled`
+
+Because Doctor holds an exclusive repository lock, it can block other repository operations such as backups, restores, and snapshot mutations while it runs.
+
+<Callout type="warn">
+  Doctor is helpful, but it is lighter than a full offline integrity scrub. Today it does not read every stored data pack and it does not prune repository data. Treat `healthy` as a useful application-level signal, not as proof that every blob was recently re-read.
+</Callout>
+
+## When to use Run doctor
+
+- The repository status is `error`
+- **Last Error** suggests metadata or index problems
+- Operations keep failing after a crash or interrupted run
+- You changed repository settings and want a fresh maintenance pass
+- You want a stored Doctor Report before or after backend maintenance work
+
+## When to use Unlock
+
+Use **Unlock** when the problem is specifically stale repository locks, for example after:
+
+- A crashed backup or restore
+- A forced container restart
+- A cancelled or interrupted maintenance run
+- A Restic message that says the repository is locked
+
+If the problem is not a lock issue, Unlock will not fix it.
+
+<Callout type="warn">
+  Only run Unlock when you are certain no real backup, restore, or maintenance operation is still using that repository.
+</Callout>
+
+## What stats refresh actually recalculates
+
+The refresh button in **Compression Statistics** recalculates repository metrics using `restic stats --mode raw-data`, including:
+
+- Stored size
+- Uncompressed size
+- Compression ratio
+- Compression progress
+- Compression space saving
+- Snapshot count
+
+This is useful when:
+
+- The stats card is still empty after connecting an existing repository
+- You deleted snapshots and want updated numbers
+- Retention cleanup changed repository usage
+- You want fresh size numbers without running Doctor
+
+## Reading the Doctor Report
+
+The **Doctor Report** stores each maintenance step with its output and any error text. In current builds, the steps you will typically see are:
+
+- `unlock`
+- `check`
+- `repair_index` when suggested by restic
+
+If a Doctor run is cancelled, the report can still contain partial step output from the work that completed before cancellation.
+
+## Practical workflows
+
+### Repository is locked after a crash
+
+1. Use **Unlock**.
+2. Retry the blocked backup or restore.
+3. If problems continue, run **Doctor**.
+
+### Status is `unknown`
+
+1. Check whether you recently edited repository settings.
+2. Use the stats refresh button if you only need updated size numbers.
+3. Run **Doctor** if you want a fresh maintenance verdict.
+
+### Status is `error`
+
+1. Read **Last Error**.
+2. Expand the **Doctor Report** and identify the failing step.
+3. Fix the real problem first, such as credentials, backend reachability, or repository corruption.
+4. Run **Doctor** again after the fix.
+
+## Related docs
+
+- [Repositories](/docs/concepts/repositories)
+- [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords)
+
+import { Callout } from "fumadocs-ui/components/callout";

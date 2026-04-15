@@ -1,0 +1,146 @@
+---
+title: Tailscale Sidecar
+description: Run Zerobyte behind a Tailscale VPN for secure remote access
+---
+
+Run Zerobyte behind a Tailscale sidecar container so the web UI is accessible over your private tailnet without exposing ports to the public internet.
+
+## What is Tailscale?
+
+[Tailscale](https://tailscale.com/) is a mesh VPN built on WireGuard. It connects devices and containers into a private network ("tailnet") without opening inbound ports on your router.
+
+In this setup, Tailscale acts as a secure access layer in front of Zerobyte:
+
+- You reach Zerobyte using the node's tailnet IP or MagicDNS name
+- Access can be restricted using Tailscale ACLs and tags
+- No port forwarding or public exposure required
+
+## Prerequisites
+
+- Docker and Docker Compose
+- A [Tailscale account](https://tailscale.com/) and an [auth key](https://login.tailscale.com/admin/settings/keys)
+
+## Setup
+
+This example uses a sidecar networking pattern where Zerobyte shares the Tailscale container's network namespace.
+
+<Steps>
+<Step>
+
+### Create docker-compose.yml
+
+```yaml docker-compose.yml
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: zerobyte-tailscale
+    hostname: ${TS_HOSTNAME:-zerobyte}
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=${TS_USERSPACE:-false}
+      - TS_EXTRA_ARGS=${TS_EXTRA_ARGS:-}
+    volumes:
+      - /var/lib/tailscale:/var/lib/tailscale
+    # Remove this section to make Zerobyte only accessible via Tailscale
+    ports:
+      - "4096:4096"
+
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:latest
+    container_name: zerobyte
+    restart: unless-stopped
+    # Uncomment if you need remote mounts (NFS/SMB/WebDAV):
+    # cap_add:
+    #   - SYS_ADMIN
+    # devices:
+    #   - /dev/fuse:/dev/fuse
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      - TZ=${TZ:-UTC}
+      - BASE_URL=http://${TS_HOSTNAME:-zerobyte}:4096
+      - APP_SECRET=${APP_SECRET}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+```
+
+</Step>
+<Step>
+
+### Create .env file
+
+```bash .env
+TS_AUTHKEY=tskey-auth-xxxxx
+TS_HOSTNAME=zerobyte
+APP_SECRET=your-secret-here  # Generate with: openssl rand -hex 32
+TZ=UTC
+# Optional:
+# TS_EXTRA_ARGS=--advertise-tags=tag:backup
+# TS_USERSPACE=false
+```
+
+</Step>
+<Step>
+
+### Start the stack
+
+```bash
+docker compose up -d
+```
+
+</Step>
+<Step>
+
+### Verify in Tailscale
+
+Confirm the node appears in your [Tailscale admin console](https://login.tailscale.com/admin/machines). Approve it if your policy requires approval.
+
+</Step>
+</Steps>
+
+## Accessing Zerobyte
+
+Once running, access Zerobyte over your tailnet:
+
+- **By IP**: `http://<tailscale-ip>:4096`
+- **By MagicDNS**: `http://zerobyte:4096` (if MagicDNS is enabled)
+
+To make Zerobyte accessible **only** via Tailscale, remove the `ports:` section from the `tailscale` service.
+
+## Kernel Mode vs Userspace Mode
+
+| Mode | Requirements | Best For |
+|------|-------------|----------|
+| **Kernel** (default) | `/dev/net/tun`, `NET_ADMIN` | Linux servers, best performance |
+| **Userspace** | No special devices | Docker Desktop, restricted hosts |
+
+To use userspace mode:
+1. Set `TS_USERSPACE=true` in your `.env`
+2. Remove the `devices: /dev/net/tun` section from the tailscale service
+
+## Tailscale-Only Access
+
+If you want Zerobyte to be reachable **only** via Tailscale (not from the local network), remove the `ports:` section from the `tailscale` service. Zerobyte will still be able to access the internet and your LAN for backup operations, but the UI will only be accessible over Tailscale.
+
+## Troubleshooting
+
+- **TUN device error**: Ensure `/dev/net/tun` exists on the host. Switch to userspace mode if it doesn't.
+- **Node not appearing**: Check the auth key is valid and not expired.
+- **ACL issues**: Set `TS_EXTRA_ARGS=--advertise-tags=tag:backup` and configure ACLs in Tailscale admin.
+
+Verify the tailnet address:
+
+```bash
+docker exec zerobyte-tailscale tailscale status
+docker exec zerobyte-tailscale tailscale ip -4
+```
+
+import { Step, Steps } from "fumadocs-ui/components/steps";

@@ -1,0 +1,805 @@
+---
+title: Quick Start
+description: Set up your first backup in minutes with Zerobyte
+---
+
+This guide walks you through creating your first backup in Zerobyte, from initial setup to verifying a successful backup.
+
+<Callout type="info">
+  This guide assumes you've already [installed Zerobyte](/docs/installation) and can access the web interface.
+</Callout>
+
+## Overview
+
+Setting up a backup involves three key steps:
+
+<Steps>
+  <Step>
+
+### Add a Volume
+
+Define the source data you want to backup
+
+</Step>
+
+  <Step>
+
+### Create a Repository
+
+Set up an encrypted storage destination for your backups
+
+</Step>
+
+  <Step>
+
+### Configure a Backup Job
+
+Connect your volume to your repository with scheduling and retention policies
+
+</Step>
+</Steps>
+
+Let's walk through each step.
+
+## First-Time Setup
+
+On a brand new Zerobyte install with no users yet, the app starts with onboarding:
+
+<Steps>
+  <Step>
+
+### Open Zerobyte
+
+Navigate to the URL you configured in `BASE_URL` during installation. In local development, this is usually `http://localhost:3000`.
+
+</Step>
+
+  <Step>
+
+### Create the Admin User
+
+On the **Onboarding** page, enter:
+
+- **Email**
+- **Username**
+- **Password**
+- **Confirm Password**
+
+Then click **Create admin user**.
+
+</Step>
+
+  <Step>
+
+### Download the Recovery Key
+
+After the admin user is created, Zerobyte redirects to **Download Recovery Key**.
+
+Enter your account password in **Confirm Your Password**, then click **Download Recovery Key**.
+
+</Step>
+
+  <Step>
+
+### Continue to Volumes
+
+After the recovery key is downloaded, Zerobyte redirects to **Volumes**. The rest of this guide starts from there.
+
+</Step>
+</Steps>
+
+<Callout type="warn">
+  **Critical**: Store the downloaded recovery key file safely. It contains the Restic password required to recover your backups. If you lose both server access and this file, your backups will be unrecoverable. See [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords) for the full model, including imported repositories with custom passwords.
+</Callout>
+
+<Callout type="info">
+  After onboarding is complete, future visits use the normal **Login** page instead of the onboarding flow.
+</Callout>
+
+## Step 1: Add a Volume
+
+A **volume** represents the source data you want to backup. Zerobyte supports various volume types including local directories, NFS shares, SMB shares, WebDAV, SFTP, and rclone mounts.
+
+### Adding a Local Directory
+
+For this quick start, we'll add a local directory. First, ensure the directory is mounted into your Zerobyte container.
+
+#### Mount the Directory
+
+Update your `docker-compose.yml` to mount the directory you want to backup:
+
+```yaml
+services:
+  zerobyte:
+    image: ghcr.io/nicotsx/zerobyte:v0.30
+    container_name: zerobyte
+    restart: unless-stopped
+    # ... other configuration ...
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/lib/zerobyte:/var/lib/zerobyte
+      - /path/to/your/data:/data  # Add this line
+```
+
+Restart the container to apply changes:
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+#### Create the Volume in Zerobyte
+
+<Steps>
+  <Step>
+
+### Navigate to Volumes
+
+After downloading the recovery key, you are already on **Volumes**. If you navigate away, click **Volumes** in the sidebar.
+
+</Step>
+
+  <Step>
+
+### Create New Volume
+
+Click the **Create Volume** button
+
+</Step>
+
+  <Step>
+
+### Configure Volume
+
+Fill in the volume details:
+
+- **Name**: Give it a descriptive name (e.g., "My Documents")
+- **Backend**: Leave this set to `Directory`
+- **Directory Path**: Use the filesystem browser to select the mounted directory (e.g., `/data`)
+
+</Step>
+
+  <Step>
+
+### Save Volume
+
+Click **Create** to save the volume configuration
+
+</Step>
+</Steps>
+
+<Callout type="info">
+  The directory browser shows paths from the Zerobyte server or container filesystem, not your host filesystem directly. In the Docker example above, the host path `/path/to/your/data` appears in Zerobyte as `/data`, so that is the path you select in the browser.
+</Callout>
+
+### Adding Remote Volumes
+
+Zerobyte also supports remote volume types:
+
+<Tabs items={['NFS', 'SMB/CIFS', 'WebDAV', 'SFTP']}>
+  <Tab value="NFS">
+    Configure an NFS share:
+
+    - **Server**: NFS server hostname or IP
+    - **Export Path**: NFS export path (e.g., `/mnt/data`)
+    - **Port**: NFS port (default: `2049`)
+    - **Version**: `3`, `4`, or `4.1`
+    - **Read-only Mode**: Optional, recommended for backup sources
+  </Tab>
+
+  <Tab value="SMB/CIFS">
+    Configure an SMB/CIFS share:
+
+    - **Server**: SMB server hostname or IP
+    - **Share**: Share name
+    - **Guest Mode**: Optional for unauthenticated shares
+    - **Username**: SMB username
+    - **Password**: SMB password
+    - **SMB Version**: `1.0`, `2.0`, `2.1`, or `3.0`
+    - **Domain**: Windows domain or workgroup (optional)
+    - **Port**: SMB port (default: `445`)
+  </Tab>
+
+  <Tab value="WebDAV">
+    Configure a WebDAV server:
+
+    - **Server**: WebDAV server hostname or IP
+    - **Path**: Remote path on the server
+    - **Username**: WebDAV username (optional)
+    - **Password**: WebDAV password (optional)
+    - **Port**: Server port (`80` by default, or `443` for HTTPS)
+    - **Use SSL/HTTPS**: Enable secure HTTPS connections
+    - **Read-only Mode**: Optional, recommended for backup sources
+  </Tab>
+
+  <Tab value="SFTP">
+    Configure an SFTP server:
+
+    - **Host**: SFTP server hostname or IP
+    - **Port**: SFTP port (default: 22)
+    - **Username**: SSH username
+    - **Password**: SSH password (optional if using a private key)
+    - **Private Key**: SSH private key (optional if using a password)
+    - **Path**: Remote directory path
+    - **Known Hosts**: Required unless you enable **Skip Host Key Verification**
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+  Remote volumes require the full installation with `SYS_ADMIN` capability and `/dev/fuse` device. See the [Installation guide](/docs/installation) for details.
+</Callout>
+
+## Step 2: Create a Repository
+
+A **repository** is the encrypted storage destination where your backups will be stored. Zerobyte supports multiple repository backends.
+
+### Creating a Local Repository
+
+For this quick start, we'll create a local repository:
+
+<Steps>
+  <Step>
+
+### Navigate to Repositories
+
+Click on **Repositories** in the sidebar
+
+</Step>
+
+  <Step>
+
+### Create New Repository
+
+On a new install, click **Create repository** from the empty state
+
+</Step>
+
+  <Step>
+
+### Configure Repository
+
+Fill in the repository details:
+
+- **Name**: Descriptive name (e.g., "Local Backup Repository")
+- **Backend**: Select `Local`
+- **Compression Mode**: `Auto (fast)` is the default and a good starting point
+- **Import existing repository**: Leave this unchecked for a brand new repository
+
+</Step>
+
+  <Step>
+
+### Review Repository Directory
+
+For local repositories, Zerobyte stores data under the repository base directory, which defaults to `/var/lib/zerobyte/repositories/{unique-id}`. Click **Change** only if you want to pick a different base directory.
+
+</Step>
+
+  <Step>
+
+### Create Repository
+
+Click **Create repository**. Zerobyte creates and initializes the repository, then redirects you to the repository details page.
+
+</Step>
+</Steps>
+
+<Callout type="info">
+  If you choose a custom local repository directory, make sure it is mounted from the host into the container. Otherwise the repository data can be lost when the container restarts.
+</Callout>
+
+<Callout type="info">
+  If you are importing an existing repository instead of creating a new one, read [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords) before choosing between the existing recovery key and a custom repository password.
+</Callout>
+
+### Cloud Storage Repositories
+
+For production use, consider using cloud storage for offsite backups:
+
+<Tabs items={['S3-Compatible', 'Google Cloud Storage', 'Azure Blob', 'rclone']}>
+  <Tab value="S3-Compatible">
+    Configure S3-compatible storage (AWS S3, MinIO, Wasabi, Backblaze B2, etc.):
+
+    ```yaml
+    Type: S3
+    Endpoint: s3.amazonaws.com (or custom endpoint)
+    Bucket: my-backup-bucket
+    Access Key ID: AKIAIOSFODNN7EXAMPLE
+    Secret Access Key: my-secret-access-key
+    ```
+  </Tab>
+
+  <Tab value="Google Cloud Storage">
+    Configure Google Cloud Storage:
+
+    ```yaml
+    Type: Google Cloud Storage
+    Bucket: my-backup-bucket
+    Project ID: my-project-id
+    Service Account JSON: Paste the service account JSON
+    ```
+  </Tab>
+
+  <Tab value="Azure Blob">
+    Configure Azure Blob Storage:
+
+    ```yaml
+    Type: Azure Blob Storage
+    Container: backups
+    Account Name: myaccountname
+    Account Key: my-account-key
+    Endpoint Suffix: core.windows.net (optional)
+    ```
+  </Tab>
+
+  <Tab value="rclone">
+    Configure rclone-based storage (requires rclone config mounted):
+
+    ```yaml
+    Type: rclone
+    Remote: gdrive (must exist in rclone config)
+    Path: backups/zerobyte
+    ```
+
+    <Callout type="info">
+      rclone must be configured on the host and mounted into the container. See [Installation - Mounting rclone Configuration](/docs/installation#mounting-rclone-configuration).
+    </Callout>
+  </Tab>
+</Tabs>
+
+<Callout type="info">
+  If you want credentials to come from environment variables or Docker secrets, use the [Provisioning guide](/docs/guides/provisioning). The standard volume and repository forms currently expect the actual secret value and store it encrypted.
+</Callout>
+
+## Step 3: Create a Backup Job
+
+A **backup job** connects a volume to a repository and defines when and how backups should run.
+
+<Steps>
+  <Step>
+
+### Navigate to Backups
+
+Click on **Backups** in the sidebar
+
+</Step>
+
+  <Step>
+
+### Start a New Backup Job
+
+Click **Create a backup job**
+
+</Step>
+
+  <Step>
+
+### Choose the Volume
+
+Select the volume you just created. Zerobyte then opens the backup configuration form for that volume.
+
+</Step>
+
+  <Step>
+
+### Configure Basic Settings
+
+- **Backup name**: Descriptive name (e.g., "Daily Documents Backup")
+- **Backup repository**: Select the repository you created earlier
+- **Backup frequency**: Choose how often the job should run
+
+</Step>
+
+  <Step>
+
+### Configure Schedule
+
+Choose the schedule that matches how you want this backup to run:
+
+- **Manual only**: Create the job without a schedule and run it on demand
+- **Hourly**
+- **Daily**
+- **Weekly**
+- **Specific days**: Pick one or more days of the month
+- **Custom (Cron)**: Enter a cron expression
+
+If you choose **Daily**, **Weekly**, or **Specific days**, set an **Execution time**.
+
+If you choose **Weekly**, also choose the day of the week.
+
+<Accordions type="single">
+  <Accordion title="Common Cron Patterns">
+    - `0 2 * * *` - Daily at 2:00 AM
+    - `0 2 * * 0` - Weekly on Sunday at 2:00 AM
+    - `0 2 1 * *` - Monthly on the 1st at 2:00 AM
+    - `0 */6 * * *` - Every 6 hours
+    - `0 0 * * 1-5` - Weekdays at midnight
+  </Accordion>
+</Accordions>
+
+</Step>
+
+  <Step>
+
+### Configure Retention Policy
+
+Define how long backups should be kept:
+
+```yaml
+Keep Daily: 7
+Keep Weekly: 4
+Keep Monthly: 6
+Keep Yearly: 1
+```
+
+<Callout type="info">
+  Retention policies automatically prune old backups to save storage space. Restic's deduplication ensures you only store unique data.
+</Callout>
+
+</Step>
+
+  <Step>
+
+### Configure Paths (Optional)
+
+By default, the entire volume is backed up. You can optionally:
+
+- Use **Backup paths** to select only specific files or folders from the volume
+- Add **Additional include patterns** for glob-based include rules
+- Add **Exclude patterns** for files or folders to skip (e.g., `*.tmp`, `node_modules/**`)
+
+</Step>
+
+  <Step>
+
+### Advanced Options (Optional)
+
+Open **Advanced** if you need extra Restic options.
+
+Common options include:
+
+- **Maximum retries**: Retry failed backup runs automatically
+- **Retry delay**: Wait before retrying a failed run
+- **Custom restic parameters**: Pass supported Restic flags one per line
+
+</Step>
+
+  <Step>
+
+### Save Backup Job
+
+Click **Create** to save the backup job. Zerobyte redirects you straight to the backup job details page.
+
+</Step>
+</Steps>
+
+## Step 4: Run Your First Backup
+
+Instead of waiting for the scheduled time, let's run the backup immediately:
+
+<Steps>
+  <Step>
+
+### Open the Backup Job Details
+
+After creating the job, Zerobyte opens the backup job details page automatically
+
+</Step>
+
+  <Step>
+
+### Run Backup Manually
+
+Click **Backup now**
+
+</Step>
+
+  <Step>
+
+### Monitor Progress
+
+Zerobyte starts the job immediately and updates the status on the details page. A success toast appears when the run begins.
+
+</Step>
+
+  <Step>
+
+### Wait for Completion
+
+Wait for the backup to finish. When it completes successfully, the job status changes to **Success** and a new entry appears in the **Snapshots** section.
+
+</Step>
+</Steps>
+
+<Callout type="info">
+  During the first backup, all data is uploaded. Subsequent backups are much faster due to Restic's incremental backup and deduplication.
+</Callout>
+
+## Step 5: Verify Your Backup
+
+After the backup completes, verify it was successful:
+
+<Steps>
+  <Step>
+
+### Open the Snapshot
+
+In the **Snapshots** section, click the snapshot you just created
+
+</Step>
+
+  <Step>
+
+### Check Snapshots
+
+You should see snapshot details such as:
+
+- Snapshot timestamp
+- Total size
+- Data added vs. data stored
+- Files processed
+- Duration
+
+</Step>
+
+  <Step>
+
+### Browse Backup Contents
+
+Use the inline file browser to inspect the snapshot contents. You can:
+
+- Navigate the directory structure
+- View file sizes and modification times
+- Confirm the expected files are present
+
+</Step>
+
+  <Step>
+
+### Test Restore (Optional)
+
+For peace of mind, test restoring a file:
+
+- Click **Restore** from the snapshot details
+- Choose **Original location** or **Custom location**
+- Use **Restore All** or select specific files and restore only those
+- Verify the restored file is present in the target location
+
+</Step>
+</Steps>
+
+<Callout type="warn">
+  By default, restored files are placed back in their original location. Be careful not to overwrite current files. You can specify an alternate restore path if needed.
+</Callout>
+
+## Understanding Backup Status
+
+The UI exposes two related status views:
+
+- In the **Backups** list, the status dot shows **Active**, **Paused**, **Error**, **Warning**, or **Backup in progress**
+- In the backup job details page, the last run status shows **✓ Success**, **✗ Error**, **! Warning**, or **⟳ in progress...**
+- If a backup job has not completed a run yet, the details page shows `—`
+
+<Callout type="info">
+  Click any backup job to view its snapshot history, restore actions, schedule summary, and repository links. If a run fails and the UI does not show enough detail, check your container logs with `docker compose logs -f zerobyte`.
+</Callout>
+
+## Monitoring Your Backups
+
+Zerobyte provides several ways to monitor backup health:
+
+### Backup Jobs List
+
+The **Backups** page shows:
+
+- Backup job names
+- Source volume and target repository
+- Schedule
+- Last backup time
+- Next backup time
+
+### Backup Job Details
+
+Each backup job displays:
+
+- Last run time and status
+- Next backup time
+- Snapshot history
+- Snapshot statistics for the selected snapshot
+- Restore actions for the selected snapshot
+
+### Repository Health
+
+Repository details show:
+
+- Current repository status (`healthy`, `error`, `unknown`, `doctor`, or `cancelled`)
+- Last checked time
+- Compression statistics and snapshot count
+- Doctor report output
+
+<Callout type="info">
+  Use **Run doctor** in the repository details page when you need a repository maintenance pass. Use the refresh button in **Compression Statistics** when you only need updated stored-size and snapshot metrics. For the exact meaning of the status values and actions, see [Repository maintenance and status](/docs/guides/repository-maintenance).
+</Callout>
+
+## Next Steps
+
+Now that you have a working backup, consider:
+
+<Cards>
+  <Card title="Add More Volumes" icon={<FolderPlus />}>
+    Back up additional directories or remote shares
+  </Card>
+
+  <Card title="Set Up Cloud Storage" icon={<Cloud />}>
+    Configure offsite backups to S3, Google Cloud, or Azure
+  </Card>
+
+  <Card title="Configure Notifications" icon={<Bell />} href="/docs/guides/notifications">
+    Get alerted when backups fail or complete
+  </Card>
+
+  <Card title="Optimize Retention" icon={<History />}>
+    Fine-tune retention policies to balance storage and history
+  </Card>
+</Cards>
+
+## Common Tasks
+
+### Restoring Data
+
+To restore data from a backup:
+
+<Steps>
+  <Step>
+
+### Navigate to Backup
+
+Go to **Backups** and select the backup job containing the data you need
+
+</Step>
+
+  <Step>
+
+### Select Snapshot
+
+Choose the snapshot from the time period you want to restore from
+
+</Step>
+
+  <Step>
+
+### Browse and Select
+
+Browse the file tree and select files/folders to restore
+
+</Step>
+
+  <Step>
+
+### Choose Restore Location
+
+Decide whether to restore to original location or specify a new path
+
+</Step>
+
+  <Step>
+
+### Restore
+
+Click **Restore All** to restore everything, or select specific files first and restore only those
+
+</Step>
+</Steps>
+
+### Pausing a Backup Job
+
+To temporarily stop a backup from running:
+
+1. Navigate to the backup job
+2. Toggle the **Enabled** switch to off
+3. The job will skip scheduled runs until re-enabled
+
+### Checking Backup Details
+
+To inspect a backup run:
+
+1. Click on a backup job
+2. Review the current **Status**, **Last backup**, and **Snapshots** sections
+3. Click a snapshot to inspect its file browser and restore actions
+4. For deeper troubleshooting, check `docker compose logs -f zerobyte`
+
+### Deleting Old Snapshots
+
+Backups are automatically pruned according to retention policies, but you can manually delete snapshots:
+
+1. Navigate to backup job
+2. Select the snapshot you want to delete
+3. Click **Delete Snapshot**
+4. Confirm deletion
+
+<Callout type="warn">
+  Deleting snapshots is irreversible. Ensure you don't need the data before deleting.
+</Callout>
+
+## Troubleshooting
+
+### Backup Failed: Permission Denied
+
+Ensure the volume directory has proper permissions:
+
+```bash
+# On the host system
+sudo chmod -R 755 /path/to/your/data
+```
+
+### Backup Running Slowly
+
+Check:
+
+- Network bandwidth (for cloud repositories)
+- Disk I/O performance
+- Enable compression if uploading large compressible files
+- Review repository upload/download speed limits if you enabled them
+
+### Repository Initialization Failed
+
+Verify:
+
+- Repository path is writable
+- For cloud repositories, credentials are correct
+- Network connectivity to cloud storage
+
+### Can't Find Mounted Directory
+
+Ensure:
+
+- Directory is mounted in `docker-compose.yml`
+- Container was restarted after mounting: `docker compose restart`
+- Path matches the container path, not host path
+
+## Getting Help
+
+If you encounter issues:
+
+<Cards>
+  <Card title="Check Logs" icon={<FileText />}>
+    View detailed logs with `docker compose logs -f zerobyte`
+  </Card>
+
+  <Card title="GitHub Issues" icon={<Github />}>
+    Report bugs or request features at [github.com/nicotsx/zerobyte/issues](https://github.com/nicotsx/zerobyte/issues)
+  </Card>
+
+  <Card title="Documentation" icon={<BookOpen />}>
+    Explore the full documentation for advanced topics
+  </Card>
+
+  <Card title="Community" icon={<Users />}>
+    Join discussions and get help from other users
+  </Card>
+</Cards>
+
+<Callout type="info">
+  When reporting issues, include:
+
+  - Zerobyte version (visible in UI footer)
+  - Docker and Docker Compose versions
+  - Relevant logs from `docker compose logs zerobyte`
+  - Steps to reproduce the issue
+</Callout>
+
+## Conclusion
+
+You've successfully:
+
+- ✅ Created an admin account and downloaded the recovery key
+- ✅ Added a volume to backup
+- ✅ Created a repository for encrypted storage
+- ✅ Configured and ran your first backup job
+- ✅ Verified your backup was successful
+
+Your data is now protected with encrypted, deduplicated backups. Zerobyte will continue to run backups automatically according to your schedule.
+
+import { FolderPlus, Cloud, Bell, History, FileText, Github, BookOpen, Users } from "lucide-react";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";

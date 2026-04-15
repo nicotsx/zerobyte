@@ -1,0 +1,186 @@
+---
+title: Configuration
+description: Environment variables, Docker settings, and configuration reference
+---
+
+Zerobyte is configured through environment variables and Docker Compose settings. This page covers all available options.
+
+## Environment Variables
+
+### Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `BASE_URL` | The URL where Zerobyte will be accessed. Controls cookie security and CORS behavior. | `http://localhost:4096` or `https://zerobyte.example.com` |
+| `APP_SECRET` | Random secret key (32+ characters) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`. | `94bad46e...c66e25d5c2b` |
+
+<Callout type="warn">
+  Never share or commit your `APP_SECRET`. If you lose it, encrypted data (credentials stored for volumes and repositories) cannot be recovered.
+</Callout>
+
+### Recommended
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TZ` | Timezone for the container. **Important for accurate backup scheduling.** | `UTC` |
+
+### Optional
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Port the web interface and API listen on inside the container. | `4096` |
+| `RESTIC_HOSTNAME` | Hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
+| `TRUST_PROXY` | Set to `true` to trust `X-Forwarded-For` headers from a reverse proxy. | `false` |
+| `TRUSTED_ORIGINS` | Comma-separated list of additional trusted origins for CORS. | (none) |
+| `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error`. | `info` |
+| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. | `60` |
+| `RCLONE_CONFIG_DIR` | Path to the rclone config directory inside the container. | `/root/.config/rclone` |
+| `PROVISIONING_PATH` | Path to a JSON file with operator-managed repositories and volumes to sync at startup. | (none) |
+
+## Docker Compose Settings
+
+### Volume Mounts
+
+Essential volume mounts for Zerobyte:
+
+```yaml
+volumes:
+  # Sync container time with host (recommended)
+  - /etc/localtime:/etc/localtime:ro
+
+  # Zerobyte data directory (database, encryption keys, local repositories)
+  - /var/lib/zerobyte:/var/lib/zerobyte
+```
+
+<Callout type="warn">
+  **Do not** point `/var/lib/zerobyte` to a network share. This causes permission issues and severe performance degradation. Always use local storage.
+</Callout>
+
+<Callout type="info">
+  **TrueNAS users**: The `/var/lib` path is ephemeral and resets during system upgrades. Create a dedicated ZFS dataset instead:
+
+  ```yaml
+  volumes:
+    - /mnt/tank/docker/zerobyte:/var/lib/zerobyte
+  ```
+</Callout>
+
+#### Additional Volume Mounts
+
+| Mount | Purpose |
+|-------|---------|
+| `/path/to/data:/data:ro` | Mount host directories for local directory backups (use `:ro` for read-only) |
+| `~/.config/rclone:/root/.config/rclone:ro` | Mount rclone configuration for rclone-based repositories and volumes |
+| `~/.ssh:/root/.ssh:ro` | Mount SSH keys for rclone SFTP remotes that use `key_file` |
+| `./provisioning.json:/config/provisioning.json:ro` | Mount a provisioning file for operator-managed resources |
+
+### Container Capabilities
+
+Zerobyte supports two deployment modes depending on your needs:
+
+#### Full Installation (with remote mounts)
+
+Required for mounting NFS, SMB, WebDAV, and SFTP volumes directly from Zerobyte:
+
+```yaml
+cap_add:
+  - SYS_ADMIN
+devices:
+  - /dev/fuse:/dev/fuse
+```
+
+#### Simplified Installation (local directories only)
+
+If you only need local directory backups, no special capabilities are required:
+
+```yaml
+# No cap_add or devices needed
+ports:
+  - "4096:4096"
+```
+
+### Port Configuration
+
+By default, Zerobyte listens on port 4096:
+
+```yaml
+ports:
+  - "4096:4096"
+```
+
+To bind to localhost only (recommended when using a reverse proxy):
+
+```yaml
+ports:
+  - "127.0.0.1:4096:4096"
+```
+
+## Cookie Security
+
+The `BASE_URL` determines how authentication cookies behave:
+
+| BASE_URL | Cookie Behavior |
+|----------|----------------|
+| `http://192.168.1.50:4096` | Secure cookies **disabled** — allows login over HTTP |
+| `http://localhost:4096` | Secure cookies **disabled** — allows local development |
+| `https://zerobyte.example.com` | Secure cookies **enabled** — requires HTTPS |
+
+<Callout type="info">
+  If `BASE_URL` starts with `https://`, browsers will only send auth cookies over HTTPS connections. Plain HTTP access may show the login page but authentication will fail.
+</Callout>
+
+<Callout type="warn">
+  `TRUSTED_ORIGINS` only allows additional origins for CORS. It does **not** disable secure cookies or make HTTP access work when `BASE_URL` is HTTPS.
+</Callout>
+
+## Secret References
+
+When provisioning volumes or repositories, sensitive fields support secret references:
+
+| Reference | Resolves From | Example |
+|-----------|--------------|---------|
+| `env://VARIABLE_NAME` | Container environment variable | `env://S3_SECRET_KEY` |
+| `file://secret_name` | Docker secret at `/run/secrets/secret_name` | `file://smb_password` |
+
+This allows you to keep credentials in your deployment configuration rather than writing them directly into the provisioning file.
+
+<Callout type="info">
+  The standard volume and repository forms in the UI currently store the value you enter, encrypted at rest. `env://` and `file://` references are only resolved during provisioning.
+</Callout>
+
+### Example with Docker Secrets
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    environment:
+      - S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+    secrets:
+      - s3_secret_key
+    volumes:
+      - /var/lib/zerobyte:/var/lib/zerobyte
+
+secrets:
+  s3_secret_key:
+    file: ./secrets/s3_secret_key.txt
+```
+
+In the provisioning file, reference these as:
+- Access Key: `env://S3_ACCESS_KEY`
+- Secret Key: `file://s3_secret_key`
+
+## Updating Zerobyte
+
+To update to a new version:
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose logs -f zerobyte
+```
+
+<Callout type="warn">
+  Always check the [release notes](https://github.com/nicotsx/zerobyte/releases) before updating, especially for v0.x.x versions which may include breaking changes.
+</Callout>
+
+import { Step, Steps } from "fumadocs-ui/components/steps";

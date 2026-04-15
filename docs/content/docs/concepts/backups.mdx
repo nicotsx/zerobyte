@@ -1,0 +1,248 @@
+---
+title: Backups
+description: Learn how backup jobs connect volumes to repositories with scheduling, retention policies, and restore capabilities
+---
+
+Learn how backup jobs connect volumes to repositories with scheduling, retention policies, and restore capabilities.
+
+## What are backup jobs?
+
+A backup job is the central piece of Zerobyte. It defines four things:
+
+- **What** to back up — a [volume](/docs/concepts/volumes) (your data source)
+- **Where** to store it — a [repository](/docs/concepts/repositories) (your encrypted storage destination)
+- **When** to run — a cron schedule
+- **How long** to keep snapshots — a retention policy
+
+Each time a backup job runs, Restic creates an incremental, encrypted snapshot of the volume's contents and stores it in the repository.
+
+## Creating a backup job
+
+To create a backup job, navigate to **Backups** in the sidebar and click **Create a backup job**. First choose a volume, then fill in the backup form:
+
+- **Backup name** — A descriptive name for the job (e.g., "Daily Database Backup")
+- **Backup repository** — Select from your configured repositories
+- **Backup frequency** — Choose `Manual only`, `Hourly`, `Daily`, `Weekly`, `Specific days`, or `Custom (Cron)`
+- **Retention policy** — Optionally define how many snapshots to keep
+
+<Callout type="info">
+  Choose **Manual only** if you want to create the job without scheduled runs and trigger it yourself.
+</Callout>
+
+## Scheduling
+
+Backup jobs use **cron expressions** to define when they run. Cron syntax gives you precise control over scheduling.
+
+### Common cron patterns
+
+| Cron Expression   | Schedule                     |
+| ----------------- | ---------------------------- |
+| `0 2 * * *`       | Daily at 2:00 AM             |
+| `0 2 * * 0`       | Weekly on Sunday at 2:00 AM  |
+| `0 2 1 * *`       | Monthly on the 1st at 2:00 AM |
+| `0 */6 * * *`     | Every 6 hours                |
+| `0 0 * * 1-5`     | Weekdays at midnight         |
+
+<Callout type="info">
+  The timezone for cron schedules is controlled by the `TZ` environment variable set on the Zerobyte container. If `TZ` is not set, the system defaults to UTC.
+</Callout>
+
+## Retention policies
+
+Retention policies control how long snapshots are kept. After each backup, Restic automatically prunes snapshots that fall outside the defined policy, freeing up storage space.
+
+You can configure the following retention rules:
+
+| Rule           | Description                                |
+| -------------- | ------------------------------------------ |
+| **Keep Last**    | Number of most recent snapshots to keep    |
+| **Keep Daily**   | Number of daily snapshots to keep          |
+| **Keep Weekly**  | Number of weekly snapshots to keep         |
+| **Keep Monthly** | Number of monthly snapshots to keep        |
+| **Keep Yearly**  | Number of yearly snapshots to keep         |
+
+### Example retention policy
+
+A balanced policy for most workloads:
+
+- **Keep Daily**: 7 — One snapshot per day for the past week
+- **Keep Weekly**: 4 — One snapshot per week for the past month
+- **Keep Monthly**: 6 — One snapshot per month for the past half year
+- **Keep Yearly**: 1 — One snapshot per year for long-term archival
+
+<Callout type="info">
+  Retention rules are additive. A snapshot that satisfies any rule is kept. Restic determines which snapshots best represent each time period automatically.
+</Callout>
+
+## Include and exclude paths
+
+By default, the entire volume is backed up. You can refine this with include and exclude patterns.
+
+### Include paths
+
+Specify subdirectories within the volume to back up. Only these paths will be included in the snapshot.
+
+### Exclude patterns
+
+Exclude files or directories that do not need to be backed up. Common patterns:
+
+- `*.tmp` — Temporary files
+- `node_modules/` — Dependency directories
+- `.cache/` — Cache directories
+- `*.log` — Log files
+
+<Callout type="warn">
+  Exclude patterns use Restic's pattern matching. Test your patterns after the first backup by browsing the snapshot contents to confirm the right files are included.
+</Callout>
+
+## Compression
+
+Backups inherit the compression mode from the repository they write to. Compression is configured per repository and applies to all backup jobs targeting that repository.
+
+Available modes are **auto** (default), **off**, and **max**. See [Repositories](/docs/concepts/repositories) for details on each mode.
+
+## Running backups
+
+There are two ways to run a backup job:
+
+- **Scheduled** — The job runs automatically according to its cron schedule. No intervention required.
+- **Manual** — Click **Backup now** on any backup job to trigger it immediately, regardless of the schedule.
+
+Both methods produce identical snapshots. Manual runs are useful for verifying a new backup job or creating an extra snapshot before a major change.
+
+<Callout type="info">
+  You can monitor backup progress in real time through the web interface. Zerobyte streams file counts, data processed, and upload progress as the backup runs.
+</Callout>
+
+## Backup status
+
+The UI exposes two related status views:
+
+- In the **Backups** list, the status dot shows **Active**, **Paused**, **Error**, **Warning**, or **Backup in progress**
+- In the backup job details page, the last run status shows **Success**, **Error**, **Warning**, or **in progress**
+- If a backup job has not completed a run yet, the details page shows `—`
+
+## Snapshots
+
+Each successful backup creates a snapshot in the repository. Snapshots have several important properties:
+
+- **Immutable** — Once created, a snapshot cannot be modified
+- **Incremental** — Only changed data since the last snapshot is uploaded
+- **Browsable** — You can explore snapshot contents directly in the web interface, viewing file sizes, modification times, and directory structure
+
+The first backup uploads all data and may take longer. Subsequent backups are significantly faster because Restic deduplicates data at the chunk level and only transfers new or changed blocks.
+
+## Restoring data
+
+To restore files from a backup:
+
+<Steps>
+  <Step>
+
+### Navigate to the backup job
+
+Go to **Backups** and select the job containing the data you need.
+
+  </Step>
+
+  <Step>
+
+### Select a snapshot
+
+Choose the snapshot from the time period you want to restore from.
+
+  </Step>
+
+  <Step>
+
+### Browse and select files
+
+Navigate the file tree and select the files or folders you want to restore.
+
+  </Step>
+
+  <Step>
+
+### Choose a restore location
+
+Decide whether to restore to the original location or specify a custom path.
+
+  </Step>
+
+  <Step>
+
+### Restore
+
+Click **Restore** and wait for the operation to complete.
+
+  </Step>
+</Steps>
+
+<Callout type="warn">
+  By default, restored files are placed back in their original location. This can overwrite current files. If you want to inspect the restored data before replacing anything, specify an alternate restore path.
+</Callout>
+
+## Mirror repositories
+
+You can optionally copy snapshots to additional repositories after each backup. Mirrors provide:
+
+- **Geographic redundancy** — Store copies in different regions or data centers
+- **Provider diversification** — Avoid depending on a single cloud provider
+- **Compliance** — Meet data locality or regulatory requirements
+
+Mirrors are configured per backup job. After each successful backup, snapshots are automatically copied to all enabled mirror repositories.
+
+For a practical pattern that combines fast local restores with an offsite copy, see [3-2-1 Backup Strategy](/docs/guides/3-2-1-backup-strategy).
+
+## Monitoring
+
+The Zerobyte web interface provides visibility into each backup job:
+
+- **Schedule** — The cron expression or `Manual only` configuration for the job
+- **Last backup** — When the most recent run happened
+- **Next backup** — When the job is expected to run next
+- **Snapshot history** — The list of snapshots created for that job
+- **Snapshot statistics** — Data added, data stored, files processed, bytes processed, and duration for the selected snapshot
+- **Restore actions** — Restore or download data from the selected snapshot
+
+## Best practices
+
+<Accordions type="multiple">
+  <Accordion title="Schedule backups during off-peak hours">
+    Run backups when system load is lowest to minimize impact on production workloads. Late night or early morning schedules (e.g., `0 2 * * *`) work well for most setups.
+  </Accordion>
+
+  <Accordion title="Use retention policies to balance storage and history">
+    Keeping every snapshot indefinitely wastes storage. A policy like 7 daily, 4 weekly, 6 monthly, and 1 yearly provides good coverage without excessive cost.
+  </Accordion>
+
+  <Accordion title="Test restores regularly">
+    A backup is only valuable if you can restore from it. Periodically restore files to a test location to verify data integrity and familiarize yourself with the restore process.
+  </Accordion>
+
+  <Accordion title="Use exclude patterns for temporary files">
+    Excluding directories like `node_modules/`, `.cache/`, and `*.tmp` files reduces backup size and duration without losing important data.
+  </Accordion>
+
+  <Accordion title="Monitor failed backups and set up notifications">
+    Check the backup dashboard regularly for failed jobs. Configure notifications so you are alerted immediately when a backup fails rather than discovering it during a restore. See the [Notifications guide](/docs/guides/notifications) for destination setup, event routing, and delivery examples.
+  </Accordion>
+</Accordions>
+
+## Next steps
+
+<Cards>
+  <Card title="Configuration" icon={<Settings />} href="/docs/configuration">
+    Configure environment variables, Docker secrets, and deployment options
+  </Card>
+
+  <Card title="Troubleshooting" icon={<LifeBuoy />} href="/docs/troubleshooting">
+    Diagnose and resolve common backup issues
+  </Card>
+</Cards>
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+import { Card, Cards } from "../../../src/components/DocsCard";
+import { Callout } from "fumadocs-ui/components/callout";
+import { Settings, LifeBuoy } from "lucide-react";

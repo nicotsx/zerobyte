@@ -1,0 +1,275 @@
+---
+title: Notifications
+description: Create notification destinations, route backup events, and choose the right delivery type
+---
+
+Zerobyte's notification system has two layers:
+
+1. A **destination** is a reusable delivery channel such as Slack, SMTP, ntfy, or a webhook.
+2. A **backup schedule assignment** decides which events should be sent to which destination.
+
+You create destinations under **Notifications**. You route them per backup schedule from the backup details page.
+
+## How notifications work in Zerobyte
+
+- Destinations are organization-scoped.
+- Sensitive destination fields are encrypted before storage.
+- Disabled destinations stay saved, but Zerobyte skips them when sending notifications.
+- The **Test** button sends a generic test message for that destination.
+- Per-schedule routing supports four events: `start`, `success`, `warning`, and `failure`.
+
+<Callout type="info">
+  Create destinations once, then reuse them across as many backup schedules as you want.
+</Callout>
+
+## Supported destination types
+
+| Type | Best for | Key fields |
+| --- | --- | --- |
+| `Email (SMTP)` | Existing mail infrastructure, multiple recipients, ticketing aliases | SMTP host, port, sender, recipients, optional auth, TLS |
+| `Slack` | Team chat channels | Webhook URL, optional bot username, optional icon emoji |
+| `Discord` | Server channels or threads | Webhook URL, optional username, optional avatar URL, optional thread ID |
+| `Gotify` | Self-hosted mobile or desktop push | Server URL, app token, priority, optional path |
+| `ntfy` | Lightweight publish-subscribe notifications | Topic, optional server URL, optional auth, priority |
+| `Pushover` | Personal mobile alerts | User key, API token, optional devices, priority |
+| `Telegram` | Group or direct chat notifications | Bot token, chat ID, optional thread ID |
+| `Generic Webhook` | Arbitrary HTTP endpoints and automation systems | URL, method, headers, content type, optional JSON template keys |
+| `Custom (Shoutrrr URL)` | Power users or services not exposed by the built-in forms | Raw Shoutrrr URL |
+
+## Which type should I use?
+
+- Choose **Email** when you already trust an SMTP relay and want easy fan-out to multiple recipients.
+- Choose **Slack** or **Discord** when backup events belong in a shared team room.
+- Choose **Gotify** or **ntfy** when you prefer self-hosted push.
+- Choose **Pushover** or **Telegram** when you want fast personal alerts on a phone.
+- Choose **Generic Webhook** when another system expects a normal HTTP request.
+- Choose **Custom (Shoutrrr URL)** when the built-in types are close but not flexible enough, or when you need a different Shoutrrr-supported service entirely.
+
+## Create a destination
+
+1. Open **Notifications** in the sidebar.
+2. Click **Create Destination**.
+3. Pick the notification type.
+4. Fill in the type-specific settings.
+5. Save the destination.
+6. Open the destination and use **Test** before attaching it to production schedules.
+
+The type is effectively fixed after creation in the current UI, so create a new destination instead of trying to repurpose an existing one from Slack to Email or similar.
+
+## Route notifications per backup schedule
+
+1. Open the backup schedule you want to configure.
+2. In the **Notifications** section, click **Add notification**.
+3. Select an existing destination.
+4. Choose which events should trigger that destination.
+5. Save the backup schedule notification settings.
+
+Each assignment is independent. One schedule can send failures to Email, warnings to Slack, and successes nowhere.
+
+## Backup event meanings
+
+| Event | When Zerobyte sends it | What is included |
+| --- | --- | --- |
+| `start` | The backup begins running | Volume name, repository name, and schedule name |
+| `success` | The backup completes cleanly | Volume, repository, schedule, and backup summary details when available |
+| `warning` | The backup completes with warnings instead of a clean success | Success details plus warning text when available |
+| `failure` | The backup fails validation or execution | Volume, repository, schedule, and the error text |
+
+## Type reference
+
+### Email (SMTP)
+
+Use Email when you want alerts to go to people, shared mailboxes, or downstream systems that already process email.
+
+**Fields**
+
+- `SMTP Host`
+- `SMTP Port`
+- `Username` and `Password` (optional)
+- `From Address`
+- `From Name` (optional)
+- `To Addresses`
+- `Use TLS`
+
+**Notes**
+
+- `To Addresses` is a comma-separated list in the UI.
+- TLS is a simple yes or no toggle.
+- SMTP authentication is optional because some relays accept trusted network senders.
+
+**Example**
+
+```text
+Type: Email (SMTP)
+SMTP Host: smtp.example.com
+SMTP Port: 587
+Username: alerts@example.com
+Password: <smtp-password>
+From Address: alerts@example.com
+From Name: Zerobyte Alerts
+To Addresses: ops@example.com, backups@example.com
+Use TLS: On
+```
+
+### Slack
+
+Use Slack for shared operational visibility in a team channel.
+
+**Fields**
+
+- `Webhook URL`
+- `Bot Username` (optional)
+- `Icon Emoji` (optional)
+
+**Example**
+
+```text
+Type: Slack
+Webhook URL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+Bot Username: Zerobyte
+Icon Emoji: :floppy_disk:
+```
+
+### Discord
+
+Use Discord when your team lives in a server channel, or when you want to post to a specific thread.
+
+**Fields**
+
+- `Webhook URL`
+- `Bot Username` (optional)
+- `Avatar URL` (optional)
+- `Thread ID` (optional)
+
+### Gotify
+
+Use Gotify when you want self-hosted push with explicit priority control.
+
+**Fields**
+
+- `Server URL`
+- `App Token`
+- `Priority` from `0` to `10`
+- `Path` (optional)
+
+### ntfy
+
+Use ntfy when you want a simple topic-based push service, either on `ntfy.sh` or your own server.
+
+**Fields**
+
+- `Server URL` (optional, leave empty for `ntfy.sh`)
+- `Topic`
+- `Username` and `Password` (optional)
+- `Access token` (optional)
+- `Priority`
+
+**Notes**
+
+- If you set an access token, it takes precedence over username and password.
+- Priority values are `max`, `high`, `default`, `low`, and `min`.
+
+**Example**
+
+```text
+Type: Ntfy
+Server URL: https://ntfy.example.com
+Topic: zerobyte-backups
+Access token: <token>
+Priority: high
+```
+
+### Pushover
+
+Use Pushover for direct, personal push notifications.
+
+**Fields**
+
+- `User Key`
+- `API Token`
+- `Devices` (optional)
+- `Priority` as `-1`, `0`, or `1`
+
+### Telegram
+
+Use Telegram when you want notifications in a bot chat or a group topic.
+
+**Fields**
+
+- `Bot Token`
+- `Chat ID`
+- `Thread ID` (optional)
+
+**Example**
+
+```text
+Type: Telegram
+Bot Token: 123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+Chat ID: -1231234567890
+Thread ID: 3
+```
+
+### Generic Webhook
+
+Use Generic Webhook when another service expects a normal HTTP request instead of a provider-specific webhook format.
+
+**Fields**
+
+- `Webhook URL`
+- `Method` as `GET` or `POST`
+- `Content Type`
+- `Headers`
+- `Use JSON Template`
+- `Title Key` and `Message Key` when JSON mode is enabled
+
+**Notes**
+
+- Headers are entered one per line as `Key: Value`.
+- With JSON mode enabled, Zerobyte sends a body shaped like `{titleKey: "...", messageKey: "..."}`.
+- With JSON mode disabled, the request body is plain notification text.
+
+**Example**
+
+```text
+Type: Generic Webhook
+Webhook URL: https://hooks.example.com/backup-events
+Method: POST
+Content Type: application/json
+Headers:
+Authorization: Bearer <token>
+X-Source: zerobyte
+Use JSON Template: On
+Title Key: title
+Message Key: message
+```
+
+### Custom (Shoutrrr URL)
+
+Use Custom when you already know the exact Shoutrrr URL you want Zerobyte to use.
+
+**Fields**
+
+- `Shoutrrr URL`
+
+**Example**
+
+```text
+slack://hook:T000-B000-XXX@webhook?username=Zerobyte
+```
+
+## Practical routing patterns
+
+| Goal | Suggested routing |
+| --- | --- |
+| Only wake someone up for real problems | `failure` to Email or Pushover |
+| Keep the team informed without noise | `warning` and `failure` to Slack or Discord |
+| Audit every run | `start`, `success`, `warning`, and `failure` to Email or Generic Webhook |
+| Mobile-first personal alerting | `failure` to Telegram, ntfy, Gotify, or Pushover |
+| Feed another incident or workflow system | `failure` and optionally `warning` to Generic Webhook |
+
+## Related docs
+
+- [Backups](/docs/concepts/backups)
+- [Repository maintenance and status](/docs/guides/repository-maintenance)
+
+import { Callout } from "fumadocs-ui/components/callout";

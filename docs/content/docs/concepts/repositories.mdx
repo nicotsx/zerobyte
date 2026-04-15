@@ -1,0 +1,247 @@
+---
+title: Repositories
+description: Encrypted storage destinations where your backup snapshots are stored
+---
+
+Repositories are encrypted storage destinations where your backup snapshots are stored. Every piece of data that Zerobyte backs up ends up in a repository, protected by strong encryption and deduplicated to save space.
+
+## What are repositories?
+
+A repository is a Restic-powered storage location that holds your backup snapshots. When you create a backup job, you point it at a repository — that is where the encrypted data goes.
+
+Repositories provide:
+
+- **End-to-end encryption** — all data is encrypted before it leaves your machine, so even your storage provider cannot read it
+- **Deduplication** — identical data blocks are stored only once, even across different backups
+- **Compression** — configurable compression reduces storage costs
+- **Immutable snapshots** — once a snapshot is created, it cannot be modified
+- **Incremental backups** — only changed data is transferred and stored after the initial backup
+
+Each repository is self-contained. You can store repositories on local disks, cloud object storage, remote servers, or any of 40+ backends supported through rclone.
+
+## Supported repository backends
+
+Zerobyte supports eight backend types. When creating a repository, you select a backend and fill in the required fields in the UI.
+
+### Local
+
+Store backups on a local disk or mounted filesystem. Zerobyte creates the repository directory under the path you provide.
+
+**Use cases:** fast local backups, NAS devices, USB-attached drives, high-speed recovery scenarios.
+
+**Fields:** Name, Path.
+
+<Callout type="info">
+  Zerobyte automatically creates a subdirectory under the given path to keep each repository isolated.
+</Callout>
+
+### S3-compatible
+
+Store backups on Amazon S3 or any S3-compatible service, including MinIO, Wasabi, Backblaze B2, and DigitalOcean Spaces.
+
+**Use cases:** cloud-native storage, offsite backups, long-term archival.
+
+**Fields:** Name, Endpoint, Bucket, Access Key ID, Secret Access Key.
+
+Sensitive fields are encrypted before storage. See [Credential security](#credential-security) below.
+
+### Cloudflare R2
+
+S3-compatible object storage from Cloudflare with zero egress fees, making it cost-effective for frequent restores.
+
+**Use cases:** cost-effective cloud backups, frequent restore operations, global edge storage.
+
+**Fields:** Name, Endpoint, Bucket, Access Key ID, Secret Access Key.
+
+### Google Cloud Storage
+
+Store backups on Google Cloud Platform's object storage.
+
+**Use cases:** GCP-native storage, integration with existing GCP infrastructure, Nearline/Coldline storage tiers.
+
+**Fields:** Name, Bucket, Project ID, Service Account JSON.
+
+<Callout type="info">
+  The service account needs permissions to create, read, and delete objects in the target bucket.
+</Callout>
+
+### Azure Blob Storage
+
+Store backups on Microsoft Azure's object storage.
+
+**Use cases:** Azure-native storage, enterprise compliance, Hot/Cool/Archive tier optimization.
+
+**Fields:** Name, Container, Account Name, Account Key, Endpoint Suffix (optional).
+
+### Rclone
+
+Access any of rclone's 40+ supported cloud storage backends, including Dropbox, Google Drive, OneDrive, and many more.
+
+**Use cases:** exotic cloud providers, consumer cloud storage, cross-cloud backup strategies.
+
+**Fields:** Name, Remote (as configured in your rclone config), Path.
+
+<Callout type="warn">
+  Your rclone configuration file must be mounted into the Zerobyte container. Consumer services like Google Drive may have API rate limits and are not recommended for production backups.
+</Callout>
+
+### REST server
+
+Connect to a Restic REST server for network-based backup storage.
+
+**Use cases:** self-hosted backup infrastructure, dedicated backup servers, REST-based appliances.
+
+**Fields:** Name, URL, Path (optional), Username (optional), Password (optional).
+
+### SFTP
+
+Store backups on remote servers accessible via SSH.
+
+**Use cases:** backup to remote Linux servers, VPS-based offsite storage, SSH-accessible targets.
+
+**Fields:** Name, Host, Port, User, Path, SSH Private Key, Known Hosts or Skip Host Key Verification.
+
+<Callout type="warn">
+  For production use, keep host key verification enabled and provide the server's known host key to prevent man-in-the-middle attacks.
+</Callout>
+
+## Connecting to an existing repository
+
+When creating a repository, you can mark it as **existing** to connect to a Restic repository that was already initialized elsewhere. This is useful when:
+
+- Another Zerobyte instance already created the repository
+- You initialized the repository directly with the Restic CLI
+- You are migrating from another backup tool that uses Restic
+
+Zerobyte will verify that it can access the existing repository and begin using it for backups and restores without re-initializing it.
+
+When importing an existing repository, Zerobyte can either use the active organization's recovery key or store a separate custom password for that repository. See [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords) for the exact password model and when to choose each option.
+
+## Compression modes
+
+Compression is set when creating a repository and applies to all backups stored in it. Three modes are available:
+
+<Accordions>
+  <Accordion title="Auto (default, recommended)">
+    Restic automatically decides whether to compress each data chunk. This provides the best balance of speed and space savings for most workloads.
+  </Accordion>
+
+  <Accordion title="Off">
+    No compression is applied. Use this when backing up data that is already compressed, such as video files, ZIP archives, or compressed images. Avoids wasting CPU on data that will not shrink further.
+  </Accordion>
+
+  <Accordion title="Max">
+    Maximum compression for the best space savings. Uses more CPU time during backups. Best suited for text-heavy data, source code, and database dumps where CPU is not a bottleneck.
+  </Accordion>
+</Accordions>
+
+## Bandwidth limiting
+
+You can configure upload and download speed limits per repository to prevent backups from saturating your network. Limits are set in the repository settings with the following units: **Kbps**, **Mbps**, or **Gbps**.
+
+- **Upload limit** — controls the speed at which data is sent to the repository during backups. Useful for avoiding bandwidth contention during business hours or staying within ISP caps.
+- **Download limit** — controls the speed at which data is retrieved during restores or snapshot browsing. Helps manage egress costs on cloud providers.
+
+<Callout type="info">
+  Bandwidth limits are enforced at the application layer. Actual network usage may be slightly higher due to protocol overhead.
+</Callout>
+
+## Repository maintenance
+
+Zerobyte provides maintenance actions in the repository details page.
+
+### Doctor
+
+A background maintenance run that unlocks the repository, runs `restic check`, and repairs the index if restic reports that repair is needed.
+
+<Callout type="warn">
+  Doctor blocks other repository operations while it runs, but it does **not** currently perform a full `check --read-data` scrub and it does **not** prune unused data. See the [Repository maintenance guide](/docs/guides/repository-maintenance) for the exact behavior.
+</Callout>
+
+### Unlock
+
+Removes stale locks from a repository. Use this when you see "repository is locked" errors after a crash or forced termination of a backup or restore operation.
+
+<Callout type="info">
+  Only run unlock if you are certain no other operations are actively accessing the repository.
+</Callout>
+
+### Statistics refresh
+
+The refresh button in **Compression Statistics** recalculates stored-size, compression, and snapshot-count metrics. It does not replace Doctor and it does not change repository health status.
+
+## Snapshots
+
+Each backup creates an immutable snapshot in the repository. Snapshots are incremental — after the initial full backup, only changed data is stored in subsequent snapshots. This means the 10th backup of a 100 GB dataset might only add a few megabytes if little has changed.
+
+You can browse the contents of any snapshot and restore individual files or entire directories from the Zerobyte interface.
+
+## Mirror repositories
+
+You can configure backup jobs to copy snapshots to additional repositories after each successful backup. This provides:
+
+- **Geographic redundancy** — store copies in different regions or data centers
+- **Provider diversification** — avoid depending on a single cloud provider
+- **Compliance** — meet data locality or multi-copy retention requirements
+
+Mirrors are configured per backup job. See [Backups](/docs/concepts/backups) for details on setting up mirror repositories.
+
+## Credential security
+
+All sensitive fields (passwords, access keys, private keys, service account credentials) are encrypted before being stored. Credentials are never saved in plaintext.
+
+Provisioned repositories also support secret references:
+
+- **`env://VARIABLE_NAME`** — resolves the value from the specified environment variable during provisioning
+- **`file://secret_name`** — resolves the value from a Docker secret file at `/run/secrets/secret_name` during provisioning
+
+During provisioning, Zerobyte resolves these references on startup and stores the resolved value encrypted in the database.
+
+The regular repository form in the UI currently expects the actual credential value. Entering `env://...` or `file://...` there will not resolve it at runtime.
+
+## Best practices
+
+<Accordions>
+  <Accordion title="Use separate repositories for different data classes">
+    Create distinct repositories for critical data, archive data, and test/development environments. This lets you apply different retention policies, storage tiers, and maintenance schedules to each class.
+  </Accordion>
+
+  <Accordion title="Enable bandwidth limits for cloud repositories">
+    Prevent backup operations from saturating your internet connection, especially during business hours. Even modest limits (e.g., 50 Mbps) can make a significant difference to other services sharing the same link.
+  </Accordion>
+
+  <Accordion title="Run maintenance (Doctor) periodically">
+    Schedule the Doctor operation monthly or quarterly for production repositories to verify data integrity, rebuild indexes, and reclaim space from deleted snapshots.
+  </Accordion>
+
+  <Accordion title="Test restore operations regularly">
+    Backups are only as good as your ability to restore from them. Periodically restore files from your repositories to verify that data can be recovered, recovery time meets your expectations, and restored data is complete.
+  </Accordion>
+
+  <Accordion title="Monitor repository health">
+    Keep an eye on repository status. A repository in an error state will cause backup jobs to fail. Set up notifications so you are alerted to issues before they affect your backup schedule.
+  </Accordion>
+</Accordions>
+
+## Next steps
+
+<Cards>
+  <Card title="Backups" icon={<CalendarDays />} href="/docs/concepts/backups">
+    Learn how backup jobs create snapshots and manage retention
+  </Card>
+
+  <Card title="Rclone integration" icon={<Cloud />} href="/docs/guides/rclone">
+    Set up rclone to access 40+ cloud storage backends
+  </Card>
+
+  <Card title="Configuration reference" icon={<Wrench />} href="/docs/configuration">
+    Full reference for all environment variables and Docker settings
+  </Card>
+</Cards>
+
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
+import { Card, Cards } from "../../../src/components/DocsCard";
+import { Callout } from "fumadocs-ui/components/callout";
+import { Cloud, CalendarDays, Wrench } from "lucide-react";

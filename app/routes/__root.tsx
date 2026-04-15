@@ -16,7 +16,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 	},
 	loader: async () => getRootLoaderData(),
 	head: () => ({
-		meta: [{ title: "Zerobyte - Open Source Backup Solution" }],
+		meta: [{ title: "Zerobyte - Open Source Backup Solution" }, { name: "robots", content: "noindex, nofollow" }],
 		links: [
 			{
 				rel: "stylesheet",

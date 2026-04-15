@@ -1,0 +1,264 @@
+---
+title: Troubleshooting
+description: Solve common issues with permissions, mounts, rclone, and more
+---
+
+This guide covers common issues and their solutions. Before troubleshooting, enable debug logging to get more detail.
+
+## Enable Debug Logging
+
+Add `LOG_LEVEL=debug` to your environment variables and restart:
+
+```yaml
+environment:
+  - LOG_LEVEL=debug
+```
+
+Then view logs:
+
+```bash
+docker logs -f zerobyte
+```
+
+<Callout type="warn">
+  Never share sensitive information (passwords, access keys, personal data) in public issue reports. Redact them from logs before posting.
+</Callout>
+
+## Container Won't Start
+
+1. Check logs: `docker compose logs zerobyte`
+2. Verify `APP_SECRET` is set and at least 32 characters
+3. Ensure `/var/lib/zerobyte` exists and has correct permissions
+4. Verify port 4096 is not already in use: `netstat -tuln | grep 4096`
+
+### Permission Issues
+
+If you encounter permission errors on the data directory:
+
+```bash
+sudo chown -R 1000:1000 /var/lib/zerobyte
+```
+
+## Remote Mount Issues
+
+### Permission Denied When Mounting
+
+Mounting remote filesystems requires kernel-level privileges. Ensure:
+
+- Remote share credentials are correct
+- The host kernel supports the target filesystem (e.g., CIFS module is available)
+- Docker is running in **rootful mode** (rootless Docker cannot perform kernel mounts)
+- Your container has `SYS_ADMIN` capability:
+  ```yaml
+  cap_add:
+    - SYS_ADMIN
+  ```
+
+### Alternative: Mount on Host
+
+If container-level mounting causes issues, mount the remote share on the host first, then bind-mount it into the container:
+
+```bash
+# Mount on host
+sudo mount -t cifs //server/share /mnt/your-remote-share -o credentials=/path/to/creds
+```
+
+```yaml
+# Then in docker-compose.yml
+volumes:
+  - /mnt/your-remote-share:/data
+```
+
+### Security Framework Issues
+
+Linux security frameworks may block mount operations even with `SYS_ADMIN`. Try these solutions in order:
+
+<Tabs items={["AppArmor (Ubuntu/Debian)", "Seccomp", "SELinux (CentOS/Fedora)"]}>
+<Tab value="AppArmor (Ubuntu/Debian)">
+
+Check if AppArmor is blocking mounts:
+
+```bash
+sudo aa-status
+docker inspect --format='{{.AppArmorProfile}}' zerobyte
+```
+
+If it returns `docker-default`, disable AppArmor for the container:
+
+```yaml
+security_opt:
+  - apparmor:unconfined
+```
+
+</Tab>
+<Tab value="Seccomp">
+
+Docker's default seccomp profile may block mount-related syscalls:
+
+```yaml
+security_opt:
+  - seccomp:unconfined
+```
+
+</Tab>
+<Tab value="SELinux (CentOS/Fedora)">
+
+Adjust the SELinux context:
+
+```yaml
+security_opt:
+  - label:type:container_runtime_t
+```
+
+Or disable SELinux enforcement for the container:
+
+```yaml
+security_opt:
+  - label:disable
+```
+
+</Tab>
+</Tabs>
+
+<Callout type="warn">
+  **Last resort**: If nothing else works, you can run with `privileged: true`. This disables most container isolation and should only be used temporarily for diagnosis.
+</Callout>
+
+## FUSE Mount Failures
+
+FUSE-based mounts (SFTP volumes, rclone volumes) require `/dev/fuse`:
+
+```yaml
+devices:
+  - /dev/fuse:/dev/fuse
+```
+
+Verify FUSE is accessible inside the container:
+
+```bash
+docker exec zerobyte ls -la /dev/fuse
+```
+
+<Callout type="info">
+  `/dev/fuse` is **not required** for SMB/CIFS or NFS mounts — only for SFTP and rclone volumes.
+</Callout>
+
+## Rclone Issues
+
+### Test on Host First
+
+Before reporting rclone issues, verify rclone works on your Docker host:
+
+```bash
+# List configured remotes
+rclone listremotes
+
+# Test listing a remote
+rclone lsd myremote:
+
+# Test reading files
+rclone ls myremote:path/to/test
+```
+
+**If these commands fail on the host, fix your rclone configuration first.** Common causes:
+- Expired OAuth tokens — run `rclone config` to re-authenticate
+- Incorrect credentials
+- Missing permissions on the cloud provider side
+- Network or firewall issues
+
+### "No Remotes Available" in Dropdown
+
+Zerobyte can't find your rclone configuration. Check:
+
+```bash
+docker exec zerobyte ls -la /root/.config/rclone/
+```
+
+Ensure the config is mounted:
+
+```yaml
+volumes:
+  - ~/.config/rclone:/root/.config/rclone:ro
+```
+
+For non-root containers, set the correct path:
+
+```yaml
+environment:
+  - RCLONE_CONFIG_DIR=/home/appuser/.config/rclone
+volumes:
+  - ~/.config/rclone:/home/appuser/.config/rclone:ro
+```
+
+**Restart the container** after mounting the config.
+
+### "Failed to Create File System" Error
+
+Usually an authentication failure. On your host:
+1. Run `rclone config` and re-authenticate the remote
+2. Verify with `rclone lsd remote:`
+3. Restart the Zerobyte container
+
+### SFTP Repository Authentication Failures
+
+If your rclone SFTP remote uses `key_file`, the path points to the host filesystem which isn't accessible inside the container.
+
+Solutions:
+- **Mount SSH keys**: `~/.ssh:/root/.ssh:ro`
+- **Embed key in config**: Use `key_pem` instead of `key_file`
+- **Use ssh-agent**: Set `key_use_agent = true` and mount the SSH agent socket
+
+See the [rclone guide](/docs/guides/rclone) for detailed instructions.
+
+### Rclone Volume Mount Errors
+
+Rclone volumes (mounting cloud storage as a data source) require:
+- Linux host (Windows/macOS cannot use rclone volumes)
+- `/dev/fuse` device mounted
+- `SYS_ADMIN` capability
+
+**"fusermount3: Permission denied"**: Verify `/dev/fuse` is mounted and check for AppArmor/seccomp restrictions.
+
+**"Operation not permitted"**: Add `SYS_ADMIN` capability.
+
+## Backup Issues
+
+### Backup Failed: Permission Denied
+
+Ensure the volume directory has proper permissions:
+
+```bash
+sudo chmod -R 755 /path/to/your/data
+```
+
+### Backup Running Slowly
+
+- Check network bandwidth (for cloud repositories)
+- Check disk I/O performance
+- Enable compression for large compressible files
+- Adjust parallel upload settings in repository configuration
+- Consider bandwidth limits if other services are affected
+
+### Repository Locked
+
+If you see "repository is locked" errors, a previous operation may have been interrupted. Use the **Unlock** button in the repository settings.
+
+<Callout type="warn">
+  Only unlock if you're certain no other backup or restore operations are running against the repository.
+</Callout>
+
+## Getting Help
+
+If you've tried the solutions above and still have issues:
+
+1. Enable debug logging (`LOG_LEVEL=debug`)
+2. Collect relevant logs: `docker compose logs --tail=200 zerobyte`
+3. Open an issue at [github.com/nicotsx/zerobyte/issues](https://github.com/nicotsx/zerobyte/issues)
+
+Include in your report:
+- Zerobyte version (visible in the UI footer)
+- Docker and Docker Compose versions
+- Relevant logs (with sensitive data redacted)
+- Steps to reproduce the issue
+
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
