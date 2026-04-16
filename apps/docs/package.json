@@ -10,7 +10,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"deploy": "bun run build && wrangler deploy",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.4.0",
@@ -48,7 +49,7 @@
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^6.0.0",
 		"jsdom": "^29.0.0",
-		"typescript": "^5.7.2",
+		"typescript": "^6.0.0",
 		"vite": "^8.0.8",
 		"vite-plugin-killer-instincts": "^1.0.0",
 		"vitest": "^4.0.0",
