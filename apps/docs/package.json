@@ -52,7 +52,7 @@
 		"typescript": "^5.7.2",
 		"vite": "^8.0.8",
 		"vite-plugin-killer-instincts": "^1.0.0",
-		"vite-tsconfig-paths": "^5.1.4",
+		"vite-tsconfig-paths": "^6.0.0",
 		"vitest": "^3.0.5",
 		"wrangler": "^4.82.1"
 	},

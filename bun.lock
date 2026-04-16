@@ -168,7 +168,7 @@
         "typescript": "^5.7.2",
         "vite": "^8.0.8",
         "vite-plugin-killer-instincts": "^1.0.0",
-        "vite-tsconfig-paths": "^5.1.4",
+        "vite-tsconfig-paths": "^6.0.0",
         "vitest": "^3.0.5",
         "wrangler": "^4.82.1",
       },
@@ -2827,7 +2827,7 @@
 
     "vite-plus": ["vite-plus@0.1.15", "", { "dependencies": { "@oxc-project/types": "=0.122.0", "@voidzero-dev/vite-plus-core": "0.1.15", "@voidzero-dev/vite-plus-test": "0.1.15", "cac": "^7.0.0", "cross-spawn": "^7.0.5", "jsonc-parser": "^3.3.1", "oxfmt": "=0.43.0", "oxlint": "=1.58.0", "oxlint-tsgolint": "=0.18.1", "picocolors": "^1.1.1" }, "optionalDependencies": { "@voidzero-dev/vite-plus-darwin-arm64": "0.1.15", "@voidzero-dev/vite-plus-darwin-x64": "0.1.15", "@voidzero-dev/vite-plus-linux-arm64-gnu": "0.1.15", "@voidzero-dev/vite-plus-linux-arm64-musl": "0.1.15", "@voidzero-dev/vite-plus-linux-x64-gnu": "0.1.15", "@voidzero-dev/vite-plus-linux-x64-musl": "0.1.15", "@voidzero-dev/vite-plus-win32-arm64-msvc": "0.1.15", "@voidzero-dev/vite-plus-win32-x64-msvc": "0.1.15" }, "bin": { "vp": "bin/vp", "oxfmt": "bin/oxfmt", "oxlint": "bin/oxlint" } }, "sha512-PBUvTq4D4BJcuusCA3mrSQmXcGVdPX9CIPpS7Y6+T+LbDsrmAZ+ITl9FzuE6zXvpT6Nht9cpHtwOLJw7m3adog=="],
 
-    "vite-tsconfig-paths": ["vite-tsconfig-paths@5.1.4", "", { "dependencies": { "debug": "^4.1.1", "globrex": "^0.1.2", "tsconfck": "^3.0.3" }, "peerDependencies": { "vite": "*" }, "optionalPeers": ["vite"] }, "sha512-cYj0LRuLV2c2sMqhqhGpaO3LretdtMn/BVX4cPLanIZuwwrkVl+lK84E/miEXkCHWXuq65rhNN4rXsBcOB3S4w=="],
+    "vite-tsconfig-paths": ["vite-tsconfig-paths@6.1.1", "", { "dependencies": { "debug": "^4.1.1", "globrex": "^0.1.2", "tsconfck": "^3.0.3" }, "peerDependencies": { "vite": "*" } }, "sha512-2cihq7zliibCCZ8P9cKJrQBkfgdvcFkOOc3Y02o3GWUDLgqjWsZudaoiuOwO/gzTzy17cS5F7ZPo4bsnS4DGkg=="],
 
     "vitefu": ["vitefu@1.1.2", "", { "peerDependencies": { "vite": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-beta.0" }, "optionalPeers": ["vite"] }, "sha512-zpKATdUbzbsycPFBN71nS2uzBUQiVnFoOrr2rvqv34S1lcAgMKKkjWleLGeiJlZ8lwCXvtWaRn7R3ZC16SYRuw=="],
 
