@@ -51,7 +51,7 @@
 		"typescript": "^5.7.2",
 		"vite": "^8.0.8",
 		"vite-plugin-killer-instincts": "^1.0.0",
-		"vitest": "^3.0.5",
+		"vitest": "^4.0.0",
 		"wrangler": "^4.82.1"
 	},
 	"pnpm": {
