@@ -21,8 +21,6 @@ jobs:
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
-        with:
-          workingDirectory: apps/docs
 
       - name: Build docs
         working-directory: apps/docs

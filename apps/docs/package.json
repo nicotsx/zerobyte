@@ -50,7 +50,7 @@
 		"@vitejs/plugin-react": "^6.0.0",
 		"jsdom": "^27.0.0",
 		"typescript": "^5.7.2",
-		"vite": "^7.1.7",
+		"vite": "^8.0.8",
 		"vite-plugin-killer-instincts": "^1.0.0",
 		"vite-tsconfig-paths": "^5.1.4",
 		"vitest": "^3.0.5",
