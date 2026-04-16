@@ -10,7 +10,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"deploy": "bun run build && wrangler deploy",
-		"cf-typegen": "wrangler types"
+		"cf-typegen": "wrangler types",
+		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.4.0",
