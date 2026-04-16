@@ -11,7 +11,6 @@ import {
 	Copy,
 	Database,
 	FileQuestion,
-	Github,
 	HardDrive,
 	Layers,
 	Lock,
@@ -23,6 +22,7 @@ import {
 	Zap,
 	type LucideIcon,
 } from "lucide-react";
+import { GithubLogoIcon } from "@phosphor-icons/react";
 
 import { CornerCard } from "./CornerCard";
 import Footer from "./Footer";
@@ -224,7 +224,7 @@ export default function LandingPage() {
 				<section className="relative overflow-hidden border-b border-border">
 					<div aria-hidden className="landing-hero-docs-grid pointer-events-none absolute inset-0" />
 					<div aria-hidden className="landing-hero-glow pointer-events-none absolute inset-0" />
-					<div className="relative mx-auto max-w-[90rem] px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
+					<div className="relative mx-auto max-w-360 px-4 py-20 sm:px-6 sm:py-24 lg:py-32">
 						<div className="grid items-center gap-12 min-[1100px]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] min-[1100px]:gap-8 lg:gap-12">
 							<div className="text-left">
 								<p className="mb-4 text-sm font-medium uppercase tracking-wider text-strong-accent">
@@ -243,7 +243,7 @@ export default function LandingPage() {
 										<ArrowRight className="h-4 w-4" />
 									</Link>
 									<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
-										<Github className="h-4 w-4" />
+										<GithubLogoIcon className="h-4 w-4" />
 										View on GitHub
 									</a>
 								</div>
@@ -439,7 +439,7 @@ export default function LandingPage() {
 									<ArrowRight className="h-4 w-4" />
 								</Link>
 								<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
-									<Github className="h-4 w-4" />
+									<GithubLogoIcon className="h-4 w-4" />
 									View on GitHub
 								</a>
 							</div>

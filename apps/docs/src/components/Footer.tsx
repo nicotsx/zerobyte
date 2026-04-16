@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Github } from "lucide-react";
+import { GithubLogoIcon } from "@phosphor-icons/react";
 
 const repoUrl = "https://github.com/nicotsx/zerobyte";
 
@@ -29,7 +29,7 @@ export default function Footer() {
 							rel="noopener noreferrer"
 							className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
 						>
-							<Github className="h-4 w-4" />
+							<GithubLogoIcon className="h-4 w-4" />
 							GitHub
 						</a>
 					</nav>
