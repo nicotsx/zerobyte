@@ -398,6 +398,8 @@ describe("system security", () => {
 					type: "directory",
 					config: { backend: "directory", path: "/tmp/source-volume" },
 					status: "mounted",
+					lastError: "stale volume error",
+					lastHealthCheck: 123,
 					autoRemount: true,
 					organizationId: sourceSession.organizationId,
 				})
@@ -411,7 +413,16 @@ describe("system security", () => {
 					name: "Source Repository",
 					type: "local",
 					config: { backend: "local", path: "/tmp/source-repository" },
-					status: "healthy",
+					compressionMode: "max",
+					status: "error",
+					lastChecked: 456,
+					lastError: "stale repository error",
+					uploadLimitEnabled: true,
+					uploadLimitValue: 42,
+					uploadLimitUnit: "Mbps",
+					downloadLimitEnabled: true,
+					downloadLimitValue: 21,
+					downloadLimitUnit: "Mbps",
 					organizationId: sourceSession.organizationId,
 				})
 				.returning();
@@ -424,6 +435,7 @@ describe("system security", () => {
 					name: "Mirror Repository",
 					type: "local",
 					config: { backend: "local", path: "/tmp/mirror-repository" },
+					compressionMode: "off",
 					status: "healthy",
 					organizationId: sourceSession.organizationId,
 				})
@@ -438,8 +450,21 @@ describe("system security", () => {
 					repositoryId: sourceRepository.id,
 					enabled: true,
 					cronExpression: "0 * * * *",
-					nextBackupAt: Date.now() + 60_000,
+					retentionPolicy: { keepLast: 7 },
+					excludePatterns: [".DS_Store"],
+					excludeIfPresent: [".nobackup"],
+					includePaths: ["/Documents"],
+					includePatterns: ["**/*.txt"],
 					oneFileSystem: false,
+					customResticParams: ["--json"],
+					lastBackupAt: 789,
+					lastBackupStatus: "in_progress",
+					lastBackupError: "stale schedule error",
+					nextBackupAt: 1,
+					sortOrder: 4,
+					failureRetryCount: 2,
+					maxRetries: 3,
+					retryDelay: 15 * 60 * 1000,
 					organizationId: sourceSession.organizationId,
 				})
 				.returning();
@@ -463,15 +488,18 @@ describe("system security", () => {
 				scheduleId: sourceSchedule.id,
 				repositoryId: mirrorRepository.id,
 				enabled: true,
+				lastCopyAt: 999,
+				lastCopyStatus: "error",
+				lastCopyError: "stale mirror error",
 			});
 
 			await db.insert(backupScheduleNotificationsTable).values({
 				scheduleId: sourceSchedule.id,
 				destinationId: sourceDestination.id,
 				notifyOnStart: true,
-				notifyOnSuccess: true,
+				notifyOnSuccess: false,
 				notifyOnWarning: true,
-				notifyOnFailure: true,
+				notifyOnFailure: false,
 			});
 
 			const exportRes = await app.request("/api/v1/system/config-export", {
@@ -481,7 +509,60 @@ describe("system security", () => {
 
 			expect(exportRes.status).toBe(200);
 			const encryptedConfig = await exportRes.text();
-			expect(encryptedConfig.startsWith("zbcfgv1:")).toBe(true);
+			expect(encryptedConfig.startsWith("zbcfg:")).toBe(true);
+
+			const decryptedPayload = JSON.parse(
+				await cryptoUtils.decryptWithSecret(encryptedConfig, {
+					prefix: "zbcfg:",
+					secret: "test-restic-password",
+				}),
+			);
+
+			expect(decryptedPayload.version).toBe(2);
+
+			const exportedRepository = decryptedPayload.repositories.find(
+				(repository: { name: string }) => repository.name === "Source Repository",
+			);
+			expect(exportedRepository).toMatchObject({
+				ref: expect.any(String),
+				name: "Source Repository",
+				compressionMode: "max",
+				uploadLimit: { enabled: true, value: 42, unit: "Mbps" },
+				downloadLimit: { enabled: true, value: 21, unit: "Mbps" },
+			});
+			expect(exportedRepository).not.toHaveProperty("id");
+			expect(exportedRepository).not.toHaveProperty("shortId");
+			expect(exportedRepository).not.toHaveProperty("status");
+
+			const exportedSchedule = decryptedPayload.backupSchedules.find(
+				(schedule: { name: string }) => schedule.name === "Source Schedule",
+			);
+			expect(exportedSchedule).toMatchObject({
+				ref: expect.any(String),
+				volumeRef: expect.any(String),
+				repositoryRef: expect.any(String),
+				retryDelay: 15 * 60 * 1000,
+				sortOrder: 4,
+			});
+			expect(exportedSchedule).not.toHaveProperty("id");
+			expect(exportedSchedule).not.toHaveProperty("shortId");
+			expect(exportedSchedule).not.toHaveProperty("lastBackupStatus");
+			expect(exportedSchedule).not.toHaveProperty("nextBackupAt");
+
+			const exportedDestination = decryptedPayload.notificationDestinations.find(
+				(destination: { name: string }) => destination.name === "Source Notification",
+			);
+			expect(exportedDestination).toMatchObject({ ref: expect.any(String), name: "Source Notification" });
+			expect(exportedDestination).not.toHaveProperty("id");
+
+			expect(decryptedPayload.backupScheduleNotifications[0]).toMatchObject({
+				scheduleRef: expect.any(String),
+				destinationRef: expect.any(String),
+				notifyOnStart: true,
+				notifyOnSuccess: false,
+				notifyOnWarning: true,
+				notifyOnFailure: false,
+			});
 
 			await db
 				.delete(backupScheduleNotificationsTable)
@@ -522,24 +603,112 @@ describe("system security", () => {
 			const importedDestinations = await db.query.notificationDestinationsTable.findMany({
 				where: { organizationId: targetSession.organizationId },
 			});
+			const importedSourceRepository = importedRepositories.find(
+				(repository) => repository.name === "Source Repository",
+			);
+			const importedMirrorRepository = importedRepositories.find(
+				(repository) => repository.name === "Mirror Repository",
+			);
+			const importedSchedule = importedSchedules[0];
+			const importedDestination = importedDestinations[0];
+			const importedVolume = importedVolumes[0];
 
 			expect(importedRepositories).toHaveLength(2);
 			expect(importedVolumes).toHaveLength(1);
 			expect(importedSchedules).toHaveLength(1);
 			expect(importedDestinations).toHaveLength(1);
+			expect(importedSourceRepository).toBeDefined();
+			expect(importedMirrorRepository).toBeDefined();
+			expect(importedSchedule).toBeDefined();
+			expect(importedDestination).toBeDefined();
+			expect(importedVolume).toBeDefined();
+
+			if (
+				!importedSourceRepository ||
+				!importedMirrorRepository ||
+				!importedSchedule ||
+				!importedDestination ||
+				!importedVolume
+			) {
+				throw new Error("Expected imported configuration to be present");
+			}
 
 			const importedMirrors = await db.query.backupScheduleMirrorsTable.findMany({
-				where: { scheduleId: importedSchedules[0].id },
+				where: { scheduleId: importedSchedule.id },
 			});
 			const importedScheduleNotifications = await db.query.backupScheduleNotificationsTable.findMany({
-				where: { scheduleId: importedSchedules[0].id },
+				where: { scheduleId: importedSchedule.id },
 			});
+			const importedMirror = importedMirrors[0];
+			const importedNotificationAssignment = importedScheduleNotifications[0];
 
 			expect(importedMirrors).toHaveLength(1);
 			expect(importedScheduleNotifications).toHaveLength(1);
 
+			if (!importedMirror || !importedNotificationAssignment) {
+				throw new Error("Expected imported schedule assignments to be present");
+			}
+
+			expect(importedSourceRepository.id).not.toBe(sourceRepository.id);
+			expect(importedSourceRepository.shortId).not.toBe(sourceRepository.shortId);
+			expect(importedSourceRepository.compressionMode).toBe("max");
+			expect(importedSourceRepository.status).toBe("unknown");
+			expect(importedSourceRepository.lastChecked).toBeNull();
+			expect(importedSourceRepository.lastError).toBeNull();
+			expect(importedSourceRepository.uploadLimitEnabled).toBe(true);
+			expect(importedSourceRepository.uploadLimitValue).toBe(42);
+			expect(importedSourceRepository.downloadLimitEnabled).toBe(true);
+			expect(importedSourceRepository.downloadLimitValue).toBe(21);
+
+			expect(importedVolume).toMatchObject({
+				name: "Source Volume",
+				status: "unmounted",
+				lastError: null,
+				autoRemount: true,
+			});
+
+			expect(importedSchedule).toMatchObject({
+				name: "Source Schedule",
+				volumeId: importedVolume.id,
+				repositoryId: importedSourceRepository.id,
+				retentionPolicy: { keepLast: 7 },
+				excludePatterns: [".DS_Store"],
+				excludeIfPresent: [".nobackup"],
+				includePaths: ["/Documents"],
+				includePatterns: ["**/*.txt"],
+				customResticParams: ["--json"],
+				lastBackupAt: null,
+				lastBackupStatus: null,
+				lastBackupError: null,
+				failureRetryCount: 0,
+				maxRetries: 3,
+				retryDelay: 15 * 60 * 1000,
+				sortOrder: 4,
+			});
+			expect(importedSchedule.nextBackupAt).not.toBe(sourceSchedule.nextBackupAt);
+			expect(importedSchedule.nextBackupAt).toBeGreaterThan(Date.now());
+
+			expect(importedMirror).toMatchObject({
+				scheduleId: importedSchedule.id,
+				repositoryId: importedMirrorRepository.id,
+				enabled: true,
+				lastCopyAt: null,
+				lastCopyStatus: null,
+				lastCopyError: null,
+			});
+
+			expect(importedNotificationAssignment).toMatchObject({
+				scheduleId: importedSchedule.id,
+				destinationId: importedDestination.id,
+				notifyOnStart: true,
+				notifyOnSuccess: false,
+				notifyOnWarning: true,
+				notifyOnFailure: false,
+			});
+
 			const targetOrg = await db.query.organization.findFirst({ where: { id: targetSession.organizationId } });
-			expect(targetOrg?.metadata?.resticPassword).toBe("test-restic-password");
+			expect(targetOrg?.metadata?.resticPassword).toBeDefined();
+			expect(await cryptoUtils.resolveSecret(targetOrg?.metadata?.resticPassword ?? "")).toBe("test-restic-password");
 
 			const targetUser = await db.query.usersTable.findFirst({ where: { id: targetSession.user.id } });
 			expect(targetUser?.hasDownloadedResticPassword).toBe(true);
