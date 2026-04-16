@@ -1,6 +1,8 @@
+import { BANDWIDTH_UNITS, COMPRESSION_MODES, repositoryConfigSchema } from "@zerobyte/core/restic";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { BANDWIDTH_UNITS, resticStatsSchema } from "@zerobyte/core/restic";
+import { notificationConfigSchema } from "~/schemas/notifications";
+import { volumeConfigSchema } from "~/schemas/volumes";
 import { db } from "~/server/db/db";
 import {
 	backupScheduleMirrorsTable,
@@ -12,74 +14,96 @@ import {
 	usersTable,
 	volumesTable,
 } from "~/server/db/schema";
-import { createBackupScheduleResponse, scheduleMirrorAssignmentSchema } from "~/server/modules/backups/backups.dto";
+import { calculateNextRun } from "~/server/modules/backups/backup.helpers";
 import {
-	notificationDestinationSchema,
-	scheduleNotificationAssignmentSchema,
-} from "~/server/modules/notifications/notifications.dto";
-import { repositorySchema } from "~/server/modules/repositories/repositories.dto";
+	decryptNotificationConfig,
+	encryptNotificationConfig,
+} from "~/server/modules/notifications/notification-config-secrets";
 import {
 	decryptRepositoryConfig,
 	encryptRepositoryConfig,
 } from "~/server/modules/repositories/repository-config-secrets";
 import { decryptVolumeConfig, encryptVolumeConfig } from "~/server/modules/volumes/volume-config-secrets";
-import { volumeSchema } from "~/server/modules/volumes/volume.dto";
-import {
-	decryptNotificationConfig,
-	encryptNotificationConfig,
-} from "~/server/modules/notifications/notification-config-secrets";
 import { cryptoUtils } from "~/server/utils/crypto";
-import { asShortId } from "~/server/utils/branded";
+import { generateShortId } from "~/server/utils/id";
 
-const exportedRepositorySchema = repositorySchema.extend({
-	id: z.string().min(1),
-	shortId: z.string().min(1),
+const transferRefSchema = z.string().min(1);
+
+const retentionPolicySchema = z.object({
+	keepLast: z.number().optional(),
+	keepHourly: z.number().optional(),
+	keepDaily: z.number().optional(),
+	keepWeekly: z.number().optional(),
+	keepMonthly: z.number().optional(),
+	keepYearly: z.number().optional(),
+	keepWithinDuration: z.string().optional(),
+});
+
+const bandwidthLimitSchema = z.object({
+	enabled: z.boolean(),
+	value: z.number(),
+	unit: z.enum(BANDWIDTH_UNITS),
+});
+
+const exportedRepositorySchema = z.object({
+	ref: transferRefSchema,
 	name: z.string().min(1),
-	stats: resticStatsSchema.nullable(),
-	statsUpdatedAt: z.number().nullable(),
-	uploadLimitEnabled: z.boolean(),
-	uploadLimitValue: z.number(),
-	uploadLimitUnit: z.enum(BANDWIDTH_UNITS),
-	downloadLimitEnabled: z.boolean(),
-	downloadLimitValue: z.number(),
-	downloadLimitUnit: z.enum(BANDWIDTH_UNITS),
+	config: repositoryConfigSchema,
+	compressionMode: z.enum(COMPRESSION_MODES),
+	uploadLimit: bandwidthLimitSchema,
+	downloadLimit: bandwidthLimitSchema,
 });
 
-const exportedVolumeSchema = volumeSchema.extend({
-	id: z.number().int(),
-	shortId: z.string().min(1),
+const exportedVolumeSchema = z.object({
+	ref: transferRefSchema,
 	name: z.string().min(1),
+	config: volumeConfigSchema,
+	autoRemount: z.boolean(),
 });
 
-const exportedBackupScheduleSchema = createBackupScheduleResponse.extend({
-	id: z.number().int(),
-	shortId: z.string().min(1),
+const exportedBackupScheduleSchema = z.object({
+	ref: transferRefSchema,
 	name: z.string().min(1),
-	volumeId: z.number().int(),
-	repositoryId: z.string().min(1),
-	sortOrder: z.number(),
+	volumeRef: transferRefSchema,
+	repositoryRef: transferRefSchema,
+	enabled: z.boolean(),
+	cronExpression: z.string(),
+	retentionPolicy: retentionPolicySchema.nullable(),
+	excludePatterns: z.array(z.string()),
+	excludeIfPresent: z.array(z.string()),
+	includePaths: z.array(z.string()),
+	includePatterns: z.array(z.string()),
+	oneFileSystem: z.boolean(),
+	customResticParams: z.array(z.string()),
+	maxRetries: z.number().int().min(0),
+	retryDelay: z.number().int().min(0),
+	sortOrder: z.number().int(),
 });
 
-const exportedNotificationDestinationSchema = notificationDestinationSchema.extend({
-	id: z.number().int(),
+const exportedNotificationDestinationSchema = z.object({
+	ref: transferRefSchema,
 	name: z.string().min(1),
+	enabled: z.boolean(),
+	config: notificationConfigSchema,
 });
 
-const exportedBackupScheduleMirrorSchema = scheduleMirrorAssignmentSchema.extend({
-	id: z.number().int(),
-	scheduleId: z.number().int(),
-	repositoryId: z.string().min(1),
+const exportedBackupScheduleMirrorSchema = z.object({
+	scheduleRef: transferRefSchema,
+	repositoryRef: transferRefSchema,
+	enabled: z.boolean(),
 });
 
-const exportedBackupScheduleNotificationSchema = scheduleNotificationAssignmentSchema
-	.omit({ destination: true })
-	.extend({
-		scheduleId: z.number().int(),
-		destinationId: z.number().int(),
-	});
+const exportedBackupScheduleNotificationSchema = z.object({
+	scheduleRef: transferRefSchema,
+	destinationRef: transferRefSchema,
+	notifyOnStart: z.boolean(),
+	notifyOnSuccess: z.boolean(),
+	notifyOnWarning: z.boolean(),
+	notifyOnFailure: z.boolean(),
+});
 
-const configTransferPayloadSchema = z.object({
-	version: z.literal(1),
+const configTransferPayloadV2Schema = z.object({
+	version: z.literal(2),
 	repositories: z.array(exportedRepositorySchema),
 	volumes: z.array(exportedVolumeSchema),
 	backupSchedules: z.array(exportedBackupScheduleSchema),
@@ -88,7 +112,12 @@ const configTransferPayloadSchema = z.object({
 	backupScheduleNotifications: z.array(exportedBackupScheduleNotificationSchema),
 });
 
-const configTransferPrefix = "zbcfgv1:";
+const configTransferPayloadSchema = z.discriminatedUnion("version", [configTransferPayloadV2Schema]);
+
+const configTransferPrefix = "zbcfg:";
+
+const createTransferRef = (prefix: string, index: number) => `${prefix}:${index + 1}`;
+
 const decodeEncryptedPayload = async (encryptedConfig: string, resticPassword: string) => {
 	const decryptedPayload = await cryptoUtils.decryptWithSecret(encryptedConfig, {
 		prefix: configTransferPrefix,
@@ -149,14 +178,141 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 		),
 	]);
 
-	const payload = configTransferPayloadSchema.parse({
-		version: 1,
-		repositories: decryptedRepositories,
-		volumes: decryptedVolumes,
-		backupSchedules,
-		notificationDestinations: decryptedNotificationDestinations,
-		backupScheduleMirrors,
-		backupScheduleNotifications,
+	const repositoryRefMap = new Map<string, string>();
+	const volumeRefMap = new Map<number, string>();
+	const scheduleRefMap = new Map<number, string>();
+	const destinationRefMap = new Map<number, string>();
+
+	const exportedRepositories = decryptedRepositories.map((repository, index) => {
+		const ref = createTransferRef("repository", index);
+		repositoryRefMap.set(repository.id, ref);
+
+		return {
+			ref,
+			name: repository.name,
+			config: repository.config,
+			compressionMode: repository.compressionMode ?? "auto",
+			uploadLimit: {
+				enabled: repository.uploadLimitEnabled,
+				value: repository.uploadLimitValue,
+				unit: repository.uploadLimitUnit,
+			},
+			downloadLimit: {
+				enabled: repository.downloadLimitEnabled,
+				value: repository.downloadLimitValue,
+				unit: repository.downloadLimitUnit,
+			},
+		};
+	});
+
+	const exportedVolumes = decryptedVolumes.map((volume, index) => {
+		const ref = createTransferRef("volume", index);
+		volumeRefMap.set(volume.id, ref);
+
+		return {
+			ref,
+			name: volume.name,
+			config: volume.config,
+			autoRemount: volume.autoRemount,
+		};
+	});
+
+	const exportedSchedules = backupSchedules.map((schedule, index) => {
+		const volumeRef = volumeRefMap.get(schedule.volumeId);
+		const repositoryRef = repositoryRefMap.get(schedule.repositoryId);
+
+		if (!volumeRef) {
+			throw new Error(`Exported volume ${schedule.volumeId} not found`);
+		}
+
+		if (!repositoryRef) {
+			throw new Error(`Exported repository ${schedule.repositoryId} not found`);
+		}
+
+		const ref = createTransferRef("schedule", index);
+		scheduleRefMap.set(schedule.id, ref);
+
+		return {
+			ref,
+			name: schedule.name,
+			volumeRef,
+			repositoryRef,
+			enabled: schedule.enabled,
+			cronExpression: schedule.cronExpression,
+			retentionPolicy: schedule.retentionPolicy ?? null,
+			excludePatterns: schedule.excludePatterns ?? [],
+			excludeIfPresent: schedule.excludeIfPresent ?? [],
+			includePaths: schedule.includePaths ?? [],
+			includePatterns: schedule.includePatterns ?? [],
+			oneFileSystem: schedule.oneFileSystem,
+			customResticParams: schedule.customResticParams ?? [],
+			maxRetries: schedule.maxRetries,
+			retryDelay: schedule.retryDelay,
+			sortOrder: schedule.sortOrder,
+		};
+	});
+
+	const exportedDestinations = decryptedNotificationDestinations.map((destination, index) => {
+		const ref = createTransferRef("destination", index);
+		destinationRefMap.set(destination.id, ref);
+
+		return {
+			ref,
+			name: destination.name,
+			enabled: destination.enabled,
+			config: destination.config,
+		};
+	});
+
+	const exportedMirrors = backupScheduleMirrors.map((mirror) => {
+		const scheduleRef = scheduleRefMap.get(mirror.scheduleId);
+		const repositoryRef = repositoryRefMap.get(mirror.repositoryId);
+
+		if (!scheduleRef) {
+			throw new Error(`Exported backup schedule ${mirror.scheduleId} not found`);
+		}
+
+		if (!repositoryRef) {
+			throw new Error(`Exported repository ${mirror.repositoryId} not found`);
+		}
+
+		return {
+			scheduleRef,
+			repositoryRef,
+			enabled: mirror.enabled,
+		};
+	});
+
+	const exportedNotifications = backupScheduleNotifications.map((notification) => {
+		const scheduleRef = scheduleRefMap.get(notification.scheduleId);
+		const destinationRef = destinationRefMap.get(notification.destinationId);
+
+		if (!scheduleRef) {
+			throw new Error(`Exported backup schedule ${notification.scheduleId} not found`);
+		}
+
+		if (!destinationRef) {
+			throw new Error(`Exported notification destination ${notification.destinationId} not found`);
+		}
+
+		return {
+			scheduleRef,
+			destinationRef,
+			notifyOnStart: notification.notifyOnStart,
+			notifyOnSuccess: notification.notifyOnSuccess,
+			notifyOnWarning: notification.notifyOnWarning,
+			notifyOnFailure: notification.notifyOnFailure,
+		};
+	});
+
+	const payload = configTransferPayloadV2Schema.parse({
+		version: 2,
+		repositories: exportedRepositories,
+		volumes: exportedVolumes,
+		backupSchedules: exportedSchedules,
+		notificationDestinations: exportedDestinations,
+		backupScheduleMirrors: exportedMirrors,
+		backupScheduleNotifications: exportedNotifications,
 	});
 
 	return await cryptoUtils.encryptWithSecret(JSON.stringify(payload), {
@@ -198,31 +354,57 @@ export const importEncryptedOrganizationConfig = async (
 
 	db.transaction((tx) => {
 		const org = tx.query.organization.findFirst({ where: { id: organizationId }, columns: { metadata: true } }).sync();
-		const volumeIdMap = new Map<number, number>();
-		const scheduleIdMap = new Map<number, number>();
+		const repositoryIdMap = new Map<string, string>();
+		const volumeIdMap = new Map<string, number>();
+		const scheduleIdMap = new Map<string, number>();
+		const destinationIdMap = new Map<string, number>();
 
 		if (!org) {
 			throw new Error("Organization not found");
 		}
 
 		for (const repository of encryptedRepositories) {
+			const importedRepositoryId = Bun.randomUUIDv7();
+
 			tx.insert(repositoriesTable)
 				.values({
-					...repository,
-					shortId: asShortId(repository.shortId),
+					id: importedRepositoryId,
+					shortId: generateShortId(),
+					name: repository.name,
+					type: repository.config.backend,
+					config: repository.config,
+					compressionMode: repository.compressionMode,
+					status: "unknown",
+					lastChecked: null,
+					lastError: null,
+					doctorResult: null,
+					stats: null,
+					statsUpdatedAt: null,
+					uploadLimitEnabled: repository.uploadLimit.enabled,
+					uploadLimitValue: repository.uploadLimit.value,
+					uploadLimitUnit: repository.uploadLimit.unit,
+					downloadLimitEnabled: repository.downloadLimit.enabled,
+					downloadLimitValue: repository.downloadLimit.value,
+					downloadLimitUnit: repository.downloadLimit.unit,
 					organizationId,
 				})
 				.run();
+
+			repositoryIdMap.set(repository.ref, importedRepositoryId);
 		}
 
 		for (const volume of encryptedVolumes) {
-			const { id: sourceVolumeId, shortId, ...volumeValues } = volume;
-			const importedVolumeShortId = asShortId(shortId);
+			const importedVolumeShortId = generateShortId();
 
 			tx.insert(volumesTable)
 				.values({
-					...volumeValues,
 					shortId: importedVolumeShortId,
+					name: volume.name,
+					type: volume.config.backend,
+					status: "unmounted",
+					lastError: null,
+					config: volume.config,
+					autoRemount: volume.autoRemount,
 					organizationId,
 				})
 				.run();
@@ -237,27 +419,49 @@ export const importEncryptedOrganizationConfig = async (
 				.sync();
 
 			if (!insertedVolume) {
-				throw new Error(`Imported volume ${shortId} not found`);
+				throw new Error(`Imported volume ${volume.ref} not found`);
 			}
 
-			volumeIdMap.set(sourceVolumeId, insertedVolume.id);
+			volumeIdMap.set(volume.ref, insertedVolume.id);
 		}
 
 		for (const schedule of parsedPayload.backupSchedules) {
-			const { id: sourceScheduleId, shortId, volumeId: sourceVolumeId, ...scheduleValues } = schedule;
-			const mappedVolumeId = volumeIdMap.get(sourceVolumeId);
+			const mappedVolumeId = volumeIdMap.get(schedule.volumeRef);
+			const mappedRepositoryId = repositoryIdMap.get(schedule.repositoryRef);
 
 			if (!mappedVolumeId) {
-				throw new Error(`Imported volume ${sourceVolumeId} not found`);
+				throw new Error(`Imported volume ${schedule.volumeRef} not found`);
 			}
 
-			const importedScheduleShortId = asShortId(shortId);
+			if (!mappedRepositoryId) {
+				throw new Error(`Imported repository ${schedule.repositoryRef} not found`);
+			}
+
+			const importedScheduleShortId = generateShortId();
 
 			tx.insert(backupSchedulesTable)
 				.values({
-					...scheduleValues,
 					shortId: importedScheduleShortId,
+					name: schedule.name,
 					volumeId: mappedVolumeId,
+					repositoryId: mappedRepositoryId,
+					enabled: schedule.enabled,
+					cronExpression: schedule.cronExpression,
+					retentionPolicy: schedule.retentionPolicy,
+					excludePatterns: schedule.excludePatterns,
+					excludeIfPresent: schedule.excludeIfPresent,
+					includePaths: schedule.includePaths,
+					includePatterns: schedule.includePatterns,
+					lastBackupAt: null,
+					lastBackupStatus: null,
+					lastBackupError: null,
+					nextBackupAt: schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null,
+					oneFileSystem: schedule.oneFileSystem,
+					customResticParams: schedule.customResticParams,
+					sortOrder: schedule.sortOrder,
+					failureRetryCount: 0,
+					maxRetries: schedule.maxRetries,
+					retryDelay: schedule.retryDelay,
 					organizationId,
 				})
 				.run();
@@ -272,53 +476,82 @@ export const importEncryptedOrganizationConfig = async (
 				.sync();
 
 			if (!insertedSchedule) {
-				throw new Error(`Imported backup schedule ${shortId} not found`);
+				throw new Error(`Imported backup schedule ${schedule.ref} not found`);
 			}
 
-			scheduleIdMap.set(sourceScheduleId, insertedSchedule.id);
+			scheduleIdMap.set(schedule.ref, insertedSchedule.id);
 		}
 
 		for (const destination of encryptedNotificationDestinations) {
 			tx.insert(notificationDestinationsTable)
 				.values({
-					...destination,
+					name: destination.name,
+					enabled: destination.enabled,
+					type: destination.config.type,
+					config: destination.config,
 					organizationId,
 				})
 				.run();
+
+			const insertedDestination = tx.query.notificationDestinationsTable
+				.findFirst({
+					where: { organizationId },
+					orderBy: { id: "desc" },
+					columns: { id: true },
+				})
+				.sync();
+
+			if (!insertedDestination) {
+				throw new Error(`Imported notification destination ${destination.ref} not found`);
+			}
+
+			destinationIdMap.set(destination.ref, insertedDestination.id);
 		}
 
 		for (const mirror of parsedPayload.backupScheduleMirrors) {
-			const mappedScheduleId = scheduleIdMap.get(mirror.scheduleId);
+			const mappedScheduleId = scheduleIdMap.get(mirror.scheduleRef);
+			const mappedRepositoryId = repositoryIdMap.get(mirror.repositoryRef);
 
 			if (!mappedScheduleId) {
-				throw new Error(`Imported backup schedule ${mirror.scheduleId} not found`);
+				throw new Error(`Imported backup schedule ${mirror.scheduleRef} not found`);
+			}
+
+			if (!mappedRepositoryId) {
+				throw new Error(`Imported repository ${mirror.repositoryRef} not found`);
 			}
 
 			tx.insert(backupScheduleMirrorsTable)
 				.values({
 					scheduleId: mappedScheduleId,
-					repositoryId: mirror.repositoryId,
+					repositoryId: mappedRepositoryId,
 					enabled: mirror.enabled,
-					lastCopyAt: mirror.lastCopyAt,
-					lastCopyStatus: mirror.lastCopyStatus,
-					lastCopyError: mirror.lastCopyError,
-					createdAt: mirror.createdAt,
+					lastCopyAt: null,
+					lastCopyStatus: null,
+					lastCopyError: null,
 				})
 				.run();
 		}
 
 		for (const notification of parsedPayload.backupScheduleNotifications) {
-			const { scheduleId: sourceScheduleId, ...notificationValues } = notification;
-			const mappedScheduleId = scheduleIdMap.get(sourceScheduleId);
+			const mappedScheduleId = scheduleIdMap.get(notification.scheduleRef);
+			const mappedDestinationId = destinationIdMap.get(notification.destinationRef);
 
 			if (!mappedScheduleId) {
-				throw new Error(`Imported backup schedule ${sourceScheduleId} not found`);
+				throw new Error(`Imported backup schedule ${notification.scheduleRef} not found`);
+			}
+
+			if (!mappedDestinationId) {
+				throw new Error(`Imported notification destination ${notification.destinationRef} not found`);
 			}
 
 			tx.insert(backupScheduleNotificationsTable)
 				.values({
-					...notificationValues,
 					scheduleId: mappedScheduleId,
+					destinationId: mappedDestinationId,
+					notifyOnStart: notification.notifyOnStart,
+					notifyOnSuccess: notification.notifyOnSuccess,
+					notifyOnWarning: notification.notifyOnWarning,
+					notifyOnFailure: notification.notifyOnFailure,
 				})
 				.run();
 		}
