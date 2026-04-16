@@ -25,7 +25,10 @@ import {
 	validateBackupExecution,
 } from "./helpers/backup-lifecycle";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
-import { copyToMirrors, runForget } from "./helpers/backup-maintenance";
+import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backup-maintenance";
+import { restic } from "../../core/restic";
+import { mirrorQueries } from "./backups.queries";
+import { toMessage } from "../../utils/errors";
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -469,6 +472,79 @@ const stopBackup = async (scheduleId: number) => {
 	}
 };
 
+const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
+	const organizationId = getOrganizationId();
+	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
+
+	const mirrorRepo = await db.query.repositoriesTable.findFirst({
+		where: {
+			AND: [{ shortId: { eq: mirrorShortId } }, { organizationId }],
+		},
+	});
+
+	if (!mirrorRepo) {
+		throw new NotFoundError("Mirror repository not found");
+	}
+
+	const mirror = await mirrorQueries.findByScheduleAndRepository(schedule.id, mirrorRepo.id);
+
+	if (!mirror) {
+		throw new NotFoundError("Mirror not found for this schedule");
+	}
+
+	const [sourceSnapshots, mirrorSnapshots] = await Promise.all([
+		restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
+		restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
+	]);
+
+	const mirrorSnapshotTimes = new Set(mirrorSnapshots.map((s) => s.time));
+
+	const missingSnapshots = sourceSnapshots
+		.filter((s) => !mirrorSnapshotTimes.has(s.time))
+		.map((s) => ({
+			short_id: s.short_id,
+			time: s.time,
+			size: s.summary?.total_bytes_processed ?? 0,
+		}));
+
+	return {
+		sourceCount: sourceSnapshots.length,
+		mirrorCount: mirrorSnapshots.length,
+		missingSnapshots,
+	};
+};
+
+const syncMirror = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId, snapshotIds?: string[]) => {
+	const organizationId = getOrganizationId();
+	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
+
+	const mirrorRepo = await db.query.repositoriesTable.findFirst({
+		where: {
+			AND: [{ shortId: { eq: mirrorShortId } }, { organizationId }],
+		},
+	});
+
+	if (!mirrorRepo) {
+		throw new NotFoundError("Mirror repository not found");
+	}
+
+	const mirror = await mirrorQueries.findByScheduleAndRepository(schedule.id, mirrorRepo.id);
+
+	if (!mirror) {
+		throw new NotFoundError("Mirror not found for this schedule");
+	}
+
+	if (mirror.lastCopyStatus === "in_progress") {
+		throw new ConflictError("Mirror is already syncing");
+	}
+
+	syncSnapshotsToMirror(schedule.id, mirrorRepo.id, organizationId, snapshotIds).catch((error) => {
+		logger.error(`Error syncing all snapshots to mirror ${mirrorRepo.name}: ${toMessage(error)}`);
+	});
+
+	return { success: true };
+};
+
 export const backupsService = {
 	listSchedules,
 	createSchedule,
@@ -487,4 +563,6 @@ export const backupsService = {
 	stopBackup,
 	runForget,
 	copyToMirrors,
+	getMirrorSyncStatus,
+	syncMirror,
 };

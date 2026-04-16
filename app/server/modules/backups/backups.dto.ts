@@ -400,6 +400,65 @@ export const reorderBackupSchedulesDto = describeRoute({
 	},
 });
 
+const missingSnapshotSchema = z.object({
+	short_id: z.string(),
+	time: z.string(),
+	size: z.number(),
+});
+
+export const getMirrorSyncStatusResponse = z.object({
+	sourceCount: z.number(),
+	mirrorCount: z.number(),
+	missingSnapshots: missingSnapshotSchema.array(),
+});
+export type GetMirrorSyncStatusDto = z.infer<typeof getMirrorSyncStatusResponse>;
+
+export const getMirrorSyncStatusDto = describeRoute({
+	description: "Get sync status for a specific mirror, including missing snapshots",
+	operationId: "getMirrorSyncStatus",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Mirror sync status with missing snapshots",
+			content: {
+				"application/json": {
+					schema: resolver(getMirrorSyncStatusResponse),
+				},
+			},
+		},
+	},
+});
+
+export const syncMirrorBody = z.object({
+	snapshotIds: z.array(z.string()).optional(),
+});
+
+export type SyncMirrorBody = z.infer<typeof syncMirrorBody>;
+
+export const syncMirrorResponse = z.object({
+	success: z.boolean(),
+});
+export type SyncMirrorDto = z.infer<typeof syncMirrorResponse>;
+
+export const syncMirrorDto = describeRoute({
+	description: "Sync selected snapshots to a specific mirror repository",
+	operationId: "syncMirror",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Mirror sync started successfully",
+			content: {
+				"application/json": {
+					schema: resolver(syncMirrorResponse),
+				},
+			},
+		},
+		409: {
+			description: "Mirror is already syncing",
+		},
+	},
+});
+
 const getBackupProgressResponse = backupProgressEventSchema.nullable();
 export type GetBackupProgressDto = z.infer<typeof getBackupProgressResponse>;
 

@@ -11,7 +11,7 @@ import type { ResticDeps } from "../types";
 export const copy = async (
 	sourceConfig: RepositoryConfig,
 	destConfig: RepositoryConfig,
-	options: { organizationId: string; tag?: string; snapshotId?: string },
+	options: { organizationId: string; tag?: string; snapshotIds?: string[] },
 	deps: ResticDeps,
 ) => {
 	const sourceRepoUrl = buildRepoUrl(sourceConfig);
@@ -45,7 +45,11 @@ export const copy = async (
 		args.push("--limit-upload", destUploadLimit);
 	}
 
-	args.push("--", options.snapshotId ?? "latest");
+	if (options.snapshotIds && options.snapshotIds.length > 0) {
+		args.push("--", ...options.snapshotIds);
+	} else {
+		args.push("--", "latest");
+	}
 
 	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 	logger.debug(`Executing: restic ${args.join(" ")}`);
