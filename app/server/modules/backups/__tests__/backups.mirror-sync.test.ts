@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import waitForExpect from "wait-for-expect";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
@@ -148,8 +149,7 @@ describe("getMirrorSyncStatus", () => {
 
 describe("syncMirror", () => {
 	test("should trigger sync and return success", async () => {
-		const { mockCopy } = setup();
-		const copyMock = mockCopy();
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -183,6 +183,52 @@ describe("syncMirror", () => {
 		await expect(
 			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
 		).rejects.toThrow("Mirror is already syncing");
+	});
+
+	test("should reject concurrent sync requests once a sync has started", async () => {
+		const { mockCopy } = setup();
+		const copyMock = mockCopy();
+		let releaseCopy: (() => void) | undefined;
+		const copyStarted = new Promise<void>((resolve) => {
+			copyMock.mockImplementation(
+				() =>
+					new Promise((copyResolve) => {
+						releaseCopy = () => copyResolve({ success: true, output: "" });
+						resolve();
+					}),
+			);
+		});
+
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		await expect(
+			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
+		).resolves.toEqual({ success: true });
+
+		await copyStarted;
+
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.shortId);
+			expect(mirrors[0]?.lastCopyStatus).toBe("in_progress");
+		});
+
+		await expect(
+			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
+		).rejects.toThrow("Mirror is already syncing");
+
+		releaseCopy?.();
+
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.shortId);
+			expect(mirrors[0]?.lastCopyStatus).toBe("success");
+		});
 	});
 
 	test("should throw if mirror is not configured for the schedule", async () => {
