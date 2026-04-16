@@ -8,7 +8,7 @@ on:
     branches:
       - main
     paths:
-      - "docs/**"
+      - "apps/docs/**"
 
 jobs:
   deploy:
@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
         with:
-          workingDirectory: docs
+          workingDirectory: apps/docs
 
       - name: Build docs
-        working-directory: docs
+        working-directory: apps/docs
         run: bun run build
 
       - name: Build and deploy docs
@@ -33,7 +33,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: docs
+          workingDirectory: apps/docs
 
 
 
