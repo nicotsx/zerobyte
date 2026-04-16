@@ -106,7 +106,7 @@
 		"@effect/language-service": "^0.85.0",
 		"@faker-js/faker": "^10.3.0",
 		"@happy-dom/global-registrator": "^20.8.4",
-		"@hey-api/openapi-ts": "^0.95.0",
+		"@hey-api/openapi-ts": "^0.96.0",
 		"@libsql/client": "^0.17.2",
 		"@playwright/test": "^1.58.2",
 		"@rolldown/plugin-babel": "^0.2.2",
