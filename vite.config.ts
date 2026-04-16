@@ -67,7 +67,7 @@ export default defineConfig({
 		env: {
 			builtin: true,
 		},
-		ignorePatterns: ["**/api-client/**", "docs/**"],
+		ignorePatterns: ["**/api-client/**", "apps/docs/**"],
 		overrides: [
 			{
 				files: ["**/*.test.ts", "**/*.test.tsx"],
