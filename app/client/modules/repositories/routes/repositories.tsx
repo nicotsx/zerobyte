@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Database, Plus, RotateCcw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Database, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoryIcon } from "~/client/components/repository-icon";
@@ -12,11 +12,38 @@ import { cn } from "~/client/lib/utils";
 import { StatusDot } from "~/client/components/status-dot";
 import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
+import type { RepositoryBackend } from "@zerobyte/core/restic";
+
+type SortColumn = "name" | "backend" | "status" | "compression";
+type SortDirection = "asc" | "desc";
+type RepositoryRow = {
+	id: string;
+	shortId: string;
+	name: string;
+	type: RepositoryBackend;
+	status: string | null;
+	compressionMode?: string | null;
+};
+
+const getSortValue = (column: SortColumn, repository: RepositoryRow) => {
+	switch (column) {
+		case "name":
+			return repository.name;
+		case "backend":
+			return repository.type;
+		case "status":
+			return repository.status || "";
+		case "compression":
+			return repository.compressionMode || "";
+	}
+};
 
 export function RepositoriesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [backendFilter, setBackendFilter] = useState("");
+	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
 	const clearFilters = () => {
 		setSearchQuery("");
@@ -30,15 +57,47 @@ export function RepositoriesPage() {
 		...listRepositoriesOptions(),
 	});
 
-	const filteredRepositories = data.filter((repository) => {
+	const repositories = data as RepositoryRow[];
+
+	const toggleSort = (column: SortColumn) => {
+		if (sortColumn === column) {
+			setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+			return;
+		}
+
+		setSortColumn(column);
+		setSortDirection("asc");
+	};
+
+	const renderSortIcon = (column: SortColumn) => {
+		if (sortColumn !== column) {
+			return <ArrowUpDown className="ml-2 h-3.5 w-3.5" />;
+		}
+
+		return sortDirection === "asc" ? (
+			<ArrowUp className="ml-2 h-3.5 w-3.5" />
+		) : (
+			<ArrowDown className="ml-2 h-3.5 w-3.5" />
+		);
+	};
+
+	const filteredRepositories = repositories.filter((repository) => {
 		const matchesSearch = repository.name.toLowerCase().includes(searchQuery.toLowerCase());
 		const matchesStatus = !statusFilter || repository.status === statusFilter;
 		const matchesBackend = !backendFilter || repository.type === backendFilter;
 		return matchesSearch && matchesStatus && matchesBackend;
 	});
 
-	const hasNoRepositories = data.length === 0;
-	const hasNoFilteredRepositories = filteredRepositories.length === 0 && !hasNoRepositories;
+	const sortedFilteredRepositories = [...filteredRepositories].sort((a, b) => {
+		const valueA = getSortValue(sortColumn, a).toLowerCase();
+		const valueB = getSortValue(sortColumn, b).toLowerCase();
+		const result = valueA.localeCompare(valueB);
+
+		return sortDirection === "asc" ? result : -result;
+	});
+
+	const hasNoRepositories = repositories.length === 0;
+	const hasNoFilteredRepositories = sortedFilteredRepositories.length === 0 && !hasNoRepositories;
 
 	if (hasNoRepositories) {
 		return (
@@ -103,10 +162,54 @@ export function RepositoriesPage() {
 				<Table className="border-t">
 					<TableHeader className="bg-card-header">
 						<TableRow>
-							<TableHead className="w-25 uppercase">Name</TableHead>
-							<TableHead className="uppercase text-left">Backend</TableHead>
-							<TableHead className="uppercase hidden sm:table-cell">Compression</TableHead>
-							<TableHead className="uppercase text-center">Status</TableHead>
+							<TableHead className="w-25 uppercase">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("name")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
+								>
+									Name
+									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("name")}</div>
+								</Button>
+							</TableHead>
+							<TableHead className="uppercase text-left">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("backend")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
+								>
+									Backend
+									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("backend")}</div>
+								</Button>
+							</TableHead>
+							<TableHead className="uppercase hidden sm:table-cell">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("compression")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
+								>
+									Compresison
+									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("compression")}</div>
+								</Button>
+							</TableHead>
+							<TableHead className="uppercase text-center">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("status")}
+									className="h-auto! w-full! px-0! py-0! font-inherit hover:bg-transparent uppercase group/sort relative"
+								>
+									<span className="relative flex w-full items-center justify-center">
+										Status
+										<span className="absolute -right-6 top-1/2 -translate-y-1/2 lg:invisible lg:group-hover/sort:visible">
+											{renderSortIcon("status")}
+										</span>
+									</span>
+								</Button>
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -121,7 +224,7 @@ export function RepositoriesPage() {
 								</div>
 							</TableCell>
 						</TableRow>
-						{filteredRepositories.map((repository) => (
+						{sortedFilteredRepositories.map((repository) => (
 							<TableRow
 								key={repository.id}
 								className="hover:bg-accent/50 hover:cursor-pointer h-12"
@@ -163,8 +266,8 @@ export function RepositoriesPage() {
 					"No repositories match filters."
 				) : (
 					<span>
-						<span className="text-strong-accent">{filteredRepositories.length}</span> repositor
-						{filteredRepositories.length === 1 ? "y" : "ies"}
+						<span className="text-strong-accent">{sortedFilteredRepositories.length}</span> repositor
+						{sortedFilteredRepositories.length === 1 ? "y" : "ies"}
 					</span>
 				)}
 			</div>
