@@ -200,11 +200,11 @@ export function RepositoriesPage() {
 									type="button"
 									variant="ghost"
 									onClick={() => toggleSort("status")}
-									className="h-auto! w-full! px-0! py-0! font-inherit hover:bg-transparent uppercase group/sort relative"
+									className="h-auto! w-full! p-0! font-inherit hover:bg-transparent uppercase group/sort relative"
 								>
 									<span className="relative flex w-full items-center justify-center">
 										Status
-										<span className="absolute -right-6 top-1/2 -translate-y-1/2 lg:invisible lg:group-hover/sort:visible">
+										<span className="lg:absolute lg:-right-6 lg:top-1/2 lg:-translate-y-1/2 lg:invisible lg:group-hover/sort:visible">
 											{renderSortIcon("status")}
 										</span>
 									</span>
