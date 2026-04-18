@@ -15,7 +15,7 @@ const toPem = (base64: string, label: string) => {
 	return `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----`;
 };
 
-export const generatePrivateKeyPem = async () => {
+export const generateSshKeyPairPem = async () => {
 	const keyPair = await crypto.subtle.generateKey(
 		{
 			name: "RSASSA-PKCS1-v1_5",
@@ -28,5 +28,15 @@ export const generatePrivateKeyPem = async () => {
 	);
 
 	const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
-	return toPem(arrayBufferToBase64(privateKey), "OPENSSH PRIVATE KEY");
+	const publicKey = await crypto.subtle.exportKey("spki", keyPair.publicKey);
+
+	return {
+		privateKeyPem: toPem(arrayBufferToBase64(privateKey), "PRIVATE KEY"),
+		publicKeyPem: toPem(arrayBufferToBase64(publicKey), "PUBLIC KEY"),
+	};
+};
+
+export const generatePrivateKeyPem = async () => {
+	const keyPair = await generateSshKeyPairPem();
+	return keyPair.privateKeyPem;
 };
