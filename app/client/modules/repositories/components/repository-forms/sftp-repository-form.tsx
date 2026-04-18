@@ -1,4 +1,5 @@
 import { useWatch, type UseFormReturn } from "react-hook-form";
+import { useState } from "react";
 import {
 	FormControl,
 	FormDescription,
@@ -11,6 +12,8 @@ import { Input } from "../../../../components/ui/input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
 import type { RepositoryFormValues } from "../create-repository-form";
+import { Button } from "~/client/components/ui/button";
+import { generatePrivateKeyPem } from "~/utils/ssh";
 
 type Props = {
 	form: UseFormReturn<RepositoryFormValues>;
@@ -18,6 +21,26 @@ type Props = {
 
 export const SftpRepositoryForm = ({ form }: Props) => {
 	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
+	const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+	const [keyGenerationError, setKeyGenerationError] = useState<string | null>(null);
+
+	const handleGenerateKey = async () => {
+		setIsGeneratingKey(true);
+		setKeyGenerationError(null);
+
+		try {
+			const privateKey = await generatePrivateKeyPem();
+			form.setValue("privateKey", privateKey, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
+			});
+		} catch {
+			setKeyGenerationError("Could not generate SSH key in this browser.");
+		} finally {
+			setIsGeneratingKey(false);
+		}
+	};
 
 	return (
 		<>
@@ -96,6 +119,17 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 						</FormControl>
 						<FormDescription>Paste the contents of your SSH private key.</FormDescription>
 						<FormMessage />
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => void handleGenerateKey()}
+							disabled={isGeneratingKey}
+						>
+							{isGeneratingKey ? "Generating..." : "Generate SSH Private Key"}
+						</Button>
+						<FormDescription>The key is generated privately in your browser. Don't forget to save it!</FormDescription>
+						{keyGenerationError && <FormMessage className="text-xs text-destructive">{keyGenerationError}</FormMessage>}
 					</FormItem>
 				)}
 			/>
