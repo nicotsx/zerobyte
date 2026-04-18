@@ -1,4 +1,5 @@
 import { useWatch, type UseFormReturn } from "react-hook-form";
+import { useState } from "react";
 import type { FormValues } from "../create-volume-form";
 import {
 	FormControl,
@@ -12,13 +13,67 @@ import { Input } from "../../../../components/ui/input";
 import { SecretInput } from "../../../../components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
+import { Button } from "~/client/components/ui/button";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
 };
 
+const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
+	let binary = "";
+	const bytes = new Uint8Array(buffer);
+	const chunkSize = 0x8000;
+
+	for (let i = 0; i < bytes.length; i += chunkSize) {
+		binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+	}
+
+	return btoa(binary);
+};
+
+const toPem = (base64: string, label: string) => {
+	const wrapped = base64.match(/.{1,64}/g)?.join("\n") ?? base64;
+	return `-----BEGIN ${label}-----\n${wrapped}\n-----END ${label}-----`;
+};
+
+const generatePrivateKeyPem = async () => {
+	const keyPair = await crypto.subtle.generateKey(
+		{
+			name: "RSASSA-PKCS1-v1_5",
+			modulusLength: 4096,
+			publicExponent: new Uint8Array([1, 0, 1]),
+			hash: "SHA-256",
+		},
+		true,
+		["sign", "verify"],
+	);
+
+	const privateKey = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+	return toPem(arrayBufferToBase64(privateKey), "OPENSSH PRIVATE KEY");
+};
+
 export const SFTPForm = ({ form }: Props) => {
 	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
+	const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+	const [keyGenerationError, setKeyGenerationError] = useState<string | null>(null);
+
+	const handleGenerateKey = async () => {
+		setIsGeneratingKey(true);
+		setKeyGenerationError(null);
+
+		try {
+			const privateKey = await generatePrivateKeyPem();
+			form.setValue("privateKey", privateKey, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
+			});
+		} catch {
+			setKeyGenerationError("Could not generate SSH key in this browser.");
+		} finally {
+			setIsGeneratingKey(false);
+		}
+	};
 
 	return (
 		<>
@@ -100,6 +155,17 @@ export const SFTPForm = ({ form }: Props) => {
 						</FormControl>
 						<FormDescription>SSH private key for authentication (optional if using password).</FormDescription>
 						<FormMessage />
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => void handleGenerateKey()}
+							disabled={isGeneratingKey}
+						>
+							{isGeneratingKey ? "Generating..." : "Generate SSH Private Key"}
+						</Button>
+						<FormDescription>The key is generated privately in your browser. Don't forget to save it!</FormDescription>
+						{keyGenerationError && <FormMessage className="text-xs text-destructive">{keyGenerationError}</FormMessage>}
 					</FormItem>
 				)}
 			/>
