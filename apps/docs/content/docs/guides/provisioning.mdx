@@ -3,23 +3,51 @@ title: Provisioned Resources
 description: Manage repositories and volumes through a configuration file with secret references
 ---
 
-Zerobyte can sync operator-managed repositories and volumes from a JSON configuration file at startup. This is useful when you want credentials and connection details to live in deployment-time configuration (environment variables, Docker secrets) instead of being entered through the UI.
+import { Step, Steps } from "fumadocs-ui/components/steps";
+import { Callout } from "fumadocs-ui/components/callout";
 
-## Why Use Provisioning?
+Zerobyte can sync operator-managed repositories and volumes from a JSON configuration file at startup. This is useful when you want credentials and connection details to live in deployment-time configuration instead of being entered through the UI.
 
-- **Infrastructure as code**, define repositories and volumes in version-controlled config files
-- **Secret management**, keep credentials in environment variables or Docker secrets, not in the UI
-- **Easy rotation**, rotate secrets by updating env vars or secret files and restarting
-- **Consistent deployments**, use the same configuration across staging and production
+## What Provisioning Supports Today
 
-Provisioned resources appear in the normal UI alongside manually created ones, marked as managed entries.
+Provisioning currently supports:
+
+- repositories
+- volumes
+- secret references through `env://` and `file://`
+- updating managed resources in place by keeping the same `id`
+- deleting managed resources with `"delete": true`
+
+Provisioning does **not** currently support:
+
+- backup jobs or schedules
+- notification destinations
+- exporting UI-created resources back into provisioning JSON
+- live reloading without restarting the Zerobyte container
+
+<Callout type="warn">
+	Provisioning is limited to repositories and volumes in schema version `1`. If you need to manage backup jobs or
+	notifications, create them through the UI or API for now.
+</Callout>
 
 ## Prerequisites
 
-- A running Zerobyte instance with an organization ID (found in Settings after first-run setup)
+- A running Zerobyte instance with an organization ID
 - The `PROVISIONING_PATH` environment variable pointing to your JSON file
 
-## Setup
+### Find your organization ID
+
+1. Sign in to Zerobyte and switch to the organization you want to provision into
+2. Open **Settings**
+3. Open the **Organization** tab
+4. Copy the read-only **Organization ID** value from **Organization Details**
+
+<Callout type="info">
+	The **Organization** tab is only visible to organization `admin` and `owner` members. If you do not see it, ask an
+	organization admin or owner for the ID, or have them grant you the required role first.
+</Callout>
+
+## Quick Start
 
 <Steps>
 <Step>
@@ -30,49 +58,43 @@ Create a `provisioning.json` file:
 
 ```json provisioning.json
 {
-  "version": 1,
-  "repositories": [
-    {
-      "id": "aws-prod",
-      "organizationId": "your-organization-id",
-      "name": "AWS Production Backups",
-      "backend": "s3",
-      "compressionMode": "auto",
-      "config": {
-        "backend": "s3",
-        "endpoint": "https://s3.amazonaws.com",
-        "bucket": "company-backups",
-        "accessKeyId": "env://AWS_ACCESS_KEY_ID",
-        "secretAccessKey": "file://aws_secret_access_key"
-      }
-    }
-  ],
-  "volumes": [
-    {
-      "id": "webdav-team-a",
-      "organizationId": "your-organization-id",
-      "name": "Team A WebDAV",
-      "backend": "webdav",
-      "config": {
-        "backend": "webdav",
-        "server": "cloud.example.com",
-        "path": "/team-a",
-        "username": "team-a",
-        "password": "env://WEBDAV_PASSWORD",
-        "port": 443,
-        "ssl": true
-      }
-    }
-  ]
+	"version": 1,
+	"repositories": [
+		{
+			"id": "local-repo",
+			"organizationId": "your-organization-id",
+			"name": "Primary Local Repository",
+			"backend": "local",
+			"compressionMode": "auto",
+			"config": {
+				"backend": "local",
+				"path": "/var/lib/zerobyte/repositories/primary",
+				"isExistingRepository": false
+			}
+		}
+	],
+	"volumes": [
+		{
+			"id": "documents",
+			"organizationId": "your-organization-id",
+			"name": "Documents",
+			"backend": "directory",
+			"autoRemount": true,
+			"config": {
+				"backend": "directory",
+				"path": "/data/documents"
+			}
+		}
+	]
 }
 ```
 
 </Step>
 <Step>
 
-### Configure docker-compose.yml
+### Mount the file and configure Zerobyte
 
-Mount the provisioning file and set the environment variable:
+Mount the provisioning file and set `PROVISIONING_PATH`:
 
 ```yaml docker-compose.yml
 services:
@@ -80,17 +102,10 @@ services:
     image: ghcr.io/nicotsx/zerobyte:latest
     environment:
       - PROVISIONING_PATH=/config/provisioning.json
-      - AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
-      - WEBDAV_PASSWORD=your-webdav-password
     volumes:
       - ./provisioning.json:/config/provisioning.json:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
-    secrets:
-      - aws_secret_access_key
-
-secrets:
-  aws_secret_access_key:
-    file: ./secrets/aws_secret_access_key
+      - /srv/documents:/data/documents
 ```
 
 </Step>
@@ -102,55 +117,509 @@ secrets:
 docker compose up -d
 ```
 
-On startup, Zerobyte reads the provisioning file, resolves all secret references, encrypts the resolved values, and syncs the resources into the database.
+On startup, Zerobyte reads the provisioning file, resolves supported secret references, encrypts the resolved secret values, and syncs the managed resources into the database.
 
 </Step>
 </Steps>
 
-## Secret References
+## Root File Format
 
-Provisioned resources support two types of secret references for sensitive fields (passwords, access keys, etc.):
-
-| Reference | Resolves From | Example |
-|-----------|--------------|---------|
-| `env://VARIABLE_NAME` | Container environment variable | `env://AWS_ACCESS_KEY_ID` |
-| `file://secret_name` | `/run/secrets/secret_name` (Docker secrets) | `file://aws_secret_access_key` |
-
-<Callout type="info">
-  `file://` references always resolve from `/run/secrets/` and must be a single filename, not a nested path.
-</Callout>
-
-Resolved values are encrypted before Zerobyte stores them in the database, and the plaintext never persists on disk.
-
-## Rotating Secrets
-
-To rotate a secret:
-
-1. Update the environment variable or secret file with the new value
-2. Restart the Zerobyte container: `docker compose restart`
-
-Zerobyte re-resolves all secret references on each startup.
-
-## Removing Provisioned Resources
-
-To remove a provisioned resource, add `"delete": true` to the entry in your provisioning file, then restart:
+The root object always has the same shape:
 
 ```json
 {
-  "id": "aws-prod",
-  "delete": true
+	"version": 1,
+	"repositories": [],
+	"volumes": []
 }
 ```
+
+| Field          | Required | Notes                                               |
+| -------------- | -------- | --------------------------------------------------- |
+| `version`      | yes      | Must be `1`                                         |
+| `repositories` | no       | Array of provisioned repositories. Defaults to `[]` |
+| `volumes`      | no       | Array of provisioned volumes. Defaults to `[]`      |
+
+## Repository Entry Reference
+
+Each item in `repositories` uses this top-level shape:
+
+```json
+{
+	"id": "repo-id",
+	"organizationId": "org-id",
+	"name": "Repository Name",
+	"backend": "local",
+	"compressionMode": "auto",
+	"delete": false,
+	"config": {
+		"backend": "local",
+		"path": "/var/lib/zerobyte/repositories/repo-id"
+	}
+}
+```
+
+| Field             | Required | Notes                                                                                                                              |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `id`              | yes      | Stable provisioning identifier inside the organization. Keep this stable if you want Zerobyte to update the same resource in place |
+| `organizationId`  | yes      | Must match an existing organization                                                                                                |
+| `name`            | yes      | Display name in Zerobyte                                                                                                           |
+| `backend`         | yes      | Must be one of `local`, `s3`, `r2`, `gcs`, `azure`, `rclone`, `rest`, `sftp`                                                       |
+| `compressionMode` | no       | `off`, `auto`, or `max`                                                                                                            |
+| `delete`          | no       | Defaults to `false`                                                                                                                |
+| `config`          | yes      | Backend-specific object. `config.backend` must match the top-level `backend` value                                                 |
+
+### Repository Shared Config Fields
+
+These fields are available inside every repository `config` object:
+
+| Field                  | Required | Notes                                                                                                                                                                               |
+| ---------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `isExistingRepository` | no       | When `true`, Zerobyte treats the repository as already initialized. When omitted or `false`, a newly created provisioned repository is initialized with `restic init` on first sync |
+| `customPassword`       | no       | Overrides the organization-level repository password                                                                                                                                |
+| `cacert`               | no       | Custom CA certificate contents                                                                                                                                                      |
+| `insecureTls`          | no       | Disables TLS verification for supported backends                                                                                                                                    |
+| `uploadLimit`          | no       | Bandwidth limit object                                                                                                                                                              |
+| `downloadLimit`        | no       | Bandwidth limit object                                                                                                                                                              |
+
+Bandwidth limit objects use this shape:
+
+```json
+{
+	"enabled": true,
+	"value": 10,
+	"unit": "Mbps"
+}
+```
+
+`unit` must be one of `Kbps`, `Mbps`, or `Gbps`.
+
+### Repository Backends
+
+<Tabs items={["Local", "S3", "R2", "GCS", "Azure", "Rclone", "REST", "SFTP"]}>
+  <Tab value="Local">
+    | Field  | Required | Notes                              |
+    | ------ | -------- | ---------------------------------- |
+    | `path` | yes      | Path inside the Zerobyte container |
+
+    ```json
+    {
+    	"backend": "local",
+    	"path": "/var/lib/zerobyte/repositories/primary",
+    	"isExistingRepository": false
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="S3">
+    | Field             | Required | Notes                               |
+    | ----------------- | -------- | ----------------------------------- |
+    | `endpoint`        | yes      | Example: `https://s3.amazonaws.com` |
+    | `bucket`          | yes      | Bucket name                         |
+    | `accessKeyId`     | yes      | Supports secret references          |
+    | `secretAccessKey` | yes      | Supports secret references          |
+
+    ```json
+    {
+    	"backend": "s3",
+    	"endpoint": "https://s3.amazonaws.com",
+    	"bucket": "company-backups",
+    	"accessKeyId": "env://AWS_ACCESS_KEY_ID",
+    	"secretAccessKey": "file://aws_secret_access_key",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="R2">
+    | Field             | Required | Notes                          |
+    | ----------------- | -------- | ------------------------------ |
+    | `endpoint`        | yes      | Your Cloudflare R2 S3 endpoint |
+    | `bucket`          | yes      | Bucket name                    |
+    | `accessKeyId`     | yes      | Supports secret references     |
+    | `secretAccessKey` | yes      | Supports secret references     |
+
+    ```json
+    {
+    	"backend": "r2",
+    	"endpoint": "https://<account-id>.r2.cloudflarestorage.com",
+    	"bucket": "zerobyte-backups",
+    	"accessKeyId": "env://R2_ACCESS_KEY_ID",
+    	"secretAccessKey": "env://R2_SECRET_ACCESS_KEY",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="GCS">
+    | Field             | Required | Notes                                            |
+    | ----------------- | -------- | ------------------------------------------------ |
+    | `bucket`          | yes      | Bucket name                                      |
+    | `projectId`       | yes      | Google Cloud project ID                          |
+    | `credentialsJson` | yes      | Service account JSON. Supports secret references |
+
+    ```json
+    {
+    	"backend": "gcs",
+    	"bucket": "zerobyte-backups",
+    	"projectId": "my-gcp-project",
+    	"credentialsJson": "file://gcs_credentials_json",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="Azure">
+    | Field            | Required | Notes                      |
+    | ---------------- | -------- | -------------------------- |
+    | `container`      | yes      | Blob container name        |
+    | `accountName`    | yes      | Storage account name       |
+    | `accountKey`     | yes      | Supports secret references |
+    | `endpointSuffix` | no       | Custom endpoint suffix     |
+
+    ```json
+    {
+    	"backend": "azure",
+    	"container": "zerobyte-backups",
+    	"accountName": "storageaccount",
+    	"accountKey": "env://AZURE_STORAGE_ACCOUNT_KEY",
+    	"endpointSuffix": "core.windows.net",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="Rclone">
+    | Field    | Required | Notes                                |
+    | -------- | -------- | ------------------------------------ |
+    | `remote` | yes      | Name of the configured rclone remote |
+    | `path`   | yes      | Path inside that remote              |
+
+    ```json
+    {
+    	"backend": "rclone",
+    	"remote": "remote-name",
+    	"path": "zerobyte/backups",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="REST">
+    | Field      | Required | Notes                                 |
+    | ---------- | -------- | ------------------------------------- |
+    | `url`      | yes      | Base REST server URL                  |
+    | `username` | no       | Supports secret references            |
+    | `password` | no       | Supports secret references            |
+    | `path`     | no       | Optional path below the REST endpoint |
+
+    ```json
+    {
+    	"backend": "rest",
+    	"url": "https://rest-server.example.com",
+    	"username": "env://REST_USERNAME",
+    	"password": "file://rest_password",
+    	"path": "zerobyte",
+    	"isExistingRepository": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="SFTP">
+    | Field              | Required | Notes                                            |
+    | ------------------ | -------- | ------------------------------------------------ |
+    | `host`             | yes      | SFTP hostname                                    |
+    | `port`             | no       | Defaults to `22`                                 |
+    | `user`             | yes      | SSH username                                     |
+    | `path`             | yes      | Remote repository path                           |
+    | `privateKey`       | yes      | Private key contents. Supports secret references |
+    | `skipHostKeyCheck` | no       | Defaults to `false`                              |
+    | `knownHosts`       | no       | Contents of a known hosts file                   |
+
+    ```json
+    {
+    	"backend": "sftp",
+    	"host": "backup.example.com",
+    	"port": 22,
+    	"user": "backup",
+    	"path": "/srv/restic",
+    	"privateKey": "file://sftp_private_key",
+    	"skipHostKeyCheck": false,
+    	"knownHosts": "backup.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+    }
+    ```
+
+  </Tab>
+</Tabs>
+
+## Volume Entry Reference
+
+Each item in `volumes` uses this top-level shape:
+
+```json
+{
+	"id": "volume-id",
+	"organizationId": "org-id",
+	"name": "Volume Name",
+	"backend": "directory",
+	"autoRemount": true,
+	"delete": false,
+	"config": {
+		"backend": "directory",
+		"path": "/data/volume"
+	}
+}
+```
+
+| Field            | Required | Notes                                                                              |
+| ---------------- | -------- | ---------------------------------------------------------------------------------- |
+| `id`             | yes      | Stable provisioning identifier inside the organization                             |
+| `organizationId` | yes      | Must match an existing organization                                                |
+| `name`           | yes      | Display name in Zerobyte                                                           |
+| `backend`        | yes      | Must be one of `nfs`, `smb`, `directory`, `webdav`, `rclone`, `sftp`               |
+| `autoRemount`    | no       | Defaults to `true`                                                                 |
+| `delete`         | no       | Defaults to `false`                                                                |
+| `config`         | yes      | Backend-specific object. `config.backend` must match the top-level `backend` value |
+
+### Volume Backends
+
+<Tabs items={["Directory", "NFS", "SMB/CIFS", "WebDAV", "SFTP", "Rclone"]}>
+  <Tab value="Directory">
+    | Field      | Required | Notes                              |
+    | ---------- | -------- | ---------------------------------- |
+    | `path`     | yes      | Path inside the Zerobyte container |
+    | `readOnly` | no       | If provided, it must be `false`    |
+
+    ```json
+    {
+    	"backend": "directory",
+    	"path": "/data/documents"
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="NFS">
+    | Field        | Required | Notes                       |
+    | ------------ | -------- | --------------------------- |
+    | `server`     | yes      | NFS server hostname or IP   |
+    | `exportPath` | yes      | Exported path on the server |
+    | `port`       | no       | Defaults to `2049`          |
+    | `version`    | yes      | Must be `3`, `4`, or `4.1`  |
+    | `readOnly`   | no       | Mount the volume read-only  |
+
+    ```json
+    {
+    	"backend": "nfs",
+    	"server": "10.0.0.10",
+    	"exportPath": "/exports/media",
+    	"port": 2049,
+    	"version": "4.1",
+    	"readOnly": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="SMB/CIFS">
+    | Field      | Required | Notes                                                     |
+    | ---------- | -------- | --------------------------------------------------------- |
+    | `server`   | yes      | SMB server hostname or IP                                 |
+    | `share`    | yes      | Share name                                                |
+    | `username` | no       | Login username                                            |
+    | `password` | no       | Supports secret references                                |
+    | `guest`    | no       | Use guest authentication                                  |
+    | `vers`     | no       | `1.0`, `2.0`, `2.1`, `3.0`, or `auto`. Defaults to `auto` |
+    | `domain`   | no       | SMB domain or workgroup                                   |
+    | `port`     | no       | Defaults to `445`                                         |
+    | `readOnly` | no       | Mount the volume read-only                                |
+
+    ```json
+    {
+    	"backend": "smb",
+    	"server": "fileserver.local",
+    	"share": "team",
+    	"username": "backup-user",
+    	"password": "env://SMB_PASSWORD",
+    	"vers": "3.0",
+    	"domain": "WORKGROUP",
+    	"port": 445,
+    	"readOnly": false
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="WebDAV">
+    | Field      | Required | Notes                           |
+    | ---------- | -------- | ------------------------------- |
+    | `server`   | yes      | WebDAV hostname, without scheme |
+    | `path`     | yes      | Remote path                     |
+    | `username` | no       | Login username                  |
+    | `password` | no       | Supports secret references      |
+    | `port`     | no       | Defaults to `80`                |
+    | `readOnly` | no       | Mount the volume read-only      |
+    | `ssl`      | no       | Enable HTTPS                    |
+
+    ```json
+    {
+    	"backend": "webdav",
+    	"server": "cloud.example.com",
+    	"path": "/team-a",
+    	"username": "team-a",
+    	"password": "env://WEBDAV_PASSWORD",
+    	"port": 443,
+    	"ssl": true
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="SFTP">
+    | Field              | Required | Notes                                            |
+    | ------------------ | -------- | ------------------------------------------------ |
+    | `host`             | yes      | SFTP hostname                                    |
+    | `port`             | no       | Defaults to `22`                                 |
+    | `username`         | yes      | SSH username                                     |
+    | `password`         | no       | Supports secret references                       |
+    | `privateKey`       | no       | Private key contents. Supports secret references |
+    | `path`             | yes      | Remote path                                      |
+    | `readOnly`         | no       | Mount the volume read-only                       |
+    | `skipHostKeyCheck` | no       | Defaults to `false`                              |
+    | `knownHosts`       | no       | Contents of a known hosts file                   |
+
+    ```json
+    {
+    	"backend": "sftp",
+    	"host": "files.example.com",
+    	"port": 22,
+    	"username": "backup-user",
+    	"privateKey": "file://volume_sftp_private_key",
+    	"path": "/srv/data",
+    	"readOnly": true,
+    	"skipHostKeyCheck": false,
+    	"knownHosts": "files.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+    }
+    ```
+
+  </Tab>
+
+  <Tab value="Rclone">
+    | Field      | Required | Notes                                |
+    | ---------- | -------- | ------------------------------------ |
+    | `remote`   | yes      | Name of the configured rclone remote |
+    | `path`     | yes      | Path inside that remote              |
+    | `readOnly` | no       | Mount the volume read-only           |
+
+    ```json
+    {
+    	"backend": "rclone",
+    	"remote": "remote-name",
+    	"path": "team-a",
+    	"readOnly": true
+    }
+    ```
+
+  </Tab>
+</Tabs>
+
+## Secret References
+
+Supported secret references use one of these prefixes:
+
+| Reference             | Resolves From                   | Example                        |
+| --------------------- | ------------------------------- | ------------------------------ |
+| `env://VARIABLE_NAME` | Container environment variables | `env://AWS_ACCESS_KEY_ID`      |
+| `file://secret_name`  | `/run/secrets/secret_name`      | `file://aws_secret_access_key` |
+
+<Callout type="info">
+	`file://` references always resolve from `/run/secrets/` and must be a single filename, not a nested path.
+</Callout>
+
+Only specific fields are resolved as secret references. Other string fields are treated literally.
+
+### Repository fields that support secret references
+
+- shared fields: `customPassword`, `cacert`
+- `s3`: `accessKeyId`, `secretAccessKey`
+- `r2`: `accessKeyId`, `secretAccessKey`
+- `gcs`: `credentialsJson`
+- `azure`: `accountKey`
+- `rest`: `username`, `password`
+- `sftp`: `privateKey`
+
+### Volume fields that support secret references
+
+- `smb`: `password`
+- `webdav`: `password`
+- `sftp`: `password`, `privateKey`
+
+Resolved secret values are encrypted before Zerobyte stores them in the database.
+
+## Rotating Secrets
+
+To rotate a provisioned secret:
+
+1. Update the environment variable or secret file
+2. Restart Zerobyte with `docker compose restart`
+
+Zerobyte re-resolves supported secret references on each startup.
+
+## Updating And Removing Managed Resources
+
+- Keep the same `id` to update a managed resource in place
+- Changing only `name` keeps the same underlying resource record
+- Setting `"delete": true` removes the managed resource on the next startup sync
+
+Deletion entries still need the normal entry shape today because the provisioning file is validated before Zerobyte applies the `delete` flag:
+
+```json
+{
+	"id": "repo-to-remove",
+	"organizationId": "your-organization-id",
+	"name": "Repo to remove",
+	"backend": "local",
+	"delete": true,
+	"config": {
+		"backend": "local",
+		"path": "/var/lib/zerobyte/repositories/old",
+		"isExistingRepository": true
+	}
+}
+```
+
+## Troubleshooting
+
+### `No matching discriminator`
+
+This error usually means one of these is wrong:
+
+- `backend` is not a valid value for that resource type
+- `config.backend` does not match the top-level `backend`
+- the `config` object does not match the required fields for that backend
+
+### Secret reference errors
+
+- `env://NAME` requires the environment variable to exist in the Zerobyte container
+- `file://name` requires `/run/secrets/name` to exist
+- Zerobyte stops syncing when it hits a provisioning error, so fix the first reported error and restart again
 
 ## Important Notes
 
 <Callout type="warn">
-  Each provisioned entry must reference an existing `organizationId`. Complete first-run setup before enabling provisioning so you have a valid organization ID.
+	Each provisioned entry must reference an existing `organizationId`. Complete first-run setup before enabling
+	provisioning so you have a valid organization ID.
 </Callout>
 
 - Changes to `provisioning.json` only apply on container restart
-- Each entry needs both a top-level `backend` and the matching `config.backend` field
-- Provisioned resources can be viewed in the UI but credential fields managed by provisioning will be re-synced from the config file on restart
+- Provisioned resources appear in the normal UI and are marked as managed
+- Editing a provisioned resource in the UI is useful for testing, but the next provisioning sync can overwrite it
 
-import { Step, Steps } from "fumadocs-ui/components/steps";
-import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
