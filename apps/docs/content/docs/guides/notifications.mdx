@@ -77,185 +77,201 @@ Each assignment is independent. One schedule can send failures to Email, warning
 
 ## Type reference
 
-### Email (SMTP)
+<Tabs
+  items={[
+    "Email (SMTP)",
+    "Slack",
+    "Discord",
+    "Gotify",
+    "ntfy",
+    "Pushover",
+    "Telegram",
+    "Generic Webhook",
+    "Custom",
+  ]}
+>
+  <Tab value="Email (SMTP)">
+    Use Email when you want alerts to go to people, shared mailboxes, or downstream systems that already process email.
 
-Use Email when you want alerts to go to people, shared mailboxes, or downstream systems that already process email.
+    **Fields**
 
-**Fields**
+    - `SMTP Host`
+    - `SMTP Port`
+    - `Username` and `Password` (optional)
+    - `From Address`
+    - `From Name` (optional)
+    - `To Addresses`
+    - `Use TLS`
 
-- `SMTP Host`
-- `SMTP Port`
-- `Username` and `Password` (optional)
-- `From Address`
-- `From Name` (optional)
-- `To Addresses`
-- `Use TLS`
+    **Notes**
 
-**Notes**
+    - `To Addresses` is a comma-separated list in the UI.
+    - TLS is a simple yes or no toggle.
+    - SMTP authentication is optional because some relays accept trusted network senders.
 
-- `To Addresses` is a comma-separated list in the UI.
-- TLS is a simple yes or no toggle.
-- SMTP authentication is optional because some relays accept trusted network senders.
+    **Example**
 
-**Example**
+    ```text
+    Type: Email (SMTP)
+    SMTP Host: smtp.example.com
+    SMTP Port: 587
+    Username: alerts@example.com
+    Password: <smtp-password>
+    From Address: alerts@example.com
+    From Name: Zerobyte Alerts
+    To Addresses: ops@example.com, backups@example.com
+    Use TLS: On
+    ```
+  </Tab>
 
-```text
-Type: Email (SMTP)
-SMTP Host: smtp.example.com
-SMTP Port: 587
-Username: alerts@example.com
-Password: <smtp-password>
-From Address: alerts@example.com
-From Name: Zerobyte Alerts
-To Addresses: ops@example.com, backups@example.com
-Use TLS: On
-```
+  <Tab value="Slack">
+    Use Slack for shared operational visibility in a team channel.
 
-### Slack
+    **Fields**
 
-Use Slack for shared operational visibility in a team channel.
+    - `Webhook URL`
+    - `Bot Username` (optional)
+    - `Icon Emoji` (optional)
 
-**Fields**
+    **Example**
 
-- `Webhook URL`
-- `Bot Username` (optional)
-- `Icon Emoji` (optional)
+    ```text
+    Type: Slack
+    Webhook URL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
+    Bot Username: Zerobyte
+    Icon Emoji: :floppy_disk:
+    ```
+  </Tab>
 
-**Example**
+  <Tab value="Discord">
+    Use Discord when your team lives in a server channel, or when you want to post to a specific thread.
 
-```text
-Type: Slack
-Webhook URL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
-Bot Username: Zerobyte
-Icon Emoji: :floppy_disk:
-```
+    **Fields**
 
-### Discord
+    - `Webhook URL`
+    - `Bot Username` (optional)
+    - `Avatar URL` (optional)
+    - `Thread ID` (optional)
+  </Tab>
 
-Use Discord when your team lives in a server channel, or when you want to post to a specific thread.
+  <Tab value="Gotify">
+    Use Gotify when you want self-hosted push with explicit priority control.
 
-**Fields**
+    **Fields**
 
-- `Webhook URL`
-- `Bot Username` (optional)
-- `Avatar URL` (optional)
-- `Thread ID` (optional)
+    - `Server URL`
+    - `App Token`
+    - `Priority` from `0` to `10`
+    - `Path` (optional)
+  </Tab>
 
-### Gotify
+  <Tab value="ntfy">
+    Use ntfy when you want a simple topic-based push service, either on `ntfy.sh` or your own server.
 
-Use Gotify when you want self-hosted push with explicit priority control.
+    **Fields**
 
-**Fields**
+    - `Server URL` (optional, leave empty for `ntfy.sh`)
+    - `Topic`
+    - `Username` and `Password` (optional)
+    - `Access token` (optional)
+    - `Priority`
 
-- `Server URL`
-- `App Token`
-- `Priority` from `0` to `10`
-- `Path` (optional)
+    **Notes**
 
-### ntfy
+    - If you set an access token, it takes precedence over username and password.
+    - Priority values are `max`, `high`, `default`, `low`, and `min`.
 
-Use ntfy when you want a simple topic-based push service, either on `ntfy.sh` or your own server.
+    **Example**
 
-**Fields**
+    ```text
+    Type: Ntfy
+    Server URL: https://ntfy.example.com
+    Topic: zerobyte-backups
+    Access token: <token>
+    Priority: high
+    ```
+  </Tab>
 
-- `Server URL` (optional, leave empty for `ntfy.sh`)
-- `Topic`
-- `Username` and `Password` (optional)
-- `Access token` (optional)
-- `Priority`
+  <Tab value="Pushover">
+    Use Pushover for direct, personal push notifications.
 
-**Notes**
+    **Fields**
 
-- If you set an access token, it takes precedence over username and password.
-- Priority values are `max`, `high`, `default`, `low`, and `min`.
+    - `User Key`
+    - `API Token`
+    - `Devices` (optional)
+    - `Priority` as `-1`, `0`, or `1`
+  </Tab>
 
-**Example**
+  <Tab value="Telegram">
+    Use Telegram when you want notifications in a bot chat or a group topic.
 
-```text
-Type: Ntfy
-Server URL: https://ntfy.example.com
-Topic: zerobyte-backups
-Access token: <token>
-Priority: high
-```
+    **Fields**
 
-### Pushover
+    - `Bot Token`
+    - `Chat ID`
+    - `Thread ID` (optional)
 
-Use Pushover for direct, personal push notifications.
+    **Example**
 
-**Fields**
+    ```text
+    Type: Telegram
+    Bot Token: 123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+    Chat ID: -1231234567890
+    Thread ID: 3
+    ```
+  </Tab>
 
-- `User Key`
-- `API Token`
-- `Devices` (optional)
-- `Priority` as `-1`, `0`, or `1`
+  <Tab value="Generic Webhook">
+    Use Generic Webhook when another service expects a normal HTTP request instead of a provider-specific webhook format.
 
-### Telegram
+    **Fields**
 
-Use Telegram when you want notifications in a bot chat or a group topic.
+    - `Webhook URL`
+    - `Method` as `GET` or `POST`
+    - `Content Type`
+    - `Headers`
+    - `Use JSON Template`
+    - `Title Key` and `Message Key` when JSON mode is enabled
 
-**Fields**
+    **Notes**
 
-- `Bot Token`
-- `Chat ID`
-- `Thread ID` (optional)
+    - Headers are entered one per line as `Key: Value`.
+    - With JSON mode enabled, Zerobyte sends a body shaped like `{titleKey: "...", messageKey: "..."}`.
+    - With JSON mode disabled, the request body is plain notification text.
 
-**Example**
+    **Example**
 
-```text
-Type: Telegram
-Bot Token: 123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-Chat ID: -1231234567890
-Thread ID: 3
-```
+    ```text
+    Type: Generic Webhook
+    Webhook URL: https://hooks.example.com/backup-events
+    Method: POST
+    Content Type: application/json
+    Headers:
+    Authorization: Bearer <token>
+    X-Source: zerobyte
+    Use JSON Template: On
+    Title Key: title
+    Message Key: message
+    ```
+  </Tab>
 
-### Generic Webhook
+  <Tab value="Custom">
+    Use Custom when you already know the exact Shoutrrr URL you want Zerobyte to use.
 
-Use Generic Webhook when another service expects a normal HTTP request instead of a provider-specific webhook format.
+    See the [Shoutrrr documentation](https://shoutrrr.nickfedor.com/services/overview) for the supported URL formats and service-specific options.
 
-**Fields**
+    **Fields**
 
-- `Webhook URL`
-- `Method` as `GET` or `POST`
-- `Content Type`
-- `Headers`
-- `Use JSON Template`
-- `Title Key` and `Message Key` when JSON mode is enabled
+    - `Shoutrrr URL`
 
-**Notes**
+    **Example**
 
-- Headers are entered one per line as `Key: Value`.
-- With JSON mode enabled, Zerobyte sends a body shaped like `{titleKey: "...", messageKey: "..."}`.
-- With JSON mode disabled, the request body is plain notification text.
-
-**Example**
-
-```text
-Type: Generic Webhook
-Webhook URL: https://hooks.example.com/backup-events
-Method: POST
-Content Type: application/json
-Headers:
-Authorization: Bearer <token>
-X-Source: zerobyte
-Use JSON Template: On
-Title Key: title
-Message Key: message
-```
-
-### Custom (Shoutrrr URL)
-
-Use Custom when you already know the exact Shoutrrr URL you want Zerobyte to use.
-
-**Fields**
-
-- `Shoutrrr URL`
-
-**Example**
-
-```text
-slack://hook:T000-B000-XXX@webhook?username=Zerobyte
-```
+    ```text
+    slack://hook:T000-B000-XXX@webhook?username=Zerobyte
+    ```
+  </Tab>
+</Tabs>
 
 ## Practical routing patterns
 
@@ -273,3 +289,4 @@ slack://hook:T000-B000-XXX@webhook?username=Zerobyte
 - [Repository maintenance and status](/docs/guides/repository-maintenance)
 
 import { Callout } from "fumadocs-ui/components/callout";
+import { Tab, Tabs } from "fumadocs-ui/components/tabs";
