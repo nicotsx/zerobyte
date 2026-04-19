@@ -5,7 +5,7 @@ import {
 	repositoryConfigSchema,
 	type RepositoryConfig,
 } from "@zerobyte/core/restic";
-import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
+import { volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 
 const modeSchema = z
 	.union([z.number(), z.string().transform((value) => Number.parseInt(value, 8))])

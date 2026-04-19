@@ -170,6 +170,32 @@ export const SMBForm = ({ form }: Props) => {
 			/>
 			<FormField
 				control={form.control}
+				name="mapToContainerUidGid"
+				defaultValue={false}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Ownership Mapping</FormLabel>
+						<FormControl>
+							<div className="flex items-center space-x-2">
+								<input
+									type="checkbox"
+									checked={field.value ?? false}
+									onChange={(e) => field.onChange(e.target.checked)}
+									className="rounded border-gray-300"
+								/>
+								<span className="text-sm">Map all files to container user/group</span>
+							</div>
+						</FormControl>
+						<FormDescription>
+							Keep the old behavior by forcing the SMB mount to present every file and directory as owned by the
+							container user and group instead of using server reported ownership.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
 				name="readOnly"
 				defaultValue={false}
 				render={({ field }) => (

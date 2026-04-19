@@ -31,6 +31,7 @@ export const smbConfigSchema = z.object({
 	username: z.string().optional(),
 	password: z.string().optional(),
 	guest: z.boolean().optional(),
+	mapToContainerUidGid: z.boolean().default(false),
 	vers: z.enum(["1.0", "2.0", "2.1", "3.0", "auto"]).default("auto"),
 	domain: z.string().optional(),
 	port: z

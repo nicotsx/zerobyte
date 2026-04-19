@@ -2,15 +2,15 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Effect } from "effect";
+import type { VolumeBackend } from "../../../apps/agent/src/volume-host/types";
+import { makeDirectoryBackend } from "../../../apps/agent/src/volume-host/backends/directory";
+import { makeNfsBackend } from "../../../apps/agent/src/volume-host/backends/nfs";
+import { makeRcloneBackend } from "../../../apps/agent/src/volume-host/backends/rclone";
+import { makeSftpBackend } from "../../../apps/agent/src/volume-host/backends/sftp";
+import { makeSmbBackend } from "../../../apps/agent/src/volume-host/backends/smb";
+import { makeWebdavBackend } from "../../../apps/agent/src/volume-host/backends/webdav";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { RCLONE_CONFIG_FILE } from "~/server/core/constants";
-import type { VolumeBackend } from "~/server/modules/backends/backend";
-import { makeDirectoryBackend } from "~/server/modules/backends/directory/directory-backend";
-import { makeNfsBackend } from "~/server/modules/backends/nfs/nfs-backend";
-import { makeRcloneBackend } from "~/server/modules/backends/rclone/rclone-backend";
-import { makeSftpBackend } from "~/server/modules/backends/sftp/sftp-backend";
-import { makeSmbBackend } from "~/server/modules/backends/smb/smb-backend";
-import { makeWebdavBackend } from "~/server/modules/backends/webdav/webdav-backend";
 import { configSchema, type IntegrationScenario } from "./runner/config";
 import {
 	formatError,

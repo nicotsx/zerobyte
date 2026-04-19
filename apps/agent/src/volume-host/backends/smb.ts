@@ -9,6 +9,19 @@ import { getMountForPath } from "../fs";
 import type { VolumeBackend } from "../types";
 import { assertMounted, executeMount, executeUnmount } from "./utils";
 
+const isUnsupportedAclMountOptionError = (message: string) =>
+	/invalid argument|unknown mount option|unrecognized mount option|bad option/i.test(message);
+
+const toSmbMountError = (error: unknown, usingContainerMapping: boolean) => {
+	const message = toMessage(error);
+
+	if (usingContainerMapping || !isUnsupportedAclMountOptionError(message)) {
+		return message;
+	}
+
+	return `${message} Your host/kernel may not support cifsacl, idsfromsid, or modefromsid. Enable "Map all files to container user/group" to fall back to the old uid/gid mapping behavior.`;
+};
+
 const checkHealth = async (mountPath: string) => {
 	const run = async () => {
 		await assertMounted(mountPath, (fstype) => fstype === "cifs");
@@ -79,8 +92,15 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 	const run = async () => {
 		await fs.mkdir(mountPath, { recursive: true });
-		const { uid, gid } = os.userInfo();
-		const options = [`port=${config.port}`, `uid=${uid}`, `gid=${gid}`, "iocharset=utf8"];
+		const usingContainerMapping = config.mapToContainerUidGid ?? true;
+		const options = [`port=${config.port}`, "iocharset=utf8"];
+
+		if (usingContainerMapping) {
+			const { uid, gid } = os.userInfo();
+			options.push(`uid=${uid}`, `gid=${gid}`);
+		} else {
+			options.push("cifsacl", "idsfromsid", "modefromsid");
+		}
 
 		if (config.guest) {
 			options.push("username=guest", "password=");
@@ -102,8 +122,9 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		try {
 			await executeMount(args);
 		} catch (error) {
-			logger.error(`SMB mount failed: ${toMessage(error)}`);
-			throw error;
+			const message = toSmbMountError(error, usingContainerMapping);
+			logger.error(`SMB mount failed: ${message}`);
+			throw new Error(message);
 		}
 
 		logger.info(`SMB volume at ${mountPath} mounted successfully.`);
