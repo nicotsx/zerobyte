@@ -17,6 +17,7 @@ export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecPr
 		const { stdout, stderr } = await promisify(execFile)(command, args, {
 			...options,
 			...rest,
+			shell: false,
 			encoding: "utf8",
 		});
 
@@ -78,6 +79,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 	return new Promise<SpawnResult>((resolve) => {
 		const child = spawn(command, args, {
 			env: { ...process.env, ...env },
+			shell: false,
 			signal: signal,
 			stdio: ["ignore", "pipe", "pipe"],
 		});

@@ -97,6 +97,7 @@ COPY . .
 
 RUN bun run build
 RUN bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun
+RUN bun run build:backend-integration
 
 FROM base AS production
 
@@ -123,3 +124,7 @@ COPY ./LICENSE ./LICENSE.md
 EXPOSE 4096
 
 CMD ["bun", ".output/server/index.mjs"]
+
+FROM production AS backend-integration
+
+CMD ["bun", ".output/backend-integration/index.js"]
