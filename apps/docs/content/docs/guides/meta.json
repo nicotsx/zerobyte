@@ -4,6 +4,7 @@
 		"3-2-1-backup-strategy",
 		"restoring",
 		"backup-webhooks",
+		"mounted-shares-and-acls",
 		"notifications",
 		"recovery-key-and-repository-passwords",
 		"repository-maintenance",

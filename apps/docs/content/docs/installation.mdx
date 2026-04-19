@@ -72,6 +72,8 @@ services:
 
 <Callout type="warn">
 **Security Note**: The `SYS_ADMIN` capability and `/dev/fuse` device are required for mounting remote filesystems (NFS, SMB, WebDAV, SFTP). If you only need local directory backups, see the [Simplified Installation](#simplified-installation-no-remote-mounts) section below.
+
+Remote mounts are convenient, but they can expose translated ownership, permissions, and ACL metadata instead of the source system's original view. Read [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) before using mounted volumes for metadata-sensitive backups.
 </Callout>
 
 ### 2. Configure Environment Variables
@@ -218,6 +220,8 @@ services:
 
 <Callout type="info">
 If you need remote mount capabilities later, you can update your `docker-compose.yml` to add back the `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse` directives.
+
+If your goal is the closest thing to true replication, prefer local bind-mounted directories whenever possible. See [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) for the practical tradeoffs.
 </Callout>
 
 ## Mounting Local Directories

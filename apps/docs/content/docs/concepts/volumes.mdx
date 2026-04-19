@@ -11,6 +11,10 @@ A volume tells Zerobyte *where* your data lives. When you create a volume, you p
 
 Volumes support a range of protocols, from simple local directories to NFS shares, Windows/Samba file servers, WebDAV endpoints, SFTP connections, and cloud storage via rclone. Once a volume is mounted, you can browse its contents directly in the UI, assign it to one or more backup jobs, and let Zerobyte handle the rest.
 
+<Callout type="warn">
+  Mounted remote volumes can expose translated metadata instead of the source system's original ownership and ACL model. Before relying on NFS, SMB, WebDAV, SFTP, or rclone volumes for metadata-sensitive backups, read [Mounted Shares, ACLs, and Metadata Fidelity](/docs/guides/mounted-shares-and-acls).
+</Callout>
+
 ## Supported volume types
 
 Zerobyte supports six volume types. Each one is configured through the web UI when you create or edit a volume.
