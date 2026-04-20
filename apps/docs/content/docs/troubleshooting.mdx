@@ -27,9 +27,10 @@ docker logs -f zerobyte
 ## Container Won't Start
 
 1. Check logs: `docker compose logs zerobyte`
-2. Verify `APP_SECRET` is set and at least 32 characters
-3. Ensure `/var/lib/zerobyte` exists and has correct permissions
-4. Verify port 4096 is not already in use: `netstat -tuln | grep 4096`
+2. Verify exactly one of `APP_SECRET` or `APP_SECRET_FILE` is set
+3. If using `APP_SECRET_FILE`, ensure the file exists inside the container, is readable, and contains a 32-256 character secret
+4. Ensure `/var/lib/zerobyte` exists and has correct permissions
+5. Verify port 4096 is not already in use: `netstat -tuln | grep 4096`
 
 ### Permission Issues
 

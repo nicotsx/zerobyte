@@ -12,10 +12,15 @@ Zerobyte is configured through environment variables and Docker Compose settings
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `BASE_URL` | The URL where Zerobyte will be accessed. Controls cookie security and CORS behavior. | `http://localhost:4096` or `https://zerobyte.example.com` |
-| `APP_SECRET` | Random secret key (32+ characters) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`. | `94bad46e...c66e25d5c2b` |
+| `APP_SECRET` | Random secret key (32+ characters) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`. Set this or `APP_SECRET_FILE`, but not both. | `94bad46e...c66e25d5c2b` |
+| `APP_SECRET_FILE` | Alternative to `APP_SECRET`. Path to a file containing the app secret, useful with Docker or Kubernetes secrets. Set this or `APP_SECRET`, but not both. | `/run/secrets/app_secret` |
 
 <Callout type="warn">
   Never share or commit your `APP_SECRET`. If you lose it, encrypted data (credentials stored for volumes and repositories) cannot be recovered.
+</Callout>
+
+<Callout type="info">
+  Zerobyte reads the contents of `APP_SECRET_FILE`, trims surrounding whitespace and newlines, and applies the same 32-256 character requirement as `APP_SECRET`.
 </Callout>
 
 ### Recommended
@@ -36,6 +41,33 @@ Zerobyte is configured through environment variables and Docker Compose settings
 | `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. | `60` |
 | `RCLONE_CONFIG_DIR` | Path to the rclone config directory inside the container. | `/root/.config/rclone` |
 | `PROVISIONING_PATH` | Path to a JSON file with operator-managed repositories and volumes to sync at startup. | (none) |
+
+## Using APP_SECRET_FILE
+
+If you prefer not to place the app secret directly in `environment:`, mount it as a file and point `APP_SECRET_FILE` at that path.
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    environment:
+      - BASE_URL=https://zerobyte.example.com
+      - APP_SECRET_FILE=/run/secrets/app_secret
+    secrets:
+      - app_secret
+
+secrets:
+  app_secret:
+    file: ./secrets/app_secret.txt
+```
+
+Generate the secret file with:
+
+```bash
+mkdir -p ./secrets
+openssl rand -hex 32 > ./secrets/app_secret.txt
+```
+
+Do not set `APP_SECRET` at the same time. Zerobyte will fail to start if both are configured.
 
 ## Docker Compose Settings
 
