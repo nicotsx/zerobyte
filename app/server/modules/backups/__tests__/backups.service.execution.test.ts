@@ -52,7 +52,7 @@ const setup = () => {
 	const ensureHealthyVolumeMock = vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async (shortId) => {
 		const volume = await db.query.volumesTable.findFirst({
 			where: {
-				AND: [{ shortId }, { organizationId: TEST_ORG_ID }],
+				AND: [{ shortId: { eq: shortId } }, { organizationId: TEST_ORG_ID }],
 			},
 		});
 
