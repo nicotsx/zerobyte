@@ -21,6 +21,8 @@ import { notificationsService } from "~/server/modules/notifications/notificatio
 import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
+import { volumeService } from "~/server/modules/volumes/volume.service";
+import { db } from "~/server/db/db";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -47,6 +49,31 @@ const setup = () => {
 	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
+	const ensureHealthyVolumeMock = vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async (shortId) => {
+		const volume = await db.query.volumesTable.findFirst({
+			where: {
+				AND: [{ shortId }, { organizationId: TEST_ORG_ID }],
+			},
+		});
+
+		if (!volume) {
+			throw new NotFoundError("Volume not found");
+		}
+
+		if (volume.status !== "mounted") {
+			return {
+				ready: false as const,
+				volume,
+				reason: "Volume is not mounted",
+			};
+		}
+
+		return {
+			ready: true as const,
+			volume,
+			remounted: false,
+		};
+	});
 
 	return {
 		resticBackupMock,
@@ -55,6 +82,7 @@ const setup = () => {
 		runBackupMock,
 		cancelBackupMock,
 		refreshStatsMock,
+		ensureHealthyVolumeMock,
 	};
 };
 
@@ -81,6 +109,50 @@ describe("backup execution - validation failures", () => {
 		if (result.type === "failure") {
 			expect(result.error).toBeInstanceOf(BadRequestError);
 			expect(result.error.message).toBe("Volume is not mounted");
+		}
+		expect(resticBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("runs a preflight volume health check before starting a backup", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+		const ensureHealthyVolumeSpy = vi.spyOn(volumeService, "ensureHealthyVolume").mockResolvedValue({
+			ready: true,
+			volume,
+			remounted: false,
+		});
+
+		const result = await backupsService.validateBackupExecution(schedule.id);
+
+		expect(result.type).toBe("success");
+		expect(ensureHealthyVolumeSpy).toHaveBeenCalledWith(volume.shortId);
+	});
+
+	test("fails validation when the preflight health check cannot recover the volume", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+		vi.spyOn(volumeService, "ensureHealthyVolume").mockResolvedValue({
+			ready: false,
+			volume: { ...volume, status: "error", lastError: "stale mount" },
+			reason: "stale mount",
+		});
+
+		const result = await backupsService.validateBackupExecution(schedule.id);
+
+		expect(result.type).toBe("failure");
+		if (result.type === "failure") {
+			expect(result.error).toBeInstanceOf(BadRequestError);
+			expect(result.error.message).toBe("stale mount");
 		}
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});

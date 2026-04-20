@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { volumeService } from "../volume.service";
 import { db } from "~/server/db/db";
 import { volumesTable } from "~/server/db/schema";
@@ -9,6 +9,12 @@ import path from "node:path";
 import { createTestSession } from "~/test/helpers/auth";
 import { withContext } from "~/server/core/request-context";
 import { asShortId } from "~/server/utils/branded";
+import { createTestVolume } from "~/test/helpers/volume";
+import * as backendModule from "../../backends/backend";
+
+afterEach(() => {
+	vi.restoreAllMocks();
+});
 
 describe("volumeService.getVolume", () => {
 	test("should find volume by shortId", async () => {
@@ -122,5 +128,86 @@ describe("volumeService.listFiles security", () => {
 		} finally {
 			await fs.rm(tempRoot, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("volumeService.ensureHealthyVolume", () => {
+	test("returns ready when the mounted volume passes its health check", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({ organizationId, status: "mounted" });
+		const mount = vi.fn().mockResolvedValue({ status: "mounted" });
+		const checkHealth = vi.fn().mockResolvedValue({ status: "mounted" });
+
+		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation(() => ({
+			mount,
+			unmount: vi.fn().mockResolvedValue({ status: "unmounted" }),
+			checkHealth,
+		}));
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const result = await volumeService.ensureHealthyVolume(volume.shortId);
+
+			expect(result).toEqual({
+				ready: true,
+				volume: expect.objectContaining({ id: volume.id, status: "mounted", lastError: null }),
+				remounted: false,
+			});
+			expect(checkHealth).toHaveBeenCalledOnce();
+			expect(mount).not.toHaveBeenCalled();
+		});
+	});
+
+	test("auto-remounts when the mounted volume fails its health check", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({ organizationId, status: "mounted", autoRemount: true });
+		const mount = vi.fn().mockResolvedValue({ status: "mounted" });
+		const checkHealth = vi.fn().mockResolvedValue({ status: "error", error: "stale mount" });
+
+		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation(() => ({
+			mount,
+			unmount: vi.fn().mockResolvedValue({ status: "unmounted" }),
+			checkHealth,
+		}));
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const result = await volumeService.ensureHealthyVolume(volume.shortId);
+
+			expect(result).toEqual({
+				ready: true,
+				volume: expect.objectContaining({ id: volume.id, status: "mounted", lastError: null }),
+				remounted: true,
+			});
+			expect(checkHealth).toHaveBeenCalledOnce();
+			expect(mount).toHaveBeenCalledOnce();
+
+			const updatedVolume = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+			expect(updatedVolume?.status).toBe("mounted");
+			expect(updatedVolume?.lastError).toBeNull();
+		});
+	});
+
+	test("returns not ready when the health check fails and auto-remount is disabled", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({ organizationId, status: "mounted", autoRemount: false });
+		const mount = vi.fn().mockResolvedValue({ status: "mounted" });
+		const checkHealth = vi.fn().mockResolvedValue({ status: "error", error: "stale mount" });
+
+		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation(() => ({
+			mount,
+			unmount: vi.fn().mockResolvedValue({ status: "unmounted" }),
+			checkHealth,
+		}));
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const result = await volumeService.ensureHealthyVolume(volume.shortId);
+
+			expect(result).toEqual({
+				ready: false,
+				volume: expect.objectContaining({ id: volume.id, status: "error", lastError: "stale mount" }),
+				reason: "stale mount",
+			});
+			expect(checkHealth).toHaveBeenCalledOnce();
+			expect(mount).not.toHaveBeenCalled();
+		});
 	});
 });

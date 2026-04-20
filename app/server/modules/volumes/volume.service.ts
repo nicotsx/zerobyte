@@ -14,11 +14,24 @@ import type { UpdateVolumeBody } from "./volume.dto";
 import { getVolumePath } from "./helpers";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
+import type { Volume } from "../../db/schema";
 import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { isNodeJSErrnoException } from "~/server/utils/fs";
 import { asShortId, type ShortId } from "~/server/utils/branded";
 import { encryptVolumeConfig } from "./volume-config-secrets";
+
+type EnsureHealthyVolumeResult =
+	| {
+			ready: true;
+			volume: Volume;
+			remounted: boolean;
+	  }
+	| {
+			ready: false;
+			volume: Volume;
+			reason: string;
+	  };
 
 const listVolumes = async () => {
 	const organizationId = getOrganizationId();
@@ -274,6 +287,59 @@ const checkHealth = async (shortId: ShortId) => {
 	return { status, error };
 };
 
+const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolumeResult> => {
+	const volume = await findVolume(shortId);
+
+	if (!volume) {
+		throw new NotFoundError("Volume not found");
+	}
+
+	if (volume.status === "unmounted") {
+		return { ready: false, volume, reason: volume.lastError ?? "Volume is not mounted" };
+	}
+
+	let failureReason = volume.lastError ?? "Volume health check failed";
+	let failedVolume = volume;
+
+	if (volume.status !== "error") {
+		const health = await checkHealth(shortId);
+
+		if (health.status === "mounted") {
+			return {
+				ready: true,
+				volume: { ...volume, status: "mounted", lastError: null },
+				remounted: false,
+			};
+		}
+
+		failureReason = health.error ?? failureReason;
+		failedVolume = { ...volume, status: "error", lastError: health.error ?? null };
+	}
+
+	if (!volume.autoRemount) {
+		return { ready: false, volume: failedVolume, reason: failureReason };
+	}
+
+	logger.warn(
+		`${volume.name} is not healthy. Auto-remount is enabled, attempting to remount. Reason: ${failureReason}`,
+	);
+	const remount = await mountVolume(shortId);
+
+	if (remount.status !== "mounted") {
+		return {
+			ready: false,
+			volume: { ...volume, status: remount.status, lastError: remount.error ?? null },
+			reason: remount.error ?? failureReason,
+		};
+	}
+
+	return {
+		ready: true,
+		volume: { ...volume, status: "mounted", lastError: null },
+		remounted: true,
+	};
+};
+
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
 
@@ -407,6 +473,7 @@ export const volumeService = {
 	testConnection,
 	unmountVolume,
 	checkHealth,
+	ensureHealthyVolume,
 	listFiles,
 	browseFilesystem,
 };

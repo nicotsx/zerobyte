@@ -12,6 +12,7 @@ import { calculateNextRun } from "../backup.helpers";
 import { scheduleQueries } from "../backups.queries";
 import type { BackupExecutionProgress } from "../../agents/agents-manager";
 import { repositoriesService } from "../../repositories/repositories.service";
+import { volumeService } from "../../volumes/volume.service";
 import { copyToMirrors, runForget } from "./backup-maintenance";
 
 export interface BackupContext {
@@ -71,17 +72,19 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 		return { type: "failure", error: new NotFoundError("Repository not found"), partialContext: { schedule, volume } };
 	}
 
-	if (volume.status !== "mounted") {
+	const volumeReadiness = await volumeService.ensureHealthyVolume(volume.shortId);
+
+	if (!volumeReadiness.ready) {
 		return {
 			type: "failure",
-			error: new BadRequestError("Volume is not mounted"),
-			partialContext: { schedule, volume, repository },
+			error: new BadRequestError(volumeReadiness.reason),
+			partialContext: { schedule, volume: volumeReadiness.volume, repository },
 		};
 	}
 
 	return {
 		type: "success",
-		context: { schedule, volume, repository, organizationId },
+		context: { schedule, volume: volumeReadiness.volume, repository, organizationId },
 	};
 }
 
