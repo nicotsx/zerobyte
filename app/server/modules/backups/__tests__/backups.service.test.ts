@@ -17,6 +17,8 @@ import { repositoriesService } from "~/server/modules/repositories/repositories.
 import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
+import { volumeService } from "~/server/modules/volumes/volume.service";
+import { NotFoundError } from "http-errors-enhanced";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
@@ -36,6 +38,31 @@ const setup = () => {
 	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
+	vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async (shortId) => {
+		const volume = await db.query.volumesTable.findFirst({
+			where: {
+				AND: [{ shortId: { eq: shortId } }, { organizationId: TEST_ORG_ID }],
+			},
+		});
+
+		if (!volume) {
+			throw new NotFoundError("Volume not found");
+		}
+
+		if (volume.status !== "mounted") {
+			return {
+				ready: false as const,
+				volume,
+				reason: "Volume is not mounted",
+			};
+		}
+
+		return {
+			ready: true as const,
+			volume,
+			remounted: false,
+		};
+	});
 
 	return {
 		resticBackupMock,
