@@ -8,13 +8,12 @@ on:
       - "v*.*.*-alpha.*"
 
 permissions:
-  contents: write
-  packages: write
-  security-events: write
+  contents: read
 
 jobs:
   determine-release-type:
     runs-on: ubuntu-latest
+    permissions: {}
     outputs:
       release_type: ${{ steps.set-type.outputs.release_type }}
       tagname: ${{ github.ref_name }}
@@ -42,6 +41,10 @@ jobs:
     timeout-minutes: 15
     needs: [determine-release-type, checks, e2e-tests]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -126,6 +129,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-images, determine-release-type]
     if: needs.determine-release-type.outputs.release_type == 'release'
+    permissions:
+      contents: write
     outputs:
       id: ${{ steps.create_release.outputs.id }}
     steps:
