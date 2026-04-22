@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-export
 import { Eye, EyeOff } from "lucide-react";
 import type * as React from "react";
 import { useMemo, useState } from "react";
@@ -14,7 +15,7 @@ export const isStoredSecretValue = (value?: string): boolean => {
 	return value.startsWith("env://") || value.startsWith("file://") || value.startsWith("encv1:");
 };
 
-type SecretInputProps = Omit<React.ComponentProps<typeof Input>, "type">
+type SecretInputProps = Omit<React.ComponentProps<typeof Input>, "type">;
 
 export const SecretInput = ({ className, value, ...props }: SecretInputProps) => {
 	const [revealed, setRevealed] = useState(false);
@@ -36,12 +37,7 @@ export const SecretInput = ({ className, value, ...props }: SecretInputProps) =>
 
 	return (
 		<div className="relative" data-secret-input>
-			<Input
-				{...props}
-				value={value}
-				type={type}
-				className={cn(!showAsPlaintext && "pr-10", className)}
-			/>
+			<Input {...props} value={value} type={type} className={cn(!showAsPlaintext && "pr-10", className)} />
 			{!showAsPlaintext && (
 				<Button
 					type="button"

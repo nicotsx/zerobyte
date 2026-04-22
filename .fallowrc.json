@@ -8,14 +8,6 @@
 		"scripts/create-test-files.ts",
 		"scripts/patch-api-client.ts"
 	],
-	"ignorePatterns": [
-		"node_modules/**",
-		".output/**",
-		"**/api-client/**",
-		"**/components/ui/**",
-		"**/routeTree.gen.ts",
-		"apps/docs/**",
-		"app/client/hooks/use-mobile.ts",
-		"app/client/hooks/useMinimumDuration.ts"
-	]
+	"ignorePatterns": ["node_modules/**", ".output/**", "**/api-client/**", "**/routeTree.gen.ts", "apps/docs/**"],
+	"ignoreDependencies": ["@tailwindcss/typography", "babel-plugin-react-compiler"]
 }

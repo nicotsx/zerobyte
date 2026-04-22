@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-export
 import type * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { ChevronRight, MoreHorizontal } from "lucide-react";
@@ -12,17 +13,16 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 	return (
 		<ol
 			data-slot="breadcrumb-list"
-			className={cn(
-				"text-muted-foreground flex items-center gap-1.5 text-sm sm:gap-2.5 min-w-0",
-				className,
-			)}
+			className={cn("text-muted-foreground flex items-center gap-1.5 text-sm sm:gap-2.5 min-w-0", className)}
 			{...props}
 		/>
 	);
 }
 
 function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
-	return <li data-slot="breadcrumb-item" className={cn("inline-flex items-center gap-1.5 min-w-0", className)} {...props} />;
+	return (
+		<li data-slot="breadcrumb-item" className={cn("inline-flex items-center gap-1.5 min-w-0", className)} {...props} />
+	);
 }
 
 function BreadcrumbLink({

@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-export
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 import type * as React from "react";
 import { buttonVariants } from "~/client/components/ui/button";

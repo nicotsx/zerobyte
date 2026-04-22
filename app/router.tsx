@@ -11,7 +11,6 @@ client.setConfig({
 	credentials: "include",
 });
 
-// fallow-ignore-next-line unused-export
 export function getRouter() {
 	const queryClient = new QueryClient({
 		defaultOptions: {

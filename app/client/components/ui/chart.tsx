@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-export
 // @ts-nocheck
 // biome-ignore-all lint: reason
 import * as React from "react";
@@ -9,6 +10,7 @@ import { cn } from "~/client/lib/utils";
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const;
 
+// fallow-ignore-next-line unused-type
 export type ChartConfig = {
 	[k in string]: {
 		label?: React.ReactNode;

@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-export
 import type * as React from "react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 
