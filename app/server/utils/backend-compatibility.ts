@@ -89,7 +89,7 @@ const hasCompatibleCredentials = async (config1: RepositoryConfig, config2: Repo
 	}
 };
 
-export interface CompatibilityResult {
+interface CompatibilityResult {
 	repositoryId: string;
 	compatible: boolean;
 	reason: string | null;

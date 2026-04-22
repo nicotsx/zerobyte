@@ -27,8 +27,6 @@ export const repositorySchema = z.object({
 	updatedAt: z.number(),
 });
 
-export type RepositoryDto = z.infer<typeof repositorySchema>;
-
 const listRepositoriesResponse = repositorySchema.array();
 export type ListRepositoriesDto = z.infer<typeof listRepositoriesResponse>;
 
@@ -54,8 +52,6 @@ export const createRepositoryBody = z.object({
 	config: repositoryConfigSchema,
 });
 
-export type CreateRepositoryBody = z.infer<typeof createRepositoryBody>;
-
 const createRepositoryResponse = z.object({
 	message: z.string(),
 	repository: z.object({
@@ -64,8 +60,6 @@ const createRepositoryResponse = z.object({
 		name: z.string(),
 	}),
 });
-
-export type CreateRepositoryDto = z.infer<typeof createRepositoryResponse>;
 
 export const createRepositoryDto = describeRoute({
 	description: "Create a new restic repository",
@@ -352,8 +346,6 @@ export const restoreSnapshotBody = z.object({
 	overwrite: overwriteModeSchema.optional(),
 });
 
-export type RestoreSnapshotBody = z.infer<typeof restoreSnapshotBody>;
-
 const restoreSnapshotResponse = z.object({
 	success: z.boolean(),
 	message: z.string(),
@@ -558,8 +550,6 @@ export const devPanelExecBody = z.object({
 	command: z.string(),
 	args: z.array(z.string()).optional(),
 });
-
-export type DevPanelExecBody = z.infer<typeof devPanelExecBody>;
 
 export const devPanelExecDto = describeRoute({
 	description: "Execute a restic command against a repository (dev panel only)",

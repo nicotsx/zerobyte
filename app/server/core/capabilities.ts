@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import { RCLONE_CONFIG_DIR, RCLONE_CONFIG_FILE } from "./constants";
 import { logger } from "@zerobyte/core/node";
 
-export type SystemCapabilities = {
+type SystemCapabilities = {
 	rclone: boolean;
 	sysAdmin: boolean;
 };

@@ -1,7 +1,7 @@
 const SI_UNITS = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"] as const;
 const IEC_UNITS = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"] as const;
 
-export type FormatBytesResult = {
+type FormatBytesResult = {
 	text: string;
 	unit: string;
 	unitIndex: number;
@@ -17,13 +17,7 @@ export type FormatBytesOptions = {
 };
 
 export function formatBytes(bytes: number, options?: FormatBytesOptions): FormatBytesResult {
-	const {
-		base = 1000,
-		maximumFractionDigits = 2,
-		smartRounding = true,
-		locale,
-		fallback = "—",
-	} = options ?? {};
+	const { base = 1000, maximumFractionDigits = 2, smartRounding = true, locale, fallback = "—" } = options ?? {};
 
 	if (!Number.isFinite(bytes)) {
 		return {

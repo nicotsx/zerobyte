@@ -38,7 +38,7 @@ const lsSnapshotInfoSchema = z.object({
 type LsNode = z.infer<typeof lsNodeSchema>;
 type LsSnapshotInfo = z.infer<typeof lsSnapshotInfoSchema>;
 
-export type ResticLsResult = {
+type ResticLsResult = {
 	snapshot: LsSnapshotInfo | null;
 	nodes: LsNode[];
 	pagination: {

@@ -67,14 +67,7 @@ const serverRestoreCompletedEventSchema = organizationScopedSchema.extend(restor
 
 const serverDumpStartedEventSchema = organizationScopedSchema.extend(dumpStartedEventSchema.shape);
 
-export type BackupEventStatusDto = z.infer<typeof backupEventStatusSchema>;
-export type BackupStartedEventDto = z.infer<typeof backupStartedEventSchema>;
 export type BackupProgressEventDto = z.infer<typeof backupProgressEventSchema>;
-export type BackupCompletedEventDto = z.infer<typeof backupCompletedEventSchema>;
-export type RestoreStartedEventDto = z.infer<typeof restoreStartedEventSchema>;
-export type RestoreProgressEventDto = z.infer<typeof restoreProgressEventSchema>;
-export type RestoreCompletedEventDto = z.infer<typeof restoreCompletedEventSchema>;
-export type DumpStartedEventDto = z.infer<typeof dumpStartedEventSchema>;
 export type ServerBackupStartedEventDto = z.infer<typeof serverBackupStartedEventSchema>;
 export type ServerBackupProgressEventDto = z.infer<typeof serverBackupProgressEventSchema>;
 export type ServerBackupCompletedEventDto = z.infer<typeof serverBackupCompletedEventSchema>;

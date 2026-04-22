@@ -21,8 +21,6 @@ type BackupExecutionRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-export type { BackupExecutionResult } from "../agents/agents-manager";
-
 const activeControllersByScheduleId = new Map<number, AbortController>();
 
 const createBackupRunPayload = async ({

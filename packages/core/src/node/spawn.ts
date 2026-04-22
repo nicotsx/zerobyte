@@ -34,7 +34,7 @@ export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecPr
 	}
 };
 
-export interface SafeSpawnParamsBase {
+interface SafeSpawnParamsBase {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;

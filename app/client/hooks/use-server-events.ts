@@ -34,10 +34,8 @@ const invalidatingEvents = new Set<ServerEventType>([
 	"doctor:cancelled",
 ]);
 
-export type RestoreEvent = ServerEventsPayloadMap["restore:started"] | ServerEventsPayloadMap["restore:completed"];
 export type RestoreProgressEvent = ServerEventsPayloadMap["restore:progress"];
 export type RestoreCompletedEvent = ServerEventsPayloadMap["restore:completed"];
-export type BackupProgressEvent = ServerEventsPayloadMap["backup:progress"];
 
 const sharedState: SharedServerEventsState = {
 	eventSource: null,

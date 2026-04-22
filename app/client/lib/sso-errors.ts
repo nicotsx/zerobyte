@@ -1,6 +1,5 @@
 import { LOGIN_ERROR_CODES, type LoginErrorCode } from "~/lib/sso-errors";
 
-export type { LoginErrorCode } from "~/lib/sso-errors";
 export { getLoginErrorDescription } from "~/lib/sso-errors";
 
 const VALID_ERROR_CODES = new Set<LoginErrorCode>(LOGIN_ERROR_CODES);

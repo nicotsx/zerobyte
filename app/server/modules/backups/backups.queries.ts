@@ -2,8 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../db/db";
 import { backupSchedulesTable, backupScheduleMirrorsTable } from "../../db/schema";
 
-export type BackupStatusType = "in_progress" | "success" | "warning" | "error";
-export type MirrorStatusType = "in_progress" | "success" | "error";
+type BackupStatusType = "in_progress" | "success" | "warning" | "error";
+type MirrorStatusType = "in_progress" | "success" | "error";
 
 type MirrorStatusUpdate = {
 	lastCopyAt?: number | null;

@@ -14,8 +14,6 @@ const retentionPolicySchema = z.object({
 	keepWithinDuration: z.string().optional(),
 });
 
-export type RetentionPolicy = z.infer<typeof retentionPolicySchema>;
-
 const backupScheduleSchema = z.object({
 	id: z.number(),
 	shortId: z.string(),
@@ -53,8 +51,6 @@ const scheduleMirrorSchema = z.object({
 	createdAt: z.number(),
 	repository: repositorySchema,
 });
-
-export type ScheduleMirrorDto = z.infer<typeof scheduleMirrorSchema>;
 
 export const listBackupSchedulesResponse = backupScheduleSchema.array();
 
@@ -376,8 +372,6 @@ export const reorderBackupSchedulesBody = z.object({
 	scheduleShortIds: z.array(z.string()),
 });
 
-export type ReorderBackupSchedulesBody = z.infer<typeof reorderBackupSchedulesBody>;
-
 const reorderBackupSchedulesResponse = z.object({
 	success: z.boolean(),
 });
@@ -432,8 +426,6 @@ export const getMirrorSyncStatusDto = describeRoute({
 export const syncMirrorBody = z.object({
 	snapshotIds: z.array(z.string()).optional(),
 });
-
-export type SyncMirrorBody = z.infer<typeof syncMirrorBody>;
 
 const syncMirrorResponse = z.object({
 	success: z.boolean(),

@@ -15,7 +15,7 @@ import { repositoriesService } from "../../repositories/repositories.service";
 import { volumeService } from "../../volumes/volume.service";
 import { copyToMirrors, runForget } from "./backup-maintenance";
 
-export interface BackupContext {
+interface BackupContext {
 	schedule: BackupSchedule;
 	volume: Volume;
 	repository: Repository;
@@ -38,7 +38,7 @@ type ValidationSkipped = {
 	reason: string;
 };
 
-export type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkipped;
+type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkipped;
 
 export function getBackupProgress(scheduleId: number): BackupProgressEventDto | undefined {
 	return cache.get<BackupProgressEventDto>(cacheKeys.backup.progress(scheduleId));

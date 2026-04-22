@@ -12,8 +12,6 @@ const notificationDestinationSchema = z.object({
 	updatedAt: z.number(),
 });
 
-export type NotificationDestinationDto = z.infer<typeof notificationDestinationSchema>;
-
 const listDestinationsResponse = notificationDestinationSchema.array();
 export type ListDestinationsDto = z.infer<typeof listDestinationsResponse>;
 
@@ -171,8 +169,6 @@ const scheduleNotificationAssignmentSchema = z.object({
 	createdAt: z.number(),
 	destination: notificationDestinationSchema,
 });
-
-export type ScheduleNotificationAssignmentDto = z.infer<typeof scheduleNotificationAssignmentSchema>;
 
 const getScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
 export type GetScheduleNotificationsDto = z.infer<typeof getScheduleNotificationsResponse>;

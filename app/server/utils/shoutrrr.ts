@@ -2,7 +2,7 @@ import { safeExec } from "@zerobyte/core/node";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "./errors";
 
-export interface SendNotificationParams {
+interface SendNotificationParams {
 	shoutrrrUrl: string;
 	title: string;
 	body: string;

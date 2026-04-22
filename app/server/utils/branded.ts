@@ -1,6 +1,6 @@
 declare const brand: unique symbol;
 
-export type Branded<T, B> = T & { [brand]: B };
+type Branded<T, B> = T & { [brand]: B };
 
 export type ShortId = Branded<string, "ShortId">;
 

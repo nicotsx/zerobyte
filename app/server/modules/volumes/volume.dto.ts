@@ -17,8 +17,6 @@ export const volumeSchema = z.object({
 	autoRemount: z.boolean(),
 });
 
-export type VolumeDto = z.infer<typeof volumeSchema>;
-
 const listVolumesResponse = volumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;
 
@@ -65,7 +63,6 @@ export const createVolumeDto = describeRoute({
 const deleteVolumeResponse = z.object({
 	message: z.string(),
 });
-export type DeleteVolumeDto = z.infer<typeof deleteVolumeResponse>;
 
 export const deleteVolumeDto = describeRoute({
 	description: "Delete a volume",
@@ -153,7 +150,6 @@ const testConnectionResponse = z.object({
 	success: z.boolean(),
 	message: z.string(),
 });
-export type TestConnectionDto = z.infer<typeof testConnectionResponse>;
 
 export const testConnectionDto = describeRoute({
 	description: "Test connection to backend",
@@ -175,7 +171,6 @@ const mountVolumeResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
-export type MountVolumeDto = z.infer<typeof mountVolumeResponse>;
 
 export const mountVolumeDto = describeRoute({
 	description: "Mount a volume",
@@ -197,7 +192,6 @@ const unmountVolumeResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
-export type UnmountVolumeDto = z.infer<typeof unmountVolumeResponse>;
 
 export const unmountVolumeDto = describeRoute({
 	description: "Unmount a volume",
@@ -219,7 +213,6 @@ const healthCheckResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
-export type HealthCheckDto = z.infer<typeof healthCheckResponse>;
 
 export const healthCheckDto = describeRoute({
 	description: "Perform a health check on a volume",

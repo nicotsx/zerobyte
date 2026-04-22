@@ -1,7 +1,7 @@
 import type { Config } from "~/client/api-client/client";
 import { createClient, createConfig } from "~/client/api-client/client";
 
-export type RequestClient = ReturnType<typeof createClient>;
+type RequestClient = ReturnType<typeof createClient>;
 
 type RequestClientStore = {
 	getStore: () => RequestClient | undefined;

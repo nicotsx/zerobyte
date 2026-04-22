@@ -5,7 +5,7 @@ import { DATABASE_URL } from "../core/constants";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
-export interface CacheOptions {
+interface CacheOptions {
 	dbPath?: string;
 }
 

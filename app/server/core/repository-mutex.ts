@@ -1,8 +1,8 @@
 import { logger } from "@zerobyte/core/node";
 
-export type LockType = "shared" | "exclusive";
+type LockType = "shared" | "exclusive";
 
-export interface LockRequest {
+interface LockRequest {
 	repositoryId: string;
 	type: LockType;
 	operation: string;

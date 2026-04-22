@@ -11,7 +11,7 @@ export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
 
 const productionRuntimeState = createAgentRuntimeState();
 
-export type AgentRunBackupRequest = {
+type AgentRunBackupRequest = {
 	scheduleId: number;
 	payload: BackupRunPayload;
 	signal: AbortSignal;
