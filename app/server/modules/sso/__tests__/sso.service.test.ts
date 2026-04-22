@@ -1,60 +1,18 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db, sqlite } from "~/server/db/db";
 import { account, invitation, member, organization, sessionsTable, ssoProvider, usersTable } from "~/server/db/schema";
+import {
+	createOrganization,
+	createSession,
+	createUser,
+	dropTrigger,
+	escapeSqlLiteral,
+	randomId,
+	randomSlug,
+} from "~/test/helpers/user-org";
 import { ssoService } from "../sso.service";
 
 const DELETE_SSO_PROVIDER_ROLLBACK_TRIGGER = "delete_sso_provider_sessions_abort";
-
-function randomId() {
-	return Bun.randomUUIDv7();
-}
-
-function randomSlug(prefix: string) {
-	return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function escapeSqlLiteral(value: string) {
-	return value.replaceAll("'", "''");
-}
-
-function dropTrigger(name: string) {
-	sqlite.exec(`DROP TRIGGER IF EXISTS ${name};`);
-}
-
-async function createUser(email: string) {
-	const id = randomId();
-
-	await db.insert(usersTable).values({
-		id,
-		email,
-		name: email.split("@")[0],
-		username: randomSlug("user"),
-	});
-
-	return id;
-}
-
-async function createOrganization(name: string) {
-	const id = randomId();
-
-	await db.insert(organization).values({
-		id,
-		name,
-		slug: randomSlug("org"),
-		createdAt: new Date(),
-	});
-
-	return id;
-}
-
-async function createSession(userId: string) {
-	await db.insert(sessionsTable).values({
-		id: randomId(),
-		userId,
-		token: randomSlug("token"),
-		expiresAt: new Date(Date.now() + 60_000),
-	});
-}
 
 describe("ssoService.deleteSsoProvider", () => {
 	beforeEach(async () => {
@@ -140,8 +98,8 @@ describe("ssoService.deleteSsoProvider", () => {
 				userId: accountUserB,
 			},
 		]);
-		await createSession(accountUserA);
-		await createSession(accountUserB);
+		await createSession({ userId: accountUserA });
+		await createSession({ userId: accountUserB });
 
 		const deleted = await ssoService.deleteSsoProvider(providerId, org);
 
@@ -225,7 +183,7 @@ describe("ssoService.deleteSsoProvider", () => {
 			providerId,
 			userId: accountUser,
 		});
-		await createSession(accountUser);
+		await createSession({ userId: accountUser });
 
 		sqlite.exec(`
 			CREATE TRIGGER ${DELETE_SSO_PROVIDER_ROLLBACK_TRIGGER}

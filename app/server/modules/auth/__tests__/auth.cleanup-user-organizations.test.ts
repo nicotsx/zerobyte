@@ -1,89 +1,18 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db, sqlite } from "~/server/db/db";
 import { member, organization, sessionsTable, usersTable } from "~/server/db/schema";
+import {
+	createMembership,
+	createOrganization,
+	createSession,
+	createUser,
+	dropTrigger,
+	escapeSqlLiteral,
+	randomSlug,
+} from "~/test/helpers/user-org";
 import { authService } from "../auth.service";
 
 const CLEANUP_USER_ORGS_ROLLBACK_TRIGGER = "cleanup_user_orgs_final_session_abort";
-
-function randomId() {
-	return Bun.randomUUIDv7();
-}
-
-function randomSlug(prefix: string) {
-	return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function escapeSqlLiteral(value: string) {
-	return value.replaceAll("'", "''");
-}
-
-function dropTrigger(name: string) {
-	sqlite.exec(`DROP TRIGGER IF EXISTS ${name};`);
-}
-
-async function createUser(email: string) {
-	const id = randomId();
-
-	await db.insert(usersTable).values({
-		id,
-		email,
-		name: email.split("@")[0],
-		username: randomSlug("user"),
-	});
-
-	return id;
-}
-
-async function createOrganization(name: string) {
-	const id = randomId();
-
-	await db.insert(organization).values({
-		id,
-		name,
-		slug: randomSlug("org"),
-		createdAt: new Date(),
-	});
-
-	return id;
-}
-
-async function createMembership({
-	userId,
-	organizationId,
-	role,
-}: {
-	userId: string;
-	organizationId: string;
-	role: "owner" | "admin" | "member";
-}) {
-	await db.insert(member).values({
-		id: randomId(),
-		userId,
-		organizationId,
-		role,
-		createdAt: new Date(),
-	});
-}
-
-async function createSession({
-	userId,
-	activeOrganizationId,
-}: {
-	userId: string;
-	activeOrganizationId: string | null;
-}) {
-	const id = randomId();
-
-	await db.insert(sessionsTable).values({
-		id,
-		userId,
-		token: randomSlug("token"),
-		expiresAt: new Date(Date.now() + 60_000),
-		activeOrganizationId,
-	});
-
-	return id;
-}
 
 describe("authService.cleanupUserOrganizations", () => {
 	beforeEach(async () => {

@@ -1,18 +1,5 @@
 import type { RepositoryConfig } from "@zerobyte/core/restic";
-import { cryptoUtils } from "~/server/utils/crypto";
-
-type SecretTransformer = (value: string) => Promise<string>;
-
-const transformOptionalSecret = async (
-	value: string | undefined,
-	transformSecret: SecretTransformer,
-): Promise<string | undefined> => {
-	if (!value) {
-		return value;
-	}
-
-	return await transformSecret(value);
-};
+import { cryptoUtils, transformOptionalSecret, type SecretTransformer } from "~/server/utils/crypto";
 
 export const mapRepositoryConfigSecrets = async (
 	config: RepositoryConfig,

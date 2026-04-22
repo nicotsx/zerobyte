@@ -21,6 +21,7 @@ vi.mock(import("~/server/utils/crypto"), async () => {
 	const cryptoModule = await vi.importActual<typeof import("~/server/utils/crypto")>("~/server/utils/crypto");
 
 	return {
+		...cryptoModule,
 		cryptoUtils: {
 			...cryptoModule.cryptoUtils,
 			deriveSecret: async () => "test-secret",

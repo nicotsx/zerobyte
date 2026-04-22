@@ -1,15 +1,5 @@
-import { cryptoUtils } from "~/server/utils/crypto";
+import { cryptoUtils, transformOptionalSecret, type SecretTransformer } from "~/server/utils/crypto";
 import type { NotificationConfig } from "~/schemas/notifications";
-
-type SecretTransformer = (value: string) => Promise<string>;
-
-const transformOptionalSecret = async (value: string | undefined, transformSecret: SecretTransformer) => {
-	if (!value) {
-		return value;
-	}
-
-	return await transformSecret(value);
-};
 
 export const mapNotificationConfigSecrets = async (config: NotificationConfig, transformSecret: SecretTransformer) => {
 	switch (config.type) {

@@ -8,6 +8,19 @@ const algorithm = "aes-256-gcm" as const;
 const keyLength = 32;
 const encryptionPrefix = "encv1:";
 
+export type SecretTransformer = (value: string) => Promise<string>;
+
+export const transformOptionalSecret = async (
+	value: string | undefined,
+	transformSecret: SecretTransformer,
+): Promise<string | undefined> => {
+	if (!value) {
+		return value;
+	}
+
+	return await transformSecret(value);
+};
+
 /**
  * Checks if a given string is encrypted by looking for the encryption prefix.
  */
@@ -90,11 +103,7 @@ const sealSecret = async (value: string): Promise<string> => {
 };
 
 const sealOptionalSecret = async (value?: string): Promise<string | undefined> => {
-	if (typeof value === "undefined") {
-		return value;
-	}
-
-	return sealSecret(value);
+	return transformOptionalSecret(value, sealSecret);
 };
 
 async function deriveSecret(label: string) {
