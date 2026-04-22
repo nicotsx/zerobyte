@@ -1,3 +1,21 @@
 {
-	"ignorePatterns": ["node_modules/**", ".output/**", "**/api-client/**", "**/components/ui/**", "**/routeTree.gen.ts"]
+	"entry": [
+		"app/client.tsx",
+		"app/router.tsx",
+		"app/server.ts",
+		"app/server/plugins/bootstrap.ts",
+		"openapi-ts.config.ts",
+		"scripts/create-test-files.ts",
+		"scripts/patch-api-client.ts"
+	],
+	"ignorePatterns": [
+		"node_modules/**",
+		".output/**",
+		"**/api-client/**",
+		"**/components/ui/**",
+		"**/routeTree.gen.ts",
+		"apps/docs/**",
+		"app/client/hooks/use-mobile.ts",
+		"app/client/hooks/useMinimumDuration.ts"
+	]
 }
