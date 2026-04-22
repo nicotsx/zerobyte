@@ -12,7 +12,7 @@ import {
 import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
 
-export class AuthService {
+class AuthService {
 	/**
 	 * Check if any users exist in the system
 	 */

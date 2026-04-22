@@ -21,7 +21,7 @@ import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
 import { db } from "./db/db";
 
-export const generalDescriptor = (app: Hono) =>
+const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
 		documentation: {
 			info: {
@@ -33,7 +33,7 @@ export const generalDescriptor = (app: Hono) =>
 		},
 	});
 
-export const scalarDescriptor = Scalar({
+const scalarDescriptor = Scalar({
 	title: "Zerobyte API Docs",
 	pageTitle: "Zerobyte API Docs",
 	url: "/api/v1/openapi.json",

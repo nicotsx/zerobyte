@@ -1,0 +1,3 @@
+{
+	"ignorePatterns": ["node_modules/**", ".output/**", "**/api-client/**", "**/components/ui/**", "**/routeTree.gen.ts"]
+}

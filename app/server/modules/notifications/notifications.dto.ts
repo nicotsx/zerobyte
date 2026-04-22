@@ -2,7 +2,7 @@ import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { NOTIFICATION_TYPES, notificationConfigSchema } from "~/schemas/notifications";
 
-export const notificationDestinationSchema = z.object({
+const notificationDestinationSchema = z.object({
 	id: z.number(),
 	name: z.string(),
 	enabled: z.boolean(),
@@ -14,7 +14,7 @@ export const notificationDestinationSchema = z.object({
 
 export type NotificationDestinationDto = z.infer<typeof notificationDestinationSchema>;
 
-export const listDestinationsResponse = notificationDestinationSchema.array();
+const listDestinationsResponse = notificationDestinationSchema.array();
 export type ListDestinationsDto = z.infer<typeof listDestinationsResponse>;
 
 export const listDestinationsDto = describeRoute({
@@ -38,7 +38,7 @@ export const createDestinationBody = z.object({
 	config: notificationConfigSchema,
 });
 
-export const createDestinationResponse = notificationDestinationSchema;
+const createDestinationResponse = notificationDestinationSchema;
 export type CreateDestinationDto = z.infer<typeof createDestinationResponse>;
 
 export const createDestinationDto = describeRoute({
@@ -57,7 +57,7 @@ export const createDestinationDto = describeRoute({
 	},
 });
 
-export const getDestinationResponse = notificationDestinationSchema;
+const getDestinationResponse = notificationDestinationSchema;
 export type GetDestinationDto = z.infer<typeof getDestinationResponse>;
 
 export const getDestinationDto = describeRoute({
@@ -85,7 +85,7 @@ export const updateDestinationBody = z.object({
 	config: notificationConfigSchema.optional(),
 });
 
-export const updateDestinationResponse = notificationDestinationSchema;
+const updateDestinationResponse = notificationDestinationSchema;
 export type UpdateDestinationDto = z.infer<typeof updateDestinationResponse>;
 
 export const updateDestinationDto = describeRoute({
@@ -107,7 +107,7 @@ export const updateDestinationDto = describeRoute({
 	},
 });
 
-export const deleteDestinationResponse = z.object({
+const deleteDestinationResponse = z.object({
 	message: z.string(),
 });
 export type DeleteDestinationDto = z.infer<typeof deleteDestinationResponse>;
@@ -131,7 +131,7 @@ export const deleteDestinationDto = describeRoute({
 	},
 });
 
-export const testDestinationResponse = z.object({
+const testDestinationResponse = z.object({
 	success: z.boolean(),
 });
 export type TestDestinationDto = z.infer<typeof testDestinationResponse>;
@@ -161,7 +161,7 @@ export const testDestinationDto = describeRoute({
 	},
 });
 
-export const scheduleNotificationAssignmentSchema = z.object({
+const scheduleNotificationAssignmentSchema = z.object({
 	scheduleId: z.number(),
 	destinationId: z.number(),
 	notifyOnStart: z.boolean(),
@@ -174,7 +174,7 @@ export const scheduleNotificationAssignmentSchema = z.object({
 
 export type ScheduleNotificationAssignmentDto = z.infer<typeof scheduleNotificationAssignmentSchema>;
 
-export const getScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
+const getScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
 export type GetScheduleNotificationsDto = z.infer<typeof getScheduleNotificationsResponse>;
 
 export const getScheduleNotificationsDto = describeRoute({
@@ -205,7 +205,7 @@ export const updateScheduleNotificationsBody = z.object({
 		.array(),
 });
 
-export const updateScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
+const updateScheduleNotificationsResponse = scheduleNotificationAssignmentSchema.array();
 export type UpdateScheduleNotificationsDto = z.infer<typeof updateScheduleNotificationsResponse>;
 
 export const updateScheduleNotificationsDto = describeRoute({

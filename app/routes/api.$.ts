@@ -17,7 +17,7 @@ type RequestInitWithDuplex = RequestInit & {
 	duplex?: "half";
 };
 
-export const prepareApiRequest = (request: NodeRuntimeRequest, timeoutMs: number) => {
+const prepareApiRequest = (request: NodeRuntimeRequest, timeoutMs: number) => {
 	request.runtime?.node?.res?.setTimeout(timeoutMs);
 
 	if (config.trustProxy && request.headers.has("x-forwarded-for")) {

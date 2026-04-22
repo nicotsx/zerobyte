@@ -1,6 +1,4 @@
 import * as fs from "node:fs/promises";
-import * as npath from "node:path";
-import { toMessage } from "../../../utils/errors";
 import { logger } from "@zerobyte/core/node";
 import { safeExec } from "@zerobyte/core/node";
 import { getMountForPath } from "../../../utils/mountinfo";
@@ -61,24 +59,4 @@ export const assertMounted = async (path: string, isExpectedFilesystem: (fstype:
 	if (!isExpectedFilesystem(mount.fstype)) {
 		throw new Error(`Path ${path} is not mounted as correct fstype (found ${mount.fstype}).`);
 	}
-};
-
-export const createTestFile = async (path: string): Promise<void> => {
-	const testFilePath = npath.join(path, `.healthcheck-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-
-	await fs.writeFile(testFilePath, "healthcheck");
-
-	const files = await fs.readdir(path);
-	await Promise.all(
-		files.map(async (file) => {
-			if (file.startsWith(".healthcheck-")) {
-				const filePath = npath.join(path, file);
-				try {
-					await fs.unlink(filePath);
-				} catch (err) {
-					logger.warn(`Failed to stat or unlink file ${filePath}: ${toMessage(err)}`);
-				}
-			}
-		}),
-	);
 };

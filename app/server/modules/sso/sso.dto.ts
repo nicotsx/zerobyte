@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
-export const publicSsoProvidersDto = z.object({
+const publicSsoProvidersDto = z.object({
 	providers: z
 		.object({
 			providerId: z.string(),
@@ -28,7 +28,7 @@ export const getPublicSsoProvidersDto = describeRoute({
 	},
 });
 
-export const ssoSettingsResponse = z.object({
+const ssoSettingsResponse = z.object({
 	providers: z
 		.object({
 			providerId: z.string(),

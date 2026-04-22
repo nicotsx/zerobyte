@@ -3,7 +3,7 @@ import { unlockRepository } from "~/client/api-client/sdk.gen";
 import { Button } from "~/client/components/ui/button";
 import { Unlock } from "lucide-react";
 
-export const isLockError = (error: unknown): boolean => {
+const isLockError = (error: unknown): boolean => {
 	const errorMessage = parseError(error)?.message || "";
 
 	return (
@@ -25,7 +25,7 @@ export const parseError = (error?: unknown) => {
 	return undefined;
 };
 
-export const showLockErrorToast = (repositoryId: string, title: string) => {
+const showLockErrorToast = (repositoryId: string, title: string) => {
 	toast.error(title, {
 		description:
 			"The repository is currently locked by another operation. This can happen when a previous operation didn't complete properly.",

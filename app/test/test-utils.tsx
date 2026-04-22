@@ -1,10 +1,5 @@
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-	render as testingLibraryRender,
-	renderHook as testingLibraryRenderHook,
-	type RenderHookOptions,
-	type RenderOptions,
-} from "@testing-library/react";
+import { render as testingLibraryRender, type RenderOptions } from "@testing-library/react";
 import testingLibraryUserEvent from "@testing-library/user-event";
 import { Suspense, type ReactElement, type ReactNode } from "react";
 import { logger } from "~/client/lib/logger";
@@ -16,7 +11,6 @@ type TestProviderOptions = {
 };
 
 type TestRenderOptions = Omit<RenderOptions, "wrapper"> & TestProviderOptions;
-type TestRenderHookOptions<Props> = Omit<RenderHookOptions<Props>, "wrapper"> & TestProviderOptions;
 
 export const createTestQueryClient = () => {
 	let queryClient: QueryClient;
@@ -72,23 +66,7 @@ const customRender = (ui: ReactElement, options: TestRenderOptions = {}) => {
 	};
 };
 
-const customRenderHook = <Result, Props>(
-	callback: (initialProps: Props) => Result,
-	options: TestRenderHookOptions<Props> = {},
-) => {
-	const { queryClient, withSuspense, suspenseFallback, ...renderOptions } = options;
-	const wrapper = createWrapper({ queryClient, withSuspense, suspenseFallback });
-
-	return {
-		queryClient: wrapper.queryClient,
-		...testingLibraryRenderHook(callback, {
-			wrapper: wrapper.Wrapper,
-			...renderOptions,
-		}),
-	};
-};
-
 export * from "@testing-library/react";
 
 export const userEvent = testingLibraryUserEvent.setup();
-export { customRender as render, customRenderHook as renderHook };
+export { customRender as render };

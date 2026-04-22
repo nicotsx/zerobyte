@@ -6,7 +6,7 @@ export const siteDescription =
 	"Zerobyte is a web control plane for Restic backups with scheduling, encrypted repositories, monitoring, and restore workflows.";
 export const ogImageUrl = new URL(ogImageAssetUrl, siteUrl).toString();
 
-export function getCanonicalUrl(path: string) {
+function getCanonicalUrl(path: string) {
 	return new URL(path, siteUrl).toString();
 }
 

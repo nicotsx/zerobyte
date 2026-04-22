@@ -38,7 +38,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 	errorComponent: (e) => <div>{e.error.message}</div>,
 });
 
-export function RootLayout() {
+function RootLayout() {
 	const { theme } = Route.useLoaderData();
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
 	useServerEvents({ enabled: !isAuthRoute(pathname) });

@@ -1,25 +1,25 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
-export const capabilitiesSchema = z.object({
+const capabilitiesSchema = z.object({
 	rclone: z.boolean(),
 	sysAdmin: z.boolean(),
 });
 
-export const systemInfoResponse = z.object({
+const systemInfoResponse = z.object({
 	capabilities: capabilitiesSchema,
 });
 
 export type SystemInfoDto = z.infer<typeof systemInfoResponse>;
 
-export const releaseInfoSchema = z.object({
+const releaseInfoSchema = z.object({
 	version: z.string(),
 	url: z.string(),
 	publishedAt: z.string(),
 	body: z.string(),
 });
 
-export const updateInfoResponse = z.object({
+const updateInfoResponse = z.object({
 	currentVersion: z.string(),
 	latestVersion: z.string(),
 	hasUpdate: z.boolean(),
@@ -81,7 +81,7 @@ export const downloadResticPasswordDto = describeRoute({
 	},
 });
 
-export const registrationStatusResponse = z.object({
+const registrationStatusResponse = z.object({
 	enabled: z.boolean(),
 });
 
@@ -123,7 +123,7 @@ export const setRegistrationStatusDto = describeRoute({
 	},
 });
 
-export const devPanelResponse = z.object({
+const devPanelResponse = z.object({
 	enabled: z.boolean(),
 });
 

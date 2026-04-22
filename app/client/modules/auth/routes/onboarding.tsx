@@ -10,7 +10,6 @@ import {
 	FormLabel,
 	FormMessage,
 } from "~/client/components/ui/form";
-import { authMiddleware } from "~/middleware/auth";
 import { AuthLayout } from "~/client/components/auth-layout";
 import { Input } from "~/client/components/ui/input";
 import { Button } from "~/client/components/ui/button";
@@ -21,8 +20,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
 import { z } from "zod";
 import { inferDateTimePreferences } from "~/client/lib/datetime";
-
-export const clientMiddleware = [authMiddleware];
 
 const onboardingSchema = z.object({
 	username: z.string().min(2).max(30).transform(normalizeUsername),

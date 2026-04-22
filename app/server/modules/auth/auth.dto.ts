@@ -5,7 +5,7 @@ const statusResponseSchema = z.object({
 	hasUsers: z.boolean(),
 });
 
-export const adminUsersResponse = z.object({
+const adminUsersResponse = z.object({
 	users: z
 		.object({
 			id: z.string(),
@@ -60,7 +60,7 @@ export const getStatusDto = describeRoute({
 
 export type GetStatusDto = z.infer<typeof statusResponseSchema>;
 
-export const userDeletionImpactDto = z.object({
+const userDeletionImpactDto = z.object({
 	organizations: z
 		.object({
 			id: z.string(),
@@ -109,7 +109,7 @@ export const deleteUserAccountDto = describeRoute({
 	},
 });
 
-export const orgMembersResponse = z.object({
+const orgMembersResponse = z.object({
 	members: z
 		.object({
 			id: z.string(),

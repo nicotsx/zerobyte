@@ -19,7 +19,7 @@ export const volumeSchema = z.object({
 
 export type VolumeDto = z.infer<typeof volumeSchema>;
 
-export const listVolumesResponse = volumeSchema.array();
+const listVolumesResponse = volumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;
 
 export const listVolumesDto = describeRoute({
@@ -43,7 +43,7 @@ export const createVolumeBody = z.object({
 	config: volumeConfigSchema,
 });
 
-export const createVolumeResponse = volumeSchema;
+const createVolumeResponse = volumeSchema;
 export type CreateVolumeDto = z.infer<typeof createVolumeResponse>;
 
 export const createVolumeDto = describeRoute({
@@ -62,7 +62,7 @@ export const createVolumeDto = describeRoute({
 	},
 });
 
-export const deleteVolumeResponse = z.object({
+const deleteVolumeResponse = z.object({
 	message: z.string(),
 });
 export type DeleteVolumeDto = z.infer<typeof deleteVolumeResponse>;
@@ -123,7 +123,7 @@ export const updateVolumeBody = z.object({
 
 export type UpdateVolumeBody = z.infer<typeof updateVolumeBody>;
 
-export const updateVolumeResponse = volumeSchema;
+const updateVolumeResponse = volumeSchema;
 export type UpdateVolumeDto = z.infer<typeof updateVolumeResponse>;
 
 export const updateVolumeDto = describeRoute({
@@ -149,7 +149,7 @@ export const testConnectionBody = z.object({
 	config: volumeConfigSchema,
 });
 
-export const testConnectionResponse = z.object({
+const testConnectionResponse = z.object({
 	success: z.boolean(),
 	message: z.string(),
 });
@@ -171,7 +171,7 @@ export const testConnectionDto = describeRoute({
 	},
 });
 
-export const mountVolumeResponse = z.object({
+const mountVolumeResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
@@ -193,7 +193,7 @@ export const mountVolumeDto = describeRoute({
 	},
 });
 
-export const unmountVolumeResponse = z.object({
+const unmountVolumeResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
@@ -215,7 +215,7 @@ export const unmountVolumeDto = describeRoute({
 	},
 });
 
-export const healthCheckResponse = z.object({
+const healthCheckResponse = z.object({
 	error: z.string().optional(),
 	status: z.enum(BACKEND_STATUS),
 });
@@ -248,7 +248,7 @@ const fileEntrySchema = z.object({
 	modifiedAt: z.number().optional(),
 });
 
-export const listFilesResponse = z.object({
+const listFilesResponse = z.object({
 	files: fileEntrySchema.array(),
 	path: z.string(),
 	offset: z.number(),
@@ -280,7 +280,7 @@ export const listFilesDto = describeRoute({
 	},
 });
 
-export const browseFilesystemResponse = z.object({
+const browseFilesystemResponse = z.object({
 	directories: fileEntrySchema.array(),
 	path: z.string(),
 });

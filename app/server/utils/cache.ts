@@ -3,13 +3,13 @@ import path from "node:path";
 import fs from "node:fs";
 import { DATABASE_URL } from "../core/constants";
 
-export const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
 
 export interface CacheOptions {
 	dbPath?: string;
 }
 
-export const createCache = (options: CacheOptions = {}) => {
+const createCache = (options: CacheOptions = {}) => {
 	const defaultPath = path.join(path.dirname(DATABASE_URL), "cache.db");
 	const dbPath = options.dbPath || defaultPath;
 

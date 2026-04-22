@@ -4,7 +4,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { isReservedSsoProviderId } from "./utils/sso-provider-id";
 import { normalizeEmail } from "./utils/sso-context";
 
-export class SsoService {
+class SsoService {
 	/**
 	 * Get public SSO providers for the instance
 	 */

@@ -36,6 +36,7 @@ const loadRequestClientStore = async (): Promise<RequestClientStore | undefined>
 	return requestClientStorePromise;
 };
 
+// fallow-ignore-next-line unused-export
 export function getRequestClient(): RequestClient {
 	const client = requestClientStore?.getStore();
 

@@ -4,7 +4,7 @@ import { db } from "../../../db/db";
 import { backupSchedulesTable } from "../../../db/schema";
 import { toMessage } from "~/server/utils/errors";
 
-export const isIncludePatternEntry = (value: string) => value.startsWith("!") || /[*?[\]]/.test(value);
+const isIncludePatternEntry = (value: string) => value.startsWith("!") || /[*?[\]]/.test(value);
 
 const execute = async () => {
 	const errors: Array<{ name: string; error: string }> = [];

@@ -3,7 +3,7 @@ import { db } from "~/server/db/db";
 import { member, organization, sessionsTable, usersTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 
-export const COOKIE_PREFIX = "zerobyte";
+const COOKIE_PREFIX = "zerobyte";
 
 export function getAuthHeaders(token: string): { Cookie: string } {
 	return {

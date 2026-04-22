@@ -15,7 +15,7 @@ export async function findMembershipWithOrganization(userId: string, organizatio
 	return membership ?? null;
 }
 
-export function buildOrgSlug(email: string) {
+function buildOrgSlug(email: string) {
 	const [emailPrefix] = email.split("@");
 	const sanitized = emailPrefix
 		.toLowerCase()

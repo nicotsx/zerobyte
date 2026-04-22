@@ -20,14 +20,6 @@ export function extractProviderIdFromUrl(url: string): string | null {
 	}
 }
 
-export function isSsoCallbackPath(path?: string | null): boolean {
-	if (!path) {
-		return false;
-	}
-
-	return extractProviderIdFromPath(path) !== null;
-}
-
 export function isSsoCallbackRequest(ctx?: GenericEndpointContext | null): boolean {
 	if (!ctx?.request?.url) {
 		return false;

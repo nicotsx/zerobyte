@@ -15,7 +15,7 @@ const payload = <T>() => undefined as unknown as T;
  * Single runtime registry for all broadcastable server events.
  * Used as source-of-truth for both event names and payload typing.
  */
-export const serverEventPayloads = {
+const serverEventPayloads = {
 	"backup:started": payload<ServerBackupStartedEventDto>(),
 	"backup:progress": payload<ServerBackupProgressEventDto>(),
 	"backup:completed": payload<ServerBackupCompletedEventDto>(),

@@ -217,6 +217,7 @@ export const spawnLocalAgent = async () => {
 	await spawnLocalAgentProcess(getAgentRuntimeState());
 };
 
+// fallow-ignore-next-line unused-export
 export const stopLocalAgent = async () => {
 	await stopLocalAgentProcess(getAgentRuntimeState());
 };

@@ -39,7 +39,7 @@ import {
 
 const baseFields = { name: z.string().min(2).max(32) };
 
-export const formSchema = z.discriminatedUnion("type", [
+const formSchema = z.discriminatedUnion("type", [
 	emailNotificationConfigSchema.extend(baseFields),
 	slackNotificationConfigSchema.extend(baseFields),
 	discordNotificationConfigSchema.extend(baseFields),

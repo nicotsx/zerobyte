@@ -90,7 +90,7 @@ export const customNotificationConfigSchema = z.object({
 	shoutrrrUrl: z.string().min(1),
 });
 
-export const notificationConfigSchemaBase = z.discriminatedUnion("type", [
+const notificationConfigSchemaBase = z.discriminatedUnion("type", [
 	emailNotificationConfigSchema,
 	slackNotificationConfigSchema,
 	discordNotificationConfigSchema,
@@ -106,7 +106,7 @@ export const notificationConfigSchema = notificationConfigSchemaBase;
 
 export type NotificationConfig = z.infer<typeof notificationConfigSchema>;
 
-export const NOTIFICATION_EVENTS = {
+const NOTIFICATION_EVENTS = {
 	start: "start",
 	success: "success",
 	failure: "failure",

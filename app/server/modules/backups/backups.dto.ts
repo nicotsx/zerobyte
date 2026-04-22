@@ -96,7 +96,7 @@ export const getBackupScheduleDto = describeRoute({
 	},
 });
 
-export const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
+const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
 
 export type GetBackupScheduleForVolumeResponseDto = z.infer<typeof getBackupScheduleForVolumeResponse>;
 
@@ -142,7 +142,7 @@ export const createBackupScheduleBody = z.object({
 
 export type CreateBackupScheduleBody = z.infer<typeof createBackupScheduleBody>;
 
-export const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type CreateBackupScheduleDto = z.infer<typeof createBackupScheduleResponse>;
 
@@ -187,7 +187,7 @@ export const updateBackupScheduleBody = z.object({
 
 export type UpdateBackupScheduleBody = z.infer<typeof updateBackupScheduleBody>;
 
-export const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type UpdateBackupScheduleDto = z.infer<typeof updateBackupScheduleResponse>;
 
@@ -207,7 +207,7 @@ export const updateBackupScheduleDto = describeRoute({
 	},
 });
 
-export const deleteBackupScheduleResponse = z.object({
+const deleteBackupScheduleResponse = z.object({
 	success: z.boolean(),
 });
 
@@ -229,7 +229,7 @@ export const deleteBackupScheduleDto = describeRoute({
 	},
 });
 
-export const runBackupNowResponse = z.object({
+const runBackupNowResponse = z.object({
 	success: z.boolean(),
 });
 
@@ -251,7 +251,7 @@ export const runBackupNowDto = describeRoute({
 	},
 });
 
-export const stopBackupResponse = z.object({
+const stopBackupResponse = z.object({
 	success: z.boolean(),
 });
 
@@ -276,7 +276,7 @@ export const stopBackupDto = describeRoute({
 	},
 });
 
-export const runForgetResponse = z.object({
+const runForgetResponse = z.object({
 	success: z.boolean(),
 });
 
@@ -298,7 +298,7 @@ export const runForgetDto = describeRoute({
 	},
 });
 
-export const getScheduleMirrorsResponse = scheduleMirrorSchema.array();
+const getScheduleMirrorsResponse = scheduleMirrorSchema.array();
 export type GetScheduleMirrorsDto = z.infer<typeof getScheduleMirrorsResponse>;
 
 export const getScheduleMirrorsDto = describeRoute({
@@ -328,7 +328,7 @@ export const updateScheduleMirrorsBody = z.object({
 
 export type UpdateScheduleMirrorsBody = z.infer<typeof updateScheduleMirrorsBody>;
 
-export const updateScheduleMirrorsResponse = scheduleMirrorSchema.array();
+const updateScheduleMirrorsResponse = scheduleMirrorSchema.array();
 export type UpdateScheduleMirrorsDto = z.infer<typeof updateScheduleMirrorsResponse>;
 
 export const updateScheduleMirrorsDto = describeRoute({
@@ -353,7 +353,7 @@ const mirrorCompatibilitySchema = z.object({
 	reason: z.string().nullable(),
 });
 
-export const getMirrorCompatibilityResponse = mirrorCompatibilitySchema.array();
+const getMirrorCompatibilityResponse = mirrorCompatibilitySchema.array();
 export type GetMirrorCompatibilityDto = z.infer<typeof getMirrorCompatibilityResponse>;
 
 export const getMirrorCompatibilityDto = describeRoute({
@@ -378,7 +378,7 @@ export const reorderBackupSchedulesBody = z.object({
 
 export type ReorderBackupSchedulesBody = z.infer<typeof reorderBackupSchedulesBody>;
 
-export const reorderBackupSchedulesResponse = z.object({
+const reorderBackupSchedulesResponse = z.object({
 	success: z.boolean(),
 });
 
@@ -406,7 +406,7 @@ const missingSnapshotSchema = z.object({
 	size: z.number(),
 });
 
-export const getMirrorSyncStatusResponse = z.object({
+const getMirrorSyncStatusResponse = z.object({
 	sourceCount: z.number(),
 	mirrorCount: z.number(),
 	missingSnapshots: missingSnapshotSchema.array(),
@@ -435,7 +435,7 @@ export const syncMirrorBody = z.object({
 
 export type SyncMirrorBody = z.infer<typeof syncMirrorBody>;
 
-export const syncMirrorResponse = z.object({
+const syncMirrorResponse = z.object({
 	success: z.boolean(),
 });
 export type SyncMirrorDto = z.infer<typeof syncMirrorResponse>;

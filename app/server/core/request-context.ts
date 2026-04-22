@@ -11,7 +11,7 @@ export const withContext = <T>(context: RequestContext, fn: () => T): T => {
 	return requestContextStorage.run(context, fn);
 };
 
-export const getRequestContext = (): RequestContext => {
+const getRequestContext = (): RequestContext => {
 	const context = requestContextStorage.getStore();
 
 	if (!context?.organizationId) {

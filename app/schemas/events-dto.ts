@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { resticBackupProgressMetricsSchema, resticBackupRunSummarySchema } from "@zerobyte/core/restic";
 
-export const backupEventStatusSchema = z.enum(["success", "error", "stopped", "warning"]);
-export const restoreEventStatusSchema = z.enum(["success", "error"]);
+const backupEventStatusSchema = z.enum(["success", "error", "stopped", "warning"]);
+const restoreEventStatusSchema = z.enum(["success", "error"]);
 
 const backupEventBaseSchema = z.object({
 	scheduleId: z.string(),
@@ -35,37 +35,37 @@ const restoreProgressMetricsSchema = z.object({
 	bytes_restored: z.number().default(0),
 });
 
-export const backupStartedEventSchema = backupEventBaseSchema;
+const backupStartedEventSchema = backupEventBaseSchema;
 
 export const backupProgressEventSchema = backupEventBaseSchema.extend(resticBackupProgressMetricsSchema.shape);
 
-export const backupCompletedEventSchema = backupEventBaseSchema.extend({
+const backupCompletedEventSchema = backupEventBaseSchema.extend({
 	status: backupEventStatusSchema,
 	summary: resticBackupRunSummarySchema.optional(),
 });
 
-export const restoreStartedEventSchema = restoreEventBaseSchema;
+const restoreStartedEventSchema = restoreEventBaseSchema;
 
-export const restoreProgressEventSchema = restoreEventBaseSchema.extend(restoreProgressMetricsSchema.shape);
+const restoreProgressEventSchema = restoreEventBaseSchema.extend(restoreProgressMetricsSchema.shape);
 
-export const restoreCompletedEventSchema = restoreEventBaseSchema.extend({
+const restoreCompletedEventSchema = restoreEventBaseSchema.extend({
 	status: restoreEventStatusSchema,
 	error: z.string().optional(),
 });
 
-export const serverBackupStartedEventSchema = organizationScopedSchema.extend(backupStartedEventSchema.shape);
+const serverBackupStartedEventSchema = organizationScopedSchema.extend(backupStartedEventSchema.shape);
 
-export const serverBackupProgressEventSchema = organizationScopedSchema.extend(backupProgressEventSchema.shape);
+const serverBackupProgressEventSchema = organizationScopedSchema.extend(backupProgressEventSchema.shape);
 
-export const serverBackupCompletedEventSchema = organizationScopedSchema.extend(backupCompletedEventSchema.shape);
+const serverBackupCompletedEventSchema = organizationScopedSchema.extend(backupCompletedEventSchema.shape);
 
-export const serverRestoreStartedEventSchema = organizationScopedSchema.extend(restoreStartedEventSchema.shape);
+const serverRestoreStartedEventSchema = organizationScopedSchema.extend(restoreStartedEventSchema.shape);
 
-export const serverRestoreProgressEventSchema = organizationScopedSchema.extend(restoreProgressEventSchema.shape);
+const serverRestoreProgressEventSchema = organizationScopedSchema.extend(restoreProgressEventSchema.shape);
 
-export const serverRestoreCompletedEventSchema = organizationScopedSchema.extend(restoreCompletedEventSchema.shape);
+const serverRestoreCompletedEventSchema = organizationScopedSchema.extend(restoreCompletedEventSchema.shape);
 
-export const serverDumpStartedEventSchema = organizationScopedSchema.extend(dumpStartedEventSchema.shape);
+const serverDumpStartedEventSchema = organizationScopedSchema.extend(dumpStartedEventSchema.shape);
 
 export type BackupEventStatusDto = z.infer<typeof backupEventStatusSchema>;
 export type BackupStartedEventDto = z.infer<typeof backupStartedEventSchema>;

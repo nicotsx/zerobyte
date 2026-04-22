@@ -1,6 +1,6 @@
 const RESERVED_SSO_PROVIDER_IDS = new Set(["credential"]);
 
-export function normalizeSsoProviderId(providerId: string): string {
+function normalizeSsoProviderId(providerId: string): string {
 	return providerId.trim().toLowerCase();
 }
 

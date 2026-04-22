@@ -15,7 +15,7 @@ import { Database } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
 
-export const SnapshotError = () => {
+const SnapshotError = () => {
 	const { repositoryId } = useParams({ from: "/(dashboard)/repositories/$repositoryId/$snapshotId/" });
 
 	return (

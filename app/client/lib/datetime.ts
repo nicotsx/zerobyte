@@ -6,7 +6,7 @@ export type DateInput = Date | string | number | null | undefined;
 
 export const DATE_FORMATS = ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY/MM/DD"] as const;
 export type DateFormatPreference = (typeof DATE_FORMATS)[number];
-export const DEFAULT_DATE_FORMAT: DateFormatPreference = "MM/DD/YYYY";
+const DEFAULT_DATE_FORMAT: DateFormatPreference = "MM/DD/YYYY";
 
 export const TIME_FORMATS = ["12h", "24h"] as const;
 export type TimeFormatPreference = (typeof TIME_FORMATS)[number];

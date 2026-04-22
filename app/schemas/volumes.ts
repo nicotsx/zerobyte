@@ -86,7 +86,7 @@ export const sftpConfigSchema = z.object({
 	knownHosts: z.string().optional(),
 });
 
-export const volumeConfigSchemaBase = z.discriminatedUnion("backend", [
+const volumeConfigSchemaBase = z.discriminatedUnion("backend", [
 	nfsConfigSchema,
 	smbConfigSchema,
 	webdavConfigSchema,
