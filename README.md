@@ -211,6 +211,7 @@ A repository is where your backups will be securely stored encrypted. Zerobyte s
 - **S3-compatible storage** - Amazon S3, MinIO, Wasabi, DigitalOcean Spaces, etc.
 - **Google Cloud Storage** - Google's cloud storage service
 - **Azure Blob Storage** - Microsoft Azure storage
+- [**Backblaze B2**](https://www.backblaze.com/cloud-storage) - S3 compatible cloud storage
 - **rclone remotes** - 40+ cloud storage providers via rclone (see below)
 
 Repositories are optimized for storage efficiency and data integrity, leveraging Restic's deduplication and encryption features.

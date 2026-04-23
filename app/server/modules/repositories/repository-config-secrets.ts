@@ -18,6 +18,14 @@ export const mapRepositoryConfigSecrets = async (
 				accessKeyId: await transformSecret(config.accessKeyId),
 				secretAccessKey: await transformSecret(config.secretAccessKey),
 			};
+		case "b2":
+			return {
+				...config,
+				customPassword,
+				cacert,
+				accountId: await transformSecret(config.accountId),
+				accountKey: await transformSecret(config.accountKey),
+			};
 		case "gcs":
 			return {
 				...config,
