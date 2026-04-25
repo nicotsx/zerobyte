@@ -52,7 +52,7 @@ Create a `docker-compose.yml` file with the following configuration:
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.30
+    image: ghcr.io/nicotsx/zerobyte:v0.35
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -179,7 +179,7 @@ If you only need to back up locally mounted directories and don't require remote
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.30
+    image: ghcr.io/nicotsx/zerobyte:v0.35
     container_name: zerobyte
     restart: unless-stopped
     ports:
@@ -254,7 +254,7 @@ If you use provisioning, Zerobyte can resolve secrets from environment variables
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.30
+    image: ghcr.io/nicotsx/zerobyte:v0.35
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
