@@ -66,33 +66,36 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					},
 					webhooks: payload.webhooks,
 					signal: abortController.signal,
-					runBackup: () =>
-						restic.backup(payload.repositoryConfig, payload.sourcePath, {
-							organizationId: payload.organizationId,
-							...payload.options,
-							signal: abortController.signal,
-							onProgress: (progress) => {
-								void Runtime.runPromise(
-									runtime,
-									context.offerOutbound(
-										createAgentMessage("backup.progress", {
-											jobId: payload.jobId,
-											scheduleId: payload.scheduleId,
-											progress,
-										}),
-									),
-								).catch((error) => {
-									logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
-								});
-							},
-						}).pipe(
-							Effect.map((result) => ({
-								status: "completed" as const,
-								exitCode: result.exitCode,
-								result: result.result,
-								warningDetails: result.warningDetails,
-							})),
-						),
+					runBackup: () => {
+						return restic
+							.backup(payload.repositoryConfig, payload.sourcePath, {
+								organizationId: payload.organizationId,
+								...payload.options,
+								signal: abortController.signal,
+								onProgress: (progress) => {
+									void Runtime.runPromise(
+										runtime,
+										context.offerOutbound(
+											createAgentMessage("backup.progress", {
+												jobId: payload.jobId,
+												scheduleId: payload.scheduleId,
+												progress,
+											}),
+										),
+									).catch((error) => {
+										logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
+									});
+								},
+							})
+							.pipe(
+								Effect.map((result) => ({
+									status: "completed" as const,
+									exitCode: result.exitCode,
+									result: result.result,
+									warningDetails: result.warningDetails,
+								})),
+							);
+					},
 				});
 
 				switch (backupResult.status) {

@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Data, Effect } from "effect";
 import { z } from "zod";
 import { toErrorDetails, toMessage } from "../utils/index.js";
 
@@ -40,29 +40,13 @@ export type BackupWebhookContext = {
 };
 
 export type BackupOperationResult<TResult> =
-	| { status: "completed"; exitCode: number;
-			result: TResult;
-			warningDetails: string | null;
-	  }
-	| { status: "failed";
-			error: unknown;
-	  };
+	| { status: "completed"; exitCode: number; result: TResult; warningDetails: string | null }
+	| { status: "failed"; error: unknown };
 
 export type BackupHookedExecutionResult<TResult> =
-	| {
-			status: "completed";
-			exitCode: number;
-			result: TResult;
-			warningDetails: string | null;
-	  }
-	| {
-			status: "failed";
-			error: string;
-	  }
-	| {
-			status: "cancelled";
-			message?: string;
-	  };
+	| { status: "completed"; exitCode: number; result: TResult; warningDetails: string | null }
+	| { status: "failed"; error: string }
+	| { status: "cancelled"; message?: string };
 
 export type BackupHookedExecutionOptions<TResult, R = never> = {
 	metadata: BackupWebhookMetadata;
@@ -73,11 +57,10 @@ export type BackupHookedExecutionOptions<TResult, R = never> = {
 	formatErrorMessage?: (error: unknown) => string;
 };
 
-export class BackupWebhookError extends Error {
-	override name = "BackupWebhookError";
-}
-
-const getPhaseLabel = (phase: BackupWebhookPhase) => (phase === "pre" ? "Pre-backup" : "Post-backup");
+export class BackupWebhookError extends Data.TaggedError("BackupWebhookError")<{
+	cause: unknown;
+	message: string;
+}> {}
 
 export const createBackupWebhooks = (
 	pre: BackupWebhookConfig | null | undefined,
@@ -171,7 +154,6 @@ export const runBackupWebhook = async (
 	context: BackupWebhookContext,
 	options: { signal?: AbortSignal; timeoutMs?: number } = {},
 ) => {
-	const phaseLabel = getPhaseLabel(context.phase);
 	const timeoutMs = options.timeoutMs ?? DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS;
 	const controller = createAbortController(timeoutMs, options.signal);
 
@@ -187,16 +169,17 @@ export const runBackupWebhook = async (
 		if (!response.ok) {
 			const responseText = await response.text().catch(() => "");
 			const details = responseText.trim().slice(0, 500);
-			throw new Error(
-				`${phaseLabel} webhook returned HTTP ${response.status}${details ? `: ${details}` : ""}`,
-			);
+			throw new Error(`${context.phase} webhook returned HTTP ${response.status}${details ? `: ${details}` : ""}`);
 		}
 	} catch (error) {
 		if (controller.signal.aborted && controller.signal.reason instanceof Error) {
-			throw new BackupWebhookError(`${phaseLabel} webhook failed: ${controller.signal.reason.message}`);
+			throw new BackupWebhookError({
+				cause: controller.signal.reason,
+				message: `${context.phase} webhook failed: ${controller.signal.reason.message}`,
+			});
 		}
 
-		throw new BackupWebhookError(`${phaseLabel} webhook failed: ${toMessage(error)}`);
+		throw new BackupWebhookError({ cause: error, message: `${context.phase} webhook failed: ${toMessage(error)}` });
 	} finally {
 		controller.cleanup();
 	}
@@ -214,7 +197,13 @@ const runConfiguredWebhook = (
 
 	return Effect.tryPromise({
 		try: () => runBackupWebhook(config, context, { signal }),
-		catch: (error) => error,
+		catch: (error) => {
+			if (error instanceof BackupWebhookError) {
+				return error;
+			}
+
+			return new BackupWebhookError({ cause: error, message: toMessage(error) });
+		},
 	}).pipe(
 		Effect.as(null),
 		Effect.catchAll((error) => Effect.succeed(formatErrorDetails(error))),
