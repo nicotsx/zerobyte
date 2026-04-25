@@ -75,6 +75,8 @@ export function CreateBackupPage() {
 				excludeIfPresent: formValues.excludeIfPresent,
 				oneFileSystem: formValues.oneFileSystem,
 				customResticParams: formValues.customResticParams,
+				preBackupWebhook: formValues.preBackupWebhook,
+				postBackupWebhook: formValues.postBackupWebhook,
 				maxRetries: formValues.maxRetries,
 				retryDelay: formValues.retryDelay,
 			},

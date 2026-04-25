@@ -144,6 +144,7 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 				defaultExcludes: [],
 				rcloneConfigFile: "/tmp/rclone.conf",
 			},
+			webhooks: { pre: null, post: null },
 		}),
 	);
 

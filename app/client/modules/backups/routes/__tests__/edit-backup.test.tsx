@@ -49,6 +49,8 @@ const renderEditBackupPage = ({ enabled, cronExpression }: { enabled: boolean; c
 					excludeIfPresent: [],
 					oneFileSystem: false,
 					customResticParams: [],
+					preBackupWebhook: null,
+					postBackupWebhook: null,
 				});
 			}),
 			http.get("/api/v1/repositories", () => {
@@ -122,5 +124,27 @@ test("preserves a disabled schedule when saving a non-manual frequency", async (
 		frequency: "daily",
 		enabled: false,
 		cronExpression: "00 02 * * *",
+	});
+});
+
+test("submits webhook headers and body as plain config values", async () => {
+	const { submittedBody } = renderEditBackupPage({ enabled: true, cronExpression: "0 2 * * *" });
+
+	await userEvent.click(await screen.findByText("Advanced"));
+	await userEvent.type(screen.getByLabelText("Pre-backup webhook"), "http://localhost:8080/stop");
+	fireEvent.change(screen.getByLabelText("Pre-backup webhook headers"), {
+		target: { value: '{ "Authorization": "Bearer stop-token" }' },
+	});
+	fireEvent.change(screen.getByLabelText("Pre-backup webhook body"), {
+		target: { value: '{"action":"stop"}' },
+	});
+	await userEvent.click(screen.getByRole("button", { name: "Update schedule" }));
+
+	await expect(submittedBody).resolves.toMatchObject({
+		preBackupWebhook: {
+			url: "http://localhost:8080/stop",
+			headers: { Authorization: "Bearer stop-token" },
+			body: '{"action":"stop"}',
+		},
 	});
 });

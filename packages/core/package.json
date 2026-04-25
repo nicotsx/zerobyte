@@ -18,6 +18,11 @@
 			"import": "./src/utils/index.ts",
 			"default": "./src/utils/index.ts"
 		},
+		"./backup-hooks": {
+			"types": "./src/backup-hooks/index.ts",
+			"import": "./src/backup-hooks/index.ts",
+			"default": "./src/backup-hooks/index.ts"
+		},
 		"./node": {
 			"types": "./src/node/index.ts",
 			"import": "./src/node/index.ts",

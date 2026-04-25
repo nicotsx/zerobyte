@@ -402,6 +402,67 @@ describe("manual only schedules", () => {
 	});
 });
 
+describe("schedule webhooks", () => {
+	test("stores pre and post backup webhooks when creating a schedule", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+
+		const schedule = await backupsService.createSchedule({
+			name: "with-webhooks",
+			volumeId: volume.shortId,
+			repositoryId: repository.shortId,
+			enabled: true,
+			cronExpression: "0 0 * * *",
+			preBackupWebhook: {
+				url: "http://localhost:8080/stop",
+				headers: { authorization: "Bearer stop-token" },
+				body: '{"action":"stop"}',
+			},
+			postBackupWebhook: {
+				url: "http://localhost:8080/start",
+				headers: { authorization: "Bearer start-token" },
+				body: '{"action":"start"}',
+			},
+			retryDelay: 15 * 60 * 1000,
+			maxRetries: 2,
+		});
+
+		expect(schedule.preBackupWebhook).toEqual({
+			url: "http://localhost:8080/stop",
+			headers: { authorization: "Bearer stop-token" },
+			body: '{"action":"stop"}',
+		});
+		expect(schedule.postBackupWebhook).toEqual({
+			url: "http://localhost:8080/start",
+			headers: { authorization: "Bearer start-token" },
+			body: '{"action":"start"}',
+		});
+	});
+
+	test("clears backup webhooks when updating a schedule with null values", async () => {
+		setup();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			repositoryId: repository.id,
+			preBackupWebhook: { url: "http://localhost:8080/stop" },
+			postBackupWebhook: { url: "http://localhost:8080/start" },
+		});
+
+		const updated = await backupsService.updateSchedule(schedule.id, {
+			repositoryId: repository.shortId,
+			cronExpression: schedule.cronExpression,
+			preBackupWebhook: null,
+			postBackupWebhook: null,
+			retryDelay: 15 * 60 * 1000,
+			maxRetries: 2,
+		});
+
+		expect(updated.preBackupWebhook).toBeNull();
+		expect(updated.postBackupWebhook).toBeNull();
+	});
+});
+
 describe("listSchedules", () => {
 	test("should ignore schedules with missing relations", async () => {
 		setup();

@@ -10,6 +10,23 @@ export const parseMultilineEntries = (value?: string) =>
 				.filter(Boolean)
 		: [];
 
+export const parseWebhookHeaders = (value?: string) => {
+	const trimmed = value?.trim();
+	if (!trimmed) {
+		return undefined;
+	}
+
+	return JSON.parse(trimmed) as Record<string, string>;
+};
+
+const stringifyWebhookHeaders = (headers?: Record<string, string>) => {
+	if (!headers || Object.keys(headers).length === 0) {
+		return "";
+	}
+
+	return JSON.stringify(headers, null, 2);
+};
+
 export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValues | undefined => {
 	if (!schedule) {
 		return undefined;
@@ -26,6 +43,12 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
 		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
+		preBackupWebhookUrl: schedule.preBackupWebhook?.url ?? "",
+		preBackupWebhookHeadersText: stringifyWebhookHeaders(schedule.preBackupWebhook?.headers),
+		preBackupWebhookBody: schedule.preBackupWebhook?.body ?? "",
+		postBackupWebhookUrl: schedule.postBackupWebhook?.url ?? "",
+		postBackupWebhookHeadersText: stringifyWebhookHeaders(schedule.postBackupWebhook?.headers),
+		postBackupWebhookBody: schedule.postBackupWebhook?.body ?? "",
 		maxRetries: schedule.maxRetries,
 		retryDelay: schedule.retryDelay,
 		...cronValues,

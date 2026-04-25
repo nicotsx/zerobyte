@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
 import { safeJsonParse } from "@zerobyte/core/utils";
 import {
 	repositoryConfigSchema,
@@ -39,6 +40,7 @@ const backupRunSchema = z.object({
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
 		runtime: backupRuntimeSchema,
+		webhooks: backupWebhooksSchema,
 	}),
 });
 

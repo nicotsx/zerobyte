@@ -149,7 +149,7 @@ export async function finalizeSuccessfulBackup(
 	warningDetails: string | null,
 ) {
 	const scheduleId = ctx.schedule.id;
-	const finalStatus = exitCode === 0 ? "success" : "warning";
+	const finalStatus = exitCode === 0 && !warningDetails ? "success" : "warning";
 
 	if (ctx.schedule.retentionPolicy) {
 		void runForget(scheduleId, undefined, ctx.organizationId).catch((error) => {

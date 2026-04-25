@@ -46,6 +46,7 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 					defaultExcludes: [],
 					rcloneConfigFile: "/root/.config/rclone/rclone.conf",
 				},
+				webhooks: { pre: null, post: null },
 			}),
 		);
 

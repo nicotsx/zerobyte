@@ -58,6 +58,102 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 			/>
 			<FormField
 				control={form.control}
+				name="preBackupWebhookUrl"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Pre-backup webhook</FormLabel>
+						<FormControl>
+							<Input {...field} type="url" placeholder="http://host.docker.internal:8080/stop" />
+						</FormControl>
+						<FormDescription>
+							Called with POST before restic starts. A non-2xx response stops the backup.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="preBackupWebhookHeadersText"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Pre-backup webhook headers</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								placeholder={'{\n  "Authorization": "Bearer token"\n}'}
+								className="font-mono text-sm min-h-24"
+							/>
+						</FormControl>
+						<FormDescription>Optional JSON object. Values are stored as plain text.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="preBackupWebhookBody"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Pre-backup webhook body</FormLabel>
+						<FormControl>
+							<Textarea {...field} placeholder='{"action":"stop"}' className="font-mono text-sm min-h-24" />
+						</FormControl>
+						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="postBackupWebhookUrl"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Post-backup webhook</FormLabel>
+						<FormControl>
+							<Input {...field} type="url" placeholder="http://host.docker.internal:8080/start" />
+						</FormControl>
+						<FormDescription>
+							Called with POST after restic finishes, including failed or cancelled runs.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="postBackupWebhookHeadersText"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Post-backup webhook headers</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								placeholder={'{\n  "Authorization": "Bearer token"\n}'}
+								className="font-mono text-sm min-h-24"
+							/>
+						</FormControl>
+						<FormDescription>Optional JSON object. Values are stored as plain text.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name="postBackupWebhookBody"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Post-backup webhook body</FormLabel>
+						<FormControl>
+							<Textarea {...field} placeholder='{"action":"start"}' className="font-mono text-sm min-h-24" />
+						</FormControl>
+						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
 				name="customResticParamsText"
 				render={({ field }) => (
 					<FormItem>

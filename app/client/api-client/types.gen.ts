@@ -2434,6 +2434,16 @@ export type ListBackupSchedulesResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        preBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries: number;
         retryDelay: number;
         lastBackupAt: number | null;
@@ -2712,6 +2722,16 @@ export type CreateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        preBackupWebhook?: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook?: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries?: number;
         retryDelay?: number;
     };
@@ -2747,6 +2767,16 @@ export type CreateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        preBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries: number;
         retryDelay: number;
         lastBackupAt: number | null;
@@ -2816,6 +2846,16 @@ export type GetBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        preBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries: number;
         retryDelay: number;
         lastBackupAt: number | null;
@@ -3093,6 +3133,16 @@ export type UpdateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        preBackupWebhook?: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook?: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries?: number;
         retryDelay?: number;
     };
@@ -3130,6 +3180,16 @@ export type UpdateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        preBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries: number;
         retryDelay: number;
         lastBackupAt: number | null;
@@ -3179,6 +3239,16 @@ export type GetBackupScheduleForVolumeResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        preBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
+        postBackupWebhook: {
+            url: string;
+            headers?: Record<string, string>;
+            body?: string;
+        } | null;
         maxRetries: number;
         retryDelay: number;
         lastBackupAt: number | null;
