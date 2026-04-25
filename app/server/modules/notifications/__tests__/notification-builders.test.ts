@@ -39,6 +39,21 @@ describe("notification shoutrrr URL builders", () => {
 		).toBe(
 			"smtp://user%20name:p%40ss%20word@smtp.example.com:465/?from=alerts%2Bteam%40example.com&fromname=Ops+Team&to=ops%40example.com&starttls=no",
 		);
+
+		expect(
+			buildEmailShoutrrrUrl({
+				type: "email",
+				smtpHost: "smtp.example.com",
+				smtpPort: 465,
+				username: "user%name+tag",
+				password: "pa%ss+word",
+				from: "alerts@example.com",
+				to: ["ops@example.com"],
+				useTLS: false,
+			}),
+		).toBe(
+			"smtp://user%25name%2Btag:pa%25ss%2Bword@smtp.example.com:465/?from=alerts%40example.com&to=ops%40example.com&starttls=no",
+		);
 	});
 
 	test("builds discord URLs and rejects invalid webhook formats", () => {

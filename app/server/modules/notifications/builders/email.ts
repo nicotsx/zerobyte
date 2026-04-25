@@ -7,9 +7,9 @@ export const buildEmailShoutrrrUrl = (config: Extract<NotificationConfig, { type
 	shoutrrrUrl.port = String(config.smtpPort);
 	shoutrrrUrl.pathname = "/";
 
+	let auth = "";
 	if (config.username && config.password) {
-		shoutrrrUrl.username = config.username;
-		shoutrrrUrl.password = config.password;
+		auth = `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password)}@`;
 	}
 
 	shoutrrrUrl.searchParams.set("from", config.from);
@@ -19,5 +19,5 @@ export const buildEmailShoutrrrUrl = (config: Extract<NotificationConfig, { type
 	shoutrrrUrl.searchParams.set("to", config.to.join(","));
 	shoutrrrUrl.searchParams.set("starttls", config.useTLS ? "yes" : "no");
 
-	return shoutrrrUrl.toString();
+	return shoutrrrUrl.toString().replace("smtp://", `smtp://${auth}`);
 };
