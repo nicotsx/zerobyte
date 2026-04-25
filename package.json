@@ -119,6 +119,7 @@
 		"babel-plugin-react-compiler": "^1.0.0",
 		"dotenv-cli": "^11.0.0",
 		"drizzle-kit": "^1.0.0-beta.21",
+		"fast-check": "^4.7.0",
 		"msw": "^2.12.14",
 		"nitro": "^3.0.1-alpha.2",
 		"tailwindcss": "^4.2.2",
