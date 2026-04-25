@@ -32,6 +32,7 @@ export const systemController = new Hono()
 	})
 	.get("/updates", getUpdatesDto, async (c) => {
 		const updates = await systemService.getUpdates();
+		c.header("Cache-Control", "no-store");
 
 		return c.json<UpdateInfoDto>(updates, 200);
 	})

@@ -6,7 +6,8 @@ export function useUpdates() {
 		...getUpdatesOptions(),
 		staleTime: 60 * 60 * 1000,
 		gcTime: 24 * 60 * 60 * 1000,
-		refetchOnWindowFocus: false,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
 	});
 
 	return {
