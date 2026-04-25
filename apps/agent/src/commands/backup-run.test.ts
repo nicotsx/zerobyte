@@ -1,5 +1,7 @@
-import { afterEach, expect, test, vi } from "vitest";
 import { Effect } from "effect";
+import { HttpResponse, http } from "msw";
+import { setupServer } from "msw/node";
+import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { parseAgentMessage, type BackupCancelPayload, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
@@ -7,6 +9,12 @@ import * as resticServer from "@zerobyte/core/restic/server";
 import { handleBackupCancelCommand } from "./backup-cancel";
 import { handleBackupRunCommand } from "./backup-run";
 import type { ControllerCommandContext, RunningJob } from "../context";
+
+const server = setupServer();
+
+beforeAll(() => {
+	server.listen({ onUnhandledRequest: "error" });
+});
 
 const createDeferred = <T>() => {
 	let resolve!: (value: T) => void;
@@ -19,7 +27,11 @@ const createDeferred = <T>() => {
 
 afterEach(() => {
 	vi.restoreAllMocks();
-	vi.unstubAllGlobals();
+	server.resetHandlers();
+});
+
+afterAll(() => {
+	server.close();
 });
 
 const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
@@ -82,12 +94,16 @@ const runBackupCommand = async (payload: BackupRunPayload) => {
 test("runs pre and post backup webhooks around restic", async () => {
 	const events: string[] = [];
 
-	vi.stubGlobal(
-		"fetch",
-		vi.fn(async (_url: URL, init: RequestInit) => {
-			const body = JSON.parse(String(init.body)) as { event: string };
+	server.use(
+		http.post("http://localhost:8080/pre", async ({ request }) => {
+			const body = (await request.json()) as { event: string };
 			events.push(body.event);
-			return new Response(null, { status: 204 });
+			return new HttpResponse(null, { status: 204 });
+		}),
+		http.post("http://localhost:8080/post", async ({ request }) => {
+			const body = (await request.json()) as { event: string };
+			events.push(body.event);
+			return new HttpResponse(null, { status: 204 });
 		}),
 	);
 
@@ -117,15 +133,22 @@ test("runs pre and post backup webhooks around restic", async () => {
 test("sends configured webhook headers and body without changing them", async () => {
 	const requests: Array<{ url: string; headers: Headers; body: string }> = [];
 
-	vi.stubGlobal(
-		"fetch",
-		vi.fn(async (url: URL, init: RequestInit) => {
+	server.use(
+		http.post("http://localhost:8080/pre", async ({ request }) => {
 			requests.push({
-				url: url.toString(),
-				headers: new Headers(init.headers),
-				body: String(init.body),
+				url: request.url,
+				headers: request.headers,
+				body: await request.text(),
 			});
-			return new Response(null, { status: 204 });
+			return new HttpResponse(null, { status: 204 });
+		}),
+		http.post("http://localhost:8080/post", async ({ request }) => {
+			requests.push({
+				url: request.url,
+				headers: request.headers,
+				body: await request.text(),
+			});
+			return new HttpResponse(null, { status: 204 });
 		}),
 	);
 
@@ -164,9 +187,10 @@ test("sends configured webhook headers and body without changing them", async ()
 
 test("fails without running restic when the pre-backup webhook fails", async () => {
 	const backupMock = vi.fn();
-	vi.stubGlobal(
-		"fetch",
-		vi.fn(async () => new Response("stop failed", { status: 500 })),
+	server.use(
+		http.post("http://localhost:8080/pre", () => {
+			return new HttpResponse("stop failed", { status: 500 });
+		}),
 	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
@@ -192,9 +216,10 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 });
 
 test("reports a post-backup webhook failure as completed warning details", async () => {
-	vi.stubGlobal(
-		"fetch",
-		vi.fn(async () => new Response("start failed", { status: 500 })),
+	server.use(
+		http.post("http://localhost:8080/post", () => {
+			return new HttpResponse("start failed", { status: 500 });
+		}),
 	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({

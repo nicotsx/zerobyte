@@ -1,6 +1,6 @@
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Textarea } from "~/client/components/ui/textarea";
-import { useWatch, type UseFormReturn } from "react-hook-form";
+import { type UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
 import { Input } from "~/client/components/ui/input";
 
@@ -9,10 +9,6 @@ type AdvancedSectionProps = {
 };
 
 export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
-	const values = useWatch({ control: form.control });
-	const preBackupWebhookBody = values.preBackupWebhookBody?.trim();
-	const postBackupWebhookBody = values.postBackupWebhookBody?.trim();
-
 	return (
 		<>
 			<FormField

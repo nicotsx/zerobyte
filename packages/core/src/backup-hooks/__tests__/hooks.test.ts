@@ -310,6 +310,41 @@ test("includes post-backup webhook failure details after cancellation", async ()
 	}
 });
 
+test("includes post-backup webhook failure details after completed cancellation", async () => {
+	const abortController = new AbortController();
+	let postBody: { status?: string; error?: string } | undefined;
+
+	server.use(
+		http.post("http://localhost:8080/post", async ({ request }) => {
+			postBody = (await request.json()) as { status?: string; error?: string };
+			return new HttpResponse("cleanup failed", { status: 500 });
+		}),
+	);
+
+	const result = await Effect.runPromise(
+		runBackupWithWebhooks({
+			metadata,
+			webhooks: {
+				pre: null,
+				post: { url: "http://localhost:8080/post" },
+			},
+			signal: abortController.signal,
+			runBackup: () =>
+				Effect.sync(() => {
+					abortController.abort(new Error("Backup was cancelled"));
+					return { status: "completed" as const, exitCode: 0, result: null, warningDetails: null };
+				}),
+		}),
+	);
+
+	expect(postBody).toMatchObject({ status: "cancelled", error: "Backup was cancelled" });
+	expect(result.status).toBe("cancelled");
+	if (result.status === "cancelled") {
+		expect(result.message).toContain("Backup was cancelled");
+		expect(result.message).toContain("Post-backup webhook returned HTTP 500: cleanup failed");
+	}
+});
+
 test("cancels before the pre-backup webhook without running the backup", async () => {
 	const abortController = new AbortController();
 	let backupRan = false;

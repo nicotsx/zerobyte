@@ -69,8 +69,8 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					runBackup: () => {
 						return restic
 							.backup(payload.repositoryConfig, payload.sourcePath, {
-								organizationId: payload.organizationId,
 								...payload.options,
+								organizationId: payload.organizationId,
 								signal: abortController.signal,
 								onProgress: (progress) => {
 									void Runtime.runPromise(
@@ -115,7 +115,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 							createAgentMessage("backup.failed", {
 								jobId: payload.jobId,
 								scheduleId: payload.scheduleId,
-								error: backupResult.error,
+								error: toMessage(backupResult.error),
 								errorDetails: backupResult.error,
 							}),
 						);
