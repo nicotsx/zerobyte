@@ -41,3 +41,35 @@ When reporting, include as much of the following as you can:
 - If the report is declined, out of scope, or cannot be reproduced, we will explain why when possible.
 
 Please avoid public disclosure until a fix has been released and maintainers have had reasonable time to notify users.
+
+## Trust model baseline
+
+Zerobyte is a self-hosted operator tool. Treat any authenticated user as a trusted machine/operator user with intentional access to:
+
+- Browse/select host directories for volumes
+- Configure local, network, and cloud storage backends
+- Trigger mounts/unmounts, backups, restores, and Restic maintenance
+- Read/write files through intended backup/restore workflows
+- Access repository/volume metadata needed to operate backups
+
+Do **not** report these as vulnerabilities by themselves:
+
+- Authenticated host filesystem browsing
+- Local directory volume pointing to broad host paths
+- Backing up arbitrary readable host paths
+- Restoring snapshots to arbitrary writable host paths
+- Authenticated Restic/mount/rclone execution through intended UI flows
+- Information disclosure to authenticated operators about filesystem paths or backend errors
+
+Only report issues when they violate this trust model, for example:
+
+- Unauthenticated access to operator features
+- CSRF/cross-origin abuse causing a trusted operator’s browser to perform actions
+- Shell/command injection beyond intended argument-based execution
+- Path traversal that escapes a deliberately configured root/volume/repository boundary
+- Secret leakage to logs, unauthenticated users, or non-operator contexts
+- Cross-organization data access despite authenticated trust
+- Privilege bypass between global admin/org admin/member where the product explicitly distinguishes roles
+- Unsafe dev-only features enabled without the documented gate
+- Vulnerabilities in parsing untrusted external data from repositories/backends/notifications
+- Persistence corruption, data loss, or workflow bypass not intended by operator actions
