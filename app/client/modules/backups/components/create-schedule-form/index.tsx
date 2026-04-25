@@ -47,10 +47,10 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				maxRetries,
 				retryDelay,
 				preBackupWebhookUrl,
-				preBackupWebhookHeadersText,
+				preBackupWebhookHeaders,
 				preBackupWebhookBody,
 				postBackupWebhookUrl,
-				postBackupWebhookHeadersText,
+				postBackupWebhookHeaders,
 				postBackupWebhookBody,
 				...rest
 			} = data;
@@ -74,14 +74,14 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				preBackupWebhook: preBackupWebhookUrlValue
 					? {
 							url: preBackupWebhookUrlValue,
-							headers: parseWebhookHeaders(preBackupWebhookHeadersText),
+							headers: parseWebhookHeaders(preBackupWebhookHeaders),
 							body: preBackupWebhookBodyValue || undefined,
 						}
 					: null,
 				postBackupWebhook: postBackupWebhookUrlValue
 					? {
 							url: postBackupWebhookUrlValue,
-							headers: parseWebhookHeaders(postBackupWebhookHeadersText),
+							headers: parseWebhookHeaders(postBackupWebhookHeaders),
 							body: postBackupWebhookBodyValue || undefined,
 						}
 					: null,

@@ -10,21 +10,10 @@ export const parseMultilineEntries = (value?: string) =>
 				.filter(Boolean)
 		: [];
 
-export const parseWebhookHeaders = (value?: string) => {
-	const trimmed = value?.trim();
-	if (!trimmed) {
-		return undefined;
-	}
+export const parseWebhookHeaders = (headers?: string[]) => {
+	const parsedHeaders = headers?.map((header) => header.trim()).filter(Boolean) ?? [];
 
-	return JSON.parse(trimmed) as Record<string, string>;
-};
-
-const stringifyWebhookHeaders = (headers?: Record<string, string>) => {
-	if (!headers || Object.keys(headers).length === 0) {
-		return "";
-	}
-
-	return JSON.stringify(headers, null, 2);
+	return parsedHeaders.length > 0 ? parsedHeaders : undefined;
 };
 
 export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValues | undefined => {
@@ -44,10 +33,10 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		oneFileSystem: schedule.oneFileSystem ?? false,
 		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
 		preBackupWebhookUrl: schedule.preBackupWebhook?.url ?? "",
-		preBackupWebhookHeadersText: stringifyWebhookHeaders(schedule.preBackupWebhook?.headers),
+		preBackupWebhookHeaders: schedule.preBackupWebhook?.headers ?? [],
 		preBackupWebhookBody: schedule.preBackupWebhook?.body ?? "",
 		postBackupWebhookUrl: schedule.postBackupWebhook?.url ?? "",
-		postBackupWebhookHeadersText: stringifyWebhookHeaders(schedule.postBackupWebhook?.headers),
+		postBackupWebhookHeaders: schedule.postBackupWebhook?.headers ?? [],
 		postBackupWebhookBody: schedule.postBackupWebhook?.body ?? "",
 		maxRetries: schedule.maxRetries,
 		retryDelay: schedule.retryDelay,

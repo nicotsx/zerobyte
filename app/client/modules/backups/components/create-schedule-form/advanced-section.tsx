@@ -1,6 +1,6 @@
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Textarea } from "~/client/components/ui/textarea";
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
 import { Input } from "~/client/components/ui/input";
 
@@ -9,6 +9,10 @@ type AdvancedSectionProps = {
 };
 
 export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
+	const values = useWatch({ control: form.control });
+	const preBackupWebhookBody = values.preBackupWebhookBody?.trim();
+	const postBackupWebhookBody = values.postBackupWebhookBody?.trim();
+
 	return (
 		<>
 			<FormField
@@ -74,18 +78,22 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 			/>
 			<FormField
 				control={form.control}
-				name="preBackupWebhookHeadersText"
+				name="preBackupWebhookHeaders"
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Pre-backup webhook headers</FormLabel>
 						<FormControl>
 							<Textarea
 								{...field}
-								placeholder={'{\n  "Authorization": "Bearer token"\n}'}
+								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
+								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
+								onChange={(e) => field.onChange(e.target.value.split("\n"))}
 								className="font-mono text-sm min-h-24"
 							/>
 						</FormControl>
-						<FormDescription>Optional JSON object. Values are stored as plain text.</FormDescription>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -122,18 +130,22 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 			/>
 			<FormField
 				control={form.control}
-				name="postBackupWebhookHeadersText"
+				name="postBackupWebhookHeaders"
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Post-backup webhook headers</FormLabel>
 						<FormControl>
 							<Textarea
 								{...field}
-								placeholder={'{\n  "Authorization": "Bearer token"\n}'}
+								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
+								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
+								onChange={(e) => field.onChange(e.target.value.split("\n"))}
 								className="font-mono text-sm min-h-24"
 							/>
 						</FormControl>
-						<FormDescription>Optional JSON object. Values are stored as plain text.</FormDescription>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

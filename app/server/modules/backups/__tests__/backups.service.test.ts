@@ -416,12 +416,12 @@ describe("schedule webhooks", () => {
 			cronExpression: "0 0 * * *",
 			preBackupWebhook: {
 				url: "http://localhost:8080/stop",
-				headers: { authorization: "Bearer stop-token" },
+				headers: ["authorization: Bearer stop-token"],
 				body: '{"action":"stop"}',
 			},
 			postBackupWebhook: {
 				url: "http://localhost:8080/start",
-				headers: { authorization: "Bearer start-token" },
+				headers: ["authorization: Bearer start-token"],
 				body: '{"action":"start"}',
 			},
 			retryDelay: 15 * 60 * 1000,
@@ -430,12 +430,12 @@ describe("schedule webhooks", () => {
 
 		expect(schedule.preBackupWebhook).toEqual({
 			url: "http://localhost:8080/stop",
-			headers: { authorization: "Bearer stop-token" },
+			headers: ["authorization: Bearer stop-token"],
 			body: '{"action":"stop"}',
 		});
 		expect(schedule.postBackupWebhook).toEqual({
 			url: "http://localhost:8080/start",
-			headers: { authorization: "Bearer start-token" },
+			headers: ["authorization: Bearer start-token"],
 			body: '{"action":"start"}',
 		});
 	});

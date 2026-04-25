@@ -1,29 +1,13 @@
 import { z } from "zod";
 
-const webhookHeadersTextSchema = z
-	.string()
-	.optional()
-	.refine(
-		(value) => {
-			const trimmed = value?.trim();
-			if (!trimmed) {
-				return true;
-			}
-
-			try {
-				const parsed = JSON.parse(trimmed);
-				return (
-					parsed &&
-					typeof parsed === "object" &&
-					!Array.isArray(parsed) &&
-					Object.values(parsed).every((headerValue) => typeof headerValue === "string")
-				);
-			} catch {
-				return false;
-			}
-		},
-		{ message: "Headers must be a JSON object with string values" },
-	);
+const webhookHeadersSchema = z
+	.array(
+		z.string().refine((header) => !header.trim() || header.includes(":"), {
+			message: "Headers must use Key: Value format",
+		}),
+	)
+	.catch(() => [])
+	.optional();
 
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
@@ -46,10 +30,10 @@ export const internalFormSchema = z.object({
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
 	preBackupWebhookUrl: z.union([z.string().url(), z.literal("")]).optional(),
-	preBackupWebhookHeadersText: webhookHeadersTextSchema,
+	preBackupWebhookHeaders: webhookHeadersSchema,
 	preBackupWebhookBody: z.string().optional(),
 	postBackupWebhookUrl: z.union([z.string().url(), z.literal("")]).optional(),
-	postBackupWebhookHeadersText: webhookHeadersTextSchema,
+	postBackupWebhookHeaders: webhookHeadersSchema,
 	postBackupWebhookBody: z.string().optional(),
 	maxRetries: z.number().min(0).max(32).optional(),
 	retryDelay: z.number().min(1).max(1440).optional(),
@@ -74,16 +58,16 @@ export type BackupScheduleFormValues = Omit<
 	| "includePatterns"
 	| "customResticParamsText"
 	| "preBackupWebhookUrl"
-	| "preBackupWebhookHeadersText"
+	| "preBackupWebhookHeaders"
 	| "preBackupWebhookBody"
 	| "postBackupWebhookUrl"
-	| "postBackupWebhookHeadersText"
+	| "postBackupWebhookHeaders"
 	| "postBackupWebhookBody"
 > & {
 	excludePatterns?: string[];
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
-	preBackupWebhook?: { url: string; headers?: Record<string, string>; body?: string } | null;
-	postBackupWebhook?: { url: string; headers?: Record<string, string>; body?: string } | null;
+	preBackupWebhook?: { url: string; headers?: string[]; body?: string } | null;
+	postBackupWebhook?: { url: string; headers?: string[]; body?: string } | null;
 };

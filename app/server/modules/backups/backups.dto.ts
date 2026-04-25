@@ -95,7 +95,7 @@ export const getBackupScheduleDto = describeRoute({
 	},
 });
 
-const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
+export const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
 
 export type GetBackupScheduleForVolumeResponseDto = z.infer<typeof getBackupScheduleForVolumeResponse>;
 
@@ -143,7 +143,7 @@ export const createBackupScheduleBody = z.object({
 
 export type CreateBackupScheduleBody = z.infer<typeof createBackupScheduleBody>;
 
-const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+export const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type CreateBackupScheduleDto = z.infer<typeof createBackupScheduleResponse>;
 
@@ -190,7 +190,7 @@ export const updateBackupScheduleBody = z.object({
 
 export type UpdateBackupScheduleBody = z.infer<typeof updateBackupScheduleBody>;
 
-const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+export const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type UpdateBackupScheduleDto = z.infer<typeof updateBackupScheduleResponse>;
 

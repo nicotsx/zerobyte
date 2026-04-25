@@ -140,12 +140,12 @@ test("sends configured webhook headers and body without changing them", async ()
 			webhooks: {
 				pre: {
 					url: "http://localhost:8080/pre",
-					headers: { authorization: "Bearer pre-token", "content-type": "application/json" },
+					headers: ["authorization: Bearer pre-token", "content-type: application/json"],
 					body: '{"action":"stop"}',
 				},
 				post: {
 					url: "http://localhost:8080/post",
-					headers: { authorization: "Bearer post-token" },
+					headers: ["authorization: Bearer post-token"],
 					body: "start-container",
 				},
 			},
@@ -164,7 +164,10 @@ test("sends configured webhook headers and body without changing them", async ()
 
 test("fails without running restic when the pre-backup webhook fails", async () => {
 	const backupMock = vi.fn();
-	vi.stubGlobal("fetch", vi.fn(async () => new Response("stop failed", { status: 500 })));
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => new Response("stop failed", { status: 500 })),
+	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
 			backup: backupMock,
@@ -189,7 +192,10 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 });
 
 test("reports a post-backup webhook failure as completed warning details", async () => {
-	vi.stubGlobal("fetch", vi.fn(async () => new Response("start failed", { status: 500 })));
+	vi.stubGlobal(
+		"fetch",
+		vi.fn(async () => new Response("start failed", { status: 500 })),
+	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
 			backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }),

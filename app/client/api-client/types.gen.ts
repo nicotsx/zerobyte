@@ -2436,12 +2436,12 @@ export type ListBackupSchedulesResponses = {
         customResticParams: Array<string> | null;
         preBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries: number;
@@ -2724,12 +2724,12 @@ export type CreateBackupScheduleData = {
         customResticParams?: Array<string>;
         preBackupWebhook?: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook?: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries?: number;
@@ -2769,12 +2769,12 @@ export type CreateBackupScheduleResponses = {
         customResticParams: Array<string> | null;
         preBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries: number;
@@ -2848,12 +2848,12 @@ export type GetBackupScheduleResponses = {
         customResticParams: Array<string> | null;
         preBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries: number;
@@ -3135,12 +3135,12 @@ export type UpdateBackupScheduleData = {
         customResticParams?: Array<string>;
         preBackupWebhook?: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook?: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries?: number;
@@ -3182,12 +3182,12 @@ export type UpdateBackupScheduleResponses = {
         customResticParams: Array<string> | null;
         preBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries: number;
@@ -3241,12 +3241,12 @@ export type GetBackupScheduleForVolumeResponses = {
         customResticParams: Array<string> | null;
         preBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         postBackupWebhook: {
             url: string;
-            headers?: Record<string, string>;
+            headers?: Array<string>;
             body?: string;
         } | null;
         maxRetries: number;

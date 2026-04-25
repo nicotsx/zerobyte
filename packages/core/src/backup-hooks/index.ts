@@ -6,7 +6,10 @@ export const DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS = 60_000;
 
 export const backupWebhookConfigSchema = z.object({
 	url: z.url(),
-	headers: z.record(z.string(), z.string()).optional(),
+	headers: z
+		.array(z.string())
+		.catch(() => [])
+		.optional(),
 	body: z.string().optional(),
 });
 
@@ -138,8 +141,12 @@ const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookCo
 		headers.set("content-type", "application/json");
 	}
 
-	for (const [name, value] of Object.entries(config.headers ?? {})) {
-		headers.set(name, value);
+	for (const header of config.headers ?? []) {
+		const [name, ...valueParts] = header.split(":");
+
+		if (name && valueParts.length > 0) {
+			headers.set(name.trim(), valueParts.join(":").trim());
+		}
 	}
 
 	return {

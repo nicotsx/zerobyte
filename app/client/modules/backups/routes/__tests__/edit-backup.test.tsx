@@ -133,7 +133,7 @@ test("submits webhook headers and body as plain config values", async () => {
 	await userEvent.click(await screen.findByText("Advanced"));
 	await userEvent.type(screen.getByLabelText("Pre-backup webhook"), "http://localhost:8080/stop");
 	fireEvent.change(screen.getByLabelText("Pre-backup webhook headers"), {
-		target: { value: '{ "Authorization": "Bearer stop-token" }' },
+		target: { value: "Authorization: Bearer stop-token" },
 	});
 	fireEvent.change(screen.getByLabelText("Pre-backup webhook body"), {
 		target: { value: '{"action":"stop"}' },
@@ -143,7 +143,7 @@ test("submits webhook headers and body as plain config values", async () => {
 	await expect(submittedBody).resolves.toMatchObject({
 		preBackupWebhook: {
 			url: "http://localhost:8080/stop",
-			headers: { Authorization: "Bearer stop-token" },
+			headers: ["Authorization: Bearer stop-token"],
 			body: '{"action":"stop"}',
 		},
 	});

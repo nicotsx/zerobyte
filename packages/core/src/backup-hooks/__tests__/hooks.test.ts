@@ -198,7 +198,7 @@ test("sends configured webhook headers and body without replacing them", async (
 				pre: null,
 				post: {
 					url: "http://localhost:8080/post",
-					headers: { authorization: "Bearer post-token" },
+					headers: ["authorization: Bearer post-token"],
 					body: "start-container",
 				},
 			},

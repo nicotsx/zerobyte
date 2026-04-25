@@ -285,12 +285,12 @@ describe("backup execution - validation failures", () => {
 			repositoryId: repository.id,
 			preBackupWebhook: {
 				url: "http://localhost:8080/stop",
-				headers: { authorization: "Bearer stop-token" },
+				headers: ["authorization: Bearer stop-token"],
 				body: '{"action":"stop"}',
 			},
 			postBackupWebhook: {
 				url: "http://localhost:8080/start",
-				headers: { authorization: "Bearer start-token" },
+				headers: ["authorization: Bearer start-token"],
 				body: '{"action":"start"}',
 			},
 		});
@@ -304,12 +304,12 @@ describe("backup execution - validation failures", () => {
 					webhooks: {
 						pre: {
 							url: "http://localhost:8080/stop",
-							headers: { authorization: "Bearer stop-token" },
+							headers: ["authorization: Bearer stop-token"],
 							body: '{"action":"stop"}',
 						},
 						post: {
 							url: "http://localhost:8080/start",
-							headers: { authorization: "Bearer start-token" },
+							headers: ["authorization: Bearer start-token"],
 							body: '{"action":"start"}',
 						},
 					},
