@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { HardDrive, Plus, RotateCcw } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, HardDrive, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { EmptyState } from "~/client/components/empty-state";
 import { StatusDot } from "~/client/components/status-dot";
@@ -24,10 +24,32 @@ const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "
 	return statusMap[status];
 };
 
+type SortColumn = "name" | "backend" | "status";
+type SortDirection = "asc" | "desc";
+type VolumeRow = {
+	shortId: string;
+	name: string;
+	type: "directory" | "nfs" | "smb" | "webdav" | "sftp" | "rclone";
+	status: VolumeStatus;
+};
+
+const getSortValue = (column: SortColumn, volume: VolumeRow) => {
+	switch (column) {
+		case "name":
+			return volume.name;
+		case "backend":
+			return volume.type;
+		case "status":
+			return volume.status;
+	}
+};
+
 export function VolumesPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [backendFilter, setBackendFilter] = useState("");
+	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
+	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
 	const clearFilters = () => {
 		setSearchQuery("");
@@ -41,16 +63,48 @@ export function VolumesPage() {
 		...listVolumesOptions(),
 	});
 
+	const volumes = data as VolumeRow[];
+
+	const toggleSort = (column: SortColumn) => {
+		if (sortColumn === column) {
+			setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+			return;
+		}
+
+		setSortColumn(column);
+		setSortDirection("asc");
+	};
+
+	const renderSortIcon = (column: SortColumn) => {
+		if (sortColumn !== column) {
+			return <ArrowUpDown className="ml-2 h-3.5 w-3.5" />;
+		}
+
+		return sortDirection === "asc" ? (
+			<ArrowUp className="ml-2 h-3.5 w-3.5" />
+		) : (
+			<ArrowDown className="ml-2 h-3.5 w-3.5" />
+		);
+	};
+
 	const filteredVolumes =
-		data.filter((volume) => {
+		volumes.filter((volume) => {
 			const matchesSearch = volume.name.toLowerCase().includes(searchQuery.toLowerCase());
 			const matchesStatus = !statusFilter || volume.status === statusFilter;
 			const matchesBackend = !backendFilter || volume.type === backendFilter;
 			return matchesSearch && matchesStatus && matchesBackend;
 		}) || [];
 
-	const hasNoVolumes = data.length === 0;
-	const hasNoFilteredVolumes = filteredVolumes.length === 0 && !hasNoVolumes;
+	const sortedFilteredVolumes = [...filteredVolumes].sort((a, b) => {
+		const valueA = getSortValue(sortColumn, a).toLowerCase();
+		const valueB = getSortValue(sortColumn, b).toLowerCase();
+		const result = valueA.localeCompare(valueB);
+
+		return sortDirection === "asc" ? result : -result;
+	});
+
+	const hasNoVolumes = volumes.length === 0;
+	const hasNoFilteredVolumes = sortedFilteredVolumes.length === 0 && !hasNoVolumes;
 
 	if (hasNoVolumes) {
 		return (
@@ -117,9 +171,43 @@ export function VolumesPage() {
 				<Table className="border-t">
 					<TableHeader className="bg-card-header">
 						<TableRow>
-							<TableHead className="w-25 uppercase">Name</TableHead>
-							<TableHead className="uppercase text-left">Backend</TableHead>
-							<TableHead className="uppercase text-center">Status</TableHead>
+							<TableHead className="w-25 uppercase group/sort">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("name")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
+								>
+									Name
+									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("name")}</div>
+								</Button>
+							</TableHead>
+							<TableHead className="uppercase text-left">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("backend")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
+								>
+									Backend
+									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("backend")}</div>
+								</Button>
+							</TableHead>
+							<TableHead className="uppercase text-center">
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => toggleSort("status")}
+									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort relative"
+								>
+									<span className="relative flex w-full items-center justify-center">
+										Status
+										<span className="lg:absolute lg:-right-6 lg:top-1/2 lg:-translate-y-1/2 lg:invisible lg:group-hover/sort:visible">
+											{renderSortIcon("status")}
+										</span>
+									</span>
+								</Button>
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -134,7 +222,7 @@ export function VolumesPage() {
 								</div>
 							</TableCell>
 						</TableRow>
-						{filteredVolumes.map((volume) => (
+						{sortedFilteredVolumes.map((volume) => (
 							<TableRow
 								key={volume.shortId}
 								className="hover:bg-muted/50 hover:cursor-pointer transition-colors h-12"
@@ -164,8 +252,8 @@ export function VolumesPage() {
 					"No volumes match filters."
 				) : (
 					<span className="font-mono">
-						<span className="text-strong-accent font-bold">{filteredVolumes.length}</span> volume
-						{filteredVolumes.length > 1 ? "s" : ""}
+						<span className="text-strong-accent font-bold">{sortedFilteredVolumes.length}</span> volume
+						{sortedFilteredVolumes.length > 1 ? "s" : ""}
 					</span>
 				)}
 			</div>
