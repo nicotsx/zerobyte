@@ -1,4 +1,5 @@
 import { useWatch, type UseFormReturn } from "react-hook-form";
+import { useState } from "react";
 import type { FormValues } from "../create-volume-form";
 import {
 	FormControl,
@@ -12,6 +13,8 @@ import { Input } from "../../../../components/ui/input";
 import { SecretInput } from "../../../../components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
+import { Button } from "~/client/components/ui/button";
+import { generateSshKeyPairPem } from "~/utils/ssh";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
@@ -19,6 +22,44 @@ type Props = {
 
 export const SFTPForm = ({ form }: Props) => {
 	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
+	const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+	const [keyGenerationError, setKeyGenerationError] = useState<string | null>(null);
+	const [generatedPublicKey, setGeneratedPublicKey] = useState<string | null>(null);
+	const [copyPublicKeyMessage, setCopyPublicKeyMessage] = useState<string | null>(null);
+
+	const handleGenerateKey = async () => {
+		setIsGeneratingKey(true);
+		setKeyGenerationError(null);
+
+		try {
+			const { privateKeyPem, publicKeyPem } = await generateSshKeyPairPem();
+			form.setValue("privateKey", privateKeyPem, {
+				shouldDirty: true,
+				shouldTouch: true,
+				shouldValidate: true,
+			});
+			setGeneratedPublicKey(publicKeyPem);
+		} catch {
+			setGeneratedPublicKey(null);
+			setKeyGenerationError("Could not generate SSH key in this browser.");
+		} finally {
+			setIsGeneratingKey(false);
+		}
+	};
+
+	const handleCopyPublicKey = async () => {
+		setCopyPublicKeyMessage(null);
+		if (!generatedPublicKey) {
+			setKeyGenerationError("Generate a key first to copy its public key.");
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(generatedPublicKey);
+			setCopyPublicKeyMessage("Public key copied to clipboard.");
+		} catch {
+			setKeyGenerationError("Could not copy public key to clipboard.");
+		}
+	};
 
 	return (
 		<>
@@ -100,6 +141,29 @@ export const SFTPForm = ({ form }: Props) => {
 						</FormControl>
 						<FormDescription>SSH private key for authentication (optional if using password).</FormDescription>
 						<FormMessage />
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void handleGenerateKey()}
+								disabled={isGeneratingKey}
+							>
+								{isGeneratingKey ? "Generating..." : "Generate SSH Key Pair"}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void handleCopyPublicKey()}
+								disabled={isGeneratingKey || !generatedPublicKey}
+							>
+								Copy Public Key
+							</Button>
+						</div>
+						<FormDescription>The key is generated privately in your browser. Don't forget to save it!</FormDescription>
+						{keyGenerationError && <FormMessage className="text-xs text-destructive">{keyGenerationError}</FormMessage>}
+						{copyPublicKeyMessage && <FormMessage className="text-xs text-success">{copyPublicKeyMessage}</FormMessage>}
 					</FormItem>
 				)}
 			/>
