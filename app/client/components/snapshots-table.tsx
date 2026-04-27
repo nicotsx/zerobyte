@@ -52,6 +52,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const { formatDateTime } = useTimeFormat();
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 	const [showReTagDialog, setShowReTagDialog] = useState(false);
 	const [targetScheduleId, setTargetScheduleId] = useState<string>("");
@@ -70,6 +71,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 			void queryClient.invalidateQueries({ queryKey });
 			setShowBulkDeleteConfirm(false);
 			setSelectedIds(new Set());
+			setLastSelectedId(null);
 		},
 	});
 
@@ -81,6 +83,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 		onSuccess: () => {
 			setShowReTagDialog(false);
 			setSelectedIds(new Set());
+			setLastSelectedId(null);
 			setTargetScheduleId("");
 		},
 	});
@@ -92,9 +95,43 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const toggleSelectAll = () => {
 		if (selectedIds.size === snapshots.length) {
 			setSelectedIds(new Set());
+			setLastSelectedId(null);
 		} else {
 			setSelectedIds(new Set(snapshots.map((s) => s.short_id)));
+			setLastSelectedId(snapshots.length > 0 ? snapshots[snapshots.length - 1].short_id : null);
 		}
+	};
+
+	const handleSnapshotSelection = (snapshotId: string, event?: React.MouseEvent | React.KeyboardEvent) => {
+		const isShiftClick = event && "shiftKey" in event && event.shiftKey;
+
+		if (isShiftClick && lastSelectedId) {
+			// Range selection
+			const lastIndex = snapshots.findIndex((s) => s.short_id === lastSelectedId);
+			const currentIndex = snapshots.findIndex((s) => s.short_id === snapshotId);
+
+			if (lastIndex !== -1 && currentIndex !== -1) {
+				const start = Math.min(lastIndex, currentIndex);
+				const end = Math.max(lastIndex, currentIndex);
+				const rangeIds = new Set(snapshots.slice(start, end + 1).map((s) => s.short_id));
+
+				// Add selected range to existing selection
+				const newSelected = new Set(selectedIds);
+				rangeIds.forEach((id) => newSelected.add(id));
+				setSelectedIds(newSelected);
+			}
+		} else {
+			// Single selection toggle
+			const newSelected = new Set(selectedIds);
+			if (newSelected.has(snapshotId)) {
+				newSelected.delete(snapshotId);
+			} else {
+				newSelected.add(snapshotId);
+			}
+			setSelectedIds(newSelected);
+		}
+
+		setLastSelectedId(snapshotId);
 	};
 
 	const handleBulkDelete = () => {
@@ -162,17 +199,17 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 									className={cn("hover:bg-accent/50 cursor-pointer", isSelected && "bg-accent/30")}
 									onClick={() => handleRowClick(snapshot.short_id)}
 								>
-									<TableCell onClick={(e) => e.stopPropagation()}>
+									<TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 										<Checkbox
 											checked={isSelected}
 											onCheckedChange={() => {
-												const newSelected = new Set(selectedIds);
-												if (newSelected.has(snapshot.short_id)) {
-													newSelected.delete(snapshot.short_id);
-												} else {
-													newSelected.add(snapshot.short_id);
+												handleSnapshotSelection(snapshot.short_id);
+											}}
+											onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+												e.stopPropagation();
+												if (e.shiftKey) {
+													handleSnapshotSelection(snapshot.short_id, e);
 												}
-												setSelectedIds(newSelected);
 											}}
 											aria-label={`Select snapshot ${snapshot.short_id}` as string}
 										/>
@@ -189,7 +226,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 												hidden={!backup}
 												to={backup ? `/backups/$backupId` : "."}
 												params={backup ? { backupId: backup.shortId } : {}}
-												onClick={(e) => e.stopPropagation()}
+												onClick={(e: React.MouseEvent) => e.stopPropagation()}
 												className="hover:underline"
 											>
 												<span className="text-sm">{backup ? backup.name : "-"}</span>
@@ -216,7 +253,9 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 									<TableCell className="hidden md:table-cell">
 										<div className="flex items-center justify-end gap-2">
 											<Clock className="h-4 w-4 text-muted-foreground" />
-											<span className="text-sm text-muted-foreground">{formatDuration(snapshot.duration / 1000)}</span>
+											<span className="text-sm text-muted-foreground">
+												{formatDuration(snapshot.duration / 1000)}
+											</span>
 										</div>
 									</TableCell>
 								</TableRow>
@@ -234,7 +273,10 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 rounded-full"
-								onClick={() => setSelectedIds(new Set())}
+								onClick={() => {
+									setSelectedIds(new Set());
+									setLastSelectedId(null);
+								}}
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -269,8 +311,8 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete {selectedIds.size} snapshots?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete the selected snapshots and all their data from
-							the repository.
+							This action cannot be undone. This will permanently delete the selected snapshots and all
+							their data from the repository.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
@@ -291,8 +333,8 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 					<DialogHeader>
 						<DialogTitle>Re-tag snapshots</DialogTitle>
 						<DialogDescription>
-							Select a backup schedule to re-tag the {selectedIds.size} selected snapshots. All {selectedIds.size}{" "}
-							selected snapshots will be associated with the chosen schedule.
+							Select a backup schedule to re-tag the {selectedIds.size} selected snapshots. All{" "}
+							{selectedIds.size} selected snapshots will be associated with the chosen schedule.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="py-4">
