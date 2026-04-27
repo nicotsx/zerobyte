@@ -119,6 +119,15 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				const newSelected = new Set(selectedIds);
 				rangeIds.forEach((id) => newSelected.add(id));
 				setSelectedIds(newSelected);
+			} else {
+				// Fallback to single-toggle when range selection fails due to stale lastSelectedId
+				const newSelected = new Set(selectedIds);
+				if (newSelected.has(snapshotId)) {
+					newSelected.delete(snapshotId);
+				} else {
+					newSelected.add(snapshotId);
+				}
+				setSelectedIds(newSelected);
 			}
 		} else {
 			// Single selection toggle
@@ -202,14 +211,9 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 									<TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 										<Checkbox
 											checked={isSelected}
-											onCheckedChange={() => {
-												handleSnapshotSelection(snapshot.short_id);
-											}}
 											onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
 												e.stopPropagation();
-												if (e.shiftKey) {
-													handleSnapshotSelection(snapshot.short_id, e);
-												}
+												handleSnapshotSelection(snapshot.short_id, e);
 											}}
 											aria-label={`Select snapshot ${snapshot.short_id}` as string}
 										/>
