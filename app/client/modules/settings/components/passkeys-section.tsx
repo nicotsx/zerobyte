@@ -84,38 +84,54 @@ export function PasskeysSection() {
 			return;
 		}
 		setIsRenaming(true);
-		const { error } = await authClient.$fetch("/passkey/update-passkey", {
-			method: "POST",
-			body: { id: renameTarget.id, name },
-		});
-		setIsRenaming(false);
-		if (error) {
-			logger.error(error);
-			toast.error("Failed to rename passkey", { description: error.message });
-			return;
+		try {
+			const { error } = await authClient.$fetch("/passkey/update-passkey", {
+				method: "POST",
+				body: { id: renameTarget.id, name },
+			});
+			if (error) {
+				logger.error(error);
+				toast.error("Failed to rename passkey", { description: error.message });
+				return;
+			}
+			toast.success("Passkey renamed");
+			setRenameTarget(null);
+			setRenameValue("");
+			await refetch();
+		} catch (err) {
+			logger.error(err);
+			toast.error("Failed to rename passkey", {
+				description: err instanceof Error ? err.message : "Unknown error",
+			});
+		} finally {
+			setIsRenaming(false);
 		}
-		toast.success("Passkey renamed");
-		setRenameTarget(null);
-		setRenameValue("");
-		await refetch();
 	};
 
 	const handleDelete = async () => {
 		if (!deleteTarget) return;
 		setIsDeleting(true);
-		const { error } = await authClient.$fetch("/passkey/delete-passkey", {
-			method: "POST",
-			body: { id: deleteTarget.id },
-		});
-		setIsDeleting(false);
-		if (error) {
-			logger.error(error);
-			toast.error("Failed to delete passkey", { description: error.message });
-			return;
+		try {
+			const { error } = await authClient.$fetch("/passkey/delete-passkey", {
+				method: "POST",
+				body: { id: deleteTarget.id },
+			});
+			if (error) {
+				logger.error(error);
+				toast.error("Failed to delete passkey", { description: error.message });
+				return;
+			}
+			toast.success("Passkey deleted");
+			setDeleteTarget(null);
+			await refetch();
+		} catch (err) {
+			logger.error(err);
+			toast.error("Failed to delete passkey", {
+				description: err instanceof Error ? err.message : "Unknown error",
+			});
+		} finally {
+			setIsDeleting(false);
 		}
-		toast.success("Passkey deleted");
-		setDeleteTarget(null);
-		await refetch();
 	};
 
 	const list = (passkeys ?? []) as PasskeyEntry[];
@@ -160,6 +176,8 @@ export function PasskeysSection() {
 									<Button
 										variant="outline"
 										size="sm"
+										aria-label={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
+										title={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
 										onClick={() => {
 											setRenameTarget(p);
 											setRenameValue(p.name ?? "");
@@ -167,7 +185,13 @@ export function PasskeysSection() {
 									>
 										<Pencil className="h-4 w-4" />
 									</Button>
-									<Button variant="destructive" size="sm" onClick={() => setDeleteTarget(p)}>
+									<Button
+										variant="destructive"
+										size="sm"
+										aria-label={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
+										title={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
+										onClick={() => setDeleteTarget(p)}
+									>
 										<Trash2 className="h-4 w-4" />
 									</Button>
 								</div>
