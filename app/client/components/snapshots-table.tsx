@@ -105,12 +105,13 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const handleSnapshotSelection = (snapshotId: string, event?: React.MouseEvent | React.KeyboardEvent) => {
 		const isShiftClick = event && "shiftKey" in event && event.shiftKey;
 
+		// Attempt range selection first
 		if (isShiftClick && lastSelectedId) {
-			// Range selection
 			const lastIndex = snapshots.findIndex((s) => s.short_id === lastSelectedId);
 			const currentIndex = snapshots.findIndex((s) => s.short_id === snapshotId);
 
 			if (lastIndex !== -1 && currentIndex !== -1) {
+				// Valid range selection
 				const start = Math.min(lastIndex, currentIndex);
 				const end = Math.max(lastIndex, currentIndex);
 				const rangeIds = new Set(snapshots.slice(start, end + 1).map((s) => s.short_id));
@@ -119,27 +120,19 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				const newSelected = new Set(selectedIds);
 				rangeIds.forEach((id) => newSelected.add(id));
 				setSelectedIds(newSelected);
-			} else {
-				// Fallback to single-toggle when range selection fails due to stale lastSelectedId
-				const newSelected = new Set(selectedIds);
-				if (newSelected.has(snapshotId)) {
-					newSelected.delete(snapshotId);
-				} else {
-					newSelected.add(snapshotId);
-				}
-				setSelectedIds(newSelected);
+				setLastSelectedId(snapshotId);
+				return;
 			}
-		} else {
-			// Single selection toggle
-			const newSelected = new Set(selectedIds);
-			if (newSelected.has(snapshotId)) {
-				newSelected.delete(snapshotId);
-			} else {
-				newSelected.add(snapshotId);
-			}
-			setSelectedIds(newSelected);
 		}
 
+		// Single selection toggle (used as fallback or when shift-click not applicable)
+		const newSelected = new Set(selectedIds);
+		if (newSelected.has(snapshotId)) {
+			newSelected.delete(snapshotId);
+		} else {
+			newSelected.add(snapshotId);
+		}
+		setSelectedIds(newSelected);
 		setLastSelectedId(snapshotId);
 	};
 
