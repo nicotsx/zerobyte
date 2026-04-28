@@ -76,6 +76,7 @@ export const relations = defineRelations(schema, (r) => ({
 		sessions: r.many.sessionsTable(),
 		members: r.many.member(),
 		twoFactors: r.many.twoFactor(),
+		passkeys: r.many.passkey(),
 		ssoProviders: r.many.ssoProvider(),
 		organizations: r.many.organization({
 			from: r.usersTable.id.through(r.member.userId),
@@ -92,6 +93,12 @@ export const relations = defineRelations(schema, (r) => ({
 	twoFactor: {
 		usersTable: r.one.usersTable({
 			from: r.twoFactor.userId,
+			to: r.usersTable.id,
+		}),
+	},
+	passkey: {
+		usersTable: r.one.usersTable({
+			from: r.passkey.userId,
 			to: r.usersTable.id,
 		}),
 	},
