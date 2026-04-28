@@ -8,6 +8,7 @@ import {
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
 import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
@@ -168,6 +169,10 @@ export const auth = betterAuth({
 				storeBackupCodes: "encrypted",
 				amount: 5,
 			},
+		}),
+		passkey({
+			rpID: new URL(config.baseUrl).hostname,
+			rpName: "Zerobyte",
 		}),
 		tanstackStartCookies(),
 		...(process.env.NODE_ENV === "test" ? [testUtils()] : []),
