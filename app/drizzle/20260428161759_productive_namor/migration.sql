@@ -14,4 +14,4 @@ CREATE TABLE `passkey` (
 );
 --> statement-breakpoint
 CREATE INDEX `passkey_userId_idx` ON `passkey` (`user_id`);--> statement-breakpoint
-CREATE INDEX `passkey_credentialID_idx` ON `passkey` (`credential_id`);
+CREATE UNIQUE INDEX `passkey_credentialID_idx` ON `passkey` (`credential_id`);
