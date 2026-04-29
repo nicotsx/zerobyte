@@ -2,18 +2,25 @@ import type { BackupSchedule } from "~/client/lib/types";
 import { cronToFormValues } from "../../lib/cron-utils";
 import type { InternalFormValues } from "./types";
 
-export const parseMultilineEntries = (value?: string) =>
-	value
-		? value
-				.split("\n")
-				.map((entry) => entry.trim())
-				.filter(Boolean)
-		: [];
+export const parseMultilineEntries = (value?: string) => {
+	if (!value) {
+		return [];
+	}
 
-export const parseWebhookHeaders = (headers?: string[]) => {
-	const parsedHeaders = headers?.map((header) => header.trim()).filter(Boolean) ?? [];
+	return value
+		.split("\n")
+		.map((entry) => entry.trim())
+		.filter(Boolean);
+};
 
-	return parsedHeaders.length > 0 ? parsedHeaders : undefined;
+export const toWebhookConfig = (url?: string, headers?: string, body?: string) => {
+	const trimmedUrl = url?.trim();
+	const trimmedBody = body?.trim();
+	const parsedHeaders = parseMultilineEntries(headers);
+
+	return trimmedUrl
+		? { url: trimmedUrl, headers: parsedHeaders.length > 0 ? parsedHeaders : undefined, body: trimmedBody || undefined }
+		: null;
 };
 
 export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalFormValues | undefined => {
@@ -32,12 +39,12 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
 		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
-		preBackupWebhookUrl: schedule.preBackupWebhook?.url ?? "",
-		preBackupWebhookHeaders: schedule.preBackupWebhook?.headers ?? [],
-		preBackupWebhookBody: schedule.preBackupWebhook?.body ?? "",
-		postBackupWebhookUrl: schedule.postBackupWebhook?.url ?? "",
-		postBackupWebhookHeaders: schedule.postBackupWebhook?.headers ?? [],
-		postBackupWebhookBody: schedule.postBackupWebhook?.body ?? "",
+		preBackupWebhookUrl: schedule.backupWebhooks?.pre?.url ?? "",
+		preBackupWebhookHeadersText: schedule.backupWebhooks?.pre?.headers?.join("\n") ?? "",
+		preBackupWebhookBody: schedule.backupWebhooks?.pre?.body ?? "",
+		postBackupWebhookUrl: schedule.backupWebhooks?.post?.url ?? "",
+		postBackupWebhookHeadersText: schedule.backupWebhooks?.post?.headers?.join("\n") ?? "",
+		postBackupWebhookBody: schedule.backupWebhooks?.post?.body ?? "",
 		maxRetries: schedule.maxRetries,
 		retryDelay: schedule.retryDelay,
 		...cronValues,

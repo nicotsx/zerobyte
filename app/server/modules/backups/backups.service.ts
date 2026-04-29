@@ -104,8 +104,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			customResticParams: data.customResticParams ?? [],
-			preBackupWebhook: data.preBackupWebhook ?? null,
-			postBackupWebhook: data.postBackupWebhook ?? null,
+			backupWebhooks: data.backupWebhooks ?? null,
 			nextBackupAt: nextBackupAt,
 			shortId: generateShortId(),
 			maxRetries: data.maxRetries,
@@ -168,8 +167,7 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 		.set({
 			...data,
 			repositoryId: repository.id,
-			preBackupWebhook: data.preBackupWebhook === undefined ? schedule.preBackupWebhook : data.preBackupWebhook,
-			postBackupWebhook: data.postBackupWebhook === undefined ? schedule.postBackupWebhook : data.postBackupWebhook,
+			backupWebhooks: data.backupWebhooks === undefined ? schedule.backupWebhooks : data.backupWebhooks,
 			nextBackupAt,
 			updatedAt: Date.now(),
 		})

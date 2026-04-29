@@ -8,6 +8,72 @@ type AdvancedSectionProps = {
 	form: UseFormReturn<InternalFormValues>;
 };
 
+type WebhookFieldsProps = {
+	form: UseFormReturn<InternalFormValues>;
+	phase: "pre" | "post";
+	urlPlaceholder: string;
+	bodyPlaceholder: string;
+	description: string;
+};
+
+const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, description }: WebhookFieldsProps) => {
+	const labelPrefix = phase === "pre" ? "Pre-backup" : "Post-backup";
+	const fieldPrefix = phase === "pre" ? "preBackupWebhook" : "postBackupWebhook";
+
+	return (
+		<>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}Url`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook</FormLabel>
+						<FormControl>
+							<Input {...field} type="url" placeholder={urlPlaceholder} />
+						</FormControl>
+						<FormDescription>{description}</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}HeadersText`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook headers</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
+								className="font-mono text-sm min-h-24"
+							/>
+						</FormControl>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}Body`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook body</FormLabel>
+						<FormControl>
+							<Textarea {...field} placeholder={bodyPlaceholder} className="font-mono text-sm min-h-24" />
+						</FormControl>
+						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+		</>
+	);
+};
+
 export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 	return (
 		<>
@@ -56,109 +122,19 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 					</FormItem>
 				)}
 			/>
-			<FormField
-				control={form.control}
-				name="preBackupWebhookUrl"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Pre-backup webhook</FormLabel>
-						<FormControl>
-							<Input {...field} type="url" placeholder="http://host.docker.internal:8080/stop" />
-						</FormControl>
-						<FormDescription>
-							Called with POST before restic starts. A non-2xx response stops the backup.
-						</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
+			<WebhookFields
+				form={form}
+				phase="pre"
+				urlPlaceholder="http://host.docker.internal:8080/stop"
+				bodyPlaceholder='{"action":"stop"}'
+				description="Called with POST before restic starts. A non-2xx response stops the backup."
 			/>
-			<FormField
-				control={form.control}
-				name="preBackupWebhookHeaders"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Pre-backup webhook headers</FormLabel>
-						<FormControl>
-							<Textarea
-								{...field}
-								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
-								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
-								onChange={(e) => field.onChange(e.target.value.split("\n"))}
-								className="font-mono text-sm min-h-24"
-							/>
-						</FormControl>
-						<FormDescription>
-							One header per line in Key: Value format. Values are stored as plain text.
-						</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
-				name="preBackupWebhookBody"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Pre-backup webhook body</FormLabel>
-						<FormControl>
-							<Textarea {...field} placeholder='{"action":"stop"}' className="font-mono text-sm min-h-24" />
-						</FormControl>
-						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
-				name="postBackupWebhookUrl"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Post-backup webhook</FormLabel>
-						<FormControl>
-							<Input {...field} type="url" placeholder="http://host.docker.internal:8080/start" />
-						</FormControl>
-						<FormDescription>
-							Called with POST after restic finishes, including failed or cancelled runs.
-						</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
-				name="postBackupWebhookHeaders"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Post-backup webhook headers</FormLabel>
-						<FormControl>
-							<Textarea
-								{...field}
-								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
-								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
-								onChange={(e) => field.onChange(e.target.value.split("\n"))}
-								className="font-mono text-sm min-h-24"
-							/>
-						</FormControl>
-						<FormDescription>
-							One header per line in Key: Value format. Values are stored as plain text.
-						</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
-			/>
-			<FormField
-				control={form.control}
-				name="postBackupWebhookBody"
-				render={({ field }) => (
-					<FormItem>
-						<FormLabel>Post-backup webhook body</FormLabel>
-						<FormControl>
-							<Textarea {...field} placeholder='{"action":"start"}' className="font-mono text-sm min-h-24" />
-						</FormControl>
-						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
-						<FormMessage />
-					</FormItem>
-				)}
+			<WebhookFields
+				form={form}
+				phase="post"
+				urlPlaceholder="http://host.docker.internal:8080/start"
+				bodyPlaceholder='{"action":"start"}'
+				description="Called with POST after restic finishes, including failed or cancelled runs."
 			/>
 			<FormField
 				control={form.control}

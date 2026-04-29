@@ -211,7 +211,7 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 	expect(backupMock).not.toHaveBeenCalled();
 	expect(failed?.success).toBe(true);
 	if (failed?.success && failed.data.type === "backup.failed") {
-		expect(failed.data.payload.errorDetails).toContain("Pre-backup webhook returned HTTP 500");
+		expect(failed.data.payload.errorDetails).toContain("pre webhook returned HTTP 500");
 	}
 });
 
@@ -239,7 +239,40 @@ test("reports a post-backup webhook failure as completed warning details", async
 	const completed = messages.find((message) => message?.success && message.data.type === "backup.completed");
 	expect(completed?.success).toBe(true);
 	if (completed?.success && completed.data.type === "backup.completed") {
-		expect(completed.data.payload.warningDetails).toContain("Post-backup webhook returned HTTP 500");
+		expect(completed.data.payload.warningDetails).toContain("post webhook returned HTTP 500");
+	}
+});
+
+test("includes post-backup webhook failure details when a backup is cancelled", async () => {
+	server.use(
+		http.post("http://localhost:8080/post", () => {
+			return new HttpResponse("start failed", { status: 500 });
+		}),
+	);
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
+		fromPartial({
+			backup: (_config: unknown, _source: string, options: { signal: AbortSignal }) =>
+				Effect.sync(() => {
+					vi.spyOn(options.signal, "aborted", "get").mockReturnValue(true);
+					vi.spyOn(options.signal, "reason", "get").mockReturnValue(new Error("Backup was cancelled"));
+					return { exitCode: 0, result: null, warningDetails: null };
+				}),
+		}),
+	);
+
+	const messages = await runBackupCommand(
+		createRunPayload({
+			webhooks: {
+				pre: null,
+				post: { url: "http://localhost:8080/post" },
+			},
+		}),
+	);
+
+	const cancelled = messages.find((message) => message?.success && message.data.type === "backup.cancelled");
+	expect(cancelled?.success).toBe(true);
+	if (cancelled?.success && cancelled.data.type === "backup.cancelled") {
+		expect(cancelled.data.payload.message).toContain("post webhook returned HTTP 500: start failed");
 	}
 });
 

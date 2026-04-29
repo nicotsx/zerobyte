@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
-import { runBackupWithWebhooks } from "../index.js";
+import { runBackupLifecycle } from "../index.js";
 
 const server = setupServer();
 
@@ -23,6 +23,31 @@ const metadata = {
 	scheduleId: "schedule-1",
 	organizationId: "org-1",
 	sourcePath: "/tmp/source",
+};
+
+const defaultSignal = () => new AbortController().signal;
+
+const completedBackup = <TResult>(result: TResult, exitCode = 0, warningDetails: string | null = null) =>
+	Effect.succeed({ exitCode, result, warningDetails });
+
+const runWithHooks = <TResult>(
+	overrides: Omit<Partial<Parameters<typeof runBackupLifecycle<TResult>>[0]>, "restic"> & {
+		runBackup: () => Effect.Effect<{ exitCode: number; result: TResult; warningDetails: string | null }, unknown>;
+	},
+) => {
+	const { runBackup, ...options } = overrides;
+
+	return Effect.runPromise(
+		runBackupLifecycle({
+			...metadata,
+			restic: { backup: runBackup },
+			repositoryConfig: { backend: "local", path: "/tmp/repository" },
+			options: {},
+			webhooks: { pre: null, post: null },
+			signal: defaultSignal(),
+			...options,
+		}),
+	);
 };
 
 type WebhookBody = {
@@ -54,21 +79,17 @@ test("runs pre and post webhooks around a successful backup", async () => {
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: { url: "http://localhost:8080/pre" },
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: new AbortController().signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					events.push("backup");
-					return { status: "completed" as const, exitCode: 0, result: "snapshot-1", warningDetails: null };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre" },
+			post: { url: "http://localhost:8080/post" },
+		},
+		runBackup: () =>
+			Effect.sync(() => {
+				events.push("backup");
+				return { exitCode: 0, result: "snapshot-1", warningDetails: null };
+			}),
+	});
 
 	expect(events).toEqual(["pre", "backup", "post"]);
 	expect(preBody).toMatchObject({ ...metadata, phase: "pre", event: "backup.pre" });
@@ -86,23 +107,13 @@ test("sends warning details to the post-backup webhook for a non-zero completed 
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: new AbortController().signal,
-			runBackup: () =>
-				Effect.succeed({
-					status: "completed" as const,
-					exitCode: 3,
-					result: "snapshot-1",
-					warningDetails: "some files could not be read",
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		runBackup: () => completedBackup("snapshot-1", 3, "some files could not be read"),
+	});
 
 	expect(postBody).toMatchObject({ status: "warning", error: "some files could not be read" });
 	expect(result).toEqual({
@@ -123,17 +134,13 @@ test("sends error details to the post-backup webhook when the backup fails", asy
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: new AbortController().signal,
-			runBackup: () => Effect.succeed({ status: "failed" as const, error: new Error("restic failed") }),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		runBackup: () => Effect.fail(new Error("restic failed")),
+	});
 
 	expect(postBody).toMatchObject({ status: "error", error: "restic failed" });
 	expect(result).toEqual({ status: "failed", error: "restic failed" });
@@ -153,27 +160,23 @@ test("fails without running the backup or post webhook when the pre-backup webho
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: { url: "http://localhost:8080/pre" },
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: new AbortController().signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					backupRan = true;
-					return { status: "completed" as const, exitCode: 0, result: null, warningDetails: null };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre" },
+			post: { url: "http://localhost:8080/post" },
+		},
+		runBackup: () =>
+			Effect.sync(() => {
+				backupRan = true;
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
 
 	expect(backupRan).toBe(false);
 	expect(postRan).toBe(false);
 	expect(result.status).toBe("failed");
 	if (result.status === "failed") {
-		expect(result.error).toContain("Pre-backup webhook returned HTTP 500: stop failed");
+		expect(result.error).toContain("pre webhook returned HTTP 500: stop failed");
 	}
 });
 
@@ -191,22 +194,17 @@ test("sends configured webhook headers and body without replacing them", async (
 		}),
 	);
 
-	await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: {
-					url: "http://localhost:8080/post",
-					headers: ["authorization: Bearer post-token"],
-					body: "start-container",
-				},
+	await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: {
+				url: "http://localhost:8080/post",
+				headers: ["authorization: Bearer post-token"],
+				body: "start-container",
 			},
-			signal: new AbortController().signal,
-			runBackup: () =>
-				Effect.succeed({ status: "completed" as const, exitCode: 0, result: null, warningDetails: null }),
-		}),
-	);
+		},
+		runBackup: () => completedBackup(null),
+	});
 
 	expect(body).toBe("start-container");
 	expect(authorization).toBe("Bearer post-token");
@@ -224,21 +222,18 @@ test("runs the post-backup webhook after cancellation without using the cancelle
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: abortController.signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					abortController.abort(new Error("Backup was cancelled"));
-					return { status: "failed" as const, error: new Error("restic cancelled") };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.gen(function* () {
+				abortController.abort(new Error("Backup was cancelled"));
+				return yield* Effect.fail(new Error("restic cancelled"));
+			}),
+	});
 
 	expect(postBody).toMatchObject({ status: "cancelled", error: "restic cancelled" });
 	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });
@@ -255,21 +250,18 @@ test("runs the post-backup webhook when cancellation returns a completed backup 
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: abortController.signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					abortController.abort(new Error("Backup was cancelled"));
-					return { status: "completed" as const, exitCode: 0, result: null, warningDetails: null };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.sync(() => {
+				abortController.abort(new Error("Backup was cancelled"));
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
 
 	expect(postBody).toMatchObject({ status: "cancelled" });
 	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });
@@ -286,27 +278,24 @@ test("includes post-backup webhook failure details after cancellation", async ()
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: abortController.signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					abortController.abort(new Error("Backup was cancelled"));
-					return { status: "failed" as const, error: new Error("restic cancelled") };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.gen(function* () {
+				abortController.abort(new Error("Backup was cancelled"));
+				return yield* Effect.fail(new Error("restic cancelled"));
+			}),
+	});
 
 	expect(postBody).toMatchObject({ status: "cancelled", error: "restic cancelled" });
 	expect(result.status).toBe("cancelled");
 	if (result.status === "cancelled") {
 		expect(result.message).toContain("Backup was cancelled");
-		expect(result.message).toContain("Post-backup webhook returned HTTP 500: start failed");
+		expect(result.message).toContain("post webhook returned HTTP 500: start failed");
 	}
 });
 
@@ -321,27 +310,24 @@ test("includes post-backup webhook failure details after completed cancellation"
 		}),
 	);
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: null,
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: abortController.signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					abortController.abort(new Error("Backup was cancelled"));
-					return { status: "completed" as const, exitCode: 0, result: null, warningDetails: null };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: null,
+			post: { url: "http://localhost:8080/post" },
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.sync(() => {
+				abortController.abort(new Error("Backup was cancelled"));
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
 
 	expect(postBody).toMatchObject({ status: "cancelled", error: "Backup was cancelled" });
 	expect(result.status).toBe("cancelled");
 	if (result.status === "cancelled") {
 		expect(result.message).toContain("Backup was cancelled");
-		expect(result.message).toContain("Post-backup webhook returned HTTP 500: cleanup failed");
+		expect(result.message).toContain("post webhook returned HTTP 500: cleanup failed");
 	}
 });
 
@@ -351,21 +337,18 @@ test("cancels before the pre-backup webhook without running the backup", async (
 
 	abortController.abort(new Error("Backup was cancelled"));
 
-	const result = await Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata,
-			webhooks: {
-				pre: { url: "http://localhost:8080/pre" },
-				post: { url: "http://localhost:8080/post" },
-			},
-			signal: abortController.signal,
-			runBackup: () =>
-				Effect.sync(() => {
-					backupRan = true;
-					return { status: "completed" as const, exitCode: 0, result: null, warningDetails: null };
-				}),
-		}),
-	);
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre" },
+			post: { url: "http://localhost:8080/post" },
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.sync(() => {
+				backupRan = true;
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
 
 	expect(backupRan).toBe(false);
 	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });

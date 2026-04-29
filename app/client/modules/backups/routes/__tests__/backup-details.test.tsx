@@ -79,8 +79,7 @@ const schedule = {
 	excludeIfPresent: [],
 	oneFileSystem: false,
 	customResticParams: [],
-	preBackupWebhook: null,
-	postBackupWebhook: null,
+	backupWebhooks: null,
 };
 
 const snapshot = {

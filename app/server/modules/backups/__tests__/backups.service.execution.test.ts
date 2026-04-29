@@ -280,19 +280,23 @@ describe("backup execution - validation failures", () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-			preBackupWebhook: {
+		const backupWebhooks = {
+			pre: {
 				url: "http://localhost:8080/stop",
 				headers: ["authorization: Bearer stop-token"],
 				body: '{"action":"stop"}',
 			},
-			postBackupWebhook: {
+			post: {
 				url: "http://localhost:8080/start",
 				headers: ["authorization: Bearer start-token"],
 				body: '{"action":"start"}',
 			},
+		};
+
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			backupWebhooks,
 		});
 
 		await backupsService.executeBackup(schedule.id);
@@ -301,18 +305,7 @@ describe("backup execution - validation failures", () => {
 			"local",
 			expect.objectContaining({
 				payload: expect.objectContaining({
-					webhooks: {
-						pre: {
-							url: "http://localhost:8080/stop",
-							headers: ["authorization: Bearer stop-token"],
-							body: '{"action":"stop"}',
-						},
-						post: {
-							url: "http://localhost:8080/start",
-							headers: ["authorization: Bearer start-token"],
-							body: '{"action":"start"}',
-						},
-					},
+					webhooks: backupWebhooks,
 				}),
 			}),
 		);

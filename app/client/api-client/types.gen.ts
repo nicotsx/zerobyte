@@ -2434,15 +2434,17 @@ export type ListBackupSchedulesResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
-        preBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries: number;
         retryDelay: number;
@@ -2722,15 +2724,17 @@ export type CreateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
-        preBackupWebhook?: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook?: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks?: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries?: number;
         retryDelay?: number;
@@ -2767,15 +2771,17 @@ export type CreateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
-        preBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries: number;
         retryDelay: number;
@@ -2846,15 +2852,17 @@ export type GetBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
-        preBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries: number;
         retryDelay: number;
@@ -3133,15 +3141,17 @@ export type UpdateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
-        preBackupWebhook?: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook?: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks?: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries?: number;
         retryDelay?: number;
@@ -3180,15 +3190,17 @@ export type UpdateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
-        preBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries: number;
         retryDelay: number;
@@ -3239,15 +3251,17 @@ export type GetBackupScheduleForVolumeResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
-        preBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
-        } | null;
-        postBackupWebhook: {
-            url: string;
-            headers?: Array<string>;
-            body?: string;
+        backupWebhooks: {
+            pre: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
+            post: {
+                url: string;
+                headers?: Array<string>;
+                body?: string;
+            } | null;
         } | null;
         maxRetries: number;
         retryDelay: number;

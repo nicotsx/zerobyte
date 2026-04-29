@@ -49,8 +49,7 @@ const renderEditBackupPage = ({ enabled, cronExpression }: { enabled: boolean; c
 					excludeIfPresent: [],
 					oneFileSystem: false,
 					customResticParams: [],
-					preBackupWebhook: null,
-					postBackupWebhook: null,
+					backupWebhooks: null,
 				});
 			}),
 			http.get("/api/v1/repositories", () => {
@@ -141,10 +140,13 @@ test("submits webhook headers and body as plain config values", async () => {
 	await userEvent.click(screen.getByRole("button", { name: "Update schedule" }));
 
 	await expect(submittedBody).resolves.toMatchObject({
-		preBackupWebhook: {
-			url: "http://localhost:8080/stop",
-			headers: ["Authorization: Bearer stop-token"],
-			body: '{"action":"stop"}',
+		backupWebhooks: {
+			pre: {
+				url: "http://localhost:8080/stop",
+				headers: ["Authorization: Bearer stop-token"],
+				body: '{"action":"stop"}',
+			},
+			post: null,
 		},
 	});
 });

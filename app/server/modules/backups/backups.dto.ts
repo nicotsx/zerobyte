@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { backupWebhookConfigSchema } from "@zerobyte/core/backup-hooks";
+import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
 import { volumeSchema } from "../volumes/volume.dto";
 import { repositorySchema } from "../repositories/repositories.dto";
 import { backupProgressEventSchema } from "~/schemas/events-dto";
@@ -30,8 +30,7 @@ const backupScheduleSchema = z.object({
 	includePatterns: z.array(z.string()).nullable(),
 	oneFileSystem: z.boolean(),
 	customResticParams: z.array(z.string()).nullable(),
-	preBackupWebhook: backupWebhookConfigSchema.nullable(),
-	postBackupWebhook: backupWebhookConfigSchema.nullable(),
+	backupWebhooks: backupWebhooksSchema.nullable(),
 	maxRetries: z.number(),
 	retryDelay: z.number().transform((ms) => Math.round(ms / 60000)),
 	lastBackupAt: z.number().nullable(),
@@ -129,8 +128,7 @@ export const createBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
-	preBackupWebhook: backupWebhookConfigSchema.nullable().optional(),
-	postBackupWebhook: backupWebhookConfigSchema.nullable().optional(),
+	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z
 		.number()
@@ -176,8 +174,7 @@ export const updateBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
-	preBackupWebhook: backupWebhookConfigSchema.nullable().optional(),
-	postBackupWebhook: backupWebhookConfigSchema.nullable().optional(),
+	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z
 		.number()

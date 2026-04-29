@@ -1,13 +1,15 @@
 import { z } from "zod";
+import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 
-const webhookHeadersSchema = z
-	.array(
-		z.string().refine((header) => !header.trim() || header.includes(":"), {
-			message: "Headers must use Key: Value format",
-		}),
-	)
-	.catch(() => [])
-	.optional();
+const webhookHeadersSchema = z.string().refine(
+	(value) =>
+		value
+			.split("\n")
+			.map((header) => header.trim())
+			.filter(Boolean)
+			.every((header) => header.includes(":")),
+	{ message: "Headers must use Key: Value format" },
+);
 
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
@@ -30,10 +32,10 @@ export const internalFormSchema = z.object({
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
 	preBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
-	preBackupWebhookHeaders: webhookHeadersSchema,
+	preBackupWebhookHeadersText: webhookHeadersSchema.optional(),
 	preBackupWebhookBody: z.string().optional(),
 	postBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
-	postBackupWebhookHeaders: webhookHeadersSchema,
+	postBackupWebhookHeadersText: webhookHeadersSchema.optional(),
 	postBackupWebhookBody: z.string().optional(),
 	maxRetries: z.number().min(0).max(32).optional(),
 	retryDelay: z.number().min(1).max(1440).optional(),
@@ -58,16 +60,15 @@ export type BackupScheduleFormValues = Omit<
 	| "includePatterns"
 	| "customResticParamsText"
 	| "preBackupWebhookUrl"
-	| "preBackupWebhookHeaders"
+	| "preBackupWebhookHeadersText"
 	| "preBackupWebhookBody"
 	| "postBackupWebhookUrl"
-	| "postBackupWebhookHeaders"
+	| "postBackupWebhookHeadersText"
 	| "postBackupWebhookBody"
 > & {
 	excludePatterns?: string[];
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
-	preBackupWebhook?: { url: string; headers?: string[]; body?: string } | null;
-	postBackupWebhook?: { url: string; headers?: string[]; body?: string } | null;
+	backupWebhooks?: BackupWebhooks | null;
 };

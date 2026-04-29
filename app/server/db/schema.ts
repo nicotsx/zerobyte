@@ -9,7 +9,7 @@ import type {
 	DoctorResult,
 	ResticStatsDto,
 } from "@zerobyte/core/restic";
-import type { BackupWebhookConfig } from "@zerobyte/core/backup-hooks";
+import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";
@@ -311,8 +311,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
 	customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
-	preBackupWebhook: text("pre_backup_webhook", { mode: "json" }).$type<BackupWebhookConfig | null>(),
-	postBackupWebhook: text("post_backup_webhook", { mode: "json" }).$type<BackupWebhookConfig | null>(),
+	backupWebhooks: text("backup_webhooks", { mode: "json" }).$type<BackupWebhooks | null>(),
 	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
 	failureRetryCount: int("failure_retry_count").notNull().default(0),
 	maxRetries: int("max_retries").notNull().default(2),

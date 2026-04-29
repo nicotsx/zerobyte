@@ -1,15 +1,13 @@
 import { Data, Effect } from "effect";
 import { z } from "zod";
+import type { CompressionMode, RepositoryConfig, ResticBackupProgressDto } from "../restic/index.js";
 import { toErrorDetails, toMessage } from "../utils/index.js";
 
-export const DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS = 60_000;
+const DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS = 60_000;
 
 export const backupWebhookConfigSchema = z.object({
 	url: z.url(),
-	headers: z
-		.array(z.string())
-		.catch(() => [])
-		.optional(),
+	headers: z.array(z.string()).optional(),
 	body: z.string().optional(),
 });
 
@@ -21,17 +19,10 @@ export const backupWebhooksSchema = z.object({
 export type BackupWebhookConfig = z.infer<typeof backupWebhookConfigSchema>;
 export type BackupWebhooks = z.infer<typeof backupWebhooksSchema>;
 
-export type BackupWebhookPhase = "pre" | "post";
-export type BackupWebhookStatus = "success" | "warning" | "error" | "cancelled";
+type BackupWebhookPhase = "pre" | "post";
+type BackupWebhookStatus = "success" | "warning" | "error" | "cancelled";
 
-export type BackupWebhookMetadata = {
-	jobId: string;
-	scheduleId: string;
-	organizationId: string;
-	sourcePath: string;
-};
-
-export type BackupWebhookContext = {
+type BackupWebhookContext = {
 	phase: BackupWebhookPhase;
 	event: "backup.pre" | "backup.post";
 	jobId: string;
@@ -42,59 +33,52 @@ export type BackupWebhookContext = {
 	error?: string;
 };
 
-export type BackupOperationResult<TResult> =
-	| { status: "completed"; exitCode: number; result: TResult; warningDetails: string | null }
-	| { status: "failed"; error: unknown };
+type BackupResult<TResult> = { exitCode: number; result: TResult; warningDetails: string | null };
 
-export type BackupHookedExecutionResult<TResult> =
+type BackupLifecycleResult<TResult> =
 	| { status: "completed"; exitCode: number; result: TResult; warningDetails: string | null }
 	| { status: "failed"; error: string }
 	| { status: "cancelled"; message?: string };
 
-export type BackupHookedExecutionOptions<TResult, R = never> = {
-	metadata: BackupWebhookMetadata;
-	webhooks: BackupWebhooks;
-	signal: AbortSignal;
-	runBackup: () => Effect.Effect<BackupOperationResult<TResult>, unknown, R>;
-	formatErrorDetails?: (error: unknown) => string;
-	formatErrorMessage?: (error: unknown) => string;
+type BackupOptions = {
+	tags?: string[];
+	oneFileSystem?: boolean;
+	exclude?: string[];
+	excludeIfPresent?: string[];
+	includePaths?: string[];
+	includePatterns?: string[];
+	customResticParams?: string[];
+	compressionMode?: CompressionMode;
 };
 
-export class BackupWebhookError extends Data.TaggedError("BackupWebhookError")<{
+type BackupLifecycleOptions<TResult> = {
+	jobId: string;
+	scheduleId: string;
+	organizationId: string;
+	sourcePath: string;
+	restic: {
+		backup: (
+			config: RepositoryConfig,
+			sourcePath: string,
+			options: BackupOptions & {
+				organizationId: string;
+				signal: AbortSignal;
+				onProgress?: (progress: ResticBackupProgressDto) => void;
+			},
+		) => Effect.Effect<BackupResult<TResult>, unknown>;
+	};
+	repositoryConfig: RepositoryConfig;
+	options: BackupOptions;
+	webhooks: BackupWebhooks;
+	signal: AbortSignal;
+	onProgress?: (progress: ResticBackupProgressDto) => void;
+	formatError?: (error: unknown) => string;
+};
+
+class BackupWebhookError extends Data.TaggedError("BackupWebhookError")<{
 	cause: unknown;
 	message: string;
 }> {}
-
-export const createBackupWebhooks = (
-	pre: BackupWebhookConfig | null | undefined,
-	post: BackupWebhookConfig | null | undefined,
-): BackupWebhooks => ({
-	pre: pre ?? null,
-	post: post ?? null,
-});
-
-const createWebhookContext = (
-	metadata: BackupWebhookMetadata,
-	phase: BackupWebhookPhase,
-	status?: BackupWebhookStatus,
-	error?: string,
-): BackupWebhookContext => {
-	const context: BackupWebhookContext = {
-		phase,
-		event: phase === "pre" ? "backup.pre" : "backup.post",
-		...metadata,
-	};
-
-	if (status) {
-		context.status = status;
-	}
-
-	if (error) {
-		context.error = error;
-	}
-
-	return context;
-};
 
 const appendDetails = (primary: string | null | undefined, next: string | null | undefined) => {
 	return [primary, next].filter(Boolean).join("\n\n");
@@ -107,8 +91,6 @@ const getCompletedStatus = (exitCode: number, signal: AbortSignal): BackupWebhoo
 
 	return exitCode === 0 ? "success" : "warning";
 };
-
-const formatWebhookPhase = (phase: BackupWebhookPhase) => `${phase === "pre" ? "Pre" : "Post"}-backup`;
 
 const createAbortController = (timeoutMs: number, signal?: AbortSignal) => {
 	const abortController = new AbortController();
@@ -151,127 +133,135 @@ const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookCo
 		}
 	}
 
-	return {
-		method: "POST",
-		headers,
-		body,
-	};
+	return { method: "POST", headers, body };
 };
 
-export const runBackupWebhook = async (
-	config: BackupWebhookConfig,
-	context: BackupWebhookContext,
-	options: { signal?: AbortSignal; timeoutMs?: number } = {},
-) => {
-	const timeoutMs = options.timeoutMs ?? DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS;
-	const controller = createAbortController(timeoutMs, options.signal);
-
-	try {
-		const parsedConfig = backupWebhookConfigSchema.parse(config);
-		const url = new URL(parsedConfig.url);
-		const phase = formatWebhookPhase(context.phase);
-
-		const response = await fetch(url, {
-			...createRequestInit(parsedConfig, context),
-			signal: controller.signal,
-		});
-
-		if (!response.ok) {
-			const responseText = await response.text().catch(() => "");
-			const details = responseText.trim().slice(0, 500);
-			throw new BackupWebhookError({
-				cause: new Error(`${phase} webhook returned HTTP ${response.status}`),
-				message: `${phase} webhook returned HTTP ${response.status}${details ? `: ${details}` : ""}`,
-			});
-		}
-	} catch (error) {
-		if (error instanceof BackupWebhookError) {
-			throw error;
-		}
-
-		const phase = formatWebhookPhase(context.phase);
-
-		if (controller.signal.aborted && controller.signal.reason instanceof Error) {
-			throw new BackupWebhookError({
-				cause: controller.signal.reason,
-				message: `${phase} webhook failed: ${controller.signal.reason.message}`,
-			});
-		}
-
-		throw new BackupWebhookError({ cause: error, message: `${phase} webhook failed: ${toMessage(error)}` });
-	} finally {
-		controller.cleanup();
-	}
-};
-
-const runConfiguredWebhook = (
+const runBackupWebhook = (
 	config: BackupWebhookConfig | null,
 	context: BackupWebhookContext,
-	formatErrorDetails: (error: unknown) => string,
-	signal?: AbortSignal,
-) => {
-	if (!config) {
-		return Effect.succeed(null);
-	}
+	options: {
+		formatError: (error: unknown) => string;
+		signal?: AbortSignal;
+		timeoutMs?: number;
+	},
+) =>
+	Effect.suspend(() => {
+		if (!config) {
+			return Effect.succeed(null);
+		}
 
-	return Effect.tryPromise({
-		try: () => runBackupWebhook(config, context, { signal }),
-		catch: (error) => {
-			if (error instanceof BackupWebhookError) {
-				return error;
-			}
+		const timeoutMs = options.timeoutMs ?? DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS;
+		const controller = createAbortController(timeoutMs, options.signal);
 
-			return new BackupWebhookError({ cause: error, message: toMessage(error) });
-		},
-	}).pipe(
-		Effect.as(null),
-		Effect.catchAll((error) => Effect.succeed(formatErrorDetails(error))),
-	);
-};
+		return Effect.tryPromise({
+			try: async () => {
+				const response = await fetch(config.url, { ...createRequestInit(config, context), signal: controller.signal });
 
-export const runBackupWithWebhooks = <TResult, R = never>({
-	metadata,
+				if (!response.ok) {
+					const responseText = await response.text().catch(() => "");
+					const details = responseText.trim().slice(0, 500);
+					throw new BackupWebhookError({
+						cause: new Error(`${context.phase} webhook returned HTTP ${response.status}`),
+						message: `${context.phase} webhook returned HTTP ${response.status}${details ? `: ${details}` : ""}`,
+					});
+				}
+			},
+			catch: (error) => {
+				if (error instanceof BackupWebhookError) {
+					return error;
+				}
+
+				if (controller.signal.aborted && controller.signal.reason instanceof Error) {
+					return new BackupWebhookError({
+						cause: controller.signal.reason,
+						message: `${context.phase} webhook failed: ${controller.signal.reason.message}`,
+					});
+				}
+
+				return new BackupWebhookError({
+					cause: error,
+					message: `${context.phase} webhook failed: ${toMessage(error)}`,
+				});
+			},
+		}).pipe(
+			Effect.as(null),
+			Effect.catchAll((error) => Effect.succeed(options.formatError(error))),
+			Effect.ensuring(Effect.sync(controller.cleanup)),
+		);
+	});
+
+export const runBackupLifecycle = <TResult>({
+	jobId,
+	scheduleId,
+	organizationId,
+	sourcePath,
+	restic,
+	repositoryConfig,
+	options,
 	webhooks,
 	signal,
-	runBackup,
-	formatErrorDetails = toErrorDetails,
-	formatErrorMessage = toMessage,
-}: BackupHookedExecutionOptions<TResult, R>): Effect.Effect<BackupHookedExecutionResult<TResult>, never, R> =>
+	onProgress,
+	formatError = toErrorDetails,
+}: BackupLifecycleOptions<TResult>): Effect.Effect<BackupLifecycleResult<TResult>, never> =>
 	Effect.gen(function* () {
-		const preHookError = yield* runConfiguredWebhook(
+		const context = { jobId, scheduleId, organizationId, sourcePath };
+		const preHookError = yield* runBackupWebhook(
 			webhooks.pre,
-			createWebhookContext(metadata, "pre"),
-			formatErrorDetails,
-			signal,
+			{ ...context, phase: "pre", event: "backup.pre" },
+			{
+				formatError,
+				signal,
+			},
 		);
 		if (preHookError) {
 			if (signal.aborted) {
-				return { status: "cancelled", message: formatErrorMessage(signal.reason) };
+				return { status: "cancelled", message: formatError(signal.reason) };
 			}
 
 			return { status: "failed", error: preHookError };
 		}
 
-		const backupResult = yield* Effect.suspend(runBackup).pipe(
-			Effect.catchAll((error) => Effect.succeed({ status: "failed" as const, error })),
+		const backupResult = yield* Effect.suspend(() =>
+			restic.backup(repositoryConfig, sourcePath, { ...options, organizationId, signal, onProgress }),
+		).pipe(
+			Effect.map((result) => ({
+				status: "completed" as const,
+				...result,
+				hookStatus: getCompletedStatus(result.exitCode, signal),
+				hookError: signal.aborted ? formatError(signal.reason) : (result.warningDetails ?? undefined),
+			})),
+			Effect.catchAll((error) => {
+				const errorDetails = formatError(error);
+
+				return Effect.succeed({
+					status: "failed" as const,
+					errorDetails,
+					hookStatus: signal.aborted ? ("cancelled" as const) : ("error" as const),
+					hookError: errorDetails,
+				});
+			}),
 		);
 
+		const postHookError = yield* runBackupWebhook(
+			webhooks.post,
+			{
+				...context,
+				phase: "post",
+				event: "backup.post",
+				status: backupResult.hookStatus,
+				error: backupResult.hookError,
+			},
+			{ formatError },
+		);
+
+		if (signal.aborted) {
+			return {
+				status: "cancelled",
+				message: appendDetails(formatError(signal.reason || backupResult.hookError), postHookError) || undefined,
+			};
+		}
+
 		if (backupResult.status === "completed") {
-			const hookStatus = getCompletedStatus(backupResult.exitCode, signal);
-			const hookError = signal.aborted ? formatErrorMessage(signal.reason) : (backupResult.warningDetails ?? undefined);
-			const postHookError = yield* runConfiguredWebhook(
-				webhooks.post,
-				createWebhookContext(metadata, "post", hookStatus, hookError),
-				formatErrorDetails,
-			);
-
-			if (signal.aborted) {
-				return {
-					status: "cancelled",
-					message: appendDetails(formatErrorMessage(signal.reason), postHookError) || undefined,
-				};
-			}
-
 			return {
 				status: "completed",
 				exitCode: backupResult.exitCode,
@@ -280,22 +270,8 @@ export const runBackupWithWebhooks = <TResult, R = never>({
 			};
 		}
 
-		const errorDetails = formatErrorDetails(backupResult.error);
-		const postHookError = yield* runConfiguredWebhook(
-			webhooks.post,
-			createWebhookContext(metadata, "post", signal.aborted ? "cancelled" : "error", errorDetails),
-			formatErrorDetails,
-		);
-
-		if (signal.aborted) {
-			return {
-				status: "cancelled",
-				message: appendDetails(formatErrorMessage(signal.reason || backupResult.error), postHookError) || undefined,
-			};
-		}
-
 		return {
 			status: "failed",
-			error: appendDetails(errorDetails, postHookError) || errorDetails,
+			error: appendDetails(backupResult.errorDetails, postHookError) || backupResult.errorDetails,
 		};
 	});

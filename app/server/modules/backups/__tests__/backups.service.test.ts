@@ -408,36 +408,31 @@ describe("schedule webhooks", () => {
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 
+		const backupWebhooks = {
+			pre: {
+				url: "http://localhost:8080/stop",
+				headers: ["authorization: Bearer stop-token"],
+				body: '{"action":"stop"}',
+			},
+			post: {
+				url: "http://localhost:8080/start",
+				headers: ["authorization: Bearer start-token"],
+				body: '{"action":"start"}',
+			},
+		};
+
 		const schedule = await backupsService.createSchedule({
 			name: "with-webhooks",
 			volumeId: volume.shortId,
 			repositoryId: repository.shortId,
 			enabled: true,
 			cronExpression: "0 0 * * *",
-			preBackupWebhook: {
-				url: "http://localhost:8080/stop",
-				headers: ["authorization: Bearer stop-token"],
-				body: '{"action":"stop"}',
-			},
-			postBackupWebhook: {
-				url: "http://localhost:8080/start",
-				headers: ["authorization: Bearer start-token"],
-				body: '{"action":"start"}',
-			},
+			backupWebhooks,
 			retryDelay: 15 * 60 * 1000,
 			maxRetries: 2,
 		});
 
-		expect(schedule.preBackupWebhook).toEqual({
-			url: "http://localhost:8080/stop",
-			headers: ["authorization: Bearer stop-token"],
-			body: '{"action":"stop"}',
-		});
-		expect(schedule.postBackupWebhook).toEqual({
-			url: "http://localhost:8080/start",
-			headers: ["authorization: Bearer start-token"],
-			body: '{"action":"start"}',
-		});
+		expect(schedule.backupWebhooks).toEqual(backupWebhooks);
 	});
 
 	test("clears backup webhooks when updating a schedule with null values", async () => {
@@ -445,21 +440,21 @@ describe("schedule webhooks", () => {
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
 			repositoryId: repository.id,
-			preBackupWebhook: { url: "http://localhost:8080/stop" },
-			postBackupWebhook: { url: "http://localhost:8080/start" },
+			backupWebhooks: {
+				pre: { url: "http://localhost:8080/stop" },
+				post: { url: "http://localhost:8080/start" },
+			},
 		});
 
 		const updated = await backupsService.updateSchedule(schedule.id, {
 			repositoryId: repository.shortId,
 			cronExpression: schedule.cronExpression,
-			preBackupWebhook: null,
-			postBackupWebhook: null,
+			backupWebhooks: null,
 			retryDelay: 15 * 60 * 1000,
 			maxRetries: 2,
 		});
 
-		expect(updated.preBackupWebhook).toBeNull();
-		expect(updated.postBackupWebhook).toBeNull();
+		expect(updated.backupWebhooks).toBeNull();
 	});
 });
 

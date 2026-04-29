@@ -14,7 +14,7 @@ import { PathsSection } from "./paths-section";
 import { RetentionSection } from "./retention-section";
 import { SummarySection } from "./summary-section";
 import { internalFormSchema, type BackupScheduleFormValues, type InternalFormValues } from "./types";
-import { backupScheduleToFormValues, parseMultilineEntries, parseWebhookHeaders } from "./utils";
+import { backupScheduleToFormValues, parseMultilineEntries, toWebhookConfig } from "./utils";
 
 export type { BackupScheduleFormValues };
 
@@ -47,10 +47,10 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				maxRetries,
 				retryDelay,
 				preBackupWebhookUrl,
-				preBackupWebhookHeaders,
+				preBackupWebhookHeadersText,
 				preBackupWebhookBody,
 				postBackupWebhookUrl,
-				postBackupWebhookHeaders,
+				postBackupWebhookHeadersText,
 				postBackupWebhookBody,
 				...rest
 			} = data;
@@ -58,10 +58,12 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 			const excludeIfPresent = parseMultilineEntries(excludeIfPresentText);
 			const parsedIncludePatterns = parseMultilineEntries(includePatterns);
 			const customResticParams = parseMultilineEntries(customResticParamsText);
-			const preBackupWebhookUrlValue = preBackupWebhookUrl?.trim();
-			const postBackupWebhookUrlValue = postBackupWebhookUrl?.trim();
-			const preBackupWebhookBodyValue = preBackupWebhookBody?.trim();
-			const postBackupWebhookBodyValue = postBackupWebhookBody?.trim();
+			const preBackupWebhook = toWebhookConfig(preBackupWebhookUrl, preBackupWebhookHeadersText, preBackupWebhookBody);
+			const postBackupWebhook = toWebhookConfig(
+				postBackupWebhookUrl,
+				postBackupWebhookHeadersText,
+				postBackupWebhookBody,
+			);
 
 			onSubmit({
 				...rest,
@@ -71,20 +73,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
-				preBackupWebhook: preBackupWebhookUrlValue
-					? {
-							url: preBackupWebhookUrlValue,
-							headers: parseWebhookHeaders(preBackupWebhookHeaders),
-							body: preBackupWebhookBodyValue || undefined,
-						}
-					: null,
-				postBackupWebhook: postBackupWebhookUrlValue
-					? {
-							url: postBackupWebhookUrlValue,
-							headers: parseWebhookHeaders(postBackupWebhookHeaders),
-							body: postBackupWebhookBodyValue || undefined,
-						}
-					: null,
+				backupWebhooks:
+					preBackupWebhook || postBackupWebhook ? { pre: preBackupWebhook, post: postBackupWebhook } : null,
 				maxRetries,
 				retryDelay,
 			});

@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { createBackupWebhooks, runBackupWithWebhooks } from "@zerobyte/core/backup-hooks";
+import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
 import { restic, resticDeps } from "../../core/restic";
@@ -8,7 +8,7 @@ import { agentManager, type BackupExecutionProgress } from "../agents/agents-man
 import { getVolumePath } from "../volumes/helpers";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
-import { toErrorDetails, toMessage } from "../../utils/errors";
+import { toErrorDetails } from "../../utils/errors";
 
 const LOCAL_AGENT_ID = "local";
 
@@ -55,7 +55,7 @@ const createBackupRunPayload = async ({
 			rcloneConfigFile: resticDeps.rcloneConfigFile,
 			hostname: resticDeps.hostname,
 		},
-		webhooks: createBackupWebhooks(schedule.preBackupWebhook, schedule.postBackupWebhook),
+		webhooks: schedule.backupWebhooks ?? { pre: null, post: null },
 	};
 };
 
@@ -64,31 +64,18 @@ const executeBackupWithoutAgent = async (
 	{ signal, onProgress }: Pick<BackupExecutionRequest, "signal" | "onProgress">,
 ) => {
 	return Effect.runPromise(
-		runBackupWithWebhooks({
-			metadata: {
-				jobId: payload.jobId,
-				scheduleId: payload.scheduleId,
-				organizationId: payload.organizationId,
-				sourcePath: payload.sourcePath,
-			},
+		runBackupLifecycle({
+			restic,
+			repositoryConfig: payload.repositoryConfig,
+			sourcePath: payload.sourcePath,
+			jobId: payload.jobId,
+			scheduleId: payload.scheduleId,
+			organizationId: payload.organizationId,
+			options: payload.options,
 			webhooks: payload.webhooks,
 			signal,
-			formatErrorDetails: toErrorDetails,
-			formatErrorMessage: toMessage,
-			runBackup: () =>
-				restic.backup(payload.repositoryConfig, payload.sourcePath, {
-					...payload.options,
-					organizationId: payload.organizationId,
-					signal,
-					onProgress,
-				}).pipe(
-					Effect.map((result) => ({
-						status: "completed" as const,
-						exitCode: result.exitCode,
-						result: result.result,
-						warningDetails: result.warningDetails,
-					})),
-				),
+			onProgress,
+			formatError: toErrorDetails,
 		}),
 	);
 };

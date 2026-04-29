@@ -167,8 +167,7 @@ export function ScheduleDetailsPage(props: Props) {
 				excludeIfPresent: schedule.excludeIfPresent || [],
 				oneFileSystem: schedule.oneFileSystem,
 				customResticParams: schedule.customResticParams || [],
-				preBackupWebhook: schedule.preBackupWebhook,
-				postBackupWebhook: schedule.postBackupWebhook,
+				backupWebhooks: schedule.backupWebhooks,
 			},
 		});
 	};

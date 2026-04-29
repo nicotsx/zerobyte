@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import { runBackupWithWebhooks } from "@zerobyte/core/backup-hooks";
+import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
 import { type ResticDeps } from "@zerobyte/core/restic";
 import { createRestic } from "@zerobyte/core/restic/server";
@@ -27,12 +27,12 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 		yield* Effect.fork(
 			Effect.gen(function* () {
-				const sendCancelled = () => {
+				const sendCancelled = (message?: string) => {
 					return context.offerOutbound(
 						createAgentMessage("backup.cancelled", {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
-							message: "Backup was cancelled",
+							message: message ?? "Backup was cancelled",
 						}),
 					);
 				};
@@ -57,44 +57,29 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 				const restic = createRestic(deps);
 				const runtime = yield* Effect.runtime<never>();
 
-				const backupResult = yield* runBackupWithWebhooks({
-					metadata: {
-						jobId: payload.jobId,
-						scheduleId: payload.scheduleId,
-						organizationId: payload.organizationId,
-						sourcePath: payload.sourcePath,
-					},
+				const backupResult = yield* runBackupLifecycle({
+					restic,
+					repositoryConfig: payload.repositoryConfig,
+					sourcePath: payload.sourcePath,
+					jobId: payload.jobId,
+					scheduleId: payload.scheduleId,
+					organizationId: payload.organizationId,
+					options: payload.options,
 					webhooks: payload.webhooks,
 					signal: abortController.signal,
-					runBackup: () => {
-						return restic
-							.backup(payload.repositoryConfig, payload.sourcePath, {
-								...payload.options,
-								organizationId: payload.organizationId,
-								signal: abortController.signal,
-								onProgress: (progress) => {
-									void Runtime.runPromise(
-										runtime,
-										context.offerOutbound(
-											createAgentMessage("backup.progress", {
-												jobId: payload.jobId,
-												scheduleId: payload.scheduleId,
-												progress,
-											}),
-										),
-									).catch((error) => {
-										logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
-									});
-								},
-							})
-							.pipe(
-								Effect.map((result) => ({
-									status: "completed" as const,
-									exitCode: result.exitCode,
-									result: result.result,
-									warningDetails: result.warningDetails,
-								})),
-							);
+					onProgress: (progress) => {
+						void Runtime.runPromise(
+							runtime,
+							context.offerOutbound(
+								createAgentMessage("backup.progress", {
+									jobId: payload.jobId,
+									scheduleId: payload.scheduleId,
+									progress,
+								}),
+							),
+						).catch((error) => {
+							logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
+						});
 					},
 				});
 
@@ -121,7 +106,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						);
 						return;
 					case "cancelled":
-						yield* sendCancelled();
+						yield* sendCancelled(backupResult.message);
 						return;
 				}
 			}).pipe(Effect.ensuring(context.deleteRunningJob(payload.jobId))),
