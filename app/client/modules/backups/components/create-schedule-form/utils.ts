@@ -15,11 +15,14 @@ export const parseMultilineEntries = (value?: string) => {
 
 export const toWebhookConfig = (url?: string, headers?: string, body?: string) => {
 	const trimmedUrl = url?.trim();
-	const trimmedBody = body?.trim();
 	const parsedHeaders = parseMultilineEntries(headers);
 
 	return trimmedUrl
-		? { url: trimmedUrl, headers: parsedHeaders.length > 0 ? parsedHeaders : undefined, body: trimmedBody || undefined }
+		? {
+				url: trimmedUrl,
+				headers: parsedHeaders.length > 0 ? parsedHeaders : undefined,
+				body: body === "" ? undefined : body,
+			}
 		: null;
 };
 

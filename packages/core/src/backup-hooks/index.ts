@@ -220,6 +220,9 @@ export const runBackupLifecycle = <TResult>({
 
 			return { status: "failed", error: preHookError };
 		}
+		if (signal.aborted) {
+			return { status: "cancelled", message: formatError(signal.reason) };
+		}
 
 		const backupResult = yield* Effect.suspend(() =>
 			restic.backup(repositoryConfig, sourcePath, { ...options, organizationId, signal, onProgress }),

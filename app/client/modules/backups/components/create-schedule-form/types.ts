@@ -7,8 +7,12 @@ const webhookHeadersSchema = z.string().refine(
 			.split("\n")
 			.map((header) => header.trim())
 			.filter(Boolean)
-			.every((header) => header.includes(":")),
-	{ message: "Headers must use Key: Value format" },
+			.every((header) => {
+				const [key, value] = header.split(":", 2);
+
+				return /^[A-Za-z0-9-]+$/.test(key.trim()) && (value?.trim().length ?? 0) > 0;
+			}),
+	{ message: "Headers must use non-empty Key: Value format with valid header names" },
 );
 
 export const internalFormSchema = z.object({

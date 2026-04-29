@@ -353,3 +353,31 @@ test("cancels before the pre-backup webhook without running the backup", async (
 	expect(backupRan).toBe(false);
 	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });
 });
+
+test("cancels after the pre-backup webhook without running the backup", async () => {
+	const abortController = new AbortController();
+	let backupRan = false;
+
+	server.use(
+		http.post("http://localhost:8080/pre", () => {
+			abortController.abort(new Error("Backup was cancelled"));
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre" },
+			post: null,
+		},
+		signal: abortController.signal,
+		runBackup: () =>
+			Effect.sync(() => {
+				backupRan = true;
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
+
+	expect(backupRan).toBe(false);
+	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });
+});
