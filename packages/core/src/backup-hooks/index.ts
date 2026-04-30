@@ -3,7 +3,22 @@ import { z } from "zod";
 import type { CompressionMode, RepositoryConfig, ResticBackupProgressDto } from "../restic/index.js";
 import { toErrorDetails, toMessage } from "../utils/index.js";
 
-const DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS = 60_000;
+const DEFAULT_BACKUP_WEBHOOK_TIMEOUT_MS = 10_000;
+const MAX_BACKUP_WEBHOOK_BODY_BYTES = 64 * 1024;
+const MAX_BACKUP_WEBHOOK_HEADERS = 32;
+const MAX_BACKUP_WEBHOOK_HEADER_BYTES = 8 * 1024;
+
+const getByteLength = (value: string) => new TextEncoder().encode(value).byteLength;
+
+const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string[]) => {
+	try {
+		const parsedUrl = new URL(url);
+
+		return allowedOrigins.includes(parsedUrl.origin);
+	} catch {
+		return false;
+	}
+};
 
 export const backupWebhookConfigSchema = z.object({
 	url: z.url(),
@@ -70,6 +85,7 @@ type BackupLifecycleOptions<TResult> = {
 	repositoryConfig: RepositoryConfig;
 	options: BackupOptions;
 	webhooks: BackupWebhooks;
+	webhookAllowedOrigins: readonly string[];
 	signal: AbortSignal;
 	onProgress?: (progress: ResticBackupProgressDto) => void;
 	formatError?: (error: unknown) => string;
@@ -121,8 +137,22 @@ const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookCo
 	const headers = new Headers();
 	const body = config.body ?? JSON.stringify(context);
 
+	if (getByteLength(body) > MAX_BACKUP_WEBHOOK_BODY_BYTES) {
+		throw new BackupWebhookError({
+			cause: new Error("Webhook request body is too large"),
+			message: `Webhook request body exceeds ${MAX_BACKUP_WEBHOOK_BODY_BYTES} bytes`,
+		});
+	}
+
 	if (config.body === undefined) {
 		headers.set("content-type", "application/json");
+	}
+
+	if ((config.headers?.length ?? 0) > MAX_BACKUP_WEBHOOK_HEADERS) {
+		throw new BackupWebhookError({
+			cause: new Error("Webhook request has too many headers"),
+			message: `Webhook request exceeds ${MAX_BACKUP_WEBHOOK_HEADERS} custom headers`,
+		});
 	}
 
 	for (const header of config.headers ?? []) {
@@ -133,7 +163,24 @@ const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookCo
 		}
 	}
 
-	return { method: "POST", headers, body };
+	const headerBytes = [...headers.entries()].reduce(
+		(total, [name, value]) => total + getByteLength(name) + getByteLength(value),
+		0,
+	);
+
+	if (headerBytes > MAX_BACKUP_WEBHOOK_HEADER_BYTES) {
+		throw new BackupWebhookError({
+			cause: new Error("Webhook request headers are too large"),
+			message: `Webhook request headers exceed ${MAX_BACKUP_WEBHOOK_HEADER_BYTES} bytes`,
+		});
+	}
+
+	return {
+		method: "POST",
+		headers,
+		body: config.body === undefined ? body : new TextEncoder().encode(body),
+		redirect: "manual",
+	};
 };
 
 const runBackupWebhook = (
@@ -141,6 +188,7 @@ const runBackupWebhook = (
 	context: BackupWebhookContext,
 	options: {
 		formatError: (error: unknown) => string;
+		allowedOrigins: readonly string[];
 		signal?: AbortSignal;
 		timeoutMs?: number;
 	},
@@ -155,14 +203,19 @@ const runBackupWebhook = (
 
 		return Effect.tryPromise({
 			try: async () => {
+				if (!isAllowedWebhookUrl(config.url, options.allowedOrigins)) {
+					throw new BackupWebhookError({
+						cause: new Error("Webhook URL origin is not allowed"),
+						message: `${context.phase} webhook URL origin is not allowed`,
+					});
+				}
+
 				const response = await fetch(config.url, { ...createRequestInit(config, context), signal: controller.signal });
 
 				if (!response.ok) {
-					const responseText = await response.text().catch(() => "");
-					const details = responseText.trim().slice(0, 500);
 					throw new BackupWebhookError({
 						cause: new Error(`${context.phase} webhook returned HTTP ${response.status}`),
-						message: `${context.phase} webhook returned HTTP ${response.status}${details ? `: ${details}` : ""}`,
+						message: `${context.phase} webhook returned HTTP ${response.status}`,
 					});
 				}
 			},
@@ -199,6 +252,7 @@ export const runBackupLifecycle = <TResult>({
 	repositoryConfig,
 	options,
 	webhooks,
+	webhookAllowedOrigins,
 	signal,
 	onProgress,
 	formatError = toErrorDetails,
@@ -210,6 +264,7 @@ export const runBackupLifecycle = <TResult>({
 			{ ...context, phase: "pre", event: "backup.pre" },
 			{
 				formatError,
+				allowedOrigins: webhookAllowedOrigins,
 				signal,
 			},
 		);
@@ -254,7 +309,7 @@ export const runBackupLifecycle = <TResult>({
 				status: backupResult.hookStatus,
 				error: backupResult.hookError,
 			},
-			{ formatError },
+			{ formatError, allowedOrigins: webhookAllowedOrigins },
 		);
 
 		if (signal.aborted) {

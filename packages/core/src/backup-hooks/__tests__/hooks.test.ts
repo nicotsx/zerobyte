@@ -44,6 +44,7 @@ const runWithHooks = <TResult>(
 			repositoryConfig: { backend: "local", path: "/tmp/repository" },
 			options: {},
 			webhooks: { pre: null, post: null },
+			webhookAllowedOrigins: ["http://localhost:8080"],
 			signal: defaultSignal(),
 			...options,
 		}),
@@ -176,7 +177,8 @@ test("fails without running the backup or post webhook when the pre-backup webho
 	expect(postRan).toBe(false);
 	expect(result.status).toBe("failed");
 	if (result.status === "failed") {
-		expect(result.error).toContain("pre webhook returned HTTP 500: stop failed");
+		expect(result.error).toContain("pre webhook returned HTTP 500");
+		expect(result.error).not.toContain("stop failed");
 	}
 });
 
@@ -295,7 +297,8 @@ test("includes post-backup webhook failure details after cancellation", async ()
 	expect(result.status).toBe("cancelled");
 	if (result.status === "cancelled") {
 		expect(result.message).toContain("Backup was cancelled");
-		expect(result.message).toContain("post webhook returned HTTP 500: start failed");
+		expect(result.message).toContain("post webhook returned HTTP 500");
+		expect(result.message).not.toContain("start failed");
 	}
 });
 
@@ -327,8 +330,75 @@ test("includes post-backup webhook failure details after completed cancellation"
 	expect(result.status).toBe("cancelled");
 	if (result.status === "cancelled") {
 		expect(result.message).toContain("Backup was cancelled");
-		expect(result.message).toContain("post webhook returned HTTP 500: cleanup failed");
+		expect(result.message).toContain("post webhook returned HTTP 500");
+		expect(result.message).not.toContain("cleanup failed");
 	}
+});
+
+test("rejects webhook URLs outside the configured allowed origins", async () => {
+	let backupRan = false;
+
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://127.0.0.1:8080/pre" },
+			post: null,
+		},
+		runBackup: () =>
+			Effect.sync(() => {
+				backupRan = true;
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
+
+	expect(backupRan).toBe(false);
+	expect(result).toEqual({ status: "failed", error: "pre webhook URL origin is not allowed" });
+});
+
+test("does not follow webhook redirects", async () => {
+	let redirectedTargetCalled = false;
+
+	server.use(
+		http.post("http://localhost:8080/redirect", () => {
+			return new HttpResponse(null, { status: 302, headers: { location: "http://localhost:8080/target" } });
+		}),
+		http.post("http://localhost:8080/target", () => {
+			redirectedTargetCalled = true;
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/redirect" },
+			post: null,
+		},
+		runBackup: () => completedBackup(null),
+	});
+
+	expect(redirectedTargetCalled).toBe(false);
+	expect(result).toEqual({ status: "failed", error: "pre webhook returned HTTP 302" });
+});
+
+test("rejects oversized webhook request bodies and headers", async () => {
+	const bodyResult = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre", body: "a".repeat(64 * 1024 + 1) },
+			post: null,
+		},
+		runBackup: () => completedBackup(null),
+	});
+
+	expect(bodyResult).toEqual({ status: "failed", error: "Webhook request body exceeds 65536 bytes" });
+
+	const headersResult = await runWithHooks({
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre", headers: [`x-large: ${"a".repeat(8 * 1024)}`] },
+			post: null,
+		},
+		runBackup: () => completedBackup(null),
+	});
+
+	expect(headersResult).toEqual({ status: "failed", error: "Webhook request headers exceed 8192 bytes" });
 });
 
 test("cancels before the pre-backup webhook without running the backup", async () => {

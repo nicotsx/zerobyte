@@ -53,6 +53,7 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 			rcloneConfigFile: "/tmp/rclone.conf",
 		},
 		webhooks: { pre: null, post: null },
+		webhookAllowedOrigins: ["http://localhost:8080"],
 		...overrides,
 	});
 
@@ -272,7 +273,8 @@ test("includes post-backup webhook failure details when a backup is cancelled", 
 	const cancelled = messages.find((message) => message?.success && message.data.type === "backup.cancelled");
 	expect(cancelled?.success).toBe(true);
 	if (cancelled?.success && cancelled.data.type === "backup.cancelled") {
-		expect(cancelled.data.payload.message).toContain("post webhook returned HTTP 500: start failed");
+		expect(cancelled.data.payload.message).toContain("post webhook returned HTTP 500");
+		expect(cancelled.data.payload.message).not.toContain("start failed");
 	}
 });
 
@@ -334,6 +336,7 @@ test("waits for running-job registration before returning to the processor loop"
 			defaultExcludes: [],
 		},
 		webhooks: { pre: null, post: null },
+		webhookAllowedOrigins: [],
 	});
 	const cancelPayload = fromPartial<BackupCancelPayload>({
 		jobId: "job-1",

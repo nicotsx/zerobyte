@@ -56,6 +56,7 @@ const createBackupRunPayload = async ({
 			hostname: resticDeps.hostname,
 		},
 		webhooks: schedule.backupWebhooks ?? { pre: null, post: null },
+		webhookAllowedOrigins: config.webhookAllowedOrigins,
 	};
 };
 
@@ -73,6 +74,7 @@ const executeBackupWithoutAgent = async (
 			organizationId: payload.organizationId,
 			options: payload.options,
 			webhooks: payload.webhooks,
+			webhookAllowedOrigins: payload.webhookAllowedOrigins,
 			signal,
 			onProgress,
 			formatError: toErrorDetails,

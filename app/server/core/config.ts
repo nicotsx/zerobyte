@@ -44,11 +44,13 @@ const envSchema = z
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),
 		ENABLE_LOCAL_AGENT: z.string().default("false"),
+		WEBHOOK_ALLOWED_ORIGINS: z.string().optional(),
 		PROVISIONING_PATH: z.string().optional(),
 	})
 	.transform((s, ctx) => {
 		const baseUrl = unquote(s.BASE_URL);
 		const trustedOrigins = s.TRUSTED_ORIGINS?.split(",").map(unquote).filter(Boolean).concat(baseUrl) ?? [baseUrl];
+		const webhookAllowedOrigins = s.WEBHOOK_ALLOWED_ORIGINS?.split(",").map(unquote).filter(Boolean) ?? [];
 		const authOrigins = [baseUrl, ...trustedOrigins];
 		const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
 		let appSecret = s.APP_SECRET;
@@ -136,6 +138,7 @@ const envSchema = z
 			},
 			provisioningPath: s.PROVISIONING_PATH,
 			allowedHosts,
+			webhookAllowedOrigins,
 		};
 	});
 
