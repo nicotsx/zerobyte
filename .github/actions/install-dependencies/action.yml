@@ -19,7 +19,7 @@ runs:
       with:
         bun-version: "1.3.13"
 
-    - uses: voidzero-dev/setup-vp@8ecb39174989ce55af90f45cf55b02738599831d # v1
+    - uses: voidzero-dev/setup-vp@4f5aa3e38c781f1b01e78fb9255527cee8a6efa6 # v1
       with:
         node-version: '24'
         cache: true
