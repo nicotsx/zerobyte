@@ -351,7 +351,36 @@ test("rejects webhook URLs outside the configured allowed origins", async () => 
 	});
 
 	expect(backupRan).toBe(false);
-	expect(result).toEqual({ status: "failed", error: "pre webhook URL origin is not allowed" });
+	expect(result).toEqual({
+		status: "failed",
+		error: "pre webhook URL origin is not allowed. Add http://127.0.0.1:8080 to WEBHOOK_ALLOWED_ORIGINS.",
+	});
+});
+
+test("matches configured webhook origins with trailing slashes or paths", async () => {
+	let backupRan = false;
+
+	server.use(
+		http.post("http://localhost:8080/pre", () => {
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhookAllowedOrigins: ["http://localhost:8080/", "http://example.com/webhook"],
+		webhooks: {
+			pre: { url: "http://localhost:8080/pre" },
+			post: null,
+		},
+		runBackup: () =>
+			Effect.sync(() => {
+				backupRan = true;
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
+
+	expect(backupRan).toBe(true);
+	expect(result).toEqual({ status: "completed", exitCode: 0, result: null, warningDetails: null });
 });
 
 test("does not follow webhook redirects", async () => {

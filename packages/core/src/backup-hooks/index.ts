@@ -9,15 +9,11 @@ const MAX_BACKUP_WEBHOOK_HEADERS = 32;
 const MAX_BACKUP_WEBHOOK_HEADER_BYTES = 8 * 1024;
 
 const getByteLength = (value: string) => new TextEncoder().encode(value).byteLength;
+const getUrlOrigin = (url: string) => (URL.canParse(url) ? new URL(url).origin : null);
 
-const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string[]) => {
-	try {
-		const parsedUrl = new URL(url);
-
-		return allowedOrigins.includes(parsedUrl.origin);
-	} catch {
-		return false;
-	}
+export const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string[]) => {
+	const webhookOrigin = getUrlOrigin(url);
+	return webhookOrigin !== null && allowedOrigins.some((origin) => getUrlOrigin(origin) === webhookOrigin);
 };
 
 export const backupWebhookConfigSchema = z.object({
@@ -204,9 +200,12 @@ const runBackupWebhook = (
 		return Effect.tryPromise({
 			try: async () => {
 				if (!isAllowedWebhookUrl(config.url, options.allowedOrigins)) {
+					const webhookOrigin = getUrlOrigin(config.url);
 					throw new BackupWebhookError({
 						cause: new Error("Webhook URL origin is not allowed"),
-						message: `${context.phase} webhook URL origin is not allowed`,
+						message: `${context.phase} webhook URL origin is not allowed. Add ${
+							webhookOrigin ?? config.url
+						} to WEBHOOK_ALLOWED_ORIGINS.`,
 					});
 				}
 
