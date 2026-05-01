@@ -197,10 +197,11 @@ export function createAgentManagerRuntime() {
 						});
 					},
 					close: (ws) => {
-						removeSession(ws.data.agentId, ws.data.id);
-						void agentsService.markAgentOffline(ws.data.agentId).catch((error) => {
-							logger.error(`Failed to mark agent ${ws.data.agentId} as offline: ${toMessage(error)}`);
-						});
+						if (removeSession(ws.data.agentId, ws.data.id)) {
+							void agentsService.markAgentOffline(ws.data.agentId).catch((error) => {
+								logger.error(`Failed to mark agent ${ws.data.agentId} as offline: ${toMessage(error)}`);
+							});
+						}
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 					},
 				},
@@ -214,11 +215,9 @@ export function createAgentManagerRuntime() {
 						catch: (error) => new StopAgentManagerServerError({ cause: error }),
 					}),
 				),
-				Effect.catchAll((error) =>
-					Effect.sync(() => {
-						logger.error(`Failed to stop Agent Manager server: ${toMessage(error.cause)}`);
-					}),
-				),
+				Effect.catchAll((error) => {
+					return logger.effect.error(`Failed to stop Agent Manager server: ${toMessage(error.cause)}`);
+				}),
 			),
 	);
 
@@ -233,6 +232,7 @@ export function createAgentManagerRuntime() {
 		await Effect.runPromise(Scope.close(scope, Exit.succeed(undefined)));
 	};
 
+	// TODO: Move the effect boundary up
 	const start = async () => {
 		if (runtimeScope) {
 			await stop();

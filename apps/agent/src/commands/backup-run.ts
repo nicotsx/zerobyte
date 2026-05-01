@@ -21,7 +21,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 			return;
 		}
 
-		logger.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
+		yield* logger.effect.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
 		const abortController = new AbortController();
 		yield* context.setRunningJob(payload.jobId, { scheduleId: payload.scheduleId, abortController });
 

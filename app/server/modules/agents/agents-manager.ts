@@ -1,7 +1,7 @@
 import { logger } from "@zerobyte/core/node";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { config } from "../../core/config";
-import type { AgentBackupEventHandlers } from "./controller/server";
+import { createAgentManagerRuntime, type AgentBackupEventHandlers } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 import type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
 import { createAgentRuntimeState } from "./helpers/runtime-state";
@@ -155,7 +155,6 @@ export const startAgentController = async () => {
 		runtime.agentManager = null;
 	}
 
-	const { createAgentManagerRuntime } = await import("./controller/server");
 	const nextAgentManager = createAgentManagerRuntime();
 	nextAgentManager.setBackupEventHandlers(backupEventHandlers);
 

@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { createConsola, type ConsolaReporter } from "consola";
 import { formatWithOptions } from "node:util";
 import { sanitizeSensitiveData } from "../utils/sanitize";
+import { Effect } from "effect";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -102,4 +103,10 @@ export const logger = {
 	info: (...messages: unknown[]) => consola.info(formatMessages(messages).join(" ")),
 	warn: (...messages: unknown[]) => consola.warn(formatMessages(messages).join(" ")),
 	error: (...messages: unknown[]) => consola.error(formatMessages(messages).join(" ")),
+	effect: {
+		debug: (...messages: unknown[]) => Effect.sync(() => consola.debug(formatMessages(messages).join(" "))),
+		info: (...messages: unknown[]) => Effect.sync(() => consola.info(formatMessages(messages).join(" "))),
+		warn: (...messages: unknown[]) => Effect.sync(() => consola.warn(formatMessages(messages).join(" "))),
+		error: (...messages: unknown[]) => Effect.sync(() => consola.error(formatMessages(messages).join(" "))),
+	},
 };
