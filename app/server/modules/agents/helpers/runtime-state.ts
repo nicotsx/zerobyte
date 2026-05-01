@@ -11,6 +11,7 @@ export type BackupExecutionResult =
 	| { status: "cancelled"; message?: string };
 
 type ActiveBackupRun = {
+	agentId: string;
 	scheduleId: number;
 	jobId: string;
 	scheduleShortId: string;

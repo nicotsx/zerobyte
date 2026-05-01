@@ -46,6 +46,17 @@ const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResul
 	return true;
 };
 
+const cancelActiveBackupRunsForAgent = (agentId: string, message: string) => {
+	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
+	const matchingScheduleIds = [...activeBackupsByScheduleId.values()]
+		.filter((activeBackupRun) => activeBackupRun.agentId === agentId)
+		.map((activeBackupRun) => activeBackupRun.scheduleId);
+
+	for (const scheduleId of matchingScheduleIds) {
+		resolveActiveBackupRun(scheduleId, { status: "cancelled", message });
+	}
+};
+
 const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
 	const trackedScheduleId = getActiveBackupScheduleIdsByJobId().get(jobId);
 	if (trackedScheduleId === undefined) {
@@ -99,6 +110,12 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 };
 
 const backupEventHandlers: AgentBackupEventHandlers = {
+	onAgentDisconnected: ({ agentId }) => {
+		cancelActiveBackupRunsForAgent(
+			agentId,
+			"The connection to the backup agent was lost. Restart the backup to ensure it completes.",
+		);
+	},
 	onBackupStarted: ({ agentId, payload }) => {
 		getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.started", agentId);
 	},
@@ -185,6 +202,7 @@ export const agentManager = {
 
 		const completion = new Promise<BackupExecutionResult>((resolve) => {
 			getActiveBackupsByScheduleId().set(request.scheduleId, {
+				agentId,
 				scheduleId: request.scheduleId,
 				jobId: request.payload.jobId,
 				scheduleShortId: request.payload.scheduleId,

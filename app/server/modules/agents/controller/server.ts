@@ -26,6 +26,7 @@ type AgentBackupEventContext = {
 };
 
 export type AgentBackupEventHandlers = {
+	onAgentDisconnected?: (context: { agentId: string; agentName: string }) => void;
 	onBackupStarted?: (context: AgentBackupEventContext & { payload: BackupStartedPayload }) => void;
 	onBackupProgress?: (context: AgentBackupEventContext & { payload: BackupProgressPayload }) => void;
 	onBackupCompleted?: (context: AgentBackupEventContext & { payload: BackupCompletedPayload }) => void;
@@ -55,27 +56,38 @@ export function createAgentManagerRuntime() {
 		});
 
 	const closeAllSessions = Effect.gen(function* () {
-		const currentSessions = sessions;
-		sessions = new Map();
-		for (const sessionHandle of currentSessions.values()) {
+		const currentSessions = [...sessions.entries()];
+		for (const [agentId, sessionHandle] of currentSessions) {
+			yield* Effect.promise(() => agentsService.markAgentOffline(agentId));
 			yield* closeSession(sessionHandle);
 		}
+		sessions = new Map();
 	});
 
 	const getSessionHandle = (agentId: string) => sessions.get(agentId);
 
 	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
 
-	const createSessionHandlers = (ws: Bun.ServerWebSocket<AgentConnectionData>) => {
+	const createSessionHandlers = (ws: Bun.ServerWebSocket<AgentConnectionData>, markConnecting: Promise<unknown>) => {
 		const agentId = ws.data.agentId;
 		const agentName = ws.data.agentName;
 
 		return {
 			onReady: ({ at }: { at: number }) => {
-				return Effect.promise(() => agentsService.markAgentOnline(agentId, at));
+				return Effect.promise(async () => {
+					await markConnecting;
+					await agentsService.markAgentOnline(agentId, at);
+				});
 			},
 			onHeartbeatPong: ({ at }: { at: number }) => {
 				return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
+			},
+			onDisconnect: () => {
+				if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
+					return Effect.void;
+				}
+
+				return Effect.sync(() => backupHandlers.onAgentDisconnected?.({ agentId, agentName }));
 			},
 			onBackupStarted: (payload: BackupStartedPayload) => {
 				return Effect.sync(() => backupHandlers.onBackupStarted?.({ agentId, agentName, payload }));
@@ -95,12 +107,14 @@ export function createAgentManagerRuntime() {
 		};
 	};
 
-	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>) => {
+	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>, markConnecting: Promise<unknown>) => {
 		// Manual scope management because we are out of Effect
 		const scope = Effect.runSync(Scope.make());
 
 		try {
-			const session = Effect.runSync(Scope.extend(createControllerAgentSession(ws, createSessionHandlers(ws)), scope));
+			const session = Effect.runSync(
+				Scope.extend(createControllerAgentSession(ws, createSessionHandlers(ws, markConnecting)), scope),
+			);
 			const runFiber = Effect.runFork(Scope.extend(session.run, scope));
 
 			return { session, runFiber, scope };
@@ -112,13 +126,13 @@ export function createAgentManagerRuntime() {
 
 	const setSession = (agentId: string, sessionHandle: ControllerAgentSessionHandle) => {
 		const existingSession = getSessionHandle(agentId);
+		sessions.set(agentId, sessionHandle);
+
 		if (existingSession) {
 			void Effect.runPromise(closeSession(existingSession)).catch((error) => {
 				logger.error(`Failed to close existing agent session for ${agentId}: ${toMessage(error)}`);
 			});
 		}
-
-		sessions.set(agentId, sessionHandle);
 	};
 
 	const removeSession = (agentId: string, connectionId: string) => {
@@ -165,17 +179,16 @@ export function createAgentManagerRuntime() {
 				},
 				websocket: {
 					open: (ws) => {
-						setSession(ws.data.agentId, createSession(ws));
-						void agentsService
-							.markAgentConnecting({
-								agentId: ws.data.agentId,
-								organizationId: ws.data.organizationId,
-								agentName: ws.data.agentName,
-								agentKind: ws.data.agentKind,
-							})
-							.catch((error) => {
-								logger.error(`Failed to mark agent ${ws.data.agentId} as connecting: ${toMessage(error)}`);
-							});
+						const markConnecting = agentsService.markAgentConnecting({
+							agentId: ws.data.agentId,
+							organizationId: ws.data.organizationId,
+							agentName: ws.data.agentName,
+							agentKind: ws.data.agentKind,
+						});
+						void markConnecting.catch((error) => {
+							logger.error(`Failed to mark agent ${ws.data.agentId} as connecting: ${toMessage(error)}`);
+						});
+						setSession(ws.data.agentId, createSession(ws, markConnecting));
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 					},
 					message: (ws, data) => {

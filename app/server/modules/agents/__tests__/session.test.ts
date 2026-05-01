@@ -2,7 +2,6 @@ import { Effect, Exit, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
@@ -29,6 +28,7 @@ const createSession = (
 	const sessionHandlers: Parameters<typeof createControllerAgentSession>[1] = {
 		onReady: () => Effect.void,
 		onHeartbeatPong: () => Effect.void,
+		onDisconnect: () => Effect.void,
 		onBackupStarted: () => Effect.void,
 		onBackupProgress: () => Effect.void,
 		onBackupCompleted: () => Effect.void,
@@ -61,87 +61,22 @@ const createSession = (
 	}
 };
 
-test("close emits a synthetic backup.cancelled for a started backup", () => {
-	const onBackupCancelled = vi.fn(() => Effect.void);
-	const { session, close } = createSession({
-		onBackupCancelled,
-		onBackupStarted: vi.fn(() => Effect.void),
-	});
-
-	Effect.runSync(
-		session.handleMessage(
-			createAgentMessage("backup.started", {
-				jobId: "job-1",
-				scheduleId: "schedule-1",
-			}),
-		),
-	);
+test("close reports a transport disconnect", () => {
+	const onDisconnect = vi.fn(() => Effect.void);
+	const { close } = createSession({ onDisconnect });
 
 	close();
 
-	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-	expect(onBackupCancelled).toHaveBeenCalledWith(
+	expect(onDisconnect).toHaveBeenCalledTimes(1);
+	expect(onDisconnect).toHaveBeenCalledWith(
 		expect.objectContaining({
-			jobId: "job-1",
-			scheduleId: "schedule-1",
+			agentId: LOCAL_AGENT_ID,
+			agentName: LOCAL_AGENT_NAME,
 		}),
 	);
 });
 
-test.each([
-	{
-		name: "backup.completed",
-		jobId: "job-1",
-		scheduleId: "schedule-1",
-		terminalMessage: createAgentMessage("backup.completed", {
-			jobId: "job-1",
-			scheduleId: "schedule-1",
-			exitCode: 0,
-			result: null,
-		}),
-		expectedCancelledCalls: 0,
-	},
-	{
-		name: "backup.failed",
-		jobId: "job-2",
-		scheduleId: "schedule-2",
-		terminalMessage: createAgentMessage("backup.failed", {
-			jobId: "job-2",
-			scheduleId: "schedule-2",
-			error: "backup failed",
-		}),
-		expectedCancelledCalls: 0,
-	},
-	{
-		name: "backup.cancelled",
-		jobId: "job-3",
-		scheduleId: "schedule-3",
-		terminalMessage: createAgentMessage("backup.cancelled", {
-			jobId: "job-3",
-			scheduleId: "schedule-3",
-			message: "Backup was cancelled",
-		}),
-		expectedCancelledCalls: 1,
-	},
-])("close does not emit an extra synthetic backup.cancelled after $name", (testCase) => {
-	const onBackupCancelled = vi.fn(() => Effect.void);
-	const { session, close } = createSession({ onBackupCancelled });
-
-	Effect.runSync(
-		session.handleMessage(
-			createAgentMessage("backup.started", {
-				jobId: testCase.jobId,
-				scheduleId: testCase.scheduleId,
-			}),
-		),
-	);
-	Effect.runSync(session.handleMessage(testCase.terminalMessage));
-	close();
-
-	expect(onBackupCancelled).toHaveBeenCalledTimes(testCase.expectedCancelledCalls);
-});
-
-test("close emits a synthetic backup.cancelled for a queued backup", () => {
+test("sendBackup only queues the transport message", () => {
 	const onBackupCancelled = vi.fn(() => Effect.void);
 	const { session, close } = createSession({ onBackupCancelled });
 
@@ -171,31 +106,17 @@ test("close emits a synthetic backup.cancelled for a queued backup", () => {
 
 	close();
 
-	expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-	expect(onBackupCancelled).toHaveBeenLastCalledWith(
-		expect.objectContaining({
-			jobId: "job-queued",
-			scheduleId: "schedule-queued",
-		}),
-	);
+	expect(onBackupCancelled).not.toHaveBeenCalled();
 });
 
-test("a dropped backup.cancel closes the session and emits a synthetic backup.cancelled", async () => {
+test("a dropped backup.cancel closes the session and reports a transport disconnect", async () => {
 	const send = vi.fn(() => 0);
 	const socket = createSocket({ send, close: vi.fn() });
-	const onBackupCancelled = vi.fn(() => Effect.void);
-	const { session, run, closeAsync } = createSession({ onBackupCancelled }, socket);
+	const onDisconnect = vi.fn(() => Effect.void);
+	const { session, run, closeAsync } = createSession({ onDisconnect }, socket);
 
 	try {
 		run();
-		Effect.runSync(
-			session.handleMessage(
-				createAgentMessage("backup.started", {
-					jobId: "job-1",
-					scheduleId: "schedule-1",
-				}),
-			),
-		);
 		Effect.runSync(
 			session.sendBackupCancel({
 				jobId: "job-1",
@@ -206,11 +127,10 @@ test("a dropped backup.cancel closes the session and emits a synthetic backup.ca
 		await waitForExpect(() => {
 			expect(send).toHaveBeenCalledTimes(1);
 			expect(socket.close).toHaveBeenCalledTimes(1);
-			expect(onBackupCancelled).toHaveBeenCalledTimes(1);
-			expect(onBackupCancelled).toHaveBeenCalledWith(
+			expect(onDisconnect).toHaveBeenCalledTimes(1);
+			expect(onDisconnect).toHaveBeenCalledWith(
 				expect.objectContaining({
-					jobId: "job-1",
-					scheduleId: "schedule-1",
+					agentId: LOCAL_AGENT_ID,
 				}),
 			);
 		});
