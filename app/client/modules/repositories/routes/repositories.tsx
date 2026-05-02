@@ -1,7 +1,18 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown, Database, Plus, RotateCcw } from "lucide-react";
+import {
+	flexRender,
+	getCoreRowModel,
+	getFilteredRowModel,
+	getSortedRowModel,
+	type ColumnDef,
+	type ColumnFiltersState,
+	type SortingState,
+	useReactTable,
+} from "@tanstack/react-table";
+import { Database, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { DataTableSortHeader } from "~/client/components/data-table-sort-header";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { Button } from "~/client/components/ui/button";
 import { Card } from "~/client/components/ui/card";
@@ -14,8 +25,6 @@ import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
 import type { RepositoryBackend } from "@zerobyte/core/restic";
 
-type SortColumn = "name" | "backend" | "status" | "compression";
-type SortDirection = "asc" | "desc";
 type RepositoryRow = {
 	id: string;
 	shortId: string;
@@ -25,31 +34,62 @@ type RepositoryRow = {
 	compressionMode?: string | null;
 };
 
-const getSortValue = (column: SortColumn, repository: RepositoryRow) => {
-	switch (column) {
-		case "name":
-			return repository.name;
-		case "backend":
-			return repository.type;
-		case "status":
-			return repository.status || "";
-		case "compression":
-			return repository.compressionMode || "";
-	}
-};
+const repositoryColumns: ColumnDef<RepositoryRow>[] = [
+	{
+		accessorKey: "name",
+		header: ({ column }) => <DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />,
+		cell: ({ row }) => (
+			<div className="flex items-center gap-2">
+				<span>{row.original.name}</span>
+			</div>
+		),
+	},
+	{
+		accessorKey: "type",
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Backend" sortDirection={column.getIsSorted()} />
+		),
+		cell: ({ row }) => (
+			<span className="flex items-center gap-2 text-muted-foreground">
+				<RepositoryIcon backend={row.original.type} />
+				{row.original.type}
+			</span>
+		),
+		filterFn: (row, id, value) => row.getValue(id) === value,
+	},
+	{
+		accessorFn: (row) => row.compressionMode || "off",
+		id: "compressionMode",
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Compression" sortDirection={column.getIsSorted()} />
+		),
+		cell: ({ row }) => (
+			<span className="text-muted-foreground text-xs bg-primary/10 rounded-md px-2 py-1">
+				{row.original.compressionMode || "off"}
+			</span>
+		),
+		sortingFn: "alphanumeric",
+	},
+	{
+		accessorFn: (row) => row.status || "unknown",
+		id: "status",
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
+		),
+		cell: ({ row }) => (
+			<StatusDot
+				variant={row.original.status === "healthy" ? "success" : row.original.status === "error" ? "error" : "warning"}
+				label={row.original.status || "unknown"}
+			/>
+		),
+		sortingFn: "alphanumeric",
+		filterFn: (row, id, value) => row.getValue(id) === value,
+	},
+];
 
 export function RepositoriesPage() {
-	const [searchQuery, setSearchQuery] = useState("");
-	const [statusFilter, setStatusFilter] = useState("");
-	const [backendFilter, setBackendFilter] = useState("");
-	const [sortColumn, setSortColumn] = useState<SortColumn>("name");
-	const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-
-	const clearFilters = () => {
-		setSearchQuery("");
-		setStatusFilter("");
-		setBackendFilter("");
-	};
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+	const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
 
 	const navigate = useNavigate();
 
@@ -59,45 +99,23 @@ export function RepositoriesPage() {
 
 	const repositories = data as RepositoryRow[];
 
-	const toggleSort = (column: SortColumn) => {
-		if (sortColumn === column) {
-			setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-			return;
-		}
-
-		setSortColumn(column);
-		setSortDirection("asc");
-	};
-
-	const renderSortIcon = (column: SortColumn) => {
-		if (sortColumn !== column) {
-			return <ArrowUpDown className="ml-2 h-3.5 w-3.5" />;
-		}
-
-		return sortDirection === "asc" ? (
-			<ArrowUp className="ml-2 h-3.5 w-3.5" />
-		) : (
-			<ArrowDown className="ml-2 h-3.5 w-3.5" />
-		);
-	};
-
-	const filteredRepositories = repositories.filter((repository) => {
-		const matchesSearch = repository.name.toLowerCase().includes(searchQuery.toLowerCase());
-		const matchesStatus = !statusFilter || repository.status === statusFilter;
-		const matchesBackend = !backendFilter || repository.type === backendFilter;
-		return matchesSearch && matchesStatus && matchesBackend;
+	const table = useReactTable({
+		data: repositories,
+		columns: repositoryColumns,
+		state: { columnFilters, sorting },
+		onColumnFiltersChange: setColumnFilters,
+		onSortingChange: setSorting,
+		getCoreRowModel: getCoreRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
+		getSortedRowModel: getSortedRowModel(),
 	});
+	const rows = table.getRowModel().rows;
+	const hasFilters = columnFilters.length > 0;
 
-	const sortedFilteredRepositories = [...filteredRepositories].sort((a, b) => {
-		const valueA = getSortValue(sortColumn, a).toLowerCase();
-		const valueB = getSortValue(sortColumn, b).toLowerCase();
-		const result = valueA.localeCompare(valueB);
-
-		return sortDirection === "asc" ? result : -result;
-	});
+	const clearFilters = () => table.resetColumnFilters();
 
 	const hasNoRepositories = repositories.length === 0;
-	const hasNoFilteredRepositories = sortedFilteredRepositories.length === 0 && !hasNoRepositories;
+	const hasNoFilteredRepositories = rows.length === 0 && !hasNoRepositories;
 
 	if (hasNoRepositories) {
 		return (
@@ -115,6 +133,10 @@ export function RepositoriesPage() {
 		);
 	}
 
+	const search = (table.getColumn("name")?.getFilterValue() as string) ?? "";
+	const type = (table.getColumn("type")?.getFilterValue() as string) ?? "";
+	const status = (table.getColumn("status")?.getFilterValue() as string) ?? "";
+
 	return (
 		<Card className="p-0 gap-0">
 			<div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-2 md:justify-between p-4 bg-card-header py-4">
@@ -122,10 +144,10 @@ export function RepositoriesPage() {
 					<Input
 						className="w-full lg:w-45 min-w-45"
 						placeholder="Search…"
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
+						value={search}
+						onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
 					/>
-					<Select value={statusFilter} onValueChange={setStatusFilter}>
+					<Select value={status} onValueChange={(value) => table.getColumn("status")?.setFilterValue(value)}>
 						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
@@ -135,7 +157,7 @@ export function RepositoriesPage() {
 							<SelectItem value="unknown">Unknown</SelectItem>
 						</SelectContent>
 					</Select>
-					<Select value={backendFilter} onValueChange={setBackendFilter}>
+					<Select value={type} onValueChange={(value) => table.getColumn("type")?.setFilterValue(value)}>
 						<SelectTrigger className="w-full lg:w-45 min-w-45">
 							<SelectValue placeholder="All backends" />
 						</SelectTrigger>
@@ -146,7 +168,7 @@ export function RepositoriesPage() {
 							<SelectItem value="gcs">Google Cloud Storage</SelectItem>
 						</SelectContent>
 					</Select>
-					{(searchQuery || statusFilter || backendFilter) && (
+					{hasFilters && (
 						<Button onClick={clearFilters} className="w-full lg:w-auto mt-2 lg:mt-0 lg:ml-2">
 							<RotateCcw className="h-4 w-4 mr-2" />
 							Clear filters
@@ -161,56 +183,23 @@ export function RepositoriesPage() {
 			<div className="overflow-x-auto">
 				<Table className="border-t">
 					<TableHeader className="bg-card-header">
-						<TableRow>
-							<TableHead className="w-25 uppercase">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => toggleSort("name")}
-									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
-								>
-									Name
-									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("name")}</div>
-								</Button>
-							</TableHead>
-							<TableHead className="uppercase text-left">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => toggleSort("backend")}
-									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
-								>
-									Backend
-									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("backend")}</div>
-								</Button>
-							</TableHead>
-							<TableHead className="uppercase hidden sm:table-cell">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => toggleSort("compression")}
-									className="h-auto! p-0! font-inherit hover:bg-transparent uppercase group/sort"
-								>
-									Compresison
-									<div className="lg:invisible lg:group-hover/sort:visible">{renderSortIcon("compression")}</div>
-								</Button>
-							</TableHead>
-							<TableHead className="uppercase text-center">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => toggleSort("status")}
-									className="h-auto! w-full! p-0! font-inherit hover:bg-transparent uppercase group/sort relative"
-								>
-									<span className="relative flex w-full items-center justify-center">
-										Status
-										<span className="lg:absolute lg:-right-6 lg:top-1/2 lg:-translate-y-1/2 lg:invisible lg:group-hover/sort:visible">
-											{renderSortIcon("status")}
-										</span>
-									</span>
-								</Button>
-							</TableHead>
-						</TableRow>
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow key={headerGroup.id}>
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className={cn("uppercase", {
+											"w-25": header.column.id === "name",
+											"text-left": header.column.id === "type",
+											"hidden sm:table-cell": header.column.id === "compressionMode",
+											"text-center": header.column.id === "status",
+										})}
+									>
+										{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+									</TableHead>
+								))}
+							</TableRow>
+						))}
 					</TableHeader>
 					<TableBody>
 						<TableRow className={cn({ hidden: !hasNoFilteredRepositories })}>
@@ -224,38 +213,24 @@ export function RepositoriesPage() {
 								</div>
 							</TableCell>
 						</TableRow>
-						{sortedFilteredRepositories.map((repository) => (
+						{rows.map((row) => (
 							<TableRow
-								key={repository.id}
+								key={row.original.id}
 								className="hover:bg-accent/50 hover:cursor-pointer h-12"
-								onClick={() => navigate({ to: `/repositories/${repository.shortId}` })}
+								onClick={() => navigate({ to: `/repositories/${row.original.shortId}` })}
 							>
-								<TableCell className="font-medium text-strong-accent">
-									<div className="flex items-center gap-2">
-										<span>{repository.name}</span>
-									</div>
-								</TableCell>
-								<TableCell>
-									<span className="flex items-center gap-2 text-muted-foreground">
-										<RepositoryIcon backend={repository.type} />
-										{repository.type}
-									</span>
-								</TableCell>
-								<TableCell className="hidden sm:table-cell">
-									<span className="text-muted-foreground text-xs bg-primary/10 rounded-md px-2 py-1">
-										{repository.compressionMode || "off"}
-									</span>
-								</TableCell>
-								<TableCell className="text-center">
-									<StatusDot
-										variant={
-											repository.status === "healthy" ? "success" : repository.status === "error" ? "error" : "warning"
-										}
-										label={
-											repository.status ? repository.status[0].toUpperCase() + repository.status.slice(1) : "Unknown"
-										}
-									/>
-								</TableCell>
+								{row.getVisibleCells().map((cell) => (
+									<TableCell
+										key={cell.id}
+										className={cn({
+											"font-medium text-strong-accent": cell.column.id === "name",
+											"hidden sm:table-cell": cell.column.id === "compressionMode",
+											"text-center": cell.column.id === "status",
+										})}
+									>
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									</TableCell>
+								))}
 							</TableRow>
 						))}
 					</TableBody>
@@ -266,8 +241,8 @@ export function RepositoriesPage() {
 					"No repositories match filters."
 				) : (
 					<span>
-						<span className="text-strong-accent">{sortedFilteredRepositories.length}</span> repositor
-						{sortedFilteredRepositories.length === 1 ? "y" : "ies"}
+						<span className="text-strong-accent">{rows.length}</span> repositor
+						{rows.length === 1 ? "y" : "ies"}
 					</span>
 				)}
 			</div>

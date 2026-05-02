@@ -62,6 +62,7 @@
 		"@tanstack/react-router": "^1.168.1",
 		"@tanstack/react-router-ssr-query": "^1.166.10",
 		"@tanstack/react-start": "^1.167.1",
+		"@tanstack/react-table": "^8.21.3",
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
 		"better-auth": "^1.5.5",
