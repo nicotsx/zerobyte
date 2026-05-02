@@ -337,6 +337,9 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	id: int().primaryKey({ autoIncrement: true }),
 	name: text().notNull(),
 	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
+	status: text().$type<"healthy" | "error" | "unknown">().notNull().default("unknown"),
+	lastChecked: int("last_checked", { mode: "number" }),
+	lastError: text("last_error"),
 	type: text().$type<NotificationType>().notNull(),
 	config: text("config", { mode: "json" }).$type<NotificationConfig>().notNull(),
 	createdAt: int("created_at", { mode: "number" })

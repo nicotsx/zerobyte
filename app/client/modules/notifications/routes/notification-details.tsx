@@ -40,6 +40,7 @@ import {
 	Lock,
 	Mail,
 	AtSign,
+	AlertCircle,
 	MessageSquare,
 	Pencil,
 	Server,
@@ -55,6 +56,7 @@ import type { GetNotificationDestinationResponse } from "~/client/api-client/typ
 import { useTimeFormat } from "~/client/lib/datetime";
 
 type NotificationConfig = GetNotificationDestinationResponse["config"];
+type NotificationStatus = GetNotificationDestinationResponse["status"];
 type Props = {
 	icon: React.ReactNode;
 	label: string;
@@ -70,6 +72,17 @@ function ConfigRow({ icon, label, value, mono }: Props) {
 			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>{value}</span>
 		</div>
 	);
+}
+
+function getStatusLabel(enabled: boolean, status: NotificationStatus) {
+	return enabled ? status : "disabled";
+}
+
+function getStatusClass(enabled: boolean, status: NotificationStatus) {
+	if (!enabled) return "bg-gray-500";
+	if (status === "healthy") return "bg-success";
+	if (status === "error") return "bg-red-500";
+	return "bg-yellow-500";
 }
 
 function NotificationConfigRows({ config }: { config: NotificationConfig }) {
@@ -228,13 +241,8 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 									<h2 className="text-lg font-semibold tracking-tight">{data.name}</h2>
 									<Separator orientation="vertical" className="h-4 mx-1" />
 									<Badge variant="outline" className="capitalize gap-1.5">
-										<span
-											className={cn("w-2 h-2 rounded-full shrink-0", {
-												"bg-success": data.enabled,
-												"bg-red-500": !data.enabled,
-											})}
-										/>
-										{data.enabled ? "Enabled" : "Disabled"}
+										<span className={cn("w-2 h-2 rounded-full shrink-0", getStatusClass(data.enabled, data.status))} />
+										{getStatusLabel(data.enabled, data.status)}
 									</Badge>
 									<Badge variant="secondary" className="capitalize">
 										{data.type}
@@ -288,6 +296,14 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 					<div className="space-y-0 divide-y divide-border/50">
 						<NotificationConfigRows config={data.config} />
 					</div>
+				</Card>
+
+				<Card className={cn("px-6 py-6", { hidden: !data.lastError })}>
+					<CardTitle className="flex items-center gap-2 mb-3 text-red-600">
+						<AlertCircle className="h-4 w-4" />
+						Last Delivery Error
+					</CardTitle>
+					<p className="text-sm text-muted-foreground wrap-break-word">{data.lastError}</p>
 				</Card>
 			</div>
 

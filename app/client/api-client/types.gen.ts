@@ -3610,6 +3610,9 @@ export type GetScheduleNotificationsResponses = {
             id: number;
             name: string;
             enabled: boolean;
+            status: 'healthy' | 'error' | 'unknown';
+            lastChecked: number | null;
+            lastError: string | null;
             type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
             config: {
                 type: 'email';
@@ -3711,6 +3714,9 @@ export type UpdateScheduleNotificationsResponses = {
             id: number;
             name: string;
             enabled: boolean;
+            status: 'healthy' | 'error' | 'unknown';
+            lastChecked: number | null;
+            lastError: string | null;
             type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
             config: {
                 type: 'email';
@@ -4342,6 +4348,9 @@ export type ListNotificationDestinationsResponses = {
         id: number;
         name: string;
         enabled: boolean;
+        status: 'healthy' | 'error' | 'unknown';
+        lastChecked: number | null;
+        lastError: string | null;
         type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
             type: 'email';
@@ -4485,6 +4494,9 @@ export type CreateNotificationDestinationResponses = {
         id: number;
         name: string;
         enabled: boolean;
+        status: 'healthy' | 'error' | 'unknown';
+        lastChecked: number | null;
+        lastError: string | null;
         type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
             type: 'email';
@@ -4603,6 +4615,9 @@ export type GetNotificationDestinationResponses = {
         id: number;
         name: string;
         enabled: boolean;
+        status: 'healthy' | 'error' | 'unknown';
+        lastChecked: number | null;
+        lastError: string | null;
         type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
             type: 'email';
@@ -4756,6 +4771,9 @@ export type UpdateNotificationDestinationResponses = {
         id: number;
         name: string;
         enabled: boolean;
+        status: 'healthy' | 'error' | 'unknown';
+        lastChecked: number | null;
+        lastError: string | null;
         type: 'email' | 'slack' | 'discord' | 'gotify' | 'ntfy' | 'pushover' | 'telegram' | 'generic' | 'custom';
         config: {
             type: 'email';

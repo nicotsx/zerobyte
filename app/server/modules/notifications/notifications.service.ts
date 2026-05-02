@@ -18,6 +18,7 @@ import { config } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
+import { serverEvents } from "~/server/core/events";
 
 const getCustomShoutrrrWebhookUrl = (shoutrrrUrl: string) => {
 	if (!URL.canParse(shoutrrrUrl)) {
@@ -188,24 +189,52 @@ const deleteDestination = async (id: number) => {
 		);
 };
 
+const updateDeliveryStatus = async (destinationId: number, result: { success: boolean; error?: string }) => {
+	const [updated] = await db
+		.update(notificationDestinationsTable)
+		.set({
+			status: result.success ? "healthy" : "error",
+			lastChecked: Date.now(),
+			lastError: result.success ? null : (result.error ?? "Unknown error"),
+			updatedAt: Date.now(),
+		})
+		.where(eq(notificationDestinationsTable.id, destinationId))
+		.returning();
+
+	if (updated) {
+		serverEvents.emit("notification:updated", {
+			organizationId: updated.organizationId,
+			notificationId: updated.id,
+			notificationName: updated.name,
+			status: updated.status,
+		});
+	}
+};
+
 const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
 
-	const decryptedConfig = await decryptNotificationConfig(destination.config);
-	assertNotificationWebhookOriginAllowed(decryptedConfig);
+	try {
+		const decryptedConfig = await decryptNotificationConfig(destination.config);
+		assertNotificationWebhookOriginAllowed(decryptedConfig);
 
-	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
+		const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
-	logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
+		logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
 
-	const result = await sendNotification({
-		shoutrrrUrl,
-		title: "Zerobyte Test Notification",
-		body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
-	});
+		const result = await sendNotification({
+			shoutrrrUrl,
+			title: "Zerobyte Test Notification",
+			body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
+		});
+		await updateDeliveryStatus(destination.id, result);
 
-	if (!result.success) {
-		throw new InternalServerError(`Failed to send test notification: ${result.error}`);
+		if (!result.success) {
+			throw new InternalServerError(`Failed to send test notification: ${result.error}`);
+		}
+	} catch (error) {
+		await updateDeliveryStatus(destination.id, { success: false, error: toMessage(error) });
+		throw error;
 	}
 
 	return { success: true };
@@ -394,6 +423,7 @@ const sendBackupNotification = async (
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
 				const result = await sendNotification({ shoutrrrUrl, title, body });
+				await updateDeliveryStatus(assignment.destination.id, result);
 
 				if (result.success) {
 					logger.info(
@@ -405,6 +435,7 @@ const sendBackupNotification = async (
 					);
 				}
 			} catch (error) {
+				await updateDeliveryStatus(assignment.destination.id, { success: false, error: toMessage(error) });
 				logger.error(
 					`Error sending notification to ${assignment.destination.name} for backup ${scheduleId}: ${toMessage(error)}`,
 				);

@@ -28,6 +28,7 @@ const invalidatingEvents = new Set<ServerEventType>([
 	"backup:completed",
 	"volume:updated",
 	"volume:status_changed",
+	"notification:updated",
 	"mirror:completed",
 	"doctor:started",
 	"doctor:completed",

@@ -28,6 +28,15 @@ type NotificationRow = {
 	name: string;
 	type: "email" | "slack" | "discord" | "gotify" | "ntfy" | "pushover" | "telegram" | "custom" | "generic";
 	enabled: boolean;
+	status: "healthy" | "error" | "unknown";
+};
+
+const getNotificationStatus = (row: NotificationRow) => (row.enabled ? row.status : "disabled");
+const getNotificationStatusVariant = (row: NotificationRow) => {
+	if (!row.enabled) return "neutral";
+	if (row.status === "healthy") return "success";
+	if (row.status === "error") return "error";
+	return "warning";
 };
 
 const notificationColumns: ColumnDef<NotificationRow>[] = [
@@ -43,16 +52,13 @@ const notificationColumns: ColumnDef<NotificationRow>[] = [
 		filterFn: (row, id, value) => row.getValue(id) === value,
 	},
 	{
-		accessorFn: (row) => (row.enabled ? "enabled" : "disabled"),
+		accessorFn: getNotificationStatus,
 		id: "status",
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
 		),
 		cell: ({ row }) => (
-			<StatusDot
-				variant={row.original.enabled ? "success" : "neutral"}
-				label={row.original.enabled ? "Enabled" : "Disabled"}
-			/>
+			<StatusDot variant={getNotificationStatusVariant(row.original)} label={getNotificationStatus(row.original)} />
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,
 	},
@@ -138,7 +144,9 @@ export function NotificationsPage() {
 							<SelectValue placeholder="All status" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="enabled">Enabled</SelectItem>
+							<SelectItem value="healthy">Healthy</SelectItem>
+							<SelectItem value="error">Error</SelectItem>
+							<SelectItem value="unknown">Unknown</SelectItem>
 							<SelectItem value="disabled">Disabled</SelectItem>
 						</SelectContent>
 					</Select>

@@ -20,6 +20,7 @@ const broadcastEvents = [
 	"volume:mounted",
 	"volume:unmounted",
 	"volume:updated",
+	"notification:updated",
 	"mirror:started",
 	"mirror:completed",
 	"restore:started",
