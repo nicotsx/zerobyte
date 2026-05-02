@@ -77,10 +77,8 @@ export function VolumesPage() {
 	const navigate = useNavigate();
 	const { data } = useSuspenseQuery({ ...listVolumesOptions() });
 
-	const volumes = data as VolumeRow[];
-
 	const table = useReactTable({
-		data: volumes,
+		data,
 		columns: volumeColumns,
 		state: { columnFilters, sorting },
 		onColumnFiltersChange: setColumnFilters,
@@ -95,7 +93,7 @@ export function VolumesPage() {
 
 	const clearFilters = () => table.resetColumnFilters();
 
-	const hasNoVolumes = volumes.length === 0;
+	const hasNoVolumes = data.length === 0;
 	const hasNoFilteredVolumes = rows.length === 0 && !hasNoVolumes;
 
 	if (hasNoVolumes) {

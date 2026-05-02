@@ -97,10 +97,8 @@ export function RepositoriesPage() {
 		...listRepositoriesOptions(),
 	});
 
-	const repositories = data as RepositoryRow[];
-
 	const table = useReactTable({
-		data: repositories,
+		data,
 		columns: repositoryColumns,
 		state: { columnFilters, sorting },
 		onColumnFiltersChange: setColumnFilters,
@@ -114,7 +112,7 @@ export function RepositoriesPage() {
 
 	const clearFilters = () => table.resetColumnFilters();
 
-	const hasNoRepositories = repositories.length === 0;
+	const hasNoRepositories = data.length === 0;
 	const hasNoFilteredRepositories = rows.length === 0 && !hasNoRepositories;
 
 	if (hasNoRepositories) {

@@ -129,6 +129,7 @@ export function NotificationsPage() {
 							<SelectItem value="ntfy">Ntfy</SelectItem>
 							<SelectItem value="pushover">Pushover</SelectItem>
 							<SelectItem value="telegram">Telegram</SelectItem>
+							<SelectItem value="generic">Generic</SelectItem>
 							<SelectItem value="custom">Custom</SelectItem>
 						</SelectContent>
 					</Select>
