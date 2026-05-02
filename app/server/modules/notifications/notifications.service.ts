@@ -213,6 +213,7 @@ const updateDeliveryStatus = async (destinationId: number, result: { success: bo
 
 const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
+	let result: Awaited<ReturnType<typeof sendNotification>>;
 
 	try {
 		const decryptedConfig = await decryptNotificationConfig(destination.config);
@@ -222,19 +223,20 @@ const testDestination = async (id: number) => {
 
 		logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
 
-		const result = await sendNotification({
+		result = await sendNotification({
 			shoutrrrUrl,
 			title: "Zerobyte Test Notification",
 			body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
 		});
-		await updateDeliveryStatus(destination.id, result);
-
-		if (!result.success) {
-			throw new InternalServerError(`Failed to send test notification: ${result.error}`);
-		}
 	} catch (error) {
 		await updateDeliveryStatus(destination.id, { success: false, error: toMessage(error) });
 		throw error;
+	}
+
+	await updateDeliveryStatus(destination.id, result);
+
+	if (!result.success) {
+		throw new InternalServerError(`Failed to send test notification: ${result.error}`);
 	}
 
 	return { success: true };
