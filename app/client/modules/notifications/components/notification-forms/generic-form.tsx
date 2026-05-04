@@ -15,7 +15,7 @@ const WebhookPreview = ({ values }: { values: Partial<NotificationFormValues> })
 	if (values.type !== "generic") return null;
 
 	const contentType = values.contentType || "application/json";
-	const headers = values.headers || [];
+	const headers = values.headers?.filter(Boolean) || [];
 	const useJson = values.useJson;
 	const titleKey = values.titleKey || "title";
 	const messageKey = values.messageKey || "message";
@@ -60,7 +60,7 @@ export const GenericForm = ({ form }: Props) => {
 						<FormControl>
 							<Input {...field} placeholder="https://api.example.com/webhook" />
 						</FormControl>
-						<FormDescription>The target URL for the webhook.</FormDescription>
+						<FormDescription>The target origin must be listed in WEBHOOK_ALLOWED_ORIGINS.</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -110,10 +110,19 @@ export const GenericForm = ({ form }: Props) => {
 								{...field}
 								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
 								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
-								onChange={(e) => field.onChange(e.target.value.split("\n"))}
+								onChange={(e) =>
+									field.onChange(
+										e.target.value
+											.split("\n")
+											.map((header) => header.trim())
+											.filter(Boolean),
+									)
+								}
 							/>
 						</FormControl>
-						<FormDescription>One header per line in Key: Value format.</FormDescription>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

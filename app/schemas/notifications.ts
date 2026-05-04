@@ -14,6 +14,13 @@ export const NOTIFICATION_TYPES = {
 
 export type NotificationType = keyof typeof NOTIFICATION_TYPES;
 
+const headerNamePattern = /^[A-Za-z0-9-]+$/;
+const notificationHeaderSchema = z.string().refine((header) => {
+	const [key, value] = header.split(":", 2);
+
+	return !!key && headerNamePattern.test(key.trim()) && (value?.trim().length ?? 0) > 0;
+}, "Headers must use non-empty Key: Value format with valid header names");
+
 export const emailNotificationConfigSchema = z.object({
 	type: z.literal("email"),
 	smtpHost: z.string().min(1),
@@ -79,7 +86,7 @@ export const genericNotificationConfigSchema = z.object({
 	url: z.string().min(1),
 	method: z.enum(["GET", "POST"]),
 	contentType: z.string().optional(),
-	headers: z.array(z.string()).optional(),
+	headers: z.array(notificationHeaderSchema).optional(),
 	useJson: z.boolean().optional(),
 	titleKey: z.string().optional(),
 	messageKey: z.string().optional(),

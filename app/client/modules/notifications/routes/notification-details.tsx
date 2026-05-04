@@ -41,6 +41,7 @@ import {
 	Mail,
 	AtSign,
 	AlertCircle,
+	Clock,
 	MessageSquare,
 	Pencil,
 	Server,
@@ -295,6 +296,26 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 					</CardTitle>
 					<div className="space-y-0 divide-y divide-border/50">
 						<NotificationConfigRows config={data.config} />
+					</div>
+				</Card>
+
+				<Card className="px-6 py-6">
+					<CardTitle className="flex items-center gap-2 mb-5">
+						<Clock className="h-4 w-4 text-muted-foreground" />
+						Delivery Health
+					</CardTitle>
+					<div className="space-y-0 divide-y divide-border/50">
+						<ConfigRow
+							icon={<Bell className="h-4 w-4" />}
+							label="Status"
+							value={getStatusLabel(data.enabled, data.status)}
+						/>
+						<ConfigRow icon={<Settings className="h-4 w-4" />} label="Enabled" value={data.enabled ? "Yes" : "No"} />
+						<ConfigRow
+							icon={<Clock className="h-4 w-4" />}
+							label="Last Checked"
+							value={data.lastChecked ? formatDateTime(data.lastChecked) : "Never"}
+						/>
 					</div>
 				</Card>
 

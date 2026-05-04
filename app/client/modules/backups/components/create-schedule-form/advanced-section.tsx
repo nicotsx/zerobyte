@@ -31,7 +31,9 @@ const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, descripti
 						<FormControl>
 							<Input {...field} type="url" placeholder={urlPlaceholder} />
 						</FormControl>
-						<FormDescription>{description}</FormDescription>
+						<FormDescription>
+							{description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are not followed.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

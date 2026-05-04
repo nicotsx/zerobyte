@@ -31,7 +31,8 @@ export const CustomForm = ({ form }: Props) => {
 						>
 							Shoutrrr documentation
 						</a>
-						&nbsp;for supported services and URL formats.
+						&nbsp;for supported services and URL formats. Custom HTTP, generic, and SMTP network targets must be listed
+						in WEBHOOK_ALLOWED_ORIGINS.
 					</FormDescription>
 					<FormMessage />
 				</FormItem>

@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
-import { runBackupLifecycle } from "../index.js";
+import { backupWebhookConfigSchema, runBackupLifecycle } from "../index.js";
 
 const server = setupServer();
 
@@ -456,6 +456,16 @@ test("rejects oversized webhook request bodies and headers", async () => {
 	});
 
 	expect(headersResult).toEqual({ status: "failed", error: "Webhook request headers exceed 8192 bytes" });
+});
+
+test("rejects malformed webhook header lines", () => {
+	expect(() => backupWebhookConfigSchema.parse({ url: "http://localhost:8080/pre", headers: ["Malformed"] })).toThrow(
+		"Headers must use non-empty Key: Value format with valid header names",
+	);
+
+	expect(() =>
+		backupWebhookConfigSchema.parse({ url: "http://localhost:8080/pre", headers: ["Bad Header: value"] }),
+	).toThrow("Headers must use non-empty Key: Value format with valid header names");
 });
 
 test("cancels before the pre-backup webhook without running the backup", async () => {

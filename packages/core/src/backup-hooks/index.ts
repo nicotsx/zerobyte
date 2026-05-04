@@ -6,9 +6,15 @@ import { toErrorDetails, toMessage } from "../utils/index.js";
 const MAX_BACKUP_WEBHOOK_BODY_BYTES = 64 * 1024;
 const MAX_BACKUP_WEBHOOK_HEADERS = 32;
 const MAX_BACKUP_WEBHOOK_HEADER_BYTES = 8 * 1024;
+const HEADER_NAME_PATTERN = /^[A-Za-z0-9-]+$/;
 
 const getByteLength = (value: string) => new TextEncoder().encode(value).byteLength;
 const getUrlOrigin = (url: string) => (URL.canParse(url) ? new URL(url).origin : null);
+const isValidHeaderLine = (header: string) => {
+	const [key, value] = header.split(":", 2);
+
+	return !!key && HEADER_NAME_PATTERN.test(key.trim()) && (value?.trim().length ?? 0) > 0;
+};
 
 export const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string[]) => {
 	const webhookOrigin = getUrlOrigin(url);
@@ -17,7 +23,9 @@ export const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string
 
 export const backupWebhookConfigSchema = z.object({
 	url: z.url(),
-	headers: z.array(z.string()).optional(),
+	headers: z
+		.array(z.string().refine(isValidHeaderLine, "Headers must use non-empty Key: Value format with valid header names"))
+		.optional(),
 	body: z.string().optional(),
 });
 
