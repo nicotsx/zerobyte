@@ -115,6 +115,17 @@ const getCustomShoutrrrTarget = (shoutrrrUrl: string) => {
 
 const getNotificationTarget = (notificationConfig: NotificationConfig) => {
 	switch (notificationConfig.type) {
+		case "email": {
+			const smtpTarget = new URL("smtp://placeholder");
+			smtpTarget.hostname = notificationConfig.smtpHost;
+			smtpTarget.port = String(notificationConfig.smtpPort);
+			return `${smtpTarget.protocol}//${smtpTarget.host}`;
+		}
+		case "slack":
+		case "discord":
+		case "pushover":
+		case "telegram":
+			return null;
 		case "generic":
 			return notificationConfig.url;
 		case "gotify":
@@ -123,8 +134,12 @@ const getNotificationTarget = (notificationConfig: NotificationConfig) => {
 			return notificationConfig.serverUrl ?? null;
 		case "custom":
 			return getCustomShoutrrrTarget(notificationConfig.shoutrrrUrl);
-		default:
-			return null;
+		default: {
+			const _exhaustive: never = notificationConfig;
+			throw new BadRequestError(
+				`Unsupported notification type "${(_exhaustive as NotificationConfig).type}" for the SSRF policy.`,
+			);
+		}
 	}
 };
 
