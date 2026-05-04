@@ -86,13 +86,13 @@ export const createApp = () => {
 	app.get("/api/v1/docs", requireAuth, scalarDescriptor);
 
 	app.onError((err, c) => {
-		logger.error(`${c.req.url}: ${err.message}`);
+		const { status, message, details } = handleServiceError(err);
+
+		logger.error(`${c.req.url}: ${message}`);
 
 		if (err.cause instanceof Error) {
 			logger.error(err.cause.message);
 		}
-
-		const { status, message, details } = handleServiceError(err);
 
 		return c.json(details ? { message, details } : { message }, status as 500);
 	});
