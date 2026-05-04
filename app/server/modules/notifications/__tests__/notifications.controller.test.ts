@@ -121,5 +121,28 @@ describe("notifications security", () => {
 				"Notification webhook URL origin is not allowed. Add https://hooks.example.com to WEBHOOK_ALLOWED_ORIGINS.",
 			);
 		});
+
+		test("should return 400 for custom shoutrrr network targets outside the allowlist", async () => {
+			const res = await app.request("/api/v1/notifications/destinations", {
+				method: "POST",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					name: "Blocked custom SMTP",
+					config: {
+						type: "custom",
+						shoutrrrUrl: "smtp://127.0.0.1:2525/?from=test@example.com&to=admin@example.com",
+					},
+				}),
+			});
+
+			expect(res.status).toBe(400);
+			const body = await res.json();
+			expect(body.message).toBe(
+				"Notification webhook URL origin is not allowed. Add smtp://127.0.0.1:2525 to WEBHOOK_ALLOWED_ORIGINS.",
+			);
+		});
 	});
 });
