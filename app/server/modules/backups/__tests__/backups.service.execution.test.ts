@@ -424,6 +424,7 @@ describe("backup execution - validation failures", () => {
 describe("stop backup", () => {
 	test("should keep restic warning details when backup completes with read errors", async () => {
 		const { resticBackupMock } = setup();
+		const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -446,6 +447,11 @@ describe("stop backup", () => {
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("error: open /mnt/data/private.db: permission denied");
+		expect(notificationSpy).toHaveBeenLastCalledWith(
+			schedule.id,
+			"warning",
+			expect.objectContaining({ error: "error: open /mnt/data/private.db: permission denied" }),
+		);
 	});
 
 	test("should store restic diagnostic details instead of the generic summary on hard failure", async () => {

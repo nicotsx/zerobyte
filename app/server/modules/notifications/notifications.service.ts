@@ -104,17 +104,23 @@ const updateDestination = async (
 		updateData.enabled = updates.enabled;
 	}
 
-	const configToValidate = updates.config ?? (await decryptNotificationConfig(existing.config));
-	const newConfigResult = notificationConfigSchema.safeParse(configToValidate);
-	if (!newConfigResult.success) {
-		throw new BadRequestError("Invalid notification configuration");
-	}
-	const newConfig = newConfigResult.data;
-	assertNotificationTargetAllowed(newConfig, serverConfig.webhookAllowedOrigins);
+	if (updates.config !== undefined) {
+		const newConfigResult = notificationConfigSchema.safeParse(updates.config);
+		if (!newConfigResult.success) {
+			throw new BadRequestError("Invalid notification configuration");
+		}
+		const newConfig = newConfigResult.data;
+		const resolvedConfig = await decryptNotificationConfig(newConfig);
+		const existingConfig = await decryptNotificationConfig(existing.config);
 
-	const encryptedConfig = await encryptNotificationConfig(newConfig);
-	updateData.config = encryptedConfig;
-	updateData.type = newConfig.type;
+		if (JSON.stringify(resolvedConfig) !== JSON.stringify(existingConfig)) {
+			assertNotificationTargetAllowed(resolvedConfig, serverConfig.webhookAllowedOrigins);
+
+			const encryptedConfig = await encryptNotificationConfig(newConfig);
+			updateData.config = encryptedConfig;
+			updateData.type = newConfig.type;
+		}
+	}
 
 	const [updated] = await db
 		.update(notificationDestinationsTable)

@@ -201,6 +201,7 @@ export async function finalizeSuccessfulBackup(
 			volumeName: ctx.volume.name,
 			repositoryName: ctx.repository.name,
 			scheduleName: ctx.schedule.name,
+			error: finalStatus === "warning" ? (warningDetails ?? undefined) : undefined,
 			summary: result ?? undefined,
 		})
 		.catch((error) => {

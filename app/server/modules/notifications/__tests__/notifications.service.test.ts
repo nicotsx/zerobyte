@@ -91,7 +91,7 @@ describe("notificationsService.updateDestination", () => {
 		const { organizationId, user } = await createTestSession();
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValue("discord://token@webhookid");
+			const resolveSecretSpy = vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValue("discord://token@webhookid");
 
 			const [destination] = await db
 				.insert(notificationDestinationsTable)
@@ -106,7 +106,41 @@ describe("notificationsService.updateDestination", () => {
 			const updated = await notificationsService.updateDestination(destination.id, { name: "Renamed webhook" });
 
 			expect(updated.name).toBe("Renamed webhook");
-			expect(updated.config).toMatchObject({ type: "custom", shoutrrrUrl: "discord://token@webhookid" });
+			expect(updated.config).toMatchObject({ type: "custom", shoutrrrUrl: "encv1:stored-secret" });
+			expect(resolveSecretSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	test("updates metadata for an existing destination without requiring webhook allowlist when config is unchanged", async () => {
+		const { organizationId, user } = await createTestSession();
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const existingConfig = {
+				type: "generic" as const,
+				url: "https://hooks.example.com/backup",
+				method: "POST" as const,
+			};
+			const [destination] = await db
+				.insert(notificationDestinationsTable)
+				.values({
+					name: "Generic webhook",
+					type: "generic",
+					config: existingConfig,
+					organizationId,
+				})
+				.returning();
+
+			const updated = await notificationsService.updateDestination(destination.id, {
+				name: "Renamed webhook",
+				config: existingConfig,
+			});
+
+			expect(updated.name).toBe("Renamed webhook");
+			expect(updated.config).toMatchObject({
+				type: "generic",
+				url: "https://hooks.example.com/backup",
+				method: "POST",
+			});
 		});
 	});
 });
