@@ -6,6 +6,7 @@ import { createTestSession } from "~/test/helpers/auth";
 import * as shoutrrr from "~/server/utils/shoutrrr";
 import { notificationsService } from "../notifications.service";
 import { serverEvents } from "~/server/core/events";
+import { cryptoUtils } from "~/server/utils/crypto";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -81,6 +82,31 @@ describe("notificationsService.testDestination", () => {
 					lastError: null,
 				}),
 			);
+		});
+	});
+});
+
+describe("notificationsService.updateDestination", () => {
+	test("updates metadata for an existing encrypted custom destination without revalidating the encrypted URL", async () => {
+		const { organizationId, user } = await createTestSession();
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValue("discord://token@webhookid");
+
+			const [destination] = await db
+				.insert(notificationDestinationsTable)
+				.values({
+					name: "Custom webhook",
+					type: "custom",
+					config: { type: "custom", shoutrrrUrl: "encv1:stored-secret" },
+					organizationId,
+				})
+				.returning();
+
+			const updated = await notificationsService.updateDestination(destination.id, { name: "Renamed webhook" });
+
+			expect(updated.name).toBe("Renamed webhook");
+			expect(updated.config).toMatchObject({ type: "custom", shoutrrrUrl: "discord://token@webhookid" });
 		});
 	});
 });

@@ -104,7 +104,8 @@ const updateDestination = async (
 		updateData.enabled = updates.enabled;
 	}
 
-	const newConfigResult = notificationConfigSchema.safeParse(updates.config || existing.config);
+	const configToValidate = updates.config ?? (await decryptNotificationConfig(existing.config));
+	const newConfigResult = notificationConfigSchema.safeParse(configToValidate);
 	if (!newConfigResult.success) {
 		throw new BadRequestError("Invalid notification configuration");
 	}

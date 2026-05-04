@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { assertNotificationTargetAllowed } from "../utils/notification-target-policy";
 
 describe("assertNotificationTargetAllowed", () => {
-	test("requires email SMTP targets to match the allowlist", () => {
+	test("allows built-in email SMTP targets without the webhook allowlist", () => {
 		const notificationConfig = {
 			type: "email" as const,
 			smtpHost: "smtp.example.com",
@@ -12,12 +12,7 @@ describe("assertNotificationTargetAllowed", () => {
 			useTLS: true,
 		};
 
-		expect(() => assertNotificationTargetAllowed(notificationConfig, [])).toThrow(
-			"Add smtp://smtp.example.com:587 to WEBHOOK_ALLOWED_ORIGINS",
-		);
-
-		expect(() => assertNotificationTargetAllowed(notificationConfig, ["smtp://smtp.example.com:587"])).not.toThrow();
-		expect(() => assertNotificationTargetAllowed(notificationConfig, ["smtp://smtp.example.com:25"])).toThrow();
+		expect(() => assertNotificationTargetAllowed(notificationConfig, [])).not.toThrow();
 	});
 
 	test("rejects notification types that are not classified by the SSRF policy", () => {

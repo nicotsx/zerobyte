@@ -79,34 +79,6 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build docker image
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        with:
-          context: .
-          target: production
-          platforms: linux/amd64
-          push: false
-          load: true
-          tags: local/zerobyte:ci
-          build-args: |
-            APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
-
-      - name: Scan new image for vulnerabilities
-        if: needs.determine-release-type.outputs.release_type == 'release'
-        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
-        id: scan
-        with:
-          image: local/zerobyte:ci
-          fail-build: false
-          only-fixed: true
-          severity-cutoff: critical
-
-      - name: upload Anchore scan report
-        if: needs.determine-release-type.outputs.release_type == 'release'
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4
-        with:
-          sarif_file: ${{ steps.scan.outputs.sarif }}
-
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6

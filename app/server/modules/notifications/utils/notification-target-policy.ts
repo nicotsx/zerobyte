@@ -115,12 +115,7 @@ const getCustomShoutrrrTarget = (shoutrrrUrl: string) => {
 
 const getNotificationTarget = (notificationConfig: NotificationConfig) => {
 	switch (notificationConfig.type) {
-		case "email": {
-			const smtpTarget = new URL("smtp://placeholder");
-			smtpTarget.hostname = notificationConfig.smtpHost;
-			smtpTarget.port = String(notificationConfig.smtpPort);
-			return `${smtpTarget.protocol}//${smtpTarget.host}`;
-		}
+		case "email":
 		case "slack":
 		case "discord":
 		case "pushover":
