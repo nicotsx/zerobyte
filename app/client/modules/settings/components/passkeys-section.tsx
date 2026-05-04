@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Fingerprint, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
@@ -36,46 +37,76 @@ type PasskeyEntry = {
 
 export function PasskeysSection() {
 	const { formatDateTime } = useTimeFormat();
-	const { data: passkeys, isPending, refetch } = authClient.useListPasskeys();
+	const { data: passkeys, isPending } = authClient.useListPasskeys();
 
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 	const [newPasskeyName, setNewPasskeyName] = useState("");
-	const [isAdding, setIsAdding] = useState(false);
 
 	const [renameTarget, setRenameTarget] = useState<PasskeyEntry | null>(null);
 	const [renameValue, setRenameValue] = useState("");
-	const [isRenaming, setIsRenaming] = useState(false);
 
 	const [deleteTarget, setDeleteTarget] = useState<PasskeyEntry | null>(null);
-	const [isDeleting, setIsDeleting] = useState(false);
 
-	const handleAddPasskey = async (e: React.FormEvent) => {
-		e.preventDefault();
-		setIsAdding(true);
-		try {
-			const { error } = await authClient.passkey.addPasskey({
-				name: newPasskeyName.trim() || undefined,
-			});
-			if (error) {
-				logger.error(error);
-				toast.error("Failed to add passkey", { description: error.message });
-				return;
-			}
+	const addPasskeyMutation = useMutation({
+		mutationFn: async (name: string | undefined) => {
+			const { error } = await authClient.passkey.addPasskey({ name });
+			if (error) throw error;
+		},
+		onSuccess: () => {
 			toast.success("Passkey added");
 			setAddDialogOpen(false);
 			setNewPasskeyName("");
-			await refetch();
-		} catch (err) {
-			logger.error(err);
-			toast.error("Failed to add passkey", {
-				description: err instanceof Error ? err.message : "Unknown error",
+		},
+		onError: (error: Error) => {
+			logger.error(error);
+			toast.error("Failed to add passkey", { description: error.message });
+		},
+	});
+
+	const renamePasskeyMutation = useMutation({
+		mutationFn: async ({ id, name }: { id: string; name: string }) => {
+			const { error } = await authClient.$fetch("/passkey/update-passkey", {
+				method: "POST",
+				body: { id, name },
 			});
-		} finally {
-			setIsAdding(false);
-		}
+			if (error) throw error;
+		},
+		onSuccess: () => {
+			toast.success("Passkey renamed");
+			setRenameTarget(null);
+			setRenameValue("");
+		},
+		onError: (error: Error) => {
+			logger.error(error);
+			toast.error("Failed to rename passkey", { description: error.message });
+		},
+	});
+
+	const deletePasskeyMutation = useMutation({
+		mutationFn: async (id: string) => {
+			const { error } = await authClient.$fetch("/passkey/delete-passkey", {
+				method: "POST",
+				body: { id },
+			});
+			if (error) throw error;
+		},
+		onSuccess: () => {
+			toast.success("Passkey deleted");
+			setDeleteTarget(null);
+		},
+		onError: (error: Error) => {
+			logger.error(error);
+			toast.error("Failed to delete passkey", { description: error.message });
+		},
+	});
+
+	const handleAddPasskey = (e: React.FormEvent) => {
+		e.preventDefault();
+		const name = newPasskeyName.trim() || undefined;
+		addPasskeyMutation.mutate(name);
 	};
 
-	const handleRename = async (e: React.FormEvent) => {
+	const handleRename = (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!renameTarget) return;
 		const name = renameValue.trim();
@@ -83,55 +114,12 @@ export function PasskeysSection() {
 			toast.error("Name is required");
 			return;
 		}
-		setIsRenaming(true);
-		try {
-			const { error } = await authClient.$fetch("/passkey/update-passkey", {
-				method: "POST",
-				body: { id: renameTarget.id, name },
-			});
-			if (error) {
-				logger.error(error);
-				toast.error("Failed to rename passkey", { description: error.message });
-				return;
-			}
-			toast.success("Passkey renamed");
-			setRenameTarget(null);
-			setRenameValue("");
-			await refetch();
-		} catch (err) {
-			logger.error(err);
-			toast.error("Failed to rename passkey", {
-				description: err instanceof Error ? err.message : "Unknown error",
-			});
-		} finally {
-			setIsRenaming(false);
-		}
+		renamePasskeyMutation.mutate({ id: renameTarget.id, name });
 	};
 
-	const handleDelete = async () => {
+	const handleDelete = () => {
 		if (!deleteTarget) return;
-		setIsDeleting(true);
-		try {
-			const { error } = await authClient.$fetch("/passkey/delete-passkey", {
-				method: "POST",
-				body: { id: deleteTarget.id },
-			});
-			if (error) {
-				logger.error(error);
-				toast.error("Failed to delete passkey", { description: error.message });
-				return;
-			}
-			toast.success("Passkey deleted");
-			setDeleteTarget(null);
-			await refetch();
-		} catch (err) {
-			logger.error(err);
-			toast.error("Failed to delete passkey", {
-				description: err instanceof Error ? err.message : "Unknown error",
-			});
-		} finally {
-			setIsDeleting(false);
-		}
+		deletePasskeyMutation.mutate(deleteTarget.id);
 	};
 
 	const list = (passkeys ?? []) as PasskeyEntry[];
@@ -144,15 +132,15 @@ export function PasskeysSection() {
 					Passkeys
 				</CardTitle>
 				<CardDescription className="mt-1.5">
-					Sign in faster and more securely with passkeys stored on your device or password manager. You can add more
-					than one.
+					Sign in faster and more securely with passkeys stored on your device or password manager. You can
+					add more than one.
 				</CardDescription>
 			</div>
 			<CardContent className="p-6 space-y-4">
 				<div className="flex items-start justify-between gap-4">
 					<p className="text-xs text-muted-foreground max-w-xl">
-						Passkeys use your device's biometrics or screen lock instead of a password. They are phishing-resistant and
-						cannot be reused across sites.
+						Passkeys use your device's biometrics or screen lock instead of a password. They are
+						phishing-resistant and cannot be reused across sites.
 					</p>
 					<Button onClick={() => setAddDialogOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
@@ -163,14 +151,20 @@ export function PasskeysSection() {
 				{isPending ? (
 					<p className="text-sm text-muted-foreground">Loading passkeys...</p>
 				) : list.length === 0 ? (
-					<p className="text-sm text-muted-foreground">No passkeys yet. Add one to enable passwordless sign-in.</p>
+					<p className="text-sm text-muted-foreground">
+						No passkeys yet. Add one to enable passwordless sign-in.
+					</p>
 				) : (
 					<ul className="divide-y divide-border/50 rounded-md border border-border/50">
 						{list.map((p) => (
 							<li key={p.id} className="flex items-center justify-between gap-4 p-3">
 								<div className="min-w-0 flex-1">
-									<p className="text-sm font-medium truncate">{p.name?.trim() || "Unnamed passkey"}</p>
-									<p className="text-xs text-muted-foreground">Added {formatDateTime(new Date(p.createdAt))}</p>
+									<p className="text-sm font-medium truncate">
+										{p.name?.trim() || "Unnamed passkey"}
+									</p>
+									<p className="text-xs text-muted-foreground">
+										Added {formatDateTime(new Date(p.createdAt))}
+									</p>
 								</div>
 								<div className="flex gap-2">
 									<Button
@@ -232,7 +226,7 @@ export function PasskeysSection() {
 							<Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
 								Cancel
 							</Button>
-							<Button type="submit" loading={isAdding}>
+							<Button type="submit" loading={addPasskeyMutation.isPending}>
 								<Fingerprint className="h-4 w-4 mr-2" />
 								Add passkey
 							</Button>
@@ -272,7 +266,7 @@ export function PasskeysSection() {
 							<Button type="button" variant="outline" onClick={() => setRenameTarget(null)}>
 								Cancel
 							</Button>
-							<Button type="submit" loading={isRenaming}>
+							<Button type="submit" loading={renamePasskeyMutation.isPending}>
 								Save
 							</Button>
 						</DialogFooter>
@@ -290,18 +284,18 @@ export function PasskeysSection() {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete passkey?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This will remove "{deleteTarget?.name?.trim() || "this passkey"}" from your account. You won't be able to
-							use it to sign in anymore.
+							This will remove "{deleteTarget?.name?.trim() || "this passkey"}" from your account. You
+							won't be able to use it to sign in anymore.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogCancel disabled={deletePasskeyMutation.isPending}>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={(e) => {
 								e.preventDefault();
 								void handleDelete();
 							}}
-							disabled={isDeleting}
+							disabled={deletePasskeyMutation.isPending}
 						>
 							Delete
 						</AlertDialogAction>
