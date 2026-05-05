@@ -3,6 +3,7 @@ import type { BackupRunPayload, VolumeCommand, VolumeCommandResult } from "@zero
 import { Effect } from "effect";
 import { config } from "../../core/config";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
+import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 import type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
 import { createAgentRuntimeState } from "./helpers/runtime-state";
@@ -286,7 +287,16 @@ export const agentManager = {
 };
 
 export const startLocalAgent = async () => {
-	await spawnLocalAgentProcess(getAgentRuntimeState());
+	const runtime = getAgentRuntimeState();
+	await spawnLocalAgentProcess(runtime);
+
+	if (!runtime.agentManager) {
+		return;
+	}
+
+	if (!(await runtime.agentManager.waitForAgentReady(LOCAL_AGENT_ID))) {
+		throw new Error("Local agent did not become ready before startup");
+	}
 };
 
 // fallow-ignore-next-line unused-export
