@@ -51,10 +51,20 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			});
 		});
 
+	const markAgentOfflineForShutdown = (agentId: string) =>
+		Effect.tryPromise({
+			try: () => agentsService.markAgentOffline(agentId),
+			catch: (error) => new StopAgentManagerServerError({ cause: error }),
+		}).pipe(
+			Effect.catchAll((error) =>
+				logger.effect.error(`Failed to mark agent ${agentId} offline during shutdown: ${toMessage(error)}`),
+			),
+		);
+
 	const closeAllSessions = Effect.gen(function* () {
 		const currentSessions = [...sessions.entries()];
 		for (const [agentId, sessionHandle] of currentSessions) {
-			yield* Effect.promise(() => agentsService.markAgentOffline(agentId));
+			yield* markAgentOfflineForShutdown(agentId);
 			yield* closeSession(sessionHandle);
 		}
 		sessions = new Map();
@@ -174,6 +184,21 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 		});
 
+	const runWebSocketHandler = (
+		ws: Bun.ServerWebSocket<AgentConnectionData>,
+		event: string,
+		effect: Effect.Effect<void>,
+	) =>
+		Effect.runPromise(
+			effect.pipe(
+				Effect.catchAllCause((cause) =>
+					logger.effect.error(
+						`Agent websocket ${event} failed for ${ws.data.agentId} on ${ws.data.id}: ${toMessage(cause)}`,
+					),
+				),
+			),
+		);
+
 	const acquireServer = Effect.acquireRelease(
 		Effect.sync(() =>
 			Bun.serve<AgentConnectionData>({
@@ -205,13 +230,13 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				},
 				websocket: {
 					open: async (ws) => {
-						await Effect.runPromise(handleOpen(ws));
+						await runWebSocketHandler(ws, "open", handleOpen(ws));
 					},
 					message: async (ws, data) => {
-						await Effect.runPromise(handleMessage(ws, data));
+						await runWebSocketHandler(ws, "message", handleMessage(ws, data));
 					},
 					close: async (ws) => {
-						await Effect.runPromise(handleClose(ws));
+						await runWebSocketHandler(ws, "close", handleClose(ws));
 					},
 				},
 			}),

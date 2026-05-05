@@ -24,12 +24,12 @@ vi.mock("../helpers/tokens", () => ({
 	validateAgentToken: tokenMocks.validateAgentToken,
 }));
 
-const createSocket = (id: string) => ({
+const createSocket = (id: string, agentId = LOCAL_AGENT_ID) => ({
 	data: {
 		id,
-		agentId: LOCAL_AGENT_ID,
+		agentId,
 		organizationId: null,
-		agentName: LOCAL_AGENT_NAME,
+		agentName: agentId === LOCAL_AGENT_ID ? LOCAL_AGENT_NAME : `${LOCAL_AGENT_NAME} ${agentId}`,
 		agentKind: LOCAL_AGENT_KIND,
 	},
 	send: vi.fn(() => 1),
@@ -159,6 +159,26 @@ test("websocket lifecycle updates agent connection status", async () => {
 	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
 	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
+	expect(stop).toHaveBeenCalledWith(true);
+});
+
+test("shutdown closes all sessions and stops the server when marking one agent offline fails", async () => {
+	agentsServiceMocks.markAgentOffline.mockRejectedValueOnce(new Error("db unavailable"));
+	const stop = vi.fn(() => Promise.resolve());
+	const serve = vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop }));
+	const { runtime, onEvent } = await startRuntime(vi.fn());
+	const websocket = serve.mock.calls[0]?.[0].websocket;
+	const firstSocket = createSocket("connection-1", "agent-1");
+	const secondSocket = createSocket("connection-2", "agent-2");
+
+	await websocket?.open?.(fromPartial(firstSocket));
+	await websocket?.open?.(fromPartial(secondSocket));
+	await Effect.runPromise(runtime.stop);
+
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-1");
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-2");
+	expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "agent.disconnected", agentId: "agent-1" }));
+	expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "agent.disconnected", agentId: "agent-2" }));
 	expect(stop).toHaveBeenCalledWith(true);
 });
 
