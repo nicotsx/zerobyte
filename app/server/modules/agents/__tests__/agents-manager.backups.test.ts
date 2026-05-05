@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
+import { Effect } from "effect";
 import { agentManager, type ProcessWithAgentRuntime } from "../agents-manager";
 import type { AgentManagerRuntime } from "../controller/server";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
@@ -20,8 +21,8 @@ afterEach(() => {
 });
 
 test("cancelBackup resolves a running backup when the cancel command cannot be delivered", async () => {
-	const sendBackup = vi.fn().mockResolvedValue(true);
-	const cancelBackup = vi.fn().mockResolvedValue(false);
+	const sendBackup = vi.fn(() => Effect.succeed(true));
+	const cancelBackup = vi.fn(() => Effect.succeed(false));
 	setAgentRuntime({ sendBackup, cancelBackup });
 
 	const resultPromise = agentManager.runBackup("local", {

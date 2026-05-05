@@ -2,6 +2,7 @@ import { Effect, Exit, Fiber, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
+import { createAgentMessage, type AgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
@@ -21,26 +22,13 @@ const createSocket = (overrides: Partial<Parameters<typeof createControllerAgent
 };
 
 const createSession = (
-	handlers: Partial<Parameters<typeof createControllerAgentSession>[1]> = {},
+	onEvent: Parameters<typeof createControllerAgentSession>[1] = () => Effect.void,
 	socket = createSocket(),
 ) => {
 	const scope = Effect.runSync(Scope.make());
-	const sessionHandlers: Parameters<typeof createControllerAgentSession>[1] = {
-		onReady: () => Effect.void,
-		onHeartbeatPong: () => Effect.void,
-		onDisconnect: () => Effect.void,
-		onBackupStarted: () => Effect.void,
-		onBackupProgress: () => Effect.void,
-		onBackupCompleted: () => Effect.void,
-		onBackupFailed: () => Effect.void,
-		onBackupCancelled: () => Effect.void,
-		...handlers,
-	};
 
 	try {
-		const session = Effect.runSync(
-			Scope.extend(createControllerAgentSession(fromPartial(socket), sessionHandlers), scope),
-		);
+		const session = Effect.runSync(Scope.extend(createControllerAgentSession(fromPartial(socket), onEvent), scope));
 
 		return {
 			session,
@@ -74,23 +62,22 @@ test("closing the session scope interrupts the session runner", async () => {
 });
 
 test("close reports a transport disconnect", () => {
-	const onDisconnect = vi.fn(() => Effect.void);
-	const { close } = createSession({ onDisconnect });
+	const onEvent = vi.fn(() => Effect.void);
+	const { close } = createSession(onEvent);
 
 	close();
 
-	expect(onDisconnect).toHaveBeenCalledTimes(1);
-	expect(onDisconnect).toHaveBeenCalledWith(
+	expect(onEvent).toHaveBeenCalledTimes(1);
+	expect(onEvent).toHaveBeenCalledWith(
 		expect.objectContaining({
-			agentId: LOCAL_AGENT_ID,
-			agentName: LOCAL_AGENT_NAME,
+			type: "agent.disconnected",
 		}),
 	);
 });
 
 test("sendBackup only queues the transport message", () => {
-	const onBackupCancelled = vi.fn(() => Effect.void);
-	const { session, close } = createSession({ onBackupCancelled });
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, close } = createSession(onEvent);
 
 	Effect.runSync(
 		session.sendBackup({
@@ -118,14 +105,74 @@ test("sendBackup only queues the transport message", () => {
 
 	close();
 
-	expect(onBackupCancelled).not.toHaveBeenCalled();
+	expect(onEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: "backup.cancelled" }));
+});
+
+test("invalid inbound messages are ignored", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, close } = createSession(onEvent);
+
+	Effect.runSync(session.handleMessage("not json"));
+	Effect.runSync(session.handleMessage(JSON.stringify({ type: "backup.progress", payload: {} })));
+
+	expect(onEvent).not.toHaveBeenCalled();
+	close();
+});
+
+test("agent.ready marks the session ready and forwards the event", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, close } = createSession(onEvent);
+
+	expect(Effect.runSync(session.isReady())).toBe(false);
+	Effect.runSync(session.handleMessage(createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID })));
+
+	expect(Effect.runSync(session.isReady())).toBe(true);
+	expect(onEvent).toHaveBeenCalledWith({ type: "agent.ready", payload: { agentId: LOCAL_AGENT_ID } });
+	close();
+});
+
+test("backup agent messages are forwarded unchanged", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, close } = createSession(onEvent);
+	const message = {
+		type: "backup.progress" as const,
+		payload: {
+			jobId: "job-1",
+			scheduleId: "schedule-1",
+			progress: {
+				message_type: "status" as const,
+				seconds_elapsed: 0,
+				seconds_remaining: 0,
+				percent_done: 0.5,
+				total_files: 0,
+				files_done: 0,
+				total_bytes: 0,
+				bytes_done: 0,
+				current_files: [],
+			},
+		},
+	} satisfies Extract<AgentMessage, { type: "backup.progress" }>;
+
+	Effect.runSync(session.handleMessage(createAgentMessage(message.type, message.payload)));
+
+	expect(onEvent).toHaveBeenCalledWith(
+		expect.objectContaining({
+			type: message.type,
+			payload: expect.objectContaining({
+				jobId: message.payload.jobId,
+				scheduleId: message.payload.scheduleId,
+				progress: expect.objectContaining(message.payload.progress),
+			}),
+		}),
+	);
+	close();
 });
 
 test("a dropped backup.cancel closes the session and reports a transport disconnect", async () => {
 	const send = vi.fn(() => 0);
 	const socket = createSocket({ send, close: vi.fn() });
-	const onDisconnect = vi.fn(() => Effect.void);
-	const { session, run, closeAsync } = createSession({ onDisconnect }, socket);
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, run, closeAsync } = createSession(onEvent, socket);
 
 	try {
 		run();
@@ -139,10 +186,10 @@ test("a dropped backup.cancel closes the session and reports a transport disconn
 		await waitForExpect(() => {
 			expect(send).toHaveBeenCalledTimes(1);
 			expect(socket.close).toHaveBeenCalledTimes(1);
-			expect(onDisconnect).toHaveBeenCalledTimes(1);
-			expect(onDisconnect).toHaveBeenCalledWith(
+			expect(onEvent).toHaveBeenCalledTimes(1);
+			expect(onEvent).toHaveBeenCalledWith(
 				expect.objectContaining({
-					agentId: LOCAL_AGENT_ID,
+					type: "agent.disconnected",
 				}),
 			);
 		});

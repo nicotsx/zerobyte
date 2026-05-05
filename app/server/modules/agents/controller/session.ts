@@ -5,12 +5,7 @@ import {
 	parseAgentMessage,
 	type AgentMessage,
 	type BackupCancelPayload,
-	type BackupCancelledPayload,
-	type BackupCompletedPayload,
-	type BackupFailedPayload,
-	type BackupProgressPayload,
 	type BackupRunPayload,
-	type BackupStartedPayload,
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
@@ -32,24 +27,7 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-type AgentRuntimeEventPayload = {
-	agentId: string;
-	agentName: string;
-	organizationId: string | null;
-	agentKind: AgentKind;
-	at: number;
-};
-
-type ControllerAgentSessionHandlers = {
-	onReady: (payload: AgentRuntimeEventPayload) => Effect.Effect<void>;
-	onHeartbeatPong: (payload: AgentRuntimeEventPayload) => Effect.Effect<void>;
-	onDisconnect: (payload: AgentRuntimeEventPayload) => Effect.Effect<void>;
-	onBackupStarted: (payload: BackupStartedPayload) => Effect.Effect<void>;
-	onBackupProgress: (payload: BackupProgressPayload) => Effect.Effect<void>;
-	onBackupCompleted: (payload: BackupCompletedPayload) => Effect.Effect<void>;
-	onBackupFailed: (payload: BackupFailedPayload) => Effect.Effect<void>;
-	onBackupCancelled: (payload: BackupCancelledPayload) => Effect.Effect<void>;
-};
+export type ControllerAgentSessionEvent = AgentMessage | { type: "agent.disconnected" };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
@@ -62,7 +40,7 @@ export type ControllerAgentSession = {
 
 export const createControllerAgentSession = (
 	socket: AgentSocket,
-	handlers: ControllerAgentSessionHandlers,
+	onEvent: (event: ControllerAgentSessionEvent) => Effect.Effect<void>,
 ): Effect.Effect<ControllerAgentSession, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		let isClosed = false;
@@ -88,13 +66,7 @@ export const createControllerAgentSession = (
 		const releaseSession = Effect.gen(function* () {
 			const disconnectedAt = Date.now();
 			yield* updateState((current) => ({ ...current, isReady: false, lastSeenAt: disconnectedAt }));
-			yield* handlers.onDisconnect({
-				agentId: socket.data.agentId,
-				agentName: socket.data.agentName,
-				organizationId: socket.data.organizationId,
-				agentKind: socket.data.agentKind,
-				at: disconnectedAt,
-			});
+			yield* onEvent({ type: "agent.disconnected" });
 
 			yield* Queue.shutdown(outboundQueue);
 		});
@@ -159,59 +131,18 @@ export const createControllerAgentSession = (
 
 		const handleAgentMessage = (message: AgentMessage) =>
 			Effect.gen(function* () {
-				switch (message.type) {
-					case "agent.ready": {
-						const readyAt = Date.now();
-						yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
-
-						yield* handlers.onReady({
-							agentId: socket.data.agentId,
-							agentName: socket.data.agentName,
-							organizationId: socket.data.organizationId,
-							agentKind: socket.data.agentKind,
-							at: readyAt,
-						});
-
-						yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
-						break;
-					}
-					case "backup.started": {
-						yield* logger.effect.info(
-							`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
-						);
-						yield* handlers.onBackupStarted(message.payload);
-						break;
-					}
-					case "backup.progress": {
-						yield* handlers.onBackupProgress(message.payload);
-						break;
-					}
-					case "backup.completed": {
-						yield* handlers.onBackupCompleted(message.payload);
-						break;
-					}
-					case "backup.failed": {
-						yield* handlers.onBackupFailed(message.payload);
-						break;
-					}
-					case "backup.cancelled": {
-						yield* handlers.onBackupCancelled(message.payload);
-						break;
-					}
-					case "heartbeat.pong": {
-						const seenAt = Date.now();
-						yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
-
-						yield* handlers.onHeartbeatPong({
-							agentId: socket.data.agentId,
-							agentName: socket.data.agentName,
-							organizationId: socket.data.organizationId,
-							agentKind: socket.data.agentKind,
-							at: seenAt,
-						});
-						break;
-					}
+				if (message.type === "agent.ready") {
+					const readyAt = Date.now();
+					yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
+					yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
 				}
+
+				if (message.type === "heartbeat.pong") {
+					const seenAt = Date.now();
+					yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
+				}
+
+				yield* onEvent(message);
 			});
 
 		return {

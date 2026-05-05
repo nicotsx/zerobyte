@@ -1,38 +1,31 @@
 import { Data, Effect, Exit, Fiber, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
-import type {
-	BackupCancelPayload,
-	BackupCancelledPayload,
-	BackupCompletedPayload,
-	BackupFailedPayload,
-	BackupProgressPayload,
-	BackupRunPayload,
-	BackupStartedPayload,
-} from "@zerobyte/contracts/agent-protocol";
-import { createControllerAgentSession, type AgentConnectionData, type ControllerAgentSession } from "./session";
+import type { AgentMessage, BackupCancelPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import {
+	createControllerAgentSession,
+	type AgentConnectionData,
+	type ControllerAgentSession,
+	type ControllerAgentSessionEvent,
+} from "./session";
 import { agentsService } from "../agents.service";
 import { validateAgentToken } from "../helpers/tokens";
 
-type AgentBackupEventContext = {
+type AgentEventContext = {
 	agentId: string;
 	agentName: string;
-	payload:
-		| BackupStartedPayload
-		| BackupProgressPayload
-		| BackupCompletedPayload
-		| BackupFailedPayload
-		| BackupCancelledPayload;
 };
 
-export type AgentBackupEventHandlers = {
-	onAgentDisconnected?: (context: { agentId: string; agentName: string }) => void;
-	onBackupStarted?: (context: AgentBackupEventContext & { payload: BackupStartedPayload }) => void;
-	onBackupProgress?: (context: AgentBackupEventContext & { payload: BackupProgressPayload }) => void;
-	onBackupCompleted?: (context: AgentBackupEventContext & { payload: BackupCompletedPayload }) => void;
-	onBackupFailed?: (context: AgentBackupEventContext & { payload: BackupFailedPayload }) => void;
-	onBackupCancelled?: (context: AgentBackupEventContext & { payload: BackupCancelledPayload }) => void;
-};
+type AgentBackupMessage = Extract<
+	AgentMessage,
+	{
+		type: "backup.started" | "backup.progress" | "backup.completed" | "backup.failed" | "backup.cancelled";
+	}
+>;
+
+export type AgentManagerEvent =
+	| (AgentEventContext & { type: "agent.disconnected" })
+	| (AgentEventContext & AgentBackupMessage);
 
 type ControllerAgentSessionHandle = {
 	agentId: string;
@@ -44,14 +37,18 @@ class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServ
 	cause: unknown;
 }> {}
 
-export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
+export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) => void) {
 	let sessions = new Map<string, ControllerAgentSessionHandle>();
 	let runtimeScope: Scope.CloseableScope | null = null;
 
 	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
 		Effect.gen(function* () {
 			yield* Scope.close(sessionHandle.scope, Exit.succeed(undefined));
-			yield* Effect.sync(() => sessions.delete(sessionHandle.agentId));
+			yield* Effect.sync(() => {
+				if (sessions.get(sessionHandle.agentId) === sessionHandle) {
+					sessions.delete(sessionHandle.agentId);
+				}
+			});
 		});
 
 	const closeAllSessions = Effect.gen(function* () {
@@ -66,40 +63,32 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 	const getSessionHandle = (agentId: string) => sessions.get(agentId);
 	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
 
-	const createSessionHandlers = (params: { agentId: string; agentName: string; sessionId: string }) => {
+	const handleSessionEvent = (params: { agentId: string; agentName: string; sessionId: string }) => {
 		const { agentId, agentName, sessionId } = params;
 
-		return {
-			onReady: ({ at }: { at: number }) => {
-				return Effect.promise(async () => {
-					await agentsService.markAgentOnline(agentId, at);
-				});
-			},
-			onHeartbeatPong: ({ at }: { at: number }) => {
-				return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
-			},
-			onDisconnect: () => {
-				if (getSession(agentId)?.connectionId !== sessionId) {
-					return Effect.void;
+		return (event: ControllerAgentSessionEvent) => {
+			switch (event.type) {
+				case "agent.ready": {
+					const at = Date.now();
+					return Effect.promise(async () => {
+						await agentsService.markAgentOnline(agentId, at);
+					});
 				}
+				case "heartbeat.pong": {
+					const at = Date.now();
+					return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
+				}
+				case "agent.disconnected": {
+					if (getSession(agentId)?.connectionId !== sessionId) {
+						return Effect.void;
+					}
 
-				return Effect.sync(() => handlers.onAgentDisconnected?.({ agentId, agentName }));
-			},
-			onBackupStarted: (payload: BackupStartedPayload) => {
-				return Effect.sync(() => handlers.onBackupStarted?.({ agentId, agentName, payload }));
-			},
-			onBackupProgress: (payload: BackupProgressPayload) => {
-				return Effect.sync(() => handlers.onBackupProgress?.({ agentId, agentName, payload }));
-			},
-			onBackupCompleted: (payload: BackupCompletedPayload) => {
-				return Effect.sync(() => handlers.onBackupCompleted?.({ agentId, agentName, payload }));
-			},
-			onBackupFailed: (payload: BackupFailedPayload) => {
-				return Effect.sync(() => handlers.onBackupFailed?.({ agentId, agentName, payload }));
-			},
-			onBackupCancelled: (payload: BackupCancelledPayload) => {
-				return Effect.sync(() => handlers.onBackupCancelled?.({ agentId, agentName, payload }));
-			},
+					return Effect.sync(() => onEvent({ type: "agent.disconnected", agentId, agentName }));
+				}
+				default: {
+					return Effect.sync(() => onEvent({ ...event, agentId, agentName }));
+				}
+			}
 		};
 	};
 
@@ -110,7 +99,7 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 			const session = yield* Scope.extend(
 				createControllerAgentSession(
 					ws,
-					createSessionHandlers({
+					handleSessionEvent({
 						agentId: ws.data.agentId,
 						agentName: ws.data.agentName,
 						sessionId: ws.data.id,
@@ -118,7 +107,7 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 				),
 				scope,
 			);
-			const runFiber = yield* Effect.fork(Scope.extend(session.run, scope));
+			const runFiber = yield* Effect.forkDaemon(Scope.extend(session.run, scope));
 			yield* Scope.addFinalizer(scope, Fiber.interrupt(runFiber));
 
 			return { agentId: ws.data.agentId, session, scope };
@@ -163,6 +152,28 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 			yield* session.handleMessage(data);
 		});
 
+	const handleOpen = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+		Effect.gen(function* () {
+			yield* Effect.promise(() =>
+				agentsService.markAgentConnecting({
+					agentId: ws.data.agentId,
+					organizationId: ws.data.organizationId,
+					agentName: ws.data.agentName,
+					agentKind: ws.data.agentKind,
+				}),
+			);
+
+			const sessionHandle = yield* createSession(ws);
+			yield* setSession(sessionHandle);
+			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
+		});
+
+	const handleClose = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+		Effect.gen(function* () {
+			yield* removeSession(ws.data.agentId, ws.data.id);
+			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
+		});
+
 	const acquireServer = Effect.acquireRelease(
 		Effect.sync(() =>
 			Bun.serve<AgentConnectionData>({
@@ -194,24 +205,13 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 				},
 				websocket: {
 					open: async (ws) => {
-						await agentsService.markAgentConnecting({
-							agentId: ws.data.agentId,
-							organizationId: ws.data.organizationId,
-							agentName: ws.data.agentName,
-							agentKind: ws.data.agentKind,
-						});
-
-						const sessionHandle = await Effect.runPromise(createSession(ws));
-						await Effect.runPromise(setSession(sessionHandle));
-
-						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
+						await Effect.runPromise(handleOpen(ws));
 					},
 					message: async (ws, data) => {
 						await Effect.runPromise(handleMessage(ws, data));
 					},
 					close: async (ws) => {
-						await Effect.runPromise(removeSession(ws.data.agentId, ws.data.id));
-						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
+						await Effect.runPromise(handleClose(ws));
 					},
 				},
 			}),
@@ -230,7 +230,7 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 			),
 	);
 
-	const stop = async () => {
+	const stop = Effect.gen(function* () {
 		if (!runtimeScope) {
 			return;
 		}
@@ -238,67 +238,67 @@ export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 		logger.info("Stopping Agent Manager...");
 		const scope = runtimeScope;
 		runtimeScope = null;
-		await Effect.runPromise(Scope.close(scope, Exit.succeed(undefined)));
-	};
+		yield* Scope.close(scope, Exit.succeed(undefined));
+	});
 
-	// TODO: Move the effect boundary up
-	const start = async () => {
+	const start = Effect.gen(function* () {
 		if (runtimeScope) {
-			await stop();
+			yield* stop;
 		}
 
 		logger.info("Starting Agent Manager...");
-		const scope = Effect.runSync(Scope.make());
+		const scope = yield* Scope.make();
 
-		try {
-			const server = Effect.runSync(Scope.extend(acquireServer, scope));
-			runtimeScope = scope;
-			logger.info(`Agent Manager listening on port ${server.port}`);
-		} catch (error) {
-			await Effect.runPromise(Scope.close(scope, Exit.fail(error)));
-			throw error;
-		}
-	};
+		const server = yield* Scope.extend(acquireServer, scope).pipe(
+			Effect.catchAllCause((cause) =>
+				Scope.close(scope, Exit.failCause(cause)).pipe(Effect.andThen(Effect.failCause(cause))),
+			),
+		);
+		runtimeScope = scope;
+		logger.info(`Agent Manager listening on port ${server.port}`);
+	});
 
 	return {
 		start,
-		sendBackup: async (agentId: string, payload: BackupRunPayload) => {
-			const session = getSession(agentId);
+		sendBackup: (agentId: string, payload: BackupRunPayload) =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
 
-			if (!session) {
-				logger.warn(`Cannot send backup command. Agent ${agentId} is not connected.`);
-				return false;
-			}
+				if (!session) {
+					logger.warn(`Cannot send backup command. Agent ${agentId} is not connected.`);
+					return false;
+				}
 
-			if (!Effect.runSync(session.isReady())) {
-				logger.warn(`Cannot send backup command. Agent ${agentId} is not ready.`);
-				return false;
-			}
+				if (!(yield* session.isReady())) {
+					logger.warn(`Cannot send backup command. Agent ${agentId} is not ready.`);
+					return false;
+				}
 
-			if (!(await Effect.runPromise(session.sendBackup(payload)))) {
-				logger.warn(`Cannot send backup command. Agent ${agentId} is no longer accepting commands.`);
-				return false;
-			}
+				if (!(yield* session.sendBackup(payload))) {
+					logger.warn(`Cannot send backup command. Agent ${agentId} is no longer accepting commands.`);
+					return false;
+				}
 
-			logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
-			return true;
-		},
-		cancelBackup: async (agentId: string, payload: BackupCancelPayload) => {
-			const session = getSession(agentId);
+				logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
+				return true;
+			}),
+		cancelBackup: (agentId: string, payload: BackupCancelPayload) =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
 
-			if (!session) {
-				logger.warn(`Cannot cancel backup command. Agent ${agentId} is not connected.`);
-				return false;
-			}
+				if (!session) {
+					logger.warn(`Cannot cancel backup command. Agent ${agentId} is not connected.`);
+					return false;
+				}
 
-			if (!(await Effect.runPromise(session.sendBackupCancel(payload)))) {
-				logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
-				return false;
-			}
+				if (!(yield* session.sendBackupCancel(payload))) {
+					logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
+					return false;
+				}
 
-			logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
-			return true;
-		},
+				logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
+				return true;
+			}),
 		stop,
 	};
 }

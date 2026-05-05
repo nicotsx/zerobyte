@@ -1,7 +1,8 @@
 import { logger } from "@zerobyte/core/node";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { Effect } from "effect";
 import { config } from "../../core/config";
-import { createAgentManagerRuntime, type AgentBackupEventHandlers } from "./controller/server";
+import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 import type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
 import { createAgentRuntimeState } from "./helpers/runtime-state";
@@ -97,10 +98,12 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 	}
 
 	if (
-		await runtime.cancelBackup(agentId, {
-			jobId: activeBackupRun.jobId,
-			scheduleId: activeBackupRun.scheduleShortId,
-		})
+		await Effect.runPromise(
+			runtime.cancelBackup(agentId, {
+				jobId: activeBackupRun.jobId,
+				scheduleId: activeBackupRun.scheduleShortId,
+			}),
+		)
 	) {
 		return true;
 	}
@@ -109,71 +112,99 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 	return true;
 };
 
-const backupEventHandlers: AgentBackupEventHandlers = {
-	onAgentDisconnected: ({ agentId }) => {
-		cancelActiveBackupRunsForAgent(
-			agentId,
-			"The connection to the backup agent was lost. Restart the backup to ensure it completes.",
-		);
-	},
-	onBackupStarted: ({ agentId, payload }) => {
-		getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.started", agentId);
-	},
-	onBackupProgress: ({ agentId, payload }) => {
-		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.progress", agentId);
-		if (!activeBackupRun) {
-			return;
+const handleAgentManagerEvent = (event: AgentManagerEvent) => {
+	switch (event.type) {
+		case "agent.disconnected": {
+			cancelActiveBackupRunsForAgent(
+				event.agentId,
+				"The connection to the backup agent was lost. Restart the backup to ensure it completes.",
+			);
+			break;
 		}
-
-		activeBackupRun.onProgress(payload.progress);
-	},
-	onBackupCompleted: ({ agentId, payload }) => {
-		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.completed", agentId);
-		if (!activeBackupRun) {
-			return;
+		case "backup.started": {
+			getActiveBackupRun(event.payload.jobId, event.payload.scheduleId, event.type, event.agentId);
+			break;
 		}
+		case "backup.progress": {
+			const activeBackupRun = getActiveBackupRun(
+				event.payload.jobId,
+				event.payload.scheduleId,
+				event.type,
+				event.agentId,
+			);
+			if (!activeBackupRun) {
+				break;
+			}
 
-		resolveActiveBackupRun(activeBackupRun.scheduleId, {
-			status: "completed",
-			exitCode: payload.exitCode,
-			result: payload.result,
-			warningDetails: payload.warningDetails ?? null,
-		});
-	},
-	onBackupFailed: ({ agentId, payload }) => {
-		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.failed", agentId);
-		if (!activeBackupRun) {
-			return;
+			activeBackupRun.onProgress(event.payload.progress);
+			break;
 		}
+		case "backup.completed": {
+			const activeBackupRun = getActiveBackupRun(
+				event.payload.jobId,
+				event.payload.scheduleId,
+				event.type,
+				event.agentId,
+			);
+			if (!activeBackupRun) {
+				break;
+			}
 
-		resolveActiveBackupRun(activeBackupRun.scheduleId, {
-			status: "failed",
-			error: payload.errorDetails ?? payload.error,
-		});
-	},
-	onBackupCancelled: ({ agentId, payload }) => {
-		const activeBackupRun = getActiveBackupRun(payload.jobId, payload.scheduleId, "backup.cancelled", agentId);
-		if (!activeBackupRun) {
-			return;
+			resolveActiveBackupRun(activeBackupRun.scheduleId, {
+				status: "completed",
+				exitCode: event.payload.exitCode,
+				result: event.payload.result,
+				warningDetails: event.payload.warningDetails ?? null,
+			});
+			break;
 		}
+		case "backup.failed": {
+			const activeBackupRun = getActiveBackupRun(
+				event.payload.jobId,
+				event.payload.scheduleId,
+				event.type,
+				event.agentId,
+			);
+			if (!activeBackupRun) {
+				break;
+			}
 
-		resolveActiveBackupRun(activeBackupRun.scheduleId, {
-			status: "cancelled",
-			message: activeBackupRun.cancellationRequested ? undefined : payload.message,
-		});
-	},
+			resolveActiveBackupRun(activeBackupRun.scheduleId, {
+				status: "failed",
+				error: event.payload.errorDetails ?? event.payload.error,
+			});
+			break;
+		}
+		case "backup.cancelled": {
+			const activeBackupRun = getActiveBackupRun(
+				event.payload.jobId,
+				event.payload.scheduleId,
+				event.type,
+				event.agentId,
+			);
+			if (!activeBackupRun) {
+				break;
+			}
+
+			resolveActiveBackupRun(activeBackupRun.scheduleId, {
+				status: "cancelled",
+				message: activeBackupRun.cancellationRequested ? undefined : event.payload.message,
+			});
+			break;
+		}
+	}
 };
 
 export const startAgentController = async () => {
 	const runtime = getAgentRuntimeState();
 
 	if (runtime.agentManager) {
-		await runtime.agentManager.stop();
+		await Effect.runPromise(runtime.agentManager.stop);
 		runtime.agentManager = null;
 	}
 
-	const nextAgentManager = createAgentManagerRuntime(backupEventHandlers);
-	await nextAgentManager.start();
+	const nextAgentManager = createAgentManagerRuntime(handleAgentManagerEvent);
+	await Effect.runPromise(nextAgentManager.start);
 	runtime.agentManager = nextAgentManager;
 };
 
@@ -181,7 +212,9 @@ export const stopAgentController = async () => {
 	const runtime = getAgentRuntimeState();
 	const agentManagerRuntime = runtime.agentManager;
 	runtime.agentManager = null;
-	await agentManagerRuntime?.stop();
+	if (agentManagerRuntime) {
+		await Effect.runPromise(agentManagerRuntime.stop);
+	}
 };
 
 export const agentManager = {
@@ -212,7 +245,7 @@ export const agentManager = {
 		});
 
 		try {
-			if (!(await runtime.sendBackup(agentId, request.payload))) {
+			if (!(await Effect.runPromise(runtime.sendBackup(agentId, request.payload)))) {
 				clearActiveBackupRun(request.scheduleId);
 				return {
 					status: "unavailable",
