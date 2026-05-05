@@ -17,6 +17,13 @@ export const listVolumeFiles = async (
 ) => {
 	const volumePath = getVolumePath(volume);
 	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
+	const normalizedPath = path.normalize(requestedPath);
+	const requestedRelativePath = path.relative(volumePath, normalizedPath);
+
+	if (requestedRelativePath.startsWith("..") || path.isAbsolute(requestedRelativePath)) {
+		throw new Error("Invalid path");
+	}
+
 	const pageSize = Math.min(Math.max(limit, 1), MAX_PAGE_SIZE);
 	const startOffset = Math.max(offset, 0);
 

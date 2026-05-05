@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
-import * as backendModule from "../../backends/backend";
-import type { VolumeBackend } from "../../backends/backend";
+import * as volumeHostModule from "../../../../../apps/agent/src/volume-host";
+import type { VolumeBackend } from "../../../../../apps/agent/src/volume-host";
 import * as bootstrapModule from "../bootstrap";
 import { createTestVolume } from "~/test/helpers/volume";
 
@@ -40,7 +40,7 @@ describe("shutdown", () => {
 
 		vi.spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
 		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
-		vi.spyOn(backendModule, "createVolumeBackend").mockImplementation(
+		vi.spyOn(volumeHostModule, "createVolumeBackend").mockImplementation(
 			() =>
 				({
 					mount: async () => ({ status: "mounted" as const }),

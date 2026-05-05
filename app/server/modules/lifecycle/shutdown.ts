@@ -1,8 +1,13 @@
 import { Scheduler } from "../../core/scheduler";
 import { db } from "../../db/db";
 import { logger } from "@zerobyte/core/node";
-import { createVolumeBackend } from "../backends/backend";
 import { stopApplicationRuntime } from "./bootstrap";
+import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
+import {
+	createVolumeBackend,
+	type AgentVolume,
+	type BackendConfig as HostBackendConfig,
+} from "../../../../apps/agent/src/volume-host";
 
 export const shutdown = async () => {
 	await Scheduler.stop();
@@ -13,7 +18,11 @@ export const shutdown = async () => {
 	});
 
 	for (const volume of volumes) {
-		const backend = createVolumeBackend(volume);
+		const backend = createVolumeBackend({
+			...volume,
+			config: (await decryptVolumeConfig(volume.config)) as HostBackendConfig,
+			provisioningId: volume.provisioningId ?? null,
+		} satisfies AgentVolume);
 		const { status, error } = await backend.unmount();
 
 		logger.info(`Volume ${volume.name} unmount status: ${status}${error ? `, error: ${error}` : ""}`);
