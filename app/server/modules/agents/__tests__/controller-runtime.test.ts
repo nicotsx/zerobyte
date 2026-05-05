@@ -174,11 +174,11 @@ test("closing a replaced connection does not report the active agent as disconne
 	await websocket?.open?.(fromPartial(oldSocket));
 	await websocket?.open?.(fromPartial(newSocket));
 	await websocket?.close?.(fromPartial(oldSocket), 1000, "replaced");
-	await Effect.runPromise(runtime.stop);
 
 	expect(onEvent).not.toHaveBeenCalledWith(
 		expect.objectContaining({ type: "agent.disconnected", agentId: LOCAL_AGENT_ID }),
 	);
+	await Effect.runPromise(runtime.stop);
 });
 
 test("sendBackup is only delivered after the agent is ready", async () => {
@@ -204,6 +204,7 @@ test("sendBackup is only delivered after the agent is ready", async () => {
 		},
 		webhooks: { pre: null, post: null },
 		webhookAllowedOrigins: [],
+		webhookTimeoutMs: 60_000,
 	};
 
 	await websocket?.open?.(fromPartial(socket));

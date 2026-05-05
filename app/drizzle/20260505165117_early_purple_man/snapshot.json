@@ -1,8 +1,8 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "e39438f8-a15d-4c9c-8f6d-fee498150505",
-	"prevIds": ["11dfb429-048c-4f65-abf1-f25ac2ae9d93"],
+	"id": "cea82b0d-bdb9-4d89-b190-614b90efd1f5",
+	"prevIds": ["b644a331-6c76-4d56-b4c4-c5b0701183f2"],
 	"ddl": [
 		{
 			"name": "account",
@@ -673,6 +673,16 @@
 			"table": "backup_schedules_table"
 		},
 		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "backup_webhooks",
+			"entityType": "columns",
+			"table": "backup_schedules_table"
+		},
+		{
 			"type": "integer",
 			"notNull": true,
 			"autoincrement": false,
@@ -899,6 +909,36 @@
 			"default": "true",
 			"generated": null,
 			"name": "enabled",
+			"entityType": "columns",
+			"table": "notification_destinations_table"
+		},
+		{
+			"type": "text",
+			"notNull": true,
+			"autoincrement": false,
+			"default": "'unknown'",
+			"generated": null,
+			"name": "status",
+			"entityType": "columns",
+			"table": "notification_destinations_table"
+		},
+		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "last_checked",
+			"entityType": "columns",
+			"table": "notification_destinations_table"
+		},
+		{
+			"type": "text",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "last_error",
 			"entityType": "columns",
 			"table": "notification_destinations_table"
 		},
