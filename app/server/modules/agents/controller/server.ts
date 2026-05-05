@@ -35,8 +35,8 @@ export type AgentBackupEventHandlers = {
 };
 
 type ControllerAgentSessionHandle = {
+	agentId: string;
 	session: ControllerAgentSession;
-	runFiber: Fiber.RuntimeFiber<void, never>;
 	scope: Scope.CloseableScope;
 };
 
@@ -44,15 +44,14 @@ class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServ
 	cause: unknown;
 }> {}
 
-export function createAgentManagerRuntime() {
+export function createAgentManagerRuntime(handlers: AgentBackupEventHandlers) {
 	let sessions = new Map<string, ControllerAgentSessionHandle>();
-	let backupHandlers: AgentBackupEventHandlers = {};
 	let runtimeScope: Scope.CloseableScope | null = null;
 
 	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
 		Effect.gen(function* () {
-			yield* Fiber.interrupt(sessionHandle.runFiber);
 			yield* Scope.close(sessionHandle.scope, Exit.succeed(undefined));
+			yield* Effect.sync(() => sessions.delete(sessionHandle.agentId));
 		});
 
 	const closeAllSessions = Effect.gen(function* () {
@@ -65,17 +64,14 @@ export function createAgentManagerRuntime() {
 	});
 
 	const getSessionHandle = (agentId: string) => sessions.get(agentId);
-
 	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
 
-	const createSessionHandlers = (ws: Bun.ServerWebSocket<AgentConnectionData>, markConnecting: Promise<unknown>) => {
-		const agentId = ws.data.agentId;
-		const agentName = ws.data.agentName;
+	const createSessionHandlers = (params: { agentId: string; agentName: string; sessionId: string }) => {
+		const { agentId, agentName, sessionId } = params;
 
 		return {
 			onReady: ({ at }: { at: number }) => {
 				return Effect.promise(async () => {
-					await markConnecting;
 					await agentsService.markAgentOnline(agentId, at);
 				});
 			},
@@ -83,70 +79,89 @@ export function createAgentManagerRuntime() {
 				return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
 			},
 			onDisconnect: () => {
-				if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
+				if (getSession(agentId)?.connectionId !== sessionId) {
 					return Effect.void;
 				}
 
-				return Effect.sync(() => backupHandlers.onAgentDisconnected?.({ agentId, agentName }));
+				return Effect.sync(() => handlers.onAgentDisconnected?.({ agentId, agentName }));
 			},
 			onBackupStarted: (payload: BackupStartedPayload) => {
-				return Effect.sync(() => backupHandlers.onBackupStarted?.({ agentId, agentName, payload }));
+				return Effect.sync(() => handlers.onBackupStarted?.({ agentId, agentName, payload }));
 			},
 			onBackupProgress: (payload: BackupProgressPayload) => {
-				return Effect.sync(() => backupHandlers.onBackupProgress?.({ agentId, agentName, payload }));
+				return Effect.sync(() => handlers.onBackupProgress?.({ agentId, agentName, payload }));
 			},
 			onBackupCompleted: (payload: BackupCompletedPayload) => {
-				return Effect.sync(() => backupHandlers.onBackupCompleted?.({ agentId, agentName, payload }));
+				return Effect.sync(() => handlers.onBackupCompleted?.({ agentId, agentName, payload }));
 			},
 			onBackupFailed: (payload: BackupFailedPayload) => {
-				return Effect.sync(() => backupHandlers.onBackupFailed?.({ agentId, agentName, payload }));
+				return Effect.sync(() => handlers.onBackupFailed?.({ agentId, agentName, payload }));
 			},
 			onBackupCancelled: (payload: BackupCancelledPayload) => {
-				return Effect.sync(() => backupHandlers.onBackupCancelled?.({ agentId, agentName, payload }));
+				return Effect.sync(() => handlers.onBackupCancelled?.({ agentId, agentName, payload }));
 			},
 		};
 	};
 
-	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>, markConnecting: Promise<unknown>) => {
-		// Manual scope management because we are out of Effect
-		const scope = Effect.runSync(Scope.make());
+	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+		Effect.gen(function* () {
+			const scope = yield* Scope.make();
 
-		try {
-			const session = Effect.runSync(
-				Scope.extend(createControllerAgentSession(ws, createSessionHandlers(ws, markConnecting)), scope),
+			const session = yield* Scope.extend(
+				createControllerAgentSession(
+					ws,
+					createSessionHandlers({
+						agentId: ws.data.agentId,
+						agentName: ws.data.agentName,
+						sessionId: ws.data.id,
+					}),
+				),
+				scope,
 			);
-			const runFiber = Effect.runFork(Scope.extend(session.run, scope));
+			const runFiber = yield* Effect.fork(Scope.extend(session.run, scope));
+			yield* Scope.addFinalizer(scope, Fiber.interrupt(runFiber));
 
-			return { session, runFiber, scope };
-		} catch (error) {
-			Effect.runSync(Scope.close(scope, Exit.fail(error)));
-			throw error;
-		}
-	};
-
-	const setSession = (agentId: string, sessionHandle: ControllerAgentSessionHandle) => {
-		const existingSession = getSessionHandle(agentId);
-		sessions.set(agentId, sessionHandle);
-
-		if (existingSession) {
-			void Effect.runPromise(closeSession(existingSession)).catch((error) => {
-				logger.error(`Failed to close existing agent session for ${agentId}: ${toMessage(error)}`);
-			});
-		}
-	};
-
-	const removeSession = (agentId: string, connectionId: string) => {
-		const sessionHandle = getSessionHandle(agentId);
-		if (!sessionHandle || sessionHandle.session.connectionId !== connectionId) {
-			return false;
-		}
-
-		sessions.delete(agentId);
-		void Effect.runPromise(closeSession(sessionHandle)).catch((error) => {
-			logger.error(`Failed to close agent session for ${agentId}: ${toMessage(error)}`);
+			return { agentId: ws.data.agentId, session, scope };
 		});
-		return true;
-	};
+
+	const setSession = (sessionHandle: ControllerAgentSessionHandle) =>
+		Effect.gen(function* () {
+			const existingSession = sessions.get(sessionHandle.agentId);
+			sessions.set(sessionHandle.agentId, sessionHandle);
+
+			if (existingSession) {
+				yield* closeSession(existingSession);
+			}
+		});
+
+	const removeSession = (agentId: string, connectionId: string) =>
+		Effect.gen(function* () {
+			const handle = sessions.get(agentId);
+			if (!handle || handle.session.connectionId !== connectionId) {
+				return false;
+			}
+
+			yield* closeSession(handle);
+
+			yield* Effect.promise(() => agentsService.markAgentOffline(agentId));
+			return true;
+		});
+
+	const handleMessage = (ws: Bun.ServerWebSocket<AgentConnectionData>, data: unknown) =>
+		Effect.gen(function* () {
+			if (typeof data !== "string") {
+				yield* logger.effect.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
+				return;
+			}
+
+			const session = getSession(ws.data.agentId);
+			if (!session || session.connectionId !== ws.data.id) {
+				yield* logger.effect.warn(`No active session for agent ${ws.data.agentId} on ${ws.data.id}`);
+				return;
+			}
+
+			yield* session.handleMessage(data);
+		});
 
 	const acquireServer = Effect.acquireRelease(
 		Effect.sync(() =>
@@ -178,43 +193,24 @@ export function createAgentManagerRuntime() {
 					return new Response("WebSocket upgrade failed", { status: 400 });
 				},
 				websocket: {
-					open: (ws) => {
-						const markConnecting = agentsService.markAgentConnecting({
+					open: async (ws) => {
+						await agentsService.markAgentConnecting({
 							agentId: ws.data.agentId,
 							organizationId: ws.data.organizationId,
 							agentName: ws.data.agentName,
 							agentKind: ws.data.agentKind,
 						});
-						void markConnecting.catch((error) => {
-							logger.error(`Failed to mark agent ${ws.data.agentId} as connecting: ${toMessage(error)}`);
-						});
-						setSession(ws.data.agentId, createSession(ws, markConnecting));
+
+						const sessionHandle = await Effect.runPromise(createSession(ws));
+						await Effect.runPromise(setSession(sessionHandle));
+
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 					},
-					message: (ws, data) => {
-						if (typeof data !== "string") {
-							logger.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
-							return;
-						}
-
-						const session = getSession(ws.data.agentId);
-						if (!session || session.connectionId !== ws.data.id) {
-							logger.warn(`No active session for agent ${ws.data.agentId} on ${ws.data.id}`);
-							return;
-						}
-
-						void Effect.runPromise(session.handleMessage(data)).catch((error) => {
-							logger.error(
-								`Failed to handle message from agent ${ws.data.agentId} on ${ws.data.id}: ${toMessage(error)}`,
-							);
-						});
+					message: async (ws, data) => {
+						await Effect.runPromise(handleMessage(ws, data));
 					},
-					close: (ws) => {
-						if (removeSession(ws.data.agentId, ws.data.id)) {
-							void agentsService.markAgentOffline(ws.data.agentId).catch((error) => {
-								logger.error(`Failed to mark agent ${ws.data.agentId} as offline: ${toMessage(error)}`);
-							});
-						}
+					close: async (ws) => {
+						await Effect.runPromise(removeSession(ws.data.agentId, ws.data.id));
 						logger.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 					},
 				},
@@ -303,10 +299,6 @@ export function createAgentManagerRuntime() {
 			logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
 			return true;
 		},
-		setBackupEventHandlers: (handlers: AgentBackupEventHandlers) => {
-			backupHandlers = handlers;
-		},
-		getBackupEventHandlers: () => backupHandlers,
 		stop,
 	};
 }

@@ -1,4 +1,4 @@
-import { Effect, Exit, Scope } from "effect";
+import { Effect, Exit, Fiber, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
@@ -45,7 +45,9 @@ const createSession = (
 		return {
 			session,
 			run: () => {
-				Effect.runFork(Scope.extend(session.run, scope));
+				const fiber = Effect.runFork(Scope.extend(session.run, scope));
+				Effect.runSync(Scope.addFinalizer(scope, Fiber.interrupt(fiber)));
+				return fiber;
 			},
 			socket,
 			close: () => {
@@ -60,6 +62,16 @@ const createSession = (
 		throw error;
 	}
 };
+
+test("closing the session scope interrupts the session runner", async () => {
+	const { run, closeAsync } = createSession();
+	const fiber = run();
+
+	await closeAsync();
+
+	const exit = await Effect.runPromise(Fiber.await(fiber).pipe(Effect.timeout("100 millis")));
+	expect(Exit.isInterrupted(exit)).toBe(true);
+});
 
 test("close reports a transport disconnect", () => {
 	const onDisconnect = vi.fn(() => Effect.void);

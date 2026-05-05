@@ -172,9 +172,7 @@ export const startAgentController = async () => {
 		runtime.agentManager = null;
 	}
 
-	const nextAgentManager = createAgentManagerRuntime();
-	nextAgentManager.setBackupEventHandlers(backupEventHandlers);
-
+	const nextAgentManager = createAgentManagerRuntime(backupEventHandlers);
 	await nextAgentManager.start();
 	runtime.agentManager = nextAgentManager;
 };
