@@ -13,6 +13,7 @@ import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";
+import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
 /**
  * Users Table
@@ -253,12 +254,14 @@ export const volumesTable = sqliteTable(
 			.default(sql`(unixepoch() * 1000)`),
 		config: text("config", { mode: "json" }).$type<BackendConfig>().notNull(),
 		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
+		agentId: text("agent_id").notNull().default(LOCAL_AGENT_ID),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
 	},
 	(table) => [
 		unique().on(table.name, table.organizationId),
+		index("volumes_table_agent_id_idx").on(table.agentId),
 		uniqueIndex("volumes_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
 	],
 );

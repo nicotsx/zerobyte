@@ -73,7 +73,6 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	const organizationId = getOrganizationId();
 	const id = Bun.randomUUIDv7();
 	const shortId = generateShortId();
-
 	if (config.backend === "local" && !config.isExistingRepository) {
 		config.path = `${config.path}/${shortId}`;
 	}
@@ -717,7 +716,6 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const decryptedExisting = await decryptRepositoryConfig(existingConfig);
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
-
 	const updatedAt = Date.now();
 	const updatePayload = {
 		name: newName,

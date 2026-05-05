@@ -10,6 +10,7 @@ import { generateShortId } from "../../utils/id";
 import { getStatFs, type StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
 import { createVolumeBackend } from "../backends/backend";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 import type { UpdateVolumeBody } from "./volume.dto";
 import { getVolumePath } from "./helpers";
 import { logger } from "@zerobyte/core/node";
@@ -70,6 +71,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 			name: trimmedName,
 			config: encryptedConfig,
 			type: backendConfig.backend,
+			agentId: LOCAL_AGENT_ID,
 			organizationId,
 		})
 		.returning();
@@ -239,6 +241,7 @@ const testConnection = async (backendConfig: BackendConfig) => {
 			id: 0,
 			shortId: asShortId("test"),
 			name: "test-connection",
+			path: tempDir,
 			config: encryptedConfig,
 			createdAt: Date.now(),
 			updatedAt: Date.now(),
@@ -248,6 +251,7 @@ const testConnection = async (backendConfig: BackendConfig) => {
 			lastError: null,
 			provisioningId: null,
 			autoRemount: true,
+			agentId: LOCAL_AGENT_ID,
 			organizationId: "test-org",
 		};
 

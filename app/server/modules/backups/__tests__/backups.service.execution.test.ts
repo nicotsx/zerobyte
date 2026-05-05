@@ -421,6 +421,50 @@ describe("backup execution - validation failures", () => {
 	});
 });
 
+describe("backup execution - routing", () => {
+	test("fails local repository backups on non-local volume agents", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume({ agentId: "agent-remote" });
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("error");
+		expect(updatedSchedule.lastBackupError).toBe(
+			`Local repository "${repository.name}" can only be used with the local agent`,
+		);
+		expect(runBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("routes remote repository backups through the owning volume agent", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume({ agentId: "agent-remote" });
+		const repository = await createTestRepository({
+			type: "s3",
+			config: {
+				backend: "s3",
+				endpoint: "https://s3.amazonaws.com",
+				bucket: "bucket-name",
+				accessKeyId: "access-key",
+				secretAccessKey: "secret-key",
+			},
+		});
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith("agent-remote", expect.objectContaining({ scheduleId: schedule.id }));
+	});
+});
+
 describe("stop backup", () => {
 	test("should keep restic warning details when backup completes with read errors", async () => {
 		const { resticBackupMock } = setup();

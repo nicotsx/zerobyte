@@ -10,6 +10,7 @@ import { getVolumePath } from "../volumes/helpers";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
 import { toErrorDetails } from "../../utils/errors";
+import { BadRequestError } from "http-errors-enhanced";
 
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
 const IGNORE_INODE_FLAG = "--ignore-inode";
@@ -23,7 +24,17 @@ type BackupExecutionRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-const activeControllersByScheduleId = new Map<number, AbortController>();
+export type { BackupExecutionResult } from "../agents/agents-manager";
+
+const activeControllersByScheduleId = new Map<number, { abortController: AbortController; agentId: string | null }>();
+
+const getBackupExecutionAgentId = (volume: Volume, repository: Repository) => {
+	if (repository.type === "local" && volume.agentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError(`Local repository "${repository.name}" can only be used with the local agent`);
+	}
+
+	return volume.agentId;
+};
 
 const createBackupRunPayload = async ({
 	jobId,
@@ -93,17 +104,17 @@ const executeBackupWithoutAgent = async (
 export const backupExecutor = {
 	track: (scheduleId: number) => {
 		const abortController = new AbortController();
-		activeControllersByScheduleId.set(scheduleId, abortController);
+		activeControllersByScheduleId.set(scheduleId, { abortController, agentId: null });
 		return abortController;
 	},
 	untrack: (scheduleId: number, abortController: AbortController) => {
-		if (activeControllersByScheduleId.get(scheduleId) === abortController) {
+		if (activeControllersByScheduleId.get(scheduleId)?.abortController === abortController) {
 			activeControllersByScheduleId.delete(scheduleId);
 		}
 	},
 	execute: async (request: Omit<BackupExecutionRequest, "jobId">) => {
-		const trackedAbortController = activeControllersByScheduleId.get(request.scheduleId);
-		if (!trackedAbortController || trackedAbortController.signal !== request.signal) {
+		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
+		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
 			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
 		}
 
@@ -119,27 +130,38 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		const executionResult = await agentManager.runBackup(LOCAL_AGENT_ID, {
+		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
+		trackedExecution.agentId = executionAgentId;
+
+		const executionResult = await agentManager.runBackup(executionAgentId, {
 			scheduleId: request.scheduleId,
 			payload,
 			signal: request.signal,
 			onProgress: request.onProgress,
 		});
 
-		if (executionResult.status === "unavailable" && !config.flags.enableLocalAgent) {
+		if (
+			executionResult.status === "unavailable" &&
+			executionAgentId === LOCAL_AGENT_ID &&
+			!config.flags.enableLocalAgent
+		) {
 			return executeBackupWithoutAgent(payload, request);
 		}
 
 		return executionResult;
 	},
 	cancel: async (scheduleId: number) => {
-		const abortController = activeControllersByScheduleId.get(scheduleId);
-		if (!abortController) {
+		const trackedExecution = activeControllersByScheduleId.get(scheduleId);
+		if (!trackedExecution) {
 			return false;
 		}
 
-		abortController.abort();
-		await agentManager.cancelBackup(LOCAL_AGENT_ID, scheduleId);
+		trackedExecution.abortController.abort();
+		if (!trackedExecution.agentId) {
+			return true;
+		}
+
+		await agentManager.cancelBackup(trackedExecution.agentId, scheduleId);
 		return true;
 	},
 };

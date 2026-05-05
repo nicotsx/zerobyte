@@ -29,7 +29,6 @@ import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backu
 import { restic } from "../../core/restic";
 import { mirrorQueries } from "./backups.queries";
 import { toMessage } from "../../utils/errors";
-
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
 	const schedules = await db.query.backupSchedulesTable.findMany({
