@@ -17,6 +17,7 @@ import { backupsService } from "../backups/backups.service";
 import { config } from "~/server/core/config";
 import { syncProvisionedResources } from "../provisioning/provisioning";
 import { toMessage } from "~/server/utils/errors";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -71,23 +72,30 @@ export const startup = async () => {
 		logger.warn(`Removed ${deletedSchedules} orphaned backup schedule(s) during startup`);
 	}
 
-	const volumes = await db.query.volumesTable.findMany({
-		where: {
-			OR: [
-				{ status: "mounted" },
-				{
-					AND: [{ autoRemount: true }, { status: "error" }],
-				},
-			],
-		},
-	});
-
-	for (const volume of volumes) {
-		await withContext({ organizationId: volume.organizationId }, async () => {
-			await volumeService.mountVolume(volume.shortId).catch((err) => {
-				logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
-			});
+	if (!config.flags.enableLocalAgent) {
+		const volumes = await db.query.volumesTable.findMany({
+			where: {
+				AND: [
+					{ agentId: LOCAL_AGENT_ID },
+					{
+						OR: [
+							{ status: "mounted" },
+							{
+								AND: [{ autoRemount: true }, { status: "error" }],
+							},
+						],
+					},
+				],
+			},
 		});
+
+		for (const volume of volumes) {
+			await withContext({ organizationId: volume.organizationId }, async () => {
+				await volumeService.mountVolume(volume.shortId).catch((err) => {
+					logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
+				});
+			});
+		}
 	}
 
 	await db
@@ -102,7 +110,9 @@ export const startup = async () => {
 			logger.error(`Failed to update stuck backup schedules on startup: ${err.message}`);
 		});
 
-	Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
+	if (!config.flags.enableLocalAgent) {
+		Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
+	}
 	Scheduler.build(VolumeHealthCheckJob).schedule("*/30 * * * *");
 	Scheduler.build(RepositoryHealthCheckJob).schedule("50 12 * * *");
 	Scheduler.build(BackupExecutionJob).schedule("* * * * *");

@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
-import * as volumeHostModule from "../../../../../apps/agent/src/volume-host";
-import type { VolumeBackend } from "../../../../../apps/agent/src/volume-host";
 import * as bootstrapModule from "../bootstrap";
+import { agentManager } from "../../agents/agents-manager";
 import { createTestVolume } from "~/test/helpers/volume";
+import { config } from "~/server/core/config";
+import { db } from "~/server/db/db";
 
 const loadShutdownModule = async () => {
 	const moduleUrl = new URL("../shutdown.ts", import.meta.url);
@@ -12,11 +13,12 @@ const loadShutdownModule = async () => {
 };
 
 afterEach(() => {
+	config.flags.enableLocalAgent = true;
 	vi.restoreAllMocks();
 });
 
 describe("shutdown", () => {
-	test("stops the agent runtime before unmounting mounted volumes", async () => {
+	test("does not unmount agent-owned volumes during controller shutdown", async () => {
 		const events: string[] = [];
 		const stopScheduler = vi.fn(async () => {
 			events.push("scheduler.stop");
@@ -24,35 +26,51 @@ describe("shutdown", () => {
 		const stopApplicationRuntime = vi.fn(async () => {
 			events.push("agents.stop");
 		});
-		const unmountVolume = vi.fn(async () => {
-			events.push("backend.unmount");
-			return { status: "unmounted" as const };
-		});
+		const runVolumeCommand = vi.spyOn(agentManager, "runVolumeCommand");
 
-		await createTestVolume({
+		const volume = await createTestVolume({
 			name: "Shutdown test volume",
 			config: {
 				backend: "directory",
 				path: "/Applications",
 			},
 			status: "mounted",
+			agentId: "agent-1",
 		});
 
 		vi.spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
 		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
-		vi.spyOn(volumeHostModule, "createVolumeBackend").mockImplementation(
-			() =>
-				({
-					mount: async () => ({ status: "mounted" as const }),
-					unmount: unmountVolume,
-					checkHealth: async () => ({ status: "mounted" as const }),
-				}) satisfies VolumeBackend,
-		);
 
 		const { shutdown } = await loadShutdownModule();
 
 		await shutdown();
 
-		expect(events).toEqual(["scheduler.stop", "agents.stop", "backend.unmount"]);
+		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
+		expect(runVolumeCommand).not.toHaveBeenCalled();
+	});
+
+	test("keeps legacy controller-local fallback unmount on shutdown", async () => {
+		config.flags.enableLocalAgent = false;
+		const events: string[] = [];
+		vi.spyOn(Scheduler, "stop").mockImplementation(async () => {
+			events.push("scheduler.stop");
+		});
+		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(async () => {
+			events.push("agents.stop");
+		});
+
+		const volume = await createTestVolume({
+			name: "Fallback shutdown test volume",
+			config: { backend: "directory", path: "/Applications" },
+			status: "mounted",
+		});
+
+		const { shutdown } = await loadShutdownModule();
+
+		await shutdown();
+
+		const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
+		expect(updated?.status).toBe("unmounted");
 	});
 });
