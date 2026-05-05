@@ -1,12 +1,11 @@
 import * as fs from "node:fs/promises";
-import { toMessage } from "../../../utils/errors";
 import { logger } from "@zerobyte/core/node";
-import type { VolumeBackend } from "../backend";
-import { BACKEND_STATUS, type BackendConfig } from "~/schemas/volumes";
+import { toMessage } from "@zerobyte/core/utils";
+import type { BackendConfig, VolumeBackend } from "../types";
 
-const mount = async (config: BackendConfig, _volumePath: string) => {
+const mount = async (config: BackendConfig, volumePath: string) => {
 	if (config.backend !== "directory") {
-		return { status: BACKEND_STATUS.error, error: "Invalid backend type" };
+		return { status: "error" as const, error: "Invalid backend type" };
 	}
 
 	logger.info("Mounting directory volume from:", config.path);
@@ -16,33 +15,33 @@ const mount = async (config: BackendConfig, _volumePath: string) => {
 		const stats = await fs.stat(config.path);
 
 		if (!stats.isDirectory()) {
-			return { status: BACKEND_STATUS.error, error: "Path is not a directory" };
+			return { status: "error" as const, error: "Path is not a directory" };
 		}
 
-		return { status: BACKEND_STATUS.mounted };
+		return { status: "mounted" as const };
 	} catch (error) {
 		logger.error("Failed to mount directory volume:", error);
-		return { status: BACKEND_STATUS.error, error: toMessage(error) };
+		return { status: "error" as const, error: toMessage(error) };
 	}
 };
 
 const unmount = async () => {
 	logger.info("Cannot unmount directory volume.");
-	return { status: BACKEND_STATUS.unmounted };
+	return { status: "unmounted" as const };
 };
 
 const checkHealth = async (config: BackendConfig) => {
 	if (config.backend !== "directory") {
-		return { status: BACKEND_STATUS.error, error: "Invalid backend type" };
+		return { status: "error" as const, error: "Invalid backend type" };
 	}
 
 	try {
 		await fs.access(config.path);
 
-		return { status: BACKEND_STATUS.mounted };
+		return { status: "mounted" as const };
 	} catch (error) {
 		logger.error("Directory health check failed:", error);
-		return { status: BACKEND_STATUS.error, error: toMessage(error) };
+		return { status: "error" as const, error: toMessage(error) };
 	}
 };
 

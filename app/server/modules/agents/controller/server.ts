@@ -1,7 +1,13 @@
 import { Data, Effect, Exit, Fiber, Scope } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
-import type { AgentMessage, BackupCancelPayload, BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type {
+	AgentMessage,
+	BackupCancelPayload,
+	BackupRunPayload,
+	VolumeCommand,
+	VolumeCommandResponsePayload,
+} from "@zerobyte/contracts/agent-protocol";
 import {
 	createControllerAgentSession,
 	type AgentConnectionData,
@@ -319,9 +325,29 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 					logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
 					return false;
 				}
-
 				logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
 				return true;
+			}),
+		runVolumeCommand: (
+			agentId: string,
+			command: VolumeCommand,
+		): Effect.Effect<VolumeCommandResponsePayload | null, Error> =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
+
+				if (!session) {
+					yield* logger.effect.warn(`Cannot send volume command ${command.name}. Agent ${agentId} is not connected.`);
+					return null;
+				}
+
+				if (!(yield* session.isReady())) {
+					yield* logger.effect.warn(`Cannot send volume command ${command.name}. Agent ${agentId} is not ready.`);
+					return null;
+				}
+
+				const result = yield* session.runVolumeCommand(command);
+				yield* logger.effect.info(`Completed volume command ${command.name} on agent ${agentId}`);
+				return result;
 			}),
 		stop,
 	};

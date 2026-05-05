@@ -5,7 +5,7 @@ import { volumeService } from "../modules/volumes/volume.service";
 import { readMountInfo } from "../utils/mountinfo";
 import { getVolumePath } from "../modules/volumes/helpers";
 import { logger } from "@zerobyte/core/node";
-import { executeUnmount } from "../modules/backends/utils/backend-utils";
+import { executeUnmount } from "../../../apps/agent/src/volume-host/backends/utils";
 import { toMessage } from "../utils/errors";
 import { VOLUME_MOUNT_BASE } from "../core/constants";
 import { db } from "../db/db";
