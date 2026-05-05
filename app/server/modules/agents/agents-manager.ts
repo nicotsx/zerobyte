@@ -1,5 +1,5 @@
 import { logger } from "@zerobyte/core/node";
-import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { BackupRunPayload, VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
 import { config } from "../../core/config";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
@@ -265,6 +265,23 @@ export const agentManager = {
 	},
 	cancelBackup: async (agentId: string, scheduleId: number) => {
 		return requestBackupCancellation(agentId, scheduleId);
+	},
+	runVolumeCommand: async (agentId: string, command: VolumeCommand): Promise<VolumeCommandResult> => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) {
+			throw new Error(`Volume agent ${agentId} is not connected`);
+		}
+
+		const response = await Effect.runPromise(runtime.runVolumeCommand(agentId, command));
+		if (!response) {
+			throw new Error(`Failed to send volume command ${command.name} to agent ${agentId}`);
+		}
+
+		if (response.status === "error") {
+			throw new Error(response.error);
+		}
+
+		return response.command;
 	},
 };
 

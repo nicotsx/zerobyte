@@ -4,7 +4,7 @@ import { fromAny, fromPartial } from "@total-typescript/shoehorn";
 import { Effect } from "effect";
 import { agentManager, type ProcessWithAgentRuntime } from "../agents-manager";
 import type { AgentManagerRuntime } from "../controller/server";
-import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { BackupRunPayload, VolumeCommand } from "@zerobyte/contracts/agent-protocol";
 
 const setAgentRuntime = (agentManagerRuntime: Partial<AgentManagerRuntime> | null) => {
 	(process as ProcessWithAgentRuntime).__zerobyteAgentRuntime = {
@@ -45,4 +45,31 @@ test("cancelBackup resolves a running backup when the cancel command cannot be d
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 	});
+});
+
+test("runVolumeCommand sends the command to the selected agent", async () => {
+	const runVolumeCommand = vi.fn().mockResolvedValue({
+		commandId: "command-1",
+		status: "success",
+		command: { name: "volume.mount", result: { status: "mounted" } },
+	});
+	setAgentRuntime({ runVolumeCommand });
+
+	const command = fromPartial<VolumeCommand>({ name: "volume.mount", volume: { agentId: "agent-1" } });
+
+	await expect(agentManager.runVolumeCommand("agent-1", command)).resolves.toEqual({
+		name: "volume.mount",
+		result: { status: "mounted" },
+	});
+	expect(runVolumeCommand).toHaveBeenCalledWith("agent-1", command);
+});
+
+test("runVolumeCommand fails when the selected agent is unavailable", async () => {
+	setAgentRuntime(null);
+
+	const command = fromPartial<VolumeCommand>({ name: "volume.mount", volume: { agentId: "agent-1" } });
+
+	await expect(agentManager.runVolumeCommand("agent-1", command)).rejects.toThrow(
+		"Volume agent agent-1 is not connected",
+	);
 });

@@ -1,0 +1,156 @@
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
+import { toMessage } from "@zerobyte/core/utils";
+import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
+import type { AgentVolume, BackendConfig } from "./types";
+
+const DEFAULT_PAGE_SIZE = 500;
+const MAX_PAGE_SIZE = 500;
+
+export const listVolumeFiles = async (
+	volume: AgentVolume,
+	subPath?: string,
+	offset: number = 0,
+	limit: number = DEFAULT_PAGE_SIZE,
+) => {
+	const volumePath = getVolumePath(volume);
+	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
+	const normalizedPath = path.normalize(requestedPath);
+	const relative = path.relative(volumePath, normalizedPath);
+
+	if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		throw new Error("Invalid path");
+	}
+
+	const pageSize = Math.min(Math.max(limit, 1), MAX_PAGE_SIZE);
+	const startOffset = Math.max(offset, 0);
+
+	try {
+		const dirents = await fs.readdir(normalizedPath, { withFileTypes: true });
+
+		dirents.sort((a, b) => {
+			const aIsDir = a.isDirectory();
+			const bIsDir = b.isDirectory();
+
+			if (aIsDir === bIsDir) {
+				return a.name.localeCompare(b.name);
+			}
+			return aIsDir ? -1 : 1;
+		});
+
+		const total = dirents.length;
+		const paginatedDirents = dirents.slice(startOffset, startOffset + pageSize);
+
+		const entries = (
+			await Promise.all(
+				paginatedDirents.map(async (dirent) => {
+					const fullPath = path.join(normalizedPath, dirent.name);
+
+					try {
+						const stats = await fs.stat(fullPath);
+						const relativePath = path.relative(volumePath, fullPath);
+
+						return {
+							name: dirent.name,
+							path: `/${relativePath}`,
+							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
+							size: dirent.isFile() ? stats.size : undefined,
+							modifiedAt: stats.mtimeMs,
+						};
+					} catch {
+						return null;
+					}
+				}),
+			)
+		).filter((entry) => entry !== null);
+
+		return {
+			files: entries,
+			path: subPath || "/",
+			offset: startOffset,
+			limit: pageSize,
+			total,
+			hasMore: startOffset + pageSize < total,
+		};
+	} catch (error) {
+		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {
+			throw new Error("Directory not found");
+		}
+		if (toMessage(error) === "Invalid path") {
+			throw error;
+		}
+		throw new Error(`Failed to list files: ${toMessage(error)}`);
+	}
+};
+
+export const browseFilesystem = async (browsePath: string) => {
+	const normalizedPath = path.normalize(browsePath);
+	const entries = await fs.readdir(normalizedPath, { withFileTypes: true });
+
+	const directories = await Promise.all(
+		entries
+			.filter((entry) => entry.isDirectory())
+			.map(async (entry) => {
+				const fullPath = path.join(normalizedPath, entry.name);
+
+				try {
+					const stats = await fs.stat(fullPath);
+					return {
+						name: entry.name,
+						path: fullPath,
+						type: "directory" as const,
+						size: undefined,
+						modifiedAt: stats.mtimeMs,
+					};
+				} catch {
+					return {
+						name: entry.name,
+						path: fullPath,
+						type: "directory" as const,
+						size: undefined,
+						modifiedAt: undefined,
+					};
+				}
+			}),
+	);
+
+	return {
+		directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
+		path: normalizedPath,
+	};
+};
+
+export const testVolumeConnection = async (backendConfig: BackendConfig) => {
+	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-test-"));
+	try {
+		const mockVolume: AgentVolume = {
+			id: 0,
+			shortId: "test",
+			name: "test-connection",
+			config: backendConfig,
+			createdAt: Date.now(),
+			updatedAt: Date.now(),
+			lastHealthCheck: Date.now(),
+			type: backendConfig.backend,
+			status: "unmounted",
+			lastError: null,
+			provisioningId: null,
+			autoRemount: true,
+			agentId: "local",
+			organizationId: "test-org",
+		};
+
+		const backend = createVolumeBackend(mockVolume, tempDir);
+		const { error } = await backend.mount();
+
+		await backend.unmount();
+
+		return {
+			success: !error,
+			message: error ? toMessage(error) : "Connection successful",
+		};
+	} finally {
+		await fs.rm(tempDir, { recursive: true, force: true });
+	}
+};
