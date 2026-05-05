@@ -74,7 +74,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
 
 	const handleSessionEvent = (params: { agentId: string; agentName: string; sessionId: string }) => {
-		const { agentId, agentName, sessionId } = params;
+		const { agentId, agentName } = params;
 
 		return (event: ControllerAgentSessionEvent) => {
 			switch (event.type) {
@@ -89,10 +89,6 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 					return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
 				}
 				case "agent.disconnected": {
-					if (getSession(agentId)?.connectionId !== sessionId) {
-						return Effect.void;
-					}
-
 					return Effect.sync(() => onEvent({ type: "agent.disconnected", agentId, agentName }));
 				}
 				default: {
@@ -231,6 +227,9 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				websocket: {
 					open: async (ws) => {
 						await runWebSocketHandler(ws, "open", handleOpen(ws));
+						if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
+							ws.close();
+						}
 					},
 					message: async (ws, data) => {
 						await runWebSocketHandler(ws, "message", handleMessage(ws, data));

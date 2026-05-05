@@ -162,6 +162,21 @@ test("websocket lifecycle updates agent connection status", async () => {
 	expect(stop).toHaveBeenCalledWith(true);
 });
 
+test("websocket open failure closes the upgraded socket", async () => {
+	agentsServiceMocks.markAgentConnecting.mockRejectedValueOnce(new Error("db unavailable"));
+	const serve = vi
+		.spyOn(Bun, "serve")
+		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+	const { runtime } = await startRuntime();
+	const websocket = serve.mock.calls[0]?.[0].websocket;
+	const socket = createSocket("connection-1");
+
+	await websocket?.open?.(fromPartial(socket));
+
+	expect(socket.close).toHaveBeenCalled();
+	await Effect.runPromise(runtime.stop);
+});
+
 test("shutdown closes all sessions and stops the server when marking one agent offline fails", async () => {
 	agentsServiceMocks.markAgentOffline.mockRejectedValueOnce(new Error("db unavailable"));
 	const stop = vi.fn(() => Promise.resolve());
@@ -182,7 +197,7 @@ test("shutdown closes all sessions and stops the server when marking one agent o
 	expect(stop).toHaveBeenCalledWith(true);
 });
 
-test("closing a replaced connection does not report the active agent as disconnected", async () => {
+test("closing a replaced connection reports disconnect without marking the active agent offline", async () => {
 	const serve = vi
 		.spyOn(Bun, "serve")
 		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
@@ -190,14 +205,39 @@ test("closing a replaced connection does not report the active agent as disconne
 	const websocket = serve.mock.calls[0]?.[0].websocket;
 	const oldSocket = createSocket("connection-1");
 	const newSocket = createSocket("connection-2");
+	const offlineCallsBeforeClose = agentsServiceMocks.markAgentOffline.mock.calls.length;
 
 	await websocket?.open?.(fromPartial(oldSocket));
 	await websocket?.open?.(fromPartial(newSocket));
+	await websocket?.message?.(fromPartial(newSocket), createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID }));
 	await websocket?.close?.(fromPartial(oldSocket), 1000, "replaced");
 
-	expect(onEvent).not.toHaveBeenCalledWith(
+	expect(onEvent).toHaveBeenCalledWith(
 		expect.objectContaining({ type: "agent.disconnected", agentId: LOCAL_AGENT_ID }),
 	);
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledTimes(offlineCallsBeforeClose);
+	expect(
+		await Effect.runPromise(
+			runtime.sendBackup(LOCAL_AGENT_ID, {
+				jobId: "job-1",
+				scheduleId: "schedule-1",
+				organizationId: "org-1",
+				sourcePath: "/tmp/source",
+				repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
+				options: {},
+				runtime: {
+					password: "password",
+					cacheDir: "/tmp/cache",
+					passFile: "/tmp/pass",
+					defaultExcludes: [],
+					rcloneConfigFile: "/tmp/rclone.conf",
+				},
+				webhooks: { pre: null, post: null },
+				webhookAllowedOrigins: [],
+				webhookTimeoutMs: 60_000,
+			}),
+		),
+	).toBe(true);
 	await Effect.runPromise(runtime.stop);
 });
 
