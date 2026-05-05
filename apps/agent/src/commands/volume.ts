@@ -47,7 +47,8 @@ const executeVolumeCommand = (command: VolumeCommand) =>
 			}
 			case "volume.listFiles": {
 				const result = yield* Effect.tryPromise({
-					try: () => listVolumeFiles(asVolume(command.volume), command.subPath, command.offset, command.limit),
+					try: () =>
+						listVolumeFiles(asVolume(command.volume), command.subPath, command.offset, command.limit),
 					catch: (error) => new VolumeCommandError({ cause: error }),
 				});
 
@@ -80,14 +81,14 @@ export const handleVolumeCommand = (context: ControllerCommandContext, payload: 
 
 		return command;
 	}).pipe(
-		Effect.tapError((error) => {
-			return context.offerOutbound(
+		Effect.catchAll((error) =>
+			context.offerOutbound(
 				createAgentMessage("volume.commandResult", {
 					commandId: payload.commandId,
 					status: "error",
 					error: toMessage(error?.cause),
 				}),
-			);
-		}),
+			),
+		),
 	);
 };

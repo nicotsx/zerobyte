@@ -3,14 +3,21 @@ import type { BackupRunPayload, VolumeCommand, VolumeCommandResult } from "@zero
 import { Effect } from "effect";
 import { config } from "../../core/config";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
+import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
-import type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
-import { createAgentRuntimeState } from "./helpers/runtime-state";
+import {
+	createAgentRuntimeState,
+	type AgentRuntimeState,
+	type BackupExecutionProgress,
+	type BackupExecutionResult,
+} from "./helpers/runtime-state";
 import { getDevAgentRuntimeState } from "./helpers/runtime-state.dev";
 export type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
 export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
 
-const productionRuntimeState = createAgentRuntimeState();
+type ProcessWithProductionAgentRuntime = NodeJS.Process & {
+	__zerobyteProductionAgentRuntime?: AgentRuntimeState;
+};
 
 type AgentRunBackupRequest = {
 	scheduleId: number;
@@ -19,7 +26,18 @@ type AgentRunBackupRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-const getAgentRuntimeState = () => (config.__prod__ ? productionRuntimeState : getDevAgentRuntimeState());
+const getProductionAgentRuntimeState = () => {
+	// Nitro production builds can bundle startup plugins and API handlers into separate chunks.
+	// Keep the live controller on process so both chunks see the same agent sessions.
+	const runtimeProcess = process as ProcessWithProductionAgentRuntime;
+	if (!runtimeProcess.__zerobyteProductionAgentRuntime) {
+		runtimeProcess.__zerobyteProductionAgentRuntime = createAgentRuntimeState();
+	}
+
+	return runtimeProcess.__zerobyteProductionAgentRuntime;
+};
+
+const getAgentRuntimeState = () => (config.__prod__ ? getProductionAgentRuntimeState() : getDevAgentRuntimeState());
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
@@ -286,7 +304,16 @@ export const agentManager = {
 };
 
 export const startLocalAgent = async () => {
-	await spawnLocalAgentProcess(getAgentRuntimeState());
+	const runtime = getAgentRuntimeState();
+	await spawnLocalAgentProcess(runtime);
+
+	if (!runtime.agentManager) {
+		return;
+	}
+
+	if (!(await runtime.agentManager.waitForAgentReady(LOCAL_AGENT_ID))) {
+		throw new Error("Local agent did not become ready before startup");
+	}
 };
 
 // fallow-ignore-next-line unused-export

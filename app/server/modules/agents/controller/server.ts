@@ -46,6 +46,7 @@ class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServ
 export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) => void) {
 	let sessions = new Map<string, ControllerAgentSessionHandle>();
 	let runtimeScope: Scope.CloseableScope | null = null;
+	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
 		Effect.gen(function* () {
@@ -78,6 +79,11 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 
 	const getSessionHandle = (agentId: string) => sessions.get(agentId);
 	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
+
+	const isAgentReady = (agentId: string) => {
+		const session = getSession(agentId);
+		return !!session && Effect.runSync(session.isReady());
+	};
 
 	const handleSessionEvent = (params: { agentId: string; agentName: string; sessionId: string }) => {
 		const { agentId, agentName } = params;
@@ -290,6 +296,19 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 
 	return {
 		start,
+		waitForAgentReady: async (agentId: string, timeoutMs = 10_000) => {
+			const deadline = Date.now() + timeoutMs;
+
+			while (Date.now() < deadline) {
+				if (isAgentReady(agentId)) {
+					return true;
+				}
+
+				await sleep(50);
+			}
+
+			return isAgentReady(agentId);
+		},
 		sendBackup: (agentId: string, payload: BackupRunPayload) =>
 			Effect.gen(function* () {
 				const session = getSession(agentId);
