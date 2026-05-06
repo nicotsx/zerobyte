@@ -1,4 +1,5 @@
 import * as fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
@@ -10,8 +11,9 @@ import { withTimeout } from "../timeout";
 import type { BackendConfig, VolumeBackend } from "../types";
 import { executeUnmount } from "./utils";
 
-const getPrivateKeyPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${path.basename(mountPath)}.key`);
-const getKnownHostsPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${path.basename(mountPath)}.known_hosts`);
+const getMountPathHash = (mountPath: string) => createHash("sha256").update(mountPath).digest("hex").slice(0, 16);
+const getPrivateKeyPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${getMountPathHash(mountPath)}.key`);
+const getKnownHostsPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${getMountPathHash(mountPath)}.known_hosts`);
 
 const runSshfs = async (args: string[], password?: string) =>
 	new Promise<void>((resolve, reject) => {
@@ -138,7 +140,6 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 		const args = [`${config.username}@${config.host}:${config.path || ""}`, mountPath, "-o", options.join(",")];
 		if (config.password) args.push("-o", "password_stdin");
-
 		logger.info(`Executing sshfs: sshfs ${args.join(" ")}`);
 		await runSshfs(args, config.password);
 

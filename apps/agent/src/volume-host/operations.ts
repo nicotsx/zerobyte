@@ -16,18 +16,19 @@ export const listVolumeFiles = async (
 ) => {
 	const volumePath = getVolumePath(volume);
 	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
-	const normalizedPath = path.normalize(requestedPath);
-	const relative = path.relative(volumePath, normalizedPath);
-
-	if (relative.startsWith("..") || path.isAbsolute(relative)) {
-		throw new Error("Invalid path");
-	}
-
 	const pageSize = Math.min(Math.max(limit, 1), MAX_PAGE_SIZE);
 	const startOffset = Math.max(offset, 0);
 
 	try {
-		const dirents = await fs.readdir(normalizedPath, { withFileTypes: true });
+		const realVolumeRoot = await fs.realpath(volumePath);
+		const realRequestedPath = await fs.realpath(requestedPath);
+		const relative = path.relative(realVolumeRoot, realRequestedPath);
+
+		if (relative.startsWith("..") || path.isAbsolute(relative)) {
+			throw new Error("Invalid path");
+		}
+
+		const dirents = await fs.readdir(realRequestedPath, { withFileTypes: true });
 
 		dirents.sort((a, b) => {
 			const aIsDir = a.isDirectory();
@@ -45,11 +46,11 @@ export const listVolumeFiles = async (
 		const entries = (
 			await Promise.all(
 				paginatedDirents.map(async (dirent) => {
-					const fullPath = path.join(normalizedPath, dirent.name);
+					const fullPath = path.join(realRequestedPath, dirent.name);
 
 					try {
 						const stats = await fs.stat(fullPath);
-						const relativePath = path.relative(volumePath, fullPath);
+						const relativePath = path.relative(realVolumeRoot, fullPath);
 
 						return {
 							name: dirent.name,

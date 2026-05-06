@@ -20,7 +20,7 @@ import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { isNodeJSErrnoException } from "~/server/utils/fs";
 import { asShortId, type ShortId } from "~/server/utils/branded";
-import { encryptVolumeConfig } from "./volume-config-secrets";
+import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
 
 type EnsureHealthyVolumeResult =
 	| {
@@ -80,7 +80,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		throw new InternalServerError("Failed to create volume");
 	}
 
-	const backend = createVolumeBackend(created);
+	const backend = createVolumeBackend({ ...created, config: await decryptVolumeConfig(created.config) });
 	const { error, status } = await backend.mount();
 
 	await db
@@ -114,7 +114,7 @@ const mountVolume = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	const backend = createVolumeBackend(volume);
+	const backend = createVolumeBackend({ ...volume, config: await decryptVolumeConfig(volume.config) });
 	await backend.unmount();
 	const { error, status } = await backend.mount();
 
@@ -219,7 +219,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	}
 
 	if (configChanged) {
-		const backend = createVolumeBackend(updated);
+		const backend = createVolumeBackend({ ...updated, config: await decryptVolumeConfig(updated.config) });
 		const { error, status } = await backend.mount();
 		await db
 			.update(volumesTable)
@@ -235,18 +235,16 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 const testConnection = async (backendConfig: BackendConfig) => {
 	const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-test-"));
 	try {
-		const encryptedConfig = await encryptVolumeConfig(backendConfig);
-
 		const mockVolume = {
 			id: 0,
 			shortId: asShortId("test"),
 			name: "test-connection",
 			path: tempDir,
-			config: encryptedConfig,
+			config: backendConfig,
 			createdAt: Date.now(),
 			updatedAt: Date.now(),
 			lastHealthCheck: Date.now(),
-			type: encryptedConfig.backend,
+			type: backendConfig.backend,
 			status: "unmounted" as const,
 			lastError: null,
 			provisioningId: null,
