@@ -48,11 +48,13 @@ test("cancelBackup resolves a running backup when the cancel command cannot be d
 });
 
 test("runVolumeCommand sends the command to the selected agent", async () => {
-	const runVolumeCommand = vi.fn().mockResolvedValue({
-		commandId: "command-1",
-		status: "success",
-		command: { name: "volume.mount", result: { status: "mounted" } },
-	});
+	const runVolumeCommand = vi.fn(() =>
+		Effect.succeed({
+			commandId: "command-1",
+			status: "success",
+			command: { name: "volume.mount", result: { status: "mounted" } },
+		}),
+	);
 	setAgentRuntime({ runVolumeCommand });
 
 	const command = fromPartial<VolumeCommand>({ name: "volume.mount", volume: { agentId: "agent-1" } });

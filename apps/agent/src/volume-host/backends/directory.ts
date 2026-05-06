@@ -3,7 +3,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import type { BackendConfig, VolumeBackend } from "../types";
 
-const mount = async (config: BackendConfig, volumePath: string) => {
+const mount = async (config: BackendConfig) => {
 	if (config.backend !== "directory") {
 		return { status: "error" as const, error: "Invalid backend type" };
 	}
@@ -45,8 +45,8 @@ const checkHealth = async (config: BackendConfig) => {
 	}
 };
 
-export const makeDirectoryBackend = (config: BackendConfig, volumePath: string): VolumeBackend => ({
-	mount: () => mount(config, volumePath),
+export const makeDirectoryBackend = (config: BackendConfig, _: string): VolumeBackend => ({
+	mount: () => mount(config),
 	unmount,
 	checkHealth: () => checkHealth(config),
 });
