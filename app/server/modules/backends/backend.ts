@@ -1,23 +1,14 @@
-import type { BackendStatus } from "~/schemas/volumes";
+import { makeDirectoryBackend } from "../../../../apps/agent/src/volume-host/backends/directory";
+import { makeNfsBackend } from "../../../../apps/agent/src/volume-host/backends/nfs";
+import { makeRcloneBackend } from "../../../../apps/agent/src/volume-host/backends/rclone";
+import { makeSftpBackend } from "../../../../apps/agent/src/volume-host/backends/sftp";
+import { makeSmbBackend } from "../../../../apps/agent/src/volume-host/backends/smb";
+import { makeWebdavBackend } from "../../../../apps/agent/src/volume-host/backends/webdav";
+import type { VolumeBackend } from "../../../../apps/agent/src/volume-host/types";
 import type { Volume } from "../../db/schema";
 import { getVolumePath } from "../volumes/helpers";
-import { makeDirectoryBackend } from "./directory/directory-backend";
-import { makeNfsBackend } from "./nfs/nfs-backend";
-import { makeRcloneBackend } from "./rclone/rclone-backend";
-import { makeSmbBackend } from "./smb/smb-backend";
-import { makeWebdavBackend } from "./webdav/webdav-backend";
-import { makeSftpBackend } from "./sftp/sftp-backend";
 
-type OperationResult = {
-	error?: string;
-	status: BackendStatus;
-};
-
-export type VolumeBackend = {
-	mount: () => Promise<OperationResult>;
-	unmount: () => Promise<OperationResult>;
-	checkHealth: () => Promise<OperationResult>;
-};
+export type { VolumeBackend };
 
 export const createVolumeBackend = (volume: Volume, mountPath = getVolumePath(volume)): VolumeBackend => {
 	switch (volume.config.backend) {
