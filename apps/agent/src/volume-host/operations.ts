@@ -20,7 +20,11 @@ export const listVolumeFiles = async (
 	const normalizedPath = path.normalize(requestedPath);
 	const requestedRelativePath = path.relative(volumePath, normalizedPath);
 
-	if (requestedRelativePath.startsWith("..") || path.isAbsolute(requestedRelativePath)) {
+	if (
+		requestedRelativePath === ".." ||
+		requestedRelativePath.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(requestedRelativePath)
+	) {
 		throw new Error("Invalid path");
 	}
 
@@ -32,7 +36,7 @@ export const listVolumeFiles = async (
 		const realRequestedPath = await fs.realpath(requestedPath);
 		const relative = path.relative(realVolumeRoot, realRequestedPath);
 
-		if (relative.startsWith("..") || path.isAbsolute(relative)) {
+		if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
 			throw new Error("Invalid path");
 		}
 

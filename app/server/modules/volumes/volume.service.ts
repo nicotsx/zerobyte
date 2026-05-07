@@ -18,18 +18,13 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
 import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
-import {
-	createVolumeBackend,
-	getStatFs,
-	getVolumePath,
-	type AgentVolume,
-	type BackendConfig as HostBackendConfig,
-} from "../../../../apps/agent/src/volume-host";
+import { createVolumeBackend, getStatFs, getVolumePath } from "../../../../apps/agent/src/volume-host";
 import {
 	browseFilesystem as browseHostFilesystem,
 	listVolumeFiles,
 	testVolumeConnection,
 } from "../../../../apps/agent/src/volume-host/operations";
+import { Effect } from "effect";
 
 type EnsureHealthyVolumeResult =
 	| { ready: true; volume: Volume; remounted: boolean }
@@ -68,10 +63,10 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 	config: await decryptVolumeConfig(volume.config),
 });
 
-const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
+const volumeForHost = async (volume: Volume): Promise<Volume> => ({
 	...volume,
 	shortId: volume.shortId,
-	config: (await decryptVolumeConfig(volume.config)) as HostBackendConfig,
+	config: await decryptVolumeConfig(volume.config),
 	provisioningId: volume.provisioningId ?? null,
 });
 
@@ -99,17 +94,6 @@ const runVolumeBackendCommand = async (
 		volume: await volumeForAgent(volume),
 	});
 	return command.result;
-};
-
-const mapAgentFileError = (error: unknown) => {
-	const message = toMessage(error);
-	if (message === "Invalid path") {
-		throw new BadRequestError("Invalid path");
-	}
-	if (message === "Directory not found") {
-		throw new NotFoundError("Directory not found");
-	}
-	throw error;
 };
 
 const createVolume = async (name: string, backendConfig: BackendConfig) => {
@@ -219,9 +203,10 @@ const getVolume = async (shortId: ShortId) => {
 	if (volume.status === "mounted") {
 		statfs = await withTimeout(
 			shouldRunViaAgent(volume)
-				? runVolumeCommand(volume.agentId, { name: "volume.statfs", volume: await volumeForAgent(volume) }).then(
-						(command) => command.result,
-					)
+				? runVolumeCommand(volume.agentId, {
+						name: "volume.statfs",
+						volume: await volumeForAgent(volume),
+					}).then((command) => command.result)
 				: volumeForHost(volume).then((hostVolume) => getStatFs(getVolumePath(hostVolume))),
 			1000,
 			"volume.statfs",
@@ -295,7 +280,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 
 const testConnection = async (backendConfig: BackendConfig) => {
 	if (!config.flags.enableLocalAgent) {
-		return testVolumeConnection(backendConfig as HostBackendConfig);
+		return Effect.runPromise(testVolumeConnection(backendConfig));
 	}
 
 	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
@@ -404,7 +389,6 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 		});
 		return command.result;
 	} catch (error) {
-		mapAgentFileError(error);
 		throw new InternalServerError(`Failed to list files: ${toMessage(error)}`);
 	}
 };
