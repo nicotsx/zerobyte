@@ -95,3 +95,56 @@ test("closes the websocket when an outbound send throws", async () => {
 		session.close();
 	}
 });
+
+test("continues processing inbound messages after a volume command fails", async () => {
+	const outboundMessages: string[] = [];
+	const session = createControllerSession(
+		fromPartial({
+			send: (message: string) => {
+				outboundMessages.push(message);
+			},
+		}),
+	);
+
+	try {
+		session.onMessage(
+			createControllerMessage("volume.command", {
+				commandId: "command-1",
+				command: {
+					name: "filesystem.browse",
+					path: "/path/that/does/not/exist",
+				},
+			}),
+		);
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 123 }));
+
+		await waitForExpect(() => {
+			const parsedMessages = outboundMessages.map((message) => parseAgentMessage(message));
+			const volumeResult = parsedMessages.find(
+				(message) => message?.success && message.data.type === "volume.commandResult",
+			);
+			const heartbeatPong = parsedMessages.find(
+				(message) => message?.success && message.data.type === "heartbeat.pong",
+			);
+
+			expect(volumeResult?.success).toBe(true);
+			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "volume.commandResult") {
+				return;
+			}
+
+			expect(volumeResult.data.payload).toEqual({
+				commandId: "command-1",
+				status: "error",
+				error: "ENOENT: no such file or directory, scandir '/path/that/does/not/exist'",
+			});
+			expect(heartbeatPong?.success).toBe(true);
+			if (!heartbeatPong || !heartbeatPong.success || heartbeatPong.data.type !== "heartbeat.pong") {
+				return;
+			}
+
+			expect(heartbeatPong.data.payload).toEqual({ sentAt: 123 });
+		});
+	} finally {
+		session.close();
+	}
+});

@@ -120,7 +120,16 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					return;
 				}
 
-				yield* handleControllerCommand(commandContext, parsed.data);
+				const commandEffect: Effect.Effect<unknown, unknown, never> = handleControllerCommand(
+					commandContext,
+					parsed.data,
+				);
+
+				yield* commandEffect.pipe(
+					Effect.catchAll((error) =>
+						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(error)}`)),
+					),
+				);
 			}),
 		),
 	);
