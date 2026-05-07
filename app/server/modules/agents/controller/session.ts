@@ -29,8 +29,9 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-type InFlightVolumeCommand = {
+type PendingCommand = {
 	deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>;
+	description: string;
 };
 
 export type ControllerAgentSessionEvent =
@@ -56,7 +57,7 @@ export const createControllerAgentSession = (
 	Effect.gen(function* () {
 		let isClosed = false;
 		const outboundQueue = yield* Queue.bounded<ControllerWireMessage>(64);
-		const inFlightVolumeCommands = yield* Ref.make(new Map<string, InFlightVolumeCommand>());
+		const pendingCommands = yield* Ref.make(new Map<string, PendingCommand>());
 		const state = yield* Ref.make<SessionState>({
 			isReady: false,
 			lastSeenAt: null,
@@ -75,25 +76,25 @@ export const createControllerAgentSession = (
 
 		const updateState = (update: (current: SessionState) => SessionState) => Ref.update(state, update);
 
-		const setInFlightVolumeCommand = (commandId: string, inFlight: InFlightVolumeCommand) =>
-			Ref.update(inFlightVolumeCommands, (current) => new Map(current).set(commandId, inFlight));
+		const setPendingCommand = (commandId: string, pending: PendingCommand) =>
+			Ref.update(pendingCommands, (current) => new Map(current).set(commandId, pending));
 
-		const removeInFlightVolumeCommand = (commandId: string) =>
-			Ref.modify(inFlightVolumeCommands, (current) => {
-				const inFlight = current.get(commandId) ?? null;
+		const removePendingCommand = (commandId: string) =>
+			Ref.modify(pendingCommands, (current) => {
+				const pending = current.get(commandId) ?? null;
 				const next = new Map(current);
 				next.delete(commandId);
-				return [inFlight, next];
+				return [pending, next];
 			});
 
-		const rejectInFlightVolumeCommands = Effect.gen(function* () {
-			const inFlightCommands = yield* Ref.get(inFlightVolumeCommands);
-			yield* Ref.set(inFlightVolumeCommands, new Map());
+		const rejectPendingCommands = Effect.gen(function* () {
+			const pendingCommandEntries = yield* Ref.get(pendingCommands);
+			yield* Ref.set(pendingCommands, new Map());
 
-			for (const [commandId, inFlight] of inFlightCommands) {
+			for (const pending of pendingCommandEntries.values()) {
 				yield* Deferred.fail(
-					inFlight.deferred,
-					new Error(`Agent session closed before volume command ${commandId} completed`),
+					pending.deferred,
+					new Error(`Agent session closed before ${pending.description} completed`),
 				);
 			}
 		});
@@ -101,7 +102,7 @@ export const createControllerAgentSession = (
 		const releaseSession = Effect.gen(function* () {
 			const disconnectedAt = Date.now();
 			yield* updateState((current) => ({ ...current, isReady: false, lastSeenAt: disconnectedAt }));
-			yield* rejectInFlightVolumeCommands;
+			yield* rejectPendingCommands;
 			yield* onEvent({ type: "agent.disconnected" });
 
 			yield* Queue.shutdown(outboundQueue);
@@ -167,13 +168,13 @@ export const createControllerAgentSession = (
 
 		const handleVolumeCommandResult = (payload: VolumeCommandResponsePayload) =>
 			Effect.gen(function* () {
-				const inFlight = yield* removeInFlightVolumeCommand(payload.commandId);
-				if (!inFlight) {
+				const pending = yield* removePendingCommand(payload.commandId);
+				if (!pending) {
 					yield* logger.effect.warn(`Received response for unknown volume command ${payload.commandId}`);
 					return;
 				}
 
-				yield* Deferred.succeed(inFlight.deferred, payload);
+				yield* Deferred.succeed(pending.deferred, payload);
 			});
 
 		const handleAgentMessage = (message: AgentMessage) =>
@@ -227,12 +228,13 @@ export const createControllerAgentSession = (
 			runVolumeCommand: (command) =>
 				Effect.gen(function* () {
 					const commandId = Bun.randomUUIDv7();
+					const description = `volume command ${command.name}`;
 					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
-					yield* setInFlightVolumeCommand(commandId, { deferred });
+					yield* setPendingCommand(commandId, { deferred, description });
 
 					const queued = yield* offerOutbound(createControllerMessage("volume.command", { commandId, command }));
 					if (!queued) {
-						yield* removeInFlightVolumeCommand(commandId);
+						yield* removePendingCommand(commandId);
 						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
 					}
 
@@ -241,7 +243,7 @@ export const createControllerAgentSession = (
 							duration: "60 seconds",
 							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
 						}),
-						Effect.ensuring(removeInFlightVolumeCommand(commandId)),
+						Effect.ensuring(removePendingCommand(commandId)),
 					);
 				}),
 			isReady: () => Ref.get(state).pipe(Effect.map((current) => current.isReady)),

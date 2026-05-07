@@ -4,7 +4,7 @@ import { fromAny, fromPartial } from "@total-typescript/shoehorn";
 import { Effect } from "effect";
 import { agentManager, type ProcessWithAgentRuntime } from "../agents-manager";
 import type { AgentManagerRuntime } from "../controller/server";
-import type { BackupRunPayload, VolumeCommand } from "@zerobyte/contracts/agent-protocol";
+import type { BackupRunPayload, VolumeCommand, VolumeCommandResponsePayload } from "@zerobyte/contracts/agent-protocol";
 
 const setAgentRuntime = (agentManagerRuntime: Partial<AgentManagerRuntime> | null) => {
 	(process as ProcessWithAgentRuntime).__zerobyteAgentRuntime = {
@@ -53,7 +53,7 @@ test("runVolumeCommand sends the command to the selected agent", async () => {
 			commandId: "command-1",
 			status: "success",
 			command: { name: "volume.mount", result: { status: "mounted" } },
-		}),
+		} satisfies VolumeCommandResponsePayload),
 	);
 	setAgentRuntime({ runVolumeCommand });
 
