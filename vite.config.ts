@@ -51,6 +51,7 @@ export default defineConfig({
 		},
 		options: {
 			typeAware: true,
+			typeCheck: true,
 		},
 		rules: {
 			"no-unused-vars": [
@@ -78,7 +79,7 @@ export default defineConfig({
 		],
 	},
 	staged: {
-		"*.{js,jsx,ts,tsx,json,jsonc}": "vp fmt --write",
+		"*.{js,jsx,ts,tsx,json,jsonc}": "vp check --fix",
 	},
 	run: {
 		cache: {

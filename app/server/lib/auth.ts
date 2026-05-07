@@ -27,6 +27,7 @@ export const auth = betterAuth({
 	baseURL: {
 		allowedHosts: config.allowedHosts,
 		protocol: "auto",
+		fallback: config.baseUrl,
 	},
 	trustedOrigins: config.trustedOrigins,
 	rateLimit: {
