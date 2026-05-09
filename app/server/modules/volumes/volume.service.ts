@@ -23,7 +23,6 @@ import {
 	getStatFs,
 	getVolumePath,
 	type AgentVolume,
-	type BackendConfig as HostBackendConfig,
 } from "../../../../apps/agent/src/volume-host";
 import {
 	browseFilesystem as browseHostFilesystem,
@@ -72,7 +71,7 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
 	...volume,
 	shortId: volume.shortId,
-	config: (await decryptVolumeConfig(volume.config)) as HostBackendConfig,
+	config: await decryptVolumeConfig(volume.config),
 	provisioningId: volume.provisioningId ?? null,
 });
 
@@ -290,7 +289,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 
 const testConnection = async (backendConfig: BackendConfig) => {
 	if (!config.flags.enableLocalAgent) {
-		return Effect.runPromise(testVolumeConnection(backendConfig as HostBackendConfig));
+		return Effect.runPromise(testVolumeConnection(backendConfig));
 	}
 
 	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });

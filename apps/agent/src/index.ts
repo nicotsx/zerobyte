@@ -1,31 +1,24 @@
 import { logger } from "@zerobyte/core/node";
+import { Fiber } from "effect";
 import { createControllerSession, type ControllerSession } from "./controller-session";
-import { cleanupDanglingVolumeMountDirectories } from "./volume-host/cleanup";
+import { startAgentJobs } from "./jobs";
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
 const RECONNECT_DELAY_MS = 1000;
-const VOLUME_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
 
 export class Agent {
 	private ws: WebSocket | null = null;
 	private controllerSession: ControllerSession | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-	private volumeCleanupInterval: ReturnType<typeof setInterval> | null = null;
+	private jobFibers: Fiber.RuntimeFiber<never, never>[] | null = null;
 
-	private runVolumeCleanup() {
-		void cleanupDanglingVolumeMountDirectories().catch((error) => {
-			logger.warn(`Agent volume cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
-		});
-	}
-
-	private startVolumeCleanup() {
-		if (this.volumeCleanupInterval) {
+	private startJobs() {
+		if (this.jobFibers) {
 			return;
 		}
 
-		this.runVolumeCleanup();
-		this.volumeCleanupInterval = setInterval(() => this.runVolumeCleanup(), VOLUME_CLEANUP_INTERVAL_MS);
+		this.jobFibers = startAgentJobs();
 	}
 
 	private scheduleReconnect() {
@@ -40,7 +33,7 @@ export class Agent {
 	}
 
 	connect() {
-		this.startVolumeCleanup();
+		this.startJobs();
 
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout);
