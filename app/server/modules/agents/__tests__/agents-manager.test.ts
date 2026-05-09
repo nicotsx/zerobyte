@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { fromAny } from "@total-typescript/shoehorn";
 import type { ProcessWithAgentRuntime } from "../helpers/runtime-state.dev";
 
 const spawnMock = vi.fn();
@@ -16,7 +17,7 @@ const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 
 const setAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
-		agentManager: null,
+		agentManager: fromAny({ waitForAgentReady: vi.fn(async () => true) }),
 		localAgent: null,
 		isStoppingLocalAgent: false,
 		localAgentRestartTimeout: null,
