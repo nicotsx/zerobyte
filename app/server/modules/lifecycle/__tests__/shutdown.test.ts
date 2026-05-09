@@ -28,7 +28,7 @@ describe("shutdown", () => {
 		});
 		const runVolumeCommand = vi.spyOn(agentManager, "runVolumeCommand");
 
-		const volume = await createTestVolume({
+		await createTestVolume({
 			name: "Shutdown test volume",
 			config: {
 				backend: "directory",
