@@ -7,6 +7,7 @@ import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { getVolumePath } from "../volumes/helpers";
+import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
 import { toErrorDetails } from "../../utils/errors";
@@ -43,7 +44,9 @@ const createBackupRunPayload = async ({
 	repository,
 	organizationId,
 }: BackupExecutionRequest & { jobId: string }): Promise<BackupRunPayload> => {
+	// TODO: compute the source path on the agent so backup payloads do not carry controller-local paths.
 	const sourcePath = getVolumePath(volume);
+	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
 	const { signal: _, ...options } = createBackupOptions(schedule, sourcePath);
 
 	if (FUSE_VOLUME_BACKENDS.has(volume.type) && !options.customResticParams.includes(IGNORE_INODE_FLAG)) {
@@ -59,6 +62,7 @@ const createBackupRunPayload = async ({
 		scheduleId: schedule.shortId,
 		organizationId,
 		sourcePath,
+		volume: agentVolume,
 		repositoryConfig,
 		options: {
 			...options,

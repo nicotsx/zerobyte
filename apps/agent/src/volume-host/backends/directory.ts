@@ -1,7 +1,8 @@
 import * as fs from "node:fs/promises";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
-import type { BackendConfig, VolumeBackend } from "../types";
+import type { VolumeBackend } from "../types";
 
 const mount = async (config: BackendConfig) => {
 	if (config.backend !== "directory") {

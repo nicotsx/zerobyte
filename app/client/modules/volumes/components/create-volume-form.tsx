@@ -25,7 +25,7 @@ import {
 	smbConfigSchema,
 	volumeConfigSchema,
 	webdavConfigSchema,
-} from "~/schemas/volumes";
+} from "@zerobyte/contracts/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";

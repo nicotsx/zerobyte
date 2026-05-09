@@ -5,11 +5,11 @@ import { makeSftpBackend } from "./backends/sftp";
 import { makeSmbBackend } from "./backends/smb";
 import { makeWebdavBackend } from "./backends/webdav";
 import { getVolumePath } from "./paths";
-import type { AgentVolume, VolumeBackend } from "./types";
+import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
+import type { VolumeBackend } from "./types";
 
 export { getStatFs, isNodeJSErrnoException } from "./fs";
 export { getVolumePath } from "./paths";
-export type { AgentVolume, BackendConfig, VolumeBackend } from "./types";
 
 export const createVolumeBackend = (volume: AgentVolume, mountPath = getVolumePath(volume)): VolumeBackend => {
 	switch (volume.config.backend) {
@@ -25,7 +25,9 @@ export const createVolumeBackend = (volume: AgentVolume, mountPath = getVolumePa
 			return makeRcloneBackend(volume.config, mountPath);
 		case "sftp":
 			return makeSftpBackend(volume.config, mountPath);
+		default: {
+			const _exhaustive: never = volume.config;
+			throw new Error("Unsupported backend");
+		}
 	}
-
-	throw new Error("Unsupported backend");
 };

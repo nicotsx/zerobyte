@@ -12,7 +12,7 @@ import * as spawnModule from "@zerobyte/core/node";
 import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { logger } from "@zerobyte/core/node";
 import { restic } from "~/server/core/restic";
-import { NotFoundError, BadRequestError } from "http-errors-enhanced";
+import { NotFoundError } from "http-errors-enhanced";
 import { fromAny } from "@total-typescript/shoehorn";
 import { scheduleQueries } from "../backups.queries";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
@@ -23,6 +23,7 @@ import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 import { volumeService } from "~/server/modules/volumes/volume.service";
 import { db } from "~/server/db/db";
+import { config } from "~/server/core/config";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -49,31 +50,33 @@ const setup = () => {
 	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-	const ensureHealthyVolumeMock = vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async (shortId) => {
-		const volume = await db.query.volumesTable.findFirst({
-			where: {
-				AND: [{ shortId: { eq: shortId } }, { organizationId: TEST_ORG_ID }],
-			},
-		});
+	const ensureHealthyVolumeMock = vi
+		.spyOn(volumeService, "ensureHealthyVolume")
+		.mockImplementation(async (shortId) => {
+			const volume = await db.query.volumesTable.findFirst({
+				where: {
+					AND: [{ shortId: { eq: shortId } }, { organizationId: TEST_ORG_ID }],
+				},
+			});
 
-		if (!volume) {
-			throw new NotFoundError("Volume not found");
-		}
+			if (!volume) {
+				throw new NotFoundError("Volume not found");
+			}
 
-		if (volume.status !== "mounted") {
+			if (volume.status !== "mounted") {
+				return {
+					ready: false as const,
+					volume,
+					reason: "Volume is not mounted",
+				};
+			}
+
 			return {
-				ready: false as const,
+				ready: true as const,
 				volume,
-				reason: "Volume is not mounted",
+				remounted: false,
 			};
-		}
-
-		return {
-			ready: true as const,
-			volume,
-			remounted: false,
-		};
-	});
+		});
 
 	return {
 		resticBackupMock,
@@ -88,10 +91,11 @@ const setup = () => {
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	config.flags.enableLocalAgent = true;
 });
 
 describe("backup execution - validation failures", () => {
-	test("should fail backup when volume is not mounted", async () => {
+	test("does not fail validation when the agent runtime owns volume readiness", async () => {
 		// arrange
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume({ status: "unmounted" });
@@ -105,55 +109,7 @@ describe("backup execution - validation failures", () => {
 		const result = await backupsService.validateBackupExecution(schedule.id);
 
 		// assert
-		expect(result.type).toBe("failure");
-		if (result.type === "failure") {
-			expect(result.error).toBeInstanceOf(BadRequestError);
-			expect(result.error.message).toBe("Volume is not mounted");
-		}
-		expect(resticBackupMock).not.toHaveBeenCalled();
-	});
-
-	test("runs a preflight volume health check before starting a backup", async () => {
-		setup();
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-		});
-		const ensureHealthyVolumeSpy = vi.spyOn(volumeService, "ensureHealthyVolume").mockResolvedValue({
-			ready: true,
-			volume,
-			remounted: false,
-		});
-
-		const result = await backupsService.validateBackupExecution(schedule.id);
-
 		expect(result.type).toBe("success");
-		expect(ensureHealthyVolumeSpy).toHaveBeenCalledWith(volume.shortId);
-	});
-
-	test("fails validation when the preflight health check cannot recover the volume", async () => {
-		const { resticBackupMock } = setup();
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-		});
-		vi.spyOn(volumeService, "ensureHealthyVolume").mockResolvedValue({
-			ready: false,
-			volume: { ...volume, status: "error", lastError: "stale mount" },
-			reason: "stale mount",
-		});
-
-		const result = await backupsService.validateBackupExecution(schedule.id);
-
-		expect(result.type).toBe("failure");
-		if (result.type === "failure") {
-			expect(result.error).toBeInstanceOf(BadRequestError);
-			expect(result.error.message).toBe("stale mount");
-		}
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 
@@ -461,7 +417,10 @@ describe("backup execution - routing", () => {
 
 		await backupsService.executeBackup(schedule.id);
 
-		expect(runBackupMock).toHaveBeenCalledWith("agent-remote", expect.objectContaining({ scheduleId: schedule.id }));
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"agent-remote",
+			expect.objectContaining({ scheduleId: schedule.id }),
+		);
 	});
 });
 
@@ -874,7 +833,9 @@ describe("retention policy - runForget", () => {
 		});
 
 		// act & assert
-		await expect(backupsService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow("Repository not found");
+		await expect(backupsService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow(
+			"Repository not found",
+		);
 	});
 });
 

@@ -1,9 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { afterEach, expect, test } from "vitest";
 import { listVolumeFiles } from "../operations";
-import type { AgentVolume } from "../types";
 
 let tempRoot: string | undefined;
 

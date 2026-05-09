@@ -13,23 +13,18 @@ import type { UpdateVolumeBody } from "./volume.dto";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
-import { volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
+import { volumeConfigSchema, type BackendConfig, type Volume as AgentVolume } from "@zerobyte/contracts/volumes";
+import { Effect } from "effect";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
 import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
-import {
-	createVolumeBackend,
-	getStatFs,
-	getVolumePath,
-	type AgentVolume,
-} from "../../../../apps/agent/src/volume-host";
+import { createVolumeBackend, getStatFs, getVolumePath } from "../../../../apps/agent/src/volume-host";
 import {
 	browseFilesystem as browseHostFilesystem,
 	listVolumeFiles,
 	testVolumeConnection,
 } from "../../../../apps/agent/src/volume-host/operations";
-import { Effect } from "effect";
 
 type EnsureHealthyVolumeResult =
 	| { ready: true; volume: Volume; remounted: boolean }
@@ -70,6 +65,7 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 
 const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
 	...volume,
+	shortId: volume.shortId,
 	config: await decryptVolumeConfig(volume.config),
 	provisioningId: volume.provisioningId ?? null,
 });

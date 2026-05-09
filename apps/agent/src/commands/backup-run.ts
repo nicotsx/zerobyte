@@ -1,11 +1,51 @@
-import { Effect, Runtime } from "effect";
+import { Data, Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { Volume } from "@zerobyte/contracts/volumes";
 import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
 import { type ResticDeps } from "@zerobyte/core/restic";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
+import { createVolumeBackend } from "../volume-host";
+
+class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
+	readonly _tag: "VolumeReadinessError";
+	message: string;
+}> {}
+
+const ensureHealthyVolume = (volume: Volume) =>
+	Effect.gen(function* () {
+		if (volume.status === "unmounted") {
+			return yield* new VolumeReadinessError({
+				message: `Volume ${volume.name} is not mounted`,
+			});
+		}
+
+		const backend = createVolumeBackend(volume);
+		let failureReason = volume.lastError ?? "Volume health check failed";
+
+		if (volume.status !== "error") {
+			const health = yield* Effect.promise(() => backend.checkHealth());
+			if (health.status === "mounted") {
+				return;
+			}
+
+			failureReason = health.error ?? failureReason;
+		}
+
+		if (!volume.autoRemount) {
+			return yield* new VolumeReadinessError({ message: failureReason });
+		}
+
+		logger.warn(
+			`${volume.name} is not healthy. Auto-remount is enabled, attempting to remount. Reason: ${failureReason}`,
+		);
+		const remount = yield* Effect.promise(() => backend.mount());
+		if (remount.status !== "mounted") {
+			return yield* new VolumeReadinessError({ message: remount.error ?? failureReason });
+		}
+	});
 
 export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
 	return Effect.gen(function* () {
@@ -56,6 +96,8 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 				const restic = createRestic(deps);
 				const runtime = yield* Effect.runtime<never>();
+
+				yield* ensureHealthyVolume(payload.volume);
 
 				const backupResult = yield* runBackupLifecycle({
 					restic,
@@ -111,7 +153,19 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						yield* sendCancelled(backupResult.message);
 						return;
 				}
-			}).pipe(Effect.ensuring(context.deleteRunningJob(payload.jobId))),
+			}).pipe(
+				Effect.catchAll((error) =>
+					context.offerOutbound(
+						createAgentMessage("backup.failed", {
+							jobId: payload.jobId,
+							scheduleId: payload.scheduleId,
+							error: error.message,
+							errorDetails: toMessage(error),
+						}),
+					),
+				),
+				Effect.ensuring(context.deleteRunningJob(payload.jobId)),
+			),
 		);
 	}).pipe(Effect.asVoid);
 };

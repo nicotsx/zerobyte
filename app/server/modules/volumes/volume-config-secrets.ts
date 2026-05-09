@@ -1,4 +1,4 @@
-import type { BackendConfig } from "~/schemas/volumes";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils, transformOptionalSecret, type SecretTransformer } from "~/server/utils/crypto";
 
 export const mapVolumeConfigSecrets = async (

@@ -1,21 +1,16 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { BACKEND_STATUS, BACKEND_TYPES, volumeConfigSchema } from "~/schemas/volumes";
+import {
+	browseFilesystemResponseSchema,
+	listVolumeFilesResponseSchema,
+	publicVolumeSchema,
+	statfsSchema,
+	testVolumeConnectionResponseSchema,
+	volumeConfigSchema,
+	volumeOperationResultSchema,
+} from "@zerobyte/contracts/volumes";
 
-export const volumeSchema = z.object({
-	id: z.number(),
-	shortId: z.string(),
-	provisioningId: z.string().nullable(),
-	name: z.string(),
-	type: z.enum(BACKEND_TYPES),
-	status: z.enum(BACKEND_STATUS),
-	lastError: z.string().nullable(),
-	createdAt: z.number(),
-	updatedAt: z.number(),
-	lastHealthCheck: z.number(),
-	config: volumeConfigSchema,
-	autoRemount: z.boolean(),
-});
+const volumeSchema = publicVolumeSchema;
 
 const listVolumesResponse = volumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;
@@ -80,12 +75,6 @@ export const deleteVolumeDto = describeRoute({
 	},
 });
 
-const statfsSchema = z.object({
-	total: z.number(),
-	used: z.number(),
-	free: z.number(),
-});
-
 const getVolumeResponse = z.object({
 	volume: volumeSchema,
 	statfs: statfsSchema,
@@ -146,10 +135,7 @@ export const testConnectionBody = z.object({
 	config: volumeConfigSchema,
 });
 
-const testConnectionResponse = z.object({
-	success: z.boolean(),
-	message: z.string(),
-});
+const testConnectionResponse = testVolumeConnectionResponseSchema;
 
 export const testConnectionDto = describeRoute({
 	description: "Test connection to backend",
@@ -167,10 +153,7 @@ export const testConnectionDto = describeRoute({
 	},
 });
 
-const mountVolumeResponse = z.object({
-	error: z.string().optional(),
-	status: z.enum(BACKEND_STATUS),
-});
+const mountVolumeResponse = volumeOperationResultSchema;
 
 export const mountVolumeDto = describeRoute({
 	description: "Mount a volume",
@@ -188,10 +171,7 @@ export const mountVolumeDto = describeRoute({
 	},
 });
 
-const unmountVolumeResponse = z.object({
-	error: z.string().optional(),
-	status: z.enum(BACKEND_STATUS),
-});
+const unmountVolumeResponse = volumeOperationResultSchema;
 
 export const unmountVolumeDto = describeRoute({
 	description: "Unmount a volume",
@@ -209,10 +189,7 @@ export const unmountVolumeDto = describeRoute({
 	},
 });
 
-const healthCheckResponse = z.object({
-	error: z.string().optional(),
-	status: z.enum(BACKEND_STATUS),
-});
+const healthCheckResponse = volumeOperationResultSchema;
 
 export const healthCheckDto = describeRoute({
 	description: "Perform a health check on a volume",
@@ -233,22 +210,7 @@ export const healthCheckDto = describeRoute({
 	},
 });
 
-const fileEntrySchema = z.object({
-	name: z.string(),
-	path: z.string(),
-	type: z.enum(["file", "directory"]),
-	size: z.number().optional(),
-	modifiedAt: z.number().optional(),
-});
-
-const listFilesResponse = z.object({
-	files: fileEntrySchema.array(),
-	path: z.string(),
-	offset: z.number(),
-	limit: z.number(),
-	total: z.number(),
-	hasMore: z.boolean(),
-});
+const listFilesResponse = listVolumeFilesResponseSchema;
 export type ListFilesDto = z.infer<typeof listFilesResponse>;
 
 export const listFilesQuery = z.object({
@@ -273,10 +235,7 @@ export const listFilesDto = describeRoute({
 	},
 });
 
-const browseFilesystemResponse = z.object({
-	directories: fileEntrySchema.array(),
-	path: z.string(),
-});
+const browseFilesystemResponse = browseFilesystemResponseSchema;
 export type BrowseFilesystemDto = z.infer<typeof browseFilesystemResponse>;
 
 export const browseFilesystemDto = describeRoute({

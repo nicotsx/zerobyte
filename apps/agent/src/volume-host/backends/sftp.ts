@@ -3,12 +3,13 @@ import { createHash } from "node:crypto";
 import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { FILE_MODES, logger, writeFileWithMode } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { OPERATION_TIMEOUT, SSH_KEYS_DIR } from "../constants";
 import { getMountForPath } from "../fs";
 import { withTimeout } from "../timeout";
-import type { BackendConfig, VolumeBackend } from "../types";
+import type { VolumeBackend } from "../types";
 import { executeUnmount } from "./utils";
 
 const getMountPathHash = (mountPath: string) => createHash("sha256").update(mountPath).digest("hex").slice(0, 16);

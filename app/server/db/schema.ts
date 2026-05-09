@@ -10,7 +10,7 @@ import type {
 	ResticStatsDto,
 } from "@zerobyte/core/restic";
 import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
-import type { BackendConfig, BackendStatus, BackendType } from "~/schemas/volumes";
+import type { BackendConfig, BackendStatus, BackendType } from "@zerobyte/contracts/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ShortId } from "~/server/utils/branded";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";

@@ -3,6 +3,7 @@ import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage, type AgentMessage } from "@zerobyte/contracts/agent-protocol";
+import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
@@ -51,6 +52,22 @@ const createSession = (
 	}
 };
 
+const backupVolume = {
+	id: 1,
+	shortId: "volume-1",
+	name: "Volume 1",
+	config: { backend: "directory", path: "/tmp" },
+	createdAt: 0,
+	updatedAt: 0,
+	lastHealthCheck: 0,
+	type: "directory",
+	status: "mounted" as const,
+	lastError: null,
+	autoRemount: true,
+	agentId: LOCAL_AGENT_ID,
+	organizationId: "org-1",
+} satisfies Volume;
+
 test("closing the session scope interrupts the session runner", async () => {
 	const { run, closeAsync } = createSession();
 	const fiber = run();
@@ -85,6 +102,7 @@ test("sendBackup only queues the transport message", () => {
 			scheduleId: "schedule-queued",
 			organizationId: "org-1",
 			sourcePath: "/tmp/source",
+			volume: backupVolume,
 			repositoryConfig: {
 				backend: "local",
 				path: "/tmp/repository",

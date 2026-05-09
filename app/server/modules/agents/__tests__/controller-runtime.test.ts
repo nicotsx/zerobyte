@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
+import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 
 const agentsServiceMocks = vi.hoisted(() => ({
@@ -35,6 +36,22 @@ const createSocket = (id: string, agentId = LOCAL_AGENT_ID) => ({
 	send: vi.fn(() => 1),
 	close: vi.fn(),
 });
+
+const backupVolume = {
+	id: 1,
+	shortId: "volume-1",
+	name: "Volume 1",
+	config: { backend: "directory", path: "/tmp" },
+	createdAt: 0,
+	updatedAt: 0,
+	lastHealthCheck: 0,
+	type: "directory",
+	status: "mounted" as const,
+	lastError: null,
+	autoRemount: true,
+	agentId: LOCAL_AGENT_ID,
+	organizationId: "org-1",
+} satisfies Volume;
 
 type CapturedFetch = NonNullable<Parameters<typeof Bun.serve>[0]["fetch"]>;
 
@@ -223,6 +240,7 @@ test("closing a replaced connection reports disconnect without marking the activ
 				scheduleId: "schedule-1",
 				organizationId: "org-1",
 				sourcePath: "/tmp/source",
+				volume: backupVolume,
 				repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
 				options: {},
 				runtime: {
@@ -253,6 +271,7 @@ test("sendBackup is only delivered after the agent is ready", async () => {
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
 		sourcePath: "/tmp/source",
+		volume: backupVolume,
 		repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
 		options: {},
 		runtime: {

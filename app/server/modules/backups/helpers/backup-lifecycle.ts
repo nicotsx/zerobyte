@@ -13,6 +13,8 @@ import { scheduleQueries } from "../backups.queries";
 import type { BackupExecutionProgress } from "../../agents/agents-manager";
 import { repositoriesService } from "../../repositories/repositories.service";
 import { volumeService } from "../../volumes/volume.service";
+import { config } from "../../../core/config";
+import { LOCAL_AGENT_ID } from "../../agents/constants";
 import { copyToMirrors, runForget } from "./backup-maintenance";
 
 interface BackupContext {
@@ -39,6 +41,9 @@ type ValidationSkipped = {
 };
 
 type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkipped;
+
+const requiresControllerLocalVolumeReadiness = (volume: Volume) =>
+	volume.agentId === LOCAL_AGENT_ID && !config.flags.enableLocalAgent;
 
 export function getBackupProgress(scheduleId: number): BackupProgressEventDto | undefined {
 	return cache.get<BackupProgressEventDto>(cacheKeys.backup.progress(scheduleId));
@@ -70,6 +75,13 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 
 	if (!repository) {
 		return { type: "failure", error: new NotFoundError("Repository not found"), partialContext: { schedule, volume } };
+	}
+
+	if (!requiresControllerLocalVolumeReadiness(volume)) {
+		return {
+			type: "success",
+			context: { schedule, volume, repository, organizationId },
+		};
 	}
 
 	const volumeReadiness = await volumeService.ensureHealthyVolume(volume.shortId);

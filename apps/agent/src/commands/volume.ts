@@ -1,7 +1,8 @@
 import { Effect, Data } from "effect";
 import { createAgentMessage, type VolumeCommand, type VolumeCommandPayload } from "@zerobyte/contracts/agent-protocol";
+import type { BackendConfig, Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { toMessage } from "@zerobyte/core/utils";
-import { createVolumeBackend, getStatFs, getVolumePath, type AgentVolume, type BackendConfig } from "../volume-host";
+import { createVolumeBackend, getStatFs, getVolumePath } from "../volume-host";
 import { browseFilesystem, listVolumeFiles, testVolumeConnection } from "../volume-host/operations";
 import type { ControllerCommandContext } from "../context";
 

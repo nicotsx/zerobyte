@@ -7,6 +7,15 @@ import {
 	resticBackupProgressSchema,
 	type CompressionMode,
 } from "@zerobyte/core/restic";
+import {
+	browseFilesystemResponseSchema,
+	listVolumeFilesResponseSchema,
+	statfsSchema,
+	testVolumeConnectionResponseSchema,
+	volumeConfigSchema,
+	volumeOperationResultSchema,
+	volumeSchema,
+} from "./volumes";
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
@@ -37,6 +46,7 @@ const backupRunSchema = z.object({
 		scheduleId: z.string(),
 		organizationId: z.string(),
 		sourcePath: z.string(),
+		volume: volumeSchema,
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
 		runtime: backupRuntimeSchema,
@@ -51,53 +61,6 @@ const backupCancelSchema = z.object({
 	payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
 });
 
-const backendStatusSchema = z.enum(["mounted", "unmounted", "error"]);
-
-const volumeSchema = z.object({
-	id: z.number(),
-	shortId: z.string(),
-	name: z.string(),
-	path: z.string().nullable().optional(),
-	config: z.record(z.string(), z.unknown()).and(z.object({ backend: z.string() })),
-	createdAt: z.number(),
-	updatedAt: z.number(),
-	lastHealthCheck: z.number(),
-	type: z.string(),
-	status: backendStatusSchema,
-	lastError: z.string().nullable(),
-	provisioningId: z.string().nullable().optional(),
-	autoRemount: z.boolean(),
-	agentId: z.string(),
-	organizationId: z.string(),
-});
-
-const volumeOperationResultSchema = z.object({
-	status: backendStatusSchema,
-	error: z.string().optional(),
-});
-
-const statfsSchema = z.object({
-	total: z.number().optional(),
-	used: z.number().optional(),
-	free: z.number().optional(),
-});
-
-const fileEntrySchema = z.object({
-	name: z.string(),
-	path: z.string(),
-	type: z.enum(["directory", "file"]),
-	size: z.number().optional(),
-	modifiedAt: z.number().optional(),
-});
-
-const directoryEntrySchema = z.object({
-	name: z.string(),
-	path: z.string(),
-	type: z.literal("directory"),
-	size: z.undefined().optional(),
-	modifiedAt: z.number().optional(),
-});
-
 const volumeCommandSchema = z.discriminatedUnion("name", [
 	z.object({ name: z.literal("volume.mount"), volume: volumeSchema }),
 	z.object({ name: z.literal("volume.unmount"), volume: volumeSchema }),
@@ -110,7 +73,7 @@ const volumeCommandSchema = z.discriminatedUnion("name", [
 		offset: z.number(),
 		limit: z.number(),
 	}),
-	z.object({ name: z.literal("volume.testConnection"), backendConfig: z.record(z.string(), z.unknown()) }),
+	z.object({ name: z.literal("volume.testConnection"), backendConfig: volumeConfigSchema }),
 	z.object({ name: z.literal("filesystem.browse"), path: z.string() }),
 ]);
 
@@ -127,25 +90,9 @@ const volumeCommandResultSchema = z.discriminatedUnion("name", [
 	z.object({ name: z.literal("volume.unmount"), result: volumeOperationResultSchema }),
 	z.object({ name: z.literal("volume.checkHealth"), result: volumeOperationResultSchema }),
 	z.object({ name: z.literal("volume.statfs"), result: statfsSchema }),
-	z.object({
-		name: z.literal("volume.listFiles"),
-		result: z.object({
-			files: z.array(fileEntrySchema),
-			path: z.string(),
-			offset: z.number(),
-			limit: z.number(),
-			total: z.number(),
-			hasMore: z.boolean(),
-		}),
-	}),
-	z.object({
-		name: z.literal("volume.testConnection"),
-		result: z.object({ success: z.boolean(), message: z.string() }),
-	}),
-	z.object({
-		name: z.literal("filesystem.browse"),
-		result: z.object({ directories: z.array(directoryEntrySchema), path: z.string() }),
-	}),
+	z.object({ name: z.literal("volume.listFiles"), result: listVolumeFilesResponseSchema }),
+	z.object({ name: z.literal("volume.testConnection"), result: testVolumeConnectionResponseSchema }),
+	z.object({ name: z.literal("filesystem.browse"), result: browseFilesystemResponseSchema }),
 ]);
 
 const volumeCommandResponseSchema = z.object({

@@ -86,7 +86,7 @@ export const sftpConfigSchema = z.object({
 	knownHosts: z.string().optional(),
 });
 
-const volumeConfigSchemaBase = z.discriminatedUnion("backend", [
+export const volumeConfigSchema = z.discriminatedUnion("backend", [
 	nfsConfigSchema,
 	smbConfigSchema,
 	webdavConfigSchema,
@@ -94,8 +94,6 @@ const volumeConfigSchemaBase = z.discriminatedUnion("backend", [
 	rcloneConfigSchema,
 	sftpConfigSchema,
 ]);
-
-export const volumeConfigSchema = volumeConfigSchemaBase;
 
 export type BackendConfig = z.infer<typeof volumeConfigSchema>;
 
@@ -106,3 +104,78 @@ export const BACKEND_STATUS = {
 } as const;
 
 export type BackendStatus = keyof typeof BACKEND_STATUS;
+
+export const backendStatusSchema = z.enum(BACKEND_STATUS);
+
+export const volumeSchema = z.object({
+	id: z.number(),
+	shortId: z.string(),
+	name: z.string(),
+	path: z.string().nullable().optional(),
+	config: volumeConfigSchema,
+	createdAt: z.number(),
+	updatedAt: z.number(),
+	lastHealthCheck: z.number(),
+	type: z.enum(BACKEND_TYPES),
+	status: backendStatusSchema,
+	lastError: z.string().nullable(),
+	provisioningId: z.string().nullable().optional(),
+	autoRemount: z.boolean(),
+	agentId: z.string(),
+	organizationId: z.string(),
+});
+
+export type Volume = z.infer<typeof volumeSchema>;
+
+export const publicVolumeSchema = volumeSchema.omit({
+	agentId: true,
+	organizationId: true,
+	path: true,
+});
+
+export type PublicVolume = z.infer<typeof publicVolumeSchema>;
+
+export const volumeOperationResultSchema = z.object({
+	status: backendStatusSchema,
+	error: z.string().optional(),
+});
+
+export type VolumeOperationResult = z.infer<typeof volumeOperationResultSchema>;
+
+export const statfsSchema = z.object({
+	total: z.number().optional(),
+	used: z.number().optional(),
+	free: z.number().optional(),
+});
+
+export const fileEntrySchema = z.object({
+	name: z.string(),
+	path: z.string(),
+	type: z.enum(["directory", "file"]),
+	size: z.number().optional(),
+	modifiedAt: z.number().optional(),
+});
+
+export const directoryEntrySchema = fileEntrySchema.extend({
+	type: z.literal("directory"),
+	size: z.undefined().optional(),
+});
+
+export const listVolumeFilesResponseSchema = z.object({
+	files: z.array(fileEntrySchema),
+	path: z.string(),
+	offset: z.number(),
+	limit: z.number(),
+	total: z.number(),
+	hasMore: z.boolean(),
+});
+
+export const testVolumeConnectionResponseSchema = z.object({
+	success: z.boolean(),
+	message: z.string(),
+});
+
+export const browseFilesystemResponseSchema = z.object({
+	directories: z.array(directoryEntrySchema),
+	path: z.string(),
+});

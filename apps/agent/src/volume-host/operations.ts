@@ -1,10 +1,10 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { BackendConfig, Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { toMessage } from "@zerobyte/core/utils";
-import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
-import type { AgentVolume, BackendConfig } from "./types";
 import { Data, Effect } from "effect";
+import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
 
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;

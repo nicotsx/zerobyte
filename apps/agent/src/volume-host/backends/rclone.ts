@@ -1,11 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { logger, safeExec } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { OPERATION_TIMEOUT, RCLONE_CONFIG_FILE, RCLONE_TIMEOUT } from "../constants";
 import { withTimeout } from "../timeout";
 import { getMountForPath } from "../fs";
-import type { BackendConfig, VolumeBackend } from "../types";
+import type { VolumeBackend } from "../types";
 import { assertMounted, executeUnmount } from "./utils";
 
 const checkHealth = async (mountPath: string) => {

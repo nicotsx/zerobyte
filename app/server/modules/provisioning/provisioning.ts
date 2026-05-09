@@ -16,7 +16,7 @@ import { repositoriesTable, volumesTable } from "~/server/db/schema";
 import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
-import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
+import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
