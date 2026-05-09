@@ -90,7 +90,9 @@ const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string
 	}
 
 	if (activeBackupRun.scheduleShortId !== scheduleId) {
-		logger.warn(`Ignoring ${eventName} for job ${jobId} due to schedule mismatch ${scheduleId} from agent ${agentId}`);
+		logger.warn(
+			`Ignoring ${eventName} for job ${jobId} due to schedule mismatch ${scheduleId} from agent ${agentId}`,
+		);
 		return null;
 	}
 
@@ -308,7 +310,9 @@ export const startLocalAgent = async () => {
 	await spawnLocalAgentProcess(runtime);
 
 	if (!runtime.agentManager) {
-		return;
+		throw new Error(
+			`startLocalAgent spawned ${LOCAL_AGENT_ID} via spawnLocalAgentProcess, but runtime.agentManager is missing; waitForAgentReady cannot check readiness`,
+		);
 	}
 
 	if (!(await runtime.agentManager.waitForAgentReady(LOCAL_AGENT_ID))) {

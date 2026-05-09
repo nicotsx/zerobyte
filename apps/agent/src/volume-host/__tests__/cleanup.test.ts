@@ -7,8 +7,8 @@ let tempRoot: string | undefined;
 let mockMountPoints: string[] = [];
 
 afterEach(async () => {
-	vi.doUnmock("./constants");
-	vi.doUnmock("./fs");
+	vi.doUnmock("../constants");
+	vi.doUnmock("../fs");
 	vi.resetModules();
 	mockMountPoints = [];
 	if (tempRoot) {
@@ -20,8 +20,8 @@ afterEach(async () => {
 const loadCleanup = async () => {
 	vi.resetModules();
 	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-cleanup-"));
-	vi.doMock("./constants", () => ({ VOLUME_MOUNT_BASE: tempRoot }));
-	vi.doMock("./fs", () => ({
+	vi.doMock("../constants", () => ({ VOLUME_MOUNT_BASE: tempRoot }));
+	vi.doMock("../fs", () => ({
 		readMountInfo: async () => mockMountPoints.map((mountPoint) => ({ mountPoint, fstype: "fuse.sshfs" })),
 	}));
 

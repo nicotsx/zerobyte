@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
 import * as bootstrapModule from "../bootstrap";
 import { agentManager } from "../../agents/agents-manager";
@@ -12,8 +12,14 @@ const loadShutdownModule = async () => {
 	return import(moduleUrl.href);
 };
 
+let originalEnableLocalAgent: boolean;
+
+beforeEach(() => {
+	originalEnableLocalAgent = config.flags.enableLocalAgent;
+});
+
 afterEach(() => {
-	config.flags.enableLocalAgent = true;
+	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	vi.restoreAllMocks();
 });
 
@@ -28,7 +34,7 @@ describe("shutdown", () => {
 		});
 		const runVolumeCommand = vi.spyOn(agentManager, "runVolumeCommand");
 
-		await createTestVolume({
+		const volume = await createTestVolume({
 			name: "Shutdown test volume",
 			config: {
 				backend: "directory",
@@ -47,6 +53,9 @@ describe("shutdown", () => {
 
 		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
 		expect(runVolumeCommand).not.toHaveBeenCalled();
+		const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(updated).toBeDefined();
+		expect(updated!.status).toBe("mounted");
 	});
 
 	test("keeps legacy controller-local fallback unmount on shutdown", async () => {
@@ -57,6 +66,9 @@ describe("shutdown", () => {
 		});
 		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(async () => {
 			events.push("agents.stop");
+		});
+		const runVolumeCommand = vi.spyOn(agentManager, "runVolumeCommand").mockImplementation(async () => {
+			throw new Error("runVolumeCommand should not be called during fallback shutdown");
 		});
 
 		const volume = await createTestVolume({
@@ -71,6 +83,8 @@ describe("shutdown", () => {
 
 		const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
 		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
-		expect(updated?.status).toBe("unmounted");
+		expect(runVolumeCommand).not.toHaveBeenCalled();
+		expect(updated).toBeDefined();
+		expect(updated!.status).toBe("unmounted");
 	});
 });

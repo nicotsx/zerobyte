@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 const runVolumeCommand = async (payload: VolumeCommandPayload) => {
-	const outboundMessages: string[] = [];
+	const outboundMessages: AgentWireMessage[] = [];
 	const context = fromPartial<ControllerCommandContext>({
 		offerOutbound: (message: AgentWireMessage) =>
 			Effect.sync(() => {

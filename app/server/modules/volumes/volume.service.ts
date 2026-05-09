@@ -70,7 +70,6 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 
 const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
 	...volume,
-	shortId: volume.shortId,
 	config: await decryptVolumeConfig(volume.config),
 	provisioningId: volume.provisioningId ?? null,
 });
@@ -211,7 +210,7 @@ const getVolume = async (shortId: ShortId) => {
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
 		statfs = await withTimeout(
-			!shouldUseControllerLocalVolumeFallback(volume)
+			shouldRunViaAgent(volume)
 				? runVolumeCommand(volume.agentId, {
 						name: "volume.statfs",
 						volume: await volumeForAgent(volume),
