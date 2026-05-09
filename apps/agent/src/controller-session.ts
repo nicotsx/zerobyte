@@ -9,6 +9,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
+import { resolveResticHostname } from "./restic/hostname";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -136,7 +137,17 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 
 	return {
 		onOpen: () => {
-			void Effect.runPromise(offerOutbound(createAgentMessage("agent.ready", { agentId: "" }))).catch((error) => {
+			void Effect.runPromise(
+				offerOutbound(
+					createAgentMessage("agent.ready", {
+						agentId: "",
+						protocolVersion: 1,
+						hostname: resolveResticHostname(),
+						platform: process.platform,
+						capabilities: { backup: true, volume: true, restic: true },
+					}),
+				),
+			).catch((error) => {
 				logger.error(`Failed to queue ready message: ${toMessage(error)}`);
 			});
 		},

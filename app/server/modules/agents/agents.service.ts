@@ -95,9 +95,10 @@ const updateAgentRuntime = async (agentId: string, values: Partial<Agent>) => {
 	return updatedAgent;
 };
 
-const markAgentOnline = async (agentId: string, readyAt = Date.now()) => {
+const markAgentOnline = async (agentId: string, readyAt = Date.now(), metadata?: AgentCapabilities) => {
 	return updateAgentRuntime(agentId, {
 		status: "online",
+		capabilities: metadata,
 		lastSeenAt: readyAt,
 		lastReadyAt: readyAt,
 		updatedAt: readyAt,

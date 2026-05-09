@@ -101,19 +101,22 @@ test("sendBackup only queues the transport message", () => {
 			jobId: "job-queued",
 			scheduleId: "schedule-queued",
 			organizationId: "org-1",
-			sourcePath: "/tmp/source",
 			volume: backupVolume,
 			repositoryConfig: {
 				backend: "local",
 				path: "/tmp/repository",
 			},
-			options: {},
+			options: {
+				oneFileSystem: false,
+				excludePatterns: null,
+				excludeIfPresent: null,
+				includePaths: null,
+				includePatterns: null,
+				customResticParams: null,
+				compressionMode: "auto",
+			},
 			runtime: {
 				password: "password",
-				cacheDir: "/tmp/cache",
-				passFile: "/tmp/pass",
-				defaultExcludes: [],
-				rcloneConfigFile: "/tmp/rclone.conf",
 			},
 			webhooks: { pre: null, post: null },
 			webhookAllowedOrigins: [],
@@ -142,10 +145,29 @@ test("agent.ready marks the session ready and forwards the event", () => {
 	const { session, close } = createSession(onEvent);
 
 	expect(Effect.runSync(session.isReady())).toBe(false);
-	Effect.runSync(session.handleMessage(createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID })));
+	Effect.runSync(
+		session.handleMessage(
+			createAgentMessage("agent.ready", {
+				agentId: LOCAL_AGENT_ID,
+				protocolVersion: 1,
+				hostname: "host",
+				platform: "linux",
+				capabilities: { backup: true },
+			}),
+		),
+	);
 
 	expect(Effect.runSync(session.isReady())).toBe(true);
-	expect(onEvent).toHaveBeenCalledWith({ type: "agent.ready", payload: { agentId: LOCAL_AGENT_ID } });
+	expect(onEvent).toHaveBeenCalledWith({
+		type: "agent.ready",
+		payload: {
+			agentId: LOCAL_AGENT_ID,
+			protocolVersion: 1,
+			hostname: "host",
+			platform: "linux",
+			capabilities: { backup: true },
+		},
+	});
 	close();
 });
 
