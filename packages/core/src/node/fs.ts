@@ -12,15 +12,21 @@ type FileMode = (typeof FILE_MODES)[keyof typeof FILE_MODES];
  * correct mode or does not exist.
  */
 export const ensureFileMode = async (filePath: string, mode: FileMode): Promise<boolean> => {
+	let stat;
 	try {
-		const stat = await fs.stat(filePath);
-		if ((stat.mode & 0o777) !== mode) {
-			await fs.chmod(filePath, mode);
-			return true;
+		stat = await fs.stat(filePath);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return false;
 		}
-	} catch {
-		// File does not exist or cannot be stat'd — nothing to fix.
+		throw error;
 	}
+
+	if ((stat.mode & 0o777) !== mode) {
+		await fs.chmod(filePath, mode);
+		return true;
+	}
+
 	return false;
 };
 
