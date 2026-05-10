@@ -1,5 +1,5 @@
 import { CronExpressionParser } from "cron-parser";
-import path from "node:path";
+import { createBackupOptions as createAgentBackupOptions } from "../../../../apps/agent/src/commands/backup.helpers";
 import type { BackupSchedule } from "~/server/db/schema";
 import { toMessage } from "~/server/utils/errors";
 import { logger } from "@zerobyte/core/node";
@@ -28,45 +28,20 @@ export const isValidCron = (expression: string) => {
 	}
 };
 
-export const processPattern = (pattern: string, volumePath: string, relative = false) => {
-	const isNegated = pattern.startsWith("!");
-	const p = isNegated ? pattern.slice(1) : pattern;
-
-	const ensurePatternIsWithinVolume = (candidate: string) => {
-		const resolvedVolumePath = path.resolve(volumePath);
-		const resolvedCandidatePath = path.resolve(volumePath, candidate);
-		const relativePath = path.relative(resolvedVolumePath, resolvedCandidatePath);
-
-		if (relativePath === ".." || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
-			throw new Error(`Include pattern escapes volume root: ${pattern}`);
-		}
-	};
-
-	if (!p.startsWith("/")) {
-		if (!relative) return pattern;
-		ensurePatternIsWithinVolume(p);
-		const processed = path.join(volumePath, p);
-		return isNegated ? `!${processed}` : processed;
-	}
-
-	if (relative) {
-		ensurePatternIsWithinVolume(p.slice(1));
-	}
-	const processed = path.join(volumePath, p.slice(1));
-	return isNegated ? `!${processed}` : processed;
-};
-
-export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal?: AbortSignal) => ({
-	tags: [schedule.shortId],
-	oneFileSystem: schedule.oneFileSystem,
-	signal,
-	exclude: schedule.excludePatterns ? schedule.excludePatterns.map((p) => processPattern(p, volumePath)) : undefined,
-	excludeIfPresent: schedule.excludeIfPresent ?? undefined,
-	includePaths: schedule.includePaths
-		? schedule.includePaths.map((p) => processPattern(p, volumePath, true))
-		: undefined,
-	includePatterns: schedule.includePatterns
-		? schedule.includePatterns.map((p) => processPattern(p, volumePath, true))
-		: undefined,
-	customResticParams: schedule.customResticParams ?? [],
-});
+export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal?: AbortSignal) =>
+	createAgentBackupOptions(
+		{
+			scheduleId: schedule.shortId,
+			options: {
+				oneFileSystem: schedule.oneFileSystem,
+				excludePatterns: schedule.excludePatterns,
+				excludeIfPresent: schedule.excludeIfPresent,
+				includePaths: schedule.includePaths,
+				includePatterns: schedule.includePatterns,
+				customResticParams: schedule.customResticParams,
+				compressionMode: "auto",
+			},
+		},
+		volumePath,
+		signal,
+	);

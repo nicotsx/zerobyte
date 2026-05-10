@@ -1,31 +1,11 @@
 import { readFileSync } from "node:fs";
-import os from "node:os";
 import { prettifyError, z } from "zod";
 import "dotenv/config";
+import { resolveResticHostname } from "../../../apps/agent/src/restic/hostname";
 import { buildAllowedHosts } from "../lib/auth/base-url";
 import { toMessage } from "@zerobyte/core/utils";
 
 const unquote = (str: string) => str.trim().replace(/^(['"])(.*)\1$/, "$2");
-const getResticHostname = () => {
-	try {
-		const mountinfo = readFileSync("/proc/self/mountinfo", "utf-8");
-		const hostnameLine = mountinfo.split("\n").find((line) => line.includes(" /etc/hostname "));
-		const hostname = os.hostname();
-
-		if (hostnameLine) {
-			const containerIdMatch = hostnameLine.match(/[0-9a-f]{64}/);
-			const containerId = containerIdMatch ? containerIdMatch[0] : null;
-
-			if (containerId?.startsWith(hostname)) {
-				return "zerobyte";
-			}
-
-			return hostname || "zerobyte";
-		}
-	} catch {}
-
-	return "zerobyte";
-};
 
 const envSchema = z
 	.object({
@@ -124,7 +104,7 @@ const envSchema = z
 			serverIp: s.SERVER_IP,
 			serverIdleTimeout: s.SERVER_IDLE_TIMEOUT,
 			webhookTimeout: s.WEBHOOK_TIMEOUT,
-			resticHostname: s.RESTIC_HOSTNAME || getResticHostname(),
+			resticHostname: s.RESTIC_HOSTNAME || resolveResticHostname(),
 			port: s.PORT,
 			migrationsPath: s.MIGRATIONS_PATH,
 			appVersion: s.APP_VERSION,

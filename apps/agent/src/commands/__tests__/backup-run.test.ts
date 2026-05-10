@@ -6,9 +6,9 @@ import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { parseAgentMessage, type BackupCancelPayload, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
-import { handleBackupCancelCommand } from "./backup-cancel";
-import { handleBackupRunCommand } from "./backup-run";
-import type { ControllerCommandContext, RunningJob } from "../context";
+import { handleBackupCancelCommand } from "../backup-cancel";
+import { handleBackupRunCommand } from "../backup-run";
+import type { ControllerCommandContext, RunningJob } from "../../context";
 
 const server = setupServer();
 
@@ -39,7 +39,6 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
-		sourcePath: "/tmp/source",
 		volume: {
 			id: 1,
 			shortId: "volume-1",
@@ -59,13 +58,17 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 			backend: "local",
 			path: "/tmp/repository",
 		},
-		options: {},
+		options: {
+			oneFileSystem: false,
+			excludePatterns: null,
+			excludeIfPresent: null,
+			includePaths: null,
+			includePatterns: null,
+			customResticParams: null,
+			compressionMode: "auto",
+		},
 		runtime: {
 			password: "password",
-			cacheDir: "/tmp/restic-cache",
-			passFile: "/tmp/restic-pass",
-			defaultExcludes: [],
-			rcloneConfigFile: "/tmp/rclone.conf",
 		},
 		webhooks: { pre: null, post: null },
 		webhookAllowedOrigins: ["http://localhost:8080"],
@@ -339,7 +342,6 @@ test("waits for running-job registration before returning to the processor loop"
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
-		sourcePath: "/tmp/source",
 		volume: {
 			id: 1,
 			shortId: "volume-1",
@@ -359,12 +361,17 @@ test("waits for running-job registration before returning to the processor loop"
 			backend: "local",
 			path: "/tmp/repository",
 		},
-		options: {},
+		options: {
+			oneFileSystem: false,
+			excludePatterns: null,
+			excludeIfPresent: null,
+			includePaths: null,
+			includePatterns: null,
+			customResticParams: null,
+			compressionMode: "auto",
+		},
 		runtime: {
 			password: "password",
-			cacheDir: "/tmp/restic-cache",
-			passFile: "/tmp/restic-pass",
-			defaultExcludes: [],
 		},
 		webhooks: { pre: null, post: null },
 		webhookAllowedOrigins: [],

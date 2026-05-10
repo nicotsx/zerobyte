@@ -1,22 +1,9 @@
 import path from "node:path";
-import fc from "fast-check";
 import { describe, expect, test } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
-import { createBackupOptions, processPattern } from "../backup.helpers";
+import { createBackupOptions } from "../backup.helpers";
 
 type BackupScheduleInput = Parameters<typeof createBackupOptions>[0];
-
-const safePatternSegmentArb = fc
-	.array(fc.constantFrom("a", "b", "c", "x", "y", "z", "0", "1", "2", "-", "_", ".", " "), {
-		minLength: 1,
-		maxLength: 12,
-	})
-	.map((chars) => chars.join(""))
-	.filter((segment) => segment.trim() !== "" && segment !== "." && segment !== "..");
-
-const safeRelativePatternArb = fc
-	.array(safePatternSegmentArb, { minLength: 1, maxLength: 5 })
-	.map((segments) => segments.join("/"));
 
 const createSchedule = (overrides: Partial<BackupScheduleInput> = {}): BackupScheduleInput =>
 	fromAny({
@@ -57,43 +44,6 @@ describe("executeBackup - include / exclude patterns", () => {
 		});
 	});
 
-	test("should handle the case where a subfolder has the exact same name as the volume name", () => {
-		// arrange
-		const volumeName = "SyncFolder";
-		const volumePath = `/${volumeName}`;
-		const selectedPath = `/${volumeName}`;
-		const schedule = createSchedule({
-			includePaths: [selectedPath],
-		});
-		const signal = new AbortController().signal;
-
-		// act
-		const options = createBackupOptions(schedule, volumePath, signal);
-
-		// assert
-		expect(options.includePaths).toEqual([path.join(volumePath, volumeName)]);
-	});
-
-	test("should correctly mix relative and absolute patterns", () => {
-		// arrange
-		const volumePath = "/var/lib/zerobyte/volumes/vol456/_data";
-		const relativeInclude = "relative/include";
-		const anchoredInclude = "/anchored/include";
-		const schedule = createSchedule({
-			includePatterns: [relativeInclude, anchoredInclude],
-		});
-		const signal = new AbortController().signal;
-
-		// act
-		const options = createBackupOptions(schedule, volumePath, signal);
-
-		// assert
-		expect(options.includePatterns).toEqual([
-			path.join(volumePath, relativeInclude),
-			path.join(volumePath, "anchored/include"),
-		]);
-	});
-
 	test("should handle empty include and exclude patterns", () => {
 		// arrange
 		const schedule = createSchedule({
@@ -109,80 +59,5 @@ describe("executeBackup - include / exclude patterns", () => {
 		expect(options.includePaths).toEqual([]);
 		expect(options.includePatterns).toEqual([]);
 		expect(options.exclude).toEqual([]);
-	});
-
-	test("processPattern keeps relative and negated relative patterns unchanged", () => {
-		expect(processPattern("relative/include", "/volume")).toBe("relative/include");
-		expect(processPattern("!*.log", "/volume")).toBe("!*.log");
-	});
-
-	test("rejects include patterns that escape the volume root", () => {
-		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
-		const signal = new AbortController().signal;
-
-		expect(() =>
-			createBackupOptions(
-				createSchedule({
-					includePatterns: ["../../../../etc/shadow", "/../etc/passwd", "!/../../secrets.txt"],
-				}),
-				volumePath,
-				signal,
-			),
-		).toThrow("Include pattern escapes volume root");
-	});
-
-	test("anchors relative glob include patterns to the volume path", () => {
-		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
-		const schedule = createSchedule({
-			includePatterns: ["**/*.xyz", "*.zip", "!**/*.tmp"],
-		});
-		const signal = new AbortController().signal;
-
-		const options = createBackupOptions(schedule, volumePath, signal);
-
-		expect(options.includePatterns).toEqual([
-			path.join(volumePath, "**/*.xyz"),
-			path.join(volumePath, "*.zip"),
-			`!${path.join(volumePath, "**/*.tmp")}`,
-		]);
-	});
-
-	test("anchors generated include patterns under the volume path", () => {
-		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
-
-		fc.assert(
-			fc.property(safeRelativePatternArb, fc.boolean(), fc.boolean(), (pattern, anchored, negated) => {
-				const rawPattern = `${negated ? "!" : ""}${anchored ? "/" : ""}${pattern}`;
-				const expected = path.join(volumePath, pattern);
-
-				expect(processPattern(rawPattern, volumePath, true)).toBe(negated ? `!${expected}` : expected);
-			}),
-		);
-	});
-
-	test("rejects generated include patterns that escape the volume root", () => {
-		const volumePath = "/volume/root";
-
-		fc.assert(
-			fc.property(safeRelativePatternArb, fc.boolean(), (pattern, negated) => {
-				const escapingPattern = `${negated ? "!" : ""}${"../".repeat(8)}${pattern}`;
-
-				expect(() => processPattern(escapingPattern, volumePath, true)).toThrow("Include pattern escapes volume root");
-			}),
-		);
-	});
-
-	test("keeps selected include paths separate from include patterns", () => {
-		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
-		const schedule = createSchedule({
-			includePaths: ["/movies [1]"],
-			includePatterns: ["**/*.txt"],
-		});
-		const signal = new AbortController().signal;
-
-		const options = createBackupOptions(schedule, volumePath, signal);
-
-		expect(options.includePaths).toEqual([path.join(volumePath, "movies [1]")]);
-		expect(options.includePatterns).toEqual([path.join(volumePath, "**/*.txt")]);
 	});
 });

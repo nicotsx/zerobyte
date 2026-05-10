@@ -44,14 +44,8 @@ const createBackupRunPayload = async ({
 	repository,
 	organizationId,
 }: BackupExecutionRequest & { jobId: string }): Promise<BackupRunPayload> => {
-	// TODO: compute the source path on the agent so backup payloads do not carry controller-local paths.
-	const sourcePath = getVolumePath(volume);
 	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
-	const { signal: _, ...options } = createBackupOptions(schedule, sourcePath);
-
-	if (FUSE_VOLUME_BACKENDS.has(volume.type) && !options.customResticParams.includes(IGNORE_INODE_FLAG)) {
-		options.customResticParams = [...options.customResticParams, IGNORE_INODE_FLAG];
-	}
+	const customResticParams = schedule.customResticParams ?? [];
 
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
@@ -61,20 +55,22 @@ const createBackupRunPayload = async ({
 		jobId,
 		scheduleId: schedule.shortId,
 		organizationId,
-		sourcePath,
 		volume: agentVolume,
 		repositoryConfig,
 		options: {
-			...options,
+			oneFileSystem: schedule.oneFileSystem,
+			excludePatterns: schedule.excludePatterns,
+			excludeIfPresent: schedule.excludeIfPresent,
+			includePaths: schedule.includePaths,
+			includePatterns: schedule.includePatterns,
+			customResticParams:
+				FUSE_VOLUME_BACKENDS.has(volume.type) && !customResticParams.includes(IGNORE_INODE_FLAG)
+					? [...customResticParams, IGNORE_INODE_FLAG]
+					: customResticParams,
 			compressionMode: repository.compressionMode ?? "auto",
 		},
 		runtime: {
 			password: resticPassword,
-			cacheDir: resticDeps.resticCacheDir,
-			passFile: resticDeps.resticPassFile,
-			defaultExcludes: resticDeps.defaultExcludes,
-			rcloneConfigFile: resticDeps.rcloneConfigFile,
-			hostname: resticDeps.hostname,
 		},
 		webhooks: schedule.backupWebhooks ?? { pre: null, post: null },
 		webhookAllowedOrigins: config.webhookAllowedOrigins,
@@ -84,17 +80,25 @@ const createBackupRunPayload = async ({
 
 const executeBackupWithoutAgent = async (
 	payload: BackupRunPayload,
-	{ signal, onProgress }: Pick<BackupExecutionRequest, "signal" | "onProgress">,
+	{ schedule, volume, signal, onProgress }: BackupExecutionRequest,
 ) => {
+	const sourcePath = getVolumePath(volume);
+	const { signal: _, ...backupOptions } = createBackupOptions(schedule, sourcePath, signal);
+	const options = {
+		...backupOptions,
+		customResticParams: payload.options.customResticParams ?? [],
+		compressionMode: payload.options.compressionMode,
+	};
+
 	return Effect.runPromise(
 		runBackupLifecycle({
 			restic,
 			repositoryConfig: payload.repositoryConfig,
-			sourcePath: payload.sourcePath,
+			sourcePath,
 			jobId: payload.jobId,
 			scheduleId: payload.scheduleId,
 			organizationId: payload.organizationId,
-			options: payload.options,
+			options,
 			webhooks: payload.webhooks,
 			webhookAllowedOrigins: payload.webhookAllowedOrigins,
 			webhookTimeoutMs: payload.webhookTimeoutMs,

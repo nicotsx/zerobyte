@@ -93,7 +93,12 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				case "agent.ready": {
 					const at = Date.now();
 					return Effect.promise(async () => {
-						await agentsService.markAgentOnline(agentId, at);
+						await agentsService.markAgentOnline(agentId, at, {
+							...event.payload.capabilities,
+							protocolVersion: event.payload.protocolVersion,
+							hostname: event.payload.hostname,
+							platform: event.payload.platform,
+						});
 					});
 				}
 				case "heartbeat.pong": {
@@ -328,7 +333,9 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 					return false;
 				}
 
-				logger.info(`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`);
+				logger.info(
+					`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`,
+				);
 				return true;
 			}),
 		cancelBackup: (agentId: string, payload: BackupCancelPayload) =>
@@ -355,12 +362,16 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				const session = getSession(agentId);
 
 				if (!session) {
-					yield* logger.effect.warn(`Cannot send volume command ${command.name}. Agent ${agentId} is not connected.`);
+					yield* logger.effect.warn(
+						`Cannot send volume command ${command.name}. Agent ${agentId} is not connected.`,
+					);
 					return null;
 				}
 
 				if (!(yield* session.isReady())) {
-					yield* logger.effect.warn(`Cannot send volume command ${command.name}. Agent ${agentId} is not ready.`);
+					yield* logger.effect.warn(
+						`Cannot send volume command ${command.name}. Agent ${agentId} is not ready.`,
+					);
 					return null;
 				}
 

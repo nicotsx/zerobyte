@@ -20,23 +20,17 @@ import {
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
 const backupExecutionOptionsSchema = z.object({
-	tags: z.array(z.string()).optional(),
-	oneFileSystem: z.boolean().optional(),
-	exclude: z.array(z.string()).optional(),
-	excludeIfPresent: z.array(z.string()).optional(),
-	includePaths: z.array(z.string()).optional(),
-	includePatterns: z.array(z.string()).optional(),
-	customResticParams: z.array(z.string()).optional(),
-	compressionMode: compressionModeSchema.optional(),
+	oneFileSystem: z.boolean(),
+	excludePatterns: z.array(z.string()).nullable(),
+	excludeIfPresent: z.array(z.string()).nullable(),
+	includePaths: z.array(z.string()).nullable(),
+	includePatterns: z.array(z.string()).nullable(),
+	customResticParams: z.array(z.string()).nullable(),
+	compressionMode: compressionModeSchema,
 });
 
 const backupRuntimeSchema = z.object({
 	password: z.string(),
-	cacheDir: z.string(),
-	passFile: z.string(),
-	defaultExcludes: z.array(z.string()),
-	hostname: z.string().optional(),
-	rcloneConfigFile: z.string(),
 });
 
 const backupRunSchema = z.object({
@@ -45,7 +39,6 @@ const backupRunSchema = z.object({
 		jobId: z.string(),
 		scheduleId: z.string(),
 		organizationId: z.string(),
-		sourcePath: z.string(),
 		volume: volumeSchema,
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
@@ -110,7 +103,13 @@ const heartbeatPingSchema = z.object({
 
 const agentReadySchema = z.object({
 	type: z.literal("agent.ready"),
-	payload: z.object({ agentId: z.string() }),
+	payload: z.object({
+		agentId: z.string(),
+		protocolVersion: z.number(),
+		hostname: z.string(),
+		platform: z.string(),
+		capabilities: z.record(z.string(), z.unknown()),
+	}),
 });
 
 const backupStartedSchema = z.object({

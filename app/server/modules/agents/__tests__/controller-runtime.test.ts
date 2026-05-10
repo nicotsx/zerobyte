@@ -53,6 +53,35 @@ const backupVolume = {
 	organizationId: "org-1",
 } satisfies Volume;
 
+const readyPayload = {
+	agentId: LOCAL_AGENT_ID,
+	protocolVersion: 1,
+	hostname: "host",
+	platform: "linux",
+	capabilities: { backup: true },
+};
+
+const backupPayload = {
+	jobId: "job-1",
+	scheduleId: "schedule-1",
+	organizationId: "org-1",
+	volume: backupVolume,
+	repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
+	options: {
+		oneFileSystem: false,
+		excludePatterns: null,
+		excludeIfPresent: null,
+		includePaths: null,
+		includePatterns: null,
+		customResticParams: null,
+		compressionMode: "auto" as const,
+	},
+	runtime: { password: "password" },
+	webhooks: { pre: null, post: null },
+	webhookAllowedOrigins: [],
+	webhookTimeoutMs: 60_000,
+};
+
 type CapturedFetch = NonNullable<Parameters<typeof Bun.serve>[0]["fetch"]>;
 
 const invokeFetch = (fetch: CapturedFetch | undefined, request: Request, srv: Parameters<CapturedFetch>[1]) => {
@@ -162,7 +191,7 @@ test("websocket lifecycle updates agent connection status", async () => {
 	const socket = createSocket("connection-1");
 
 	await websocket?.open?.(fromPartial(socket));
-	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID }));
+	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", readyPayload));
 	await websocket?.message?.(fromPartial(socket), createAgentMessage("heartbeat.pong", { sentAt: 123 }));
 	await websocket?.close?.(fromPartial(socket), 1000, "done");
 	await Effect.runPromise(runtime.stop);
@@ -173,7 +202,12 @@ test("websocket lifecycle updates agent connection status", async () => {
 		agentName: LOCAL_AGENT_NAME,
 		agentKind: LOCAL_AGENT_KIND,
 	});
-	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
+	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), {
+		backup: true,
+		protocolVersion: 1,
+		hostname: "host",
+		platform: "linux",
+	});
 	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
 	expect(stop).toHaveBeenCalledWith(true);
@@ -226,36 +260,14 @@ test("closing a replaced connection reports disconnect without marking the activ
 
 	await websocket?.open?.(fromPartial(oldSocket));
 	await websocket?.open?.(fromPartial(newSocket));
-	await websocket?.message?.(fromPartial(newSocket), createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID }));
+	await websocket?.message?.(fromPartial(newSocket), createAgentMessage("agent.ready", readyPayload));
 	await websocket?.close?.(fromPartial(oldSocket), 1000, "replaced");
 
 	expect(onEvent).toHaveBeenCalledWith(
 		expect.objectContaining({ type: "agent.disconnected", agentId: LOCAL_AGENT_ID }),
 	);
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledTimes(offlineCallsBeforeClose);
-	expect(
-		await Effect.runPromise(
-			runtime.sendBackup(LOCAL_AGENT_ID, {
-				jobId: "job-1",
-				scheduleId: "schedule-1",
-				organizationId: "org-1",
-				sourcePath: "/tmp/source",
-				volume: backupVolume,
-				repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
-				options: {},
-				runtime: {
-					password: "password",
-					cacheDir: "/tmp/cache",
-					passFile: "/tmp/pass",
-					defaultExcludes: [],
-					rcloneConfigFile: "/tmp/rclone.conf",
-				},
-				webhooks: { pre: null, post: null },
-				webhookAllowedOrigins: [],
-				webhookTimeoutMs: 60_000,
-			}),
-		),
-	).toBe(true);
+	expect(await Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, backupPayload))).toBe(true);
 	await Effect.runPromise(runtime.stop);
 });
 
@@ -266,30 +278,12 @@ test("sendBackup is only delivered after the agent is ready", async () => {
 	const { runtime } = await startRuntime();
 	const websocket = serve.mock.calls[0]?.[0].websocket;
 	const socket = createSocket("connection-1");
-	const payload = {
-		jobId: "job-1",
-		scheduleId: "schedule-1",
-		organizationId: "org-1",
-		sourcePath: "/tmp/source",
-		volume: backupVolume,
-		repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
-		options: {},
-		runtime: {
-			password: "password",
-			cacheDir: "/tmp/cache",
-			passFile: "/tmp/pass",
-			defaultExcludes: [],
-			rcloneConfigFile: "/tmp/rclone.conf",
-		},
-		webhooks: { pre: null, post: null },
-		webhookAllowedOrigins: [],
-		webhookTimeoutMs: 60_000,
-	};
+	const payload = backupPayload;
 
 	await websocket?.open?.(fromPartial(socket));
 	await expect(Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, payload))).resolves.toBe(false);
 
-	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", { agentId: LOCAL_AGENT_ID }));
+	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", readyPayload));
 	await expect(Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, payload))).resolves.toBe(true);
 
 	await waitForExpect(() => {

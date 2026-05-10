@@ -3,11 +3,12 @@ import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/a
 import type { Volume } from "@zerobyte/contracts/volumes";
 import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
-import { type ResticDeps } from "@zerobyte/core/restic";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
-import { createVolumeBackend } from "../volume-host";
+import { resticDeps } from "../restic/deps";
+import { createVolumeBackend, getVolumePath } from "../volume-host";
+import { createBackupOptions } from "./backup.helpers";
 
 class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 	readonly _tag: "VolumeReadinessError";
@@ -84,29 +85,21 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					}),
 				);
 
-				const deps: ResticDeps = {
-					resolveSecret: async (encrypted) => encrypted,
-					getOrganizationResticPassword: async () => payload.runtime.password,
-					resticCacheDir: payload.runtime.cacheDir,
-					resticPassFile: payload.runtime.passFile,
-					defaultExcludes: payload.runtime.defaultExcludes,
-					hostname: payload.runtime.hostname,
-					rcloneConfigFile: payload.runtime.rcloneConfigFile,
-				};
-
-				const restic = createRestic(deps);
+				const restic = createRestic(resticDeps(payload.runtime.password));
 				const runtime = yield* Effect.runtime<never>();
 
 				yield* ensureHealthyVolume(payload.volume);
+				const sourcePath = getVolumePath(payload.volume);
+				const options = createBackupOptions(payload, sourcePath, abortController.signal);
 
 				const backupResult = yield* runBackupLifecycle({
 					restic,
 					repositoryConfig: payload.repositoryConfig,
-					sourcePath: payload.sourcePath,
+					sourcePath,
 					jobId: payload.jobId,
 					scheduleId: payload.scheduleId,
 					organizationId: payload.organizationId,
-					options: payload.options,
+					options,
 					webhooks: payload.webhooks,
 					webhookAllowedOrigins: payload.webhookAllowedOrigins,
 					webhookTimeoutMs: payload.webhookTimeoutMs,
