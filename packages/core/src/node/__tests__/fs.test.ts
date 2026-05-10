@@ -16,6 +16,18 @@ afterEach(async () => {
 });
 
 describe("writeFileWithMode", () => {
+	test("applies the requested mode when creating a new file", async () => {
+		const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-write-file-with-mode-"));
+		tempDirectories.add(tempDirectory);
+
+		const filePath = path.join(tempDirectory, "identity");
+
+		await writeFileWithMode(filePath, "content", FILE_MODES.ownerReadWrite);
+
+		expect(await fs.readFile(filePath, "utf8")).toBe("content");
+		expect((await fs.stat(filePath)).mode & 0o777).toBe(0o600);
+	});
+
 	test("applies the requested mode even when rewriting an existing file", async () => {
 		const tempDirectory = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-write-file-with-mode-"));
 		tempDirectories.add(tempDirectory);
