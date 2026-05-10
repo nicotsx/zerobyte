@@ -19,7 +19,7 @@ import { logger } from "@zerobyte/core/node";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
-import { repositoriesTable, type Repository } from "../../db/schema";
+import { repositoriesTable, type Repository, type RepositoryInsert } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
@@ -33,6 +33,8 @@ import { executeDoctor } from "./helpers/doctor";
 import type { ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
+import { agentManager } from "../agents/agents-manager";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 import { Effect } from "effect";
 
 const runningDoctors = new Map<string, AbortController>();
@@ -55,6 +57,21 @@ const getBlockedRestoreTargets = () => {
 		appConfig.provisioningPath ? nodePath.dirname(nodePath.resolve(appConfig.provisioningPath)) : undefined,
 	].filter((e) => e !== undefined);
 };
+
+const assertAllowedControllerLocalRestoreTarget = (target: string) => {
+	const resolvedTarget = nodePath.resolve(target);
+
+	for (const blockedTarget of getBlockedRestoreTargets()) {
+		if (isPathWithin(blockedTarget, resolvedTarget)) {
+			throw new BadRequestError(
+				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
+			);
+		}
+	}
+};
+
+const shouldUseControllerLocalRestoreFallback = (agentId: string) =>
+	agentId === LOCAL_AGENT_ID && !appConfig.flags.enableLocalAgent;
 
 const findRepository = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
@@ -327,6 +344,7 @@ const restoreSnapshot = async (
 		excludeXattr?: string[];
 		delete?: boolean;
 		targetPath?: string;
+		targetAgentId?: string;
 		overwrite?: OverwriteMode;
 	},
 ) => {
@@ -338,19 +356,9 @@ const restoreSnapshot = async (
 	}
 
 	const target = options?.targetPath || "/";
-	const resolvedTarget = nodePath.resolve(target);
-	const blockedTargets = getBlockedRestoreTargets();
 
-	for (const blockedTarget of blockedTargets) {
-		if (isPathWithin(blockedTarget, resolvedTarget)) {
-			throw new BadRequestError(
-				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
-			);
-		}
-	}
-
-	const { paths } = await getSnapshotDetails(repository.shortId, snapshotId);
-	const hasNonPosixSnapshotPaths = paths.some((path) => !path.startsWith("/"));
+	const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
+	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
 
 	if (hasNonPosixSnapshotPaths && !options?.targetPath) {
 		throw new BadRequestError(
@@ -358,7 +366,15 @@ const restoreSnapshot = async (
 		);
 	}
 
-	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(paths);
+	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
+	const executionAgentId = options?.targetAgentId ?? LOCAL_AGENT_ID;
+	const useControllerLocalRestoreFallback = shouldUseControllerLocalRestoreFallback(executionAgentId);
+
+	if (!useControllerLocalRestoreFallback && repository.type === "local" && executionAgentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError(
+			"Local repository restores must run on the agent that can access the repository path.",
+		);
+	}
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `restore:${snapshotId}`);
 	try {
@@ -368,21 +384,43 @@ const restoreSnapshot = async (
 			snapshotId,
 		});
 
-		const result = await runEffectPromise(
-			restic.restore(repository.config, snapshotId, target, {
-				basePath,
-				...options,
+		const repositoryConfig = await decryptRepositoryConfig(repository.config);
+		let result;
+
+		if (useControllerLocalRestoreFallback) {
+			assertAllowedControllerLocalRestoreTarget(target);
+			result = await runEffectPromise(
+				restic.restore(repositoryConfig, snapshotId, target, {
+					basePath,
+					...options,
+					organizationId,
+					onProgress: (progress) => {
+						serverEvents.emit("restore:progress", {
+							organizationId,
+							repositoryId: repository.shortId,
+							snapshotId,
+							...progress,
+						});
+					},
+				}),
+			);
+		} else {
+			const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
+			const resticPassword = await resticDeps.resolveSecret(encryptedResticPassword);
+			result = await agentManager.runRestoreCommand(executionAgentId, {
 				organizationId,
-				onProgress: (progress) => {
-					serverEvents.emit("restore:progress", {
-						organizationId,
-						repositoryId: repository.shortId,
-						snapshotId,
-						...progress,
-					});
+				repositoryId: repository.shortId,
+				snapshotId,
+				target,
+				repositoryConfig,
+				runtime: { password: resticPassword },
+				options: {
+					basePath,
+					...options,
+					organizationId,
 				},
-			}),
-		);
+			});
+		}
 
 		serverEvents.emit("restore:completed", {
 			organizationId,
@@ -738,22 +776,21 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
 	const updatedAt = Date.now();
-	const updatePayload = {
+	const updatePayload: Partial<RepositoryInsert> = {
 		name: newName,
 		compressionMode: updates.compressionMode ?? existing.compressionMode,
 		updatedAt,
 		config: encryptedConfig,
-		...(configChanged
-			? {
-					status: "unknown" as const,
-					lastChecked: null,
-					lastError: null,
-					doctorResult: null,
-					stats: null,
-					statsUpdatedAt: null,
-				}
-			: {}),
 	};
+
+	if (configChanged) {
+		updatePayload.status = "unknown";
+		updatePayload.lastChecked = null;
+		updatePayload.lastError = null;
+		updatePayload.doctorResult = null;
+		updatePayload.stats = null;
+		updatePayload.statsUpdatedAt = null;
+	}
 
 	const [updated] = await db
 		.update(repositoriesTable)

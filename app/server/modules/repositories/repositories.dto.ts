@@ -343,6 +343,7 @@ export const restoreSnapshotBody = z.object({
 	excludeXattr: z.array(z.string()).optional(),
 	delete: z.boolean().optional(),
 	targetPath: z.string().optional(),
+	targetAgentId: z.string().optional(),
 	overwrite: overwriteModeSchema.optional(),
 });
 

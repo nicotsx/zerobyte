@@ -5,6 +5,8 @@ import type {
 	AgentMessage,
 	BackupCancelPayload,
 	BackupRunPayload,
+	RestoreCommandPayload,
+	RestoreCommandResponsePayload,
 	VolumeCommand,
 	VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
@@ -22,16 +24,9 @@ type AgentEventContext = {
 	agentName: string;
 };
 
-type AgentBackupMessage = Extract<
-	AgentMessage,
-	{
-		type: "backup.started" | "backup.progress" | "backup.completed" | "backup.failed" | "backup.cancelled";
-	}
->;
-
 export type AgentManagerEvent =
 	| (AgentEventContext & { type: "agent.disconnected" })
-	| (AgentEventContext & AgentBackupMessage);
+	| (AgentEventContext & AgentMessage);
 
 type ControllerAgentSessionHandle = {
 	agentId: string;
@@ -382,6 +377,31 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 
 				const result = yield* session.runVolumeCommand(command);
 				yield* logger.effect.info(`Completed volume command ${command.name} on agent ${agentId}`);
+				return result;
+			}),
+		runRestoreCommand: (
+			agentId: string,
+			payload: Omit<RestoreCommandPayload, "commandId">,
+		): Effect.Effect<RestoreCommandResponsePayload | null, Error> =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
+
+				if (!session) {
+					yield* logger.effect.warn(
+						`Cannot send restore command ${payload.snapshotId}. Agent ${agentId} is not connected.`,
+					);
+					return null;
+				}
+
+				if (!(yield* session.isReady())) {
+					yield* logger.effect.warn(
+						`Cannot send restore command ${payload.snapshotId}. Agent ${agentId} is not ready.`,
+					);
+					return null;
+				}
+
+				const result = yield* session.runRestoreCommand(payload);
+				yield* logger.effect.info(`Completed restore command ${payload.snapshotId} on agent ${agentId}`);
 				return result;
 			}),
 		stop,

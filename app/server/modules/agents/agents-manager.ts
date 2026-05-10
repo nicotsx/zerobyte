@@ -1,7 +1,13 @@
 import { logger } from "@zerobyte/core/node";
-import type { BackupRunPayload, VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
+import type {
+	BackupRunPayload,
+	RestoreCommandPayload,
+	VolumeCommand,
+	VolumeCommandResult,
+} from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
 import { config } from "../../core/config";
+import { serverEvents } from "../../core/events";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
@@ -212,6 +218,15 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 			});
 			break;
 		}
+		case "restore.progress": {
+			serverEvents.emit("restore:progress", {
+				organizationId: event.payload.organizationId,
+				repositoryId: event.payload.repositoryId,
+				snapshotId: event.payload.snapshotId,
+				...event.payload.progress,
+			});
+			break;
+		}
 	}
 };
 
@@ -306,6 +321,23 @@ export const agentManager = {
 		}
 
 		return response.command;
+	},
+	runRestoreCommand: async (agentId: string, payload: Omit<RestoreCommandPayload, "commandId">) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) {
+			throw new Error(`Restore agent ${agentId} is not connected`);
+		}
+
+		const response = await Effect.runPromise(runtime.runRestoreCommand(agentId, payload));
+		if (!response) {
+			throw new Error(`Failed to send restore command ${payload.snapshotId} to agent ${agentId}`);
+		}
+
+		if (response.status === "error") {
+			throw new Error(response.error);
+		}
+
+		return response.result;
 	},
 };
 

@@ -19,7 +19,7 @@ class ResticRestoreCommandError extends Data.TaggedError("ResticRestoreCommandEr
 	message: string;
 }> {}
 
-const restoreProgressSchema = z.object({
+export const restoreProgressSchema = z.object({
 	message_type: z.enum(["status", "summary"]),
 	seconds_elapsed: z.number().default(0),
 	percent_done: z.number().default(0),
@@ -48,11 +48,14 @@ export const restore = (
 		signal?: AbortSignal;
 	},
 	deps: ResticDeps,
-) => {
-	return Effect.tryPromise({
-		try: async () => {
-			const repoUrl = buildRepoUrl(config);
-			const env = await buildEnv(config, options.organizationId, deps);
+): Effect.Effect<ResticRestoreOutputDto, ResticError | ResticRestoreCommandError> => {
+	return Effect.scoped(
+		Effect.gen(function* () {
+			const repoUrl = yield* Effect.try(() => buildRepoUrl(config));
+			const env = yield* Effect.acquireRelease(
+				Effect.tryPromise(() => buildEnv(config, options.organizationId, deps)),
+				(env) => Effect.promise(() => cleanupTemporaryKeys(env, deps)),
+			);
 
 			let restoreArg = snapshotId;
 
@@ -131,23 +134,23 @@ export const restore = (
 			}, 1000);
 
 			logger.debug(`Executing: restic ${args.join(" ")}`);
-			const res = await safeSpawn({
-				command: "restic",
-				args,
-				env,
-				signal: options.signal,
-				onStdout: (data) => {
-					if (options.onProgress) {
-						streamProgress(data);
-					}
-				},
-			});
-
-			await cleanupTemporaryKeys(env, deps);
+			const res = yield* Effect.tryPromise(() =>
+				safeSpawn({
+					command: "restic",
+					args,
+					env,
+					signal: options.signal,
+					onStdout: (data) => {
+						if (options.onProgress) {
+							streamProgress(data);
+						}
+					},
+				}),
+			);
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic restore failed: ${res.error}`);
-				throw new ResticError(res.exitCode, res.stderr || res.error);
+				return yield* Effect.fail(new ResticError(res.exitCode, res.stderr || res.error));
 			}
 
 			const lastLine = res.summary.trim();
@@ -181,16 +184,19 @@ export const restore = (
 			);
 
 			return result.data;
-		},
-		catch: (error) => {
-			if (error instanceof ResticError) {
-				return error;
-			}
+		}).pipe(
+			Effect.catchAll((error): Effect.Effect<never, ResticError | ResticRestoreCommandError> => {
+				if (error instanceof ResticError) {
+					return Effect.fail(error);
+				}
 
-			return new ResticRestoreCommandError({
-				cause: error,
-				message: toMessage(error),
-			});
-		},
-	});
+				return Effect.fail(
+					new ResticRestoreCommandError({
+						cause: error,
+						message: toMessage(error),
+					}),
+				);
+			}),
+		),
+	);
 };

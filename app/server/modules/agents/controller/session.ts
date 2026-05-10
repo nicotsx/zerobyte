@@ -7,6 +7,8 @@ import {
 	type BackupCancelPayload,
 	type BackupRunPayload,
 	type ControllerWireMessage,
+	type RestoreCommandPayload,
+	type RestoreCommandResponsePayload,
 	type VolumeCommand,
 	type VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
@@ -29,16 +31,11 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-type PendingCommand = {
-	deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>;
-	description: string;
-};
+type PendingCommand = { deferred: Deferred.Deferred<any, Error>; description: string };
 
 export type ControllerAgentSessionEvent =
-	| Exclude<AgentMessage, { type: "volume.commandResult" }>
-	| {
-			type: "agent.disconnected";
-	  };
+	| Exclude<AgentMessage, { type: "volume.commandResult" | "restore.commandResult" }>
+	| { type: "agent.disconnected" };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
@@ -46,6 +43,9 @@ export type ControllerAgentSession = {
 	sendBackup: (payload: BackupRunPayload) => Effect.Effect<boolean>;
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
 	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
+	runRestoreCommand: (
+		payload: Omit<RestoreCommandPayload, "commandId">,
+	) => Effect.Effect<RestoreCommandResponsePayload, Error>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
@@ -68,7 +68,9 @@ export const createControllerAgentSession = (
 			Queue.offer(outboundQueue, message).pipe(
 				Effect.catchAllCause((cause) =>
 					Effect.sync(() => {
-						logger.error(`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`);
+						logger.error(
+							`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`,
+						);
 						return false;
 					}),
 				),
@@ -177,6 +179,17 @@ export const createControllerAgentSession = (
 				yield* Deferred.succeed(pending.deferred, payload);
 			});
 
+		const handleRestoreCommandResult = (payload: RestoreCommandResponsePayload) =>
+			Effect.gen(function* () {
+				const pending = yield* removePendingCommand(payload.commandId);
+				if (!pending) {
+					yield* logger.effect.warn(`Received response for unknown restore command ${payload.commandId}`);
+					return;
+				}
+
+				yield* Deferred.succeed(pending.deferred, payload);
+			});
+
 		const handleAgentMessage = (message: AgentMessage) =>
 			Effect.gen(function* () {
 				switch (message.type) {
@@ -189,12 +202,20 @@ export const createControllerAgentSession = (
 					}
 					case "heartbeat.pong": {
 						const seenAt = Date.now();
-						yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
+						yield* updateState((current) => ({
+							...current,
+							lastSeenAt: seenAt,
+							lastPongAt: message.payload.sentAt,
+						}));
 						yield* onEvent(message);
 						break;
 					}
 					case "volume.commandResult": {
 						yield* handleVolumeCommandResult(message.payload);
+						break;
+					}
+					case "restore.commandResult": {
+						yield* handleRestoreCommandResult(message.payload);
 						break;
 					}
 					default: {
@@ -216,7 +237,9 @@ export const createControllerAgentSession = (
 					}
 
 					if (!parsed.success) {
-						yield* logger.effect.warn(`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`);
+						yield* logger.effect.warn(
+							`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`,
+						);
 						return;
 					}
 
@@ -232,19 +255,44 @@ export const createControllerAgentSession = (
 					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
 					yield* setPendingCommand(commandId, { deferred, description });
 
-					const queued = yield* offerOutbound(createControllerMessage("volume.command", { commandId, command }));
+					const queued = yield* offerOutbound(
+						createControllerMessage("volume.command", { commandId, command }),
+					);
 					if (!queued) {
 						yield* removePendingCommand(commandId);
 						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
 					}
 
-					return yield* Deferred.await(deferred).pipe(
+					return (yield* Deferred.await(deferred).pipe(
 						Effect.timeoutFail({
 							duration: "60 seconds",
 							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
 						}),
 						Effect.ensuring(removePendingCommand(commandId)),
+					)) as VolumeCommandResponsePayload;
+				}),
+			runRestoreCommand: (payload) =>
+				Effect.gen(function* () {
+					const commandId = Bun.randomUUIDv7();
+					const description = `restore command ${payload.snapshotId}`;
+					const deferred = yield* Deferred.make<RestoreCommandResponsePayload, Error>();
+					yield* setPendingCommand(commandId, { deferred, description });
+
+					const queued = yield* offerOutbound(
+						createControllerMessage("restore.command", { commandId, ...payload }),
 					);
+					if (!queued) {
+						yield* removePendingCommand(commandId);
+						return yield* Effect.fail(new Error(`Failed to queue restore command ${payload.snapshotId}`));
+					}
+
+					return (yield* Deferred.await(deferred).pipe(
+						Effect.timeoutFail({
+							duration: "1 hour",
+							onTimeout: () => new Error(`Restore command ${payload.snapshotId} timed out`),
+						}),
+						Effect.ensuring(removePendingCommand(commandId)),
+					)) as RestoreCommandResponsePayload;
 				}),
 			isReady: () => Ref.get(state).pipe(Effect.map((current) => current.isReady)),
 			run,

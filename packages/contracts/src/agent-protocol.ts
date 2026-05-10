@@ -5,6 +5,8 @@ import {
 	repositoryConfigSchema,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
+	resticRestoreOutputSchema,
+	restoreProgressSchema,
 	type CompressionMode,
 } from "@zerobyte/core/restic";
 import {
@@ -96,6 +98,48 @@ const volumeCommandResponseSchema = z.object({
 	]),
 });
 
+const restoreCommandSchema = z.object({
+	type: z.literal("restore.command"),
+	payload: z.object({
+		commandId: z.string(),
+		organizationId: z.string(),
+		repositoryId: z.string(),
+		snapshotId: z.string(),
+		target: z.string(),
+		repositoryConfig: repositoryConfigSchema,
+		runtime: z.object({ password: z.string() }),
+		options: z.object({
+			basePath: z.string().optional(),
+			organizationId: z.string(),
+			include: z.array(z.string()).optional(),
+			selectedItemKind: z.enum(["file", "dir"]).optional(),
+			exclude: z.array(z.string()).optional(),
+			excludeXattr: z.array(z.string()).optional(),
+			delete: z.boolean().optional(),
+			overwrite: z.enum(["always", "if-changed", "if-newer", "never"]).optional(),
+		}),
+	}),
+});
+
+const restoreProgressMessageSchema = z.object({
+	type: z.literal("restore.progress"),
+	payload: z.object({
+		commandId: z.string(),
+		organizationId: z.string(),
+		repositoryId: z.string(),
+		snapshotId: z.string(),
+		progress: restoreProgressSchema,
+	}),
+});
+
+const restoreCommandResultSchema = z.object({
+	type: z.literal("restore.commandResult"),
+	payload: z.discriminatedUnion("status", [
+		z.object({ commandId: z.string(), status: z.literal("success"), result: resticRestoreOutputSchema }),
+		z.object({ commandId: z.string(), status: z.literal("error"), error: z.string() }),
+	]),
+});
+
 const heartbeatPingSchema = z.object({
 	type: z.literal("heartbeat.ping"),
 	payload: z.object({ sentAt: z.number() }),
@@ -165,6 +209,7 @@ const controllerMessageSchema = z.discriminatedUnion("type", [
 	backupRunSchema,
 	backupCancelSchema,
 	volumeCommandRequestSchema,
+	restoreCommandSchema,
 	heartbeatPingSchema,
 ]);
 const agentMessageSchema = z.discriminatedUnion("type", [
@@ -175,6 +220,8 @@ const agentMessageSchema = z.discriminatedUnion("type", [
 	backupFailedSchema,
 	backupCancelledSchema,
 	volumeCommandResponseSchema,
+	restoreProgressMessageSchema,
+	restoreCommandResultSchema,
 	heartbeatPongSchema,
 ]);
 
@@ -189,6 +236,8 @@ export type VolumeCommandPayload = z.infer<typeof volumeCommandRequestSchema>["p
 export type VolumeCommand = z.infer<typeof volumeCommandSchema>;
 export type VolumeCommandResult = z.infer<typeof volumeCommandResultSchema>;
 export type VolumeCommandResponsePayload = z.infer<typeof volumeCommandResponseSchema>["payload"];
+export type RestoreCommandPayload = z.infer<typeof restoreCommandSchema>["payload"];
+export type RestoreCommandResponsePayload = z.infer<typeof restoreCommandResultSchema>["payload"];
 export type ControllerMessage = z.infer<typeof controllerMessageSchema>;
 export type AgentMessage = z.infer<typeof agentMessageSchema>;
 

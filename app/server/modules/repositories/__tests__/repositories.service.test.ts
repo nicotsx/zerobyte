@@ -4,22 +4,24 @@ import * as os from "node:os";
 import nodePath from "node:path";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
+import { Effect } from "effect";
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
+import { config } from "~/server/core/config";
 import { withContext } from "~/server/core/request-context";
 import { db } from "~/server/db/db";
-import { repositoriesTable } from "~/server/db/schema";
+import { repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { restic } from "~/server/core/restic";
+import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createTestSession } from "~/test/helpers/auth";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { cache, cacheKeys } from "~/server/utils/cache";
 import { ResticError } from "@zerobyte/core/restic/server";
 import { repositoriesService } from "../repositories.service";
-import { Effect } from "effect";
 
-const createTestRepository = async (organizationId: string) => {
+const createTestRepository = async (organizationId: string, overrides: Partial<RepositoryInsert> = {}) => {
 	const id = randomUUID();
 	const shortId = generateShortId();
 	const [repository] = await db
@@ -33,6 +35,7 @@ const createTestRepository = async (organizationId: string) => {
 			compressionMode: "auto",
 			status: "healthy",
 			organizationId,
+			...overrides,
 		})
 		.returning();
 	return repository;
@@ -404,7 +407,15 @@ describe("repositoriesService.dumpSnapshot", () => {
 });
 
 describe("repositoriesService.restoreSnapshot", () => {
+	let originalEnableLocalAgent: boolean;
+
+	beforeEach(() => {
+		originalEnableLocalAgent = config.flags.enableLocalAgent;
+		config.flags.enableLocalAgent = true;
+	});
+
 	afterEach(() => {
+		config.flags.enableLocalAgent = originalEnableLocalAgent;
 		vi.restoreAllMocks();
 	});
 
@@ -425,7 +436,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 		);
 
 		const restoreMock = vi.fn(() =>
-			Effect.succeed({
+			Promise.resolve({
 				message_type: "summary" as const,
 				seconds_elapsed: 1,
 				percent_done: 100,
@@ -436,7 +447,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 				bytes_restored: 1,
 			}),
 		);
-		vi.spyOn(restic, "restore").mockImplementation(restoreMock);
+		vi.spyOn(agentManager, "runRestoreCommand").mockImplementation(restoreMock);
 
 		return {
 			organizationId,
@@ -446,9 +457,14 @@ describe("repositoriesService.restoreSnapshot", () => {
 		};
 	};
 
-	test("rejects restore targets inside protected roots", async () => {
+	test("delegates restore target protection to the selected agent", async () => {
 		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
 		const targetPath = nodePath.join(os.tmpdir(), "zerobyte-restore-target");
+		restoreMock.mockRejectedValueOnce(
+			new Error(
+				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
+			),
+		);
 
 		await expect(
 			withContext({ organizationId, userId }, () =>
@@ -456,7 +472,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			),
 		).rejects.toThrow("Restore target path is not allowed");
 
-		expect(restoreMock).not.toHaveBeenCalled();
+		expect(restoreMock).toHaveBeenCalledOnce();
 	});
 
 	test("restores to a custom target outside protected roots", async () => {
@@ -472,15 +488,97 @@ describe("repositoriesService.restoreSnapshot", () => {
 		}
 
 		expect(restoreMock).toHaveBeenCalledWith(
+			"local",
 			expect.objectContaining({
-				backend: "local",
+				snapshotId: "snapshot-restore",
+				target: targetPath,
+				repositoryConfig: expect.objectContaining({ backend: "local" }),
+				options: expect.objectContaining({
+					organizationId,
+					basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+				}),
 			}),
+		);
+	});
+
+	test("routes restore to the requested target agent", async () => {
+		const organizationId = session.organizationId;
+		const repository = await createTestRepository(organizationId, {
+			type: "s3",
+			config: {
+				backend: "s3",
+				endpoint: "https://s3.example.com",
+				bucket: "bucket",
+				accessKeyId: "access-key",
+				secretAccessKey: "secret-key",
+			},
+		});
+		vi.spyOn(restic, "snapshots").mockReturnValue(
+			Effect.succeed([
+				{
+					id: "snapshot-restore",
+					short_id: "snapshot-restore",
+					time: new Date().toISOString(),
+					paths: ["/var/lib/zerobyte/volumes/vol123/_data"],
+					hostname: "host",
+				},
+			]),
+		);
+		const restoreMock = vi.fn(() =>
+			Promise.resolve({
+				message_type: "summary" as const,
+				files_skipped: 0,
+				files_restored: 1,
+			}),
+		);
+		vi.spyOn(agentManager, "runRestoreCommand").mockImplementation(restoreMock);
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+
+		try {
+			await withContext({ organizationId, userId: session.user.id }, () =>
+				repositoriesService.restoreSnapshot(repository.shortId, "snapshot-restore", {
+					targetPath,
+					targetAgentId: "agent-remote",
+				}),
+			);
+		} finally {
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		expect(restoreMock).toHaveBeenCalledWith(
+			"agent-remote",
+			expect.objectContaining({
+				target: targetPath,
+			}),
+		);
+	});
+
+	test("uses controller-local restore fallback when local agent supervision is disabled", async () => {
+		config.flags.enableLocalAgent = false;
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const resticRestoreMock = vi.spyOn(restic, "restore").mockReturnValue(
+			Effect.succeed({
+				message_type: "summary" as const,
+				files_skipped: 0,
+				files_restored: 1,
+			}),
+		);
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+
+		try {
+			await withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", { targetPath }),
+			);
+		} finally {
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		expect(restoreMock).not.toHaveBeenCalled();
+		expect(resticRestoreMock).toHaveBeenCalledWith(
+			expect.objectContaining({ backend: "local" }),
 			"snapshot-restore",
 			targetPath,
-			expect.objectContaining({
-				organizationId,
-				basePath: "/var/lib/zerobyte/volumes/vol123/_data",
-			}),
+			expect.objectContaining({ organizationId, basePath: "/var/lib/zerobyte/volumes/vol123/_data" }),
 		);
 	});
 
@@ -516,14 +614,15 @@ describe("repositoriesService.restoreSnapshot", () => {
 		}
 
 		expect(restoreMock).toHaveBeenCalledWith(
+			"local",
 			expect.objectContaining({
-				backend: "local",
-			}),
-			"snapshot-restore",
-			targetPath,
-			expect.objectContaining({
-				organizationId,
-				basePath: "/",
+				snapshotId: "snapshot-restore",
+				target: targetPath,
+				repositoryConfig: expect.objectContaining({ backend: "local" }),
+				options: expect.objectContaining({
+					organizationId,
+					basePath: "/",
+				}),
 			}),
 		);
 	});

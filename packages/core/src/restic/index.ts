@@ -1,6 +1,7 @@
 export * from "./schemas";
 export * from "./restic-dto";
 export { ResticError } from "./error";
+export { restoreProgressSchema } from "./commands/restore";
 
 export type { RestoreProgress } from "./commands/restore";
 export type {

@@ -3,6 +3,7 @@ import { handleBackupCancelCommand } from "./backup-cancel";
 import { handleBackupRunCommand } from "./backup-run";
 import type { ControllerCommandContext } from "../context";
 import { handleHeartbeatPingCommand } from "./heartbeat-ping";
+import { handleRestoreCommand } from "./restore";
 import { handleVolumeCommand } from "./volume";
 
 export const handleControllerCommand = (context: ControllerCommandContext, message: ControllerMessage) => {
@@ -15,6 +16,9 @@ export const handleControllerCommand = (context: ControllerCommandContext, messa
 		}
 		case "volume.command": {
 			return handleVolumeCommand(context, message.payload);
+		}
+		case "restore.command": {
+			return handleRestoreCommand(context, message.payload);
 		}
 		case "heartbeat.ping": {
 			return handleHeartbeatPingCommand(context, message.payload);

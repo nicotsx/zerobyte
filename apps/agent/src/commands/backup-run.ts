@@ -8,7 +8,7 @@ import { toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
 import { resticDeps } from "../restic/deps";
 import { createVolumeBackend, getVolumePath } from "../volume-host";
-import { createBackupOptions } from "./backup.helpers";
+import { createBackupOptions } from "./helpers/backup.helpers";
 
 class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 	readonly _tag: "VolumeReadinessError";
