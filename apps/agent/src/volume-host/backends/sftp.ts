@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import type { BackendConfig } from "@zerobyte/contracts/volumes";
-import { FILE_MODES, logger, writeFileWithMode } from "@zerobyte/core/node";
+import { FILE_MODES, ensureFileMode, logger, writeFileWithMode } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { OPERATION_TIMEOUT, SSH_KEYS_DIR } from "../constants";
 import { getMountForPath } from "../fs";
@@ -142,7 +142,30 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		const args = [`${config.username}@${config.host}:${config.path || ""}`, mountPath, "-o", options.join(",")];
 		if (config.password) args.push("-o", "password_stdin");
 		logger.info(`Executing sshfs: sshfs ${args.join(" ")}`);
-		await runSshfs(args, config.password);
+
+		try {
+			await runSshfs(args, config.password);
+		} catch (sshfsError) {
+			// On some Docker bind-mount filesystems (e.g. Synology NAS) the chmod call
+			// inside writeFileWithMode may not have taken effect due to ACL inheritance.
+			// SSH refuses to use key files whose permissions are too open, so check and
+			// re-apply 0o600 on all sensitive files written above, then retry once.
+			const [keyFixed, knownHostsFixed] = await Promise.all([
+				config.privateKey
+					? ensureFileMode(getPrivateKeyPath(mountPath), FILE_MODES.ownerReadWrite)
+					: Promise.resolve(false),
+				config.knownHosts
+					? ensureFileMode(getKnownHostsPath(mountPath), FILE_MODES.ownerReadWrite)
+					: Promise.resolve(false),
+			]);
+
+			if (keyFixed || knownHostsFixed) {
+				logger.warn("SFTP mount failed and key file permissions were incorrect; permissions have been fixed. Retrying mount...");
+				await runSshfs(args, config.password);
+			} else {
+				throw sshfsError;
+			}
+		}
 
 		logger.info(`SFTP volume at ${mountPath} mounted successfully.`);
 		return { status: "mounted" as const };
