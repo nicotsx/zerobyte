@@ -15,6 +15,8 @@ export const buildRepoUrl = (config: RepositoryConfig): string => {
 				.replace(/\/$/, "");
 			return `s3:${endpoint}/${config.bucket}`;
 		}
+		case "b2":
+			return `b2:${config.bucket}:${config.path}`;
 		case "gcs":
 			return `gs:${config.bucket}:/`;
 		case "azure":

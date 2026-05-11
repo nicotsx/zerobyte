@@ -4,6 +4,7 @@ export const REPOSITORY_BACKENDS = {
 	local: "local",
 	s3: "s3",
 	r2: "r2",
+	b2: "b2",
 	gcs: "gcs",
 	azure: "azure",
 	rclone: "rclone",
@@ -47,6 +48,16 @@ export const s3RepositoryConfigSchema = z
 		bucket: z.string().min(1),
 		accessKeyId: z.string().min(1),
 		secretAccessKey: z.string().min(1),
+	})
+	.extend(baseRepositoryConfigSchema.shape);
+
+export const b2RepositoryConfigSchema = z
+	.object({
+		backend: z.literal("b2"),
+		bucket: z.string().min(1),
+		path: z.string().min(1),
+		accountId: z.string().min(1),
+		accountKey: z.string().min(1),
 	})
 	.extend(baseRepositoryConfigSchema.shape);
 
@@ -124,6 +135,7 @@ export const sftpRepositoryConfigSchema = z
 export const repositoryConfigSchemaBase = z.discriminatedUnion("backend", [
 	s3RepositoryConfigSchema,
 	r2RepositoryConfigSchema,
+	b2RepositoryConfigSchema,
 	localRepositoryConfigSchema,
 	gcsRepositoryConfigSchema,
 	azureRepositoryConfigSchema,
