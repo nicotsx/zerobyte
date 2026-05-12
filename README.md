@@ -41,7 +41,7 @@ It contains up-to-date setup guides, configuration reference, and usage document
 - **Automated backups** with encryption, compression, and retention policies, powered by Restic
 - **Flexible scheduling** for automated backup jobs with fine-grained retention policies
 - **End-to-end encryption** will ensure your data is always protected
-- **Multi-protocol support**: Backup from NFS, SMB, WebDAV, SFTP, or local directories
+- **Multi-protocol support** for backup from NFS, SMB, WebDAV, SFTP, or local directories
 
 ## Installation
 
