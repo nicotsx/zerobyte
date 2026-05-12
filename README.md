@@ -20,13 +20,13 @@
 [![Discord](https://img.shields.io/discord/1466834119873925263?label=discord&logo=discord)](https://discord.gg/XjgVyXrcEH)
 
 > [!WARNING]
-> Zerobyte is still in version 0.x.x and is subject to major changes from version to version. I am developing the core features and collecting feedbacks. Please open issues for bugs or feature requests
+> Zerobyte is still in version 0.x.x and is subject to major changes from version to version. I am developing the core features and collecting feedbacks. Please open issues for bugs or feature requests.
 
 <p align="center">
 <a href="https://www.buymeacoffee.com/nicotsx" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
 </p>
 
-## Intro
+## Introduction
 
 Zerobyte is a backup automation tool that helps you save your data across multiple storage backends. Built on top of Restic, it provides an modern web interface to schedule, manage, and monitor encrypted backups of your remote storage.
 
@@ -38,10 +38,10 @@ It contains up-to-date setup guides, configuration reference, and usage document
 
 ### Features
 
-- &nbsp; **Automated backups** with encryption, compression and retention policies powered by Restic
-- &nbsp; **Flexible scheduling** For automated backup jobs with fine-grained retention policies
-- &nbsp; **End-to-end encryption** ensuring your data is always protected
-- &nbsp; **Multi-protocol support**: Backup from NFS, SMB, WebDAV, SFTP, or local directories
+- **Automated backups** with encryption, compression, and retention policies, powered by Restic
+- **Flexible scheduling** for automated backup jobs with fine-grained retention policies
+- **End-to-end encryption** will ensure your data is always protected
+- **Multi-protocol support**: Backup from NFS, SMB, WebDAV, SFTP, or local directories
 
 ## Installation
 
@@ -69,10 +69,10 @@ services:
 ```
 
 > [!WARNING]
-> It is highly discouraged to run Zerobyte on a server that is accessible from the internet (VPS or home server with port forwarding) If you do, make sure to change the port mapping to "127.0.0.1:4096:4096" and use a secure tunnel (SSH tunnel, Cloudflare Tunnel, etc.) with authentication.
+> It is highly discouraged to run Zerobyte on a server that is accessible from the internet (VPS or home server with port forwarding). If you do, make sure to change the port mapping to "127.0.0.1:4096:4096" and use a secure tunnel (SSH tunnel, Cloudflare Tunnel, etc.) with authentication.
 
 > [!WARNING]
-> Do not try to point `/var/lib/zerobyte` on a network share. You will face permission issues and strong performance degradation.
+> Do not try to point `/var/lib/zerobyte` to a network share. You will face permission issues and strong performance degradation.
 
 > [!NOTE]
 > **TrueNAS Users:** The host path `/var/lib` is ephemeral on TrueNAS and will be reset during system upgrades. Instead of using `/var/lib/zerobyte:/var/lib/zerobyte`, create a dedicated ZFS dataset (e.g., `tank/docker/zerobyte`) and mount it instead:
@@ -97,7 +97,7 @@ Once the container is running, you can access the web interface at `http://<your
 
 Zerobyte can be customized using environment variables. Below are the available options:
 
-### Environment Variables
+### Environment variables
 
 | Variable              | Description                                                                                                                               | Default                |
 | :-------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :--------------------- |
@@ -116,7 +116,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `RCLONE_CONFIG_DIR`   | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`   | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
 
-### Webhook and Notification Network Policy
+### Webhook and notification network policy
 
 Backup webhooks and outbound notification destinations that can target arbitrary network hosts are restricted by `WEBHOOK_ALLOWED_ORIGINS`.
 
@@ -136,7 +136,7 @@ Backup webhooks do not follow redirects. Add the final destination origin to `WE
 
 Webhook headers are stored as plain text and must use one `Key: Value` header per line. `WEBHOOK_TIMEOUT` controls backup pre/post webhook request timeouts; notification delivery uses the underlying provider sender behavior.
 
-### Provisioned Resources
+### Provisioned resources
 
 Zerobyte can sync operator-managed repositories and volumes from a JSON file at startup. This is useful when you want credentials or connection details to live in deployment-time configuration instead of being entered through the UI.
 
@@ -149,9 +149,9 @@ The complete provisioning documentation is available at [zerobyte.app/docs/guide
 
 See `examples/provisioned-resources/README.md` for a full example.
 
-### Simplified setup (No remote mounts)
+### Simplified setup (no remote mounts)
 
-If you only need to back up locally mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
+If you only need to back up locally-mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
 
 ```yaml
 services:
@@ -174,8 +174,8 @@ services:
 **Trade-offs:**
 
 - ✅ Improved security by reducing container capabilities
-- ✅ Support for local directories
-- ✅ Keep support all repository types (local, S3, GCS, Azure, rclone)
+- ✅ Support for local directories as backup sources
+- ✅ Support all repository types, local and remote (S3, GCS, Azure, rclone)
 - ❌ Cannot mount NFS, SMB, WebDAV, or SFTP shares directly from Zerobyte
 
 If you need remote mount capabilities, keep the original configuration with `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse`.
@@ -190,7 +190,7 @@ Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, SFTP, and
 
 To add your first volume, navigate to the "Volumes" section in the web interface and click on "Create volume". Fill in the required details such as volume name, type, and connection settings.
 
-If you want to track a local directory on the same server where Zerobyte is running, you'll first need to mount that directory into the Zerobyte container. You can do this by adding a volume mapping in your `docker-compose.yml` file. For example, to mount `/path/to/your/directory` from the host to `/mydata` in the container, you would add the following line under the `volumes` section:
+If you want to backup a local directory on the same host where Zerobyte is running, you'll first need to mount that directory into the Zerobyte container. You can do this by adding a volume mapping in your `docker-compose.yml` file. For example, to mount `/path/to/your/directory` from the host to `/mydata` in the container, you would add the following line under the `volumes` section:
 
 ```diff
 services:
@@ -223,17 +223,17 @@ docker compose up -d
 
 Now, when adding a new volume in the Zerobyte web interface, you can select "Directory" as the volume type and search for your mounted path (e.g., `/mydata`) as the source path.
 
-![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/add-volume.png?raw=true)
+![Add a new volume UI](https://github.com/nicotsx/zerobyte/blob/main/screenshots/add-volume.png?raw=true)
 
 ## Creating a repository
 
 A repository is where your backups will be securely stored encrypted. Zerobyte supports multiple storage backends for your backup repositories:
 
-- **Local directories** - Store backups on local disk subfolder of `/var/lib/zerobyte/repositories/` or any other (mounted) path
-- **S3-compatible storage** - Amazon S3, MinIO, Wasabi, DigitalOcean Spaces, etc.
-- **Google Cloud Storage** - Google's cloud storage service
-- **Azure Blob Storage** - Microsoft Azure storage
-- **rclone remotes** - 40+ cloud storage providers via rclone (see below)
+- **Local directories**: Store backups on local disk subfolders in `/var/lib/zerobyte/repositories/` or any other (mounted) path
+- **S3-compatible storage**: Amazon S3, MinIO, Wasabi, DigitalOcean Spaces, etc.
+- **Google Cloud Storage**: Google's cloud storage service
+- **Azure Blob Storage**: Microsoft Azure storage
+- **rclone remotes**: 40+ cloud storage providers via rclone (see below)
 
 Repositories are optimized for storage efficiency and data integrity, leveraging Restic's deduplication and encryption features.
 
@@ -324,24 +324,24 @@ When creating a backup job, you can specify the following settings:
 After configuring the backup job, save it and Zerobyte will automatically execute the backup according to the defined schedule.
 You can monitor the progress and status of your backup jobs in the "Backups" section of the web interface.
 
-![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/backups-list.png?raw=true)
+![Backups UI](https://github.com/nicotsx/zerobyte/blob/main/screenshots/backups-list.png?raw=true)
 
 ## Restoring data
 
 Zerobyte allows you to easily restore your data from backups. To restore data, navigate to the "Backups" section and select the backup job from which you want to restore data. You can then choose a specific backup snapshot and select the files or directories you wish to restore. The data you select will be restored to their original location.
 
-![Preview](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
+![Restore UI](https://github.com/nicotsx/zerobyte/blob/main/screenshots/restoring.png?raw=true)
 
 ## Authentication
 
 Zerobyte uses [better-auth](https://github.com/better-auth/better-auth) for authentication and session management. The authentication system automatically adapts to your deployment scenario:
 
-### Cookie Security
+### Cookie security
 
-- **IP Address / HTTP access**: Set `BASE_URL=http://192.168.1.50:4096` (or your IP). Cookies will use `Secure: false`, allowing immediate login without SSL.
-- **Domain / HTTPS access**: Set `BASE_URL=https://zerobyte.example.com`. Cookies will automatically use `Secure: true` for protected sessions.
+- **IP Address/HTTP access**: Set `BASE_URL=http://192.168.1.50:4096` (or your IP). Cookies will use `Secure: false`, allowing immediate login without SSL.
+- **Domain/HTTPS access**: Set `BASE_URL=https://zerobyte.example.com`. Cookies will automatically use `Secure: true` for protected sessions.
 
-### Reverse Proxy Setup
+### Reverse proxy setup
 
 If you're running Zerobyte behind a reverse proxy (Nginx, Traefik, Caddy, etc.):
 
@@ -349,7 +349,7 @@ If you're running Zerobyte behind a reverse proxy (Nginx, Traefik, Caddy, etc.):
 2. The app will automatically enable secure cookies based on the `https://` prefix
 3. Ensure your proxy passes the `X-Forwarded-Proto` header
 
-### Important Notes
+### Important notes
 
 - The `BASE_URL` must start with `https://` for secure cookies to be enabled
 - Local IP addresses (e.g., `http://192.168.x.x`) are **not** treated as secure contexts by browsers, so secure cookies are disabled automatically
@@ -360,7 +360,7 @@ If you're running Zerobyte behind a reverse proxy (Nginx, Traefik, Caddy, etc.):
 
 For troubleshooting common issues, please refer to the [TROUBLESHOOTING.md](TROUBLESHOOTING.md) file.
 
-## Third-Party Software
+## Third-party software
 
 This project includes the following third-party software components:
 
@@ -404,4 +404,4 @@ BASE_URL=http://localhost:4096
 Notes:
 
 - Remote mount backends (NFS/SMB/WebDAV/SFTP) rely on Linux mount tooling and `CAP_SYS_ADMIN`; on macOS they are expected to be unavailable.
-- To actually run backups/repository checks, install `restic` on your machine (e.g. via Homebrew). If `restic` is not installed, the app still starts but backup operations will fail with a clear error.
+- To actually run backups/repository checks, install `restic` on your machine (e.g., via Homebrew). If `restic` is not installed, the app still starts but backup operations will fail with a clear error.
