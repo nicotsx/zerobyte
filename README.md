@@ -20,7 +20,7 @@
 [![Discord](https://img.shields.io/discord/1466834119873925263?label=discord&logo=discord)](https://discord.gg/XjgVyXrcEH)
 
 > [!WARNING]
-> Zerobyte is still in version 0.x.x and is subject to major changes from version to version. I am developing the core features and collecting feedbacks. Please open issues for bugs or feature requests.
+> Zerobyte is still in version 0.x.x and is subject to major changes from version to version. I am developing the core features and collecting feedback. Please open issues for bugs or feature requests.
 
 <p align="center">
 <a href="https://www.buymeacoffee.com/nicotsx" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
