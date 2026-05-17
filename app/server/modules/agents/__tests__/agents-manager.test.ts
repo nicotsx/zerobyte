@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
+import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import type { ProcessWithAgentRuntime } from "../helpers/runtime-state.dev";
@@ -11,13 +12,17 @@ vi.mock("node:child_process", async () => {
 });
 
 let startLocalAgent: (typeof import("../agents-manager"))["startLocalAgent"];
+let startAgentController: (typeof import("../agents-manager"))["startAgentController"];
 let stopLocalAgent: (typeof import("../agents-manager"))["stopLocalAgent"];
+let stopAgentController: (typeof import("../agents-manager"))["stopAgentController"];
+let config: (typeof import("~/server/core/config"))["config"];
+let originalEnableLocalAgent: boolean;
 
 const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 
 const setAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
-		agentManager: fromAny({ waitForAgentReady: vi.fn(async () => true) }),
+		agentManager: fromAny({ stop: Effect.void, waitForAgentReady: vi.fn(async () => true) }),
 		localAgent: null,
 		isStoppingLocalAgent: false,
 		localAgentRestartTimeout: null,
@@ -50,12 +55,18 @@ const createFakeChild = () => {
 
 beforeEach(async () => {
 	vi.resetModules();
+	({ config } = await import("~/server/core/config"));
+	originalEnableLocalAgent = config.flags.enableLocalAgent;
+	config.flags.enableLocalAgent = true;
 	setAgentRuntime();
-	({ startLocalAgent, stopLocalAgent } = await import("../agents-manager"));
+	({ startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } =
+		await import("../agents-manager"));
 });
 
 afterEach(async () => {
 	await stopLocalAgent();
+	await stopAgentController();
+	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	delete processWithAgentRuntime.__zerobyteAgentRuntime;
 	spawnMock.mockReset();
 	vi.restoreAllMocks();
@@ -92,4 +103,14 @@ test("does not respawn the local agent after an intentional stop", async () => {
 
 	expect(spawnMock).toHaveBeenCalledTimes(1);
 	expect(child.kill).toHaveBeenCalledTimes(1);
+});
+
+test("does not start the websocket server when the local agent flag is disabled", async () => {
+	config.flags.enableLocalAgent = false;
+	const serve = vi.spyOn(Bun, "serve");
+
+	await startAgentController();
+
+	expect(serve).not.toHaveBeenCalled();
+	expect(processWithAgentRuntime.__zerobyteAgentRuntime?.agentManager).toBeNull();
 });

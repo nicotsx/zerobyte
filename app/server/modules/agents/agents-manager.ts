@@ -223,6 +223,10 @@ export const startAgentController = async () => {
 		runtime.agentManager = null;
 	}
 
+	if (!config.flags.enableLocalAgent) {
+		return;
+	}
+
 	const nextAgentManager = createAgentManagerRuntime(handleAgentManagerEvent);
 	await Effect.runPromise(nextAgentManager.start);
 	runtime.agentManager = nextAgentManager;
