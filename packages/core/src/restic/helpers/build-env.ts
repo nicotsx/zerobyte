@@ -32,8 +32,10 @@ export const buildEnv = async (
 	};
 	let runtimeSecretsDir: string | undefined;
 	const getRuntimeSecretPath = async (filename: string) => {
-		runtimeSecretsDir = await createRuntimeSecretsDir();
-		env._RUNTIME_SECRETS_DIR = runtimeSecretsDir;
+		if (!runtimeSecretsDir) {
+			runtimeSecretsDir = await createRuntimeSecretsDir();
+			env._RUNTIME_SECRETS_DIR = runtimeSecretsDir;
+		}
 		return runtimeSecretPath(runtimeSecretsDir, filename);
 	};
 
