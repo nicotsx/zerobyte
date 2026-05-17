@@ -27,6 +27,12 @@ const nfsEntries = [
 	{ path: "docs/readme.md", type: "file", uid: fixtureUid, gid: fixtureGid, mode: "0644", text: readmeText },
 ];
 
+const smbEntries = [
+	{ path: "hello.txt", type: "file", uid: fixtureUid, gid: fixtureGid, mode: "0644", text: fileText },
+	{ path: "docs", type: "directory", uid: fixtureUid, gid: fixtureGid, mode: "0755" },
+	{ path: "docs/readme.md", type: "file", uid: fixtureUid, gid: fixtureGid, mode: "0644", text: readmeText },
+];
+
 const contentOnlyEntries = [
 	{ path: "hello.txt", type: "file", text: fileText },
 	{ path: "docs", type: "directory" },
@@ -58,13 +64,14 @@ const config = {
 				share: "zerobyte-backend-integration",
 				username: "zerobyte-smb",
 				password: smbPassword,
+				mapToContainerUidGid: false,
 				vers: "3.0",
 				port: 445,
 				readOnly: true,
 			},
 			repository: { backend: "local", path: "repo-smb" },
 			fixtureRoot: "case-a",
-			expectedEntries: nfsEntries,
+			expectedEntries: smbEntries,
 		},
 		{
 			id: "sftp-local-repo",

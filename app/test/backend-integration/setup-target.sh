@@ -54,12 +54,32 @@ sftp_password="$4"
 webdav_password="$5"
 restic_password="$6"
 public_key="$(printf '%s' "$7" | base64 -d)"
+repo_path="/srv/zerobyte-backend-integration/restic-repo"
+repo_password_fingerprint_path="$repo_path/.zerobyte-password-sha256"
+repo_password_fingerprint="$(printf '%s' "$restic_password" | sha256sum | cut -d' ' -f1)"
 
 export DEBIAN_FRONTEND=noninteractive
 
 write_file() {
 	local file_path="$1"
 	cat >"$file_path"
+}
+
+initialize_restic_repo() {
+	local password_file
+
+	rm -rf "$repo_path"
+	install -d -o zerobyte-sftp -g zerobyte-sftp -m 0700 "$repo_path"
+
+	password_file="$(mktemp)"
+	printf '%s\n' "$restic_password" >"$password_file"
+	chown zerobyte-sftp:zerobyte-sftp "$password_file"
+	chmod 0600 "$password_file"
+	su -s /bin/sh -c "restic init --repo '$repo_path' --password-file '$password_file'" zerobyte-sftp
+	rm -f "$password_file"
+
+	printf '%s\n' "$repo_password_fingerprint" >"$repo_password_fingerprint_path"
+	chmod 0600 "$repo_password_fingerprint_path"
 }
 
 apt-get update
@@ -75,7 +95,6 @@ chown -R "$fixture_uid:$fixture_gid" /srv/zerobyte-backend-integration/fixtures
 find /srv/zerobyte-backend-integration/fixtures -type d -exec chmod 0755 {} +
 find /srv/zerobyte-backend-integration/fixtures -type f -exec chmod 0644 {} +
 
-install -d -o zerobyte-sftp -g zerobyte-sftp -m 0700 /srv/zerobyte-backend-integration/restic-repo
 install -d -o zerobyte-sftp -g zerobyte-sftp -m 0700 /home/zerobyte-sftp
 install -d -o zerobyte-sftp -g zerobyte-sftp -m 0700 /home/zerobyte-sftp/.ssh
 printf '%s\n' "$public_key" >/home/zerobyte-sftp/.ssh/authorized_keys
@@ -88,13 +107,10 @@ printf 'zerobyte-sftp:%s\n' "$sftp_password" | chpasswd
 passwd -u zerobyte-sftp >/dev/null 2>&1 || true
 htpasswd -bc /etc/apache2/zerobyte-backend-integration.htpasswd zerobyte-webdav "$webdav_password" >/dev/null
 
-if [[ ! -f /srv/zerobyte-backend-integration/restic-repo/config ]]; then
-	password_file="$(mktemp)"
-	printf '%s\n' "$restic_password" >"$password_file"
-	chown zerobyte-sftp:zerobyte-sftp "$password_file"
-	chmod 0600 "$password_file"
-	su -s /bin/sh -c "restic init --repo /srv/zerobyte-backend-integration/restic-repo --password-file '$password_file'" zerobyte-sftp
-	rm -f "$password_file"
+if [[ ! -f "$repo_path/config" ]]; then
+	initialize_restic_repo
+elif [[ ! -f "$repo_password_fingerprint_path" ]] || [[ "$(cat "$repo_password_fingerprint_path")" != "$repo_password_fingerprint" ]]; then
+	initialize_restic_repo
 fi
 
 write_file /etc/exports <<'EOF'

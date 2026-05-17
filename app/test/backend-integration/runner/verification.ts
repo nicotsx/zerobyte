@@ -42,19 +42,19 @@ function assertMetadata(
 	expected: ExpectedEntry,
 	actual: { uid?: number; gid?: number; mode?: number },
 ) {
-	if (expected.uid && actual.uid !== expected.uid) {
+	if (expected.uid !== undefined && actual.uid !== expected.uid) {
 		throw new Error(`${entryLabel} uid mismatch: expected ${expected.uid}, got ${String(actual.uid)}`);
 	}
 
-	if (expected.gid && actual.gid !== expected.gid) {
+	if (expected.gid !== undefined && actual.gid !== expected.gid) {
 		throw new Error(`${entryLabel} gid mismatch: expected ${expected.gid}, got ${String(actual.gid)}`);
 	}
 
-	if (!expected.mode) {
+	if (expected.mode === undefined) {
 		return;
 	}
 
-	if (!actual.mode) {
+	if (actual.mode === undefined) {
 		throw new Error(`${entryLabel} mode is missing`);
 	}
 

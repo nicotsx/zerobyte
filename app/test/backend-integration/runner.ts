@@ -172,9 +172,27 @@ async function restoreSnapshot(
 }
 
 async function cleanupScenario(backend: VolumeBackend, restoreTarget: string, scenarioWorkspace: string) {
-	await backend.unmount();
-	await fs.rm(restoreTarget, { recursive: true, force: true });
-	await fs.rm(scenarioWorkspace, { recursive: true, force: true });
+	const cleanupErrors: string[] = [];
+	const unmountResult = await backend.unmount();
+	const didUnmount = unmountResult.status !== "error";
+
+	if (!didUnmount) {
+		cleanupErrors.push(unmountResult.error ?? `Unmount returned ${unmountResult.status}`);
+	}
+
+	await fs.rm(restoreTarget, { recursive: true, force: true }).catch((error) => {
+		cleanupErrors.push(`Failed to remove restore target: ${formatError(error)}`);
+	});
+
+	if (didUnmount) {
+		await fs.rm(scenarioWorkspace, { recursive: true, force: true }).catch((error) => {
+			cleanupErrors.push(`Failed to remove scenario workspace: ${formatError(error)}`);
+		});
+	}
+
+	if (cleanupErrors.length > 0) {
+		throw new Error(cleanupErrors.join("; "));
+	}
 }
 
 async function runScenario(scenario: IntegrationScenario, runId: string): Promise<ScenarioReport> {
@@ -256,16 +274,30 @@ async function runScenario(scenario: IntegrationScenario, runId: string): Promis
 		await runStage(stages, "verify-restore", async () => {
 			await verifyFilesystemEntries(restoreTarget, scenario.expectedEntries, "restored output");
 		});
-
-		logScenario(scenario.id, "passed");
 	} catch (error) {
 		status = "failed";
 		errorMessage = formatError(error);
 		logScenario(scenario.id, `failed: ${errorMessage}`);
 	} finally {
-		await runStage(stages, "cleanup", async () => {
-			await cleanupScenario(backend, restoreTarget, scenarioWorkspace);
-		});
+		try {
+			await runStage(stages, "cleanup", async () => {
+				await cleanupScenario(backend, restoreTarget, scenarioWorkspace);
+			});
+		} catch (error) {
+			status = "failed";
+			const cleanupError = formatError(error);
+
+			if (!errorMessage) {
+				errorMessage = cleanupError;
+				logScenario(scenario.id, `failed: ${cleanupError}`);
+			} else {
+				logScenario(scenario.id, `cleanup failed: ${cleanupError}`);
+			}
+		}
+	}
+
+	if (status === "passed") {
+		logScenario(scenario.id, "passed");
 	}
 
 	return {

@@ -11,7 +11,7 @@ if [[ ! -f "$config_path" ]]; then
 	if [[ "$config_path" == "$default_config_path" ]]; then
 		echo "Generated config not found: $config_path" >&2
 		echo "Run the target bootstrap first:" >&2
-		echo "  bash app/test/backend-integration/setup-debian-target.sh" >&2
+		echo "  bash app/test/backend-integration/setup-target.sh" >&2
 	else
 		echo "Config file not found: $config_path" >&2
 	fi
@@ -25,7 +25,7 @@ else
 	config_path="$config_dir/$(basename "$config_path")"
 fi
 
-docker build --target backend-integration -t "$image_tag" "$repo_root"
+docker build -f "$script_dir/Dockerfile" -t "$image_tag" "$repo_root"
 docker run --rm \
 	--cap-add SYS_ADMIN \
 	--device /dev/fuse:/dev/fuse \
