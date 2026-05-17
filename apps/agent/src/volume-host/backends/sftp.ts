@@ -16,6 +16,27 @@ const getMountPathHash = (mountPath: string) => createHash("sha256").update(moun
 const getPrivateKeyPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${getMountPathHash(mountPath)}.key`);
 const getKnownHostsPath = (mountPath: string) => path.join(SSH_KEYS_DIR, `${getMountPathHash(mountPath)}.known_hosts`);
 
+const ensurePrivateSshKeysDir = async () => {
+	const { uid } = os.userInfo();
+
+	try {
+		await fs.mkdir(SSH_KEYS_DIR, { mode: 0o700 });
+	} catch (error) {
+		if (!isNodeErrnoException(error) || error.code !== "EEXIST") throw error;
+
+		const stats = await fs.lstat(SSH_KEYS_DIR);
+		if (!stats.isDirectory() || stats.isSymbolicLink() || stats.uid !== uid) {
+			throw new Error(`Refusing to use unsafe SSH keys directory: ${SSH_KEYS_DIR}`);
+		}
+	}
+
+	await fs.chmod(SSH_KEYS_DIR, 0o700);
+};
+
+const isNodeErrnoException = (error: unknown): error is NodeJS.ErrnoException => {
+	return error instanceof Error && "code" in error;
+};
+
 const runSshfs = async (args: string[], password?: string) =>
 	new Promise<void>((resolve, reject) => {
 		const child = spawn("sshfs", args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -110,7 +131,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 
 	const run = async () => {
 		await fs.mkdir(mountPath, { recursive: true });
-		await fs.mkdir(SSH_KEYS_DIR, { recursive: true });
+		await ensurePrivateSshKeysDir();
 		const { uid, gid } = os.userInfo();
 		const options = [
 			"reconnect",
