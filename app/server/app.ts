@@ -1,8 +1,8 @@
 import { Scalar } from "@scalar/hono-api-reference";
+import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { logger as honoLogger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { rateLimiter } from "hono-rate-limiter";
 import { openAPIRouteHandler } from "hono-openapi";
@@ -20,6 +20,20 @@ import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
 import { db } from "./db/db";
+
+const requestLogger = async (c: Context, next: Next) => {
+	const method = c.req.method;
+	const path = c.req.path;
+	const start = performance.now();
+
+	logger.debug(`<-- ${method} ${path}`);
+
+	try {
+		await next();
+	} finally {
+		logger.debug(`--> ${method} ${path} ${c.res.status} ${Math.round(performance.now() - start)}ms`);
+	}
+};
 
 const generalDescriptor = (app: Hono) =>
 	openAPIRouteHandler(app, {
@@ -49,7 +63,7 @@ export const createApp = () => {
 
 	if (config.environment === "production") {
 		app.use(secureHeaders());
-		app.use(honoLogger());
+		app.use(requestLogger);
 	}
 
 	app.use(
