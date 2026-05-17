@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildEnv } from "../build-env";
 import type { ResticDeps } from "../../types";
@@ -34,6 +35,10 @@ const buildEnvForTest = async (
 	const env = await buildEnv(config, organizationId, deps);
 	if (env._RUNTIME_SECRETS_DIR) tempDirs.add(env._RUNTIME_SECRETS_DIR);
 	return env;
+};
+
+const listResticTempDirs = async () => {
+	return new Set((await fs.readdir(os.tmpdir())).filter((name) => name.startsWith("zerobyte-restic-")));
 };
 
 afterEach(async () => {
@@ -107,10 +112,39 @@ describe("buildEnv", () => {
 					throw new Error("Organization non-existent-org not found");
 				},
 			});
+			const before = await listResticTempDirs();
 
 			await expect(
 				buildEnv({ backend: "local" as const, path: "/tmp/repo" }, "non-existent-org", deps),
 			).rejects.toThrow("Organization non-existent-org not found");
+
+			expect(await listResticTempDirs()).toEqual(before);
+		});
+
+		test("cleans the temp directory when setup fails after creating one", async () => {
+			const before = await listResticTempDirs();
+			const deps = makeDeps({
+				resolveSecret: async (secret) => {
+					if (secret === "my-access-key") throw new Error("failed to resolve access key");
+					return secret;
+				},
+			});
+
+			await expect(
+				buildEnv(
+					withCustomPassword({
+						backend: "s3" as const,
+						endpoint: "https://s3.amazonaws.com",
+						bucket: "my-bucket",
+						accessKeyId: "my-access-key",
+						secretAccessKey: "my-secret-key",
+					}),
+					"org-1",
+					deps,
+				),
+			).rejects.toThrow("failed to resolve access key");
+
+			expect(await listResticTempDirs()).toEqual(before);
 		});
 
 		test("throws when getOrganizationResticPassword throws (no password configured)", async () => {
