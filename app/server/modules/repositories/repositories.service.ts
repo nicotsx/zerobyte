@@ -149,7 +149,10 @@ const runAndStoreRepositoryStats = async (repository: Repository): Promise<Resti
 			.update(repositoriesTable)
 			.set({ stats, statsUpdatedAt: Date.now() })
 			.where(
-				and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+				and(
+					eq(repositoriesTable.id, repository.id),
+					eq(repositoriesTable.organizationId, repository.organizationId),
+				),
 			);
 
 		return stats;
@@ -190,7 +193,10 @@ const deleteRepository = async (shortId: ShortId) => {
 	await db
 		.delete(repositoriesTable)
 		.where(
-			and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+			and(
+				eq(repositoriesTable.id, repository.id),
+				eq(repositoriesTable.organizationId, repository.organizationId),
+			),
 		);
 
 	cache.delByPrefix(cacheKeys.repository.all(repository.id));
@@ -505,7 +511,10 @@ const checkHealth = async (shortId: ShortId) => {
 				lastError: error,
 			})
 			.where(
-				and(eq(repositoriesTable.id, repository.id), eq(repositoriesTable.organizationId, repository.organizationId)),
+				and(
+					eq(repositoriesTable.id, repository.id),
+					eq(repositoriesTable.organizationId, repository.organizationId),
+				),
 			);
 
 		return { lastError: error };
@@ -737,7 +746,9 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const [updated] = await db
 		.update(repositoriesTable)
 		.set(updatePayload)
-		.where(and(eq(repositoriesTable.id, existing.id), eq(repositoriesTable.organizationId, existing.organizationId)))
+		.where(
+			and(eq(repositoriesTable.id, existing.id), eq(repositoriesTable.organizationId, existing.organizationId)),
+		)
 		.returning();
 
 	if (!updated) {
@@ -792,11 +803,12 @@ const execResticCommand = async (
 	}
 	addCommonArgs(resticArgs, env, repository.config);
 
-	const result = await safeSpawn({ command: "restic", args: resticArgs, env, signal, onStdout, onStderr });
-
-	await cleanupTemporaryKeys(env, resticDeps);
-
-	return { exitCode: result.exitCode };
+	try {
+		const result = await safeSpawn({ command: "restic", args: resticArgs, env, signal, onStdout, onStderr });
+		return { exitCode: result.exitCode };
+	} finally {
+		await cleanupTemporaryKeys(env, resticDeps);
+	}
 };
 
 const getRetentionCategories = async (repositoryId: ShortId, scheduleId?: ShortId) => {

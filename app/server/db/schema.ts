@@ -310,6 +310,48 @@ export const repositoriesTable = sqliteTable(
 export type Repository = typeof repositoriesTable.$inferSelect;
 export type RepositoryInsert = typeof repositoriesTable.$inferInsert;
 
+export type RepositoryLockType = "shared" | "exclusive";
+
+export const repositoryLocksTable = sqliteTable(
+	"repository_locks",
+	{
+		id: text("id").primaryKey(),
+		repositoryId: text("repository_id").notNull(),
+		type: text("type").$type<RepositoryLockType>().notNull(),
+		operation: text("operation").notNull(),
+		ownerId: text("owner_id").notNull(),
+		acquiredAt: int("acquired_at", { mode: "number" }).notNull(),
+		expiresAt: int("expires_at", { mode: "number" }).notNull(),
+		heartbeatAt: int("heartbeat_at", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("repository_locks_repository_id_idx").on(table.repositoryId),
+		index("repository_locks_expires_at_idx").on(table.expiresAt),
+		index("repository_locks_owner_id_idx").on(table.ownerId),
+	],
+);
+export type RepositoryLock = typeof repositoryLocksTable.$inferSelect;
+
+export const repositoryLockWaitersTable = sqliteTable(
+	"repository_lock_waiters",
+	{
+		id: text("id").primaryKey(),
+		repositoryId: text("repository_id").notNull(),
+		type: text("type").$type<RepositoryLockType>().notNull(),
+		operation: text("operation").notNull(),
+		ownerId: text("owner_id").notNull(),
+		requestedAt: int("requested_at", { mode: "number" }).notNull(),
+		expiresAt: int("expires_at", { mode: "number" }).notNull(),
+		heartbeatAt: int("heartbeat_at", { mode: "number" }).notNull(),
+	},
+	(table) => [
+		index("repository_lock_waiters_repository_id_idx").on(table.repositoryId),
+		index("repository_lock_waiters_expires_at_idx").on(table.expiresAt),
+		index("repository_lock_waiters_owner_id_idx").on(table.ownerId),
+	],
+);
+export type RepositoryLockWaiter = typeof repositoryLockWaitersTable.$inferSelect;
+
 /**
  * Backup Schedules Table
  */
