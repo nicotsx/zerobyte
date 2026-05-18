@@ -38,7 +38,14 @@ const encrypt = async (data: string) => {
 	}
 
 	if (isEncrypted(data)) {
-		return data;
+		try {
+			await decrypt(data);
+			return data;
+		} catch {
+			throw new Error(
+				"You have provided an encrypted value that cannot be decrypted with the current APP_SECRET. Please use a plain text value.",
+			);
+		}
 	}
 
 	const salt = crypto.randomBytes(16);
