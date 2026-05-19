@@ -8,7 +8,7 @@ type PasswordVerificationBody = {
 
 export const verifyUserPassword = async ({ password, userId }: PasswordVerificationBody) => {
 	const userAccount = await db.query.account.findFirst({
-		where: { userId },
+		where: { AND: [{ userId }, { providerId: "credential" }] },
 	});
 
 	if (!userAccount || !userAccount.password) {
