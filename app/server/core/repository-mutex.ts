@@ -31,10 +31,12 @@ type QueueAttempt = { status: "acquired"; lock: AcquiredLock } | { status: "wait
 const LOCK_LEASE_MS = 30_000;
 const LOCK_HEARTBEAT_MS = 5_000;
 const LOCK_POLL_MS = 250;
+const LOCK_POLL_CLEANUP_MS = 5_000;
 
 class RepositoryMutex {
 	private ownerId = `owner_${Bun.randomUUIDv7()}`;
 	private heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
+	private nextPollCleanupAt = 0;
 
 	private generateLockId(): string {
 		return `lock_${Bun.randomUUIDv7()}`;
@@ -87,6 +89,13 @@ class RepositoryMutex {
 	private cleanupExpired(tx: RepositoryMutexTransaction, now: number) {
 		tx.delete(repositoryLocksTable).where(lte(repositoryLocksTable.expiresAt, now)).run();
 		tx.delete(repositoryLockWaitersTable).where(lte(repositoryLockWaitersTable.expiresAt, now)).run();
+	}
+
+	private cleanupExpiredDuringPolling(tx: RepositoryMutexTransaction, now: number) {
+		if (now < this.nextPollCleanupAt) return;
+
+		this.cleanupExpired(tx, now);
+		this.nextPollCleanupAt = now + LOCK_POLL_CLEANUP_MS;
 	}
 
 	private getActiveLocks(tx: RepositoryMutexTransaction, repositoryId: string, now: number) {
@@ -235,7 +244,7 @@ class RepositoryMutex {
 		const now = Date.now();
 
 		return db.transaction((tx) => {
-			this.cleanupExpired(tx, now);
+			this.cleanupExpiredDuringPolling(tx, now);
 
 			const activeLock = this.getActiveLockById(tx, waiterId, now);
 			if (activeLock) {
