@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
 import { account, usersTable } from "~/server/db/schema";
 import { createUser, randomId, randomSlug } from "~/test/helpers/user-org";
-import { verifyUserPassword } from "../helpers";
+import { userHasCredentialPassword, verifyUserPassword } from "../helpers";
 
 const { verifyPassword } = vi.hoisted(() => ({
 	verifyPassword: vi.fn(async ({ hash }: { hash: string }) => hash === "credential-password-hash"),
@@ -59,5 +59,33 @@ describe("verifyUserPassword", () => {
 
 		expect(result).toBe(false);
 		expect(verifyPassword).not.toHaveBeenCalled();
+	});
+});
+
+describe("userHasCredentialPassword", () => {
+	beforeEach(async () => {
+		await db.delete(account);
+		await db.delete(usersTable);
+	});
+
+	test("returns true when the user has a credential account with a password", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		await createAccount({ userId, providerId: "credential", password: "credential-password-hash" });
+
+		await expect(userHasCredentialPassword(userId)).resolves.toBe(true);
+	});
+
+	test("returns false when the user only has SSO accounts", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		await createAccount({ userId, providerId: "oidc-acme", password: null });
+
+		await expect(userHasCredentialPassword(userId)).resolves.toBe(false);
+	});
+
+	test("returns false when the credential account has no password", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		await createAccount({ userId, providerId: "credential", password: null });
+
+		await expect(userHasCredentialPassword(userId)).resolves.toBe(false);
 	});
 });

@@ -7,17 +7,23 @@ import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
+import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
 import { authService } from "~/server/modules/auth/auth.service";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
 	const session = await auth.api.getSession({ headers });
 	const hasUsers = await authService.hasUsers();
+	const hasCredentialPassword = session?.user ? await userHasCredentialPassword(session.user.id) : false;
 
 	const sidebarCookie = getCookie(SIDEBAR_COOKIE_NAME);
 	const sidebarOpen = !sidebarCookie ? true : sidebarCookie === "true";
 
-	return { user: session?.user ?? null, hasUsers, sidebarOpen };
+	return {
+		user: session?.user ? { ...session.user, hasCredentialPassword } : null,
+		hasUsers,
+		sidebarOpen,
+	};
 });
 
 export const Route = createFileRoute("/(dashboard)")({

@@ -7,6 +7,7 @@ type User = {
 	dateFormat: string;
 	timeFormat: string;
 	twoFactorEnabled?: boolean | null;
+	hasCredentialPassword?: boolean;
 	role?: string | null | undefined;
 };
 

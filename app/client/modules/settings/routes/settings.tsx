@@ -1,11 +1,21 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download, Fingerprint, KeyRound, User, X, Settings as SettingsIcon, Building2 } from "lucide-react";
+import {
+	AlertTriangle,
+	Download,
+	Fingerprint,
+	KeyRound,
+	User,
+	X,
+	Settings as SettingsIcon,
+	Building2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import {
 	Dialog,
 	DialogContent,
@@ -29,12 +39,17 @@ import {
 	useTimeFormat,
 } from "~/client/lib/datetime";
 import { logger } from "~/client/lib/logger";
+import { parseError } from "~/client/lib/errors";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
+import { cn } from "~/client/lib/utils";
+
+const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
+	"Downloading the recovery key requires a local credential password. Ask an operator to run `bun run cli reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
 	appContext: AppContext;
@@ -49,6 +64,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
+	const [downloadBlockedMessage, setDownloadBlockedMessage] = useState<string | null>(null);
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const { dateFormat, timeFormat } = useRootLoaderData();
 
@@ -59,6 +75,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const { activeMember, activeOrganization } = useOrganizationContext();
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
 	const { formatDateTime } = useTimeFormat();
+	const hasCredentialPassword = appContext.user?.hasCredentialPassword !== false;
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -90,10 +107,13 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 			toast.success("Restic password file downloaded successfully");
 			setDownloadDialogOpen(false);
 			setDownloadPassword("");
+			setDownloadBlockedMessage(null);
 		},
 		onError: (error) => {
+			const message = parseError(error)?.message;
+			setDownloadBlockedMessage(message?.includes("credential password") ? message : null);
 			toast.error("Failed to download Restic password", {
-				description: error.message,
+				description: message,
 			});
 		},
 	});
@@ -145,6 +165,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 			return;
 		}
 
+		setDownloadBlockedMessage(null);
 		downloadResticPassword.mutate({
 			body: {
 				password: downloadPassword,
@@ -291,7 +312,11 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 								</div>
 							</CardContent>
 
-							<div className="border-t border-border/50 bg-card-header p-6">
+							<div
+								className={cn("border-t border-border/50 bg-card-header p-6", {
+									hidden: !hasCredentialPassword,
+								})}
+							>
 								<CardTitle className="flex items-center gap-2">
 									<KeyRound className="size-5" />
 									Change Password
@@ -300,7 +325,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 									Update your password to keep your account secure
 								</CardDescription>
 							</div>
-							<CardContent className="p-6">
+							<CardContent className={cn("p-6", { hidden: !hasCredentialPassword })}>
 								<form onSubmit={handleChangePassword} className="space-y-4">
 									<div className="space-y-2">
 										<Label htmlFor="current-password">Current Password</Label>
@@ -375,12 +400,26 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											<DialogHeader>
 												<DialogTitle>Download Recovery Key</DialogTitle>
 												<DialogDescription>
-													For security reasons, please enter your account password to download
-													the recovery key file.
+													{!hasCredentialPassword
+														? "A local credential password is required before this recovery key can be downloaded."
+														: "For security reasons, please enter your account password to download the recovery key file."}
 												</DialogDescription>
 											</DialogHeader>
 											<div className="space-y-4 py-4">
-												<div className="space-y-2">
+												<Alert
+													variant="warning"
+													className={cn({
+														hidden: hasCredentialPassword && !downloadBlockedMessage,
+													})}
+												>
+													<AlertTriangle className="size-5" />
+													<AlertTitle>Local password required</AlertTitle>
+													<AlertDescription>
+														{downloadBlockedMessage ??
+															RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE}
+													</AlertDescription>
+												</Alert>
+												<div className={cn("space-y-2", { hidden: !hasCredentialPassword })}>
 													<Label htmlFor="download-password">Your Password</Label>
 													<Input
 														id="download-password"
@@ -404,7 +443,11 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 													<X className="h-4 w-4 mr-2" />
 													Cancel
 												</Button>
-												<Button type="submit" loading={downloadResticPassword.isPending}>
+												<Button
+													type="submit"
+													loading={downloadResticPassword.isPending}
+													className={cn({ hidden: !hasCredentialPassword })}
+												>
 													<Download className="h-4 w-4 mr-2" />
 													Download
 												</Button>

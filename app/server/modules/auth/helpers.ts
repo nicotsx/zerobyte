@@ -22,3 +22,12 @@ export const verifyUserPassword = async ({ password, userId }: PasswordVerificat
 
 	return true;
 };
+
+export const userHasCredentialPassword = async (userId: string) => {
+	const userAccount = await db.query.account.findFirst({
+		where: { AND: [{ userId }, { providerId: "credential" }] },
+		columns: { password: true },
+	});
+
+	return Boolean(userAccount?.password);
+};
