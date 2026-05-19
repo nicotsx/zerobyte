@@ -72,7 +72,7 @@
 		"clsx": "^2.1.1",
 		"commander": "^14.0.3",
 		"consola": "^3.4.2",
-		"content-disposition": "^1.1.0",
+		"content-disposition": "^2.0.0",
 		"cron-parser": "^5.5.0",
 		"date-fns": "^4.1.0",
 		"dither-plugin": "^1.1.1",
