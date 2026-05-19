@@ -314,6 +314,7 @@ class RepositoryMutex {
 		} catch (error) {
 			this.stopHeartbeat(waiterId);
 			this.deleteWaiter(waiterId);
+			this.release({ id: waiterId });
 			throw error;
 		}
 	}
@@ -412,7 +413,7 @@ class RepositoryMutex {
 		};
 	}
 
-	private release(lock: AcquiredLock) {
+	private release(lock: Pick<AcquiredLock, "id">) {
 		const releasedLock = db.transaction((tx) => {
 			const row = tx.query.repositoryLocksTable
 				.findFirst({ where: { AND: [{ id: { eq: lock.id } }, { ownerId: { eq: this.ownerId } }] } })

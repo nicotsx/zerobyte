@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { repositoryLocksTable, repositoryLockWaitersTable } from "~/server/db/schema";
@@ -336,6 +336,43 @@ describe("RepositoryMutex", () => {
 		await expect(manyPromise).rejects.toThrow("stop after wake");
 		expect(repoMutex.isLocked(repoA)).toBe(false);
 		expect(repoMutex.isLocked(repoB)).toBe(false);
+	});
+
+	test("should not leave a promoted shared lock behind if that waiter aborts before observing acquisition", async () => {
+		vi.useFakeTimers();
+		const repoId = "shared-abort-after-promotion";
+		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "holder");
+		const firstSharedPromise = repoMutex.acquireShared(repoId, "shared-1");
+
+		try {
+			await vi.advanceTimersByTimeAsync(100);
+
+			const controller = new AbortController();
+			const secondSharedPromise = repoMutex.acquireShared(repoId, "shared-2", controller.signal);
+
+			await vi.advanceTimersByTimeAsync(140);
+			releaseExclusive();
+
+			// The first shared waiter wakes first and promotes both shared waiters.
+			await vi.advanceTimersByTimeAsync(10);
+			const releaseShared1 = await firstSharedPromise;
+
+			controller.abort(new Error("abort after promotion"));
+			await expect(secondSharedPromise).rejects.toThrow("abort after promotion");
+
+			releaseShared1();
+
+			const remainingLocks = await db.query.repositoryLocksTable.findMany({
+				where: { repositoryId: { eq: repoId } },
+				orderBy: { operation: "asc" },
+			});
+
+			expect(remainingLocks).toEqual([]);
+		} finally {
+			await db.delete(repositoryLockWaitersTable).where(eq(repositoryLockWaitersTable.repositoryId, repoId));
+			await db.delete(repositoryLocksTable).where(eq(repositoryLocksTable.repositoryId, repoId));
+			vi.useRealTimers();
+		}
 	});
 
 	test("should safely handle multiple calls to the release function", async () => {
