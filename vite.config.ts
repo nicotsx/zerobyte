@@ -9,17 +9,10 @@ export default defineConfig({
 	plugins: [
 		tanstackStart({
 			srcDirectory: "app",
-			router: {
-				routesDirectory: "routes",
-			},
-			importProtection: {
-				behavior: "error",
-			},
+			router: { routesDirectory: "routes" },
+			importProtection: { behavior: "error" },
 		}),
-		nitro({
-			preset: "bun",
-			plugins: ["./app/server/plugins/bootstrap.ts"],
-		}),
+		nitro({ preset: "bun", plugins: ["./app/server/plugins/bootstrap.ts"] }),
 		viteReact(),
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
