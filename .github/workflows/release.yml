@@ -125,7 +125,6 @@ jobs:
           name: ${{ needs.determine-release-type.outputs.tagname }}
           draft: false
           prerelease: true
-          files: cli/runtipi-cli-*
 
   request-docs-version-update:
     uses: ./.github/workflows/request-docs-version-update.yml
