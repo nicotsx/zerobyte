@@ -9,6 +9,7 @@ import { getOrganizationContext } from "~/server/lib/functions/organization-cont
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
 import { authService } from "~/server/modules/auth/auth.service";
+import { hasSkippedRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/(dashboard)")({
 			}),
 		]);
 
-		if (authContext.user && !authContext.user.hasDownloadedResticPassword) {
+		if (authContext.user && !authContext.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload()) {
 			throw redirect({ to: "/download-recovery-key" });
 		}
 

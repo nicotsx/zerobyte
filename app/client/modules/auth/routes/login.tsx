@@ -10,6 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/clie
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
+import { hasSkippedRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
@@ -77,7 +78,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		}
 
 		const d = await authClient.getSession();
-		if (data.user && !d.data?.user.hasDownloadedResticPassword) {
+		if (data.user && !d.data?.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload()) {
 			void navigate({ to: "/download-recovery-key" });
 		} else {
 			void navigate({ to: "/volumes" });
@@ -113,7 +114,11 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		if (data) {
 			toast.success("Login successful");
 			const session = await authClient.getSession();
-			if (session.data?.user && !session.data.user.hasDownloadedResticPassword) {
+			if (
+				session.data?.user &&
+				!session.data.user.hasDownloadedResticPassword &&
+				!hasSkippedRecoveryKeyDownload()
+			) {
 				void navigate({ to: "/download-recovery-key" });
 			} else {
 				void navigate({ to: "/volumes" });
@@ -130,7 +135,10 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 
 	if (requires2FA) {
 		return (
-			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
+			<AuthLayout
+				title="Two-Factor Authentication"
+				description="Enter the 6-digit code from your authenticator app"
+			>
 				<div className="space-y-6">
 					<div className="space-y-4 flex flex-col items-center">
 						<Label htmlFor="totp-code">Authentication code</Label>
@@ -199,7 +207,11 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-					<div className={cn("rounded-md border border-destructive/50 p-3 text-sm", { hidden: !errorDescription })}>
+					<div
+						className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
+							hidden: !errorDescription,
+						})}
+					>
 						{errorDescription}
 					</div>
 					<FormField

@@ -9,10 +9,11 @@ import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
+import { skipRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
 import { useNavigate } from "@tanstack/react-router";
 
 const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
-	"Downloading the recovery key requires a local credential password. Ask an operator to run `bun run cli reset-password` for your user, then sign in with that password and try again.";
+	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
 	hasCredentialPassword: boolean;
@@ -56,11 +57,12 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword }: Props) {
 		}
 
 		setBlockedMessage(null);
-		downloadResticPassword.mutate({
-			body: {
-				password,
-			},
-		});
+		downloadResticPassword.mutate({ body: { password } });
+	};
+
+	const handleSkip = () => {
+		skipRecoveryKeyDownload();
+		void navigate({ to: "/volumes", replace: true });
 	};
 
 	return (
@@ -114,6 +116,15 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword }: Props) {
 							Download Recovery Key
 						</Button>
 					)}
+					<Button
+						type="button"
+						variant="ghost"
+						onClick={handleSkip}
+						disabled={downloadResticPassword.isPending}
+						className="w-full"
+					>
+						Skip
+					</Button>
 				</div>
 			</form>
 		</AuthLayout>
