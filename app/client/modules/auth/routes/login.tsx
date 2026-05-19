@@ -10,7 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/clie
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
-import { hasSkippedRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
+import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
@@ -32,6 +32,12 @@ type LoginFormValues = z.input<typeof loginSchema>;
 type LoginPageProps = {
 	error?: string;
 };
+
+function hasSkippedRecoveryKeyDownload(userId: string) {
+	return document.cookie
+		.split(";")
+		.some((cookie) => cookie.trim() === `${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME}=${userId}`);
+}
 
 export function LoginPage({ error }: LoginPageProps = {}) {
 	const navigate = useNavigate();
@@ -78,7 +84,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		}
 
 		const d = await authClient.getSession();
-		if (data.user && !d.data?.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload()) {
+		if (data.user && !d.data?.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload(data.user.id)) {
 			void navigate({ to: "/download-recovery-key" });
 		} else {
 			void navigate({ to: "/volumes" });
@@ -117,7 +123,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 			if (
 				session.data?.user &&
 				!session.data.user.hasDownloadedResticPassword &&
-				!hasSkippedRecoveryKeyDownload()
+				!hasSkippedRecoveryKeyDownload(session.data.user.id)
 			) {
 				void navigate({ to: "/download-recovery-key" });
 			} else {

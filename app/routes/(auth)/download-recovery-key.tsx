@@ -11,6 +11,7 @@ const getRecoveryKeyUserState = createServerFn({ method: "GET" }).handler(async 
 
 	return {
 		hasCredentialPassword: session?.user ? await userHasCredentialPassword(session.user.id) : false,
+		userId: session?.user.id ?? null,
 	};
 });
 
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/(auth)/download-recovery-key")({
 });
 
 function RouteComponent() {
-	const { hasCredentialPassword } = Route.useLoaderData();
+	const { hasCredentialPassword, userId } = Route.useLoaderData();
 
-	return <DownloadRecoveryKeyPage hasCredentialPassword={hasCredentialPassword} />;
+	return <DownloadRecoveryKeyPage hasCredentialPassword={hasCredentialPassword} userId={userId} />;
 }

@@ -9,7 +9,10 @@ import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
-import { skipRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
+import {
+	RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_MAX_AGE,
+	RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME,
+} from "~/lib/recovery-key-skip";
 import { useNavigate } from "@tanstack/react-router";
 
 const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
@@ -17,9 +20,10 @@ const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
 
 type Props = {
 	hasCredentialPassword: boolean;
+	userId: string | null;
 };
 
-export function DownloadRecoveryKeyPage({ hasCredentialPassword }: Props) {
+export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props) {
 	const navigate = useNavigate();
 	const [password, setPassword] = useState("");
 	const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
@@ -61,7 +65,9 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword }: Props) {
 	};
 
 	const handleSkip = () => {
-		skipRecoveryKeyDownload();
+		if (!userId) return;
+
+		document.cookie = `${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME}=${userId}; path=/; max-age=${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_MAX_AGE}`;
 		void navigate({ to: "/volumes", replace: true });
 	};
 

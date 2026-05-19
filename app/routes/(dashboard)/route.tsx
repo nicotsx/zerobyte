@@ -9,7 +9,7 @@ import { getOrganizationContext } from "~/server/lib/functions/organization-cont
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
 import { authService } from "~/server/modules/auth/auth.service";
-import { hasSkippedRecoveryKeyDownload } from "~/client/lib/recovery-key-skip";
+import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
@@ -19,11 +19,14 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 
 	const sidebarCookie = getCookie(SIDEBAR_COOKIE_NAME);
 	const sidebarOpen = !sidebarCookie ? true : sidebarCookie === "true";
+	const hasSkippedRecoveryKeyDownload =
+		!!session?.user && getCookie(RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME) === session.user.id;
 
 	return {
 		user: session?.user ? { ...session.user, hasCredentialPassword } : null,
 		hasUsers,
 		sidebarOpen,
+		hasSkippedRecoveryKeyDownload,
 	};
 });
 
@@ -46,7 +49,11 @@ export const Route = createFileRoute("/(dashboard)")({
 			}),
 		]);
 
-		if (authContext.user && !authContext.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload()) {
+		if (
+			authContext.user &&
+			!authContext.user.hasDownloadedResticPassword &&
+			!authContext.hasSkippedRecoveryKeyDownload
+		) {
 			throw redirect({ to: "/download-recovery-key" });
 		}
 
