@@ -2,7 +2,7 @@ import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import { streamSSE } from "hono/streaming";
-import contentDisposition from "content-disposition";
+import { create } from "content-disposition";
 import {
 	createRepositoryBody,
 	createRepositoryDto,
@@ -223,7 +223,7 @@ export const repositoriesController = new Hono()
 			status: 200,
 			headers: {
 				"Content-Type": dumpStream.contentType,
-				"Content-Disposition": contentDisposition(filename, {
+				"Content-Disposition": create(filename, {
 					fallback: filename.replace(/[^\x20-\x7E]/g, "?"),
 				}),
 				"X-Content-Type-Options": "nosniff",
