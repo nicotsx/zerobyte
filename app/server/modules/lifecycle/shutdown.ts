@@ -18,7 +18,7 @@ export const shutdown = async () => {
 
 		for (const volume of volumes) {
 			const { status, error } = await withContext({ organizationId: volume.organizationId }, () =>
-				volumeService.unmountVolume(volume.shortId),
+				volumeService.unmountVolume(volume.shortId, { persistStatus: false }),
 			).catch((error) => ({ status: "error" as const, error: toMessage(error) }));
 
 			logger.info(`Volume ${volume.name} unmount status: ${status}${error ? `, error: ${error}` : ""}`);

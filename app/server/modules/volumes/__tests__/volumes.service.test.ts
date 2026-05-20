@@ -152,11 +152,38 @@ describe("volumeService.mountVolume", () => {
 	});
 });
 
+describe("volumeService.unmountVolume", () => {
+	test("persists the unmounted status for normal unmount requests", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({ organizationId, status: "mounted", agentId: "agent-1" });
+		agentManagerMock.runVolumeCommand.mockResolvedValueOnce({
+			name: "volume.unmount",
+			result: { status: "unmounted" },
+		});
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const result = await volumeService.unmountVolume(volume.shortId);
+
+			expect(result.status).toBe("unmounted");
+			expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledWith(
+				volume.agentId,
+				expect.objectContaining({ name: "volume.unmount", volume: expect.objectContaining({ id: volume.id }) }),
+			);
+		});
+
+		const updatedVolume = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(updatedVolume?.status).toBe("unmounted");
+	});
+});
+
 describe("volumeService.ensureHealthyVolume", () => {
 	test("returns ready when the mounted volume passes its health check", async () => {
 		const { organizationId, user } = await createTestSession();
 		const volume = await createTestVolume({ organizationId, status: "mounted", agentId: "agent-1" });
-		agentManagerMock.runVolumeCommand.mockResolvedValue({ name: "volume.checkHealth", result: { status: "mounted" } });
+		agentManagerMock.runVolumeCommand.mockResolvedValue({
+			name: "volume.checkHealth",
+			result: { status: "mounted" },
+		});
 
 		await withContext({ organizationId, userId: user.id }, async () => {
 			const result = await volumeService.ensureHealthyVolume(volume.shortId);
@@ -169,14 +196,22 @@ describe("volumeService.ensureHealthyVolume", () => {
 			expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledOnce();
 			expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledWith(
 				volume.agentId,
-				expect.objectContaining({ name: "volume.checkHealth", volume: expect.objectContaining({ id: volume.id }) }),
+				expect.objectContaining({
+					name: "volume.checkHealth",
+					volume: expect.objectContaining({ id: volume.id }),
+				}),
 			);
 		});
 	});
 
 	test("auto-remounts when the mounted volume fails its health check", async () => {
 		const { organizationId, user } = await createTestSession();
-		const volume = await createTestVolume({ organizationId, status: "mounted", autoRemount: true, agentId: "agent-1" });
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			autoRemount: true,
+			agentId: "agent-1",
+		});
 		agentManagerMock.runVolumeCommand
 			.mockResolvedValueOnce({ name: "volume.checkHealth", result: { status: "error", error: "stale mount" } })
 			.mockResolvedValueOnce({ name: "volume.unmount", result: { status: "unmounted" } })

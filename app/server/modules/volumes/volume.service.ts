@@ -174,7 +174,7 @@ const mountVolume = async (shortId: ShortId) => {
 	return { error, status };
 };
 
-const unmountVolume = async (shortId: ShortId) => {
+const unmountVolume = async (shortId: ShortId, options?: { persistStatus?: boolean }) => {
 	const organizationId = getOrganizationId();
 	const volume = await findVolume(shortId);
 
@@ -184,13 +184,15 @@ const unmountVolume = async (shortId: ShortId) => {
 
 	const { status, error } = await runVolumeBackendCommand(volume, "volume.unmount");
 
-	await db
-		.update(volumesTable)
-		.set({ status })
-		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
+	if (options?.persistStatus !== false) {
+		await db
+			.update(volumesTable)
+			.set({ status })
+			.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
-	if (status === "unmounted") {
-		serverEvents.emit("volume:unmounted", { organizationId, volumeName: volume.name });
+		if (status === "unmounted") {
+			serverEvents.emit("volume:unmounted", { organizationId, volumeName: volume.name });
+		}
 	}
 
 	return { error, status };

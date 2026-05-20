@@ -58,7 +58,7 @@ describe("shutdown", () => {
 		expect(updated!.status).toBe("mounted");
 	});
 
-	test("keeps legacy controller-local fallback unmount on shutdown", async () => {
+	test("keeps mounted status while running the legacy controller-local fallback unmount on shutdown", async () => {
 		config.flags.enableLocalAgent = false;
 		const events: string[] = [];
 		vi.spyOn(Scheduler, "stop").mockImplementation(async () => {
@@ -85,6 +85,6 @@ describe("shutdown", () => {
 		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
 		expect(runVolumeCommand).not.toHaveBeenCalled();
 		expect(updated).toBeDefined();
-		expect(updated!.status).toBe("unmounted");
+		expect(updated!.status).toBe("mounted");
 	});
 });
