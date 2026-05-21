@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
@@ -50,33 +50,36 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const errorCode = decodeLoginError(error);
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
 
-	const passkeyAutofillStarted = useRef(false);
-
 	useEffect(() => {
-		if (passkeyAutofillStarted.current) return;
-		if (typeof window === "undefined") return;
-		const supportsConditional =
-			typeof window.PublicKeyCredential !== "undefined" &&
-			typeof window.PublicKeyCredential.isConditionalMediationAvailable === "function";
-		if (!supportsConditional) return;
+		if (
+			!PublicKeyCredential.isConditionalMediationAvailable ||
+			!PublicKeyCredential.isConditionalMediationAvailable()
+		) {
+			return;
+		}
 
-		passkeyAutofillStarted.current = true;
-		void (async () => {
-			try {
-				const available = await window.PublicKeyCredential.isConditionalMediationAvailable();
-				if (!available) return;
-				const { data, error } = await authClient.signIn.passkey({ autoFill: true });
-				if (error || !data) return;
-				const session = await authClient.getSession();
-				if (session.data?.user && !session.data.user.hasDownloadedResticPassword) {
-					void navigate({ to: "/download-recovery-key" });
-				} else {
-					void navigate({ to: "/volumes" });
-				}
-			} catch (err) {
-				logger.error(err);
-			}
-		})();
+		const autoSignIn = async () => {
+			await authClient.signIn.passkey({
+				autoFill: true,
+				fetchOptions: {
+					onResponse: async () => {
+						const session = await authClient.getSession();
+
+						if (
+							session.data?.user &&
+							!session.data.user.hasDownloadedResticPassword &&
+							!hasSkippedRecoveryKeyDownload(session.data.user.id)
+						) {
+							void navigate({ to: "/download-recovery-key" });
+						} else {
+							void navigate({ to: "/volumes" });
+						}
+					},
+				},
+			});
+		};
+
+		void autoSignIn();
 	}, [navigate]);
 
 	const form = useForm<LoginFormValues>({
@@ -284,7 +287,12 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 									</button>
 								</div>
 								<FormControl>
-									<Input {...field} type="password" disabled={isLoggingIn} autoComplete="current-password webauthn" />
+									<Input
+										{...field}
+										type="password"
+										disabled={isLoggingIn}
+										autoComplete="current-password webauthn"
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
