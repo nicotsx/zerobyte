@@ -51,14 +51,15 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
 
 	useEffect(() => {
-		if (
-			!PublicKeyCredential.isConditionalMediationAvailable ||
-			!PublicKeyCredential.isConditionalMediationAvailable()
-		) {
-			return;
-		}
-
 		const autoSignIn = async () => {
+			if (
+				typeof PublicKeyCredential === "undefined" ||
+				!PublicKeyCredential.isConditionalMediationAvailable ||
+				!(await PublicKeyCredential.isConditionalMediationAvailable())
+			) {
+				return;
+			}
+
 			await authClient.signIn.passkey({
 				autoFill: true,
 				fetchOptions: {

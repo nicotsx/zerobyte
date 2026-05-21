@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Fingerprint, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
@@ -27,6 +27,7 @@ import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
 import { useTimeFormat } from "~/client/lib/datetime";
+import { cn } from "~/client/lib/utils";
 
 type PasskeyEntry = {
 	id: string;
@@ -37,8 +38,16 @@ type PasskeyEntry = {
 
 export function PasskeysSection() {
 	const { formatDateTime } = useTimeFormat();
-	const { data: passkeys, isPending } = authClient.useListPasskeys();
+	const { data: passkeys, isPending } = useQuery({
+		queryKey: ["passkeys"],
+		queryFn: async () => {
+			const { data, error } = await authClient.passkey.listUserPasskeys();
+			if (error) throw error;
+			return data;
+		},
+	});
 
+	const [deletePasskeyOpen, setDeletePasskeyOpen] = useState(false);
 	const [addDialogOpen, setAddDialogOpen] = useState(false);
 	const [newPasskeyName, setNewPasskeyName] = useState("");
 
@@ -84,11 +93,11 @@ export function PasskeysSection() {
 
 	const deletePasskeyMutation = useMutation({
 		mutationFn: async (id: string) => {
-			const { error } = await authClient.$fetch("/passkey/delete-passkey", {
-				method: "POST",
-				body: { id },
-			});
+			const { error } = await authClient.passkey.deletePasskey({ id });
 			if (error) throw error;
+		},
+		onMutate: () => {
+			setDeletePasskeyOpen(false);
 		},
 		onSuccess: () => {
 			toast.success("Passkey deleted");
@@ -100,13 +109,13 @@ export function PasskeysSection() {
 		},
 	});
 
-	const handleAddPasskey = (e: React.FormEvent) => {
+	const handleAddPasskey = (e: React.ChangeEvent) => {
 		e.preventDefault();
 		const name = newPasskeyName.trim() || undefined;
 		addPasskeyMutation.mutate(name);
 	};
 
-	const handleRename = (e: React.FormEvent) => {
+	const handleRename = (e: React.ChangeEvent) => {
 		e.preventDefault();
 		if (!renameTarget) return;
 		const name = renameValue.trim();
@@ -121,8 +130,6 @@ export function PasskeysSection() {
 		if (!deleteTarget) return;
 		deletePasskeyMutation.mutate(deleteTarget.id);
 	};
-
-	const list = (passkeys ?? []) as PasskeyEntry[];
 
 	return (
 		<>
@@ -148,51 +155,52 @@ export function PasskeysSection() {
 					</Button>
 				</div>
 
-				{isPending ? (
-					<p className="text-sm text-muted-foreground">Loading passkeys...</p>
-				) : list.length === 0 ? (
-					<p className="text-sm text-muted-foreground">
-						No passkeys yet. Add one to enable passwordless sign-in.
-					</p>
-				) : (
-					<ul className="divide-y divide-border/50 rounded-md border border-border/50">
-						{list.map((p) => (
-							<li key={p.id} className="flex items-center justify-between gap-4 p-3">
-								<div className="min-w-0 flex-1">
-									<p className="text-sm font-medium truncate">
-										{p.name?.trim() || "Unnamed passkey"}
-									</p>
-									<p className="text-xs text-muted-foreground">
-										Added {formatDateTime(new Date(p.createdAt))}
-									</p>
-								</div>
-								<div className="flex gap-2">
-									<Button
-										variant="outline"
-										size="sm"
-										aria-label={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
-										title={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
-										onClick={() => {
-											setRenameTarget(p);
-											setRenameValue(p.name ?? "");
-										}}
-									>
-										<Pencil className="h-4 w-4" />
-									</Button>
-									<Button
-										variant="destructive"
-										size="sm"
-										aria-label={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
-										title={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
-										onClick={() => setDeleteTarget(p)}
-									>
-										<Trash2 className="h-4 w-4" />
-									</Button>
-								</div>
-							</li>
-						))}
-					</ul>
-				)}
+				<p className={cn("text-sm text-muted-foreground", { hidden: !isPending })}>Loading passkeys...</p>
+				<p className={cn("text-sm text-muted-foreground", { hidden: passkeys && passkeys.length > 0 })}>
+					No passkeys yet. Add one to enable passwordless sign-in.
+				</p>
+				<ul
+					className={cn("divide-y divide-border/50 rounded-md border border-border/50", {
+						hidden: passkeys?.length === 0,
+					})}
+				>
+					{passkeys?.map((p) => (
+						<li key={p.id} className="flex items-center justify-between gap-4 p-3">
+							<div className="min-w-0 flex-1">
+								<p className="text-sm font-medium truncate">{p.name?.trim() || "Unnamed passkey"}</p>
+								<p className="text-xs text-muted-foreground">
+									Added {formatDateTime(new Date(p.createdAt))}
+								</p>
+							</div>
+							<div className="flex gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									aria-label={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
+									title={`Rename passkey ${p.name?.trim() || "Unnamed passkey"}`}
+									onClick={() => {
+										setRenameTarget(p);
+										setRenameValue(p.name ?? "");
+									}}
+								>
+									<Pencil className="h-4 w-4" />
+								</Button>
+								<Button
+									variant="destructive"
+									size="sm"
+									aria-label={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
+									title={`Delete passkey ${p.name?.trim() || "Unnamed passkey"}`}
+									onClick={() => {
+										setDeleteTarget(p);
+										setDeletePasskeyOpen(true);
+									}}
+								>
+									<Trash2 className="h-4 w-4" />
+								</Button>
+							</div>
+						</li>
+					))}
+				</ul>
 			</CardContent>
 
 			<Dialog
@@ -218,7 +226,6 @@ export function PasskeysSection() {
 									value={newPasskeyName}
 									onChange={(e) => setNewPasskeyName(e.target.value)}
 									placeholder="My Laptop"
-									autoFocus
 								/>
 							</div>
 						</div>
@@ -257,7 +264,6 @@ export function PasskeysSection() {
 									id="passkey-rename"
 									value={renameValue}
 									onChange={(e) => setRenameValue(e.target.value)}
-									autoFocus
 									required
 								/>
 							</div>
@@ -274,12 +280,7 @@ export function PasskeysSection() {
 				</DialogContent>
 			</Dialog>
 
-			<AlertDialog
-				open={Boolean(deleteTarget)}
-				onOpenChange={(open) => {
-					if (!open) setDeleteTarget(null);
-				}}
-			>
+			<AlertDialog open={deletePasskeyOpen} onOpenChange={setDeletePasskeyOpen}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete passkey?</AlertDialogTitle>
@@ -293,7 +294,7 @@ export function PasskeysSection() {
 						<AlertDialogAction
 							onClick={(e) => {
 								e.preventDefault();
-								void handleDelete();
+								handleDelete();
 							}}
 							disabled={deletePasskeyMutation.isPending}
 						>
