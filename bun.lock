@@ -71,6 +71,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@better-auth/utils": "0.4.0",
         "@effect/language-service": "^0.86.1",
         "@faker-js/faker": "^10.4.0",
         "@hey-api/openapi-ts": "^0.97.1",
