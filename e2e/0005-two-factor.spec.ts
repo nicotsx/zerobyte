@@ -47,5 +47,5 @@ test("user can enable 2FA and sign in with a TOTP code", async ({ page }) => {
 	await fillOtp(page, await generateTotp(secret));
 
 	await expect(page).toHaveURL("/volumes");
-	await expect(page.getByRole("heading", { name: "No volume" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Create Volume" })).toBeVisible();
 });
