@@ -1,0 +1,1 @@
+ALTER TABLE `two_factor` ADD `verified` integer DEFAULT false NOT NULL;
