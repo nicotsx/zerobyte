@@ -26,6 +26,7 @@ export const AdvancedForm = ({ form }: Props) => {
 	const cacert = useWatch({ control: form.control, name: "cacert" });
 	const uploadLimitEnabled = useWatch({ control: form.control, name: "uploadLimit.enabled" });
 	const downloadLimitEnabled = useWatch({ control: form.control, name: "downloadLimit.enabled" });
+	const backend = useWatch({ control: form.control, name: "backend" });
 
 	return (
 		<Collapsible>
@@ -44,7 +45,9 @@ export const AdvancedForm = ({ form }: Props) => {
 										</FormControl>
 										<div className="space-y-1">
 											<FormLabel>Enable upload speed limit</FormLabel>
-											<FormDescription className="text-xs">Limit upload speed to the repository</FormDescription>
+											<FormDescription className="text-xs">
+												Limit upload speed to the repository
+											</FormDescription>
 										</div>
 									</FormItem>
 								)}
@@ -66,7 +69,9 @@ export const AdvancedForm = ({ form }: Props) => {
 														placeholder="10"
 														className="pr-12"
 														{...field}
-														onChange={(e) => field.onChange(parseFloat(e.target.value) || 1)}
+														onChange={(e) =>
+															field.onChange(parseFloat(e.target.value) || 1)
+														}
 													/>
 													<div className="absolute inset-y-0 right-0 flex items-center pr-3">
 														<div className="h-4 w-px bg-border" />
@@ -120,7 +125,9 @@ export const AdvancedForm = ({ form }: Props) => {
 									</FormControl>
 									<div className="space-y-1">
 										<FormLabel>Enable download speed limit</FormLabel>
-										<FormDescription className="text-xs">Limit download speed from the repository</FormDescription>
+										<FormDescription className="text-xs">
+											Limit download speed from the repository
+										</FormDescription>
 									</div>
 								</FormItem>
 							)}
@@ -144,7 +151,9 @@ export const AdvancedForm = ({ form }: Props) => {
 														disabled={!downloadLimitEnabled}
 														className="pr-12"
 														{...field}
-														onChange={(e) => field.onChange(parseFloat(e.target.value) || 1)}
+														onChange={(e) =>
+															field.onChange(parseFloat(e.target.value) || 1)
+														}
 													/>
 													<div className="absolute inset-y-0 right-0 flex items-center pr-3">
 														<div className="h-4 w-px bg-border" />
@@ -208,8 +217,8 @@ export const AdvancedForm = ({ form }: Props) => {
 									</TooltipTrigger>
 									<TooltipContent className={cn({ hidden: !cacert })}>
 										<p className="max-w-xs">
-											This option is disabled because a CA certificate is provided. Remove the CA certificate to skip
-											TLS validation instead.
+											This option is disabled because a CA certificate is provided. Remove the CA
+											certificate to skip TLS validation instead.
 										</p>
 									</TooltipContent>
 								</Tooltip>
@@ -217,8 +226,8 @@ export const AdvancedForm = ({ form }: Props) => {
 							<div className="space-y-1 leading-none">
 								<FormLabel>Skip TLS certificate verification</FormLabel>
 								<FormDescription>
-									Disable TLS certificate verification for HTTPS connections with self-signed certificates. This is
-									insecure and should only be used for testing.
+									Disable TLS certificate verification for HTTPS connections with self-signed
+									certificates. This is insecure and should only be used for testing.
 								</FormDescription>
 							</div>
 						</FormItem>
@@ -235,7 +244,9 @@ export const AdvancedForm = ({ form }: Props) => {
 									<TooltipTrigger asChild>
 										<div>
 											<Textarea
-												placeholder={"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"}
+												placeholder={
+													"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
+												}
 												rows={6}
 												disabled={insecureTls}
 												{...field}
@@ -244,8 +255,8 @@ export const AdvancedForm = ({ form }: Props) => {
 									</TooltipTrigger>
 									<TooltipContent className={cn({ hidden: !insecureTls })}>
 										<p className="max-w-xs">
-											CA certificate is disabled because TLS validation is being skipped. Uncheck "Skip TLS Certificate
-											Verification" to provide a custom CA certificate.
+											CA certificate is disabled because TLS validation is being skipped. Uncheck
+											"Skip TLS Certificate Verification" to provide a custom CA certificate.
 										</p>
 									</TooltipContent>
 								</Tooltip>
@@ -266,6 +277,26 @@ export const AdvancedForm = ({ form }: Props) => {
 						</FormItem>
 					)}
 				/>
+				{backend === "sftp" && (
+					<FormField
+						control={form.control}
+						name="allowLegacySshRsa"
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+								<div className="space-y-0.5">
+									<FormLabel>Allow legacy SSH RSA/SHA1 algorithms</FormLabel>
+									<FormDescription>
+										Only enable this for legacy SFTP servers that offer <code>ssh-rsa</code> only.
+										It permits RSA/SHA1 signatures, which are weaker than modern SSH algorithms.
+									</FormDescription>
+								</div>
+								<FormControl>
+									<Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+								</FormControl>
+							</FormItem>
+						)}
+					/>
+				)}
 			</CollapsibleContent>
 		</Collapsible>
 	);

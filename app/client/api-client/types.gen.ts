@@ -337,14 +337,7 @@ export type ListVolumesResponses = {
     200: Array<{
         id: number;
         shortId: string;
-        provisioningId: string | null;
         name: string;
-        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-        status: 'mounted' | 'unmounted' | 'error';
-        lastError: string | null;
-        createdAt: number;
-        updatedAt: number;
-        lastHealthCheck: number;
         config: {
             backend: 'nfs';
             server: string;
@@ -359,6 +352,7 @@ export type ListVolumesResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -392,7 +386,15 @@ export type ListVolumesResponses = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        provisioningId?: string | null;
         autoRemount: boolean;
     }>;
 };
@@ -416,6 +418,7 @@ export type CreateVolumeData = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -449,6 +452,7 @@ export type CreateVolumeData = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
     };
     path?: never;
@@ -463,14 +467,7 @@ export type CreateVolumeResponses = {
     201: {
         id: number;
         shortId: string;
-        provisioningId: string | null;
         name: string;
-        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-        status: 'mounted' | 'unmounted' | 'error';
-        lastError: string | null;
-        createdAt: number;
-        updatedAt: number;
-        lastHealthCheck: number;
         config: {
             backend: 'nfs';
             server: string;
@@ -485,6 +482,7 @@ export type CreateVolumeResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -518,7 +516,15 @@ export type CreateVolumeResponses = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        provisioningId?: string | null;
         autoRemount: boolean;
     };
 };
@@ -541,6 +547,7 @@ export type TestConnectionData = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -574,6 +581,7 @@ export type TestConnectionData = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
     };
     path?: never;
@@ -637,14 +645,7 @@ export type GetVolumeResponses = {
         volume: {
             id: number;
             shortId: string;
-            provisioningId: string | null;
             name: string;
-            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-            status: 'mounted' | 'unmounted' | 'error';
-            lastError: string | null;
-            createdAt: number;
-            updatedAt: number;
-            lastHealthCheck: number;
             config: {
                 backend: 'nfs';
                 server: string;
@@ -659,6 +660,7 @@ export type GetVolumeResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
+                mapToContainerUidGid?: boolean;
                 vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
                 port?: string | number;
@@ -692,13 +694,21 @@ export type GetVolumeResponses = {
                 readOnly?: boolean;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
             };
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            provisioningId?: string | null;
             autoRemount: boolean;
         };
         statfs: {
-            total: number;
-            used: number;
-            free: number;
+            total?: number;
+            used?: number;
+            free?: number;
         };
     };
 };
@@ -723,6 +733,7 @@ export type UpdateVolumeData = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -756,6 +767,7 @@ export type UpdateVolumeData = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
     };
     path: {
@@ -779,14 +791,7 @@ export type UpdateVolumeResponses = {
     200: {
         id: number;
         shortId: string;
-        provisioningId: string | null;
         name: string;
-        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-        status: 'mounted' | 'unmounted' | 'error';
-        lastError: string | null;
-        createdAt: number;
-        updatedAt: number;
-        lastHealthCheck: number;
         config: {
             backend: 'nfs';
             server: string;
@@ -801,6 +806,7 @@ export type UpdateVolumeResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
+            mapToContainerUidGid?: boolean;
             vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
             port?: string | number;
@@ -834,7 +840,15 @@ export type UpdateVolumeResponses = {
             readOnly?: boolean;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
         };
+        createdAt: number;
+        updatedAt: number;
+        lastHealthCheck: number;
+        type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+        status: 'mounted' | 'unmounted' | 'error';
+        lastError: string | null;
+        provisioningId?: string | null;
         autoRemount: boolean;
     };
 };
@@ -855,8 +869,8 @@ export type MountVolumeResponses = {
      * Volume mounted successfully
      */
     200: {
-        error?: string;
         status: 'mounted' | 'unmounted' | 'error';
+        error?: string;
     };
 };
 
@@ -876,8 +890,8 @@ export type UnmountVolumeResponses = {
      * Volume unmounted successfully
      */
     200: {
-        error?: string;
         status: 'mounted' | 'unmounted' | 'error';
+        error?: string;
     };
 };
 
@@ -904,8 +918,8 @@ export type HealthCheckVolumeResponses = {
      * Volume health check result
      */
     200: {
-        error?: string;
         status: 'mounted' | 'unmounted' | 'error';
+        error?: string;
     };
 };
 
@@ -932,7 +946,7 @@ export type ListFilesResponses = {
         files: Array<{
             name: string;
             path: string;
-            type: 'file' | 'directory';
+            type: 'directory' | 'file';
             size?: number;
             modifiedAt?: number;
         }>;
@@ -966,8 +980,8 @@ export type BrowseFilesystemResponses = {
         directories: Array<{
             name: string;
             path: string;
-            type: 'file' | 'directory';
-            size?: number;
+            type: 'directory';
+            size?: unknown;
             modifiedAt?: number;
         }>;
         path: string;
@@ -1136,6 +1150,7 @@ export type ListRepositoriesResponses = {
             privateKey: string;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1319,6 +1334,7 @@ export type CreateRepositoryData = {
             privateKey: string;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1557,6 +1573,7 @@ export type GetRepositoryResponses = {
             privateKey: string;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1740,6 +1757,7 @@ export type UpdateRepositoryData = {
             privateKey: string;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1931,6 +1949,7 @@ export type UpdateRepositoryResponses = {
             privateKey: string;
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
+            allowLegacySshRsa?: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -2457,14 +2476,7 @@ export type ListBackupSchedulesResponses = {
         volume: {
             id: number;
             shortId: string;
-            provisioningId: string | null;
             name: string;
-            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-            status: 'mounted' | 'unmounted' | 'error';
-            lastError: string | null;
-            createdAt: number;
-            updatedAt: number;
-            lastHealthCheck: number;
             config: {
                 backend: 'nfs';
                 server: string;
@@ -2479,6 +2491,7 @@ export type ListBackupSchedulesResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
+                mapToContainerUidGid?: boolean;
                 vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
                 port?: string | number;
@@ -2512,7 +2525,15 @@ export type ListBackupSchedulesResponses = {
                 readOnly?: boolean;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
             };
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            provisioningId?: string | null;
             autoRemount: boolean;
         };
         repository: {
@@ -2664,6 +2685,7 @@ export type ListBackupSchedulesResponses = {
                 privateKey: string;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -2875,14 +2897,7 @@ export type GetBackupScheduleResponses = {
         volume: {
             id: number;
             shortId: string;
-            provisioningId: string | null;
             name: string;
-            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-            status: 'mounted' | 'unmounted' | 'error';
-            lastError: string | null;
-            createdAt: number;
-            updatedAt: number;
-            lastHealthCheck: number;
             config: {
                 backend: 'nfs';
                 server: string;
@@ -2897,6 +2912,7 @@ export type GetBackupScheduleResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
+                mapToContainerUidGid?: boolean;
                 vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
                 port?: string | number;
@@ -2930,7 +2946,15 @@ export type GetBackupScheduleResponses = {
                 readOnly?: boolean;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
             };
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            provisioningId?: string | null;
             autoRemount: boolean;
         };
         repository: {
@@ -3082,6 +3106,7 @@ export type GetBackupScheduleResponses = {
                 privateKey: string;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -3274,14 +3299,7 @@ export type GetBackupScheduleForVolumeResponses = {
         volume: {
             id: number;
             shortId: string;
-            provisioningId: string | null;
             name: string;
-            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
-            status: 'mounted' | 'unmounted' | 'error';
-            lastError: string | null;
-            createdAt: number;
-            updatedAt: number;
-            lastHealthCheck: number;
             config: {
                 backend: 'nfs';
                 server: string;
@@ -3296,6 +3314,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
+                mapToContainerUidGid?: boolean;
                 vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
                 port?: string | number;
@@ -3329,7 +3348,15 @@ export type GetBackupScheduleForVolumeResponses = {
                 readOnly?: boolean;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
             };
+            createdAt: number;
+            updatedAt: number;
+            lastHealthCheck: number;
+            type: 'nfs' | 'smb' | 'directory' | 'webdav' | 'rclone' | 'sftp';
+            status: 'mounted' | 'unmounted' | 'error';
+            lastError: string | null;
+            provisioningId?: string | null;
             autoRemount: boolean;
         };
         repository: {
@@ -3481,6 +3508,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 privateKey: string;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -3955,6 +3983,7 @@ export type GetScheduleMirrorsResponses = {
                 privateKey: string;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -4167,6 +4196,7 @@ export type UpdateScheduleMirrorsResponses = {
                 privateKey: string;
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
+                allowLegacySshRsa?: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
