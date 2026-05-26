@@ -118,6 +118,7 @@ export const sftpRepositoryConfigSchema = z
 		privateKey: z.string().min(1),
 		skipHostKeyCheck: z.boolean().default(false),
 		knownHosts: z.string().optional(),
+		allowLegacySshRsa: z.boolean().default(false),
 	})
 	.extend(baseRepositoryConfigSchema.shape);
 

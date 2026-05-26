@@ -153,6 +153,10 @@ export const buildEnv = async (
 					keyPath,
 				];
 
+				if (config.allowLegacySshRsa) {
+					sshArgs.push("-o", "HostKeyAlgorithms=+ssh-rsa", "-o", "PubkeyAcceptedAlgorithms=+ssh-rsa");
+				}
+
 				if (config.skipHostKeyCheck) {
 					sshArgs.push("-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null");
 				} else if (config.knownHosts) {

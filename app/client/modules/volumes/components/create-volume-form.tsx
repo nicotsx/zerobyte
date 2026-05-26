@@ -69,7 +69,7 @@ const defaultValuesForType = {
 	smb: { backend: "smb" as const, port: 445, vers: "3.0" as const, mapToContainerUidGid: false },
 	webdav: { backend: "webdav" as const, port: 80, ssl: false, path: "/webdav" },
 	rclone: { backend: "rclone" as const, path: "/" },
-	sftp: { backend: "sftp" as const, port: 22, path: "/", skipHostKeyCheck: false },
+	sftp: { backend: "sftp" as const, port: 22, path: "/", skipHostKeyCheck: false, allowLegacySshRsa: false },
 };
 
 export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
@@ -230,7 +230,10 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 										<Tooltip>
 											<TooltipTrigger asChild>
 												<div>
-													<SelectItem disabled={!capabilities.rclone || !capabilities.sysAdmin} value="rclone">
+													<SelectItem
+														disabled={!capabilities.rclone || !capabilities.sysAdmin}
+														value="rclone"
+													>
 														rclone
 													</SelectItem>
 												</div>
@@ -238,7 +241,11 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
 												<p>Remote mounts require SYS_ADMIN capability</p>
 											</TooltipContent>
-											<TooltipContent className={cn({ hidden: !capabilities.sysAdmin || capabilities.rclone })}>
+											<TooltipContent
+												className={cn({
+													hidden: !capabilities.sysAdmin || capabilities.rclone,
+												})}
+											>
 												<p>Setup rclone to use this backend</p>
 											</TooltipContent>
 										</Tooltip>
