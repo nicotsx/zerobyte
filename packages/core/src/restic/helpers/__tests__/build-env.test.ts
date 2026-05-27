@@ -318,6 +318,7 @@ describe("buildEnv", () => {
 			path: "/backups",
 			privateKey: PLAIN_PRIVATE_KEY,
 			skipHostKeyCheck: true as const,
+			allowLegacySshRsa: false as const,
 		});
 
 		test("throws for passphrase-protected private keys", async () => {
@@ -347,6 +348,20 @@ describe("buildEnv", () => {
 
 			expect(env._SFTP_SSH_ARGS).toContain("StrictHostKeyChecking=no");
 			expect(env._SFTP_SSH_ARGS).toContain("UserKnownHostsFile=/dev/null");
+		});
+
+		test("does not allow legacy RSA/SHA1 SSH algorithms by default", async () => {
+			const env = await buildEnvForTest(baseSftpConfig, "org-1");
+
+			expect(env._SFTP_SSH_ARGS).not.toContain("HostKeyAlgorithms=+ssh-rsa");
+			expect(env._SFTP_SSH_ARGS).not.toContain("PubkeyAcceptedAlgorithms=+ssh-rsa");
+		});
+
+		test("allows legacy RSA/SHA1 SSH algorithms after modern defaults when enabled", async () => {
+			const env = await buildEnvForTest({ ...baseSftpConfig, allowLegacySshRsa: true }, "org-1");
+
+			expect(env._SFTP_SSH_ARGS).toContain("HostKeyAlgorithms=+ssh-rsa");
+			expect(env._SFTP_SSH_ARGS).toContain("PubkeyAcceptedAlgorithms=+ssh-rsa");
 		});
 
 		test("uses StrictHostKeyChecking=yes when knownHosts is absent", async () => {

@@ -279,6 +279,7 @@ describe("backup execution - validation failures", () => {
 				privateKey: "key",
 				path: "/data",
 				skipHostKeyCheck: false,
+				allowLegacySshRsa: false,
 			},
 		});
 		const repository = await createTestRepository();

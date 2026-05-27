@@ -142,6 +142,10 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			`gid=${gid}`,
 		];
 
+		if (config.allowLegacySshRsa) {
+			options.push("HostKeyAlgorithms=+ssh-rsa", "ssh_command=ssh -oPubkeyAcceptedAlgorithms=+ssh-rsa");
+		}
+
 		if (config.skipHostKeyCheck) {
 			options.push("StrictHostKeyChecking=no", "UserKnownHostsFile=/dev/null");
 		} else if (config.knownHosts) {

@@ -12,6 +12,7 @@ import { Input } from "../../../../components/ui/input";
 import { SecretInput } from "../../../../components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../../../components/ui/collapsible";
 
 type Props = {
 	form: UseFormReturn<FormValues>;
@@ -78,7 +79,9 @@ export const SFTPForm = ({ form }: Props) => {
 						<FormControl>
 							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
 						</FormControl>
-						<FormDescription>Password for SFTP authentication (optional if using private key).</FormDescription>
+						<FormDescription>
+							Password for SFTP authentication (optional if using private key).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -98,7 +101,9 @@ export const SFTPForm = ({ form }: Props) => {
 								value={field.value ?? ""}
 							/>
 						</FormControl>
-						<FormDescription>SSH private key for authentication (optional if using password).</FormDescription>
+						<FormDescription>
+							SSH private key for authentication (optional if using password).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -158,6 +163,29 @@ export const SFTPForm = ({ form }: Props) => {
 					)}
 				/>
 			)}
+			<Collapsible>
+				<CollapsibleTrigger>Advanced Settings</CollapsibleTrigger>
+				<CollapsibleContent className="pb-4 pt-4">
+					<FormField
+						control={form.control}
+						name="allowLegacySshRsa"
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+								<div className="space-y-0.5">
+									<FormLabel>Allow legacy SSH RSA/SHA1 algorithms</FormLabel>
+									<FormDescription>
+										Only enable this for legacy SFTP servers that offer <code>ssh-rsa</code> only.
+										It permits RSA/SHA1 signatures, which are weaker than modern SSH algorithms.
+									</FormDescription>
+								</div>
+								<FormControl>
+									<Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+								</FormControl>
+							</FormItem>
+						)}
+					/>
+				</CollapsibleContent>
+			</Collapsible>
 		</>
 	);
 };

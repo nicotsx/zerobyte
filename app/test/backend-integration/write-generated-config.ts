@@ -12,6 +12,7 @@ const host = getRequiredEnv("INTEGRATION_HOST");
 const fixtureUid = getRequiredNumberEnv("FIXTURE_UID");
 const fixtureGid = getRequiredNumberEnv("FIXTURE_GID");
 const smbPassword = getRequiredEnv("SMB_PASSWORD");
+const sftpPassword = getRequiredEnv("SFTP_PASSWORD");
 const webdavPassword = getRequiredEnv("WEBDAV_PASSWORD");
 const resticPassword = getRequiredEnv("RESTIC_PASSWORD");
 const privateKey = fs.readFileSync(getRequiredEnv("SFTP_KEY_PATH"), "utf8");
@@ -29,7 +30,7 @@ const nfsEntries = [
 
 const smbEntries = [
 	{ path: "hello.txt", type: "file", uid: fixtureUid, gid: fixtureGid, mode: "0644", text: fileText },
-	{ path: "docs", type: "directory", uid: fixtureUid, gid: fixtureGid, mode: "0755" },
+	{ path: "docs", type: "directory", uid: fixtureUid, gid: fixtureGid, mode: "1755" },
 	{ path: "docs/readme.md", type: "file", uid: fixtureUid, gid: fixtureGid, mode: "0644", text: readmeText },
 ];
 
@@ -87,6 +88,41 @@ const config = {
 				knownHosts,
 			},
 			repository: { backend: "local", path: "repo-sftp-volume" },
+			fixtureRoot: "case-a",
+			expectedEntries: contentOnlyEntries,
+		},
+		{
+			id: "sftp-password-local-repo",
+			volume: {
+				backend: "sftp",
+				host,
+				port: 22,
+				username: "zerobyte-sftp",
+				password: sftpPassword,
+				path: "/srv/zerobyte-backend-integration/fixtures",
+				readOnly: true,
+				skipHostKeyCheck: false,
+				knownHosts,
+			},
+			repository: { backend: "local", path: "repo-sftp-password-volume" },
+			fixtureRoot: "case-a",
+			expectedEntries: contentOnlyEntries,
+		},
+		{
+			id: "sftp-legacy-rsa-hostkey-local-repo",
+			volume: {
+				backend: "sftp",
+				host,
+				port: 2222,
+				username: "zerobyte-sftp",
+				password: sftpPassword,
+				path: "/srv/zerobyte-backend-integration/fixtures",
+				readOnly: true,
+				skipHostKeyCheck: false,
+				knownHosts,
+				allowLegacySshRsa: true,
+			},
+			repository: { backend: "local", path: "repo-sftp-legacy-rsa-hostkey-volume" },
 			fixtureRoot: "case-a",
 			expectedEntries: contentOnlyEntries,
 		},

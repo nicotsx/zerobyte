@@ -57,6 +57,7 @@ public_key="$(printf '%s' "$7" | base64 -d)"
 repo_path="/srv/zerobyte-backend-integration/restic-repo"
 repo_password_fingerprint_path="$repo_path/.zerobyte-password-sha256"
 repo_password_fingerprint="$(printf '%s' "$restic_password" | sha256sum | cut -d' ' -f1)"
+legacy_sshd_dir="/etc/ssh/zerobyte-backend-integration-legacy"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -158,6 +159,11 @@ EOF
 a2ensite zerobyte-backend-integration-dav >/dev/null
 apache2ctl configtest
 
+install -d -m 0700 "$legacy_sshd_dir"
+if [[ ! -f "$legacy_sshd_dir/ssh_host_rsa_key" ]]; then
+	ssh-keygen -q -t rsa -b 2048 -N "" -f "$legacy_sshd_dir/ssh_host_rsa_key"
+fi
+
 install -d -m 0755 /etc/ssh/sshd_config.d
 write_file /etc/ssh/sshd_config.d/zerobyte-backend-integration.conf <<'EOF'
 Match User zerobyte-sftp
@@ -170,17 +176,68 @@ Match User zerobyte-sftp
 EOF
 sshd -t
 
+write_file "$legacy_sshd_dir/sshd_config" <<EOF
+Port 2222
+ListenAddress 0.0.0.0
+PidFile /run/zerobyte-backend-integration-legacy-sshd.pid
+HostKey $legacy_sshd_dir/ssh_host_rsa_key
+HostKeyAlgorithms ssh-rsa
+PasswordAuthentication yes
+PubkeyAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PermitTTY no
+X11Forwarding no
+AllowTcpForwarding no
+Subsystem sftp internal-sftp
+
+Match User zerobyte-sftp
+	ForceCommand internal-sftp
+EOF
+sshd -t -f "$legacy_sshd_dir/sshd_config"
+
+write_file /etc/systemd/system/zerobyte-backend-integration-legacy-sshd.service <<EOF
+[Unit]
+Description=Zerobyte Backend Integration Legacy SFTP
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/sshd -D -f $legacy_sshd_dir/sshd_config
+ExecReload=/bin/kill -HUP \$MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now zerobyte-backend-integration-legacy-sshd.service
+
 systemctl restart apache2
 systemctl restart smbd
 systemctl restart ssh
+systemctl restart zerobyte-backend-integration-legacy-sshd.service
+systemctl is-active --quiet zerobyte-backend-integration-legacy-sshd.service
+for _ in 1 2 3 4 5; do
+	ss -ltn | grep -q ':2222' && break
+	sleep 1
+done
+ss -ltn | grep -q ':2222'
 REMOTE
 
 ssh-keyscan "$TARGET_HOST" >"$KNOWN_HOSTS_PATH" 2>/dev/null
+if ! ssh-keyscan -T 5 -p 2222 "$TARGET_HOST" >>"$KNOWN_HOSTS_PATH" 2>/dev/null; then
+	echo "Failed to scan legacy SFTP host key from $TARGET_HOST:2222" >&2
+	echo "Check the target service with:" >&2
+	echo "  ssh $TARGET systemctl status zerobyte-backend-integration-legacy-sshd.service" >&2
+	exit 1
+fi
 
 INTEGRATION_HOST="$TARGET_HOST" \
 	FIXTURE_UID="$FIXTURE_UID" \
 	FIXTURE_GID="$FIXTURE_GID" \
 	SMB_PASSWORD="$SMB_PASSWORD" \
+	SFTP_PASSWORD="$SFTP_PASSWORD" \
 	WEBDAV_PASSWORD="$WEBDAV_PASSWORD" \
 	RESTIC_PASSWORD="$RESTIC_PASSWORD" \
 	SFTP_KEY_PATH="$KEY_PATH" \
