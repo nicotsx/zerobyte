@@ -143,7 +143,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		];
 
 		if (config.allowLegacySshRsa) {
-			options.push("HostKeyAlgorithms=+ssh-rsa", "ssh_command=ssh -oPubkeyAcceptedAlgorithms=+ssh-rsa");
+			options.push("ssh_command=ssh -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa");
 		}
 
 		if (config.skipHostKeyCheck) {
