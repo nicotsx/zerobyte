@@ -1,3 +1,5 @@
+import http from "node:http";
+import https from "node:https";
 import { Data, Effect } from "effect";
 import { z } from "zod";
 import type { CompressionMode, RepositoryConfig, ResticBackupProgressDto } from "../restic/index.js";
@@ -24,7 +26,11 @@ export const isAllowedWebhookUrl = (url: string, allowedOrigins: readonly string
 export const backupWebhookConfigSchema = z.object({
 	url: z.url(),
 	headers: z
-		.array(z.string().refine(isValidHeaderLine, "Headers must use non-empty Key: Value format with valid header names"))
+		.array(
+			z
+				.string()
+				.refine(isValidHeaderLine, "Headers must use non-empty Key: Value format with valid header names"),
+		)
 		.optional(),
 	body: z.string().optional(),
 });
@@ -141,7 +147,7 @@ const createAbortController = (timeoutMs: number, signal?: AbortSignal) => {
 	};
 };
 
-const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookContext): RequestInit => {
+const createWebhookRequest = (config: BackupWebhookConfig, context: BackupWebhookContext) => {
 	const headers = new Headers();
 	const body = config.body ?? JSON.stringify(context);
 
@@ -184,12 +190,82 @@ const createRequestInit = (config: BackupWebhookConfig, context: BackupWebhookCo
 	}
 
 	return {
-		method: "POST",
 		headers,
 		body: config.body === undefined ? body : new TextEncoder().encode(body),
-		redirect: "manual",
 	};
 };
+
+const sendWebhookRequest = (
+	config: BackupWebhookConfig,
+	context: BackupWebhookContext,
+	{ signal, timeoutMs }: { signal: AbortSignal; timeoutMs: number },
+) =>
+	new Promise<void>((resolve, reject) => {
+		const url = new URL(config.url);
+		const client = url.protocol === "http:" ? http : url.protocol === "https:" ? https : null;
+
+		if (!client) {
+			reject(new Error(`Unsupported webhook URL protocol ${url.protocol}`));
+			return;
+		}
+
+		const request = createWebhookRequest(config, context);
+		const headers = Object.fromEntries(request.headers.entries());
+		if (!request.headers.has("content-length")) {
+			headers["content-length"] = String(
+				getByteLength(typeof request.body === "string" ? request.body : (config.body ?? "")),
+			);
+		}
+
+		let settled = false;
+
+		const settle = (callback: () => void) => {
+			if (settled) return;
+			settled = true;
+			signal.removeEventListener("abort", abortRequest);
+			callback();
+		};
+
+		const req = client.request(url, { method: "POST", headers }, (res) => {
+			res.resume();
+			res.on("error", (error) => settle(() => reject(error)));
+			res.on("end", () => {
+				const statusCode = res.statusCode ?? 0;
+
+				if (statusCode >= 200 && statusCode < 300) {
+					settle(resolve);
+					return;
+				}
+
+				settle(() =>
+					reject(
+						new BackupWebhookError({
+							cause: new Error(`${context.phase} webhook returned HTTP ${statusCode}`),
+							message: `${context.phase} webhook returned HTTP ${statusCode}`,
+						}),
+					),
+				);
+			});
+		});
+
+		const abortRequest = () => {
+			req.destroy(signal.reason || new Error("Operation aborted"));
+		};
+
+		req.setTimeout(timeoutMs, () => {
+			req.destroy(new Error(`Webhook timed out after ${Math.round(timeoutMs / 1000)} seconds`));
+		});
+
+		req.on("error", (error) => settle(() => reject(error)));
+
+		if (signal.aborted) {
+			abortRequest();
+			return;
+		}
+
+		signal.addEventListener("abort", abortRequest, { once: true });
+		req.end(request.body);
+	});
 
 const runBackupWebhook = (
 	config: BackupWebhookConfig | null,
@@ -220,14 +296,10 @@ const runBackupWebhook = (
 					});
 				}
 
-				const response = await fetch(config.url, { ...createRequestInit(config, context), signal: controller.signal });
-
-				if (!response.ok) {
-					throw new BackupWebhookError({
-						cause: new Error(`${context.phase} webhook returned HTTP ${response.status}`),
-						message: `${context.phase} webhook returned HTTP ${response.status}`,
-					});
-				}
+				await sendWebhookRequest(config, context, {
+					signal: controller.signal,
+					timeoutMs: options.timeoutMs,
+				});
 			},
 			catch: (error) => {
 				if (error instanceof BackupWebhookError) {
@@ -327,7 +399,8 @@ export const runBackupLifecycle = <TResult>({
 		if (signal.aborted) {
 			return {
 				status: "cancelled",
-				message: appendDetails(formatError(signal.reason || backupResult.hookError), postHookError) || undefined,
+				message:
+					appendDetails(formatError(signal.reason || backupResult.hookError), postHookError) || undefined,
 			};
 		}
 
