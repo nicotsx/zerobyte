@@ -52,8 +52,8 @@ async function getRepositoryShortId(page: Page, name: string) {
 }
 
 async function createRepository(page: Page, name: string) {
-	await gotoAndWaitForAppReady(page, "/repositories");
-	await page.getByRole("button", { name: "Create repository" }).click();
+	await gotoAndWaitForAppReady(page, "/repositories/create");
+	await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
 	await page.getByRole("textbox", { name: "Name" }).fill(name);
 	await page.getByRole("combobox", { name: "Backend" }).click();
 	await page.getByRole("option", { name: "Local" }).click();
