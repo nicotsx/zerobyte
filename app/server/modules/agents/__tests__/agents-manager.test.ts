@@ -22,7 +22,11 @@ const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 
 const setAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
-		agentManager: fromAny({ stop: Effect.void, waitForAgentReady: vi.fn(async () => true) }),
+		agentManager: fromAny({
+			stop: Effect.void,
+			getControllerUrl: vi.fn(() => "ws://127.0.0.1:4567"),
+			waitForAgentReady: vi.fn(async () => true),
+		}),
 		localAgent: null,
 		isStoppingLocalAgent: false,
 		localAgentRestartTimeout: null,
@@ -88,6 +92,13 @@ test("respawns the local agent after an unexpected exit", async () => {
 	await vi.advanceTimersByTimeAsync(1_000);
 
 	expect(spawnMock).toHaveBeenCalledTimes(2);
+	expect(spawnMock).toHaveBeenLastCalledWith(
+		"bun",
+		expect.any(Array),
+		expect.objectContaining({
+			env: expect.objectContaining({ ZEROBYTE_CONTROLLER_URL: "ws://127.0.0.1:4567" }),
+		}),
+	);
 });
 
 test("does not respawn the local agent after an intentional stop", async () => {

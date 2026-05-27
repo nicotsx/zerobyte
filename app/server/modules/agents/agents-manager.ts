@@ -311,13 +311,19 @@ export const agentManager = {
 
 export const startLocalAgent = async () => {
 	const runtime = getAgentRuntimeState();
-	await spawnLocalAgentProcess(runtime);
 
 	if (!runtime.agentManager) {
 		throw new Error(
-			`startLocalAgent spawned ${LOCAL_AGENT_ID} via spawnLocalAgentProcess, but runtime.agentManager is missing; waitForAgentReady cannot check readiness`,
+			`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because runtime.agentManager is missing; waitForAgentReady cannot check readiness`,
 		);
 	}
+
+	const controllerUrl = runtime.agentManager.getControllerUrl();
+	if (!controllerUrl) {
+		throw new Error(`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller URL is not available`);
+	}
+
+	await spawnLocalAgentProcess(runtime, controllerUrl);
 
 	if (!(await runtime.agentManager.waitForAgentReady(LOCAL_AGENT_ID))) {
 		throw new Error("Local agent did not become ready before startup");

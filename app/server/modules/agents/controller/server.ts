@@ -46,6 +46,7 @@ class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServ
 export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) => void) {
 	let sessions = new Map<string, ControllerAgentSessionHandle>();
 	let runtimeScope: Scope.CloseableScope | null = null;
+	let controllerUrl: string | null = null;
 	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
@@ -215,7 +216,8 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 	const acquireServer = Effect.acquireRelease(
 		Effect.sync(() =>
 			Bun.serve<AgentConnectionData>({
-				port: 3001,
+				hostname: "127.0.0.1",
+				port: 0,
 				async fetch(req, srv) {
 					const authorizationHeader = req.headers.get("authorization");
 					const token = authorizationHeader?.slice("Bearer ".length);
@@ -279,6 +281,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 		logger.info("Stopping Agent Manager...");
 		const scope = runtimeScope;
 		runtimeScope = null;
+		controllerUrl = null;
 		yield* Scope.close(scope, Exit.succeed(undefined));
 	});
 
@@ -296,11 +299,13 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			),
 		);
 		runtimeScope = scope;
+		controllerUrl = `ws://127.0.0.1:${server.port}`;
 		logger.info(`Agent Manager listening on port ${server.port}`);
 	});
 
 	return {
 		start,
+		getControllerUrl: () => controllerUrl,
 		waitForAgentReady: async (agentId: string, timeoutMs = 10_000) => {
 			const deadline = Date.now() + timeoutMs;
 

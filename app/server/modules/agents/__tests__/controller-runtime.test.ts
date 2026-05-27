@@ -111,7 +111,7 @@ afterEach(() => {
 test("websocket fetch rejects requests without a bearer token", async () => {
 	const serve = vi
 		.spyOn(Bun, "serve")
-		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+		.mockReturnValue(fromPartial({ port: 4567, stop: vi.fn(() => Promise.resolve()) }));
 	const { runtime } = await startRuntime();
 	const fetch = serve.mock.calls[0]?.[0].fetch;
 	const upgrade = vi.fn();
@@ -120,6 +120,7 @@ test("websocket fetch rejects requests without a bearer token", async () => {
 	const response = await invokeFetch(fetch, new Request("http://localhost:3001/agent"), srv);
 	await Effect.runPromise(runtime.stop);
 
+	expect(runtime.getControllerUrl()).toBeNull();
 	expect(response?.status).toBe(401);
 	expect(await response?.text()).toBe("Missing token");
 	expect(upgrade).not.toHaveBeenCalled();
@@ -129,8 +130,9 @@ test("websocket fetch rejects invalid bearer tokens", async () => {
 	tokenMocks.validateAgentToken.mockResolvedValue(undefined);
 	const serve = vi
 		.spyOn(Bun, "serve")
-		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+		.mockReturnValue(fromPartial({ port: 4567, stop: vi.fn(() => Promise.resolve()) }));
 	const { runtime } = await startRuntime();
+	expect(runtime.getControllerUrl()).toBe("ws://127.0.0.1:4567");
 	const fetch = serve.mock.calls[0]?.[0].fetch;
 	const upgrade = vi.fn();
 	const srv = fromPartial<Parameters<NonNullable<typeof fetch>>[1]>({ upgrade });
