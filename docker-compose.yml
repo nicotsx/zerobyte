@@ -64,6 +64,8 @@ services:
       - TRUSTED_ORIGINS=https://tinyauth.example.com:5557,https://localhost:5557
       - NODE_EXTRA_CA_CERTS=/tinyauth-ca/caddy/pki/authorities/local/root.crt
       - SSL_CERT_FILE=/tinyauth-ca/caddy/pki/authorities/local/root.crt
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     devices:
       - /dev/fuse:/dev/fuse
     cap_add:
