@@ -1,3 +1,4 @@
+import nodeHttp from "node:http";
 import { Effect } from "effect";
 import { HttpResponse, http } from "msw";
 import { setupServer } from "msw/node";
@@ -434,6 +435,53 @@ test("does not follow webhook redirects", async () => {
 
 	expect(redirectedTargetCalled).toBe(false);
 	expect(result).toEqual({ status: "failed", error: "pre webhook returned HTTP 302" });
+});
+
+test("uses the configured webhook timeout for the request", async () => {
+	server.close();
+
+	const webhookServer = nodeHttp.createServer((_request, response) => {
+		setTimeout(() => {
+			response.writeHead(204);
+			response.end();
+		}, 300);
+	});
+
+	try {
+		await new Promise<void>((resolve) => {
+			webhookServer.listen(0, "127.0.0.1", resolve);
+		});
+
+		const address = webhookServer.address();
+		if (!address || typeof address === "string") {
+			throw new Error("Failed to bind test webhook server");
+		}
+
+		const origin = `http://127.0.0.1:${address.port}`;
+
+		const result = await runWithHooks({
+			webhookAllowedOrigins: [origin],
+			webhookTimeoutMs: 50,
+			webhooks: {
+				pre: { url: `${origin}/pre` },
+				post: null,
+			},
+			runBackup: () => completedBackup(null),
+		});
+
+		expect(result.status).toBe("failed");
+		if (result.status === "failed") {
+			expect(result.error).toContain("pre webhook failed: Webhook timed out");
+		}
+	} finally {
+		webhookServer.closeAllConnections?.();
+		if (webhookServer.listening) {
+			await new Promise<void>((resolve, reject) => {
+				webhookServer.close((error) => (error ? reject(error) : resolve()));
+			});
+		}
+		server.listen({ onUnhandledRequest: "error" });
+	}
 });
 
 test("rejects oversized webhook request bodies and headers", async () => {
