@@ -62,6 +62,7 @@ services:
       - APP_SECRET=94bad4678ce84a60b9789bd2114a6bf780aeb38df426f7352c941c66e25d5c2b
       - BASE_URL=http://localhost:4096
       - TRUSTED_ORIGINS=https://tinyauth.example.com:5557,https://localhost:5557
+      - WEBHOOK_ALLOWED_ORIGINS=http://host.docker.internal:18080
       - NODE_EXTRA_CA_CERTS=/tinyauth-ca/caddy/pki/authorities/local/root.crt
       - SSL_CERT_FILE=/tinyauth-ca/caddy/pki/authorities/local/root.crt
     devices:
