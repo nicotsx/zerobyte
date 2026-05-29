@@ -1,7 +1,6 @@
+import nodeHttp, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Effect } from "effect";
-import { HttpResponse, http } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { parseAgentMessage, type BackupCancelPayload, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
@@ -10,10 +9,54 @@ import { handleBackupCancelCommand } from "../backup-cancel";
 import { handleBackupRunCommand } from "../backup-run";
 import type { ControllerCommandContext, RunningJob } from "../../context";
 
-const server = setupServer();
+type WebhookHandler = (context: {
+	request: IncomingMessage;
+	response: ServerResponse;
+	body: string;
+}) => void | Promise<void>;
 
-beforeAll(() => {
-	server.listen({ onUnhandledRequest: "error" });
+let webhookServer: Server;
+let webhookOrigin = "";
+let webhookHandlers = new Map<string, WebhookHandler>();
+
+const webhookUrl = (path: string) => `${webhookOrigin}${path}`;
+const webhookRoute = (path: string, handler: WebhookHandler) => [`POST ${path}`, handler] as const;
+const useWebhookHandlers = (...handlers: ReturnType<typeof webhookRoute>[]) => {
+	webhookHandlers = new Map(handlers);
+};
+const sendWebhookResponse = (response: ServerResponse, status = 204, body = "") => {
+	response.writeHead(status);
+	response.end(body);
+};
+
+beforeEach(async () => {
+	webhookHandlers = new Map();
+	webhookServer = nodeHttp.createServer(async (request, response) => {
+		const chunks: Buffer[] = [];
+		for await (const chunk of request) chunks.push(Buffer.from(chunk));
+
+		const body = Buffer.concat(chunks).toString("utf8");
+		const pathname = new URL(request.url ?? "/", webhookOrigin).pathname;
+		const handler = webhookHandlers.get(`${request.method ?? ""} ${pathname}`);
+
+		if (!handler) {
+			sendWebhookResponse(response, 404);
+			return;
+		}
+
+		await handler({ request, response, body });
+	});
+
+	await new Promise<void>((resolve) => {
+		webhookServer.listen(0, "127.0.0.1", resolve);
+	});
+
+	const address = webhookServer.address();
+	if (!address || typeof address === "string") {
+		throw new Error("Failed to bind test webhook server");
+	}
+
+	webhookOrigin = `http://127.0.0.1:${address.port}`;
 });
 
 const createDeferred = <T>() => {
@@ -25,13 +68,14 @@ const createDeferred = <T>() => {
 	return { promise, resolve };
 };
 
-afterEach(() => {
+afterEach(async () => {
 	vi.restoreAllMocks();
-	server.resetHandlers();
-});
-
-afterAll(() => {
-	server.close();
+	webhookServer.closeAllConnections?.();
+	if (webhookServer.listening) {
+		await new Promise<void>((resolve, reject) => {
+			webhookServer.close((error) => (error ? reject(error) : resolve()));
+		});
+	}
 });
 
 const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
@@ -71,7 +115,7 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 			password: "password",
 		},
 		webhooks: { pre: null, post: null },
-		webhookAllowedOrigins: ["http://localhost:8080"],
+		webhookAllowedOrigins: [webhookOrigin],
 		webhookTimeoutMs: 60_000,
 		...overrides,
 	});
@@ -114,16 +158,14 @@ const runBackupCommand = async (payload: BackupRunPayload) => {
 test("runs pre and post backup webhooks around restic", async () => {
 	const events: string[] = [];
 
-	server.use(
-		http.post("http://localhost:8080/pre", async ({ request }) => {
-			const body = (await request.json()) as { event: string };
-			events.push(body.event);
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ body, response }) => {
+			events.push((JSON.parse(body) as { event: string }).event);
+			sendWebhookResponse(response);
 		}),
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			const body = (await request.json()) as { event: string };
-			events.push(body.event);
-			return new HttpResponse(null, { status: 204 });
+		webhookRoute("/post", ({ body, response }) => {
+			events.push((JSON.parse(body) as { event: string }).event);
+			sendWebhookResponse(response);
 		}),
 	);
 
@@ -140,8 +182,8 @@ test("runs pre and post backup webhooks around restic", async () => {
 	const messages = await runBackupCommand(
 		createRunPayload({
 			webhooks: {
-				pre: { url: "http://localhost:8080/pre" },
-				post: { url: "http://localhost:8080/post" },
+				pre: { url: webhookUrl("/pre") },
+				post: { url: webhookUrl("/post") },
 			},
 		}),
 	);
@@ -153,22 +195,22 @@ test("runs pre and post backup webhooks around restic", async () => {
 test("sends configured webhook headers and body without changing them", async () => {
 	const requests: Array<{ url: string; headers: Headers; body: string }> = [];
 
-	server.use(
-		http.post("http://localhost:8080/pre", async ({ request }) => {
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ request, response, body }) => {
 			requests.push({
-				url: request.url,
-				headers: request.headers,
-				body: await request.text(),
+				url: webhookUrl("/pre"),
+				headers: new Headers(request.headers as Record<string, string>),
+				body,
 			});
-			return new HttpResponse(null, { status: 204 });
+			sendWebhookResponse(response);
 		}),
-		http.post("http://localhost:8080/post", async ({ request }) => {
+		webhookRoute("/post", ({ request, response, body }) => {
 			requests.push({
-				url: request.url,
-				headers: request.headers,
-				body: await request.text(),
+				url: webhookUrl("/post"),
+				headers: new Headers(request.headers as Record<string, string>),
+				body,
 			});
-			return new HttpResponse(null, { status: 204 });
+			sendWebhookResponse(response);
 		}),
 	);
 
@@ -182,12 +224,12 @@ test("sends configured webhook headers and body without changing them", async ()
 		createRunPayload({
 			webhooks: {
 				pre: {
-					url: "http://localhost:8080/pre",
+					url: webhookUrl("/pre"),
 					headers: ["authorization: Bearer pre-token", "content-type: application/json"],
 					body: '{"action":"stop"}',
 				},
 				post: {
-					url: "http://localhost:8080/post",
+					url: webhookUrl("/post"),
 					headers: ["authorization: Bearer post-token"],
 					body: "start-container",
 				},
@@ -196,20 +238,20 @@ test("sends configured webhook headers and body without changing them", async ()
 	);
 
 	expect(requests).toHaveLength(2);
-	expect(requests[0]?.url).toBe("http://localhost:8080/pre");
+	expect(requests[0]?.url).toBe(webhookUrl("/pre"));
 	expect(requests[0]?.headers.get("authorization")).toBe("Bearer pre-token");
 	expect(requests[0]?.headers.get("content-type")).toBe("application/json");
 	expect(requests[0]?.body).toBe('{"action":"stop"}');
-	expect(requests[1]?.url).toBe("http://localhost:8080/post");
+	expect(requests[1]?.url).toBe(webhookUrl("/post"));
 	expect(requests[1]?.headers.get("authorization")).toBe("Bearer post-token");
 	expect(requests[1]?.body).toBe("start-container");
 });
 
 test("fails without running restic when the pre-backup webhook fails", async () => {
 	const backupMock = vi.fn();
-	server.use(
-		http.post("http://localhost:8080/pre", () => {
-			return new HttpResponse("stop failed", { status: 500 });
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ response }) => {
+			sendWebhookResponse(response, 500, "stop failed");
 		}),
 	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
@@ -221,7 +263,7 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 	const messages = await runBackupCommand(
 		createRunPayload({
 			webhooks: {
-				pre: { url: "http://localhost:8080/pre" },
+				pre: { url: webhookUrl("/pre") },
 				post: null,
 			},
 		}),
@@ -236,9 +278,9 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 });
 
 test("reports a post-backup webhook failure as completed warning details", async () => {
-	server.use(
-		http.post("http://localhost:8080/post", () => {
-			return new HttpResponse("start failed", { status: 500 });
+	useWebhookHandlers(
+		webhookRoute("/post", ({ response }) => {
+			sendWebhookResponse(response, 500, "start failed");
 		}),
 	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
@@ -251,7 +293,7 @@ test("reports a post-backup webhook failure as completed warning details", async
 		createRunPayload({
 			webhooks: {
 				pre: null,
-				post: { url: "http://localhost:8080/post" },
+				post: { url: webhookUrl("/post") },
 			},
 		}),
 	);
@@ -264,9 +306,9 @@ test("reports a post-backup webhook failure as completed warning details", async
 });
 
 test("includes post-backup webhook failure details when a backup is cancelled", async () => {
-	server.use(
-		http.post("http://localhost:8080/post", () => {
-			return new HttpResponse("start failed", { status: 500 });
+	useWebhookHandlers(
+		webhookRoute("/post", ({ response }) => {
+			sendWebhookResponse(response, 500, "start failed");
 		}),
 	);
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
@@ -284,7 +326,7 @@ test("includes post-backup webhook failure details when a backup is cancelled", 
 		createRunPayload({
 			webhooks: {
 				pre: null,
-				post: { url: "http://localhost:8080/post" },
+				post: { url: webhookUrl("/post") },
 			},
 		}),
 	);

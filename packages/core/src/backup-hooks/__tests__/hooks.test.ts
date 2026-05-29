@@ -1,22 +1,66 @@
-import nodeHttp from "node:http";
+import nodeHttp, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Effect } from "effect";
-import { HttpResponse, http } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test } from "vitest";
 import { backupWebhookConfigSchema, runBackupLifecycle } from "../index.js";
 
-const server = setupServer();
+type WebhookHandler = (context: {
+	request: IncomingMessage;
+	response: ServerResponse;
+	body: string;
+}) => void | Promise<void>;
 
-beforeAll(() => {
-	server.listen({ onUnhandledRequest: "error" });
+let webhookServer: Server;
+let webhookOrigin = "";
+let webhookHandlers = new Map<string, WebhookHandler>();
+
+const routeKey = (method: string, path: string) => `${method} ${path}`;
+const webhookUrl = (path: string) => `${webhookOrigin}${path}`;
+const postWebhook = (path: string, handler: WebhookHandler) => ({ key: routeKey("POST", path), handler });
+const useWebhookHandlers = (...handlers: ReturnType<typeof postWebhook>[]) => {
+	webhookHandlers = new Map(handlers.map(({ key, handler }) => [key, handler]));
+};
+const sendWebhookResponse = (response: ServerResponse, status = 204, body = "") => {
+	response.writeHead(status);
+	response.end(body);
+};
+
+beforeEach(async () => {
+	webhookHandlers = new Map();
+	webhookServer = nodeHttp.createServer(async (request, response) => {
+		const chunks: Buffer[] = [];
+		for await (const chunk of request) chunks.push(Buffer.from(chunk));
+
+		const body = Buffer.concat(chunks).toString("utf8");
+		const pathname = new URL(request.url ?? "/", webhookOrigin).pathname;
+		const handler = webhookHandlers.get(routeKey(request.method ?? "", pathname));
+
+		if (!handler) {
+			sendWebhookResponse(response, 404);
+			return;
+		}
+
+		await handler({ request, response, body });
+	});
+
+	await new Promise<void>((resolve) => {
+		webhookServer.listen(0, "127.0.0.1", resolve);
+	});
+
+	const address = webhookServer.address();
+	if (!address || typeof address === "string") {
+		throw new Error("Failed to bind test webhook server");
+	}
+
+	webhookOrigin = `http://127.0.0.1:${address.port}`;
 });
 
-afterEach(() => {
-	server.resetHandlers();
-});
-
-afterAll(() => {
-	server.close();
+afterEach(async () => {
+	webhookServer.closeAllConnections?.();
+	if (webhookServer.listening) {
+		await new Promise<void>((resolve, reject) => {
+			webhookServer.close((error) => (error ? reject(error) : resolve()));
+		});
+	}
 });
 
 const metadata = {
@@ -45,7 +89,7 @@ const runWithHooks = <TResult>(
 			repositoryConfig: { backend: "local", path: "/tmp/repository" },
 			options: {},
 			webhooks: { pre: null, post: null },
-			webhookAllowedOrigins: ["http://localhost:8080"],
+			webhookAllowedOrigins: [webhookOrigin],
 			webhookTimeoutMs: 60_000,
 			signal: defaultSignal(),
 			...options,
@@ -69,23 +113,23 @@ test("runs pre and post webhooks around a successful backup", async () => {
 	let preBody: WebhookBody | undefined;
 	let postBody: WebhookBody | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/pre", async ({ request }) => {
+	useWebhookHandlers(
+		postWebhook("/pre", ({ body, response }) => {
 			events.push("pre");
-			preBody = (await request.json()) as WebhookBody;
-			return new HttpResponse(null, { status: 204 });
+			preBody = JSON.parse(body) as WebhookBody;
+			sendWebhookResponse(response);
 		}),
-		http.post("http://localhost:8080/post", async ({ request }) => {
+		postWebhook("/post", ({ body, response }) => {
 			events.push("post");
-			postBody = (await request.json()) as WebhookBody;
-			return new HttpResponse(null, { status: 204 });
+			postBody = JSON.parse(body) as WebhookBody;
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre" },
-			post: { url: "http://localhost:8080/post" },
+			pre: { url: webhookUrl("/pre") },
+			post: { url: webhookUrl("/post") },
 		},
 		runBackup: () =>
 			Effect.sync(() => {
@@ -103,17 +147,17 @@ test("runs pre and post webhooks around a successful backup", async () => {
 test("sends warning details to the post-backup webhook for a non-zero completed backup", async () => {
 	let postBody: WebhookBody | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as WebhookBody;
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as WebhookBody;
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		runBackup: () => completedBackup("snapshot-1", 3, "some files could not be read"),
 	});
@@ -130,17 +174,17 @@ test("sends warning details to the post-backup webhook for a non-zero completed 
 test("sends warning details to the post-backup webhook for a zero-exit completed backup with warnings", async () => {
 	let postBody: WebhookBody | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as WebhookBody;
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as WebhookBody;
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		runBackup: () => completedBackup("snapshot-1", 0, "Backup was stopped by the user"),
 	});
@@ -157,17 +201,17 @@ test("sends warning details to the post-backup webhook for a zero-exit completed
 test("sends error details to the post-backup webhook when the backup fails", async () => {
 	let postBody: WebhookBody | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as WebhookBody;
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as WebhookBody;
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		runBackup: () => Effect.fail(new Error("restic failed")),
 	});
@@ -180,20 +224,20 @@ test("fails without running the backup or post webhook when the pre-backup webho
 	let backupRan = false;
 	let postRan = false;
 
-	server.use(
-		http.post("http://localhost:8080/pre", () => {
-			return new HttpResponse("stop failed", { status: 500 });
+	useWebhookHandlers(
+		postWebhook("/pre", ({ response }) => {
+			sendWebhookResponse(response, 500, "stop failed");
 		}),
-		http.post("http://localhost:8080/post", () => {
+		postWebhook("/post", ({ response }) => {
 			postRan = true;
-			return new HttpResponse(null, { status: 204 });
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre" },
-			post: { url: "http://localhost:8080/post" },
+			pre: { url: webhookUrl("/pre") },
+			post: { url: webhookUrl("/post") },
 		},
 		runBackup: () =>
 			Effect.sync(() => {
@@ -216,12 +260,16 @@ test("sends configured webhook headers and body without replacing them", async (
 	let authorization: string | null | undefined;
 	let contentType: string | null | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			body = await request.text();
-			authorization = request.headers.get("authorization");
-			contentType = request.headers.get("content-type");
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ request, response, body: requestBody }) => {
+			body = requestBody;
+			authorization = Array.isArray(request.headers.authorization)
+				? request.headers.authorization.join(", ")
+				: request.headers.authorization;
+			contentType = Array.isArray(request.headers["content-type"])
+				? request.headers["content-type"].join(", ")
+				: (request.headers["content-type"] ?? null);
+			sendWebhookResponse(response);
 		}),
 	);
 
@@ -229,7 +277,7 @@ test("sends configured webhook headers and body without replacing them", async (
 		webhooks: {
 			pre: null,
 			post: {
-				url: "http://localhost:8080/post",
+				url: webhookUrl("/post"),
 				headers: ["authorization: Bearer post-token"],
 				body: "start-container",
 			},
@@ -246,17 +294,17 @@ test("runs the post-backup webhook after cancellation without using the cancelle
 	const abortController = new AbortController();
 	let postBody: { status?: string; error?: string } | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as { status?: string; error?: string };
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as { status?: string; error?: string };
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		signal: abortController.signal,
 		runBackup: () =>
@@ -274,17 +322,17 @@ test("runs the post-backup webhook when cancellation returns a completed backup 
 	const abortController = new AbortController();
 	let postBody: { status?: string; error?: string } | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as { status?: string; error?: string };
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as { status?: string; error?: string };
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		signal: abortController.signal,
 		runBackup: () =>
@@ -302,17 +350,17 @@ test("includes post-backup webhook failure details after cancellation", async ()
 	const abortController = new AbortController();
 	let postBody: { status?: string; error?: string } | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as { status?: string; error?: string };
-			return new HttpResponse("start failed", { status: 500 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as { status?: string; error?: string };
+			sendWebhookResponse(response, 500, "start failed");
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		signal: abortController.signal,
 		runBackup: () =>
@@ -335,17 +383,17 @@ test("includes post-backup webhook failure details after completed cancellation"
 	const abortController = new AbortController();
 	let postBody: { status?: string; error?: string } | undefined;
 
-	server.use(
-		http.post("http://localhost:8080/post", async ({ request }) => {
-			postBody = (await request.json()) as { status?: string; error?: string };
-			return new HttpResponse("cleanup failed", { status: 500 });
+	useWebhookHandlers(
+		postWebhook("/post", ({ body, response }) => {
+			postBody = JSON.parse(body) as { status?: string; error?: string };
+			sendWebhookResponse(response, 500, "cleanup failed");
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
 			pre: null,
-			post: { url: "http://localhost:8080/post" },
+			post: { url: webhookUrl("/post") },
 		},
 		signal: abortController.signal,
 		runBackup: () =>
@@ -369,7 +417,7 @@ test("rejects webhook URLs outside the configured allowed origins", async () => 
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://127.0.0.1:8080/pre" },
+			pre: { url: "http://127.0.0.1:9/pre" },
 			post: null,
 		},
 		runBackup: () =>
@@ -382,23 +430,23 @@ test("rejects webhook URLs outside the configured allowed origins", async () => 
 	expect(backupRan).toBe(false);
 	expect(result).toEqual({
 		status: "failed",
-		error: "pre webhook URL origin is not allowed. Add http://127.0.0.1:8080 to WEBHOOK_ALLOWED_ORIGINS.",
+		error: "pre webhook URL origin is not allowed. Add http://127.0.0.1:9 to WEBHOOK_ALLOWED_ORIGINS.",
 	});
 });
 
 test("matches configured webhook origins with trailing slashes or paths", async () => {
 	let backupRan = false;
 
-	server.use(
-		http.post("http://localhost:8080/pre", () => {
-			return new HttpResponse(null, { status: 204 });
+	useWebhookHandlers(
+		postWebhook("/pre", ({ response }) => {
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
-		webhookAllowedOrigins: ["http://localhost:8080/", "http://example.com/webhook"],
+		webhookAllowedOrigins: [`${webhookOrigin}/`, "http://example.com/webhook"],
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre" },
+			pre: { url: webhookUrl("/pre") },
 			post: null,
 		},
 		runBackup: () =>
@@ -415,19 +463,20 @@ test("matches configured webhook origins with trailing slashes or paths", async 
 test("does not follow webhook redirects", async () => {
 	let redirectedTargetCalled = false;
 
-	server.use(
-		http.post("http://localhost:8080/redirect", () => {
-			return new HttpResponse(null, { status: 302, headers: { location: "http://localhost:8080/target" } });
+	useWebhookHandlers(
+		postWebhook("/redirect", ({ response }) => {
+			response.writeHead(302, { location: webhookUrl("/target") });
+			response.end();
 		}),
-		http.post("http://localhost:8080/target", () => {
+		postWebhook("/target", ({ response }) => {
 			redirectedTargetCalled = true;
-			return new HttpResponse(null, { status: 204 });
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/redirect" },
+			pre: { url: webhookUrl("/redirect") },
 			post: null,
 		},
 		runBackup: () => completedBackup(null),
@@ -438,56 +487,36 @@ test("does not follow webhook redirects", async () => {
 });
 
 test("uses the configured webhook timeout for the request", async () => {
-	server.close();
+	useWebhookHandlers(
+		postWebhook("/pre", ({ response }) => {
+			setTimeout(() => {
+				if (response.destroyed) return;
 
-	const webhookServer = nodeHttp.createServer((_request, response) => {
-		setTimeout(() => {
-			response.writeHead(204);
-			response.end();
-		}, 300);
+				response.writeHead(204);
+				response.end();
+			}, 300);
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhookTimeoutMs: 50,
+		webhooks: {
+			pre: { url: webhookUrl("/pre") },
+			post: null,
+		},
+		runBackup: () => completedBackup(null),
 	});
 
-	try {
-		await new Promise<void>((resolve) => {
-			webhookServer.listen(0, "127.0.0.1", resolve);
-		});
-
-		const address = webhookServer.address();
-		if (!address || typeof address === "string") {
-			throw new Error("Failed to bind test webhook server");
-		}
-
-		const origin = `http://127.0.0.1:${address.port}`;
-
-		const result = await runWithHooks({
-			webhookAllowedOrigins: [origin],
-			webhookTimeoutMs: 50,
-			webhooks: {
-				pre: { url: `${origin}/pre` },
-				post: null,
-			},
-			runBackup: () => completedBackup(null),
-		});
-
-		expect(result.status).toBe("failed");
-		if (result.status === "failed") {
-			expect(result.error).toContain("pre webhook failed: Webhook timed out");
-		}
-	} finally {
-		webhookServer.closeAllConnections?.();
-		if (webhookServer.listening) {
-			await new Promise<void>((resolve, reject) => {
-				webhookServer.close((error) => (error ? reject(error) : resolve()));
-			});
-		}
-		server.listen({ onUnhandledRequest: "error" });
+	expect(result.status).toBe("failed");
+	if (result.status === "failed") {
+		expect(result.error).toContain("pre webhook failed: Webhook timed out");
 	}
 });
 
 test("rejects oversized webhook request bodies and headers", async () => {
 	const bodyResult = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre", body: "a".repeat(64 * 1024 + 1) },
+			pre: { url: webhookUrl("/pre"), body: "a".repeat(64 * 1024 + 1) },
 			post: null,
 		},
 		runBackup: () => completedBackup(null),
@@ -497,7 +526,7 @@ test("rejects oversized webhook request bodies and headers", async () => {
 
 	const headersResult = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre", headers: [`x-large: ${"a".repeat(8 * 1024)}`] },
+			pre: { url: webhookUrl("/pre"), headers: [`x-large: ${"a".repeat(8 * 1024)}`] },
 			post: null,
 		},
 		runBackup: () => completedBackup(null),
@@ -507,13 +536,13 @@ test("rejects oversized webhook request bodies and headers", async () => {
 });
 
 test("rejects malformed webhook header lines", () => {
-	expect(() => backupWebhookConfigSchema.parse({ url: "http://localhost:8080/pre", headers: ["Malformed"] })).toThrow(
+	expect(() => backupWebhookConfigSchema.parse({ url: webhookUrl("/pre"), headers: ["Malformed"] })).toThrow(
 		"Headers must use non-empty Key: Value format with valid header names",
 	);
 
-	expect(() =>
-		backupWebhookConfigSchema.parse({ url: "http://localhost:8080/pre", headers: ["Bad Header: value"] }),
-	).toThrow("Headers must use non-empty Key: Value format with valid header names");
+	expect(() => backupWebhookConfigSchema.parse({ url: webhookUrl("/pre"), headers: ["Bad Header: value"] })).toThrow(
+		"Headers must use non-empty Key: Value format with valid header names",
+	);
 });
 
 test("cancels before the pre-backup webhook without running the backup", async () => {
@@ -524,8 +553,8 @@ test("cancels before the pre-backup webhook without running the backup", async (
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre" },
-			post: { url: "http://localhost:8080/post" },
+			pre: { url: webhookUrl("/pre") },
+			post: { url: webhookUrl("/post") },
 		},
 		signal: abortController.signal,
 		runBackup: () =>
@@ -543,16 +572,16 @@ test("cancels after the pre-backup webhook without running the backup", async ()
 	const abortController = new AbortController();
 	let backupRan = false;
 
-	server.use(
-		http.post("http://localhost:8080/pre", () => {
+	useWebhookHandlers(
+		postWebhook("/pre", ({ response }) => {
 			abortController.abort(new Error("Backup was cancelled"));
-			return new HttpResponse(null, { status: 204 });
+			sendWebhookResponse(response);
 		}),
 	);
 
 	const result = await runWithHooks({
 		webhooks: {
-			pre: { url: "http://localhost:8080/pre" },
+			pre: { url: webhookUrl("/pre") },
 			post: null,
 		},
 		signal: abortController.signal,

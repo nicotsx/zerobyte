@@ -249,11 +249,15 @@ const sendWebhookRequest = (
 		});
 
 		const abortRequest = () => {
-			req.destroy(signal.reason || new Error("Operation aborted"));
+			const error = signal.reason || new Error("Operation aborted");
+			settle(() => reject(error));
+			req.destroy(error);
 		};
 
 		req.setTimeout(timeoutMs, () => {
-			req.destroy(new Error(`Webhook timed out after ${Math.round(timeoutMs / 1000)} seconds`));
+			const error = new Error(`Webhook timed out after ${Math.round(timeoutMs / 1000)} seconds`);
+			settle(() => reject(error));
+			req.destroy(error);
 		});
 
 		req.on("error", (error) => settle(() => reject(error)));
