@@ -3,6 +3,7 @@ import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { deleteSnapshots } from "../delete-snapshots";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -43,7 +44,7 @@ describe("deleteSnapshots command", () => {
 		const { getArgs } = setup();
 		const snapshotIds = ["--help", "--password-command=sh -c 'id'"];
 
-		await deleteSnapshots(config, snapshotIds, "org-1", mockDeps);
+		await Effect.runPromise(deleteSnapshots(config, snapshotIds, { organizationId: "org-1" }, mockDeps));
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);

@@ -4,6 +4,7 @@ import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { dump } from "../dump";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -45,7 +46,9 @@ describe("dump command", () => {
 	test("treats snapshot reference as a positional arg", async () => {
 		const { getArgs } = setup();
 
-		const result = await dump(config, "--help", { organizationId: "org-1", path: "folder/file.txt" }, mockDeps);
+		const result = await Effect.runPromise(
+			dump(config, "--help", { organizationId: "org-1", path: "folder/file.txt" }, mockDeps),
+		);
 		await result.completion;
 
 		const separatorIndex = getArgs().indexOf("--");

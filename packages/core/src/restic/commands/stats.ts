@@ -8,29 +8,50 @@ import { logger, safeExec } from "../../node";
 import { ResticError } from "../error";
 import { resticStatsSchema } from "../restic-dto";
 import type { ResticDeps } from "../types";
+import { Data, Effect } from "effect";
+import { toMessage } from "../../utils";
 
-export const stats = async (config: RepositoryConfig, options: { organizationId: string }, deps: ResticDeps) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, options.organizationId, deps);
+class ResticStatsCommandError extends Data.TaggedError("ResticStatsCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
 
-	const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
-	addCommonArgs(args, env, config);
+export const stats = (config: RepositoryConfig, options: { organizationId: string }, deps: ResticDeps) => {
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	const res = await safeExec({ command: "restic", args, env });
-	await cleanupTemporaryKeys(env, deps);
+			const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
+			addCommonArgs(args, env, config);
 
-	if (res.exitCode !== 0) {
-		logger.error(`Restic stats retrieval failed: ${res.stderr}`);
-		throw new ResticError(res.exitCode, res.stderr);
-	}
+			const res = await safeExec({ command: "restic", args, env });
+			await cleanupTemporaryKeys(env, deps);
 
-	const parsedJson = safeJsonParse<unknown>(res.stdout);
-	const result = resticStatsSchema.safeParse(parsedJson);
+			if (res.exitCode !== 0) {
+				logger.error(`Restic stats retrieval failed: ${res.stderr}`);
+				throw new ResticError(res.exitCode, res.stderr);
+			}
 
-	if (!result.success) {
-		logger.error(`Restic stats output validation failed: ${result.error.message}`);
-		throw new Error(`Restic stats output validation failed: ${result.error.message}`);
-	}
+			const parsedJson = safeJsonParse<unknown>(res.stdout);
+			const result = resticStatsSchema.safeParse(parsedJson);
 
-	return result.data;
+			if (!result.success) {
+				logger.error(`Restic stats output validation failed: ${result.error.message}`);
+				throw new Error(`Restic stats output validation failed: ${result.error.message}`);
+			}
+
+			return result.data;
+		},
+		catch: (error) => {
+			if (error instanceof ResticError) {
+				return error;
+			}
+
+			return new ResticStatsCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
+	});
 };

@@ -3,6 +3,7 @@ import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { tagSnapshots } from "../tag-snapshots";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -43,7 +44,9 @@ describe("tagSnapshots command", () => {
 		const { getArgs } = setup();
 		const snapshotIds = ["--help", "--password-command=sh -c 'id'"];
 
-		await tagSnapshots(config, snapshotIds, { add: ["keep"] }, "org-1", mockDeps);
+		await Effect.runPromise(
+			tagSnapshots(config, snapshotIds, { add: ["keep"] }, { organizationId: "org-1" }, mockDeps),
+		);
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);

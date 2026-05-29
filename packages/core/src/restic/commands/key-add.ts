@@ -1,3 +1,4 @@
+import { Data, Effect } from "effect";
 import { logger, safeExec } from "../../node";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
@@ -5,40 +6,60 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import type { ResticDeps } from "../types";
+import { toMessage } from "../../utils";
+import { ResticError } from "../error";
 
-export const keyAdd = async (
+class ResticKeyAddCommandError extends Data.TaggedError("ResticKeyAddCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
+
+export const keyAdd = (
 	config: RepositoryConfig,
-	organizationId: string,
-	options: { host: string; timeoutMs?: number },
+	options: { organizationId: string; host: string; timeoutMs?: number },
 	deps: ResticDeps,
 ) => {
-	const repoUrl = buildRepoUrl(config);
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
 
-	logger.info(`Adding restic key with host "${options.host}" for repository at ${repoUrl}...`);
+			logger.info(`Adding restic key with host "${options.host}" for repository at ${repoUrl}...`);
 
-	const env = await buildEnv(config, organizationId, deps);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	const args = [
-		"key",
-		"add",
-		"--repo",
-		repoUrl,
-		"--host",
-		options.host,
-		"--new-password-file",
-		env.RESTIC_PASSWORD_FILE,
-	].filter((e) => e !== undefined);
+			const args = [
+				"key",
+				"add",
+				"--repo",
+				repoUrl,
+				"--host",
+				options.host,
+				"--new-password-file",
+				env.RESTIC_PASSWORD_FILE,
+			].filter((e) => e !== undefined);
 
-	addCommonArgs(args, env, config);
+			addCommonArgs(args, env, config);
 
-	const res = await safeExec({ command: "restic", args, env, timeout: options.timeoutMs ?? 60000 });
-	await cleanupTemporaryKeys(env, deps);
+			const res = await safeExec({ command: "restic", args, env, timeout: options.timeoutMs ?? 60000 });
+			await cleanupTemporaryKeys(env, deps);
 
-	if (res.exitCode !== 0) {
-		logger.error(`Restic key add failed: ${res.stderr}`);
-		return { success: false, error: res.stderr };
-	}
+			if (res.exitCode !== 0) {
+				logger.error(`Restic key add failed: ${res.stderr}`);
+				return { success: false, error: res.stderr };
+			}
 
-	logger.info(`Restic key added with host "${options.host}" for repository: ${repoUrl}`);
-	return { success: true, error: null };
+			logger.info(`Restic key added with host "${options.host}" for repository: ${repoUrl}`);
+			return { success: true, error: null };
+		},
+		catch: (error) => {
+			if (error instanceof ResticError) {
+				return error;
+			}
+
+			return new ResticKeyAddCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
+	});
 };

@@ -11,6 +11,13 @@ import { logger, safeSpawn } from "../../node";
 import { ResticError } from "../error";
 import { resticRestoreOutputSchema, type ResticRestoreOutputDto } from "../restic-dto";
 import type { ResticDeps } from "../types";
+import { Data, Effect } from "effect";
+import { toMessage } from "../../utils";
+
+class ResticRestoreCommandError extends Data.TaggedError("ResticRestoreCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
 
 const restoreProgressSchema = z.object({
 	message_type: z.enum(["status", "summary"]),
@@ -24,7 +31,7 @@ const restoreProgressSchema = z.object({
 
 export type RestoreProgress = z.infer<typeof restoreProgressSchema>;
 
-export const restore = async (
+export const restore = (
 	config: RepositoryConfig,
 	snapshotId: string,
 	target: string,
@@ -42,130 +49,148 @@ export const restore = async (
 	},
 	deps: ResticDeps,
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, options.organizationId, deps);
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	let restoreArg = snapshotId;
+			let restoreArg = snapshotId;
 
-	const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
-	const commonAncestor =
-		options.selectedItemKind === "file" && includes.length === 1
-			? path.posix.dirname(includes[0] ?? "/")
-			: findCommonAncestor(includes);
+			const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
+			const commonAncestor =
+				options.selectedItemKind === "file" && includes.length === 1
+					? path.posix.dirname(includes[0] ?? "/")
+					: findCommonAncestor(includes);
 
-	if (target !== "/") {
-		restoreArg = `${snapshotId}:${commonAncestor}`;
-	}
-
-	const args = ["--repo", repoUrl, "restore", "--target", target];
-
-	if (options.overwrite) {
-		args.push("--overwrite", options.overwrite);
-	}
-
-	if (options.include?.length) {
-		if (target === "/") {
-			for (const pattern of options.include) {
-				args.push("--include", pattern);
+			if (target !== "/") {
+				restoreArg = `${snapshotId}:${commonAncestor}`;
 			}
-		} else {
-			const strippedIncludes = options.include.map((pattern) => path.posix.relative(commonAncestor, pattern));
-			const includesCoverRestoreRoot = strippedIncludes.some((pattern) => pattern === "" || pattern === ".");
 
-			if (!includesCoverRestoreRoot) {
-				for (const pattern of strippedIncludes) {
-					if (pattern !== "" && pattern !== ".") {
+			const args = ["--repo", repoUrl, "restore", "--target", target];
+
+			if (options.overwrite) {
+				args.push("--overwrite", options.overwrite);
+			}
+
+			if (options.include?.length) {
+				if (target === "/") {
+					for (const pattern of options.include) {
 						args.push("--include", pattern);
+					}
+				} else {
+					const strippedIncludes = options.include.map((pattern) =>
+						path.posix.relative(commonAncestor, pattern),
+					);
+					const includesCoverRestoreRoot = strippedIncludes.some(
+						(pattern) => pattern === "" || pattern === ".",
+					);
+
+					if (!includesCoverRestoreRoot) {
+						for (const pattern of strippedIncludes) {
+							if (pattern !== "" && pattern !== ".") {
+								args.push("--include", pattern);
+							}
+						}
 					}
 				}
 			}
-		}
-	}
 
-	if (options.exclude && options.exclude.length > 0) {
-		for (const pattern of options.exclude) {
-			args.push("--exclude", pattern);
-		}
-	}
+			if (options.exclude && options.exclude.length > 0) {
+				for (const pattern of options.exclude) {
+					args.push("--exclude", pattern);
+				}
+			}
 
-	if (options.excludeXattr && options.excludeXattr.length > 0) {
-		for (const xattr of options.excludeXattr) {
-			args.push("--exclude-xattr", xattr);
-		}
-	}
+			if (options.excludeXattr && options.excludeXattr.length > 0) {
+				for (const xattr of options.excludeXattr) {
+					args.push("--exclude-xattr", xattr);
+				}
+			}
 
-	addCommonArgs(args, env, config);
-	args.push("--", restoreArg);
+			addCommonArgs(args, env, config);
+			args.push("--", restoreArg);
 
-	const streamProgress = throttle((data: string) => {
-		if (options.onProgress) {
+			const streamProgress = throttle((data: string) => {
+				if (options.onProgress) {
+					try {
+						const jsonData = JSON.parse(data);
+						if (jsonData.message_type !== "status") {
+							return;
+						}
+
+						const progress = restoreProgressSchema.safeParse(jsonData);
+						if (progress.success) {
+							options.onProgress(progress.data);
+						} else {
+							logger.error(progress.error.message);
+						}
+					} catch {
+						// Ignore JSON parse errors for non-JSON lines
+					}
+				}
+			}, 1000);
+
+			logger.debug(`Executing: restic ${args.join(" ")}`);
+			const res = await safeSpawn({
+				command: "restic",
+				args,
+				env,
+				signal: options.signal,
+				onStdout: (data) => {
+					if (options.onProgress) {
+						streamProgress(data);
+					}
+				},
+			});
+
+			await cleanupTemporaryKeys(env, deps);
+
+			if (res.exitCode !== 0) {
+				logger.error(`Restic restore failed: ${res.error}`);
+				throw new ResticError(res.exitCode, res.stderr || res.error);
+			}
+
+			const lastLine = res.summary.trim();
+			let summaryLine: unknown = {};
 			try {
-				const jsonData = JSON.parse(data);
-				if (jsonData.message_type !== "status") {
-					return;
-				}
-
-				const progress = restoreProgressSchema.safeParse(jsonData);
-				if (progress.success) {
-					options.onProgress(progress.data);
-				} else {
-					logger.error(progress.error.message);
-				}
+				summaryLine = JSON.parse(lastLine ?? "{}");
 			} catch {
-				// Ignore JSON parse errors for non-JSON lines
+				logger.warn("Failed to parse restic restore output JSON summary.", lastLine);
+				summaryLine = {};
 			}
-		}
-	}, 1000);
 
-	logger.debug(`Executing: restic ${args.join(" ")}`);
-	const res = await safeSpawn({
-		command: "restic",
-		args,
-		env,
-		signal: options.signal,
-		onStdout: (data) => {
-			if (options.onProgress) {
-				streamProgress(data);
+			logger.debug(`Restic restore output last line: ${JSON.stringify(summaryLine)}`);
+			const result = resticRestoreOutputSchema.safeParse(summaryLine);
+
+			if (!result.success) {
+				logger.warn(`Restic restore output validation failed: ${result.error.message}`);
+				logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
+				const fallback: ResticRestoreOutputDto = {
+					message_type: "summary" as const,
+					total_files: 0,
+					files_restored: 0,
+					files_skipped: 0,
+					bytes_skipped: 0,
+				};
+
+				return fallback;
 			}
+
+			logger.info(
+				`Restic restore completed for snapshot ${snapshotId} to target ${target}: ${result.data.files_restored} restored, ${result.data.files_skipped} skipped`,
+			);
+
+			return result.data;
+		},
+		catch: (error) => {
+			if (error instanceof ResticError) {
+				return error;
+			}
+
+			return new ResticRestoreCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
 		},
 	});
-
-	await cleanupTemporaryKeys(env, deps);
-
-	if (res.exitCode !== 0) {
-		logger.error(`Restic restore failed: ${res.error}`);
-		throw new ResticError(res.exitCode, res.stderr || res.error);
-	}
-
-	const lastLine = res.summary.trim();
-	let summaryLine: unknown = {};
-	try {
-		summaryLine = JSON.parse(lastLine ?? "{}");
-	} catch {
-		logger.warn("Failed to parse restic restore output JSON summary.", lastLine);
-		summaryLine = {};
-	}
-
-	logger.debug(`Restic restore output last line: ${JSON.stringify(summaryLine)}`);
-	const result = resticRestoreOutputSchema.safeParse(summaryLine);
-
-	if (!result.success) {
-		logger.warn(`Restic restore output validation failed: ${result.error.message}`);
-		logger.info(`Restic restore completed for snapshot ${snapshotId} to target ${target}`);
-		const fallback: ResticRestoreOutputDto = {
-			message_type: "summary" as const,
-			total_files: 0,
-			files_restored: 0,
-			files_skipped: 0,
-			bytes_skipped: 0,
-		};
-
-		return fallback;
-	}
-
-	logger.info(
-		`Restic restore completed for snapshot ${snapshotId} to target ${target}: ${result.data.files_restored} restored, ${result.data.files_skipped} skipped`,
-	);
-
-	return result.data;
 };

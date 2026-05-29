@@ -24,13 +24,14 @@ import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 import { volumeService } from "~/server/modules/volumes/volume.service";
 import { db } from "~/server/db/db";
 import { config } from "~/server/core/config";
+import { Effect } from "effect";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
 		Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 	);
-	const resticForgetMock = vi.fn(() => Promise.resolve({ success: true, data: null }));
-	const resticCopyMock = vi.fn(() => Promise.resolve({ success: true, output: "" }));
+	const resticForgetMock = vi.fn(() => Effect.succeed({ success: true, data: null }));
+	const resticCopyMock = vi.fn(() => Effect.succeed({ success: true, output: "" }));
 	const { runBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
@@ -925,12 +926,14 @@ describe("mirror operations", () => {
 
 		const originalMirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		resticCopyMock.mockImplementationOnce(async () => {
-			await backupsService.updateMirrors(schedule.id, {
-				mirrors: [{ repositoryId: mirrorRepository.id, enabled: true }],
-			});
-			return { success: true, output: "" };
-		});
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.promise(async () => {
+				await backupsService.updateMirrors(schedule.id, {
+					mirrors: [{ repositoryId: mirrorRepository.id, enabled: true }],
+				});
+				return { success: true, output: "" };
+			}),
+		);
 
 		// act
 		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
@@ -957,7 +960,11 @@ describe("mirror operations", () => {
 
 		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		resticCopyMock.mockImplementationOnce(() => Promise.reject(new Error("Copy failed")));
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.sync(() => {
+				throw new Error("Copy failed");
+			}),
+		);
 
 		// act
 		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
@@ -985,7 +992,7 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		resticCopyMock.mockClear();
-		resticCopyMock.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
+		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
 
 		// act
 		await backupsService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
@@ -1053,14 +1060,16 @@ describe("mirror operations", () => {
 			resolveFirstCopyStarted = resolve;
 		});
 
-		resticCopyMock.mockImplementationOnce(
-			() =>
-				new Promise((resolve) => {
-					resolveFirstCopyStarted();
-					releaseFirstCopy = () => resolve({ success: true, output: "" });
-				}),
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.promise(
+				() =>
+					new Promise((resolve) => {
+						resolveFirstCopyStarted();
+						releaseFirstCopy = () => resolve({ success: true, output: "" });
+					}),
+			),
 		);
-		resticCopyMock.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
+		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
 
 		const firstCopyPromise = backupsService.copyToMirrors(firstSchedule.id, sourceRepository, null);
 		await firstCopyStarted;

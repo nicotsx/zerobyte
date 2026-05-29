@@ -138,17 +138,19 @@ async function verifySnapshot(
 	fixtureRootPath: string,
 	scenario: IntegrationScenario,
 ) {
-	const snapshots = await resticClient.snapshots(repositoryConfig, {
-		organizationId,
-		tags: [uniqueBackupTag],
-	});
+	const snapshots = await Effect.runPromise(
+		resticClient.snapshots(repositoryConfig, {
+			organizationId,
+			tags: [uniqueBackupTag],
+		}),
+	);
 
 	const snapshot = snapshots.find((candidate) => candidate.id === snapshotId || candidate.short_id === snapshotId);
 	if (!snapshot) {
 		throw new Error(`Unable to find snapshot ${snapshotId} by integration tag ${uniqueBackupTag}`);
 	}
 
-	const res = await resticClient.ls(repositoryConfig, snapshotId, organizationId, undefined, {});
+	const res = await Effect.runPromise(resticClient.ls(repositoryConfig, snapshotId, undefined, { organizationId }));
 
 	await verifySnapshotEntries(fixtureRootPath, res.nodes, scenario.expectedEntries);
 }
@@ -163,12 +165,14 @@ async function restoreSnapshot(
 	restoreOptions: IntegrationScenario["restore"],
 ) {
 	await fs.mkdir(restoreTarget, { recursive: true });
-	await resticClient.restore(repositoryConfig, snapshotId, restoreTarget, {
-		organizationId,
-		basePath: fixtureRootPath,
-		excludeXattr: restoreOptions?.excludeXattr,
-		overwrite: restoreOptions?.overwrite,
-	});
+	await Effect.runPromise(
+		resticClient.restore(repositoryConfig, snapshotId, restoreTarget, {
+			organizationId,
+			basePath: fixtureRootPath,
+			excludeXattr: restoreOptions?.excludeXattr,
+			overwrite: restoreOptions?.overwrite,
+		}),
+	);
 }
 
 async function cleanupScenario(backend: VolumeBackend, restoreTarget: string, scenarioWorkspace: string) {
@@ -226,7 +230,7 @@ async function runScenario(scenario: IntegrationScenario, runId: string): Promis
 		await runStage(stages, "init-repository", async () => {
 			if (scenario.repository.isExistingRepository) return;
 
-			const initResult = await resticClient.init(scenario.repository, organizationId, undefined);
+			const initResult = await Effect.runPromise(resticClient.init(scenario.repository, { organizationId }));
 			if (!initResult.success) {
 				throw new Error(initResult.error ?? "restic init failed");
 			}

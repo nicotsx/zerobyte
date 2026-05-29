@@ -4,6 +4,7 @@ import * as spawnModule from "../../../node/spawn";
 import { ls } from "../ls";
 import type { ResticDeps } from "../../types";
 import type { SafeSpawnParams } from "../../../node/spawn";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -57,7 +58,7 @@ describe("ls command", () => {
 		const snapshotId = "--password-command=sh -c 'id'";
 		const path = "--help";
 
-		await ls(config, snapshotId, "org-1", path, undefined, mockDeps);
+		await Effect.runPromise(ls(config, snapshotId, path, { organizationId: "org-1" }, mockDeps));
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);

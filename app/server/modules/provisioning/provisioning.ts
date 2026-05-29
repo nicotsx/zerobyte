@@ -20,6 +20,7 @@ import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte
 import { cryptoUtils } from "~/server/utils/crypto";
 import { toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
+import { Effect } from "effect";
 
 const envSecretPrefix = "env://";
 const fileSecretPrefix = "file://";
@@ -171,9 +172,12 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 			});
 
 			if (!repository.config.isExistingRepository) {
-				const result = await restic
-					.init(encryptedConfig, repository.organizationId, { timeoutMs: appConfig.serverIdleTimeout * 1000 })
-					.catch((error) => ({ success: false, error }));
+				const result = await Effect.runPromise(
+					restic.init(encryptedConfig, {
+						organizationId: repository.organizationId,
+						timeoutMs: appConfig.serverIdleTimeout * 1000,
+					}),
+				).catch((error) => ({ success: false, error }));
 
 				await db
 					.update(repositoriesTable)
@@ -186,7 +190,9 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 					.where(eq(repositoriesTable.id, id));
 
 				if (result.error) {
-					logger.error(`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`);
+					logger.error(
+						`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`,
+					);
 				}
 			}
 			continue;

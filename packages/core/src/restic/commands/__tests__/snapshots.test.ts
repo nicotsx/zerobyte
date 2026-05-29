@@ -4,6 +4,7 @@ import * as nodeModule from "../../../node";
 import { snapshots } from "../snapshots";
 import type { SafeSpawnParams } from "../../../node";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -57,7 +58,7 @@ describe("snapshots command", () => {
 			return Promise.resolve({ exitCode: 0, summary: "", error: "" });
 		});
 
-		const result = await snapshots(config, { organizationId: "org-1" }, mockDeps);
+		const result = await Effect.runPromise(snapshots(config, { organizationId: "org-1" }, mockDeps));
 
 		expect(result).toEqual(snapshotsOutput);
 	});

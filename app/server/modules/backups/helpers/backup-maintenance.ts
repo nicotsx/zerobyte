@@ -8,6 +8,7 @@ import { cache, cacheKeys } from "../../../utils/cache";
 import { toMessage } from "../../../utils/errors";
 import { getOrganizationId } from "~/server/core/request-context";
 import { mirrorQueries, repositoryQueries, scheduleQueries } from "../backups.queries";
+import { Effect } from "effect";
 
 export async function runForget(scheduleId: number, repositoryId?: string, organizationIdOverride?: string) {
 	const organizationId = organizationIdOverride ?? getOrganizationId();
@@ -31,7 +32,9 @@ export async function runForget(scheduleId: number, repositoryId?: string, organ
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
 
 	try {
-		await restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId });
+		await Effect.runPromise(
+			restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId }),
+		);
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
@@ -118,11 +121,13 @@ export async function syncSnapshotsToMirror(
 		]);
 
 		try {
-			await restic.copy(sourceRepository.config, mirrorRepository.config, {
-				tag: schedule.shortId,
-				organizationId,
-				snapshotIds,
-			});
+			await Effect.runPromise(
+				restic.copy(sourceRepository.config, mirrorRepository.config, {
+					tag: schedule.shortId,
+					organizationId,
+					snapshotIds,
+				}),
+			);
 			cache.delByPrefix(cacheKeys.repository.all(mirrorRepository.id));
 		} finally {
 			releaseLocks();
@@ -206,7 +211,12 @@ async function copyToSingleMirror(
 		]);
 
 		try {
-			await restic.copy(sourceRepository.config, mirror.repository.config, { tag: schedule.shortId, organizationId });
+			await Effect.runPromise(
+				restic.copy(sourceRepository.config, mirror.repository.config, {
+					tag: schedule.shortId,
+					organizationId,
+				}),
+			);
 			cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));
 		} finally {
 			releaseLocks();

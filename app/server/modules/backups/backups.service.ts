@@ -29,6 +29,7 @@ import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backu
 import { restic } from "../../core/restic";
 import { mirrorQueries } from "./backups.queries";
 import { toMessage } from "../../utils/errors";
+import { Effect } from "effect";
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
 	const schedules = await db.query.backupSchedulesTable.findMany({
@@ -73,7 +74,10 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -149,7 +153,10 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -159,7 +166,11 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	const cronExpression = data.cronExpression ?? schedule.cronExpression;
 	const nextBackupAt =
-		data.cronExpression === "" ? null : data.cronExpression ? calculateNextRun(cronExpression) : schedule.nextBackupAt;
+		data.cronExpression === ""
+			? null
+			: data.cronExpression
+				? calculateNextRun(cronExpression)
+				: schedule.nextBackupAt;
 
 	const [updated] = await db
 		.update(backupSchedulesTable)
@@ -351,7 +362,12 @@ const reorderSchedules = async (scheduleShortIds: ShortId[]) => {
 		for (const [index, scheduleId] of scheduleIds.entries()) {
 			tx.update(backupSchedulesTable)
 				.set({ sortOrder: index, updatedAt: now })
-				.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)))
+				.where(
+					and(
+						eq(backupSchedulesTable.id, scheduleId),
+						eq(backupSchedulesTable.organizationId, organizationId),
+					),
+				)
 				.run();
 		}
 	});
@@ -498,10 +514,15 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
-	const [sourceSnapshots, mirrorSnapshots] = await Promise.all([
-		restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
-		restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
-	]);
+	const [sourceSnapshots, mirrorSnapshots] = await Effect.runPromise(
+		Effect.all(
+			[
+				restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
+				restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
+			],
+			{ concurrency: "unbounded" },
+		),
+	);
 
 	const mirrorSnapshotTimes = new Set(mirrorSnapshots.map((s) => s.time));
 
