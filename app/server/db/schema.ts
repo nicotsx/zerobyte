@@ -352,6 +352,48 @@ export const repositoryLockWaitersTable = sqliteTable(
 );
 export type RepositoryLockWaiter = typeof repositoryLockWaitersTable.$inferSelect;
 
+type TaskJson = Record<string, unknown>;
+
+export const tasksTable = sqliteTable(
+	"tasks",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		kind: text("kind").notNull(),
+		status: text("status").notNull(),
+		resourceType: text("resource_type").notNull(),
+		resourceId: text("resource_id").notNull(),
+		targetAgentId: text("target_agent_id"),
+		input: text("input", { mode: "json" }).$type<TaskJson>().notNull(),
+		progress: text("progress", { mode: "json" }).$type<TaskJson | null>(),
+		result: text("result", { mode: "json" }).$type<TaskJson | null>(),
+		error: text("error"),
+		cancellationRequested: int("cancellation_requested", { mode: "boolean" }).notNull().default(false),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		startedAt: int("started_at", { mode: "number" }),
+		updatedAt: int("updated_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		finishedAt: int("finished_at", { mode: "number" }),
+	},
+	(table) => [
+		index("tasks_org_kind_resource_status_idx").on(
+			table.organizationId,
+			table.kind,
+			table.resourceType,
+			table.resourceId,
+			table.status,
+		),
+		index("tasks_org_status_updated_at_idx").on(table.organizationId, table.status, table.updatedAt),
+	],
+);
+export type Task = typeof tasksTable.$inferSelect;
+export type TaskInsert = typeof tasksTable.$inferInsert;
+
 /**
  * Backup Schedules Table
  */

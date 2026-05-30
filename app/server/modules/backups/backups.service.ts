@@ -30,6 +30,27 @@ import { restic } from "../../core/restic";
 import { mirrorQueries } from "./backups.queries";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
+import { taskStore } from "../tasks/tasks.store";
+
+const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
+
+const tryCancelTask = (
+	taskId: string,
+	activeTaskResource: { organizationId: string; kind: "backup"; resourceType: string; resourceId: string },
+) => {
+	try {
+		taskStore.requestCancel(taskId);
+		return true;
+	} catch (error) {
+		const currentTask = taskStore.findActiveByResource(activeTaskResource);
+		if (!currentTask || currentTask.id !== taskId) {
+			return false;
+		}
+
+		throw error;
+	}
+};
+
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
 	const schedules = await db.query.backupSchedulesTable.findMany({
@@ -418,7 +439,16 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		...(ctx.schedule.cronExpression ? { nextBackupAt: calculateNextRun(ctx.schedule.cronExpression) } : {}),
 	});
 
+	const task = taskStore.create({
+		organizationId: ctx.organizationId,
+		resourceType: BACKUP_TASK_RESOURCE_TYPE,
+		resourceId: String(scheduleId),
+		targetAgentId: ctx.volume.agentId,
+		input: { kind: "backup", scheduleId, scheduleShortId: ctx.schedule.shortId, manual },
+	});
+
 	const abortController = backupExecutor.track(scheduleId);
+	let domainHandlerCompleted = false;
 
 	try {
 		const releaseLock = await repoMutex.acquireShared(
@@ -428,7 +458,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		);
 
 		try {
+			taskStore.markRunning(task.id);
+
 			const executionResult = await backupExecutor.execute({
+				jobId: task.id,
 				scheduleId,
 				schedule: ctx.schedule,
 				volume: ctx.volume,
@@ -437,33 +470,63 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				signal: abortController.signal,
 				onProgress: (progress) => {
 					updateBackupProgress(ctx, progress);
+					try {
+						taskStore.updateProgress(task.id, { kind: "backup", progress });
+					} catch (error) {
+						logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
+					}
 				},
 			});
 
 			switch (executionResult.status) {
-				case "unavailable":
-					return handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+				case "unavailable": {
+					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.fail(task.id, toMessage(executionResult.error));
+					return;
+				}
 				case "completed":
-					return finalizeSuccessfulBackup(
+					await finalizeSuccessfulBackup(
 						ctx,
 						executionResult.exitCode,
 						executionResult.result,
 						executionResult.warningDetails,
 					);
-				case "failed":
-					return handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.complete(task.id, {
+						kind: "backup",
+						exitCode: executionResult.exitCode,
+						result: executionResult.result,
+						warningDetails: executionResult.warningDetails,
+					});
+					return;
+				case "failed": {
+					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.fail(task.id, toMessage(executionResult.error));
+					return;
+				}
 				case "cancelled":
-					return handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
+					await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
+					domainHandlerCompleted = true;
+					taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
+					return;
 			}
 		} finally {
 			releaseLock();
 		}
 	} catch (error) {
 		if (abortController.signal.aborted) {
+			taskStore.cancel(task.id, "Backup was stopped by the user");
 			return;
 		}
 
-		return handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
+		if (domainHandlerCompleted) {
+			throw error;
+		}
+
+		await handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
+		taskStore.fail(task.id, toMessage(error));
 	} finally {
 		backupExecutor.untrack(scheduleId, abortController);
 		cache.del(cacheKeys.backup.progress(scheduleId));
@@ -483,8 +546,26 @@ const stopBackup = async (scheduleId: number) => {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
+	const activeTaskResource = {
+		organizationId,
+		kind: "backup",
+		resourceType: BACKUP_TASK_RESOURCE_TYPE,
+		resourceId: String(scheduleId),
+	} as const;
+	const activeTask = taskStore.findActiveByResource(activeTaskResource);
+	let shouldMarkActiveTaskStale = false;
+	if (activeTask) {
+		shouldMarkActiveTaskStale = tryCancelTask(activeTask.id, activeTaskResource);
+	}
+
 	try {
 		if (!(await backupExecutor.cancel(scheduleId))) {
+			if (shouldMarkActiveTaskStale) {
+				taskStore.markActiveStale({
+					...activeTaskResource,
+					error: "No live backup execution was found for this schedule",
+				});
+			}
 			throw new ConflictError("No backup is currently running for this schedule");
 		}
 

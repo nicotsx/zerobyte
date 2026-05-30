@@ -15,6 +15,7 @@ import { BadRequestError } from "http-errors-enhanced";
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
 const IGNORE_INODE_FLAG = "--ignore-inode";
 type BackupExecutionRequest = {
+	jobId: string;
 	scheduleId: number;
 	schedule: BackupSchedule;
 	volume: Volume;
@@ -42,7 +43,7 @@ const createBackupRunPayload = async ({
 	volume,
 	repository,
 	organizationId,
-}: BackupExecutionRequest & { jobId: string }): Promise<BackupRunPayload> => {
+}: BackupExecutionRequest): Promise<BackupRunPayload> => {
 	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
 	const customResticParams = schedule.customResticParams ?? [];
 
@@ -119,7 +120,7 @@ export const backupExecutor = {
 			activeControllersByScheduleId.delete(scheduleId);
 		}
 	},
-	execute: async (request: Omit<BackupExecutionRequest, "jobId">) => {
+	execute: async (request: BackupExecutionRequest) => {
 		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
 		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
 			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
@@ -129,9 +130,7 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		const jobId = Bun.randomUUIDv7();
-
-		const payload = await createBackupRunPayload({ ...request, jobId });
+		const payload = await createBackupRunPayload(request);
 
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");

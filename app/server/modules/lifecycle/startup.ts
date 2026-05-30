@@ -18,6 +18,7 @@ import { config } from "~/server/core/config";
 import { syncProvisionedResources } from "../provisioning/provisioning";
 import { toMessage } from "~/server/utils/errors";
 import { LOCAL_AGENT_ID } from "../agents/constants";
+import { taskStore } from "../tasks/tasks.store";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -96,6 +97,16 @@ export const startup = async () => {
 				});
 			});
 		}
+	}
+
+	try {
+		const staleTasks = taskStore.markActiveStale({ error: "Zerobyte was restarted before this task completed" });
+
+		if (staleTasks.length > 0) {
+			logger.warn(`Marked ${staleTasks.length} active task(s) stale during startup`);
+		}
+	} catch (err) {
+		logger.error(`Failed to mark stale tasks on startup: ${toMessage(err)}`);
 	}
 
 	await db

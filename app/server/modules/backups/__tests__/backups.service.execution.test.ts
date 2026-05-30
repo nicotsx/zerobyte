@@ -25,6 +25,7 @@ import { volumeService } from "~/server/modules/volumes/volume.service";
 import { db } from "~/server/db/db";
 import { config } from "~/server/core/config";
 import { Effect } from "effect";
+import { taskStore } from "~/server/modules/tasks/tasks.store";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -89,6 +90,18 @@ const setup = () => {
 		ensureHealthyVolumeMock,
 	};
 };
+
+const getBackupTaskForSchedule = (scheduleId: number) =>
+	db.query.tasksTable.findFirst({
+		where: {
+			AND: [
+				{ organizationId: TEST_ORG_ID },
+				{ kind: "backup" },
+				{ resourceType: "backup_schedule" },
+				{ resourceId: String(scheduleId) },
+			],
+		},
+	});
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -233,6 +246,102 @@ describe("backup execution - validation failures", () => {
 		).toBe(false);
 	});
 
+	test("creates a backup task and uses the task id as the agent job id", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		expect(task).toBeDefined();
+		expect(task).toMatchObject({
+			organizationId: TEST_ORG_ID,
+			kind: "backup",
+			status: "succeeded",
+			resourceType: "backup_schedule",
+			resourceId: String(schedule.id),
+			targetAgentId: "local",
+			input: {
+				kind: "backup",
+				scheduleId: schedule.id,
+				scheduleShortId: schedule.shortId,
+				manual: false,
+			},
+			result: expect.objectContaining({
+				kind: "backup",
+				exitCode: 0,
+				warningDetails: null,
+			}),
+		});
+		expect(runBackupMock.mock.calls[0]?.[1].payload.jobId).toBe(task!.id);
+	});
+
+	test("does not leave a queued task behind when backup startup state fails", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		vi.spyOn(scheduleQueries, "updateStatus").mockRejectedValueOnce(new Error("status update failed"));
+
+		await expect(backupsService.executeBackup(schedule.id)).rejects.toThrow("status update failed");
+
+		expect(await getBackupTaskForSchedule(schedule.id)).toBeUndefined();
+		expect(runBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("persists latest backup progress while preserving execution", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		runBackupMock.mockImplementationOnce(async (_agentId, request) => {
+			request.onProgress({
+				message_type: "status",
+				seconds_elapsed: 1,
+				seconds_remaining: 9,
+				percent_done: 0.25,
+				total_files: 100,
+				files_done: 25,
+				total_bytes: 1000,
+				bytes_done: 250,
+				current_files: ["file.txt"],
+			});
+
+			return {
+				status: "completed",
+				exitCode: 0,
+				result: JSON.parse(generateBackupOutput()),
+				warningDetails: null,
+			};
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		expect(task?.status).toBe("succeeded");
+		expect(task?.progress).toMatchObject({
+			kind: "backup",
+			progress: {
+				percent_done: 0.25,
+				bytes_done: 250,
+				current_files: ["file.txt"],
+			},
+		});
+	});
+
 	test("passes configured backup webhooks to the backup agent", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
@@ -374,8 +483,11 @@ describe("backup execution - validation failures", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 		expect(updatedSchedule.lastBackupError).toBe("Local backup agent is not connected");
+		expect(task?.status).toBe("failed");
+		expect(task?.error).toBe("Local backup agent is not connected");
 	});
 
 	test("removes stale locks and retries once when the local backup fallback hits a restic lock", async () => {
@@ -491,8 +603,15 @@ describe("stop backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("error: open /mnt/data/private.db: permission denied");
+		expect(task?.status).toBe("succeeded");
+		expect(task?.result).toMatchObject({
+			kind: "backup",
+			exitCode: 3,
+			warningDetails: "error: open /mnt/data/private.db: permission denied",
+		});
 		expect(notificationSpy).toHaveBeenLastCalledWith(
 			schedule.id,
 			"warning",
@@ -645,6 +764,48 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
 
+	test("treats a task that finishes during stop as no longer running", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			lastBackupStatus: "in_progress",
+		});
+		const task = taskStore.create({
+			id: "task-stop-race",
+			organizationId: TEST_ORG_ID,
+			resourceType: "backup_schedule",
+			resourceId: String(schedule.id),
+			targetAgentId: "local",
+			input: {
+				kind: "backup",
+				scheduleId: schedule.id,
+				scheduleShortId: schedule.shortId,
+				manual: false,
+			},
+		});
+		const requestCancel = taskStore.requestCancel;
+		vi.spyOn(taskStore, "requestCancel").mockImplementation((taskId) => {
+			taskStore.complete(taskId, {
+				kind: "backup",
+				exitCode: 0,
+				result: JSON.parse(generateBackupOutput()),
+				warningDetails: null,
+			});
+
+			return requestCancel(taskId);
+		});
+
+		await expect(backupsService.stopBackup(schedule.id)).rejects.toThrow(
+			"No backup is currently running for this schedule",
+		);
+
+		const updatedTask = await getBackupTaskForSchedule(schedule.id);
+		expect(updatedTask).toMatchObject({ id: task.id, status: "succeeded" });
+	});
+
 	test("should stop a running backup when the cancel command cannot be delivered", async () => {
 		const { resticBackupMock, cancelBackupMock } = setup();
 		const volume = await createTestVolume();
@@ -688,6 +849,8 @@ describe("stop backup", () => {
 			await waitForExpect(async () => {
 				const queuedSchedule = await getScheduleByIdOrShortId(schedule.id);
 				expect(queuedSchedule.lastBackupStatus).toBe("in_progress");
+				const task = await getBackupTaskForSchedule(schedule.id);
+				expect(task?.status).toBe("queued");
 			});
 
 			expect(resticBackupMock).not.toHaveBeenCalled();
@@ -700,8 +863,11 @@ describe("stop backup", () => {
 		await executePromise;
 
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+		expect(task?.status).toBe("cancelled");
+		expect(task?.cancellationRequested).toBe(true);
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 
@@ -798,6 +964,41 @@ describe("stop backup", () => {
 
 		// assert
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+	});
+
+	test("marks an active task stale when stopping a stuck schedule without a live executor", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			lastBackupStatus: "in_progress",
+		});
+		taskStore.create({
+			id: "task-stuck-backup",
+			organizationId: TEST_ORG_ID,
+			resourceType: "backup_schedule",
+			resourceId: String(schedule.id),
+			targetAgentId: "local",
+			input: {
+				kind: "backup",
+				scheduleId: schedule.id,
+				scheduleShortId: schedule.shortId,
+				manual: false,
+			},
+		});
+
+		await expect(backupsService.stopBackup(schedule.id)).rejects.toThrow(
+			"No backup is currently running for this schedule",
+		);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(task?.status).toBe("stale");
+		expect(task?.error).toBe("No live backup execution was found for this schedule");
 		expect(updatedSchedule.lastBackupStatus).toBe("warning");
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 	});
