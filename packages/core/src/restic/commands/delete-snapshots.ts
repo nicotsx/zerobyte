@@ -22,12 +22,12 @@ export const deleteSnapshots = (
 ) => {
 	return Effect.tryPromise({
 		try: async () => {
-			const repoUrl = buildRepoUrl(config);
-			const env = await buildEnv(config, options.organizationId, deps);
-
 			if (snapshotIds.length === 0) {
 				throw new Error("No snapshot IDs provided for deletion.");
 			}
+
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
 			const args: string[] = ["--repo", repoUrl, "forget", "--prune"];
 			addCommonArgs(args, env, config);

@@ -50,4 +50,22 @@ describe("deleteSnapshots command", () => {
 		expect(separatorIndex).toBeGreaterThan(-1);
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
 	});
+
+	test("rejects empty snapshot IDs before building restic env", async () => {
+		setup();
+		const deps = {
+			...mockDeps,
+			resolveSecret: vi.fn(mockDeps.resolveSecret),
+		};
+
+		await expect(
+			Effect.runPromise(deleteSnapshots(config, [], { organizationId: "org-1" }, deps)),
+		).rejects.toMatchObject({
+			message: "No snapshot IDs provided for deletion.",
+		});
+
+		expect(deps.resolveSecret).not.toHaveBeenCalled();
+		expect(nodeModule.safeExec).not.toHaveBeenCalled();
+		expect(cleanupModule.cleanupTemporaryKeys).not.toHaveBeenCalled();
+	});
 });

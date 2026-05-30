@@ -23,6 +23,7 @@ export { buildEnv } from "./helpers/build-env";
 export { buildRepoUrl } from "./helpers/build-repo-url";
 export { cleanupTemporaryKeys } from "./helpers/cleanup-temporary-keys";
 export { validateCustomResticParams } from "./helpers/validate-custom-params";
+export { isResticLockFailure, logResticLockFailureDiagnostics } from "./lock-diagnostics";
 export { ResticError } from "./error";
 
 type LockDiagnosticCommandContext = {

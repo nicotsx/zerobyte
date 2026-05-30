@@ -213,9 +213,7 @@ describe("syncMirror", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		await expect(
-			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
-		).resolves.toEqual({ success: true });
+		const firstSync = backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]);
 
 		await copyStarted;
 
@@ -229,6 +227,8 @@ describe("syncMirror", () => {
 		).rejects.toThrow("Mirror is already syncing");
 
 		releaseCopy?.();
+
+		await expect(firstSync).resolves.toEqual({ success: true });
 
 		await waitForExpect(async () => {
 			const mirrors = await backupsService.getMirrors(schedule.shortId);

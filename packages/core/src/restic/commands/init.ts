@@ -65,11 +65,7 @@ export const init = (
 
 			logger.info(`Restic repository initialized: ${repoUrl}`);
 
-			await addDefaultKey(
-				config,
-				{ organizationId: options.organizationId, timeoutMs: options?.timeoutMs },
-				deps,
-			);
+			void addDefaultKey(config, { organizationId: options.organizationId, timeoutMs: options?.timeoutMs }, deps);
 
 			return { success: true, error: null };
 		},
