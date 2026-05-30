@@ -5,7 +5,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeSpawn } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
@@ -134,7 +134,7 @@ export const ls = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic ls failed: ${res.error}`);
-				throw new ResticError(res.exitCode, res.stderr || res.error);
+				throw createResticError(res.exitCode, res.stderr || res.error);
 			}
 
 			if (totalNodes > offset + limit) {
@@ -153,7 +153,7 @@ export const ls = (
 			} as ResticLsResult;
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

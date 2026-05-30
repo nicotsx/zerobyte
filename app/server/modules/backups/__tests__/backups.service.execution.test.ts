@@ -377,6 +377,47 @@ describe("backup execution - validation failures", () => {
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
 		expect(updatedSchedule.lastBackupError).toBe("Local backup agent is not connected");
 	});
+
+	test("removes stale locks and retries once when the local backup fallback hits a restic lock", async () => {
+		const { resticBackupMock, runBackupMock } = setup();
+		config.flags.enableLocalAgent = false;
+		const safeExecMock = vi.spyOn(spawnModule, "safeExec").mockResolvedValue({
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+			timedOut: false,
+		});
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		runBackupMock.mockResolvedValueOnce({
+			status: "unavailable",
+			error: new Error("Local backup agent is not connected"),
+		});
+		resticBackupMock
+			.mockImplementationOnce((params: SafeSpawnParams) => {
+				params.onStderr?.("unable to create lock in backend: repository is already locked");
+				return Promise.resolve({
+					exitCode: 11,
+					summary: "",
+					error: "unable to create lock in backend: repository is already locked",
+				});
+			})
+			.mockImplementationOnce(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
+
+		await backupsService.executeBackup(schedule.id);
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		expect(resticBackupMock).toHaveBeenCalledTimes(2);
+		const unlockCalls = safeExecMock.mock.calls.filter(([params]) => params.args?.includes("unlock"));
+		expect(unlockCalls).toHaveLength(1);
+		expect(unlockCalls[0]?.[0].args).not.toContain("--remove-all");
+	});
 });
 
 describe("backup execution - routing", () => {

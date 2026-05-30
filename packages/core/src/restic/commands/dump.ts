@@ -7,7 +7,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeSpawn } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
 
@@ -94,7 +94,7 @@ export const dump = (
 
 					const stderr = stderrTail.trim() || result.error;
 					logger.error(`Restic dump failed: ${stderr}`);
-					throw new ResticError(result.exitCode, stderr);
+					throw createResticError(result.exitCode, stderr);
 				})
 				.finally(async () => {
 					abortController = null;
@@ -120,7 +120,7 @@ export const dump = (
 			};
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

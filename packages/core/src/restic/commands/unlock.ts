@@ -1,6 +1,6 @@
 import { Data, Effect } from "effect";
 import { logger, safeExec } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
@@ -16,7 +16,7 @@ class ResticUnlockCommandError extends Data.TaggedError("ResticUnlockCommandErro
 
 export const unlock = (
 	config: RepositoryConfig,
-	options: { signal?: AbortSignal; organizationId: string },
+	options: { signal?: AbortSignal; organizationId: string; removeAll?: boolean },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -24,7 +24,10 @@ export const unlock = (
 			const repoUrl = buildRepoUrl(config);
 			const env = await buildEnv(config, options.organizationId, deps);
 
-			const args = ["unlock", "--repo", repoUrl, "--remove-all"];
+			const args = ["unlock", "--repo", repoUrl];
+			if (options.removeAll) {
+				args.push("--remove-all");
+			}
 			addCommonArgs(args, env, config);
 
 			const res = await safeExec({
@@ -42,14 +45,14 @@ export const unlock = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic unlock failed: ${res.stderr}`);
-				throw new ResticError(res.exitCode, res.stderr);
+				throw createResticError(res.exitCode, res.stderr);
 			}
 
 			logger.info(`Restic unlock succeeded for repository: ${repoUrl}`);
 			return { success: true, message: "Repository unlocked successfully" };
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

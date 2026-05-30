@@ -8,7 +8,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { type RepositoryConfig, type OverwriteMode } from "../schemas";
 import { logger, safeSpawn } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { resticRestoreOutputSchema, type ResticRestoreOutputDto } from "../restic-dto";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
@@ -147,7 +147,7 @@ export const restore = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic restore failed: ${res.error}`);
-				throw new ResticError(res.exitCode, res.stderr || res.error);
+				throw createResticError(res.exitCode, res.stderr || res.error);
 			}
 
 			const lastLine = res.summary.trim();
@@ -183,7 +183,7 @@ export const restore = (
 			return result.data;
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

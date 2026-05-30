@@ -1,6 +1,6 @@
 import { Data, Effect } from "effect";
 import { logger, safeExec } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
@@ -58,14 +58,14 @@ export const tagSnapshots = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic snapshot tagging failed: ${res.stderr}`);
-				throw new ResticError(res.exitCode, res.stderr);
+				throw createResticError(res.exitCode, res.stderr);
 			}
 
 			return { success: true };
 		},
 
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

@@ -1,4 +1,4 @@
-import { ResticError } from "../restic/error.js";
+import { isResticError } from "../restic/error.js";
 
 export const toMessage = (error: unknown) => {
 	if (error instanceof Error) {
@@ -9,7 +9,7 @@ export const toMessage = (error: unknown) => {
 };
 
 export const toErrorDetails = (error: unknown) => {
-	if (error instanceof ResticError) {
+	if (isResticError(error)) {
 		return error.details || error.summary;
 	}
 

@@ -7,7 +7,7 @@ import type { RepositoryConfig } from "../schemas";
 import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
-import { ResticError } from "../error";
+import { isResticError } from "../error";
 import { toMessage } from "../../utils";
 
 class ResticInitCommandError extends Data.TaggedError("ResticInitCommandError")<{
@@ -70,7 +70,7 @@ export const init = (
 			return { success: true, error: null };
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

@@ -1,6 +1,6 @@
 import { HttpError } from "http-errors-enhanced";
 import { sanitizeSensitiveData } from "@zerobyte/core/node";
-import { ResticError } from "@zerobyte/core/restic";
+import { isResticError } from "@zerobyte/core/restic";
 import { toErrorDetails as getErrorDetails, toMessage as getMessage } from "@zerobyte/core/utils";
 import { Cause, Effect, Exit, Option } from "effect";
 
@@ -31,7 +31,7 @@ export const handleServiceError = (error: unknown) => {
 		return { message: sanitizeSensitiveData(error.message), status: error.statusCode };
 	}
 
-	if (error instanceof ResticError) {
+	if (isResticError(error)) {
 		return {
 			message: sanitizeSensitiveData(error.summary),
 			details: error.details ? sanitizeSensitiveData(error.details) : undefined,

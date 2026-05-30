@@ -1,4 +1,5 @@
 import { Effect } from "effect";
+import { logger } from "../node";
 import { backup } from "./commands/backup";
 import { check } from "./commands/check";
 import { copy } from "./commands/copy";
@@ -14,6 +15,7 @@ import { snapshots } from "./commands/snapshots";
 import { stats } from "./commands/stats";
 import { tagSnapshots } from "./commands/tag-snapshots";
 import { unlock } from "./commands/unlock";
+import { ResticLockError } from "./error";
 import { logResticLockFailureDiagnostics } from "./lock-diagnostics";
 import type { RepositoryConfig } from "./schemas";
 import type { ResticDeps } from "./types";
@@ -24,7 +26,7 @@ export { buildRepoUrl } from "./helpers/build-repo-url";
 export { cleanupTemporaryKeys } from "./helpers/cleanup-temporary-keys";
 export { validateCustomResticParams } from "./helpers/validate-custom-params";
 export { isResticLockFailure, logResticLockFailureDiagnostics } from "./lock-diagnostics";
-export { ResticError } from "./error";
+export { isResticError, ResticError, ResticLockError } from "./error";
 
 type LockDiagnosticCommandContext = {
 	repositoryConfig: RepositoryConfig;
@@ -34,6 +36,12 @@ type LockDiagnosticCommandContext = {
 
 type ResticCommandOptions = { organizationId: string };
 type ResticCommandResult = { error?: unknown };
+type ResticCommandFailure<Failure> = Failure | ResticLockError;
+type RunResticCommand<Success, Failure, Requirements> = () => Effect.Effect<
+	Success,
+	ResticCommandFailure<Failure>,
+	Requirements
+>;
 
 const getCommandContext = (operation: string, args: unknown[]): LockDiagnosticCommandContext => {
 	const firstRepositoryConfig = args[0] as RepositoryConfig;
@@ -68,15 +76,47 @@ const logLockFailure = async (
 		relatedRepositoryConfigs: context.relatedRepositoryConfigs,
 	});
 
+const unlockStaleLocks = (context: LockDiagnosticCommandContext, deps: ResticDeps): Effect.Effect<void, Error> =>
+	Effect.gen(function* () {
+		for (const repositoryConfig of [context.repositoryConfig, ...(context.relatedRepositoryConfigs ?? [])]) {
+			yield* unlock(repositoryConfig, { organizationId: context.organizationId }, deps);
+		}
+	});
+
+const recoverFromLockFailure = <Success, Failure, Requirements>(
+	error: ResticLockError,
+	operation: string,
+	context: LockDiagnosticCommandContext,
+	deps: ResticDeps,
+	runCommand: RunResticCommand<Success, Failure, Requirements>,
+): Effect.Effect<Success, ResticCommandFailure<Failure> | Error, Requirements> =>
+	Effect.gen(function* () {
+		yield* logger.effect.warn("Restic lock failure detected. Removing stale locks and retrying once.");
+		yield* Effect.promise(() => logLockFailure(error, operation, context, deps));
+		yield* unlockStaleLocks(context, deps);
+
+		const retryResult = yield* runCommand();
+		yield* logger.effect.info("Restic lock failure recovered by removing stale locks and retrying once.");
+
+		return retryResult;
+	});
+
 function withDeps<Args extends unknown[], Success, Failure, Requirements>(
 	operation: string,
-	command: (...args: [...Args, ResticDeps]) => Effect.Effect<Success, Failure, Requirements>,
+	command: (...args: [...Args, ResticDeps]) => Effect.Effect<Success, ResticCommandFailure<Failure>, Requirements>,
 	deps: ResticDeps,
-): (...args: Args) => Effect.Effect<Success, Failure, Requirements> {
+): (...args: Args) => Effect.Effect<Success, ResticCommandFailure<Failure> | Error, Requirements> {
 	return (...args: Args) => {
 		const context = getCommandContext(operation, args);
-		return command(...args, deps).pipe(
-			Effect.tapError((error) => Effect.promise(() => logLockFailure(error, operation, context, deps))),
+		const runCommand = () => command(...args, deps);
+
+		const commandEffect = runCommand().pipe(
+			Effect.catchTag("ResticLockError", (error) =>
+				recoverFromLockFailure(error as ResticLockError, operation, context, deps, runCommand),
+			),
+		);
+
+		return commandEffect.pipe(
 			Effect.tap((result) => {
 				const { error } = result as ResticCommandResult;
 				return error ? Effect.promise(() => logLockFailure(error, operation, context, deps)) : Effect.void;

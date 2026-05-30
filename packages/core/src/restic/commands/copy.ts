@@ -4,7 +4,7 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
@@ -72,7 +72,7 @@ export const copy = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic copy failed: ${stderr}`);
-				throw new ResticError(res.exitCode, stderr);
+				throw createResticError(res.exitCode, stderr);
 			}
 
 			logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
@@ -82,7 +82,7 @@ export const copy = (
 			};
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

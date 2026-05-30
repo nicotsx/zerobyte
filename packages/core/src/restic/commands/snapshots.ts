@@ -9,7 +9,7 @@ import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
-import { ResticError } from "../error";
+import { isResticError } from "../error";
 
 class ResticSnapshotsCommandError extends Data.TaggedError("ResticSnapshotsCommandError")<{
 	cause: unknown;
@@ -81,7 +81,7 @@ export const snapshots = (
 		},
 
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

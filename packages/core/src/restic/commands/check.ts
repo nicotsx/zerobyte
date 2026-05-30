@@ -6,7 +6,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import type { ResticDeps } from "../types";
-import { ResticError } from "../error";
+import { isResticError } from "../error";
 import { toMessage } from "../../utils";
 
 class ResticCheckCommandError extends Data.TaggedError("ResticCheckCommandError")<{
@@ -77,7 +77,7 @@ export const check = (
 			};
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

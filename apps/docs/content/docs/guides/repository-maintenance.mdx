@@ -22,7 +22,7 @@ Repository status is stored metadata inside Zerobyte. It is not a continuous liv
 | Action | What it does | What it does **not** do |
 | --- | --- | --- |
 | `Run doctor` | Runs `unlock`, then `check`, then `repair-index` if restic says it is needed. Saves step output into the Doctor Report. | It does **not** run a full `check --read-data` scrub, it does **not** prune unused data, and it does **not** refresh the stats card. |
-| `Unlock` | Runs `restic unlock --remove-all` to clear stale repository locks. | It does **not** validate repository integrity and it does **not** change the stored health status by itself. |
+| `Unlock` | Runs `restic unlock` to clear stale repository locks. | It does **not** validate repository integrity and it does **not** change the stored health status by itself. |
 | Stats refresh button | Runs `restic stats --mode raw-data` and updates stored size and snapshot metrics. | It does **not** change repository health status, **Last Checked**, or the Doctor Report. |
 
 ## Run doctor in detail

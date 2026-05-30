@@ -1,6 +1,6 @@
 import { logger, safeExec } from "../node";
 import { toMessage } from "../utils";
-import { ResticError } from "./error";
+import { ResticLockError } from "./error";
 import { addCommonArgs } from "./helpers/add-common-args";
 import { buildEnv } from "./helpers/build-env";
 import { buildRepoUrl } from "./helpers/build-repo-url";
@@ -26,7 +26,7 @@ const LOCK_ERROR_PATTERNS = [
 ];
 
 export const isResticLockFailure = (error: unknown) => {
-	if (error instanceof ResticError && error.code === 11) {
+	if (error instanceof ResticLockError) {
 		return true;
 	}
 

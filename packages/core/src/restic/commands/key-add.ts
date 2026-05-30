@@ -7,7 +7,7 @@ import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import type { ResticDeps } from "../types";
 import { toMessage } from "../../utils";
-import { ResticError } from "../error";
+import { isResticError } from "../error";
 
 class ResticKeyAddCommandError extends Data.TaggedError("ResticKeyAddCommandError")<{
 	cause: unknown;
@@ -52,7 +52,7 @@ export const keyAdd = (
 			return { success: true, error: null };
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

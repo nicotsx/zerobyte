@@ -6,7 +6,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeExec } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { toMessage } from "../../utils";
 import { Data, Effect } from "effect";
 
@@ -65,7 +65,7 @@ export const forget = (
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic forget failed: ${res.stderr}`);
-				throw new ResticError(res.exitCode, res.stderr);
+				throw createResticError(res.exitCode, res.stderr);
 			}
 
 			const lines = res.stdout.split("\n").filter((line) => line.trim());
@@ -74,7 +74,7 @@ export const forget = (
 			return { success: true, data: result };
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

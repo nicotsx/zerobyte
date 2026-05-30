@@ -5,7 +5,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeExec } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { resticStatsSchema } from "../restic-dto";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
@@ -30,7 +30,7 @@ export const stats = (config: RepositoryConfig, options: { organizationId: strin
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic stats retrieval failed: ${res.stderr}`);
-				throw new ResticError(res.exitCode, res.stderr);
+				throw createResticError(res.exitCode, res.stderr);
 			}
 
 			const parsedJson = safeJsonParse<unknown>(res.stdout);
@@ -44,7 +44,7 @@ export const stats = (config: RepositoryConfig, options: { organizationId: strin
 			return result.data;
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 
