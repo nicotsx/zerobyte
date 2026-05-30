@@ -11,7 +11,7 @@
 		"fmt": "vp fmt",
 		"lint": "vp lint --type-aware --type-check",
 		"check": "vp check",
-		"dev": "NODE_ENV=development portless run bunx --bun vite",
+		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"build": "bunx --bun vite build",
 		"start": "bun run .output/server/index.mjs",
 		"build:backend-integration": "bun build app/test/backend-integration/index.ts --outdir .output/backend-integration --target bun",
