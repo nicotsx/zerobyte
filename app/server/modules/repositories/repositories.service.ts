@@ -21,7 +21,7 @@ import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
 import { repositoriesTable, type Repository } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
-import { toMessage } from "../../utils/errors";
+import { runEffectPromise, toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic/server";
 import { restic, resticDeps } from "../../core/restic";
@@ -102,13 +102,13 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 	let error: string | null = null;
 
 	if (config.isExistingRepository) {
-		const result = await Effect.runPromise(restic.snapshots(encryptedConfig, { organizationId }))
+		const result = await runEffectPromise(restic.snapshots(encryptedConfig, { organizationId }))
 			.then(() => ({ error: null }))
 			.catch((error) => ({ error }));
 
 		error = result.error;
 	} else {
-		const initResult = await Effect.runPromise(
+		const initResult = await runEffectPromise(
 			restic.init(encryptedConfig, {
 				organizationId,
 				timeoutMs: appConfig.serverIdleTimeout * 1000,
@@ -147,7 +147,7 @@ const getRepository = async (shortId: ShortId) => {
 const runAndStoreRepositoryStats = async (repository: Repository): Promise<ResticStatsDto> => {
 	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
 	try {
-		const stats = await Effect.runPromise(
+		const stats = await runEffectPromise(
 			restic.stats(repository.config, { organizationId: repository.organizationId }),
 		);
 
@@ -235,11 +235,11 @@ const listSnapshots = async (shortId: ShortId, backupId?: ShortId) => {
 		let snapshots = [];
 
 		if (backupId) {
-			snapshots = await Effect.runPromise(
+			snapshots = await runEffectPromise(
 				restic.snapshots(repository.config, { tags: [backupId], organizationId }),
 			);
 		} else {
-			snapshots = await Effect.runPromise(restic.snapshots(repository.config, { organizationId }));
+			snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
 		}
 
 		cache.set(cacheKey, snapshots);
@@ -286,7 +286,7 @@ const listSnapshotFiles = async (
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
 	try {
-		const result = await Effect.runPromise(
+		const result = await runEffectPromise(
 			restic.ls(repository.config, snapshotId, path, { organizationId, offset, limit }),
 		);
 
@@ -368,7 +368,7 @@ const restoreSnapshot = async (
 			snapshotId,
 		});
 
-		const result = await Effect.runPromise(
+		const result = await runEffectPromise(
 			restic.restore(repository.config, snapshotId, target, {
 				basePath,
 				...options,
@@ -448,7 +448,7 @@ const dumpSnapshot = async (shortId: ShortId, snapshotId: string, path?: string,
 			}
 		}
 
-		dumpStream = await Effect.runPromise(restic.dump(repository.config, preparedDump.snapshotRef, dumpOptions));
+		dumpStream = await runEffectPromise(restic.dump(repository.config, preparedDump.snapshotRef, dumpOptions));
 
 		serverEvents.emit("dump:started", {
 			organizationId,
@@ -485,7 +485,7 @@ const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 	if (!snapshots) {
 		const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);
 		try {
-			snapshots = await Effect.runPromise(restic.snapshots(repository.config, { organizationId }));
+			snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
 			cache.set(cacheKey, snapshots);
 		} finally {
 			releaseLock();
@@ -513,7 +513,7 @@ const checkHealth = async (shortId: ShortId) => {
 
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, "check");
 	try {
-		const { hasErrors, error } = await Effect.runPromise(restic.check(repository.config, { organizationId }));
+		const { hasErrors, error } = await runEffectPromise(restic.check(repository.config, { organizationId }));
 
 		await db
 			.update(repositoriesTable)
@@ -611,7 +611,7 @@ const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
 
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
 	try {
-		await Effect.runPromise(restic.deleteSnapshot(repository.config, snapshotId, { organizationId }));
+		await runEffectPromise(restic.deleteSnapshot(repository.config, snapshotId, { organizationId }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 		void runAndStoreRepositoryStats(repository).catch((error) => {
 			logger.error(
@@ -634,7 +634,7 @@ const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
 	let shouldRefreshStats = false;
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
 	try {
-		await Effect.runPromise(restic.deleteSnapshots(repository.config, snapshotIds, { organizationId }));
+		await runEffectPromise(restic.deleteSnapshots(repository.config, snapshotIds, { organizationId }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 		shouldRefreshStats = true;
 	} finally {
@@ -666,7 +666,7 @@ const tagSnapshots = async (
 
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, `tag:bulk`);
 	try {
-		await Effect.runPromise(restic.tagSnapshots(repository.config, snapshotIds, tags, { organizationId }));
+		await runEffectPromise(restic.tagSnapshots(repository.config, snapshotIds, tags, { organizationId }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 	} finally {
 		releaseLock();
@@ -685,7 +685,7 @@ const refreshSnapshots = async (shortId: ShortId) => {
 
 	const releaseLock = await repoMutex.acquireShared(repository.id, "refresh");
 	try {
-		const snapshots = await Effect.runPromise(restic.snapshots(repository.config, { organizationId }));
+		const snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
 		const cacheKey = cacheKeys.repository.snapshots(repository.id);
 		cache.set(cacheKey, snapshots);
 
@@ -784,7 +784,7 @@ const unlockRepository = async (shortId: ShortId) => {
 
 	const releaseLock = await repoMutex.acquireExclusive(repository.id, "unlock");
 	try {
-		const result = await Effect.runPromise(restic.unlock(repository.config, { organizationId }));
+		const result = await runEffectPromise(restic.unlock(repository.config, { organizationId }));
 		return result;
 	} finally {
 		releaseLock();
@@ -847,7 +847,7 @@ const getRetentionCategories = async (repositoryId: ShortId, scheduleId?: ShortI
 			return new Map<string, RetentionCategory[]>();
 		}
 
-		const dryRunResults = await Effect.runPromise(
+		const dryRunResults = await runEffectPromise(
 			restic.forget(repository.config, schedule.retentionPolicy, {
 				tag: scheduleId,
 				organizationId: getOrganizationId(),

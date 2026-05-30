@@ -18,9 +18,8 @@ import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/reposi
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
 import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
-import { toMessage } from "~/server/utils/errors";
+import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
-import { Effect } from "effect";
 
 const envSecretPrefix = "env://";
 const fileSecretPrefix = "file://";
@@ -172,7 +171,7 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 			});
 
 			if (!repository.config.isExistingRepository) {
-				const result = await Effect.runPromise(
+				const result = await runEffectPromise(
 					restic.init(encryptedConfig, {
 						organizationId: repository.organizationId,
 						timeoutMs: appConfig.serverIdleTimeout * 1000,

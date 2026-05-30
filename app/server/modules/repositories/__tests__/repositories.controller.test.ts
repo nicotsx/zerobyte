@@ -328,17 +328,17 @@ describe("repositories updates", () => {
 	});
 
 	describe("delete snapshot", () => {
-		test("should return 500 when restic deleteSnapshot throws ResticError", async () => {
+		test("should return ResticError details when restic deleteSnapshot fails", async () => {
 			const repository = await createRepositoryRecord(session.organizationId);
 
 			const { restic } = await import("~/server/core/restic");
 			const { ResticError } = await import("@zerobyte/core/restic");
 
-			const deleteSnapshotSpy = vi.spyOn(restic, "deleteSnapshot").mockImplementation(() =>
-				Effect.sync(() => {
-					throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
-				}),
-			);
+			const deleteSnapshotSpy = vi
+				.spyOn(restic, "deleteSnapshot")
+				.mockImplementation(() =>
+					Effect.fail(new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden")),
+				);
 
 			try {
 				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
@@ -348,9 +348,10 @@ describe("repositories updates", () => {
 
 				expect(res.status).toBe(500);
 				const body = await res.json();
-				expect(body.message).toBe(
-					"Command failed: An error occurred while executing the command.\nFatal: unexpected HTTP response (403): 403 Forbidden",
-				);
+				expect(body).toEqual({
+					message: "Command failed: An error occurred while executing the command.",
+					details: "Fatal: unexpected HTTP response (403): 403 Forbidden",
+				});
 			} finally {
 				deleteSnapshotSpy.mockRestore();
 			}

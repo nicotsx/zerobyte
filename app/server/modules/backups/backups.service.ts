@@ -28,7 +28,7 @@ import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backup-maintenance";
 import { restic } from "../../core/restic";
 import { mirrorQueries } from "./backups.queries";
-import { toMessage } from "../../utils/errors";
+import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -514,7 +514,7 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
-	const [sourceSnapshots, mirrorSnapshots] = await Effect.runPromise(
+	const [sourceSnapshots, mirrorSnapshots] = await runEffectPromise(
 		Effect.all(
 			[
 				restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),

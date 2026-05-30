@@ -1,4 +1,3 @@
-import { Effect } from "effect";
 import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
@@ -10,7 +9,7 @@ import { getVolumePath } from "../volumes/helpers";
 import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
-import { toErrorDetails } from "../../utils/errors";
+import { runEffectPromise, toErrorDetails } from "../../utils/errors";
 import { BadRequestError } from "http-errors-enhanced";
 
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
@@ -90,7 +89,7 @@ const executeBackupWithoutAgent = async (
 		compressionMode: payload.options.compressionMode,
 	};
 
-	return Effect.runPromise(
+	return runEffectPromise(
 		runBackupLifecycle({
 			restic,
 			repositoryConfig: payload.repositoryConfig,

@@ -2,6 +2,7 @@ import { HttpError } from "http-errors-enhanced";
 import { sanitizeSensitiveData } from "@zerobyte/core/node";
 import { ResticError } from "@zerobyte/core/restic";
 import { toErrorDetails as getErrorDetails, toMessage as getMessage } from "@zerobyte/core/utils";
+import { Cause, Effect, Exit, Option } from "effect";
 
 const formatAllowedHostsMessage = (message: string) => {
 	const referencesAllowedHosts = /\ballowed\s+hosts?\b|\ballowedHosts\b/i.test(message);
@@ -47,4 +48,14 @@ export const toMessage = (err: unknown): string => {
 
 export const toErrorDetails = (err: unknown): string => {
 	return sanitizeSensitiveData(getErrorDetails(err));
+};
+
+export const runEffectPromise = <A, E>(effect: Effect.Effect<A, E, never>) => {
+	return Effect.runPromiseExit(effect).then((exit) => {
+		if (Exit.isSuccess(exit)) {
+			return exit.value;
+		}
+
+		throw Option.getOrUndefined(Cause.failureOption(exit.cause)) ?? Cause.squash(exit.cause);
+	});
 };
