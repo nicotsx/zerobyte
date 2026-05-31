@@ -215,6 +215,37 @@ test("websocket lifecycle updates agent connection status", async () => {
 	expect(stop).toHaveBeenCalledWith(true);
 });
 
+test("websocket restore events are forwarded with agent metadata", async () => {
+	const serve = vi
+		.spyOn(Bun, "serve")
+		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+	const { runtime, onEvent } = await startRuntime(vi.fn());
+	const websocket = serve.mock.calls[0]?.[0].websocket;
+	const socket = createSocket("connection-1");
+
+	await websocket?.open?.(fromPartial(socket));
+	await websocket?.message?.(
+		fromPartial(socket),
+		createAgentMessage("restore.completed", {
+			restoreId: "restore-1",
+			organizationId: "org-1",
+			repositoryId: "repo-1",
+			snapshotId: "snapshot-1",
+			result: { message_type: "summary", files_restored: 2, files_skipped: 0 },
+		}),
+	);
+	await Effect.runPromise(runtime.stop);
+
+	expect(onEvent).toHaveBeenCalledWith(
+		expect.objectContaining({
+			type: "restore.completed",
+			agentId: LOCAL_AGENT_ID,
+			agentName: LOCAL_AGENT_NAME,
+			payload: expect.objectContaining({ restoreId: "restore-1" }),
+		}),
+	);
+});
+
 test("websocket open failure closes the upgraded socket", async () => {
 	agentsServiceMocks.markAgentConnecting.mockRejectedValueOnce(new Error("db unavailable"));
 	const serve = vi

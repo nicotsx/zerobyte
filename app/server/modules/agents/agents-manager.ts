@@ -1,5 +1,10 @@
 import { logger } from "@zerobyte/core/node";
-import type { BackupRunPayload, VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
+import type {
+	BackupRunPayload,
+	RestoreRunPayload,
+	VolumeCommand,
+	VolumeCommandResult,
+} from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
 import { config } from "../../core/config";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
@@ -10,9 +15,16 @@ import {
 	type AgentRuntimeState,
 	type BackupExecutionProgress,
 	type BackupExecutionResult,
+	type RestoreExecutionProgress,
+	type RestoreExecutionResult,
 } from "./helpers/runtime-state";
 import { getDevAgentRuntimeState } from "./helpers/runtime-state.dev";
-export type { BackupExecutionProgress, BackupExecutionResult } from "./helpers/runtime-state";
+export type {
+	BackupExecutionProgress,
+	BackupExecutionResult,
+	RestoreExecutionProgress,
+	RestoreExecutionResult,
+} from "./helpers/runtime-state";
 export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
 
 type ProcessWithProductionAgentRuntime = NodeJS.Process & {
@@ -25,6 +37,17 @@ type AgentRunBackupRequest = {
 	signal: AbortSignal;
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
+
+type AgentStartRestoreRequest = {
+	payload: RestoreRunPayload;
+	signal: AbortSignal;
+	onStarted: () => void;
+	onProgress: (progress: RestoreExecutionProgress) => void;
+};
+
+type AgentRestoreStartResult =
+	| { status: "started"; result: Promise<RestoreExecutionResult> }
+	| { status: "unavailable"; error: Error };
 
 const getProductionAgentRuntimeState = () => {
 	// Nitro production builds can bundle startup plugins and API handlers into separate chunks.
@@ -41,6 +64,7 @@ const getAgentRuntimeState = () => (config.__prod__ ? getProductionAgentRuntimeS
 const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
+const getActiveRestoresByRestoreId = () => getAgentRuntimeState().activeRestoresByRestoreId;
 
 const clearActiveBackupRun = (scheduleId: number) => {
 	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
@@ -65,6 +89,27 @@ const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResul
 	return true;
 };
 
+const clearActiveRestoreRun = (restoreId: string) => {
+	const activeRestoresByRestoreId = getActiveRestoresByRestoreId();
+	const activeRestoreRun = activeRestoresByRestoreId.get(restoreId);
+	if (!activeRestoreRun) {
+		return null;
+	}
+
+	activeRestoresByRestoreId.delete(restoreId);
+	return activeRestoreRun;
+};
+
+const resolveActiveRestoreRun = (restoreId: string, result: RestoreExecutionResult) => {
+	const activeRestoreRun = clearActiveRestoreRun(restoreId);
+	if (!activeRestoreRun) {
+		return false;
+	}
+
+	activeRestoreRun.resolve(result);
+	return true;
+};
+
 const cancelActiveBackupRunsForAgent = (agentId: string, message: string) => {
 	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
 	const matchingScheduleIds = [...activeBackupsByScheduleId.values()]
@@ -73,6 +118,17 @@ const cancelActiveBackupRunsForAgent = (agentId: string, message: string) => {
 
 	for (const scheduleId of matchingScheduleIds) {
 		resolveActiveBackupRun(scheduleId, { status: "cancelled", message });
+	}
+};
+
+const cancelActiveRestoreRunsForAgent = (agentId: string, message: string) => {
+	const activeRestoresByRestoreId = getActiveRestoresByRestoreId();
+	const matchingRestoreIds = [...activeRestoresByRestoreId.values()]
+		.filter((activeRestoreRun) => activeRestoreRun.agentId === agentId)
+		.map((activeRestoreRun) => activeRestoreRun.restoreId);
+
+	for (const restoreId of matchingRestoreIds) {
+		resolveActiveRestoreRun(restoreId, { status: "cancelled", message });
 	}
 };
 
@@ -97,6 +153,21 @@ const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string
 	}
 
 	return activeBackupRun;
+};
+
+const getActiveRestoreRun = (restoreId: string, eventName: string, agentId: string) => {
+	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+	if (!activeRestoreRun) {
+		logger.warn(`Received ${eventName} for unknown restore ${restoreId} from agent ${agentId}`);
+		return null;
+	}
+
+	if (activeRestoreRun.agentId !== agentId) {
+		logger.warn(`Ignoring ${eventName} for restore ${restoreId} from unexpected agent ${agentId}`);
+		return null;
+	}
+
+	return activeRestoreRun;
 };
 
 const requestBackupCancellation = async (agentId: string, scheduleId: number) => {
@@ -132,12 +203,42 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 	return true;
 };
 
+const requestRestoreCancellation = async (agentId: string, restoreId: string) => {
+	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+	if (!activeRestoreRun) {
+		return false;
+	}
+
+	if (activeRestoreRun.cancellationRequested) {
+		return true;
+	}
+
+	activeRestoreRun.cancellationRequested = true;
+
+	const runtime = getAgentManagerRuntime();
+	if (!runtime) {
+		resolveActiveRestoreRun(restoreId, { status: "cancelled" });
+		return true;
+	}
+
+	if (await Effect.runPromise(runtime.cancelRestore(agentId, { restoreId }))) {
+		return true;
+	}
+
+	resolveActiveRestoreRun(restoreId, { status: "cancelled" });
+	return true;
+};
+
 const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 	switch (event.type) {
 		case "agent.disconnected": {
 			cancelActiveBackupRunsForAgent(
 				event.agentId,
 				"The connection to the backup agent was lost. Restart the backup to ensure it completes.",
+			);
+			cancelActiveRestoreRunsForAgent(
+				event.agentId,
+				"The connection to the restore agent was lost. Restart the restore to ensure it completes.",
 			);
 			break;
 		}
@@ -209,6 +310,60 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 			resolveActiveBackupRun(activeBackupRun.scheduleId, {
 				status: "cancelled",
 				message: activeBackupRun.cancellationRequested ? undefined : event.payload.message,
+			});
+			break;
+		}
+		case "restore.started": {
+			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
+			if (!activeRestoreRun) {
+				break;
+			}
+
+			activeRestoreRun.onStarted();
+			break;
+		}
+		case "restore.progress": {
+			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
+			if (!activeRestoreRun) {
+				break;
+			}
+
+			activeRestoreRun.onProgress(event.payload.progress);
+			break;
+		}
+		case "restore.completed": {
+			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
+			if (!activeRestoreRun) {
+				break;
+			}
+
+			resolveActiveRestoreRun(activeRestoreRun.restoreId, {
+				status: "completed",
+				result: event.payload.result,
+			});
+			break;
+		}
+		case "restore.failed": {
+			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
+			if (!activeRestoreRun) {
+				break;
+			}
+
+			resolveActiveRestoreRun(activeRestoreRun.restoreId, {
+				status: "failed",
+				error: event.payload.errorDetails ?? event.payload.error,
+			});
+			break;
+		}
+		case "restore.cancelled": {
+			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
+			if (!activeRestoreRun) {
+				break;
+			}
+
+			resolveActiveRestoreRun(activeRestoreRun.restoreId, {
+				status: "cancelled",
+				message: activeRestoreRun.cancellationRequested ? undefined : event.payload.message,
 			});
 			break;
 		}
@@ -306,6 +461,52 @@ export const agentManager = {
 		}
 
 		return response.command;
+	},
+	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) {
+			return {
+				status: "unavailable",
+				error: new Error(`Restore agent ${agentId} is not connected`),
+			};
+		}
+
+		if (request.signal.aborted) {
+			throw request.signal.reason || new Error("Operation aborted");
+		}
+
+		const completion = new Promise<RestoreExecutionResult>((resolve) => {
+			getActiveRestoresByRestoreId().set(request.payload.restoreId, {
+				agentId,
+				restoreId: request.payload.restoreId,
+				onStarted: request.onStarted,
+				onProgress: request.onProgress,
+				resolve,
+				cancellationRequested: false,
+			});
+		});
+
+		try {
+			if (!(await Effect.runPromise(runtime.sendRestore(agentId, request.payload)))) {
+				clearActiveRestoreRun(request.payload.restoreId);
+				return {
+					status: "unavailable",
+					error: new Error(`Failed to send restore command to agent ${agentId}`),
+				};
+			}
+
+			if (request.signal.aborted) {
+				await requestRestoreCancellation(agentId, request.payload.restoreId);
+			}
+
+			return { status: "started", result: completion };
+		} catch (error) {
+			clearActiveRestoreRun(request.payload.restoreId);
+			throw error;
+		}
+	},
+	cancelRestore: async (agentId: string, restoreId: string) => {
+		return requestRestoreCancellation(agentId, restoreId);
 	},
 };
 

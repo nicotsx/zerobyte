@@ -343,14 +343,13 @@ export const restoreSnapshotBody = z.object({
 	excludeXattr: z.array(z.string()).optional(),
 	delete: z.boolean().optional(),
 	targetPath: z.string().optional(),
+	targetAgentId: z.string().optional(),
 	overwrite: overwriteModeSchema.optional(),
 });
 
 const restoreSnapshotResponse = z.object({
-	success: z.boolean(),
-	message: z.string(),
-	filesRestored: z.number(),
-	filesSkipped: z.number(),
+	restoreId: z.string(),
+	status: z.literal("started"),
 });
 
 export type RestoreSnapshotDto = z.infer<typeof restoreSnapshotResponse>;
@@ -360,8 +359,8 @@ export const restoreSnapshotDto = describeRoute({
 	tags: ["Repositories"],
 	operationId: "restoreSnapshot",
 	responses: {
-		200: {
-			description: "Snapshot restored successfully",
+		202: {
+			description: "Snapshot restore started",
 			content: {
 				"application/json": {
 					schema: resolver(restoreSnapshotResponse),

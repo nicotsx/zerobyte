@@ -6,14 +6,18 @@ import { generateBackupOutput } from "~/test/helpers/restic";
 import { taskStore } from "../tasks.store";
 import type { TaskInput, TaskProgress, TaskResult } from "../tasks.schemas";
 
-const backupInput = (scheduleId = 1): TaskInput => ({
+type BackupTaskInput = Extract<TaskInput, { kind: "backup" }>;
+type BackupTaskProgress = Extract<TaskProgress, { kind: "backup" }>;
+type BackupTaskResult = Extract<TaskResult, { kind: "backup" }>;
+
+const backupInput = (scheduleId = 1): BackupTaskInput => ({
 	kind: "backup",
 	scheduleId,
 	scheduleShortId: `schedule-${scheduleId}`,
 	manual: false,
 });
 
-const backupProgress = (percentDone = 0.5): TaskProgress => ({
+const backupProgress = (percentDone = 0.5): BackupTaskProgress => ({
 	kind: "backup",
 	progress: {
 		message_type: "status",
@@ -28,7 +32,7 @@ const backupProgress = (percentDone = 0.5): TaskProgress => ({
 	},
 });
 
-const backupResult = (): TaskResult => ({
+const backupResult = (): BackupTaskResult => ({
 	kind: "backup",
 	exitCode: 0,
 	result: JSON.parse(generateBackupOutput()),
@@ -42,6 +46,16 @@ const createBackupTask = (overrides: Partial<Parameters<typeof taskStore.create>
 		resourceId: "1",
 		targetAgentId: "local",
 		input: backupInput(),
+		...overrides,
+	});
+
+const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create>[0]> = {}) =>
+	taskStore.create({
+		organizationId: TEST_ORG_ID,
+		resourceType: "repository",
+		resourceId: "repo-short",
+		targetAgentId: "local",
+		input: { kind: "restore", repositoryId: "repo-short", snapshotId: "snapshot-1", target: "/tmp/restore" },
 		...overrides,
 	});
 
@@ -97,6 +111,10 @@ test("moves an active task through running, progress, cancellation request, and 
 
 	const completed = taskStore.complete(task.id, backupResult());
 	expect(completed.status).toBe("succeeded");
+	expect(completed.result?.kind).toBe("backup");
+	if (completed.result?.kind !== "backup") {
+		throw new Error("Expected backup result");
+	}
 	expect(completed.result?.result?.snapshot_id).toBe("abcd1234");
 	expect(completed.finishedAt).toEqual(expect.any(Number));
 	expect(completed.cancellationRequested).toBe(true);
@@ -115,6 +133,44 @@ test("records failed and cancelled terminal task states", () => {
 	expect(cancelled.status).toBe("cancelled");
 	expect(cancelled.error).toBe("Backup was stopped by the user");
 	expect(cancelled.cancellationRequested).toBe(true);
+});
+
+test("moves restore tasks through progress and success", () => {
+	const task = createRestoreTask({ id: "restore-task" });
+
+	const running = taskStore.markRunning(task.id);
+	expect(running.kind).toBe("restore");
+	expect(running.input).toMatchObject({ kind: "restore", snapshotId: "snapshot-1" });
+
+	const progressed = taskStore.updateProgress(task.id, {
+		kind: "restore",
+		progress: {
+			message_type: "status",
+			seconds_elapsed: 2,
+			percent_done: 0.25,
+			total_files: 4,
+			files_restored: 1,
+			total_bytes: 400,
+			bytes_restored: 100,
+		},
+	});
+	expect(progressed.progress?.progress.percent_done).toBe(0.25);
+
+	const completed = taskStore.complete(task.id, {
+		kind: "restore",
+		result: {
+			message_type: "summary",
+			total_files: 4,
+			files_restored: 4,
+			files_skipped: 0,
+		},
+	});
+	expect(completed.status).toBe("succeeded");
+	expect(completed.result?.kind).toBe("restore");
+	if (completed.result?.kind !== "restore") {
+		throw new Error("Expected restore result");
+	}
+	expect(completed.result?.result.files_restored).toBe(4);
 });
 
 test("finds the newest active task for a resource and marks only matching active tasks stale", async () => {

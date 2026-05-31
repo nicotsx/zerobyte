@@ -30,9 +30,7 @@ type CreateTaskParams = {
 	input: TaskInput;
 };
 
-type MarkActiveStaleParams = Partial<TaskResource> & {
-	error?: string;
-};
+type MarkActiveStaleParams = Partial<TaskResource> & { error?: string };
 
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
 
@@ -186,6 +184,17 @@ export const taskStore = {
 
 		const [row] = rows;
 		return row ? parseTask(row) : null;
+	},
+
+	listActiveByResource: (params: TaskResource): ParsedTask[] => {
+		const rows = db
+			.select()
+			.from(tasksTable)
+			.where(and(...buildActiveConditions(params)))
+			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
+			.all();
+
+		return rows.map(parseTask);
 	},
 
 	markActiveStale: (params: MarkActiveStaleParams = {}): ParsedTask[] => {
