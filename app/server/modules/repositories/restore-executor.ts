@@ -78,45 +78,68 @@ const executeControllerRestore = async (
 	}
 };
 
+const executeAgentRestore = async (
+	request: RestoreExecutionRequest,
+	signal: AbortSignal,
+): Promise<RestoreExecutionResult> => {
+	if (signal.aborted) {
+		return { status: "cancelled", message: "Restore was cancelled" };
+	}
+
+	try {
+		const payload = await createRestoreRunPayload(request);
+		const started = await agentManager.startRestore(request.executionAgentId, {
+			payload,
+			signal,
+			onStarted: request.onStarted,
+			onProgress: request.onProgress,
+		});
+
+		if (started.status === "unavailable") {
+			return started;
+		}
+
+		return await started.result;
+	} catch (error) {
+		if (signal.aborted) {
+			return { status: "cancelled", message: "Restore was cancelled" };
+		}
+
+		return { status: "failed", error: toMessage(error) };
+	}
+};
+
+const executeRestoreWithRepositoryLock = async (
+	request: RestoreExecutionRequest,
+	signal: AbortSignal,
+): Promise<RestoreExecutionResult> => {
+	let releaseLock: (() => void) | null = null;
+
+	try {
+		releaseLock = await repoMutex.acquireShared(request.repositoryId, `restore:${request.restoreId}`, signal);
+
+		if (shouldRunInController(request.executionAgentId)) {
+			return await executeControllerRestore(request, signal);
+		}
+
+		return await executeAgentRestore(request, signal);
+	} catch (error) {
+		if (signal.aborted) {
+			return { status: "cancelled", message: "Restore was cancelled" };
+		}
+
+		return { status: "failed", error: toMessage(error) };
+	} finally {
+		releaseLock?.();
+	}
+};
+
 export const restoreExecutor = {
-	start: async (request: RestoreExecutionRequest): Promise<RestoreExecutionHandle> => {
+	start: (request: RestoreExecutionRequest): RestoreExecutionHandle => {
 		const abortController = new AbortController();
 
-		let releaseLock: (() => void) | null = null;
-		try {
-			releaseLock = await repoMutex.acquireShared(
-				request.repositoryId,
-				`restore:${request.restoreId}`,
-				abortController.signal,
-			);
-
-			let result: Promise<RestoreExecutionResult>;
-			if (shouldRunInController(request.executionAgentId)) {
-				result = executeControllerRestore(request, abortController.signal);
-			} else {
-				const payload = await createRestoreRunPayload(request);
-				const started = await agentManager.startRestore(request.executionAgentId, {
-					payload,
-					signal: abortController.signal,
-					onStarted: request.onStarted,
-					onProgress: request.onProgress,
-				});
-
-				if (started.status === "unavailable") {
-					throw started.error;
-				}
-
-				result = started.result;
-			}
-
-			return {
-				result: result.finally(() => {
-					releaseLock?.();
-				}),
-			};
-		} catch (error) {
-			releaseLock?.();
-			throw error;
-		}
+		return {
+			result: executeRestoreWithRepositoryLock(request, abortController.signal),
+		};
 	},
 };

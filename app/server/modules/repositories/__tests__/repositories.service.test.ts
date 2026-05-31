@@ -14,11 +14,13 @@ import { db } from "~/server/db/db";
 import { agentsTable, repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { restic } from "~/server/core/restic";
-import { agentManager } from "~/server/modules/agents/agents-manager";
+import { agentManager, type RestoreExecutionResult } from "~/server/modules/agents/agents-manager";
 import { createTestSession } from "~/test/helpers/auth";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { cache, cacheKeys } from "~/server/utils/cache";
 import { ResticError } from "@zerobyte/core/restic/server";
+import { repoMutex } from "~/server/core/repository-mutex";
+import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { repositoriesService } from "../repositories.service";
 
 const createTestRepository = async (organizationId: string, overrides: Partial<RepositoryInsert> = {}) => {
@@ -416,8 +418,26 @@ describe("repositoriesService.restoreSnapshot", () => {
 	let originalEnableLocalAgent: boolean;
 	const createPendingRestoreStart = () => ({
 		status: "started" as const,
-		result: new Promise<never>(() => {}),
+		result: new Promise<RestoreExecutionResult>(() => {}),
 	});
+	const resolveWithin = async <T>(promise: Promise<T>, timeoutMs: number) => {
+		return await new Promise<T>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Expected promise to resolve within ${timeoutMs}ms`));
+			}, timeoutMs);
+
+			promise.then(
+				(value) => {
+					clearTimeout(timeout);
+					resolve(value);
+				},
+				(error) => {
+					clearTimeout(timeout);
+					reject(error);
+				},
+			);
+		});
+	};
 
 	beforeEach(() => {
 		originalEnableLocalAgent = config.flags.enableLocalAgent;
@@ -451,6 +471,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 		return {
 			organizationId,
 			userId: session.user.id,
+			repositoryId: repository.id,
 			repositoryShortId: repository.shortId,
 			restoreMock,
 		};
@@ -485,20 +506,22 @@ describe("repositoriesService.restoreSnapshot", () => {
 			await fs.rm(targetPath, { recursive: true, force: true });
 		}
 
-		expect(restoreMock).toHaveBeenCalledWith(
-			"local",
-			expect.objectContaining({
-				payload: expect.objectContaining({
-					snapshotId: "snapshot-restore",
-					target: targetPath,
-					repositoryConfig: expect.objectContaining({ backend: "local" }),
-					options: expect.objectContaining({
-						organizationId,
-						basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledWith(
+				"local",
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						snapshotId: "snapshot-restore",
+						target: targetPath,
+						repositoryConfig: expect.objectContaining({ backend: "local" }),
+						options: expect.objectContaining({
+							organizationId,
+							basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+						}),
 					}),
 				}),
-			}),
-		);
+			);
+		});
 	});
 
 	test("rejects starting a second active restore for the same snapshot", async () => {
@@ -522,6 +545,73 @@ describe("repositoriesService.restoreSnapshot", () => {
 		} finally {
 			await fs.rm(targetPath, { recursive: true, force: true });
 		}
+	});
+
+	test("returns a restore id while waiting for the repository mutex", async () => {
+		const { organizationId, userId, repositoryId, repositoryShortId, restoreMock } =
+			await setupRestoreSnapshotScenario();
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+		await withContext({ organizationId, userId }, () =>
+			repositoriesService.getSnapshotDetails(repositoryShortId, "snapshot-restore"),
+		);
+
+		let finishRestore: (result: RestoreExecutionResult) => void = () => {};
+		const restoreResult = new Promise<RestoreExecutionResult>((resolve) => {
+			finishRestore = resolve;
+		});
+		restoreMock.mockResolvedValueOnce({ status: "started", result: restoreResult });
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repositoryId, "check");
+		let restoreId = "";
+		try {
+			const restoreStart = withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", {
+					targetPath,
+				}),
+			);
+
+			const result = await resolveWithin(restoreStart, 1000);
+			restoreId = result.restoreId;
+
+			expect(result.status).toBe("started");
+			expect(restoreMock).not.toHaveBeenCalled();
+
+			const task = taskStore.findActiveByResource({
+				organizationId,
+				kind: "restore",
+				resourceType: "repository",
+				resourceId: repositoryShortId,
+			});
+			expect(task?.id).toBe(restoreId);
+			expect(task?.status).toBe("queued");
+		} finally {
+			releaseExclusive();
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledTimes(1);
+		});
+
+		finishRestore({
+			status: "completed",
+			result: {
+				message_type: "summary",
+				files_skipped: 0,
+				files_restored: 1,
+			},
+		});
+
+		await waitForExpect(() => {
+			expect(
+				taskStore.findActiveByResource({
+					organizationId,
+					kind: "restore",
+					resourceType: "repository",
+					resourceId: repositoryShortId,
+				}),
+			).toBeNull();
+		});
 	});
 
 	test("routes restore to the requested target agent", async () => {
@@ -572,14 +662,16 @@ describe("repositoriesService.restoreSnapshot", () => {
 			await fs.rm(targetPath, { recursive: true, force: true });
 		}
 
-		expect(restoreMock).toHaveBeenCalledWith(
-			agentId,
-			expect.objectContaining({
-				payload: expect.objectContaining({
-					target: targetPath,
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledWith(
+				agentId,
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						target: targetPath,
+					}),
 				}),
-			}),
-		);
+			);
+		});
 	});
 
 	test("rejects a target agent outside the current organization", async () => {
@@ -701,20 +793,22 @@ describe("repositoriesService.restoreSnapshot", () => {
 			await fs.rm(targetPath, { recursive: true, force: true });
 		}
 
-		expect(restoreMock).toHaveBeenCalledWith(
-			"local",
-			expect.objectContaining({
-				payload: expect.objectContaining({
-					snapshotId: "snapshot-restore",
-					target: targetPath,
-					repositoryConfig: expect.objectContaining({ backend: "local" }),
-					options: expect.objectContaining({
-						organizationId,
-						basePath: "/",
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledWith(
+				"local",
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						snapshotId: "snapshot-restore",
+						target: targetPath,
+						repositoryConfig: expect.objectContaining({ backend: "local" }),
+						options: expect.objectContaining({
+							organizationId,
+							basePath: "/",
+						}),
 					}),
 				}),
-			}),
-		);
+			);
+		});
 	});
 });
 
