@@ -109,6 +109,15 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				case "agent.disconnected": {
 					return Effect.sync(() => onEvent({ type: "agent.disconnected", agentId, agentName }));
 				}
+				case "restore.cancelled":
+				case "restore.completed":
+				case "restore.failed":
+				case "restore.progress":
+				case "restore.started": {
+					// TODO: once we implement the app side
+					return Effect.void;
+				}
+
 				default: {
 					return Effect.sync(() => onEvent({ ...event, agentId, agentName }));
 				}
