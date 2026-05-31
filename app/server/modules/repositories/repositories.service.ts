@@ -565,7 +565,7 @@ const restoreSnapshot = async (
 	const restoreId = task.id;
 	try {
 		const repositoryConfig = await decryptRepositoryConfig(repository.config);
-		const execution = await restoreExecutor.start({
+		const execution = restoreExecutor.start({
 			restoreId,
 			organizationId,
 			repositoryId: repository.id,
