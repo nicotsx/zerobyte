@@ -6,7 +6,7 @@ import {
 	type AgentWireMessage,
 	type VolumeCommandPayload,
 } from "@zerobyte/contracts/agent-protocol";
-import type { ControllerCommandContext } from "../context";
+import type { ControllerCommandContext } from "../../context";
 
 const volumeHostMock = vi.hoisted(() => ({
 	createVolumeBackend: vi.fn(),
@@ -20,10 +20,10 @@ const operationsMock = vi.hoisted(() => ({
 	testVolumeConnection: vi.fn(),
 }));
 
-vi.mock("../volume-host", () => volumeHostMock);
-vi.mock("../volume-host/operations", () => operationsMock);
+vi.mock("../../volume-host", () => volumeHostMock);
+vi.mock("../../volume-host/operations", () => operationsMock);
 
-import { handleVolumeCommand } from "./volume";
+import { handleVolumeCommand } from "../volume";
 
 afterEach(() => {
 	vi.restoreAllMocks();

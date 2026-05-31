@@ -5,6 +5,8 @@ import {
 	repositoryConfigSchema,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
+	resticRestoreOutputSchema,
+	restoreProgressSchema,
 	type CompressionMode,
 } from "@zerobyte/core/restic";
 import {
@@ -29,7 +31,7 @@ const backupExecutionOptionsSchema = z.object({
 	compressionMode: compressionModeSchema,
 });
 
-const backupRuntimeSchema = z.object({
+const commandRuntimeSchema = z.object({
 	password: z.string(),
 });
 
@@ -42,7 +44,7 @@ const backupRunSchema = z.object({
 		volume: volumeSchema,
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
-		runtime: backupRuntimeSchema,
+		runtime: commandRuntimeSchema,
 		webhooks: backupWebhooksSchema,
 		webhookAllowedOrigins: z.array(z.string()),
 		webhookTimeoutMs: z.number(),
@@ -94,6 +96,71 @@ const volumeCommandResponseSchema = z.object({
 		z.object({ commandId: z.string(), status: z.literal("success"), command: volumeCommandResultSchema }),
 		z.object({ commandId: z.string(), status: z.literal("error"), error: z.string() }),
 	]),
+});
+
+const restoreIdentitySchema = z.object({
+	restoreId: z.string(),
+	organizationId: z.string(),
+	repositoryId: z.string(),
+	snapshotId: z.string(),
+});
+
+const restoreRunSchema = z.object({
+	type: z.literal("restore.run"),
+	payload: restoreIdentitySchema.extend({
+		target: z.string(),
+		repositoryConfig: repositoryConfigSchema,
+		runtime: commandRuntimeSchema,
+		options: z.object({
+			basePath: z.string().optional(),
+			organizationId: z.string(),
+			include: z.array(z.string()).optional(),
+			selectedItemKind: z.enum(["file", "dir"]).optional(),
+			exclude: z.array(z.string()).optional(),
+			excludeXattr: z.array(z.string()).optional(),
+			delete: z.boolean().optional(),
+			overwrite: z.enum(["always", "if-changed", "if-newer", "never"]).optional(),
+		}),
+	}),
+});
+
+const restoreCancelSchema = z.object({
+	type: z.literal("restore.cancel"),
+	payload: z.object({ restoreId: z.string() }),
+});
+
+const restoreStartedSchema = z.object({
+	type: z.literal("restore.started"),
+	payload: restoreIdentitySchema,
+});
+
+const restoreProgressMessageSchema = z.object({
+	type: z.literal("restore.progress"),
+	payload: restoreIdentitySchema.extend({
+		progress: restoreProgressSchema,
+	}),
+});
+
+const restoreCompletedSchema = z.object({
+	type: z.literal("restore.completed"),
+	payload: restoreIdentitySchema.extend({
+		result: resticRestoreOutputSchema,
+	}),
+});
+
+const restoreFailedSchema = z.object({
+	type: z.literal("restore.failed"),
+	payload: restoreIdentitySchema.extend({
+		error: z.string(),
+		errorDetails: z.string().optional(),
+	}),
+});
+
+const restoreCancelledSchema = z.object({
+	type: z.literal("restore.cancelled"),
+	payload: restoreIdentitySchema.extend({
+		message: z.string().optional(),
+	}),
 });
 
 const heartbeatPingSchema = z.object({
@@ -165,6 +232,8 @@ const controllerMessageSchema = z.discriminatedUnion("type", [
 	backupRunSchema,
 	backupCancelSchema,
 	volumeCommandRequestSchema,
+	restoreRunSchema,
+	restoreCancelSchema,
 	heartbeatPingSchema,
 ]);
 const agentMessageSchema = z.discriminatedUnion("type", [
@@ -175,6 +244,11 @@ const agentMessageSchema = z.discriminatedUnion("type", [
 	backupFailedSchema,
 	backupCancelledSchema,
 	volumeCommandResponseSchema,
+	restoreStartedSchema,
+	restoreProgressMessageSchema,
+	restoreCompletedSchema,
+	restoreFailedSchema,
+	restoreCancelledSchema,
 	heartbeatPongSchema,
 ]);
 
@@ -189,6 +263,13 @@ export type VolumeCommandPayload = z.infer<typeof volumeCommandRequestSchema>["p
 export type VolumeCommand = z.infer<typeof volumeCommandSchema>;
 export type VolumeCommandResult = z.infer<typeof volumeCommandResultSchema>;
 export type VolumeCommandResponsePayload = z.infer<typeof volumeCommandResponseSchema>["payload"];
+export type RestoreRunPayload = z.infer<typeof restoreRunSchema>["payload"];
+export type RestoreCancelPayload = z.infer<typeof restoreCancelSchema>["payload"];
+export type RestoreStartedPayload = z.infer<typeof restoreStartedSchema>["payload"];
+export type RestoreProgressPayload = z.infer<typeof restoreProgressMessageSchema>["payload"];
+export type RestoreCompletedPayload = z.infer<typeof restoreCompletedSchema>["payload"];
+export type RestoreFailedPayload = z.infer<typeof restoreFailedSchema>["payload"];
+export type RestoreCancelledPayload = z.infer<typeof restoreCancelledSchema>["payload"];
 export type ControllerMessage = z.infer<typeof controllerMessageSchema>;
 export type AgentMessage = z.infer<typeof agentMessageSchema>;
 

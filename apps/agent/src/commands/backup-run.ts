@@ -8,7 +8,7 @@ import { toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
 import { resticDeps } from "../restic/deps";
 import { createVolumeBackend, getVolumePath } from "../volume-host";
-import { createBackupOptions } from "./backup.helpers";
+import { createBackupOptions } from "./helpers/backup.helpers";
 
 class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 	readonly _tag: "VolumeReadinessError";
@@ -64,7 +64,11 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 		yield* logger.effect.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
 		const abortController = new AbortController();
-		yield* context.setRunningJob(payload.jobId, { scheduleId: payload.scheduleId, abortController });
+		yield* context.setRunningJob(payload.jobId, {
+			kind: "backup",
+			scheduleId: payload.scheduleId,
+			abortController,
+		});
 
 		yield* Effect.fork(
 			Effect.gen(function* () {

@@ -1,10 +1,9 @@
 import type { AgentWireMessage } from "@zerobyte/contracts/agent-protocol";
 import type { Effect } from "effect";
 
-export type RunningJob = {
-	scheduleId: string;
-	abortController: AbortController;
-};
+export type RunningJob =
+	| { kind: "backup"; scheduleId: string; abortController: AbortController }
+	| { kind: "restore"; abortController: AbortController };
 
 export type ControllerCommandContext = {
 	getRunningJob: (jobId: string) => Effect.Effect<RunningJob | undefined, never, never>;

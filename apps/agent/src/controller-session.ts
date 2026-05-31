@@ -144,7 +144,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 						protocolVersion: 1,
 						hostname: resolveResticHostname(),
 						platform: process.platform,
-						capabilities: { backup: true, volume: true, restic: true },
+						capabilities: { backup: true, restore: true, volume: true, restic: true },
 					}),
 				),
 			).catch((error) => {
