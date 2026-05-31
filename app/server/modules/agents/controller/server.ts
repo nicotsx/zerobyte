@@ -5,6 +5,8 @@ import type {
 	AgentMessage,
 	BackupCancelPayload,
 	BackupRunPayload,
+	RestoreCancelPayload,
+	RestoreRunPayload,
 	VolumeCommand,
 	VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
@@ -22,16 +24,9 @@ type AgentEventContext = {
 	agentName: string;
 };
 
-type AgentBackupMessage = Extract<
-	AgentMessage,
-	{
-		type: "backup.started" | "backup.progress" | "backup.completed" | "backup.failed" | "backup.cancelled";
-	}
->;
-
 export type AgentManagerEvent =
 	| (AgentEventContext & { type: "agent.disconnected" })
-	| (AgentEventContext & AgentBackupMessage);
+	| (AgentEventContext & AgentMessage);
 
 type ControllerAgentSessionHandle = {
 	agentId: string;
@@ -86,7 +81,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 		return !!session && Effect.runSync(session.isReady());
 	};
 
-	const handleSessionEvent = (params: { agentId: string; agentName: string; sessionId: string }) => {
+	const handleSessionEvent = (params: { agentId: string; agentName: string }) => {
 		const { agentId, agentName } = params;
 
 		return (event: ControllerAgentSessionEvent) => {
@@ -109,15 +104,6 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				case "agent.disconnected": {
 					return Effect.sync(() => onEvent({ type: "agent.disconnected", agentId, agentName }));
 				}
-				case "restore.cancelled":
-				case "restore.completed":
-				case "restore.failed":
-				case "restore.progress":
-				case "restore.started": {
-					// TODO: once we implement the app side
-					return Effect.void;
-				}
-
 				default: {
 					return Effect.sync(() => onEvent({ ...event, agentId, agentName }));
 				}
@@ -135,7 +121,6 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 					handleSessionEvent({
 						agentId: ws.data.agentId,
 						agentName: ws.data.agentName,
-						sessionId: ws.data.id,
 					}),
 				),
 				scope,
@@ -366,6 +351,47 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 					return false;
 				}
 				logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
+				return true;
+			}),
+		sendRestore: (agentId: string, payload: RestoreRunPayload) =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
+
+				if (!session) {
+					logger.warn(`Cannot send restore command. Agent ${agentId} is not connected.`);
+					return false;
+				}
+
+				if (!(yield* session.isReady())) {
+					logger.warn(`Cannot send restore command. Agent ${agentId} is not ready.`);
+					return false;
+				}
+
+				if (!(yield* session.sendRestore(payload))) {
+					logger.warn(`Cannot send restore command. Agent ${agentId} is no longer accepting commands.`);
+					return false;
+				}
+
+				logger.info(
+					`Sent restore command ${payload.restoreId} to agent ${agentId} for snapshot ${payload.snapshotId}`,
+				);
+				return true;
+			}),
+		cancelRestore: (agentId: string, payload: RestoreCancelPayload) =>
+			Effect.gen(function* () {
+				const session = getSession(agentId);
+
+				if (!session) {
+					logger.warn(`Cannot cancel restore command. Agent ${agentId} is not connected.`);
+					return false;
+				}
+
+				if (!(yield* session.sendRestoreCancel(payload))) {
+					logger.warn(`Cannot cancel restore command. Agent ${agentId} is no longer accepting commands.`);
+					return false;
+				}
+
+				logger.info(`Sent restore cancel for command ${payload.restoreId} to agent ${agentId}`);
 				return true;
 			}),
 		runVolumeCommand: (

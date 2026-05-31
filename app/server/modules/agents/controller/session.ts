@@ -7,6 +7,8 @@ import {
 	type BackupCancelPayload,
 	type BackupRunPayload,
 	type ControllerWireMessage,
+	type RestoreCancelPayload,
+	type RestoreRunPayload,
 	type VolumeCommand,
 	type VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
@@ -29,22 +31,19 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-type PendingCommand = {
-	deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>;
-	description: string;
-};
+type PendingCommand = { deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>; description: string };
 
 export type ControllerAgentSessionEvent =
 	| Exclude<AgentMessage, { type: "volume.commandResult" }>
-	| {
-			type: "agent.disconnected";
-	  };
+	| { type: "agent.disconnected" };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
 	handleMessage: (data: string) => Effect.Effect<void>;
 	sendBackup: (payload: BackupRunPayload) => Effect.Effect<boolean>;
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
+	sendRestore: (payload: RestoreRunPayload) => Effect.Effect<boolean>;
+	sendRestoreCancel: (payload: RestoreCancelPayload) => Effect.Effect<boolean>;
 	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
@@ -68,7 +67,9 @@ export const createControllerAgentSession = (
 			Queue.offer(outboundQueue, message).pipe(
 				Effect.catchAllCause((cause) =>
 					Effect.sync(() => {
-						logger.error(`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`);
+						logger.error(
+							`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`,
+						);
 						return false;
 					}),
 				),
@@ -189,7 +190,11 @@ export const createControllerAgentSession = (
 					}
 					case "heartbeat.pong": {
 						const seenAt = Date.now();
-						yield* updateState((current) => ({ ...current, lastSeenAt: seenAt, lastPongAt: message.payload.sentAt }));
+						yield* updateState((current) => ({
+							...current,
+							lastSeenAt: seenAt,
+							lastPongAt: message.payload.sentAt,
+						}));
 						yield* onEvent(message);
 						break;
 					}
@@ -216,7 +221,9 @@ export const createControllerAgentSession = (
 					}
 
 					if (!parsed.success) {
-						yield* logger.effect.warn(`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`);
+						yield* logger.effect.warn(
+							`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`,
+						);
 						return;
 					}
 
@@ -225,6 +232,8 @@ export const createControllerAgentSession = (
 			},
 			sendBackup: (payload) => offerOutbound(createControllerMessage("backup.run", payload)),
 			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
+			sendRestore: (payload) => offerOutbound(createControllerMessage("restore.run", payload)),
+			sendRestoreCancel: (payload) => offerOutbound(createControllerMessage("restore.cancel", payload)),
 			runVolumeCommand: (command) =>
 				Effect.gen(function* () {
 					const commandId = Bun.randomUUIDv7();
@@ -232,7 +241,9 @@ export const createControllerAgentSession = (
 					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
 					yield* setPendingCommand(commandId, { deferred, description });
 
-					const queued = yield* offerOutbound(createControllerMessage("volume.command", { commandId, command }));
+					const queued = yield* offerOutbound(
+						createControllerMessage("volume.command", { commandId, command }),
+					);
 					if (!queued) {
 						yield* removePendingCommand(commandId);
 						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));

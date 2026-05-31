@@ -1,4 +1,9 @@
-import { resticBackupOutputSchema, resticBackupProgressSchema } from "@zerobyte/core/restic";
+import {
+	resticBackupOutputSchema,
+	resticBackupProgressSchema,
+	resticRestoreOutputSchema,
+	restoreProgressSchema,
+} from "@zerobyte/core/restic";
 import { z } from "zod";
 
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
@@ -6,7 +11,7 @@ export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
-export const taskKindSchema = z.enum(["backup"]);
+export const taskKindSchema = z.enum(["backup", "restore"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -15,12 +20,22 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		scheduleShortId: z.string(),
 		manual: z.boolean(),
 	}),
+	z.object({
+		kind: z.literal("restore"),
+		repositoryId: z.string(),
+		snapshotId: z.string(),
+		target: z.string(),
+	}),
 ]);
 
 export const taskProgressSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("backup"),
 		progress: resticBackupProgressSchema,
+	}),
+	z.object({
+		kind: z.literal("restore"),
+		progress: restoreProgressSchema,
 	}),
 ]);
 
@@ -30,6 +45,10 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 		exitCode: z.number(),
 		result: resticBackupOutputSchema.nullable(),
 		warningDetails: z.string().nullable(),
+	}),
+	z.object({
+		kind: z.literal("restore"),
+		result: resticRestoreOutputSchema,
 	}),
 ]);
 
