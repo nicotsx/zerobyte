@@ -1,5 +1,4 @@
 import path from "node:path";
-import { z } from "zod";
 import { throttle } from "es-toolkit";
 import { findCommonAncestor } from "../../utils/common-ancestor";
 import { addCommonArgs } from "../helpers/add-common-args";
@@ -9,7 +8,12 @@ import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { type RepositoryConfig, type OverwriteMode } from "../schemas";
 import { logger, safeSpawn } from "../../node";
 import { createResticError, isResticError, type AnyResticError } from "../error";
-import { resticRestoreOutputSchema, type ResticRestoreOutputDto } from "../restic-dto";
+import {
+	restoreProgressSchema,
+	resticRestoreOutputSchema,
+	type RestoreProgress,
+	type ResticRestoreOutputDto,
+} from "../restic-dto";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
@@ -18,18 +22,6 @@ class ResticRestoreCommandError extends Data.TaggedError("ResticRestoreCommandEr
 	cause: unknown;
 	message: string;
 }> {}
-
-export const restoreProgressSchema = z.object({
-	message_type: z.enum(["status", "summary"]),
-	seconds_elapsed: z.number().default(0),
-	percent_done: z.number().default(0),
-	total_files: z.number().default(0),
-	files_restored: z.number().default(0),
-	total_bytes: z.number().default(0),
-	bytes_restored: z.number().default(0),
-});
-
-export type RestoreProgress = z.infer<typeof restoreProgressSchema>;
 
 export const restore = (
 	config: RepositoryConfig,
