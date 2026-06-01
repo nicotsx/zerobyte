@@ -62,7 +62,12 @@ test.concurrent.each(scenarios)("$name can backup, list, and restore fixture dat
 		await fs.mkdir(workspace, { recursive: true });
 		const fixture = await createScenarioFixture(workspace, scenario.id);
 
-		const initResult = await restic.init(repositoryConfig, INTEGRATION_ORGANIZATION_ID, { timeoutMs: 120_000 });
+		const initResult = await Effect.runPromise(
+			restic.init(repositoryConfig, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				timeoutMs: 120_000,
+			}),
+		);
 		expect(initResult.success).toBe(true);
 		expect(initResult.error).toBeNull();
 
@@ -82,25 +87,32 @@ test.concurrent.each(scenarios)("$name can backup, list, and restore fixture dat
 			throw new Error("Restic backup completed without a snapshot id");
 		}
 
-		const snapshots = await restic.snapshots(repositoryConfig, {
-			organizationId: INTEGRATION_ORGANIZATION_ID,
-			tags: [backupTag],
-		});
+		const snapshots = await Effect.runPromise(
+			restic.snapshots(repositoryConfig, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				tags: [backupTag],
+			}),
+		);
 		const snapshot = snapshots.find(
 			(candidate) => candidate.id === snapshotId || candidate.short_id === snapshotId,
 		);
 		expect(snapshot).toBeDefined();
 		expect(snapshot?.paths).toContain(fixture.sourceRoot);
 
-		const lsResult = await restic.ls(repositoryConfig, snapshotId, INTEGRATION_ORGANIZATION_ID, undefined, {
-			limit: 100,
-		});
+		const lsResult = await Effect.runPromise(
+			restic.ls(repositoryConfig, snapshotId, undefined, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				limit: 100,
+			}),
+		);
 		assertSnapshotContainsFixture(fixture.sourceRoot, lsResult.nodes, fixture);
 
-		await restic.restore(repositoryConfig, snapshotId, restoreTarget, {
-			organizationId: INTEGRATION_ORGANIZATION_ID,
-			basePath: fixture.sourceRoot,
-		});
+		await Effect.runPromise(
+			restic.restore(repositoryConfig, snapshotId, restoreTarget, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				basePath: fixture.sourceRoot,
+			}),
+		);
 		await assertRestoredFixture(restoreTarget, fixture);
 
 		passed = true;
