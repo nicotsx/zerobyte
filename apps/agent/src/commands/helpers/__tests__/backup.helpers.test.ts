@@ -130,6 +130,24 @@ describe("backup path options", () => {
 		).toThrow("Include pattern escapes volume root");
 	});
 
+	test("rejects unsupported characters in selected include paths", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+
+		for (const includePath of ["/Photos\0/etc/passwd", "/Photos\n/etc/passwd", "/Photos\r/etc/passwd"]) {
+			expect(() => createOptions(createPathOptions({ includePaths: [includePath] }), volumePath)).toThrow(
+				"Include pattern contains an unsupported path character",
+			);
+		}
+	});
+
+	test("rejects unsupported characters in include patterns", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+
+		expect(() =>
+			createOptions(createPathOptions({ includePatterns: ["/Photos\n/etc/passwd"] }), volumePath),
+		).toThrow("Include pattern contains an unsupported path character");
+	});
+
 	test("anchors generated include patterns under the volume path", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
 

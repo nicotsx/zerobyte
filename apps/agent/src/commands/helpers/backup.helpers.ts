@@ -1,9 +1,14 @@
 import path from "node:path";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { hasUnsupportedPathCharacter } from "@zerobyte/core/utils";
 
 type BackupOptions = BackupRunPayload["options"];
 
 export const processPattern = (pattern: string, volumePath: string, relative = false) => {
+	if (relative && hasUnsupportedPathCharacter(pattern)) {
+		throw new Error(`Include pattern contains an unsupported path character: ${pattern}`);
+	}
+
 	const isNegated = pattern.startsWith("!");
 	const p = isNegated ? pattern.slice(1) : pattern;
 

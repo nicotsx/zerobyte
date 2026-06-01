@@ -52,6 +52,11 @@ export const isPathWithin = (base: string, target: string): boolean => {
 	const normalizedTarget = normalizeAbsolutePath(target);
 
 	return (
-		normalizedBase === "/" || normalizedTarget === normalizedBase || normalizedTarget.startsWith(`${normalizedBase}/`)
+		normalizedBase === "/" ||
+		normalizedTarget === normalizedBase ||
+		normalizedTarget.startsWith(`${normalizedBase}/`)
 	);
 };
+
+export const hasUnsupportedPathCharacter = (value: string) =>
+	value.includes("\u0000") || value.includes("\n") || value.includes("\r");

@@ -13,12 +13,20 @@ import { validateCustomResticParams } from "../helpers/validate-custom-params";
 import { createResticError, isResticError } from "../error";
 import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
-import { toMessage } from "../../utils";
+import { hasUnsupportedPathCharacter, toMessage } from "../../utils";
 
 class ResticBackupCommandError extends Data.TaggedError("ResticBackupCommandError")<{
 	cause: unknown;
 	message: string;
 }> {}
+
+const validatePatterns = (entries: string[], optionName: string) => {
+	for (const entry of entries) {
+		if (hasUnsupportedPathCharacter(entry)) {
+			throw new Error(`${optionName} contains an unsupported path character: ${entry}`);
+		}
+	}
+};
 
 export const backup = (
 	config: RepositoryConfig,
@@ -66,6 +74,8 @@ export const backup = (
 				(!options.includePatterns || options.includePatterns.length === 0);
 
 			if (options.includePatterns?.length) {
+				validatePatterns(options.includePatterns, "includePatterns");
+
 				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 				includeFile = path.join(tmp, "include.txt");
 
@@ -75,6 +85,8 @@ export const backup = (
 			}
 
 			if (options.includePaths?.length) {
+				validatePatterns(options.includePaths, "includePaths");
+
 				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
 				rawIncludeFile = path.join(tmp, "include.raw");
 
