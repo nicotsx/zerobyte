@@ -1,7 +1,7 @@
 import path from "node:path";
 import fc from "fast-check";
 import { describe, expect, test } from "vitest";
-import { isPathWithin, normalizeAbsolutePath } from "../path";
+import { hasPathListSeparator, isPathWithin, normalizeAbsolutePath } from "../path";
 
 const safePathSegmentArb = fc
 	.array(fc.constantFrom("a", "b", "c", "x", "y", "z", "0", "1", "2", "-", "_", ".", " "), {
@@ -80,12 +80,32 @@ describe("isPathWithin", () => {
 
 	test("matches descendants created under the same normalized base", () => {
 		fc.assert(
-			fc.property(fc.string({ maxLength: 80 }), fc.array(safePathSegmentArb, { maxLength: 5 }), (base, segments) => {
-				const normalizedBase = normalizeAbsolutePath(base);
-				const descendant = path.posix.join(normalizedBase, ...segments);
+			fc.property(
+				fc.string({ maxLength: 80 }),
+				fc.array(safePathSegmentArb, { maxLength: 5 }),
+				(base, segments) => {
+					const normalizedBase = normalizeAbsolutePath(base);
+					const descendant = path.posix.join(normalizedBase, ...segments);
 
-				expect(isPathWithin(base, descendant)).toBe(true);
-			}),
+					expect(isPathWithin(base, descendant)).toBe(true);
+				},
+			),
 		);
+	});
+});
+
+describe("path list character support", () => {
+	test("allows line breaks in raw path lists", () => {
+		expect(hasPathListSeparator("Photos", "raw")).toBe(false);
+		expect(hasPathListSeparator("Photos\nSecrets", "raw")).toBe(false);
+		expect(hasPathListSeparator("Photos\rSecrets", "raw")).toBe(false);
+		expect(hasPathListSeparator("Photos\0Secrets", "raw")).toBe(true);
+	});
+
+	test("rejects line breaks in text path lists", () => {
+		expect(hasPathListSeparator("Photos", "text")).toBe(false);
+		expect(hasPathListSeparator("Photos\0Secrets", "text")).toBe(true);
+		expect(hasPathListSeparator("Photos\nSecrets", "text")).toBe(true);
+		expect(hasPathListSeparator("Photos\rSecrets", "text")).toBe(true);
 	});
 });
