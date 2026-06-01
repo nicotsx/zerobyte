@@ -3,6 +3,7 @@
 !bun.lock
 !package.json
 !.gitignore
+!bunfig.toml
 
 !**/package.json
 !**/bun.lock

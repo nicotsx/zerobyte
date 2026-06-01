@@ -15,6 +15,7 @@
 		"build": "bunx --bun vite build",
 		"start": "bun run .output/server/index.mjs",
 		"build:backend-integration": "bun build app/test/backend-integration/index.ts --outdir .output/backend-integration --target bun",
+		"test:integration": "bash app/test/integration/run.sh",
 		"test:integration:backends": "bash app/test/backend-integration/run.sh",
 		"preview": "bunx --bun vite preview",
 		"cli:dev": "bun run app/server/cli/main.ts",

@@ -1,0 +1,41 @@
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    command: ["/data"]
+    environment:
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_ACCESS_KEY: "rustfsadmin"
+      RUSTFS_SECRET_KEY: "rustfsadmin"
+      RUSTFS_CONSOLE_ENABLE: "false"
+    volumes:
+      - rustfs-data:/data
+
+  rustfs-setup:
+    image: minio/mc:latest
+    depends_on:
+      - rustfs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin --api S3v4 --path on; do
+          echo "Waiting for RustFS..."
+          sleep 1
+        done
+        mc mb --ignore-existing --region us-east-1 rustfs/zerobyte-integration
+
+  integration:
+    build:
+      context: ../../../..
+      dockerfile: app/test/integration/infra/Dockerfile
+      args:
+        BASE_IMAGE: zerobyte-integration-runtime-base:latest
+    depends_on:
+      rustfs-setup:
+        condition: service_completed_successfully
+    volumes:
+      - ../artifacts:/app/app/test/integration/artifacts
+    environment:
+      LOG_LEVEL: "info"
+
+volumes:
+  rustfs-data:
