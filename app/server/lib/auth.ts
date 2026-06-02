@@ -174,6 +174,25 @@ export const auth = betterAuth({
 		passkey({
 			rpID: new URL(config.baseUrl).hostname,
 			rpName: "Zerobyte",
+			authentication: {
+				afterVerification: async ({ verification, clientData }) => {
+					if (verification.authenticationInfo.userVerified) {
+						return;
+					}
+
+					const passkeyRecord = await db.query.passkey.findFirst({
+						where: { credentialID: clientData.id },
+						with: { usersTable: { columns: { twoFactorEnabled: true } } },
+					});
+
+					if (passkeyRecord?.usersTable?.twoFactorEnabled) {
+						throw new APIError("UNAUTHORIZED", {
+							message:
+								"Your passkey was accepted, but it did not confirm your identity with a PIN, biometrics, or screen lock. Because 2FA is enabled on this account, please use a verified passkey or sign in with your password and authenticator code.",
+						});
+					}
+				},
+			},
 		}),
 		tanstackStartCookies(),
 		...(process.env.NODE_ENV === "test" ? [testUtils()] : []),

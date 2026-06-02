@@ -1,15 +1,48 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen } from "~/test/test-utils";
+import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
+import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
+
+const { mockGetLoginOptions, mockNavigate, mockPasskeySignIn } = vi.hoisted(() => ({
+	mockGetLoginOptions: vi.fn(async () => ({ hasPasskeySignIn: false })),
+	mockNavigate: vi.fn(async () => {}),
+	mockPasskeySignIn: vi.fn(
+		async (): Promise<{
+			data: unknown;
+			error: { code: string; message: string } | null;
+		}> => ({ data: null, error: null }),
+	),
+}));
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
 
 	return {
 		...actual,
-		useNavigate: (() => vi.fn(async () => {})) as typeof actual.useNavigate,
+		useNavigate: (() => mockNavigate) as typeof actual.useNavigate,
 	};
 });
+
+vi.mock("@tanstack/react-start", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-start")>();
+
+	return {
+		...actual,
+		useServerFn: (fn: unknown) => fn,
+	};
+});
+
+vi.mock("~/server/lib/functions/login-options", () => ({
+	getLoginOptions: mockGetLoginOptions,
+}));
+
+vi.mock("~/client/lib/auth-client", () => ({
+	authClient: {
+		signIn: {
+			passkey: mockPasskeySignIn,
+		},
+	},
+}));
 
 import { LoginPage } from "../login";
 const inviteOnlyMessage =
@@ -29,6 +62,12 @@ const mockSsoProvidersRequest = (
 };
 
 afterEach(() => {
+	mockGetLoginOptions.mockClear();
+	mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false });
+	mockNavigate.mockClear();
+	mockPasskeySignIn.mockClear();
+	mockPasskeySignIn.mockResolvedValue({ data: null, error: null });
+	vi.unstubAllGlobals();
 	cleanup();
 });
 
@@ -81,6 +120,18 @@ describe("LoginPage", () => {
 		expect(await screen.findByText("SSO authentication failed. Please try again.")).toBeTruthy();
 	});
 
+	test("shows passkey login failure message when passkey returns the login error code", async () => {
+		mockSsoProvidersRequest();
+
+		render(<LoginPage error={"PASSKEY_LOGIN_FAILED"} />, { withSuspense: true });
+
+		expect(
+			await screen.findByText(
+				"Passkey sign-in failed. If 2FA is enabled, use a passkey protected by a PIN, biometrics, or screen lock, or sign in with your password and authenticator code.",
+			),
+		).toBeTruthy();
+	});
+
 	test("does not show error message for invalid error codes", async () => {
 		mockSsoProvidersRequest();
 
@@ -90,11 +141,141 @@ describe("LoginPage", () => {
 		expect(screen.queryByText(inviteOnlyMessage)).toBeNull();
 	});
 
-	test("renders available SSO providers from the real SSO section", async () => {
+	test("renders available SSO providers from the alternative sign-in section", async () => {
 		mockSsoProvidersRequest([{ providerId: "acme", organizationSlug: "acme-org" }]);
 
 		render(<LoginPage />, { withSuspense: true });
 
 		expect(await screen.findByRole("button", { name: "Log in with acme" })).toBeTruthy();
+	});
+
+	test("renders passkey sign-in when an active user has a passkey", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+
+		render(<LoginPage />, { withSuspense: true });
+
+		expect(await screen.findByRole("button", { name: "Sign in with passkey" })).toBeTruthy();
+	});
+
+	test("redirects passkey verification failures to the login error box", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockPasskeySignIn.mockResolvedValue({
+			data: null,
+			error: { code: "AUTHENTICATION_FAILED", message: "Authentication failed" },
+		});
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await userEvent.click(await screen.findByRole("button", { name: "Sign in with passkey" }));
+
+		await waitFor(() => {
+			expect(mockNavigate).toHaveBeenCalledWith({
+				to: "/login",
+				search: {
+					error: PASSKEY_LOGIN_FAILED_ERROR,
+				},
+			});
+		});
+	});
+
+	test("redirects unauthorized passkey failures to the login error box", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockPasskeySignIn.mockResolvedValue({
+			data: null,
+			error: { code: "UNAUTHORIZED", message: "Unauthorized" },
+		});
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await userEvent.click(await screen.findByRole("button", { name: "Sign in with passkey" }));
+
+		await waitFor(() => {
+			expect(mockNavigate).toHaveBeenCalledWith({
+				to: "/login",
+				search: {
+					error: PASSKEY_LOGIN_FAILED_ERROR,
+				},
+			});
+		});
+	});
+
+	test("preserves specific passkey login error codes", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockPasskeySignIn.mockResolvedValue({
+			data: null,
+			error: { code: "ERROR_INVALID_RP_ID", message: "Auth cancelled" },
+		});
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await userEvent.click(await screen.findByRole("button", { name: "Sign in with passkey" }));
+
+		await waitFor(() => {
+			expect(mockNavigate).toHaveBeenCalledWith({
+				to: "/login",
+				search: {
+					error: "ERROR_INVALID_RP_ID",
+				},
+			});
+		});
+	});
+
+	test("redirects conditional passkey autofill failures to the login error box", async () => {
+		mockSsoProvidersRequest();
+		mockPasskeySignIn.mockResolvedValue({
+			data: null,
+			error: { code: "AUTHENTICATION_FAILED", message: "Authentication failed" },
+		});
+		vi.stubGlobal("PublicKeyCredential", {
+			isConditionalMediationAvailable: vi.fn(async () => true),
+		});
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await waitFor(() => {
+			expect(mockPasskeySignIn).toHaveBeenCalledWith({
+				autoFill: true,
+			});
+			expect(mockNavigate).toHaveBeenCalledWith({
+				to: "/login",
+				search: {
+					error: "PASSKEY_LOGIN_FAILED",
+				},
+			});
+		});
+	});
+
+	test("ignores conditional passkey autofill cancellation", async () => {
+		mockSsoProvidersRequest();
+		mockPasskeySignIn.mockResolvedValue({
+			data: null,
+			error: { code: "AUTH_CANCELLED", message: "Authentication cancelled" },
+		});
+		vi.stubGlobal("PublicKeyCredential", {
+			isConditionalMediationAvailable: vi.fn(async () => true),
+		});
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await waitFor(() => {
+			expect(mockPasskeySignIn).toHaveBeenCalledWith({
+				autoFill: true,
+			});
+		});
+		expect(mockNavigate).not.toHaveBeenCalled();
+	});
+
+	test("hides alternative sign-in when no SSO providers or passkeys are available", async () => {
+		mockSsoProvidersRequest();
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await screen.findByText("Login to your account");
+		expect(screen.queryByText("Alternative Sign-in")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Sign in with passkey" })).toBeNull();
 	});
 });

@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
@@ -12,11 +12,12 @@ import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
 import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
+import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
 import { cn } from "~/client/lib/utils";
-import { SsoLoginSection } from "~/client/modules/sso/components/sso-login-section";
+import { AlternativeSignInSection } from "../components/alternative-sign-in-section";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -32,6 +33,17 @@ type LoginFormValues = z.input<typeof loginSchema>;
 type LoginPageProps = {
 	error?: string;
 };
+
+type PasskeySignInError = {
+	code?: string;
+	message?: string;
+	status?: number;
+	statusText?: string;
+};
+
+function isPasskeyVerificationFailure(error: PasskeySignInError | null) {
+	return error?.code === "AUTHENTICATION_FAILED" || error?.code === "UNAUTHORIZED";
+}
 
 function hasSkippedRecoveryKeyDownload(userId: string) {
 	return document.cookie
@@ -50,6 +62,20 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const errorCode = decodeLoginError(error);
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
 
+	const navigateAfterLogin = useCallback(async () => {
+		const session = await authClient.getSession();
+
+		if (
+			session.data?.user &&
+			!session.data.user.hasDownloadedResticPassword &&
+			!hasSkippedRecoveryKeyDownload(session.data.user.id)
+		) {
+			void navigate({ to: "/download-recovery-key" });
+		} else {
+			void navigate({ to: "/volumes" });
+		}
+	}, [navigate]);
+
 	useEffect(() => {
 		const autoSignIn = async () => {
 			if (
@@ -60,28 +86,27 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				return;
 			}
 
-			await authClient.signIn.passkey({
+			const { data, error } = await authClient.signIn.passkey({
 				autoFill: true,
-				fetchOptions: {
-					onResponse: async () => {
-						const session = await authClient.getSession();
-
-						if (
-							session.data?.user &&
-							!session.data.user.hasDownloadedResticPassword &&
-							!hasSkippedRecoveryKeyDownload(session.data.user.id)
-						) {
-							void navigate({ to: "/download-recovery-key" });
-						} else {
-							void navigate({ to: "/volumes" });
-						}
-					},
-				},
 			});
+
+			if (isPasskeyVerificationFailure(error)) {
+				void navigate({
+					to: "/login",
+					search: {
+						error: PASSKEY_LOGIN_FAILED_ERROR,
+					},
+				});
+				return;
+			}
+
+			if (data) {
+				await navigateAfterLogin();
+			}
 		};
 
 		void autoSignIn();
-	}, [navigate]);
+	}, [navigate, navigateAfterLogin]);
 
 	const form = useForm<LoginFormValues>({
 		resolver: zodResolver(loginSchema),
@@ -116,12 +141,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 			return;
 		}
 
-		const d = await authClient.getSession();
-		if (data.user && !d.data?.user.hasDownloadedResticPassword && !hasSkippedRecoveryKeyDownload(data.user.id)) {
-			void navigate({ to: "/download-recovery-key" });
-		} else {
-			void navigate({ to: "/volumes" });
-		}
+		await navigateAfterLogin();
 	};
 
 	const handleVerify2FA = async () => {
@@ -305,7 +325,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				</form>
 			</Form>
 
-			<SsoLoginSection />
+			<AlternativeSignInSection onPasskeySignIn={navigateAfterLogin} />
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

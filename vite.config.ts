@@ -6,6 +6,7 @@ import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 
 export default defineConfig({
+	clearScreen: false,
 	plugins: [
 		tanstackStart({
 			srcDirectory: "app",
@@ -30,7 +31,7 @@ export default defineConfig({
 	server: {
 		host: "0.0.0.0",
 		port: 3000,
-		allowedHosts: [".ts.net"]
+		allowedHosts: [".ts.net"],
 	},
 	fmt: {
 		printWidth: 120,

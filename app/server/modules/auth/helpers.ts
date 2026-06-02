@@ -1,5 +1,7 @@
+import { eq } from "drizzle-orm";
 import { verifyPassword } from "better-auth/crypto";
 import { db } from "~/server/db/db";
+import { passkey, usersTable } from "~/server/db/schema";
 
 type PasswordVerificationBody = {
 	userId: string;
@@ -30,4 +32,15 @@ export const userHasCredentialPassword = async (userId: string) => {
 	});
 
 	return Boolean(userAccount?.password);
+};
+
+export const hasActivePasskeyUser = async () => {
+	const [user] = await db
+		.select({ id: usersTable.id })
+		.from(passkey)
+		.innerJoin(usersTable, eq(passkey.userId, usersTable.id))
+		.where(eq(usersTable.banned, false))
+		.limit(1);
+
+	return Boolean(user);
 };
