@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Fingerprint } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
@@ -10,6 +10,7 @@ type PasskeySignInButtonProps = {
 };
 
 export function PasskeySignInButton({ onSignIn }: PasskeySignInButtonProps) {
+	const navigate = useNavigate();
 	const passkeyLoginMutation = useMutation({
 		mutationFn: async () => {
 			const { error } = await authClient.signIn.passkey();
@@ -19,7 +20,22 @@ export function PasskeySignInButton({ onSignIn }: PasskeySignInButtonProps) {
 		},
 		onError: (error) => {
 			logger.error(error);
-			toast.error("Passkey login failed", { description: error.message });
+
+			let errorCode: string | undefined = undefined;
+
+			if ("code" in error && typeof error.code === "string") {
+				errorCode = error.code;
+				if (error.code === "AUTHENTICATION_FAILED") {
+					errorCode = "PASSKEY_LOGIN_FAILED";
+				}
+			}
+
+			void navigate({
+				to: "/login",
+				search: {
+					error: errorCode,
+				},
+			});
 		},
 	});
 

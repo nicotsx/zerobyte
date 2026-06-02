@@ -10,10 +10,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { createAuthMiddleware } from "better-auth/api";
-import { eq } from "drizzle-orm";
 import { config } from "../core/config";
 import { db } from "../db/db";
-import { passkey as passkeyTable, usersTable } from "../db/schema";
 import { cryptoUtils } from "../utils/crypto";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -174,7 +172,7 @@ export const auth = betterAuth({
 			},
 		}),
 		passkey({
-			rpID: "zerobyte.localhost",
+			rpID: new URL(config.baseUrl).hostname,
 			rpName: "Zerobyte",
 			authentication: {
 				afterVerification: async ({ verification, clientData }) => {
@@ -182,17 +180,15 @@ export const auth = betterAuth({
 						return;
 					}
 
-					const [user] = await db
-						.select({ twoFactorEnabled: usersTable.twoFactorEnabled })
-						.from(passkeyTable)
-						.innerJoin(usersTable, eq(passkeyTable.userId, usersTable.id))
-						.where(eq(passkeyTable.credentialID, clientData.id))
-						.limit(1);
+					const passkeyRecord = await db.query.passkey.findFirst({
+						where: { credentialID: clientData.id },
+						with: { usersTable: { columns: { twoFactorEnabled: true } } },
+					});
 
-					if (user?.twoFactorEnabled) {
+					if (passkeyRecord?.usersTable?.twoFactorEnabled) {
 						throw new APIError("UNAUTHORIZED", {
 							message:
-								"This passkey cannot securely validate your identiy and since you have 2FA enabled, Zerobyte cannot validate the login request",
+								"Your passkey was accepted, but it did not confirm your identity with a PIN, biometrics, or screen lock. Because 2FA is enabled on this account, please use a verified passkey or sign in with your password and authenticator code.",
 						});
 					}
 				},
