@@ -39,6 +39,26 @@ services:
       timeout: 5s
       retries: 30
 
+  webdav:
+    build:
+      context: ./webdav
+    environment:
+      WEBDAV_USER: "zerobyte-webdav"
+      WEBDAV_PASSWORD: "zerobyte-webdav-password"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "-u",
+          "zerobyte-webdav:zerobyte-webdav-password",
+          "http://localhost/zerobyte-integration/case-a/hello.txt",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
   integration:
     build:
       context: ../../../..
@@ -49,6 +69,8 @@ services:
       rustfs-setup:
         condition: service_completed_successfully
       sftp:
+        condition: service_healthy
+      webdav:
         condition: service_healthy
     cap_add:
       - SYS_ADMIN

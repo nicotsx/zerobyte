@@ -13,7 +13,6 @@ const fixtureUid = getRequiredNumberEnv("FIXTURE_UID");
 const fixtureGid = getRequiredNumberEnv("FIXTURE_GID");
 const smbPassword = getRequiredEnv("SMB_PASSWORD");
 const sftpPassword = getRequiredEnv("SFTP_PASSWORD");
-const webdavPassword = getRequiredEnv("WEBDAV_PASSWORD");
 const knownHosts = fs.readFileSync(getRequiredEnv("KNOWN_HOSTS_PATH"), "utf8");
 const configPath = getRequiredEnv("CONFIG_PATH");
 
@@ -87,22 +86,6 @@ const config = {
 				allowLegacySshRsa: true,
 			},
 			repository: { backend: "local", path: "repo-sftp-legacy-rsa-hostkey-volume" },
-			fixtureRoot: "case-a",
-			expectedEntries: contentOnlyEntries,
-		},
-		{
-			id: "webdav-local-repo",
-			volume: {
-				backend: "webdav",
-				server: host,
-				path: "/zerobyte-backend-integration",
-				username: "zerobyte-webdav",
-				password: webdavPassword,
-				port: 80,
-				readOnly: true,
-				ssl: false,
-			},
-			repository: { backend: "local", path: "repo-webdav" },
 			fixtureRoot: "case-a",
 			expectedEntries: contentOnlyEntries,
 		},

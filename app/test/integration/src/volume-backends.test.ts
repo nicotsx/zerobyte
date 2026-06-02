@@ -1,14 +1,15 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { Effect } from "effect";
 import { expect, test } from "vitest";
 import { makeSftpBackend } from "../../../../apps/agent/src/volume-host/backends/sftp";
+import { makeWebdavBackend } from "../../../../apps/agent/src/volume-host/backends/webdav";
+import type { VolumeBackend } from "../../../../apps/agent/src/volume-host/types";
 import { INTEGRATION_ORGANIZATION_ID, INTEGRATION_RUNS_DIR } from "./constants";
 import { assertFixtureSourceExists, assertRestoredFixture, assertSnapshotContainsFixture } from "./helpers/assertions";
-import { createStaticSftpFixture } from "./helpers/fixture";
+import { createStaticVolumeFixture } from "./helpers/fixture";
 import { createIntegrationRestic } from "./helpers/restic";
 import {
 	buildSftpPasswordVolumeConfig,
@@ -16,25 +17,57 @@ import {
 	readSftpPrivateKey,
 	scanSftpKnownHosts,
 } from "./helpers/sftp";
+import { buildWebdavVolumeConfig } from "./helpers/webdav";
 
-type SftpVolumeScenario = {
+type VolumeScenario = {
 	id: string;
 	name: string;
-	createVolumeConfig: (runtime: { privateKey: string; knownHosts: string }) => BackendConfig;
+	createBackend: (mountPath: string) => Promise<VolumeBackend>;
 };
 
-const scenarios: SftpVolumeScenario[] = [
+const scenarios: VolumeScenario[] = [
 	{
 		id: "sftp-local-repo",
 		name: "SFTP volume with private key auth and local repository",
-		createVolumeConfig: ({ privateKey, knownHosts }) => buildSftpPrivateKeyVolumeConfig({ privateKey, knownHosts }),
+		createBackend: async (mountPath) => {
+			const knownHosts = await scanSftpKnownHosts();
+			const privateKey = await readSftpPrivateKey();
+			const config = buildSftpPrivateKeyVolumeConfig({ privateKey, knownHosts });
+			return makeSftpBackend(config, mountPath);
+		},
 	},
 	{
 		id: "sftp-password-local-repo",
 		name: "SFTP volume with password auth and local repository",
-		createVolumeConfig: ({ knownHosts }) => buildSftpPasswordVolumeConfig({ knownHosts }),
+		createBackend: async (mountPath) => {
+			const knownHosts = await scanSftpKnownHosts();
+			const config = buildSftpPasswordVolumeConfig({ knownHosts });
+			return makeSftpBackend(config, mountPath);
+		},
+	},
+	{
+		id: "webdav-local-repo",
+		name: "WebDAV volume with local repository",
+		createBackend: async (mountPath) => makeWebdavBackend(buildWebdavVolumeConfig(), mountPath),
 	},
 ];
+
+const makeDirectoriesWritable = async (root: string): Promise<void> => {
+	await fs.chmod(root, 0o700).catch(() => {});
+
+	const entries = await fs.readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+		if (error.code === "ENOENT") return [];
+		throw error;
+	});
+
+	await Promise.all(
+		entries.map(async (entry) => {
+			if (entry.isDirectory()) {
+				await makeDirectoriesWritable(path.join(root, entry.name));
+			}
+		}),
+	);
+};
 
 test.concurrent.each(scenarios)("$name can backup and restore static fixture data", async (scenario) => {
 	const runId = crypto.randomUUID();
@@ -47,17 +80,15 @@ test.concurrent.each(scenarios)("$name can backup and restore static fixture dat
 	const repositoryConfig: RepositoryConfig = { backend: "local", path: repositoryPath };
 	const restic = createIntegrationRestic(workspace, resticPassword);
 
-	let backend: ReturnType<typeof makeSftpBackend> | undefined;
+	let backend: VolumeBackend | undefined;
 	let passed = false;
 	let unmountFailed = false;
+	let cleanupError: Error | undefined;
 
 	try {
 		await fs.mkdir(workspace, { recursive: true });
 
-		const knownHosts = await scanSftpKnownHosts();
-		const privateKey = await readSftpPrivateKey();
-		const volumeConfig = scenario.createVolumeConfig({ privateKey, knownHosts });
-		backend = makeSftpBackend(volumeConfig, mountPath);
+		backend = await scenario.createBackend(mountPath);
 
 		const mountResult = await backend.mount();
 		expect(mountResult.status).toBe("mounted");
@@ -65,7 +96,7 @@ test.concurrent.each(scenarios)("$name can backup and restore static fixture dat
 		const healthResult = await backend.checkHealth();
 		expect(healthResult.status).toBe("mounted");
 
-		const fixture = createStaticSftpFixture(path.join(mountPath, "case-a"));
+		const fixture = createStaticVolumeFixture(path.join(mountPath, "case-a"));
 		await assertFixtureSourceExists(fixture);
 
 		const initResult = await Effect.runPromise(
@@ -131,18 +162,23 @@ test.concurrent.each(scenarios)("$name can backup and restore static fixture dat
 			const unmountResult = await backend.unmount();
 			if (unmountResult.status === "error") {
 				unmountFailed = true;
-				console.error(`Failed to unmount SFTP volume at ${mountPath}: ${unmountResult.error}`);
+				console.error(`Failed to unmount ${scenario.id} volume at ${mountPath}: ${unmountResult.error}`);
 			}
 		}
 
 		if (passed && !unmountFailed) {
+			await makeDirectoriesWritable(workspace);
 			await fs.rm(workspace, { recursive: true, force: true });
 		} else {
 			console.error(`Integration scenario artifacts retained in ${workspace}`);
 		}
 
 		if (passed && unmountFailed) {
-			throw new Error(`Failed to unmount SFTP volume at ${mountPath}`);
+			cleanupError = new Error(`Failed to unmount ${scenario.id} volume at ${mountPath}`);
 		}
+	}
+
+	if (cleanupError) {
+		throw cleanupError;
 	}
 });

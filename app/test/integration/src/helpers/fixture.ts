@@ -70,7 +70,7 @@ export const createScenarioFixture = async (workspace: string, scenarioId: strin
 	return fixture;
 };
 
-export const createStaticSftpFixture = (sourceRoot: string): ScenarioFixture => ({
+export const createStaticVolumeFixture = (sourceRoot: string): ScenarioFixture => ({
 	sourceRoot,
 	entries: [
 		{

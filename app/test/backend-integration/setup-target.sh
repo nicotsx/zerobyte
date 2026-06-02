@@ -13,7 +13,6 @@ CONFIG_PATH="$ARTIFACTS_DIR/config.generated.json"
 
 SMB_PASSWORD_FILE="$ARTIFACTS_DIR/smb-password.txt"
 SFTP_PASSWORD_FILE="$ARTIFACTS_DIR/sftp-password.txt"
-WEBDAV_PASSWORD_FILE="$ARTIFACTS_DIR/webdav-password.txt"
 
 read_or_create_secret() {
 	local file_path="$1"
@@ -32,16 +31,14 @@ chmod 700 "$ARTIFACTS_DIR"
 
 SMB_PASSWORD="$(read_or_create_secret "$SMB_PASSWORD_FILE")"
 SFTP_PASSWORD="$(read_or_create_secret "$SFTP_PASSWORD_FILE")"
-WEBDAV_PASSWORD="$(read_or_create_secret "$WEBDAV_PASSWORD_FILE")"
 
-ssh "$TARGET" bash -s -- "$FIXTURE_UID" "$FIXTURE_GID" "$SMB_PASSWORD" "$SFTP_PASSWORD" "$WEBDAV_PASSWORD" <<'REMOTE'
+ssh "$TARGET" bash -s -- "$FIXTURE_UID" "$FIXTURE_GID" "$SMB_PASSWORD" "$SFTP_PASSWORD" <<'REMOTE'
 set -euo pipefail
 
 fixture_uid="$1"
 fixture_gid="$2"
 smb_password="$3"
 sftp_password="$4"
-webdav_password="$5"
 legacy_sshd_dir="/etc/ssh/zerobyte-backend-integration-legacy"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -52,7 +49,7 @@ write_file() {
 }
 
 apt-get update
-apt-get install -y apache2 apache2-utils nfs-kernel-server openssh-server rpcbind samba
+apt-get install -y nfs-kernel-server openssh-server rpcbind samba
 
 id -u zerobyte-sftp >/dev/null 2>&1 || useradd --create-home --home-dir /home/zerobyte-sftp --shell /bin/bash zerobyte-sftp
 id -u zerobyte-smb >/dev/null 2>&1 || useradd --create-home --home-dir /home/zerobyte-smb --shell /bin/bash zerobyte-smb
@@ -68,7 +65,6 @@ printf '%s\n%s\n' "$smb_password" "$smb_password" | smbpasswd -a -s zerobyte-smb
 smbpasswd -e zerobyte-smb >/dev/null
 printf 'zerobyte-sftp:%s\n' "$sftp_password" | chpasswd
 passwd -u zerobyte-sftp >/dev/null 2>&1 || true
-htpasswd -bc /etc/apache2/zerobyte-backend-integration.htpasswd zerobyte-webdav "$webdav_password" >/dev/null
 
 write_file /etc/exports <<'EOF'
 /srv/zerobyte-backend-integration/fixtures *(ro,sync,no_subtree_check,insecure)
@@ -88,32 +84,6 @@ write_file /etc/samba/smb.conf <<'EOF'
 	guest ok = no
 	valid users = zerobyte-smb
 EOF
-
-install -d -o www-data -g www-data -m 0755 /var/lib/dav
-a2enmod dav dav_fs auth_basic >/dev/null
-printf 'ServerName localhost\n' >/etc/apache2/conf-available/zerobyte-backend-integration-servername.conf
-a2enconf zerobyte-backend-integration-servername >/dev/null
-write_file /etc/apache2/sites-available/zerobyte-backend-integration-dav.conf <<'EOF'
-Alias /zerobyte-backend-integration /srv/zerobyte-backend-integration/fixtures
-
-DAVLockDB /var/lib/dav/lockdb
-
-<Location /zerobyte-backend-integration>
-	DAV On
-	AuthType Basic
-	AuthName "Zerobyte Backend Integration WebDAV"
-	AuthUserFile /etc/apache2/zerobyte-backend-integration.htpasswd
-	Require valid-user
-</Location>
-
-<Directory /srv/zerobyte-backend-integration/fixtures>
-	Options Indexes FollowSymLinks
-	AllowOverride None
-	Require all granted
-</Directory>
-EOF
-a2ensite zerobyte-backend-integration-dav >/dev/null
-apache2ctl configtest
 
 install -d -m 0700 "$legacy_sshd_dir"
 if [[ ! -f "$legacy_sshd_dir/ssh_host_rsa_key" ]]; then
@@ -169,7 +139,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now zerobyte-backend-integration-legacy-sshd.service
 
-systemctl restart apache2
 systemctl restart smbd
 systemctl restart ssh
 systemctl restart zerobyte-backend-integration-legacy-sshd.service
@@ -194,7 +163,6 @@ INTEGRATION_HOST="$TARGET_HOST" \
 	FIXTURE_GID="$FIXTURE_GID" \
 	SMB_PASSWORD="$SMB_PASSWORD" \
 	SFTP_PASSWORD="$SFTP_PASSWORD" \
-	WEBDAV_PASSWORD="$WEBDAV_PASSWORD" \
 	KNOWN_HOSTS_PATH="$KNOWN_HOSTS_PATH" \
 	CONFIG_PATH="$CONFIG_PATH" \
 	bun run "$SCRIPT_DIR/write-generated-config.ts"
