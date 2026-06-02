@@ -7,7 +7,7 @@ base_image="zerobyte-integration-runtime-base:latest"
 compose_project="zerobyte-integration-$(basename "$repo_root" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
 artifacts_dir="$script_dir/artifacts"
 sftp_artifacts_dir="$artifacts_dir/sftp"
-compose_file="$script_dir/infra/docker-compose.yml"
+compose_file="$script_dir/infra/compose.yaml"
 docker_output_log="$artifacts_dir/docker-output.log"
 compose=(docker compose -f "$compose_file" -p "$compose_project")
 

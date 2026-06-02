@@ -23,7 +23,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
   <Tab value="Directory">
     ### Directory (local)
 
-    A local directory on the host machine, mounted into the Zerobyte container via your `docker-compose.yml` file.
+    A local directory on the host machine, mounted into the Zerobyte container via your `compose.yaml` file.
 
     **Use cases:**
 
@@ -37,7 +37,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     - **Path**, the path *inside the container* where the directory is mounted (e.g., `/data`)
 
     <Callout type="info">
-      You must first mount the host directory into the Zerobyte container by adding it to the `volumes` section of your `docker-compose.yml`. For example, to back up `/home/user/photos` on the host, add `- /home/user/photos:/photos:ro` to your compose file, restart the container, then create a Directory volume in the UI with the path `/photos`.
+      You must first mount the host directory into the Zerobyte container by adding it to the `volumes` section of your `compose.yaml`. For example, to back up `/home/user/photos` on the host, add `- /home/user/photos:/photos:ro` to your compose file, restart the container, then create a Directory volume in the UI with the path `/photos`.
     </Callout>
   </Tab>
 
@@ -245,7 +245,7 @@ Sensitive fields, such as passwords, private keys, and other secrets, are encryp
 
 Provisioned volumes also support secret references:
 
-- **`env://VARIABLE_NAME`**, resolves the value from an environment variable set in your `docker-compose.yml` during provisioning
+- **`env://VARIABLE_NAME`**, resolves the value from an environment variable set in your `compose.yaml` during provisioning
 - **`file://secret_name`**, resolves the value from a Docker secrets file at `/run/secrets/secret_name` during provisioning
 
 During provisioning, Zerobyte resolves these references on startup and stores the resolved value encrypted in the database.

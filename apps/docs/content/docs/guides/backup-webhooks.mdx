@@ -81,7 +81,7 @@ Header values are stored as plain text. Use a scoped webhook secret rather than 
 
 For Docker Compose on Linux, `host.docker.internal` usually needs an explicit host gateway entry:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     extra_hosts:
@@ -230,7 +230,7 @@ Once the test works, run `webhook` under your normal process manager.
 
 Add the webhook server origin to Zerobyte:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     extra_hosts:
