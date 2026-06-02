@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
-import { account, usersTable } from "~/server/db/schema";
+import { account, passkey, usersTable } from "~/server/db/schema";
 import { createUser, randomId, randomSlug } from "~/test/helpers/user-org";
-import { userHasCredentialPassword, verifyUserPassword } from "../helpers";
+import { hasActivePasskeyUser, userHasCredentialPassword, verifyUserPassword } from "../helpers";
 
 const { verifyPassword } = vi.hoisted(() => ({
 	verifyPassword: vi.fn(async ({ hash }: { hash: string }) => hash === "credential-password-hash"),
@@ -30,9 +31,24 @@ async function createAccount({
 	});
 }
 
+async function createPasskey(userId: string) {
+	await db.insert(passkey).values({
+		id: randomId(),
+		name: "Test passkey",
+		publicKey: randomSlug("public-key"),
+		userId,
+		credentialID: randomSlug("credential"),
+		counter: 0,
+		deviceType: "singleDevice",
+		backedUp: false,
+		transports: "internal",
+	});
+}
+
 describe("verifyUserPassword", () => {
 	beforeEach(async () => {
 		verifyPassword.mockClear();
+		await db.delete(passkey);
 		await db.delete(account);
 		await db.delete(usersTable);
 	});
@@ -64,6 +80,7 @@ describe("verifyUserPassword", () => {
 
 describe("userHasCredentialPassword", () => {
 	beforeEach(async () => {
+		await db.delete(passkey);
 		await db.delete(account);
 		await db.delete(usersTable);
 	});
@@ -87,5 +104,34 @@ describe("userHasCredentialPassword", () => {
 		await createAccount({ userId, providerId: "credential", password: null });
 
 		await expect(userHasCredentialPassword(userId)).resolves.toBe(false);
+	});
+});
+
+describe("hasActivePasskeyUser", () => {
+	beforeEach(async () => {
+		await db.delete(passkey);
+		await db.delete(account);
+		await db.delete(usersTable);
+	});
+
+	test("returns true when a non-banned user has a passkey", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		await createPasskey(userId);
+
+		await expect(hasActivePasskeyUser()).resolves.toBe(true);
+	});
+
+	test("returns false when only banned users have passkeys", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		await db.update(usersTable).set({ banned: true }).where(eq(usersTable.id, userId));
+		await createPasskey(userId);
+
+		await expect(hasActivePasskeyUser()).resolves.toBe(false);
+	});
+
+	test("returns false when no users have passkeys", async () => {
+		await createUser(`${randomSlug("user")}@example.com`);
+
+		await expect(hasActivePasskeyUser()).resolves.toBe(false);
 	});
 });

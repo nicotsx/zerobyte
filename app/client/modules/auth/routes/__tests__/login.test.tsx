@@ -2,6 +2,10 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen } from "~/test/test-utils";
 
+const { mockGetLoginOptions } = vi.hoisted(() => ({
+	mockGetLoginOptions: vi.fn(async () => ({ hasPasskeySignIn: false })),
+}));
+
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
 
@@ -10,6 +14,19 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 		useNavigate: (() => vi.fn(async () => {})) as typeof actual.useNavigate,
 	};
 });
+
+vi.mock("@tanstack/react-start", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@tanstack/react-start")>();
+
+	return {
+		...actual,
+		useServerFn: (fn: unknown) => fn,
+	};
+});
+
+vi.mock("~/server/lib/functions/login-options", () => ({
+	getLoginOptions: mockGetLoginOptions,
+}));
 
 import { LoginPage } from "../login";
 const inviteOnlyMessage =
@@ -29,6 +46,8 @@ const mockSsoProvidersRequest = (
 };
 
 afterEach(() => {
+	mockGetLoginOptions.mockClear();
+	mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false });
 	cleanup();
 });
 
@@ -90,11 +109,30 @@ describe("LoginPage", () => {
 		expect(screen.queryByText(inviteOnlyMessage)).toBeNull();
 	});
 
-	test("renders available SSO providers from the real SSO section", async () => {
+	test("renders available SSO providers from the alternative sign-in section", async () => {
 		mockSsoProvidersRequest([{ providerId: "acme", organizationSlug: "acme-org" }]);
 
 		render(<LoginPage />, { withSuspense: true });
 
 		expect(await screen.findByRole("button", { name: "Log in with acme" })).toBeTruthy();
+	});
+
+	test("renders passkey sign-in when an active user has a passkey", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+
+		render(<LoginPage />, { withSuspense: true });
+
+		expect(await screen.findByRole("button", { name: "Sign in with passkey" })).toBeTruthy();
+	});
+
+	test("hides alternative sign-in when no SSO providers or passkeys are available", async () => {
+		mockSsoProvidersRequest();
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await screen.findByText("Login to your account");
+		expect(screen.queryByText("Alternative Sign-in")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Sign in with passkey" })).toBeNull();
 	});
 });
