@@ -12,6 +12,7 @@ import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
 import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
+import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
@@ -32,6 +33,17 @@ type LoginFormValues = z.input<typeof loginSchema>;
 type LoginPageProps = {
 	error?: string;
 };
+
+type PasskeySignInError = {
+	code?: string;
+	message?: string;
+	status?: number;
+	statusText?: string;
+};
+
+function isPasskeyVerificationFailure(error: PasskeySignInError | null) {
+	return error?.code === "AUTHENTICATION_FAILED" || error?.code === "UNAUTHORIZED";
+}
 
 function hasSkippedRecoveryKeyDownload(userId: string) {
 	return document.cookie
@@ -74,16 +86,27 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				return;
 			}
 
-			await authClient.signIn.passkey({
+			const { data, error } = await authClient.signIn.passkey({
 				autoFill: true,
-				fetchOptions: {
-					onResponse: navigateAfterLogin,
-				},
 			});
+
+			if (isPasskeyVerificationFailure(error)) {
+				void navigate({
+					to: "/login",
+					search: {
+						error: PASSKEY_LOGIN_FAILED_ERROR,
+					},
+				});
+				return;
+			}
+
+			if (data) {
+				await navigateAfterLogin();
+			}
 		};
 
 		void autoSignIn();
-	}, [navigateAfterLogin]);
+	}, [navigate, navigateAfterLogin]);
 
 	const form = useForm<LoginFormValues>({
 		resolver: zodResolver(loginSchema),

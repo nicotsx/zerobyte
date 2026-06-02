@@ -4,14 +4,32 @@ import { Fingerprint } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
+import { LOGIN_ERROR_CODES, PASSKEY_LOGIN_FAILED_ERROR, type LoginErrorCode } from "~/lib/sso-errors";
 
 type PasskeySignInButtonProps = {
 	onSignIn: () => Promise<void>;
 };
 
+type PasskeySignInError = {
+	code?: string;
+	message?: string;
+	status?: number;
+	statusText?: string;
+};
+
+const LOGIN_ERROR_CODE_SET = new Set<string>(LOGIN_ERROR_CODES);
+
+function getPasskeyLoginErrorCode(code: string | undefined): LoginErrorCode {
+	if (code && LOGIN_ERROR_CODE_SET.has(code)) {
+		return code as LoginErrorCode;
+	}
+
+	return PASSKEY_LOGIN_FAILED_ERROR;
+}
+
 export function PasskeySignInButton({ onSignIn }: PasskeySignInButtonProps) {
 	const navigate = useNavigate();
-	const passkeyLoginMutation = useMutation({
+	const passkeyLoginMutation = useMutation<void, PasskeySignInError>({
 		mutationFn: async () => {
 			const { error } = await authClient.signIn.passkey();
 			if (error) throw error;
@@ -21,19 +39,10 @@ export function PasskeySignInButton({ onSignIn }: PasskeySignInButtonProps) {
 		onError: (error) => {
 			logger.error(error);
 
-			let errorCode: string | undefined = undefined;
-
-			if ("code" in error && typeof error.code === "string") {
-				errorCode = error.code;
-				if (error.code === "AUTHENTICATION_FAILED") {
-					errorCode = "PASSKEY_LOGIN_FAILED";
-				}
-			}
-
 			void navigate({
 				to: "/login",
 				search: {
-					error: errorCode,
+					error: getPasskeyLoginErrorCode(error.code),
 				},
 			});
 		},
