@@ -72,7 +72,7 @@
 		"better-auth": "^1.6.11",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
-		"commander": "^14.0.3",
+		"commander": "^15.0.0",
 		"consola": "^3.4.2",
 		"content-disposition": "^2.0.0",
 		"cron-parser": "^5.5.0",
