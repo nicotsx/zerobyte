@@ -45,6 +45,15 @@ RUN mv rclone-v*-linux-*/rclone /deps/rclone && chmod +x /deps/rclone
 RUN tar -xzf shoutrrr.tar.gz && chmod +x shoutrrr
 
 # ------------------------------
+# RUNTIME TOOLS
+# ------------------------------
+FROM base AS runtime-tools
+
+COPY --from=deps /deps/restic /usr/local/bin/restic
+COPY --from=deps /deps/rclone /usr/local/bin/rclone
+COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
+
+# ------------------------------
 # DEVELOPMENT
 # ------------------------------
 FROM base AS development

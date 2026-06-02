@@ -23,6 +23,22 @@ services:
         done
         mc mb --ignore-existing --region us-east-1 rustfs/zerobyte-integration
 
+  sftp:
+    build:
+      context: ./sftp
+    environment:
+      SFTP_USER: "zerobyte-sftp"
+      SFTP_PASSWORD: "zerobyte-sftp-password"
+      SFTP_PUBLIC_KEY_PATH: "/run/zerobyte/sftp/id_ed25519.pub"
+    volumes:
+      - ../artifacts/sftp/id_ed25519.pub:/run/zerobyte/sftp/id_ed25519.pub:ro
+      - sftp-data:/srv/zerobyte-integration
+    healthcheck:
+      test: ["CMD", "ssh-keyscan", "-T", "2", "localhost"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
   integration:
     build:
       context: ../../../..
@@ -32,10 +48,19 @@ services:
     depends_on:
       rustfs-setup:
         condition: service_completed_successfully
+      sftp:
+        condition: service_healthy
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
     volumes:
       - ../artifacts:/app/app/test/integration/artifacts
+      - ../artifacts/sftp/id_ed25519:/run/zerobyte/sftp/id_ed25519:ro
     environment:
-      LOG_LEVEL: "info"
+      LOG_LEVEL: "error"
+      SFTP_PRIVATE_KEY_PATH: "/run/zerobyte/sftp/id_ed25519"
 
 volumes:
   rustfs-data:
+  sftp-data:

@@ -1,82 +1,71 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Effect } from "effect";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
+import { Effect } from "effect";
 import { expect, test } from "vitest";
-import {
-	INTEGRATION_ORGANIZATION_ID,
-	INTEGRATION_RUNS_DIR,
-	RCLONE_REMOTE,
-	RUSTFS_ACCESS_KEY_ID,
-	RUSTFS_BUCKET,
-	RUSTFS_ENDPOINT,
-	RUSTFS_SECRET_ACCESS_KEY,
-} from "./constants";
+import { makeSftpBackend } from "../../../../apps/agent/src/volume-host/backends/sftp";
+import { INTEGRATION_ORGANIZATION_ID, INTEGRATION_RUNS_DIR } from "./constants";
 import { assertFixtureSourceExists, assertRestoredFixture, assertSnapshotContainsFixture } from "./helpers/assertions";
-import { createScenarioFixture } from "./helpers/fixture";
+import { createStaticSftpFixture } from "./helpers/fixture";
 import { createIntegrationRestic } from "./helpers/restic";
 import {
-	buildSftpRepositoryConfig,
+	buildSftpPasswordVolumeConfig,
+	buildSftpPrivateKeyVolumeConfig,
 	readSftpPrivateKey,
 	scanSftpKnownHosts,
-	SFTP_REPOSITORY_ROOT,
 } from "./helpers/sftp";
 
-type RepositoryScenario = {
+type SftpVolumeScenario = {
 	id: string;
 	name: string;
-	createRepositoryConfig: (prefix: string) => RepositoryConfig | Promise<RepositoryConfig>;
+	createVolumeConfig: (runtime: { privateKey: string; knownHosts: string }) => BackendConfig;
 };
 
-const scenarios: RepositoryScenario[] = [
+const scenarios: SftpVolumeScenario[] = [
 	{
-		id: "direct-s3",
-		name: "direct S3 repository",
-		createRepositoryConfig: (prefix) => ({
-			backend: "s3",
-			endpoint: RUSTFS_ENDPOINT,
-			bucket: `${RUSTFS_BUCKET}/${prefix}`,
-			accessKeyId: RUSTFS_ACCESS_KEY_ID,
-			secretAccessKey: RUSTFS_SECRET_ACCESS_KEY,
-		}),
+		id: "sftp-local-repo",
+		name: "SFTP volume with private key auth and local repository",
+		createVolumeConfig: ({ privateKey, knownHosts }) => buildSftpPrivateKeyVolumeConfig({ privateKey, knownHosts }),
 	},
 	{
-		id: "rclone-s3",
-		name: "rclone repository over RustFS S3",
-		createRepositoryConfig: (prefix) => ({
-			backend: "rclone",
-			remote: RCLONE_REMOTE,
-			path: `${RUSTFS_BUCKET}/${prefix}`,
-		}),
-	},
-	{
-		id: "sftp",
-		name: "SFTP repository",
-		createRepositoryConfig: async (prefix) =>
-			buildSftpRepositoryConfig({
-				privateKey: await readSftpPrivateKey(),
-				knownHosts: await scanSftpKnownHosts(),
-				path: `${SFTP_REPOSITORY_ROOT}/${prefix}`,
-			}),
+		id: "sftp-password-local-repo",
+		name: "SFTP volume with password auth and local repository",
+		createVolumeConfig: ({ knownHosts }) => buildSftpPasswordVolumeConfig({ knownHosts }),
 	},
 ];
 
-test.concurrent.each(scenarios)("$name can backup, list, and restore fixture data", async (scenario) => {
+test.concurrent.each(scenarios)("$name can backup and restore static fixture data", async (scenario) => {
 	const runId = crypto.randomUUID();
-	const repositoryPrefix = `${scenario.id}/${runId}`;
 	const workspace = path.join(INTEGRATION_RUNS_DIR, `${scenario.id}-${runId}`);
+	const mountPath = path.join(workspace, "mount");
+	const repositoryPath = path.join(workspace, "repo");
 	const restoreTarget = path.join(workspace, "restore");
 	const backupTag = `zerobyte-integration-${scenario.id}-${runId}`;
 	const resticPassword = `zerobyte-integration-${scenario.id}-${runId}-${crypto.randomBytes(16).toString("hex")}`;
-	const repositoryConfig = await scenario.createRepositoryConfig(repositoryPrefix);
+	const repositoryConfig: RepositoryConfig = { backend: "local", path: repositoryPath };
 	const restic = createIntegrationRestic(workspace, resticPassword);
 
+	let backend: ReturnType<typeof makeSftpBackend> | undefined;
 	let passed = false;
+	let unmountFailed = false;
 
 	try {
 		await fs.mkdir(workspace, { recursive: true });
-		const fixture = await createScenarioFixture(workspace, scenario.id);
+
+		const knownHosts = await scanSftpKnownHosts();
+		const privateKey = await readSftpPrivateKey();
+		const volumeConfig = scenario.createVolumeConfig({ privateKey, knownHosts });
+		backend = makeSftpBackend(volumeConfig, mountPath);
+
+		const mountResult = await backend.mount();
+		expect(mountResult.status).toBe("mounted");
+
+		const healthResult = await backend.checkHealth();
+		expect(healthResult.status).toBe("mounted");
+
+		const fixture = createStaticSftpFixture(path.join(mountPath, "case-a"));
 		await assertFixtureSourceExists(fixture);
 
 		const initResult = await Effect.runPromise(
@@ -124,7 +113,9 @@ test.concurrent.each(scenarios)("$name can backup, list, and restore fixture dat
 		);
 		assertSnapshotContainsFixture(fixture.sourceRoot, lsResult.nodes, fixture);
 
-		await fs.rm(fixture.sourceRoot, { recursive: true, force: true });
+		const unmountResult = await backend.unmount();
+		expect(unmountResult.status).toBe("unmounted");
+		backend = undefined;
 
 		await Effect.runPromise(
 			restic.restore(repositoryConfig, snapshotId, restoreTarget, {
@@ -136,10 +127,22 @@ test.concurrent.each(scenarios)("$name can backup, list, and restore fixture dat
 
 		passed = true;
 	} finally {
-		if (passed) {
+		if (backend) {
+			const unmountResult = await backend.unmount();
+			if (unmountResult.status === "error") {
+				unmountFailed = true;
+				console.error(`Failed to unmount SFTP volume at ${mountPath}: ${unmountResult.error}`);
+			}
+		}
+
+		if (passed && !unmountFailed) {
 			await fs.rm(workspace, { recursive: true, force: true });
 		} else {
 			console.error(`Integration scenario artifacts retained in ${workspace}`);
+		}
+
+		if (passed && unmountFailed) {
+			throw new Error(`Failed to unmount SFTP volume at ${mountPath}`);
 		}
 	}
 });

@@ -6,14 +6,21 @@ repo_root="$(cd "$script_dir/../../.." && pwd)"
 base_image="zerobyte-integration-runtime-base:latest"
 compose_project="zerobyte-integration-$(basename "$repo_root" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
 artifacts_dir="$script_dir/artifacts"
+sftp_artifacts_dir="$artifacts_dir/sftp"
 compose_file="$script_dir/infra/docker-compose.yml"
 
 mkdir -p "$artifacts_dir"
 rm -rf "$artifacts_dir/runs"
+rm -rf "$sftp_artifacts_dir"
 rm -f "$artifacts_dir/compose.log"
 mkdir -p "$artifacts_dir/runs"
+mkdir -p "$sftp_artifacts_dir"
 
-docker build --target production -t "$base_image" "$repo_root"
+ssh-keygen -q -t ed25519 -N "" -f "$sftp_artifacts_dir/id_ed25519"
+chmod 600 "$sftp_artifacts_dir/id_ed25519"
+chmod 644 "$sftp_artifacts_dir/id_ed25519.pub"
+
+docker build --target runtime-tools -t "$base_image" "$repo_root"
 
 exit_code=0
 docker compose -f "$compose_file" -p "$compose_project" up --build --abort-on-container-exit --exit-code-from rustfs-setup rustfs-setup || exit_code=$?

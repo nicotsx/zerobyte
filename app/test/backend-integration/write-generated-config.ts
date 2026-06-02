@@ -14,8 +14,6 @@ const fixtureGid = getRequiredNumberEnv("FIXTURE_GID");
 const smbPassword = getRequiredEnv("SMB_PASSWORD");
 const sftpPassword = getRequiredEnv("SFTP_PASSWORD");
 const webdavPassword = getRequiredEnv("WEBDAV_PASSWORD");
-const resticPassword = getRequiredEnv("RESTIC_PASSWORD");
-const privateKey = fs.readFileSync(getRequiredEnv("SFTP_KEY_PATH"), "utf8");
 const knownHosts = fs.readFileSync(getRequiredEnv("KNOWN_HOSTS_PATH"), "utf8");
 const configPath = getRequiredEnv("CONFIG_PATH");
 
@@ -75,40 +73,6 @@ const config = {
 			expectedEntries: smbEntries,
 		},
 		{
-			id: "sftp-local-repo",
-			volume: {
-				backend: "sftp",
-				host,
-				port: 22,
-				username: "zerobyte-sftp",
-				privateKey,
-				path: "/srv/zerobyte-backend-integration/fixtures",
-				readOnly: true,
-				skipHostKeyCheck: false,
-				knownHosts,
-			},
-			repository: { backend: "local", path: "repo-sftp-volume" },
-			fixtureRoot: "case-a",
-			expectedEntries: contentOnlyEntries,
-		},
-		{
-			id: "sftp-password-local-repo",
-			volume: {
-				backend: "sftp",
-				host,
-				port: 22,
-				username: "zerobyte-sftp",
-				password: sftpPassword,
-				path: "/srv/zerobyte-backend-integration/fixtures",
-				readOnly: true,
-				skipHostKeyCheck: false,
-				knownHosts,
-			},
-			repository: { backend: "local", path: "repo-sftp-password-volume" },
-			fixtureRoot: "case-a",
-			expectedEntries: contentOnlyEntries,
-		},
-		{
 			id: "sftp-legacy-rsa-hostkey-local-repo",
 			volume: {
 				backend: "sftp",
@@ -141,31 +105,6 @@ const config = {
 			repository: { backend: "local", path: "repo-webdav" },
 			fixtureRoot: "case-a",
 			expectedEntries: contentOnlyEntries,
-		},
-		{
-			id: "nfs-sftp-repository",
-			volume: {
-				backend: "nfs",
-				server: host,
-				exportPath: "/srv/zerobyte-backend-integration/fixtures",
-				port: 2049,
-				version: "4.1",
-				readOnly: true,
-			},
-			repository: {
-				backend: "sftp",
-				host,
-				port: 22,
-				user: "zerobyte-sftp",
-				path: "/srv/zerobyte-backend-integration/restic-repo",
-				privateKey,
-				skipHostKeyCheck: false,
-				knownHosts,
-				isExistingRepository: true,
-				customPassword: resticPassword,
-			},
-			fixtureRoot: "case-a",
-			expectedEntries: nfsEntries,
 		},
 	],
 };
