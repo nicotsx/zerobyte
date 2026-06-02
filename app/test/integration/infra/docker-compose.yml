@@ -106,6 +106,7 @@ services:
     environment:
       LOG_LEVEL: "error"
       SFTP_PRIVATE_KEY_PATH: "/run/zerobyte/sftp/id_ed25519"
+      SKIP_VOLUME_MOUNT_INTEGRATION_TESTS: "${SKIP_VOLUME_MOUNT_INTEGRATION_TESTS:-false}"
 
 volumes:
   rustfs-data:

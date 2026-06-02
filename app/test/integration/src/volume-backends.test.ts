@@ -59,6 +59,8 @@ const scenarios: VolumeScenario[] = [
 	},
 ];
 
+const volumeMountTest = process.env.SKIP_VOLUME_MOUNT_INTEGRATION_TESTS === "true" ? test.skip : test;
+
 const makeDirectoriesWritable = async (root: string): Promise<void> => {
 	await fs.chmod(root, 0o700).catch(() => {});
 
@@ -76,7 +78,7 @@ const makeDirectoriesWritable = async (root: string): Promise<void> => {
 	);
 };
 
-test.concurrent.each(scenarios)("$name can backup and restore static fixture data", async (scenario) => {
+volumeMountTest.concurrent.each(scenarios)("$name can backup and restore static fixture data", async (scenario) => {
 	const runId = crypto.randomUUID();
 	const workspace = path.join(INTEGRATION_RUNS_DIR, `${scenario.id}-${runId}`);
 	const mountPath = path.join(workspace, "mount");
