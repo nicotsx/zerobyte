@@ -16,6 +16,7 @@ import { withContext } from "~/server/core/request-context";
 import { asShortId } from "~/server/utils/branded";
 import { createTestVolume } from "~/test/helpers/volume";
 import { config } from "~/server/core/config";
+import { cryptoUtils } from "~/server/utils/crypto";
 
 afterEach(() => {
 	config.flags.enableLocalAgent = false;
@@ -285,5 +286,30 @@ describe("volumeService.testConnection", () => {
 			"local",
 			expect.objectContaining({ name: "volume.testConnection" }),
 		);
+	});
+
+	test("decrypts encrypted config values before testing the connection", async () => {
+		config.flags.enableLocalAgent = true;
+		agentManagerMock.runVolumeCommand.mockResolvedValue({
+			name: "volume.testConnection",
+			result: { success: true, message: "Connection successful" },
+		});
+		const encryptedPassword = await cryptoUtils.sealSecret("plain-password");
+
+		await volumeService.testConnection({
+			backend: "smb",
+			server: "127.0.0.1",
+			share: "backup",
+			username: "backup-user",
+			password: encryptedPassword,
+			domain: "",
+			version: "3.0",
+			readOnly: false,
+		});
+
+		expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledWith("local", {
+			name: "volume.testConnection",
+			backendConfig: expect.objectContaining({ password: "plain-password" }),
+		});
 	});
 });
