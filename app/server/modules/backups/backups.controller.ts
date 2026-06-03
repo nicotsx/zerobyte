@@ -2,11 +2,13 @@ import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import {
 	createBackupScheduleBody,
+	createBackupScheduleResponse,
 	createBackupScheduleDto,
 	deleteBackupScheduleDto,
 	getBackupScheduleDto,
 	getBackupScheduleResponse,
 	getBackupScheduleForVolumeDto,
+	getBackupScheduleForVolumeResponse,
 	listBackupSchedulesDto,
 	listBackupSchedulesResponse,
 	runBackupNowDto,
@@ -14,6 +16,7 @@ import {
 	stopBackupDto,
 	updateBackupScheduleDto,
 	updateBackupScheduleBody,
+	updateBackupScheduleResponse,
 	getScheduleMirrorsDto,
 	updateScheduleMirrorsDto,
 	updateScheduleMirrorsBody,
@@ -73,20 +76,20 @@ export const backupScheduleController = new Hono()
 		const volumeShortId = asShortId(c.req.param("volumeShortId"));
 		const schedule = await backupsService.getScheduleForVolume(volumeShortId);
 
-		return c.json<GetBackupScheduleForVolumeResponseDto>(schedule, 200);
+		return c.json<GetBackupScheduleForVolumeResponseDto>(getBackupScheduleForVolumeResponse.parse(schedule), 200);
 	})
 	.post("/", createBackupScheduleDto, validator("json", createBackupScheduleBody), async (c) => {
 		const body = c.req.valid("json");
 		const schedule = await backupsService.createSchedule(body);
 
-		return c.json<CreateBackupScheduleDto>(schedule, 201);
+		return c.json<CreateBackupScheduleDto>(createBackupScheduleResponse.parse(schedule), 201);
 	})
 	.patch("/:shortId", updateBackupScheduleDto, validator("json", updateBackupScheduleBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const body = c.req.valid("json");
 		const schedule = await backupsService.updateSchedule(shortId, body);
 
-		return c.json<UpdateBackupScheduleDto>(schedule, 200);
+		return c.json<UpdateBackupScheduleDto>(updateBackupScheduleResponse.parse(schedule), 200);
 	})
 	.delete("/:shortId", deleteBackupScheduleDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

@@ -20,7 +20,9 @@ export const GotifyForm = ({ form }: Props) => {
 						<FormControl>
 							<Input {...field} placeholder="https://gotify.example.com" />
 						</FormControl>
-						<FormDescription>Your self-hosted Gotify server URL.</FormDescription>
+						<FormDescription>
+							Your self-hosted Gotify server URL. Its origin must be listed in WEBHOOK_ALLOWED_ORIGINS.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

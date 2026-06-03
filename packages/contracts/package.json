@@ -7,18 +7,24 @@
 			"types": "./src/agent-protocol.ts",
 			"import": "./src/agent-protocol.ts",
 			"default": "./src/agent-protocol.ts"
+		},
+		"./volumes": {
+			"types": "./src/volumes.ts",
+			"import": "./src/volumes.ts",
+			"default": "./src/volumes.ts"
 		}
 	},
 	"scripts": {
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@zerobyte/core": "workspace:*"
+		"@zerobyte/core": "workspace:*",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
 	},
 	"peerDependencies": {
-		"typescript": "^6"
+		"typescript": "^6.0.3"
 	}
 }

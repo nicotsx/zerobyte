@@ -13,4 +13,8 @@ export const cleanupTemporaryKeys = async (env: ResticEnv, deps: ResticDeps) => 
 	if (env.RESTIC_PASSWORD_FILE && env.RESTIC_PASSWORD_FILE !== deps.resticPassFile) {
 		await fs.unlink(env.RESTIC_PASSWORD_FILE).catch(() => {});
 	}
+
+	if (env._RUNTIME_SECRETS_DIR) {
+		await fs.rm(env._RUNTIME_SECRETS_DIR, { recursive: true, force: true }).catch(() => {});
+	}
 };

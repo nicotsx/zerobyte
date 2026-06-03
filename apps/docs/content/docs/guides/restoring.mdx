@@ -187,7 +187,9 @@ That works well on a normal local Linux filesystem. It gets more complicated whe
 These destinations may let Zerobyte write file contents while still rejecting `chown`, `chmod`, timestamp, or xattr updates.
 
 <Callout type="info">
-In Zerobyte today, SFTP, SMB, and WebDAV mounts pass the container process `uid` and `gid` to the mount command. If the container runs as root, those mounts can appear as `0:0` inside the container even when the remote system stores ownership differently. A backup taken from that mounted view can therefore record synthetic ownership in the snapshot.
+Mounted destinations can expose translated metadata. In Zerobyte today, WebDAV and SFTP mounts still pass the container process `uid` and `gid` to the mount command, and SMB mounts still depend on what the Linux CIFS client can represent from the remote server. A backup taken from any mounted view records what Linux can see there, which may not be the remote system's full ACL model.
+
+For the practical implications and backend-by-backend tradeoffs, see [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls).
 </Callout>
 
 ## What Zerobyte can and cannot change

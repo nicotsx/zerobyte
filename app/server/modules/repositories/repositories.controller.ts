@@ -2,7 +2,7 @@ import { Readable } from "node:stream";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import { streamSSE } from "hono/streaming";
-import contentDisposition from "content-disposition";
+import { create } from "content-disposition";
 import {
 	createRepositoryBody,
 	createRepositoryDto,
@@ -182,7 +182,10 @@ export const repositoriesController = new Hono()
 			const offset = Math.max(0, query.offset ?? 0);
 			const limit = Math.min(1000, Math.max(1, query.limit ?? 500));
 
-			const result = await repositoriesService.listSnapshotFiles(shortId, snapshotId, decodedPath, { offset, limit });
+			const result = await repositoriesService.listSnapshotFiles(shortId, snapshotId, decodedPath, {
+				offset,
+				limit,
+			});
 
 			c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
 
@@ -223,7 +226,7 @@ export const repositoriesController = new Hono()
 			status: 200,
 			headers: {
 				"Content-Type": dumpStream.contentType,
-				"Content-Disposition": contentDisposition(filename, {
+				"Content-Disposition": create(filename, {
 					fallback: filename.replace(/[^\x20-\x7E]/g, "?"),
 				}),
 				"X-Content-Type-Options": "nosniff",
@@ -235,7 +238,7 @@ export const repositoriesController = new Hono()
 		const { snapshotId, ...options } = c.req.valid("json");
 		const result = await repositoriesService.restoreSnapshot(shortId, snapshotId, options);
 
-		return c.json<RestoreSnapshotDto>(result, 200);
+		return c.json<RestoreSnapshotDto>(result, 202);
 	})
 	.post("/:shortId/doctor", startDoctorDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

@@ -1,5 +1,7 @@
 import { logger } from "@zerobyte/core/node";
+import { Fiber } from "effect";
 import { createControllerSession, type ControllerSession } from "./controller-session";
+import { startAgentJobs } from "./jobs";
 
 const controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL;
 const agentToken = process.env.ZEROBYTE_AGENT_TOKEN;
@@ -9,6 +11,15 @@ export class Agent {
 	private ws: WebSocket | null = null;
 	private controllerSession: ControllerSession | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+	private jobFibers: Fiber.RuntimeFiber<never, never>[] | null = null;
+
+	private startJobs() {
+		if (this.jobFibers) {
+			return;
+		}
+
+		this.jobFibers = startAgentJobs();
+	}
 
 	private scheduleReconnect() {
 		if (this.reconnectTimeout) {
@@ -22,6 +33,8 @@ export class Agent {
 	}
 
 	connect() {
+		this.startJobs();
+
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout);
 			this.reconnectTimeout = null;

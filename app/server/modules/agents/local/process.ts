@@ -11,7 +11,7 @@ type LocalAgentState = {
 	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
 };
 
-export async function spawnLocalAgentProcess(runtime: LocalAgentState) {
+export async function spawnLocalAgentProcess(runtime: LocalAgentState, controllerUrl: string) {
 	await stopLocalAgentProcess(runtime);
 
 	if (!config.flags.enableLocalAgent) {
@@ -31,7 +31,7 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState) {
 	const agentProcess = spawn("bun", args, {
 		env: {
 			...process.env,
-			ZEROBYTE_CONTROLLER_URL: "ws://localhost:3001",
+			ZEROBYTE_CONTROLLER_URL: controllerUrl,
 			ZEROBYTE_AGENT_TOKEN: agentToken,
 		},
 		stdio: ["ignore", "pipe", "pipe"],
@@ -62,8 +62,10 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState) {
 
 		runtime.localAgentRestartTimeout = setTimeout(() => {
 			runtime.localAgentRestartTimeout = null;
-			void spawnLocalAgentProcess(runtime).catch((error) => {
-				logger.error(`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`);
+			void spawnLocalAgentProcess(runtime, controllerUrl).catch((error) => {
+				logger.error(
+					`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`,
+				);
 			});
 		}, 1_000);
 	});

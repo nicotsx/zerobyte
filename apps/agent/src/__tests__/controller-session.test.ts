@@ -33,19 +33,40 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 				jobId: "job-1",
 				scheduleId: "schedule-1",
 				organizationId: "org-1",
-				sourcePath: "/tmp/missing-source",
+				volume: {
+					id: 1,
+					shortId: "volume-1",
+					name: "Volume 1",
+					config: { backend: "directory", path: "/tmp" },
+					createdAt: 0,
+					updatedAt: 0,
+					lastHealthCheck: 0,
+					type: "directory",
+					status: "mounted",
+					lastError: null,
+					autoRemount: true,
+					agentId: "local",
+					organizationId: "org-1",
+				},
 				repositoryConfig: {
 					backend: "local",
 					path: "/tmp/test-repository",
 				},
-				options: {},
+				options: {
+					oneFileSystem: false,
+					excludePatterns: null,
+					excludeIfPresent: null,
+					includePaths: null,
+					includePatterns: null,
+					customResticParams: null,
+					compressionMode: "auto",
+				},
 				runtime: {
 					password: "password",
-					cacheDir: "/tmp/restic-cache",
-					passFile: "/tmp/restic-pass",
-					defaultExcludes: [],
-					rcloneConfigFile: "/root/.config/rclone/rclone.conf",
 				},
+				webhooks: { pre: null, post: null },
+				webhookAllowedOrigins: [],
+				webhookTimeoutMs: 60_000,
 			}),
 		);
 
@@ -87,6 +108,59 @@ test("closes the websocket when an outbound send throws", async () => {
 
 		await waitForExpect(() => {
 			expect(close).toHaveBeenCalledTimes(1);
+		});
+	} finally {
+		session.close();
+	}
+});
+
+test("continues processing inbound messages after a volume command fails", async () => {
+	const outboundMessages: string[] = [];
+	const session = createControllerSession(
+		fromPartial({
+			send: (message: string) => {
+				outboundMessages.push(message);
+			},
+		}),
+	);
+
+	try {
+		session.onMessage(
+			createControllerMessage("volume.command", {
+				commandId: "command-1",
+				command: {
+					name: "filesystem.browse",
+					path: "/path/that/does/not/exist",
+				},
+			}),
+		);
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 123 }));
+
+		await waitForExpect(() => {
+			const parsedMessages = outboundMessages.map((message) => parseAgentMessage(message));
+			const volumeResult = parsedMessages.find(
+				(message) => message?.success && message.data.type === "volume.commandResult",
+			);
+			const heartbeatPong = parsedMessages.find(
+				(message) => message?.success && message.data.type === "heartbeat.pong",
+			);
+
+			expect(volumeResult?.success).toBe(true);
+			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "volume.commandResult") {
+				return;
+			}
+
+			expect(volumeResult.data.payload).toEqual({
+				commandId: "command-1",
+				status: "error",
+				error: "ENOENT: no such file or directory, scandir '/path/that/does/not/exist'",
+			});
+			expect(heartbeatPong?.success).toBe(true);
+			if (!heartbeatPong || !heartbeatPong.success || heartbeatPong.data.type !== "heartbeat.pong") {
+				return;
+			}
+
+			expect(heartbeatPong.data.payload).toEqual({ sentAt: 123 });
 		});
 	} finally {
 		session.close();

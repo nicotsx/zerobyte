@@ -1,0 +1,182 @@
+---
+title: Mounted Shares and Permissions
+description: A simple guide to what mounted volumes preserve well, what they simplify, and when a local directory is the better fit
+---
+
+Mounted volumes are still very useful in Zerobyte. For many people, backing up the file contents is the main goal, and mounted shares work well for that.
+
+Where things get a little more nuanced is permissions and other filesystem details.
+
+<Callout type="info">
+  Backing up a mounted share does **not** remove permissions from the source.
+
+  The main question is simpler than it sounds: how much of the source system's permission information can the mounted view actually show to the backup?
+</Callout>
+
+## The short version
+
+- If your main goal is recovering files and folders, mounted volumes are often perfectly fine.
+- Zerobyte backs up the view that the mounted filesystem presents inside the container.
+- Some backends show permissions and ownership very well.
+- Some backends show a simplified view.
+- If you want the closest thing to a true replica, a local **Directory** volume is the best choice.
+
+## Why this matters
+
+When Zerobyte backs up a remote volume, it does not talk directly to every storage system in its native format.
+
+Instead:
+
+1. Zerobyte mounts the volume inside the Linux container.
+2. Linux sees that mounted volume as a normal filesystem.
+3. Restic backs up what Linux can see there.
+
+That means the backup is only as detailed as the mounted view.
+
+If the mount shows the real owner, permissions, and advanced permission rules, Restic can back them up.
+
+If the mount shows a simplified version, the snapshot will also contain that simplified version.
+
+## What might be simplified
+
+Depending on the backend, the mounted view may simplify:
+
+- file owner
+- group
+- read, write, and execute permissions
+- advanced permission rules
+- extra filesystem metadata
+
+This is why a backup can be excellent for file contents while being less exact for permission details.
+
+## Editing files on a mounted share
+
+This is also useful to know outside of backups.
+
+- Editing an existing file often keeps that file's existing server-side permissions.
+- Deleting a file and creating it again usually creates a new remote file.
+- A new file usually gets the folder's default or inherited permissions, not necessarily the old file's exact ones.
+- Some editors save by replacing the file behind the scenes, so they may behave more like recreate than edit-in-place.
+
+For many users this is not a problem. It mainly matters when you are trying to keep permissions exactly the same.
+
+Common examples where permissions matter more:
+
+- a shared company folder where different teams should see different subfolders
+- user home directories where private files should stay private after restore
+- website or app files where the service depends on the right owner or executable permissions
+- server scripts, cron jobs, or deployment hooks that need to remain executable
+- business shares with inherited folder rules, such as finance or HR documents
+
+## Backend comparison
+
+| Backend | Good fit for | Permission fidelity | What to keep in mind |
+| --- | --- | --- | --- |
+| **Directory** | Local data and bind-mounted host paths | **Best** | Best choice when you want the backup and restore to stay as close as possible to the original filesystem |
+| **NFS** | Linux and NAS shares | **Usually good** | Often a strong remote option, but ownership mapping can still vary between systems |
+| **SMB/CIFS** | Windows shares and Samba servers | **Mixed to good** | Often the best remote option when permission details matter, but still not a perfect copy of the original Windows permission model |
+| **WebDAV** | Nextcloud, ownCloud, and content-focused remote access | **Limited** | Great for backing up files, less reliable for exact permission replication |
+| **SFTP** | Secure access to remote Linux servers | **Limited** | Good for content backup, but advanced permission details are often reduced |
+| **Rclone** | Cloud providers and object storage | **Lowest** | Best treated as a content source, not as a full filesystem replica |
+
+## What each backend is best at
+
+### Directory
+
+This is the easiest option to trust when you care about both file contents and permissions.
+
+Why it works so well:
+
+- Zerobyte sees the filesystem directly
+- there is no extra network protocol translating the data
+- restores are usually the most predictable
+
+If your goal is the closest thing to a true replica, choose **Directory** whenever you can.
+
+### NFS
+
+NFS is often a very good fit for Linux-style file sharing.
+
+It is usually a strong choice when:
+
+- the share comes from a Linux or NAS system
+- ownership matches well between systems
+- you want a remote option that still feels fairly native
+
+It can still vary depending on how the server is configured, so it is good to test with a few real files first.
+
+### SMB/CIFS
+
+SMB is a good choice for Windows shares and Samba servers.
+
+Compared with other remote options, it often gives Linux a richer view of remote permissions. That makes it the most promising remote choice when those details matter.
+
+Still, it helps to think of SMB as "often good" rather than "guaranteed exact."
+
+### WebDAV
+
+WebDAV is very convenient and widely supported.
+
+It is usually best for:
+
+- backing up file contents
+- reaching services like Nextcloud and ownCloud
+- simple remote access
+
+It is usually **not** the best choice if you want a very exact copy of the original permission model.
+
+### SFTP
+
+SFTP is a solid option when you need secure remote access over SSH.
+
+It is usually good for:
+
+- backing up files from remote Linux servers
+- simple remote access with passwords or keys
+- content-focused backups
+
+Like WebDAV, it is usually better for file contents than for exact permission replication.
+
+### Rclone
+
+Rclone is excellent for connecting to many cloud providers.
+
+It is usually best for:
+
+- backing up data stored in cloud services
+- content-focused backup jobs
+- providers that are not traditional filesystems
+
+It is the least suitable option when you want the mounted view to behave like a normal local filesystem.
+
+## Best option for true replication
+
+If by "true replication" you mean:
+
+- same files
+- same ownership
+- same permissions
+- same advanced permission rules
+- restore behavior that stays very close to the original
+
+then the best option is still **Directory**.
+
+If the original data lives somewhere else, the most reliable approach is usually one of these:
+
+1. Run Zerobyte close to the data and back it up as a local directory there.
+2. Mount the source on the host first, then bind-mount that local path into Zerobyte as a Directory volume.
+3. Use remote mounted backends mainly for content backup, not for exact replication.
+
+## Practical advice
+
+1. If you mainly care about recovering files, most mounted backends are fine.
+2. If you care a lot about permissions too, prefer **Directory** first.
+3. After **Directory**, **NFS** is often the next best choice.
+4. **SMB** can also be a good option, especially for Windows and Samba shares, but it is worth testing first.
+5. Treat **WebDAV**, **SFTP**, and **rclone** as content-first backends.
+
+<Callout type="info">
+  The message here is not "avoid mounted shares." They are useful and often exactly the right choice.
+
+  The simpler rule is: if file contents matter most, mounted shares are often great. If you want the closest possible replica of the original filesystem, a local **Directory** volume is still the best option.
+</Callout>

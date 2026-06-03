@@ -1,11 +1,21 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download, Fingerprint, KeyRound, User, X, Settings as SettingsIcon, Building2 } from "lucide-react";
+import {
+	AlertTriangle,
+	Download,
+	Fingerprint,
+	KeyRound,
+	User,
+	X,
+	Settings as SettingsIcon,
+	Building2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetOrgMembersResponse, GetSsoSettingsResponse } from "~/client/api-client/types.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import {
 	Dialog,
 	DialogContent,
@@ -29,12 +39,18 @@ import {
 	useTimeFormat,
 } from "~/client/lib/datetime";
 import { logger } from "~/client/lib/logger";
+import { parseError } from "~/client/lib/errors";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
+import { PasskeysSection } from "../components/passkeys-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
+import { cn } from "~/client/lib/utils";
+
+const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
+	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
 	appContext: AppContext;
@@ -49,6 +65,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
+	const [downloadBlockedMessage, setDownloadBlockedMessage] = useState<string | null>(null);
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const { dateFormat, timeFormat } = useRootLoaderData();
 
@@ -59,6 +76,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const { activeMember, activeOrganization } = useOrganizationContext();
 	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
 	const { formatDateTime } = useTimeFormat();
+	const hasCredentialPassword = appContext.user?.hasCredentialPassword !== false;
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -85,15 +103,18 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
-			window.URL.revokeObjectURL(url);
+			window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
 
 			toast.success("Restic password file downloaded successfully");
 			setDownloadDialogOpen(false);
 			setDownloadPassword("");
+			setDownloadBlockedMessage(null);
 		},
 		onError: (error) => {
+			const message = parseError(error)?.message;
+			setDownloadBlockedMessage(message?.includes("credential password") ? message : null);
 			toast.error("Failed to download Restic password", {
-				description: error.message,
+				description: message,
 			});
 		},
 	});
@@ -145,6 +166,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 			return;
 		}
 
+		setDownloadBlockedMessage(null);
 		downloadResticPassword.mutate({
 			body: {
 				password: downloadPassword,
@@ -213,11 +235,22 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 							<CardContent className="p-6 space-y-4">
 								<div className="space-y-2">
 									<Label htmlFor="username">Username</Label>
-									<Input id="username" value={appContext.user?.username} disabled className="max-w-md" />
+									<Input
+										id="username"
+										value={appContext.user?.username}
+										disabled
+										className="max-w-md"
+									/>
 								</div>
 								<div className="space-y-2">
 									<Label htmlFor="email">Email</Label>
-									<Input id="email" type="email" value={appContext.user?.email} disabled className="max-w-md" />
+									<Input
+										id="email"
+										type="email"
+										value={appContext.user?.email}
+										disabled
+										className="max-w-md"
+									/>
 								</div>
 							</CardContent>
 
@@ -237,7 +270,9 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											<Label htmlFor="date-format">Date format</Label>
 											<Select
 												value={dateFormat}
-												onValueChange={(value) => void handleDateFormatChange(value as DateFormatPreference)}
+												onValueChange={(value) =>
+													void handleDateFormatChange(value as DateFormatPreference)
+												}
 											>
 												<SelectTrigger id="date-format">
 													<SelectValue />
@@ -255,7 +290,9 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											<Label htmlFor="time-format">Time format</Label>
 											<Select
 												value={timeFormat}
-												onValueChange={(value) => void handleTimeFormatChange(value as TimeFormatPreference)}
+												onValueChange={(value) =>
+													void handleTimeFormatChange(value as TimeFormatPreference)
+												}
 											>
 												<SelectTrigger id="time-format">
 													<SelectValue />
@@ -270,18 +307,26 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											</Select>
 										</div>
 									</div>
-									<p className="text-sm text-muted-foreground">Preview: {formatDateTime(new Date())}</p>
+									<p className="text-sm text-muted-foreground">
+										Preview: {formatDateTime(new Date())}
+									</p>
 								</div>
 							</CardContent>
 
-							<div className="border-t border-border/50 bg-card-header p-6">
+							<div
+								className={cn("border-t border-border/50 bg-card-header p-6", {
+									hidden: !hasCredentialPassword,
+								})}
+							>
 								<CardTitle className="flex items-center gap-2">
 									<KeyRound className="size-5" />
 									Change Password
 								</CardTitle>
-								<CardDescription className="mt-1.5">Update your password to keep your account secure</CardDescription>
+								<CardDescription className="mt-1.5">
+									Update your password to keep your account secure
+								</CardDescription>
 							</div>
-							<CardContent className="p-6">
+							<CardContent className={cn("p-6", { hidden: !hasCredentialPassword })}>
 								<form onSubmit={handleChangePassword} className="space-y-4">
 									<div className="space-y-2">
 										<Label htmlFor="current-password">Current Password</Label>
@@ -305,7 +350,9 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											required
 											minLength={8}
 										/>
-										<p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
+										<p className="text-xs text-muted-foreground">
+											Must be at least 8 characters long
+										</p>
 									</div>
 									<div className="space-y-2">
 										<Label htmlFor="confirm-password">Confirm New Password</Label>
@@ -331,13 +378,15 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 									<Download className="size-5" />
 									Backup Recovery Key
 								</CardTitle>
-								<CardDescription className="mt-1.5">Download your recovery key for Restic backups</CardDescription>
+								<CardDescription className="mt-1.5">
+									Download your recovery key for Restic backups
+								</CardDescription>
 							</div>
 							<CardContent className="p-6 space-y-4">
 								<p className="text-sm text-muted-foreground max-w-2xl">
-									This file contains the encryption password used by Restic to secure your backups. Store it in a safe
-									place (like a password manager or encrypted storage). If you lose access to this server, you'll need
-									this file to recover your backup data.
+									This file contains the encryption password used by Restic to secure your backups.
+									Store it in a safe place (like a password manager or encrypted storage). If you lose
+									access to this server, you'll need this file to recover your backup data.
 								</p>
 
 								<Dialog open={downloadDialogOpen} onOpenChange={setDownloadDialogOpen}>
@@ -352,11 +401,26 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 											<DialogHeader>
 												<DialogTitle>Download Recovery Key</DialogTitle>
 												<DialogDescription>
-													For security reasons, please enter your account password to download the recovery key file.
+													{!hasCredentialPassword
+														? "A local credential password is required before this recovery key can be downloaded."
+														: "For security reasons, please enter your account password to download the recovery key file."}
 												</DialogDescription>
 											</DialogHeader>
 											<div className="space-y-4 py-4">
-												<div className="space-y-2">
+												<Alert
+													variant="warning"
+													className={cn({
+														hidden: hasCredentialPassword && !downloadBlockedMessage,
+													})}
+												>
+													<AlertTriangle className="size-5" />
+													<AlertTitle>Local password required</AlertTitle>
+													<AlertDescription>
+														{downloadBlockedMessage ??
+															RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE}
+													</AlertDescription>
+												</Alert>
+												<div className={cn("space-y-2", { hidden: !hasCredentialPassword })}>
 													<Label htmlFor="download-password">Your Password</Label>
 													<Input
 														id="download-password"
@@ -380,7 +444,11 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 													<X className="h-4 w-4 mr-2" />
 													Cancel
 												</Button>
-												<Button type="submit" loading={downloadResticPassword.isPending}>
+												<Button
+													type="submit"
+													loading={downloadResticPassword.isPending}
+													className={cn({ hidden: !hasCredentialPassword })}
+												>
 													<Download className="h-4 w-4 mr-2" />
 													Download
 												</Button>
@@ -391,6 +459,8 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 							</CardContent>
 
 							<TwoFactorSection twoFactorEnabled={appContext.user?.twoFactorEnabled} />
+
+							<PasskeysSection />
 						</Card>
 					</TabsContent>
 
@@ -402,7 +472,9 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 										<Fingerprint className="size-5" />
 										Organization Details
 									</CardTitle>
-									<CardDescription className="mt-1.5">Reference details for the active organization</CardDescription>
+									<CardDescription className="mt-1.5">
+										Reference details for the active organization
+									</CardDescription>
 								</div>
 								<CardContent className="p-6 space-y-2">
 									<Label htmlFor="organization-id">Organization ID</Label>
@@ -421,7 +493,9 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 										<Building2 className="size-5" />
 										Members
 									</CardTitle>
-									<CardDescription className="mt-1.5">Manage organization members and roles</CardDescription>
+									<CardDescription className="mt-1.5">
+										Manage organization members and roles
+									</CardDescription>
 								</div>
 								<CardContent className="p-6">
 									<OrgMembersSection initialMembers={initialMembers} />
@@ -434,10 +508,15 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 										<SettingsIcon className="size-5" />
 										Single Sign-On
 									</CardTitle>
-									<CardDescription className="mt-1.5">Configure OIDC provider settings</CardDescription>
+									<CardDescription className="mt-1.5">
+										Configure OIDC provider settings
+									</CardDescription>
 								</div>
 								<CardContent className="p-6">
-									<SsoSettingsSection initialSettings={initialSsoSettings} initialOrigin={initialOrigin} />
+									<SsoSettingsSection
+										initialSettings={initialSsoSettings}
+										initialOrigin={initialOrigin}
+									/>
 								</CardContent>
 							</Card>
 						</TabsContent>

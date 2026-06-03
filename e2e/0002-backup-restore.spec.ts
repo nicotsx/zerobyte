@@ -13,14 +13,18 @@ type ScenarioNames = {
 	backupName: string;
 };
 
-type ScenarioOptions = {
+type BackupSelectionOptions = {
 	includePatterns?: string;
 	excludePatterns?: string;
 	excludeIfPresent?: string;
 	selectedPaths?: string[];
 };
 
-type BackupJobOptions = ScenarioOptions & {
+type ScenarioOptions = BackupSelectionOptions & {
+	repositoryBasePath?: string;
+};
+
+type BackupJobOptions = BackupSelectionOptions & {
 	backupName: string;
 	volumeName: string;
 	repositoryName: string;
@@ -30,6 +34,43 @@ type RepositoryListItem = {
 	name: string;
 	shortId: string;
 };
+
+type RepositoryDetail = RepositoryListItem & {
+	config: {
+		backend: string;
+		path?: string;
+		isExistingRepository?: boolean;
+	};
+	status: "healthy" | "error" | "unknown" | "doctor" | "cancelled" | null;
+};
+
+type SnapshotListItem = {
+	id: string;
+	short_id: string;
+	tags: string[];
+};
+
+type ImportMode = {
+	slug: "recovery-key" | "manual-password";
+	shortName: "rk" | "pw";
+	testName: string;
+	useCustomPassword: boolean;
+};
+
+const importModes: ImportMode[] = [
+	{
+		slug: "recovery-key",
+		shortName: "rk",
+		testName: "can import an existing Zerobyte-created repository with the recovery key",
+		useCustomPassword: false,
+	},
+	{
+		slug: "manual-password",
+		shortName: "pw",
+		testName: "can import an existing Zerobyte-created repository with a manual password",
+		useCustomPassword: true,
+	},
+];
 
 function getRunId(testInfo: TestInfo) {
 	return `${testInfo.parallelIndex}-${testInfo.retry}-${randomUUID().slice(0, 8)}`;
@@ -58,34 +99,80 @@ function prepareTestFile(runId: string, fileName = "test.json"): string {
 	return filePath;
 }
 
-async function createBackupScenario(page: Page, names: ScenarioNames, options: ScenarioOptions = {}) {
-	getWorkerTestDataPath();
+function escapeRegExp(value: string) {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
+async function createBackupScenario(page: Page, names: ScenarioNames, options: ScenarioOptions = {}) {
+	const workerTestDataPath = getWorkerTestDataPath();
+	const { repositoryBasePath, ...backupOptions } = options;
+	const scenarioPath = names.volumeName.replace(/^Volume-/, "");
+	const selectedPaths =
+		backupOptions.selectedPaths ??
+		(backupOptions.includePatterns || !fs.existsSync(path.join(workerTestDataPath, scenarioPath))
+			? undefined
+			: [`/${scenarioPath}`]);
+
+	await createVolume(page, names.volumeName);
+	await createRepository(page, names.repositoryName, repositoryBasePath);
+	await createBackupJob(page, {
+		backupName: names.backupName,
+		volumeName: names.volumeName,
+		repositoryName: names.repositoryName,
+		selectedPaths,
+		...backupOptions,
+	});
+}
+
+async function createVolume(page: Page, volumeName: string) {
+	await gotoAndWaitForAppReady(page, "/volumes");
 	const volumeNameInput = page.getByRole("textbox", { name: "Name" });
 	await expect(async () => {
 		await page.getByRole("button", { name: "Create Volume" }).click();
 		await expect(volumeNameInput).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
-	await page.getByRole("textbox", { name: "Name" }).fill(names.volumeName);
+	await page.getByRole("textbox", { name: "Name" }).fill(volumeName);
 	await page.getByRole("button", { name: "test-data" }).click();
 	await page.getByRole("button", { name: "Create Volume" }).click();
 	await expect(page.getByText("Volume created successfully")).toBeVisible();
+}
 
-	await page.getByRole("link", { name: "Repositories" }).click();
-	await page.getByRole("button", { name: "Create repository" }).click();
-	await page.getByRole("textbox", { name: "Name" }).fill(names.repositoryName);
+async function createRepository(page: Page, repositoryName: string, repositoryBasePath?: string) {
+	await gotoAndWaitForAppReady(page, "/repositories/create");
+	await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
+	await page.getByRole("textbox", { name: "Name" }).fill(repositoryName);
 	await page.getByRole("combobox", { name: "Backend" }).click();
 	await page.getByRole("option", { name: "Local" }).click();
+	if (repositoryBasePath) {
+		await selectRepositoryDirectory(page, repositoryBasePath);
+	}
 	await page.getByRole("button", { name: "Create repository" }).click();
 	await expect(page.getByText("Repository created successfully")).toBeVisible({ timeout: 30000 });
+}
 
-	await createBackupJob(page, {
-		backupName: names.backupName,
-		volumeName: names.volumeName,
-		repositoryName: names.repositoryName,
-		...options,
-	});
+async function selectRepositoryDirectory(page: Page, directoryPath: string) {
+	const segments = directoryPath.split("/").filter(Boolean);
+
+	await page.getByRole("button", { name: "Change" }).click();
+	await page.getByRole("button", { name: "I Understand, Continue" }).click();
+
+	const dialog = page.getByRole("alertdialog");
+	await expect(dialog.getByRole("heading", { name: "Select Repository Directory" })).toBeVisible();
+
+	for (const [index, segment] of segments.entries()) {
+		const folderRow = dialog.getByRole("button", { name: segment, exact: true });
+		await expect(folderRow).toBeVisible({ timeout: 10000 });
+
+		if (index === segments.length - 1) {
+			await folderRow.click();
+		} else {
+			await folderRow.locator("svg").first().click();
+		}
+	}
+
+	await expect(dialog.getByText(directoryPath, { exact: true })).toBeVisible();
+	await dialog.getByRole("button", { name: "Done" }).click();
 }
 
 async function createBackupJob(page: Page, options: BackupJobOptions) {
@@ -115,7 +202,7 @@ async function createBackupJob(page: Page, options: BackupJobOptions) {
 	}
 	if (options.selectedPaths) {
 		for (const selectedPath of options.selectedPaths) {
-			const escapedPath = path.posix.basename(selectedPath).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			const escapedPath = escapeRegExp(path.posix.basename(selectedPath));
 			await page
 				.getByRole("button", { name: new RegExp(escapedPath) })
 				.getByRole("checkbox")
@@ -132,17 +219,145 @@ async function createBackupJob(page: Page, options: BackupJobOptions) {
 	await expect(page.getByText("Backup job created successfully")).toBeVisible();
 }
 
-async function openRepositorySnapshots(page: Page, repositoryName: string) {
+async function listRepositories(page: Page) {
 	const response = await page.request.get("/api/v1/repositories");
 	expect(response.ok()).toBe(true);
+	return (await response.json()) as RepositoryListItem[];
+}
 
-	const repositories = (await response.json()) as RepositoryListItem[];
+async function getRepositoryByName(page: Page, repositoryName: string) {
+	const repositories = await listRepositories(page);
 	const repository = repositories.find((entry) => entry.name === repositoryName);
-
 	expect(repository).toBeDefined();
-	await gotoAndWaitForAppReady(page, `/repositories/${repository!.shortId}`);
+	return repository!;
+}
+
+async function getRepositoryDetail(page: Page, repositoryShortId: string) {
+	const response = await page.request.get(`/api/v1/repositories/${repositoryShortId}`);
+	expect(response.ok()).toBe(true);
+	return (await response.json()) as RepositoryDetail;
+}
+
+function getLocalRepositoryPath(repository: RepositoryDetail) {
+	expect(repository.config.backend).toBe("local");
+	expect(repository.config.path).toBeTruthy();
+	return repository.config.path!;
+}
+
+async function waitForRepositorySnapshots(page: Page, repositoryShortId: string, expectedCount: number) {
+	let snapshots: SnapshotListItem[] = [];
+
+	await expect(async () => {
+		const response = await page.request.get(`/api/v1/repositories/${repositoryShortId}/snapshots`);
+		expect(response.ok()).toBe(true);
+		snapshots = (await response.json()) as SnapshotListItem[];
+		expect(snapshots).toHaveLength(expectedCount);
+	}).toPass({ timeout: 30000 });
+
+	return snapshots;
+}
+
+async function deleteRepositoryConfig(page: Page, repositoryShortId: string) {
+	const response = await page.request.delete(`/api/v1/repositories/${repositoryShortId}`);
+	expect(response.ok()).toBe(true);
+
+	await expect(async () => {
+		const repositories = await listRepositories(page);
+		expect(repositories.find((entry) => entry.shortId === repositoryShortId)).toBeUndefined();
+	}).toPass({ timeout: 10000 });
+}
+
+async function downloadResticPassword(page: Page) {
+	const response = await page.request.post("/api/v1/system/restic-password", {
+		data: {
+			password: "password123",
+		},
+	});
+
+	expect(response.ok()).toBe(true);
+	return (await response.text()).trim();
+}
+
+async function importExistingLocalRepository(
+	page: Page,
+	repositoryName: string,
+	repositoryPath: string,
+	customPassword?: string,
+) {
+	await gotoAndWaitForAppReady(page, "/repositories/create");
+	await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
+	await page.getByRole("textbox", { name: "Name" }).fill(repositoryName);
+	await page.getByRole("combobox", { name: "Backend" }).click();
+	await page.getByRole("option", { name: "Local" }).click();
+	await page.getByRole("checkbox", { name: "Import existing repository" }).click();
+
+	if (customPassword) {
+		await page.getByRole("combobox").filter({ hasText: "Use the existing recovery key" }).click();
+		await page.getByRole("option", { name: "Enter password manually" }).click();
+		await page.getByPlaceholder("Enter repository password").fill(customPassword);
+	}
+
+	await selectRepositoryDirectory(page, repositoryPath);
+	await page.getByRole("button", { name: "Create repository" }).click();
+	await expect(page.getByText("Repository created successfully")).toBeVisible({ timeout: 30000 });
+}
+
+async function openRepositorySnapshots(page: Page, repositoryName: string) {
+	const repository = await getRepositoryByName(page, repositoryName);
+	await gotoAndWaitForAppReady(page, `/repositories/${repository.shortId}`);
 	await page.getByRole("tab", { name: "Snapshots" }).click();
 	await expect(page.getByText("Backup snapshots stored in this repository.")).toBeVisible();
+}
+
+for (const importMode of importModes) {
+	test(importMode.testName, async ({ page }, testInfo) => {
+		const runId = getRunId(testInfo);
+		const scenarioId = `${runId}-${importMode.shortName}`;
+		const names = getScenarioNames(scenarioId);
+		const importedRepositoryName = `Import-${scenarioId}`;
+		const sourceRepositoryBaseName = `import-source-${runId}-${importMode.slug}`;
+		const sourceRepositoryBasePath = `/test-data/${sourceRepositoryBaseName}`;
+		const sourceRepositoryBaseHostPath = path.join(getWorkerTestDataPath(), sourceRepositoryBaseName);
+
+		fs.mkdirSync(sourceRepositoryBaseHostPath, { recursive: true });
+		prepareTestFile(scenarioId, `import-${importMode.shortName}.json`);
+
+		await gotoAndWaitForAppReady(page, "/");
+		await expect(page).toHaveURL("/volumes");
+
+		await createBackupScenario(page, names, {
+			repositoryBasePath: sourceRepositoryBasePath,
+			selectedPaths: [`/${scenarioId}`],
+		});
+
+		const sourceRepository = await getRepositoryByName(page, names.repositoryName);
+		const sourceRepositoryDetail = await getRepositoryDetail(page, sourceRepository.shortId);
+		const sourceRepositoryPath = getLocalRepositoryPath(sourceRepositoryDetail);
+		expect(sourceRepositoryPath.startsWith(`${sourceRepositoryBasePath}/`)).toBe(true);
+
+		await page.getByRole("button", { name: "Backup now" }).click();
+		await expect(page.getByText("Backup started successfully")).toBeVisible();
+		await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
+
+		const sourceSnapshots = await waitForRepositorySnapshots(page, sourceRepository.shortId, 1);
+		const importedSnapshotShortId = sourceSnapshots[0].short_id;
+
+		await deleteRepositoryConfig(page, sourceRepository.shortId);
+
+		const customPassword = importMode.useCustomPassword ? await downloadResticPassword(page) : undefined;
+		await importExistingLocalRepository(page, importedRepositoryName, sourceRepositoryPath, customPassword);
+
+		const importedRepository = await getRepositoryByName(page, importedRepositoryName);
+		const importedRepositoryDetail = await getRepositoryDetail(page, importedRepository.shortId);
+		expect(importedRepositoryDetail.status).toBe("healthy");
+		expect(getLocalRepositoryPath(importedRepositoryDetail)).toBe(sourceRepositoryPath);
+
+		const importedSnapshots = await waitForRepositorySnapshots(page, importedRepository.shortId, 1);
+		expect(importedSnapshots[0].short_id).toBe(importedSnapshotShortId);
+
+		await openRepositorySnapshots(page, importedRepositoryName);
+		await expect(page.getByText(importedSnapshotShortId, { exact: true })).toBeVisible();
+	});
 }
 
 test("can backup & restore a file", async ({ page }, testInfo) => {
@@ -361,15 +576,16 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 	await volumeLink.click();
 	await expect(page).toHaveURL(/\/volumes\/[^/?#]+/);
 	await expect(page.getByRole("button", { name: "Actions" })).toBeVisible();
-	const deleteVolumeMenuItem = page.getByRole("menuitem", { name: "Delete" });
-
 	await expect(async () => {
 		await page.getByRole("button", { name: "Actions" }).click();
+		const deleteVolumeMenuItem = page.getByRole("menuitem", { name: "Delete" });
 		await expect(deleteVolumeMenuItem).toBeVisible();
+		await deleteVolumeMenuItem.click();
+		await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible();
 	}).toPass({ timeout: 10000 });
-	await deleteVolumeMenuItem.click({ force: true });
-	await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible();
-	await expect(page.getByText("All backup schedules associated with this volume will also be removed.")).toBeVisible();
+	await expect(
+		page.getByText("All backup schedules associated with this volume will also be removed."),
+	).toBeVisible();
 	await page.getByRole("button", { name: "Delete volume" }).click();
 	await expect(page.getByText("Volume deleted successfully")).toBeVisible();
 

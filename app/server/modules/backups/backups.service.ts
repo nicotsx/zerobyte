@@ -28,7 +28,28 @@ import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backup-maintenance";
 import { restic } from "../../core/restic";
 import { mirrorQueries } from "./backups.queries";
-import { toMessage } from "../../utils/errors";
+import { runEffectPromise, toMessage } from "../../utils/errors";
+import { Effect } from "effect";
+import { taskStore } from "../tasks/tasks.store";
+
+const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
+
+const tryCancelTask = (
+	taskId: string,
+	activeTaskResource: { organizationId: string; kind: "backup"; resourceType: string; resourceId: string },
+) => {
+	try {
+		taskStore.requestCancel(taskId);
+		return true;
+	} catch (error) {
+		const currentTask = taskStore.findActiveByResource(activeTaskResource);
+		if (!currentTask || currentTask.id !== taskId) {
+			return false;
+		}
+
+		throw error;
+	}
+};
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -74,7 +95,10 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -104,6 +128,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			customResticParams: data.customResticParams ?? [],
+			backupWebhooks: data.backupWebhooks ?? null,
 			nextBackupAt: nextBackupAt,
 			shortId: generateShortId(),
 			maxRetries: data.maxRetries,
@@ -149,7 +174,10 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
-			AND: [{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] }, { organizationId }],
+			AND: [
+				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{ organizationId },
+			],
 		},
 	});
 
@@ -159,11 +187,21 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	const cronExpression = data.cronExpression ?? schedule.cronExpression;
 	const nextBackupAt =
-		data.cronExpression === "" ? null : data.cronExpression ? calculateNextRun(cronExpression) : schedule.nextBackupAt;
+		data.cronExpression === ""
+			? null
+			: data.cronExpression
+				? calculateNextRun(cronExpression)
+				: schedule.nextBackupAt;
 
 	const [updated] = await db
 		.update(backupSchedulesTable)
-		.set({ ...data, repositoryId: repository.id, nextBackupAt, updatedAt: Date.now() })
+		.set({
+			...data,
+			repositoryId: repository.id,
+			backupWebhooks: data.backupWebhooks === undefined ? schedule.backupWebhooks : data.backupWebhooks,
+			nextBackupAt,
+			updatedAt: Date.now(),
+		})
 		.where(and(eq(backupSchedulesTable.id, schedule.id), eq(backupSchedulesTable.organizationId, organizationId)))
 		.returning();
 
@@ -345,7 +383,12 @@ const reorderSchedules = async (scheduleShortIds: ShortId[]) => {
 		for (const [index, scheduleId] of scheduleIds.entries()) {
 			tx.update(backupSchedulesTable)
 				.set({ sortOrder: index, updatedAt: now })
-				.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)))
+				.where(
+					and(
+						eq(backupSchedulesTable.id, scheduleId),
+						eq(backupSchedulesTable.organizationId, organizationId),
+					),
+				)
 				.run();
 		}
 	});
@@ -396,7 +439,16 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		...(ctx.schedule.cronExpression ? { nextBackupAt: calculateNextRun(ctx.schedule.cronExpression) } : {}),
 	});
 
+	const task = taskStore.create({
+		organizationId: ctx.organizationId,
+		resourceType: BACKUP_TASK_RESOURCE_TYPE,
+		resourceId: String(scheduleId),
+		targetAgentId: ctx.volume.agentId,
+		input: { kind: "backup", scheduleId, scheduleShortId: ctx.schedule.shortId, manual },
+	});
+
 	const abortController = backupExecutor.track(scheduleId);
+	let domainHandlerCompleted = false;
 
 	try {
 		const releaseLock = await repoMutex.acquireShared(
@@ -406,7 +458,10 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		);
 
 		try {
+			taskStore.markRunning(task.id);
+
 			const executionResult = await backupExecutor.execute({
+				jobId: task.id,
 				scheduleId,
 				schedule: ctx.schedule,
 				volume: ctx.volume,
@@ -415,33 +470,63 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				signal: abortController.signal,
 				onProgress: (progress) => {
 					updateBackupProgress(ctx, progress);
+					try {
+						taskStore.updateProgress(task.id, { kind: "backup", progress });
+					} catch (error) {
+						logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
+					}
 				},
 			});
 
 			switch (executionResult.status) {
-				case "unavailable":
-					return handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+				case "unavailable": {
+					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.fail(task.id, toMessage(executionResult.error));
+					return;
+				}
 				case "completed":
-					return finalizeSuccessfulBackup(
+					await finalizeSuccessfulBackup(
 						ctx,
 						executionResult.exitCode,
 						executionResult.result,
 						executionResult.warningDetails,
 					);
-				case "failed":
-					return handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.complete(task.id, {
+						kind: "backup",
+						exitCode: executionResult.exitCode,
+						result: executionResult.result,
+						warningDetails: executionResult.warningDetails,
+					});
+					return;
+				case "failed": {
+					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+					domainHandlerCompleted = true;
+					taskStore.fail(task.id, toMessage(executionResult.error));
+					return;
+				}
 				case "cancelled":
-					return handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
+					await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
+					domainHandlerCompleted = true;
+					taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
+					return;
 			}
 		} finally {
 			releaseLock();
 		}
 	} catch (error) {
 		if (abortController.signal.aborted) {
+			taskStore.cancel(task.id, "Backup was stopped by the user");
 			return;
 		}
 
-		return handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
+		if (domainHandlerCompleted) {
+			throw error;
+		}
+
+		await handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
+		taskStore.fail(task.id, toMessage(error));
 	} finally {
 		backupExecutor.untrack(scheduleId, abortController);
 		cache.del(cacheKeys.backup.progress(scheduleId));
@@ -461,8 +546,26 @@ const stopBackup = async (scheduleId: number) => {
 		throw new NotFoundError("Backup schedule not found");
 	}
 
+	const activeTaskResource = {
+		organizationId,
+		kind: "backup",
+		resourceType: BACKUP_TASK_RESOURCE_TYPE,
+		resourceId: String(scheduleId),
+	} as const;
+	const activeTask = taskStore.findActiveByResource(activeTaskResource);
+	let shouldMarkActiveTaskStale = false;
+	if (activeTask) {
+		shouldMarkActiveTaskStale = tryCancelTask(activeTask.id, activeTaskResource);
+	}
+
 	try {
 		if (!(await backupExecutor.cancel(scheduleId))) {
+			if (shouldMarkActiveTaskStale) {
+				taskStore.markActiveStale({
+					...activeTaskResource,
+					error: "No live backup execution was found for this schedule",
+				});
+			}
 			throw new ConflictError("No backup is currently running for this schedule");
 		}
 
@@ -492,10 +595,15 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
-	const [sourceSnapshots, mirrorSnapshots] = await Promise.all([
-		restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
-		restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
-	]);
+	const [sourceSnapshots, mirrorSnapshots] = await runEffectPromise(
+		Effect.all(
+			[
+				restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
+				restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
+			],
+			{ concurrency: "unbounded" },
+		),
+	);
 
 	const mirrorSnapshotTimes = new Set(mirrorSnapshots.map((s) => s.time));
 

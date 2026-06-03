@@ -1,9 +1,13 @@
+export const PASSKEY_LOGIN_FAILED_ERROR = "PASSKEY_LOGIN_FAILED";
+
 export const LOGIN_ERROR_CODES = [
 	"ACCOUNT_LINK_REQUIRED",
 	"EMAIL_NOT_VERIFIED",
 	"INVITE_REQUIRED",
 	"BANNED_USER",
 	"SSO_LOGIN_FAILED",
+	PASSKEY_LOGIN_FAILED_ERROR,
+	"ERROR_INVALID_RP_ID",
 ] as const;
 
 export type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
@@ -20,5 +24,9 @@ export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 			return "You have been banned from this application. Please contact support if you believe this is an error.";
 		case "SSO_LOGIN_FAILED":
 			return "SSO authentication failed. Please try again.";
+		case PASSKEY_LOGIN_FAILED_ERROR:
+			return "Passkey sign-in failed. The passkey didn't verify your identity with a PIN, biometrics, or screen lock. Please use a verified passkey or sign in with your password.";
+		case "ERROR_INVALID_RP_ID":
+			return "You can only sign in with a passkey on the domain set by the BASE_URL environment variable";
 	}
 }

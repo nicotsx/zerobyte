@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildEnv } from "../build-env";
 import type { ResticDeps } from "../../types";
@@ -24,14 +25,7 @@ const withCustomPassword = <T extends object>(config: T) => ({
 
 const PLAIN_PRIVATE_KEY =
 	"-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAA\n-----END OPENSSH PRIVATE KEY-----";
-
-const tempFiles = new Set<string>();
-
-const trackTempFile = (filePath: string | undefined) => {
-	if (filePath) {
-		tempFiles.add(filePath);
-	}
-};
+const tempDirs = new Set<string>();
 
 const buildEnvForTest = async (
 	config: Parameters<typeof buildEnv>[0],
@@ -39,36 +33,35 @@ const buildEnvForTest = async (
 	deps: ResticDeps = makeDeps(),
 ) => {
 	const env = await buildEnv(config, organizationId, deps);
-
-	// Automatically track all temp file paths created by buildEnv
-	trackTempFile(env.RESTIC_PASSWORD_FILE);
-	trackTempFile(env.GOOGLE_APPLICATION_CREDENTIALS);
-	trackTempFile(env._SFTP_KEY_PATH);
-	trackTempFile(env._SFTP_KNOWN_HOSTS_PATH);
-	trackTempFile(env.RESTIC_CACERT);
-
+	if (env._RUNTIME_SECRETS_DIR) tempDirs.add(env._RUNTIME_SECRETS_DIR);
 	return env;
 };
 
+const listResticTempDirs = async () => {
+	return new Set((await fs.readdir(os.tmpdir())).filter((name) => name.startsWith("zerobyte-restic-")));
+};
+
 afterEach(async () => {
-	await Promise.all(
-		[...tempFiles].map(async (filePath) => {
-			await fs.rm(filePath, { force: true });
-		}),
-	);
-	tempFiles.clear();
+	await Promise.all([...tempDirs].map((dir) => fs.rm(dir, { recursive: true, force: true })));
+	tempDirs.clear();
 });
 
 describe("buildEnv", () => {
 	describe("base environment", () => {
 		test("always sets RESTIC_CACHE_DIR", async () => {
-			const env = await buildEnvForTest(withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }), "org-1");
+			const env = await buildEnvForTest(
+				withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }),
+				"org-1",
+			);
 
 			expect(env.RESTIC_CACHE_DIR).toBe(RESTIC_CACHE_DIR);
 		});
 
 		test("always sets PATH", async () => {
-			const env = await buildEnvForTest(withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }), "org-1");
+			const env = await buildEnvForTest(
+				withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }),
+				"org-1",
+			);
 
 			expect(env.PATH).toBeTruthy();
 		});
@@ -77,7 +70,12 @@ describe("buildEnv", () => {
 	describe("password resolution", () => {
 		test("writes a password file when using customPassword on an existing repository", async () => {
 			const env = await buildEnvForTest(
-				{ backend: "local" as const, path: "/tmp/repo", isExistingRepository: true, customPassword: "my-secret" },
+				{
+					backend: "local" as const,
+					path: "/tmp/repo",
+					isExistingRepository: true,
+					customPassword: "my-secret",
+				},
 				"org-1",
 			);
 
@@ -114,10 +112,39 @@ describe("buildEnv", () => {
 					throw new Error("Organization non-existent-org not found");
 				},
 			});
+			const before = await listResticTempDirs();
 
 			await expect(
 				buildEnv({ backend: "local" as const, path: "/tmp/repo" }, "non-existent-org", deps),
 			).rejects.toThrow("Organization non-existent-org not found");
+
+			expect(await listResticTempDirs()).toEqual(before);
+		});
+
+		test("cleans the temp directory when setup fails after creating one", async () => {
+			const before = await listResticTempDirs();
+			const deps = makeDeps({
+				resolveSecret: async (secret) => {
+					if (secret === "my-access-key") throw new Error("failed to resolve access key");
+					return secret;
+				},
+			});
+
+			await expect(
+				buildEnv(
+					withCustomPassword({
+						backend: "s3" as const,
+						endpoint: "https://s3.amazonaws.com",
+						bucket: "my-bucket",
+						accessKeyId: "my-access-key",
+						secretAccessKey: "my-secret-key",
+					}),
+					"org-1",
+					deps,
+				),
+			).rejects.toThrow("failed to resolve access key");
+
+			expect(await listResticTempDirs()).toEqual(before);
 		});
 
 		test("throws when getOrganizationResticPassword throws (no password configured)", async () => {
@@ -127,9 +154,9 @@ describe("buildEnv", () => {
 				},
 			});
 
-			await expect(buildEnv({ backend: "local" as const, path: "/tmp/repo" }, "org-no-pass", deps)).rejects.toThrow(
-				"Restic password not configured for organization org-no-pass",
-			);
+			await expect(
+				buildEnv({ backend: "local" as const, path: "/tmp/repo" }, "org-no-pass", deps),
+			).rejects.toThrow("Restic password not configured for organization org-no-pass");
 		});
 	});
 
@@ -150,7 +177,10 @@ describe("buildEnv", () => {
 		});
 
 		test("sets AWS_S3_BUCKET_LOOKUP=dns for Huawei Cloud endpoints", async () => {
-			const env = await buildEnvForTest({ ...base, endpoint: "https://obs.ap-southeast-1.myhuaweicloud.com" }, "org-1");
+			const env = await buildEnvForTest(
+				{ ...base, endpoint: "https://obs.ap-southeast-1.myhuaweicloud.com" },
+				"org-1",
+			);
 
 			expect(env.AWS_S3_BUCKET_LOOKUP).toBe("dns");
 		});
@@ -288,6 +318,7 @@ describe("buildEnv", () => {
 			path: "/backups",
 			privateKey: PLAIN_PRIVATE_KEY,
 			skipHostKeyCheck: true as const,
+			allowLegacySshRsa: false as const,
 		});
 
 		test("throws for passphrase-protected private keys", async () => {
@@ -296,7 +327,8 @@ describe("buildEnv", () => {
 				buildEnv(
 					{
 						...baseSftpConfig,
-						privateKey: "-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n-----END RSA PRIVATE KEY-----",
+						privateKey:
+							"-----BEGIN RSA PRIVATE KEY-----\nProc-Type: 4,ENCRYPTED\n-----END RSA PRIVATE KEY-----",
 					},
 					"org-1",
 					deps,
@@ -318,8 +350,25 @@ describe("buildEnv", () => {
 			expect(env._SFTP_SSH_ARGS).toContain("UserKnownHostsFile=/dev/null");
 		});
 
+		test("does not allow legacy RSA/SHA1 SSH algorithms by default", async () => {
+			const env = await buildEnvForTest(baseSftpConfig, "org-1");
+
+			expect(env._SFTP_SSH_ARGS).not.toContain("HostKeyAlgorithms=+ssh-rsa");
+			expect(env._SFTP_SSH_ARGS).not.toContain("PubkeyAcceptedAlgorithms=+ssh-rsa");
+		});
+
+		test("allows legacy RSA/SHA1 SSH algorithms after modern defaults when enabled", async () => {
+			const env = await buildEnvForTest({ ...baseSftpConfig, allowLegacySshRsa: true }, "org-1");
+
+			expect(env._SFTP_SSH_ARGS).toContain("HostKeyAlgorithms=+ssh-rsa");
+			expect(env._SFTP_SSH_ARGS).toContain("PubkeyAcceptedAlgorithms=+ssh-rsa");
+		});
+
 		test("uses StrictHostKeyChecking=yes when knownHosts is absent", async () => {
-			const env = await buildEnvForTest({ ...baseSftpConfig, skipHostKeyCheck: false, knownHosts: undefined }, "org-1");
+			const env = await buildEnvForTest(
+				{ ...baseSftpConfig, skipHostKeyCheck: false, knownHosts: undefined },
+				"org-1",
+			);
 
 			expect(env._SFTP_SSH_ARGS).toContain("StrictHostKeyChecking=yes");
 			expect(env._SFTP_SSH_ARGS).not.toContain("UserKnownHostsFile=/dev/null");
@@ -336,8 +385,8 @@ describe("buildEnv", () => {
 			);
 
 			expect(env._SFTP_SSH_ARGS).toContain("StrictHostKeyChecking=yes");
-			expect(env._SFTP_SSH_ARGS).toContain("UserKnownHostsFile=/tmp/zerobyte-known-hosts-");
-			expect(env._SFTP_KNOWN_HOSTS_PATH).toMatch(/^\/tmp\/zerobyte-known-hosts-/);
+			expect(env._SFTP_SSH_ARGS).toContain("/zerobyte-known-hosts-");
+			expect(env._SFTP_KNOWN_HOSTS_PATH).toMatch(/\/zerobyte-restic-[^/]+\/zerobyte-known-hosts-/);
 		});
 
 		test("adds -p flag for non-default ports", async () => {
@@ -355,7 +404,7 @@ describe("buildEnv", () => {
 		test("sets the key path in both _SFTP_KEY_PATH and SSH args -i flag", async () => {
 			const env = await buildEnvForTest(baseSftpConfig, "org-1");
 
-			expect(env._SFTP_KEY_PATH).toMatch(/^\/tmp\/zerobyte-ssh-/);
+			expect(env._SFTP_KEY_PATH).toMatch(/\/zerobyte-restic-[^/]+\/zerobyte-ssh-/);
 			expect(env._SFTP_SSH_ARGS).toContain(`-i ${env._SFTP_KEY_PATH}`);
 		});
 	});
@@ -382,7 +431,10 @@ describe("buildEnv", () => {
 		});
 
 		test("does not set RESTIC_CACERT when cacert is absent", async () => {
-			const env = await buildEnvForTest(withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }), "org-1");
+			const env = await buildEnvForTest(
+				withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }),
+				"org-1",
+			);
 
 			expect(env.RESTIC_CACERT).toBeUndefined();
 		});
@@ -399,7 +451,10 @@ describe("buildEnv", () => {
 		});
 
 		test("does not set _INSECURE_TLS when insecureTls is absent", async () => {
-			const env = await buildEnvForTest(withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }), "org-1");
+			const env = await buildEnvForTest(
+				withCustomPassword({ backend: "local" as const, path: "/tmp/repo" }),
+				"org-1",
+			);
 
 			expect(env._INSECURE_TLS).toBeUndefined();
 		});

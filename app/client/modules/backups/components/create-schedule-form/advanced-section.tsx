@@ -1,11 +1,79 @@
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Textarea } from "~/client/components/ui/textarea";
-import type { UseFormReturn } from "react-hook-form";
+import { type UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
 import { Input } from "~/client/components/ui/input";
 
 type AdvancedSectionProps = {
 	form: UseFormReturn<InternalFormValues>;
+};
+
+type WebhookFieldsProps = {
+	form: UseFormReturn<InternalFormValues>;
+	phase: "pre" | "post";
+	urlPlaceholder: string;
+	bodyPlaceholder: string;
+	description: string;
+};
+
+const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, description }: WebhookFieldsProps) => {
+	const labelPrefix = phase === "pre" ? "Pre-backup" : "Post-backup";
+	const fieldPrefix = phase === "pre" ? "preBackupWebhook" : "postBackupWebhook";
+
+	return (
+		<>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}Url`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook</FormLabel>
+						<FormControl>
+							<Input {...field} type="url" placeholder={urlPlaceholder} />
+						</FormControl>
+						<FormDescription>
+							{description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are not followed.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}HeadersText`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook headers</FormLabel>
+						<FormControl>
+							<Textarea
+								{...field}
+								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
+								className="font-mono text-sm min-h-24"
+							/>
+						</FormControl>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name={`${fieldPrefix}Body`}
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>{labelPrefix} webhook body</FormLabel>
+						<FormControl>
+							<Textarea {...field} placeholder={bodyPlaceholder} className="font-mono text-sm min-h-24" />
+						</FormControl>
+						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+		</>
+	);
 };
 
 export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
@@ -55,6 +123,20 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 						<FormMessage />
 					</FormItem>
 				)}
+			/>
+			<WebhookFields
+				form={form}
+				phase="pre"
+				urlPlaceholder="http://host.docker.internal:8080/stop"
+				bodyPlaceholder='{"action":"stop"}'
+				description="Called with POST before restic starts. A non-2xx response stops the backup."
+			/>
+			<WebhookFields
+				form={form}
+				phase="post"
+				urlPlaceholder="http://host.docker.internal:8080/start"
+				bodyPlaceholder='{"action":"start"}'
+				description="Called with POST after restic finishes, including failed or cancelled runs."
 			/>
 			<FormField
 				control={form.control}

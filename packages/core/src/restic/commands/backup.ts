@@ -10,15 +10,23 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { validateCustomResticParams } from "../helpers/validate-custom-params";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
-import { toMessage } from "../../utils";
+import { hasPathListSeparator, toMessage } from "../../utils";
 
 class ResticBackupCommandError extends Data.TaggedError("ResticBackupCommandError")<{
 	cause: unknown;
 	message: string;
 }> {}
+
+const validateEntries = (entries: string[], optionName: string, format: "raw" | "text") => {
+	for (const entry of entries) {
+		if (hasPathListSeparator(entry, format)) {
+			throw new Error(`${optionName} contains an unsupported path character: ${entry}`);
+		}
+	}
+};
 
 export const backup = (
 	config: RepositoryConfig,
@@ -41,7 +49,6 @@ export const backup = (
 	return Effect.tryPromise({
 		try: async () => {
 			const repoUrl = buildRepoUrl(config);
-			const env = await buildEnv(config, options.organizationId, deps);
 
 			const args: string[] = ["--repo", repoUrl, "backup", "--compression", options.compressionMode ?? "auto"];
 
@@ -66,6 +73,8 @@ export const backup = (
 				(!options.includePatterns || options.includePatterns.length === 0);
 
 			if (options.includePatterns?.length) {
+				validateEntries(options.includePatterns, "includePatterns", "text");
+
 				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
 				includeFile = path.join(tmp, "include.txt");
 
@@ -75,6 +84,8 @@ export const backup = (
 			}
 
 			if (options.includePaths?.length) {
+				validateEntries(options.includePaths, "includePaths", "raw");
+
 				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
 				rawIncludeFile = path.join(tmp, "include.raw");
 
@@ -114,6 +125,7 @@ export const backup = (
 				}
 			}
 
+			const env = await buildEnv(config, options.organizationId, deps);
 			addCommonArgs(args, env, config);
 
 			if (usesSourceArg) {
@@ -190,7 +202,7 @@ export const backup = (
 				logger.error(`Restic backup failed: ${res.error}`);
 				logger.error(`Command executed: restic ${args.join(" ")}`);
 
-				throw new ResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
+				throw createResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
 			}
 
 			const lastLine = res.summary.trim();
@@ -221,7 +233,7 @@ export const backup = (
 			};
 		},
 		catch: (error) => {
-			if (error instanceof ResticError) {
+			if (isResticError(error)) {
 				return error;
 			}
 

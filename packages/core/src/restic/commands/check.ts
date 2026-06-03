@@ -1,3 +1,4 @@
+import { Data, Effect } from "effect";
 import { logger, safeExec } from "../../node";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
@@ -5,8 +6,15 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import type { ResticDeps } from "../types";
+import { isResticError } from "../error";
+import { toMessage } from "../../utils";
 
-export const check = async (
+class ResticCheckCommandError extends Data.TaggedError("ResticCheckCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
+
+export const check = (
 	config: RepositoryConfig,
 	options: {
 		readData?: boolean;
@@ -15,54 +23,68 @@ export const check = async (
 	},
 	deps: ResticDeps,
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, options.organizationId, deps);
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	const args: string[] = ["--repo", repoUrl, "check"];
+			const args: string[] = ["--repo", repoUrl, "check"];
 
-	if (options.readData) {
-		args.push("--read-data");
-	}
+			if (options.readData) {
+				args.push("--read-data");
+			}
 
-	addCommonArgs(args, env, config);
+			addCommonArgs(args, env, config);
 
-	const res = await safeExec({
-		command: "restic",
-		args,
-		env,
-		signal: options.signal,
+			const res = await safeExec({
+				command: "restic",
+				args,
+				env,
+				signal: options.signal,
+			});
+			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic check was aborted by signal.");
+				return {
+					success: false,
+					hasErrors: true,
+					output: "",
+					error: "Operation aborted",
+				};
+			}
+
+			const { stdout, stderr } = res;
+
+			if (res.exitCode !== 0) {
+				logger.error(`Restic check failed: ${stderr}`);
+				return {
+					success: false,
+					hasErrors: true,
+					output: stdout,
+					error: stderr,
+				};
+			}
+
+			const hasErrors = stdout.includes("Fatal");
+
+			logger.info(`Restic check completed for repository: ${repoUrl}`);
+			return {
+				success: !hasErrors,
+				hasErrors,
+				output: stdout,
+				error: hasErrors ? "Repository contains errors" : null,
+			};
+		},
+		catch: (error) => {
+			if (isResticError(error)) {
+				return error;
+			}
+
+			return new ResticCheckCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
 	});
-	await cleanupTemporaryKeys(env, deps);
-
-	if (options.signal?.aborted) {
-		logger.warn("Restic check was aborted by signal.");
-		return {
-			success: false,
-			hasErrors: true,
-			output: "",
-			error: "Operation aborted",
-		};
-	}
-
-	const { stdout, stderr } = res;
-
-	if (res.exitCode !== 0) {
-		logger.error(`Restic check failed: ${stderr}`);
-		return {
-			success: false,
-			hasErrors: true,
-			output: stdout,
-			error: stderr,
-		};
-	}
-
-	const hasErrors = stdout.includes("Fatal");
-
-	logger.info(`Restic check completed for repository: ${repoUrl}`);
-	return {
-		success: !hasErrors,
-		hasErrors,
-		output: stdout,
-		error: hasErrors ? "Repository contains errors" : null,
-	};
 };

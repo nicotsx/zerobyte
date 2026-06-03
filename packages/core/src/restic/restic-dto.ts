@@ -54,6 +54,16 @@ export const resticRestoreOutputSchema = z.object({
 	bytes_skipped: z.number().optional(),
 });
 
+export const restoreProgressSchema = z.object({
+	message_type: z.enum(["status", "summary"]),
+	seconds_elapsed: z.number().default(0),
+	percent_done: z.number().default(0),
+	total_files: z.number().default(0),
+	files_restored: z.number().default(0),
+	total_bytes: z.number().default(0),
+	bytes_restored: z.number().default(0),
+});
+
 export const resticStatsSchema = z.object({
 	total_size: z.number().default(0),
 	total_uncompressed_size: z.number().default(0),
@@ -70,4 +80,5 @@ export type ResticBackupProgressMetricsDto = z.infer<typeof resticBackupProgress
 export type ResticBackupProgressDto = z.infer<typeof resticBackupProgressSchema>;
 
 export type ResticRestoreOutputDto = z.infer<typeof resticRestoreOutputSchema>;
+export type RestoreProgress = z.infer<typeof restoreProgressSchema>;
 export type ResticStatsDto = z.infer<typeof resticStatsSchema>;

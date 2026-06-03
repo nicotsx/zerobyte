@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { Effect } from "effect";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../node/spawn";
 import { ResticError } from "../../error";
@@ -43,14 +44,19 @@ const config = {
 type SetupOptions = {
 	spawnResult?: Partial<SpawnResult>;
 	onSpawnCall?: (params: SafeSpawnParams) => void | Promise<void>;
+	spawnError?: unknown;
 };
 
-const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
+const setup = ({ spawnResult = {}, onSpawnCall, spawnError }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
 
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
+		if (spawnError) {
+			return Promise.reject(spawnError);
+		}
+
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
 			exitCode: 0,
 			summary: successfulRestoreSummary,
@@ -88,12 +94,15 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
+const runRestore = (...args: Parameters<typeof restore>) => Effect.runPromise(restore(...args));
+const runRestoreError = (...args: Parameters<typeof restore>) => Effect.runPromise(Effect.flip(restore(...args)));
+
 describe("restore command", () => {
 	describe("path selection", () => {
 		test("uses the common ancestor as restore root and strips includes for non-root targets", async () => {
 			const { getRestoreArg, getOptionValues } = setup();
 
-			await restore(
+			await runRestore(
 				config,
 				"snapshot-456",
 				"/tmp/restore-target",
@@ -114,7 +123,7 @@ describe("restore command", () => {
 		test("restores a selected file from its parent directory for non-root targets", async () => {
 			const { getRestoreArg, getOptionValues } = setup();
 
-			await restore(
+			await runRestore(
 				config,
 				"snapshot-single-file",
 				"/tmp/restore-target",
@@ -133,7 +142,7 @@ describe("restore command", () => {
 		test("treats flag-like snapshot IDs as positional restore args", async () => {
 			const { getArgs, getRestoreArg } = setup();
 
-			await restore(
+			await runRestore(
 				config,
 				"--help",
 				"/tmp/restore-target",
@@ -154,7 +163,7 @@ describe("restore command", () => {
 		test("returns a parsed restore summary on success", async () => {
 			setup();
 
-			const result = await restore(
+			const result = await runRestore(
 				config,
 				"snapshot-123",
 				"/tmp/restore-target",
@@ -173,20 +182,35 @@ describe("restore command", () => {
 			setup({ spawnResult: { exitCode: 1, summary: "", error: "restore failed" } });
 
 			await expect(
-				restore(
+				runRestoreError(
 					config,
 					"snapshot-123",
 					"/tmp/restore-target",
 					{ organizationId: "org-1", basePath: "/var/lib/zerobyte/volumes/vol123/_data" },
 					mockDeps,
 				),
-			).rejects.toBeInstanceOf(ResticError);
+			).resolves.toBeInstanceOf(ResticError);
+		});
+
+		test("cleans up temporary keys when spawning restic rejects", async () => {
+			const cleanupSpy = vi.spyOn(cleanupModule, "cleanupTemporaryKeys");
+			setup({ spawnError: new Error("spawn failed") });
+
+			await runRestoreError(
+				config,
+				"snapshot-123",
+				"/tmp/restore-target",
+				{ organizationId: "org-1", basePath: "/var/lib/zerobyte/volumes/vol123/_data" },
+				mockDeps,
+			);
+
+			expect(cleanupSpy).toHaveBeenCalledTimes(1);
 		});
 
 		test("falls back to an empty summary when restic output cannot be parsed", async () => {
 			setup({ spawnResult: { summary: "not-json" } });
 
-			const result = await restore(
+			const result = await runRestore(
 				config,
 				"snapshot-123",
 				"/tmp/restore-target",
@@ -209,7 +233,7 @@ describe("restore command", () => {
 			const progressUpdates: unknown[] = [];
 			setup({ onSpawnCall: (params) => params.onStdout?.(validProgressLine) });
 
-			await restore(
+			await runRestore(
 				config,
 				"snapshot-123",
 				"/tmp/restore-target",
@@ -238,7 +262,7 @@ describe("restore command", () => {
 				},
 			});
 
-			await restore(
+			await runRestore(
 				config,
 				"snapshot-123",
 				"/tmp/restore-target",

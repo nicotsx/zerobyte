@@ -15,7 +15,7 @@ notes.md
 smb-password.txt
 cache.db
 
-data/
+/data
 
 .env*
 !.env.example
@@ -34,8 +34,11 @@ node_modules/
 
 playwright/.auth
 playwright/temp
+playwright/data
 
 .idea/
+.deepsec/
+.codex/
 
 # OpenAPI error logs
 openapi-ts-error-*.log

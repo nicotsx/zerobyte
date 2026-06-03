@@ -8,6 +8,7 @@ import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { restic } from "~/server/core/restic";
+import { Effect } from "effect";
 
 const app = createApp();
 
@@ -18,7 +19,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-	vi.spyOn(restic, "init").mockResolvedValue({ success: true, error: null });
+	vi.spyOn(restic, "init").mockReturnValue(Effect.succeed({ success: true, error: null }));
 });
 
 afterEach(() => {
@@ -327,15 +328,17 @@ describe("repositories updates", () => {
 	});
 
 	describe("delete snapshot", () => {
-		test("should return 500 when restic deleteSnapshot throws ResticError", async () => {
+		test("should return ResticError details when restic deleteSnapshot fails", async () => {
 			const repository = await createRepositoryRecord(session.organizationId);
 
 			const { restic } = await import("~/server/core/restic");
 			const { ResticError } = await import("@zerobyte/core/restic");
 
-			const deleteSnapshotSpy = vi.spyOn(restic, "deleteSnapshot").mockImplementation(async () => {
-				throw new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden");
-			});
+			const deleteSnapshotSpy = vi
+				.spyOn(restic, "deleteSnapshot")
+				.mockImplementation(() =>
+					Effect.fail(new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden")),
+				);
 
 			try {
 				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
@@ -345,8 +348,10 @@ describe("repositories updates", () => {
 
 				expect(res.status).toBe(500);
 				const body = await res.json();
-				expect(body.message).toBe("Command failed: An error occurred while executing the command.");
-				expect(body.details).toBe("Fatal: unexpected HTTP response (403): 403 Forbidden");
+				expect(body).toEqual({
+					message: "Command failed: An error occurred while executing the command.",
+					details: "Fatal: unexpected HTTP response (403): 403 Forbidden",
+				});
 			} finally {
 				deleteSnapshotSpy.mockRestore();
 			}
@@ -359,27 +364,34 @@ describe("repositories updates", () => {
 			const stream = new PassThrough();
 			const expectedContent = "downloaded snapshot contents";
 
-			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockResolvedValue([
-				{
-					id: "test-snapshot",
-					short_id: "test-snapshot",
-					time: new Date().toISOString(),
-					paths: ["/mnt/project"],
-					hostname: "host",
-				},
-			]);
-			const dumpSpy = vi.spyOn(restic, "dump").mockResolvedValue({
-				stream,
-				completion: Promise.resolve(),
-				abort: vi.fn(),
-			});
+			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockReturnValue(
+				Effect.succeed([
+					{
+						id: "test-snapshot",
+						short_id: "test-snapshot",
+						time: new Date().toISOString(),
+						paths: ["/mnt/project"],
+						hostname: "host",
+					},
+				]),
+			);
+			const dumpSpy = vi.spyOn(restic, "dump").mockReturnValue(
+				Effect.succeed({
+					stream: stream as never,
+					completion: Promise.resolve(),
+					abort: vi.fn(),
+				}),
+			);
 
 			try {
 				const controller = new AbortController();
-				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
-					headers: session.headers,
-					signal: controller.signal,
-				});
+				const response = await app.request(
+					`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`,
+					{
+						headers: session.headers,
+						signal: controller.signal,
+					},
+				);
 
 				queueMicrotask(() => {
 					controller.abort();
@@ -397,20 +409,24 @@ describe("repositories updates", () => {
 			const repository = await createRepositoryRecord(session.organizationId);
 
 			const stream = new PassThrough();
-			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockResolvedValue([
-				{
-					id: "test-snapshot",
-					short_id: "test-snapshot",
-					time: new Date().toISOString(),
-					paths: ["/mnt/project"],
-					hostname: "host",
-				},
-			]);
-			const dumpSpy = vi.spyOn(restic, "dump").mockResolvedValue({
-				stream,
-				completion: Promise.resolve(),
-				abort: vi.fn(),
-			});
+			const snapshotsSpy = vi.spyOn(restic, "snapshots").mockReturnValue(
+				Effect.succeed([
+					{
+						id: "test-snapshot",
+						short_id: "test-snapshot",
+						time: new Date().toISOString(),
+						paths: ["/mnt/project"],
+						hostname: "host",
+					},
+				]),
+			);
+			const dumpSpy = vi.spyOn(restic, "dump").mockReturnValue(
+				Effect.succeed({
+					stream: stream as never,
+					completion: Promise.resolve(),
+					abort: vi.fn(),
+				}),
+			);
 
 			try {
 				stream.end("downloaded snapshot contents");

@@ -1,0 +1,128 @@
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    command: ["/data"]
+    environment:
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_ACCESS_KEY: "rustfsadmin"
+      RUSTFS_SECRET_KEY: "rustfsadmin"
+      RUSTFS_CONSOLE_ENABLE: "false"
+    volumes:
+      - rustfs-data:/data
+
+  rustfs-setup:
+    image: minio/mc:latest
+    depends_on:
+      - rustfs
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set rustfs http://rustfs:9000 rustfsadmin rustfsadmin --api S3v4 --path on; do
+          echo "Waiting for RustFS..."
+          sleep 1
+        done
+        mc mb --ignore-existing --region us-east-1 rustfs/zerobyte-integration
+
+  sftp:
+    build:
+      context: ./sftp
+    environment:
+      SFTP_USER: "zerobyte-sftp"
+      SFTP_PASSWORD: "zerobyte-sftp-password"
+      SFTP_PUBLIC_KEY_PATH: "/run/zerobyte/sftp/id_ed25519.pub"
+    volumes:
+      - ../artifacts/sftp/id_ed25519.pub:/run/zerobyte/sftp/id_ed25519.pub:ro
+      - sftp-data:/srv/zerobyte-integration
+    healthcheck:
+      test: ["CMD", "ssh-keyscan", "-T", "2", "localhost"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  webdav:
+    build:
+      context: ./webdav
+    environment:
+      WEBDAV_USER: "zerobyte-webdav"
+      WEBDAV_PASSWORD: "zerobyte-webdav-password"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "-u",
+          "zerobyte-webdav:zerobyte-webdav-password",
+          "http://localhost/zerobyte-integration/case-a/hello.txt",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  smb:
+    build:
+      context: ./smb
+    environment:
+      SMB_USER: "zerobyte-smb"
+      SMB_PASSWORD: "zerobyte-smb-password"
+      SMB_SHARE: "zerobyte-integration"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "smbclient",
+          "//localhost/zerobyte-integration",
+          "-U",
+          "zerobyte-smb%zerobyte-smb-password",
+          "-c",
+          "get case-a/hello.txt /tmp/zerobyte-smb-healthcheck.txt",
+        ]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  nfs:
+    build:
+      context: ./nfs
+    privileged: true
+    volumes:
+      - nfs-data:/srv/zerobyte-integration
+    healthcheck:
+      test: ["CMD", "sh", "-c", "exportfs -v | grep -q /srv/zerobyte-integration/fixtures"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+
+  integration:
+    build:
+      context: ../../../..
+      dockerfile: app/test/integration/infra/Dockerfile
+      args:
+        BASE_IMAGE: zerobyte-integration-runtime-base:latest
+    depends_on:
+      rustfs-setup:
+        condition: service_completed_successfully
+      sftp:
+        condition: service_healthy
+      webdav:
+        condition: service_healthy
+      smb:
+        condition: service_healthy
+      nfs:
+        condition: service_healthy
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse:/dev/fuse
+    volumes:
+      - ../artifacts:/app/app/test/integration/artifacts
+      - ../artifacts/sftp/id_ed25519:/run/zerobyte/sftp/id_ed25519:ro
+    environment:
+      LOG_LEVEL: "error"
+      SFTP_PRIVATE_KEY_PATH: "/run/zerobyte/sftp/id_ed25519"
+      SKIP_VOLUME_MOUNT_INTEGRATION_TESTS: "${SKIP_VOLUME_MOUNT_INTEGRATION_TESTS:-false}"
+
+volumes:
+  rustfs-data:
+  sftp-data:
+  nfs-data:

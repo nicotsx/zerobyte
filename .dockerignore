@@ -3,6 +3,7 @@
 !bun.lock
 !package.json
 !.gitignore
+!bunfig.toml
 
 !**/package.json
 !**/bun.lock
@@ -23,3 +24,4 @@
 node_modules/**
 dist/**
 .output/**
+app/test/integration/artifacts/**

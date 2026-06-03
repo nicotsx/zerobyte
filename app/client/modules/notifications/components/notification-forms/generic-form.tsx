@@ -4,8 +4,7 @@ import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import { Textarea } from "~/client/components/ui/textarea";
-import { CodeBlock } from "~/client/components/ui/code-block";
-import { Label } from "~/client/components/ui/label";
+import { WebhookRequestPreview } from "~/client/components/webhook-request-preview";
 import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
@@ -16,7 +15,7 @@ const WebhookPreview = ({ values }: { values: Partial<NotificationFormValues> })
 	if (values.type !== "generic") return null;
 
 	const contentType = values.contentType || "application/json";
-	const headers = values.headers || [];
+	const headers = values.headers?.filter(Boolean) || [];
 	const useJson = values.useJson;
 	const titleKey = values.titleKey || "title";
 	const messageKey = values.messageKey || "message";
@@ -35,16 +34,14 @@ const WebhookPreview = ({ values }: { values: Partial<NotificationFormValues> })
 		body = "Notification message";
 	}
 
-	const previewCode = `${values.method} ${values.url}\nContent-Type: ${contentType}${headers.length > 0 ? `\n${headers.join("\n")}` : ""}
-
-${body}`;
-
 	return (
-		<div className="space-y-2 pt-4 border-t">
-			<Label>Request Preview</Label>
-			<CodeBlock code={previewCode} filename="HTTP Request" />
-			<p className="text-[0.8rem] text-muted-foreground">This is a preview of the HTTP request that will be sent.</p>
-		</div>
+		<WebhookRequestPreview
+			method={values.method || "POST"}
+			url={values.url}
+			contentType={contentType}
+			headers={headers}
+			body={body}
+		/>
 	);
 };
 
@@ -63,7 +60,7 @@ export const GenericForm = ({ form }: Props) => {
 						<FormControl>
 							<Input {...field} placeholder="https://api.example.com/webhook" />
 						</FormControl>
-						<FormDescription>The target URL for the webhook.</FormDescription>
+						<FormDescription>The target origin must be listed in WEBHOOK_ALLOWED_ORIGINS.</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -113,10 +110,19 @@ export const GenericForm = ({ form }: Props) => {
 								{...field}
 								placeholder="Authorization: Bearer token&#10;X-Custom-Header: value"
 								value={Array.isArray(field.value) ? field.value.join("\n") : ""}
-								onChange={(e) => field.onChange(e.target.value.split("\n"))}
+								onChange={(e) =>
+									field.onChange(
+										e.target.value
+											.split("\n")
+											.map((header) => header.trim())
+											.filter(Boolean),
+									)
+								}
 							/>
 						</FormControl>
-						<FormDescription>One header per line in Key: Value format.</FormDescription>
+						<FormDescription>
+							One header per line in Key: Value format. Values are stored as plain text.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

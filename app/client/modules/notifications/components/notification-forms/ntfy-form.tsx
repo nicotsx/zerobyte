@@ -21,7 +21,10 @@ export const NtfyForm = ({ form }: Props) => {
 						<FormControl>
 							<Input {...field} placeholder="https://ntfy.example.com" />
 						</FormControl>
-						<FormDescription>Leave empty to use ntfy.sh public service.</FormDescription>
+						<FormDescription>
+							Leave empty to use ntfy.sh public service. Self-hosted ntfy origins must be listed in
+							WEBHOOK_ALLOWED_ORIGINS.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

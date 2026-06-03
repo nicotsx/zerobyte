@@ -4,6 +4,8 @@ import { v00002 } from "./migrations/00002-isolate-restic-passwords";
 import { v00003 } from "./migrations/00003-assign-organization";
 import { v00004 } from "./migrations/00004-concat-path-name";
 import { v00005 } from "./migrations/00005-split-backup-include-paths";
+import { v00006 } from "./migrations/00006-map-smb-files-to-container-uid-gid";
+import { v00007 } from "./migrations/00007-require-recovery-key-redownload";
 import { sql } from "drizzle-orm";
 import { appMetadataTable, usersTable } from "../../db/schema";
 import { db } from "../../db/db";
@@ -16,7 +18,12 @@ const recordMigrationCheckpoint = async (version: string): Promise<void> => {
 
 	await db
 		.insert(appMetadataTable)
-		.values({ key, value: JSON.stringify({ completedAt: new Date().toISOString() }), createdAt: now, updatedAt: now })
+		.values({
+			key,
+			value: JSON.stringify({ completedAt: new Date().toISOString() }),
+			createdAt: now,
+			updatedAt: now,
+		})
 		.onConflictDoUpdate({
 			target: appMetadataTable.key,
 			set: { value: JSON.stringify({ completedAt: new Date().toISOString() }), updatedAt: now },
@@ -38,7 +45,7 @@ type MigrationEntity = {
 	dependsOn?: string[];
 };
 
-const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004, v00005];
+const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004, v00005, v00006, v00007];
 
 export const runMigrations = async () => {
 	const userCount = await db.select({ count: sql<number>`count(*)` }).from(usersTable);

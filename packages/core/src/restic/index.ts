@@ -1,8 +1,6 @@
 export * from "./schemas";
 export * from "./restic-dto";
-export { ResticError } from "./error";
-
-export type { RestoreProgress } from "./commands/restore";
+export { isResticError, ResticError, ResticLockError } from "./error";
 export type {
 	ResticDeps,
 	ResticEnv,

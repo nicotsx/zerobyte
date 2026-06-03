@@ -10,24 +10,27 @@ import * as context from "~/server/core/request-context";
 import * as resticModule from "~/server/core/restic";
 import * as spawnModule from "@zerobyte/core/node";
 import type { ShortId } from "~/server/utils/branded";
+import { Effect } from "effect";
 
 const setup = () => {
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(() => Promise.resolve({ exitCode: 0, summary: "", error: "" }));
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(() =>
+		Promise.resolve({ exitCode: 0, summary: "", error: "" }),
+	);
 
 	return {
 		mockSnapshots: (sourceSnapshots: unknown[], mirrorSnapshots: unknown[]) => {
 			let callCount = 0;
 			vi.spyOn(resticModule.restic, "snapshots").mockImplementation(() => {
 				callCount++;
-				if (callCount === 1) return Promise.resolve(sourceSnapshots as never);
-				return Promise.resolve(mirrorSnapshots as never);
+				if (callCount === 1) return Effect.succeed(sourceSnapshots as never);
+				return Effect.succeed(mirrorSnapshots as never);
 			});
 		},
 		mockCopy: () => {
 			const copyMock = vi
 				.spyOn(resticModule.restic, "copy")
-				.mockImplementation(() => Promise.resolve({ success: true, output: "" }));
+				.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
 			return copyMock;
 		},
 	};
@@ -190,12 +193,14 @@ describe("syncMirror", () => {
 		const copyMock = mockCopy();
 		let releaseCopy: (() => void) | undefined;
 		const copyStarted = new Promise<void>((resolve) => {
-			copyMock.mockImplementation(
-				() =>
-					new Promise((copyResolve) => {
-						releaseCopy = () => copyResolve({ success: true, output: "" });
-						resolve();
-					}),
+			copyMock.mockImplementation(() =>
+				Effect.promise(
+					() =>
+						new Promise((copyResolve) => {
+							releaseCopy = () => copyResolve({ success: true, output: "" });
+							resolve();
+						}),
+				),
 			);
 		});
 
@@ -208,9 +213,7 @@ describe("syncMirror", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		await expect(
-			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
-		).resolves.toEqual({ success: true });
+		const firstSync = backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]);
 
 		await copyStarted;
 
@@ -224,6 +227,8 @@ describe("syncMirror", () => {
 		).rejects.toThrow("Mirror is already syncing");
 
 		releaseCopy?.();
+
+		await expect(firstSync).resolves.toEqual({ success: true });
 
 		await waitForExpect(async () => {
 			const mirrors = await backupsService.getMirrors(schedule.shortId);

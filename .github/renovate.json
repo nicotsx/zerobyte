@@ -2,8 +2,14 @@
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
 	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
 	"enabledManagers": ["bun", "github-actions"],
-	"minimumReleaseAge": "1 day",
+	"minimumReleaseAge": "3 days",
+	"rangeStrategy": "bump",
 	"packageRules": [
+		{
+			"matchManagers": ["github-actions"],
+			"matchUpdateTypes": ["digest", "pinDigest"],
+			"minimumReleaseAge": null
+		},
 		{
 			"matchManagers": ["bun"],
 			"matchUpdateTypes": ["minor", "patch"],

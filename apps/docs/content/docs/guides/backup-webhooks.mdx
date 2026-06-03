@@ -1,0 +1,305 @@
+---
+title: Backup Webhooks
+description: Run HTTP hooks before and after a backup job
+---
+
+Backup webhooks let a backup job call an HTTP endpoint immediately before Restic starts and immediately after Restic finishes. Use them when the source needs a short runtime action around the backup, such as pausing a service, creating a database dump, flushing a cache, or resuming a container after the snapshot.
+
+Backup webhooks are configured per backup job in the **Advanced** section. They are different from [notifications](/docs/guides/notifications): notifications report backup events to people or systems, while backup webhooks are part of the backup execution lifecycle.
+
+## How backup webhooks work
+
+Zerobyte supports two lifecycle hooks:
+
+| Hook | When it runs | Failure behavior |
+| --- | --- | --- |
+| **Pre-backup webhook** | Before Restic starts reading the volume | A failed request stops the backup before Restic runs |
+| **Post-backup webhook** | After Restic finishes, fails, or is cancelled | A failed request is recorded with the final result; a clean backup becomes a warning |
+
+Each hook sends a `POST` request. A response with a `2xx` status code is treated as success. Redirects are not followed. Webhook requests time out after `WEBHOOK_TIMEOUT` seconds, which defaults to 60 seconds.
+
+<Callout type="warn">
+  Every backup webhook URL must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. The origin is the scheme, hostname, and port, such as `http://host.docker.internal:9000`.
+</Callout>
+
+## Request body
+
+If the hook body field is empty, Zerobyte sends a JSON backup context body and sets `Content-Type: application/json`.
+
+Pre-backup webhook example:
+
+```json
+{
+  "phase": "pre",
+  "event": "backup.pre",
+  "jobId": "job_...",
+  "scheduleId": "sched_...",
+  "organizationId": "org_...",
+  "sourcePath": "/data"
+}
+```
+
+Post-backup webhook example:
+
+```json
+{
+  "phase": "post",
+  "event": "backup.post",
+  "jobId": "job_...",
+  "scheduleId": "sched_...",
+  "organizationId": "org_...",
+  "sourcePath": "/data",
+  "status": "success"
+}
+```
+
+`status` is only sent to the post-backup webhook. It can be `success`, `warning`, `error`, or `cancelled`. `error` is included on the post-backup webhook when Zerobyte has warning, failure, or cancellation details to report.
+
+If you enter a custom body, Zerobyte sends that exact body instead of the default JSON context. Add a `Content-Type` header yourself if the receiver expects one.
+
+## Headers
+
+Headers are optional and are entered one per line:
+
+```text
+X-Zerobyte-Hook-Secret: replace-with-a-long-random-secret
+Content-Type: application/json
+```
+
+Header values are stored as plain text. Use a scoped webhook secret rather than a reusable account password or long-lived infrastructure token.
+
+## Configure a backup hook
+
+1. Add the webhook origin to `WEBHOOK_ALLOWED_ORIGINS` in the Zerobyte environment.
+2. Restart Zerobyte so the environment change is loaded.
+3. Open **Backups** and select the backup job.
+4. Edit the job and expand **Advanced**.
+5. Fill **Pre-backup webhook** or **Post-backup webhook**.
+6. Add any required headers.
+7. Leave the body empty unless the receiving service requires a custom payload.
+8. Save the backup job and run **Backup now** to test the lifecycle.
+
+For Docker Compose on Linux, `host.docker.internal` usually needs an explicit host gateway entry:
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - WEBHOOK_ALLOWED_ORIGINS=http://host.docker.internal:9000
+```
+
+## How-to: stop and start a Postgres container with adnanh/webhook
+
+This example runs [`adnanh/webhook`](https://github.com/adnanh/webhook) on the Docker host. Zerobyte calls it before and after the backup:
+
+- Pre-backup hook stops the `postgres` container.
+- Restic backs up the mounted data.
+- Post-backup hook starts the `postgres` container again.
+
+<Callout type="warn">
+  Stopping a database container is a blunt consistency strategy. Use it only when a short outage is acceptable. For larger databases, prefer native database dumps, replication snapshots, or storage-level snapshots.
+</Callout>
+
+### 1. Install webhook on the Docker host
+
+On Debian or Ubuntu:
+
+```bash
+sudo apt-get update
+sudo apt-get install webhook
+```
+
+`webhook` serves configured hooks at `/hooks/<hook-id>`. The default port is `9000`, and the `-hooks` flag points to the JSON or YAML hook file.
+
+### 2. Create hook scripts
+
+Create a directory for the scripts:
+
+```bash
+sudo mkdir -p /opt/zerobyte-hooks
+```
+
+Create `/opt/zerobyte-hooks/stop-postgres.sh`:
+
+```sh
+#!/bin/sh
+set -eu
+
+CONTAINER=postgres
+
+STATE=$(docker inspect -f '{{.State.Running}}' "$CONTAINER")
+
+if [ "$STATE" = "true" ]; then
+  docker stop "$CONTAINER"
+fi
+```
+
+Create `/opt/zerobyte-hooks/start-postgres.sh`:
+
+```sh
+#!/bin/sh
+set -eu
+
+CONTAINER=postgres
+
+STATE=$(docker inspect -f '{{.State.Running}}' "$CONTAINER")
+
+if [ "$STATE" != "true" ]; then
+  docker start "$CONTAINER"
+fi
+```
+
+Make both scripts executable:
+
+```bash
+sudo chmod +x /opt/zerobyte-hooks/stop-postgres.sh /opt/zerobyte-hooks/start-postgres.sh
+```
+
+If your container has a different name, change `CONTAINER=postgres` in both scripts.
+
+### 3. Create the webhook config
+
+Create `/opt/zerobyte-hooks/hooks.json`:
+
+```json
+[
+  {
+    "id": "stop-postgres",
+    "execute-command": "/opt/zerobyte-hooks/stop-postgres.sh",
+    "command-working-directory": "/opt/zerobyte-hooks",
+    "http-methods": ["POST"],
+    "include-command-output-in-response": true,
+    "trigger-rule": {
+      "match": {
+        "type": "value",
+        "value": "replace-with-a-long-random-secret",
+        "parameter": {
+          "source": "header",
+          "name": "X-Zerobyte-Hook-Secret"
+        }
+      }
+    }
+  },
+  {
+    "id": "start-postgres",
+    "execute-command": "/opt/zerobyte-hooks/start-postgres.sh",
+    "command-working-directory": "/opt/zerobyte-hooks",
+    "http-methods": ["POST"],
+    "include-command-output-in-response": true,
+    "trigger-rule": {
+      "match": {
+        "type": "value",
+        "value": "replace-with-a-long-random-secret",
+        "parameter": {
+          "source": "header",
+          "name": "X-Zerobyte-Hook-Secret"
+        }
+      }
+    }
+  }
+]
+```
+
+Use the same secret in both hook definitions. `include-command-output-in-response` makes `webhook` wait for the script and return an error response if the command fails, which lets Zerobyte stop the backup when the pre-backup hook cannot stop Postgres.
+
+### 4. Start webhook
+
+Run it in the foreground first:
+
+```bash
+sudo webhook -hooks /opt/zerobyte-hooks/hooks.json -port 9000 -verbose -http-methods POST
+```
+
+In another shell, test both hooks:
+
+```bash
+curl -X POST \
+  -H "X-Zerobyte-Hook-Secret: replace-with-a-long-random-secret" \
+  http://localhost:9000/hooks/stop-postgres
+
+curl -X POST \
+  -H "X-Zerobyte-Hook-Secret: replace-with-a-long-random-secret" \
+  http://localhost:9000/hooks/start-postgres
+```
+
+Once the test works, run `webhook` under your normal process manager.
+
+### 5. Allow Zerobyte to call the webhook server
+
+Add the webhook server origin to Zerobyte:
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - WEBHOOK_ALLOWED_ORIGINS=http://host.docker.internal:9000
+```
+
+Restart Zerobyte:
+
+```bash
+docker compose up -d
+```
+
+### 6. Add the hooks to the backup job
+
+Open the backup job in Zerobyte, edit it, and expand **Advanced**.
+
+Use these values:
+
+```text
+Pre-backup webhook: http://host.docker.internal:9000/hooks/stop-postgres
+Pre-backup webhook headers:
+X-Zerobyte-Hook-Secret: replace-with-a-long-random-secret
+
+Post-backup webhook: http://host.docker.internal:9000/hooks/start-postgres
+Post-backup webhook headers:
+X-Zerobyte-Hook-Secret: replace-with-a-long-random-secret
+```
+
+Leave both body fields empty. Zerobyte will send the default JSON context body.
+
+Run **Backup now**. If the stop hook fails or returns a non-`2xx` response, Zerobyte fails the backup before Restic starts. If the start hook fails after Restic finishes, Zerobyte records the problem in the run details so you can restart the container manually.
+
+### 7. Run webhook as a service
+
+After the foreground test works, create a small systemd unit so `webhook` starts on boot.
+
+Create `/etc/systemd/system/zerobyte-webhook.service`:
+
+```ini
+[Unit]
+Description=Zerobyte backup webhook runner
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/webhook -hooks /opt/zerobyte-hooks/hooks.json -port 9000 -http-methods POST -verbose
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now zerobyte-webhook.service
+sudo systemctl status zerobyte-webhook.service
+```
+
+Check logs with:
+
+```bash
+sudo journalctl -u zerobyte-webhook.service -f
+```
+
+import { Callout } from "fumadocs-ui/components/callout";

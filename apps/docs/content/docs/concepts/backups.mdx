@@ -114,6 +114,14 @@ Both methods produce identical snapshots. Manual runs are useful for verifying a
   You can monitor backup progress in real time through the web interface. Zerobyte streams file counts, data processed, and upload progress as the backup runs.
 </Callout>
 
+## Backup webhooks
+
+Backup jobs can run optional HTTP webhooks immediately before and after Restic. Pre-backup webhooks are useful for preparing the source, such as pausing a service or creating a dump. Post-backup webhooks are useful for cleanup, such as resuming a service after the snapshot.
+
+Pre-backup hook failures stop the backup before Restic runs. Post-backup hook failures are recorded with the run result; a clean backup becomes a warning if the post hook fails.
+
+For setup details and a container stop/start example, see [Backup Webhooks](/docs/guides/backup-webhooks).
+
 ## Backup status
 
 The UI exposes two related status views:

@@ -52,7 +52,7 @@ Create a `docker-compose.yml` file with the following configuration:
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.35
+    image: ghcr.io/nicotsx/zerobyte:v0.37
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -72,6 +72,8 @@ services:
 
 <Callout type="warn">
 **Security Note**: The `SYS_ADMIN` capability and `/dev/fuse` device are required for mounting remote filesystems (NFS, SMB, WebDAV, SFTP). If you only need local directory backups, see the [Simplified Installation](#simplified-installation-no-remote-mounts) section below.
+
+Remote mounts are convenient, but they can expose translated ownership, permissions, and ACL metadata instead of the source system's original view. Read [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) before using mounted volumes for metadata-sensitive backups.
 </Callout>
 
 ### 2. Configure Environment Variables
@@ -115,6 +117,7 @@ The `BASE_URL` determines cookie security behavior:
 | `PORT` | Port the web interface listens on inside the container | `4096` |
 | `RESTIC_HOSTNAME` | Hostname used by Restic in snapshots | `zerobyte` |
 | `TRUSTED_ORIGINS` | Comma-separated list of additional trusted CORS origins | (none) |
+| `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds | `60` |
 | `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error` | `info` |
 | `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds | `60` |
 | `RCLONE_CONFIG_DIR` | Path to rclone config directory inside container | `/root/.config/rclone` |
@@ -179,7 +182,7 @@ If you only need to back up locally mounted directories and don't require remote
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.35
+    image: ghcr.io/nicotsx/zerobyte:v0.37
     container_name: zerobyte
     restart: unless-stopped
     ports:
@@ -217,6 +220,8 @@ services:
 
 <Callout type="info">
 If you need remote mount capabilities later, you can update your `docker-compose.yml` to add back the `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse` directives.
+
+If your goal is the closest thing to true replication, prefer local bind-mounted directories whenever possible. See [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) for the practical tradeoffs.
 </Callout>
 
 ## Mounting Local Directories
@@ -254,7 +259,7 @@ If you use provisioning, Zerobyte can resolve secrets from environment variables
 ```yaml docker-compose.yml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.35
+    image: ghcr.io/nicotsx/zerobyte:v0.37
     container_name: zerobyte
     restart: unless-stopped
     cap_add:

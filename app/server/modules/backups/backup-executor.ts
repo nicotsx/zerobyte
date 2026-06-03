@@ -1,17 +1,21 @@
-import { Effect } from "effect";
+import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
 import { restic, resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 import { getVolumePath } from "../volumes/helpers";
+import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { createBackupOptions } from "./backup.helpers";
-import { toErrorDetails } from "../../utils/errors";
+import { runEffectPromise, toErrorDetails } from "../../utils/errors";
+import { BadRequestError } from "http-errors-enhanced";
 
-const LOCAL_AGENT_ID = "local";
-
+const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
+const IGNORE_INODE_FLAG = "--ignore-inode";
 type BackupExecutionRequest = {
+	jobId: string;
 	scheduleId: number;
 	schedule: BackupSchedule;
 	volume: Volume;
@@ -21,7 +25,17 @@ type BackupExecutionRequest = {
 	onProgress: (progress: BackupExecutionProgress) => void;
 };
 
-const activeControllersByScheduleId = new Map<number, AbortController>();
+export type { BackupExecutionResult } from "../agents/agents-manager";
+
+const activeControllersByScheduleId = new Map<number, { abortController: AbortController; agentId: string | null }>();
+
+const getBackupExecutionAgentId = (volume: Volume, repository: Repository) => {
+	if (repository.type === "local" && volume.agentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError(`Local repository "${repository.name}" can only be used with the local agent`);
+	}
+
+	return volume.agentId;
+};
 
 const createBackupRunPayload = async ({
 	jobId,
@@ -29,9 +43,10 @@ const createBackupRunPayload = async ({
 	volume,
 	repository,
 	organizationId,
-}: BackupExecutionRequest & { jobId: string }): Promise<BackupRunPayload> => {
-	const sourcePath = getVolumePath(volume);
-	const { signal: _, ...options } = createBackupOptions(schedule, sourcePath);
+}: BackupExecutionRequest): Promise<BackupRunPayload> => {
+	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
+	const customResticParams = schedule.customResticParams ?? [];
+
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
 	const resticPassword = await resticDeps.resolveSecret(encryptedResticPassword);
@@ -40,78 +55,74 @@ const createBackupRunPayload = async ({
 		jobId,
 		scheduleId: schedule.shortId,
 		organizationId,
-		sourcePath,
+		volume: agentVolume,
 		repositoryConfig,
 		options: {
-			...options,
+			oneFileSystem: schedule.oneFileSystem,
+			excludePatterns: schedule.excludePatterns,
+			excludeIfPresent: schedule.excludeIfPresent,
+			includePaths: schedule.includePaths,
+			includePatterns: schedule.includePatterns,
+			customResticParams:
+				FUSE_VOLUME_BACKENDS.has(volume.type) && !customResticParams.includes(IGNORE_INODE_FLAG)
+					? [...customResticParams, IGNORE_INODE_FLAG]
+					: customResticParams,
 			compressionMode: repository.compressionMode ?? "auto",
 		},
 		runtime: {
 			password: resticPassword,
-			cacheDir: resticDeps.resticCacheDir,
-			passFile: resticDeps.resticPassFile,
-			defaultExcludes: resticDeps.defaultExcludes,
-			rcloneConfigFile: resticDeps.rcloneConfigFile,
-			hostname: resticDeps.hostname,
 		},
+		webhooks: schedule.backupWebhooks ?? { pre: null, post: null },
+		webhookAllowedOrigins: config.webhookAllowedOrigins,
+		webhookTimeoutMs: config.webhookTimeout * 1000,
 	};
 };
 
 const executeBackupWithoutAgent = async (
 	payload: BackupRunPayload,
-	{ signal, onProgress }: Pick<BackupExecutionRequest, "signal" | "onProgress">,
+	{ schedule, volume, signal, onProgress }: BackupExecutionRequest,
 ) => {
-	try {
-		const execution = await Effect.runPromise(
-			restic
-				.backup(payload.repositoryConfig, payload.sourcePath, {
-					...payload.options,
-					organizationId: payload.organizationId,
-					signal,
-					onProgress,
-				})
-				.pipe(
-					Effect.map((result) => ({ success: true as const, result })),
-					Effect.catchAll((error) => Effect.succeed({ success: false as const, error })),
-				),
-		);
+	const sourcePath = getVolumePath(volume);
+	const { signal: _, ...backupOptions } = createBackupOptions(schedule, sourcePath, signal);
+	const options = {
+		...backupOptions,
+		customResticParams: payload.options.customResticParams ?? [],
+		compressionMode: payload.options.compressionMode,
+	};
 
-		if (!execution.success) {
-			return {
-				status: "failed" as const,
-				error: toErrorDetails(execution.error),
-			};
-		}
-
-		const { exitCode, result, warningDetails } = execution.result;
-		return {
-			status: "completed" as const,
-			exitCode,
-			result,
-			warningDetails,
-		};
-	} catch (error) {
-		return {
-			status: "failed" as const,
-			error: toErrorDetails(error),
-		};
-	}
+	return runEffectPromise(
+		runBackupLifecycle({
+			restic,
+			repositoryConfig: payload.repositoryConfig,
+			sourcePath,
+			jobId: payload.jobId,
+			scheduleId: payload.scheduleId,
+			organizationId: payload.organizationId,
+			options,
+			webhooks: payload.webhooks,
+			webhookAllowedOrigins: payload.webhookAllowedOrigins,
+			webhookTimeoutMs: payload.webhookTimeoutMs,
+			signal,
+			onProgress,
+			formatError: toErrorDetails,
+		}),
+	);
 };
 
 export const backupExecutor = {
 	track: (scheduleId: number) => {
 		const abortController = new AbortController();
-		activeControllersByScheduleId.set(scheduleId, abortController);
+		activeControllersByScheduleId.set(scheduleId, { abortController, agentId: null });
 		return abortController;
 	},
 	untrack: (scheduleId: number, abortController: AbortController) => {
-		if (activeControllersByScheduleId.get(scheduleId) === abortController) {
+		if (activeControllersByScheduleId.get(scheduleId)?.abortController === abortController) {
 			activeControllersByScheduleId.delete(scheduleId);
 		}
 	},
-	execute: async (request: Omit<BackupExecutionRequest, "jobId">) => {
-		const trackedAbortController = activeControllersByScheduleId.get(request.scheduleId);
-		if (!trackedAbortController || trackedAbortController.signal !== request.signal) {
+	execute: async (request: BackupExecutionRequest) => {
+		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
+		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
 			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
 		}
 
@@ -119,35 +130,44 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		const jobId = Bun.randomUUIDv7();
-
-		const payload = await createBackupRunPayload({ ...request, jobId });
+		const payload = await createBackupRunPayload(request);
 
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
-		const executionResult = await agentManager.runBackup(LOCAL_AGENT_ID, {
+		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
+		trackedExecution.agentId = executionAgentId;
+
+		const executionResult = await agentManager.runBackup(executionAgentId, {
 			scheduleId: request.scheduleId,
 			payload,
 			signal: request.signal,
 			onProgress: request.onProgress,
 		});
 
-		if (executionResult.status === "unavailable" && !config.flags.enableLocalAgent) {
+		if (
+			executionResult.status === "unavailable" &&
+			executionAgentId === LOCAL_AGENT_ID &&
+			!config.flags.enableLocalAgent
+		) {
 			return executeBackupWithoutAgent(payload, request);
 		}
 
 		return executionResult;
 	},
 	cancel: async (scheduleId: number) => {
-		const abortController = activeControllersByScheduleId.get(scheduleId);
-		if (!abortController) {
+		const trackedExecution = activeControllersByScheduleId.get(scheduleId);
+		if (!trackedExecution) {
 			return false;
 		}
 
-		abortController.abort();
-		await agentManager.cancelBackup(LOCAL_AGENT_ID, scheduleId);
+		trackedExecution.abortController.abort();
+		if (!trackedExecution.agentId) {
+			return true;
+		}
+
+		await agentManager.cancelBackup(trackedExecution.agentId, scheduleId);
 		return true;
 	},
 };

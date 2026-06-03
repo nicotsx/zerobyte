@@ -6,16 +6,25 @@ import {
 	backupScheduleNotificationsTable,
 	type NotificationDestination,
 } from "../../db/schema";
-import { logger } from "@zerobyte/core/node";
+import { logger, sanitizeSensitiveData } from "@zerobyte/core/node";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
 import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import type { ResticBackupRunSummaryDto } from "@zerobyte/core/restic";
 import { toMessage } from "../../utils/errors";
+import { config as serverConfig } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
+import { serverEvents } from "~/server/core/events";
+import { assertNotificationTargetAllowed } from "./utils/notification-target-policy";
+
+const MAX_DELIVERY_ERROR_LENGTH = 2048;
+
+const formatDeliveryError = (error?: string) => {
+	return sanitizeSensitiveData(error ?? "Unknown error").slice(0, MAX_DELIVERY_ERROR_LENGTH);
+};
 
 const listDestinations = async () => {
 	const organizationId = getOrganizationId();
@@ -46,6 +55,8 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 	if (trimmedName.length === 0) {
 		throw new BadRequestError("Name cannot be empty");
 	}
+
+	assertNotificationTargetAllowed(config, serverConfig.webhookAllowedOrigins);
 
 	const encryptedConfig = await encryptNotificationConfig(config);
 
@@ -93,15 +104,23 @@ const updateDestination = async (
 		updateData.enabled = updates.enabled;
 	}
 
-	const newConfigResult = notificationConfigSchema.safeParse(updates.config || existing.config);
-	if (!newConfigResult.success) {
-		throw new BadRequestError("Invalid notification configuration");
-	}
-	const newConfig = newConfigResult.data;
+	if (updates.config !== undefined) {
+		const newConfigResult = notificationConfigSchema.safeParse(updates.config);
+		if (!newConfigResult.success) {
+			throw new BadRequestError("Invalid notification configuration");
+		}
+		const newConfig = newConfigResult.data;
+		const resolvedConfig = await decryptNotificationConfig(newConfig);
+		const existingConfig = await decryptNotificationConfig(existing.config);
 
-	const encryptedConfig = await encryptNotificationConfig(newConfig);
-	updateData.config = encryptedConfig;
-	updateData.type = newConfig.type;
+		if (JSON.stringify(resolvedConfig) !== JSON.stringify(existingConfig)) {
+			assertNotificationTargetAllowed(resolvedConfig, serverConfig.webhookAllowedOrigins);
+
+			const encryptedConfig = await encryptNotificationConfig(newConfig);
+			updateData.config = encryptedConfig;
+			updateData.type = newConfig.type;
+		}
+	}
 
 	const [updated] = await db
 		.update(notificationDestinationsTable)
@@ -128,20 +147,51 @@ const deleteDestination = async (id: number) => {
 		);
 };
 
+const updateDeliveryStatus = async (destinationId: number, result: { success: boolean; error?: string }) => {
+	const [updated] = await db
+		.update(notificationDestinationsTable)
+		.set({
+			status: result.success ? "healthy" : "error",
+			lastChecked: Date.now(),
+			lastError: result.success ? null : formatDeliveryError(result.error),
+			updatedAt: Date.now(),
+		})
+		.where(eq(notificationDestinationsTable.id, destinationId))
+		.returning();
+
+	if (updated) {
+		serverEvents.emit("notification:updated", {
+			organizationId: updated.organizationId,
+			notificationId: updated.id,
+			notificationName: updated.name,
+			status: updated.status,
+		});
+	}
+};
+
 const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
+	let result: Awaited<ReturnType<typeof sendNotification>>;
 
-	const decryptedConfig = await decryptNotificationConfig(destination.config);
+	try {
+		const decryptedConfig = await decryptNotificationConfig(destination.config);
+		assertNotificationTargetAllowed(decryptedConfig, serverConfig.webhookAllowedOrigins);
 
-	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
+		const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
-	logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
+		logger.debug("Testing notification with Shoutrrr URL:", shoutrrrUrl);
 
-	const result = await sendNotification({
-		shoutrrrUrl,
-		title: "Zerobyte Test Notification",
-		body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
-	});
+		result = await sendNotification({
+			shoutrrrUrl,
+			title: "Zerobyte Test Notification",
+			body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
+		});
+	} catch (error) {
+		await updateDeliveryStatus(destination.id, { success: false, error: toMessage(error) });
+		throw error;
+	}
+
+	await updateDeliveryStatus(destination.id, result);
 
 	if (!result.success) {
 		throw new InternalServerError(`Failed to send test notification: ${result.error}`);
@@ -329,9 +379,11 @@ const sendBackupNotification = async (
 		for (const assignment of relevantAssignments) {
 			try {
 				const decryptedConfig = await decryptNotificationConfig(assignment.destination.config);
+				assertNotificationTargetAllowed(decryptedConfig, serverConfig.webhookAllowedOrigins);
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
 				const result = await sendNotification({ shoutrrrUrl, title, body });
+				await updateDeliveryStatus(assignment.destination.id, result);
 
 				if (result.success) {
 					logger.info(
@@ -343,6 +395,7 @@ const sendBackupNotification = async (
 					);
 				}
 			} catch (error) {
+				await updateDeliveryStatus(assignment.destination.id, { success: false, error: toMessage(error) });
 				logger.error(
 					`Error sending notification to ${assignment.destination.name} for backup ${scheduleId}: ${toMessage(error)}`,
 				);

@@ -78,6 +78,10 @@ In practice, an **eligible local account** means an account that already belongs
 
 The invitation UI lets you assign `member`, `admin`, or `owner` at invite time. The accepted membership is created with that invited role.
 
+<Callout type="warn">
+  Zerobyte does not currently provide fine-grained RBAC for backup operations. Invited members can operate backup resources inside the organization. Roles mainly restrict organization-management actions such as SSO settings, invitations, member management, and recovery-key downloads.
+</Callout>
+
 ## Auto-linking semantics
 
 - Auto-linking is stored **per provider**, not globally.

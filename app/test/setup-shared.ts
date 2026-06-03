@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { Effect } from "effect";
 
 process.env.BASE_URL = "http://localhost:3000";
 process.env.TRUSTED_ORIGINS = "http://localhost:3000";
@@ -13,6 +14,12 @@ vi.mock(import("@zerobyte/core/node"), async () => {
 			info: () => {},
 			warn: () => {},
 			error: () => {},
+			effect: {
+				debug: () => Effect.void,
+				info: () => Effect.void,
+				warn: () => Effect.void,
+				error: () => Effect.void,
+			},
 		},
 	};
 });

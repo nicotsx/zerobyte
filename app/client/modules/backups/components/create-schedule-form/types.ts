@@ -1,4 +1,19 @@
 import { z } from "zod";
+import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
+
+const webhookHeadersSchema = z.string().refine(
+	(value) =>
+		value
+			.split("\n")
+			.map((header) => header.trim())
+			.filter(Boolean)
+			.every((header) => {
+				const [key, value] = header.split(":", 2);
+
+				return /^[A-Za-z0-9-]+$/.test(key.trim()) && (value?.trim().length ?? 0) > 0;
+			}),
+	{ message: "Headers must use non-empty Key: Value format with valid header names" },
+);
 
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
@@ -20,6 +35,12 @@ export const internalFormSchema = z.object({
 	keepYearly: z.number().optional(),
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
+	preBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
+	preBackupWebhookHeadersText: webhookHeadersSchema.optional(),
+	preBackupWebhookBody: z.string().optional(),
+	postBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
+	postBackupWebhookHeadersText: webhookHeadersSchema.optional(),
+	postBackupWebhookBody: z.string().optional(),
 	maxRetries: z.number().min(0).max(32).optional(),
 	retryDelay: z.number().min(1).max(1440).optional(),
 });
@@ -38,10 +59,20 @@ export type InternalFormValues = z.infer<typeof internalFormSchema>;
 
 export type BackupScheduleFormValues = Omit<
 	InternalFormValues,
-	"excludePatternsText" | "excludeIfPresentText" | "includePatterns" | "customResticParamsText"
+	| "excludePatternsText"
+	| "excludeIfPresentText"
+	| "includePatterns"
+	| "customResticParamsText"
+	| "preBackupWebhookUrl"
+	| "preBackupWebhookHeadersText"
+	| "preBackupWebhookBody"
+	| "postBackupWebhookUrl"
+	| "postBackupWebhookHeadersText"
+	| "postBackupWebhookBody"
 > & {
 	excludePatterns?: string[];
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
+	backupWebhooks?: BackupWebhooks | null;
 };

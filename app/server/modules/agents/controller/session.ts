@@ -1,16 +1,20 @@
-import { Effect, Queue, Ref, type Scope } from "effect";
+import { Deferred, Effect, Queue, Ref, type Scope } from "effect";
+import type { AgentKind } from "../../../db/schema";
 import {
 	createControllerMessage,
 	parseAgentMessage,
+	parseAgentStartupMessage,
+	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+	SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
 	type AgentMessage,
+	type AgentProtocolRejection,
 	type BackupCancelPayload,
-	type BackupCancelledPayload,
-	type BackupCompletedPayload,
-	type BackupFailedPayload,
-	type BackupProgressPayload,
 	type BackupRunPayload,
-	type BackupStartedPayload,
 	type ControllerWireMessage,
+	type RestoreCancelPayload,
+	type RestoreRunPayload,
+	type VolumeCommand,
+	type VolumeCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
@@ -20,48 +24,48 @@ export type AgentConnectionData = {
 	agentId: string;
 	organizationId: string | null;
 	agentName: string;
+	agentKind: AgentKind;
 };
 
 type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
 
 type SessionState = {
 	isReady: boolean;
+	protocolVersion: number | null;
 	lastSeenAt: number | null;
 	lastPongAt: number | null;
 };
 
-type TrackedBackupJob = {
-	scheduleId: string;
-	state: "pending" | "active";
-};
+type PendingCommand = { deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>; description: string };
 
-type ControllerAgentSessionHandlers = {
-	onBackupStarted?: (payload: BackupStartedPayload) => void;
-	onBackupProgress?: (payload: BackupProgressPayload) => void;
-	onBackupCompleted?: (payload: BackupCompletedPayload) => void;
-	onBackupFailed?: (payload: BackupFailedPayload) => void;
-	onBackupCancelled?: (payload: BackupCancelledPayload) => void;
-};
+export type ControllerAgentSessionEvent =
+	| Exclude<AgentMessage, { type: "volume.commandResult" }>
+	| { type: "agent.protocolRejected"; payload: AgentProtocolRejection }
+	| { type: "agent.disconnected" };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
 	handleMessage: (data: string) => Effect.Effect<void>;
 	sendBackup: (payload: BackupRunPayload) => Effect.Effect<boolean>;
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
+	sendRestore: (payload: RestoreRunPayload) => Effect.Effect<boolean>;
+	sendRestoreCancel: (payload: RestoreCancelPayload) => Effect.Effect<boolean>;
+	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
 
 export const createControllerAgentSession = (
 	socket: AgentSocket,
-	handlers: ControllerAgentSessionHandlers = {},
+	onEvent: (event: ControllerAgentSessionEvent) => Effect.Effect<void>,
 ): Effect.Effect<ControllerAgentSession, never, Scope.Scope> =>
 	Effect.gen(function* () {
 		let isClosed = false;
 		const outboundQueue = yield* Queue.bounded<ControllerWireMessage>(64);
-		const trackedBackupJobs = yield* Ref.make<Map<string, TrackedBackupJob>>(new Map());
+		const pendingCommands = yield* Ref.make(new Map<string, PendingCommand>());
 		const state = yield* Ref.make<SessionState>({
 			isReady: false,
+			protocolVersion: null,
 			lastSeenAt: null,
 			lastPongAt: null,
 		});
@@ -70,7 +74,9 @@ export const createControllerAgentSession = (
 			Queue.offer(outboundQueue, message).pipe(
 				Effect.catchAllCause((cause) =>
 					Effect.sync(() => {
-						logger.error(`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`);
+						logger.error(
+							`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`,
+						);
 						return false;
 					}),
 				),
@@ -78,37 +84,34 @@ export const createControllerAgentSession = (
 
 		const updateState = (update: (current: SessionState) => SessionState) => Ref.update(state, update);
 
-		const setTrackedBackupJob = (jobId: string, trackedBackupJob: TrackedBackupJob) => {
-			return Ref.update(trackedBackupJobs, (current) => {
-				const next = new Map(current);
-				next.set(jobId, trackedBackupJob);
-				return next;
-			});
-		};
+		const setPendingCommand = (commandId: string, pending: PendingCommand) =>
+			Ref.update(pendingCommands, (current) => new Map(current).set(commandId, pending));
 
-		const deleteTrackedBackupJob = (jobId: string) => {
-			return Ref.update(trackedBackupJobs, (current) => {
+		const removePendingCommand = (commandId: string) =>
+			Ref.modify(pendingCommands, (current) => {
+				const pending = current.get(commandId) ?? null;
 				const next = new Map(current);
-				next.delete(jobId);
-				return next;
+				next.delete(commandId);
+				return [pending, next];
 			});
-		};
 
-		const takeTrackedBackupJobs = Ref.modify(
-			trackedBackupJobs,
-			(current) => [current, new Map<string, TrackedBackupJob>()] as const,
-		);
+		const rejectPendingCommands = Effect.gen(function* () {
+			const pendingCommandEntries = yield* Ref.get(pendingCommands);
+			yield* Ref.set(pendingCommands, new Map());
+
+			for (const pending of pendingCommandEntries.values()) {
+				yield* Deferred.fail(
+					pending.deferred,
+					new Error(`Agent session closed before ${pending.description} completed`),
+				);
+			}
+		});
 
 		const releaseSession = Effect.gen(function* () {
-			yield* updateState((current) => ({ ...current, isReady: false }));
-			const trackedJobs = yield* takeTrackedBackupJobs;
-			for (const [jobId, trackedJob] of trackedJobs) {
-				const message = "The connection to the backup agent was lost. Restart the backup to ensure it completes.";
-
-				yield* Effect.sync(() => {
-					handlers.onBackupCancelled?.({ jobId, scheduleId: trackedJob.scheduleId, message });
-				});
-			}
+			const disconnectedAt = Date.now();
+			yield* updateState((current) => ({ ...current, isReady: false, lastSeenAt: disconnectedAt }));
+			yield* rejectPendingCommands;
+			yield* onEvent({ type: "agent.disconnected" });
 
 			yield* Queue.shutdown(outboundQueue);
 		});
@@ -126,16 +129,13 @@ export const createControllerAgentSession = (
 		yield* Effect.addFinalizer(() => closeSession());
 
 		const handleSendFailure = (reason: string) => {
-			logger.error(
-				`Closing session for agent ${socket.data.agentId} on ${socket.data.id} after an outbound websocket send failed: ${reason}`,
-			);
-
-			socket.close();
-
-			void Effect.runPromise(closeSession()).catch((error) => {
+			return Effect.gen(function* () {
 				logger.error(
-					`Failed to close session for agent ${socket.data.agentId} on ${socket.data.id}: ${toMessage(error)}`,
+					`Closing session for agent ${socket.data.agentId} on ${socket.data.id} after an outbound websocket send failed: ${reason}`,
 				);
+
+				yield* Effect.sync(() => socket.close());
+				yield* closeSession();
 			});
 		};
 
@@ -144,17 +144,16 @@ export const createControllerAgentSession = (
 				Effect.forever(
 					Effect.gen(function* () {
 						const message = yield* Queue.take(outboundQueue);
-						yield* Effect.sync(() => {
-							try {
-								const sendResult = socket.send(message);
-								if (sendResult === 0) {
-									handleSendFailure("connection issue");
-								}
-							} catch (error) {
-								handleSendFailure(toMessage(error));
-							}
+
+						const sendResult = yield* Effect.try({
+							try: () => socket.send(message),
+							catch: (error) => toMessage(error),
 						});
-					}),
+
+						if (sendResult === 0) {
+							yield* handleSendFailure("connection issue");
+						}
+					}).pipe(Effect.catchAll((reason) => handleSendFailure(reason))),
 				),
 			);
 
@@ -175,100 +174,130 @@ export const createControllerAgentSession = (
 			return yield* Effect.never;
 		});
 
+		const handleVolumeCommandResult = (payload: VolumeCommandResponsePayload) =>
+			Effect.gen(function* () {
+				const pending = yield* removePendingCommand(payload.commandId);
+				if (!pending) {
+					yield* logger.effect.warn(`Received response for unknown volume command ${payload.commandId}`);
+					return;
+				}
+
+				yield* Deferred.succeed(pending.deferred, payload);
+			});
+
 		const handleAgentMessage = (message: AgentMessage) =>
 			Effect.gen(function* () {
-				yield* updateState((current) => ({ ...current, lastSeenAt: Date.now() }));
-
 				switch (message.type) {
 					case "agent.ready": {
-						yield* updateState((current) => ({ ...current, isReady: true }));
-						yield* Effect.sync(() => {
-							logger.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
-						});
-						break;
-					}
-					case "backup.started": {
-						yield* setTrackedBackupJob(message.payload.jobId, {
-							scheduleId: message.payload.scheduleId,
-							state: "active",
-						});
-						yield* Effect.sync(() => {
-							logger.info(
-								`Backup ${message.payload.jobId} started on agent ${socket.data.agentId} for schedule ${message.payload.scheduleId}`,
-							);
-							handlers.onBackupStarted?.(message.payload);
-						});
-						break;
-					}
-					case "backup.progress": {
-						yield* Effect.sync(() => {
-							handlers.onBackupProgress?.(message.payload);
-						});
-						break;
-					}
-					case "backup.completed": {
-						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupCompleted?.(message.payload);
-						});
-						break;
-					}
-					case "backup.failed": {
-						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupFailed?.(message.payload);
-						});
-						break;
-					}
-					case "backup.cancelled": {
-						yield* deleteTrackedBackupJob(message.payload.jobId);
-						yield* Effect.sync(() => {
-							handlers.onBackupCancelled?.(message.payload);
-						});
+						const readyAt = Date.now();
+						yield* updateState((current) => ({
+							...current,
+							isReady: true,
+							protocolVersion: message.payload.protocolVersion,
+							lastSeenAt: readyAt,
+						}));
+						yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
+						yield* onEvent(message);
 						break;
 					}
 					case "heartbeat.pong": {
-						yield* updateState((current) => ({ ...current, lastPongAt: message.payload.sentAt }));
+						const seenAt = Date.now();
+						yield* updateState((current) => ({
+							...current,
+							lastSeenAt: seenAt,
+							lastPongAt: message.payload.sentAt,
+						}));
+						yield* onEvent(message);
+						break;
+					}
+					case "volume.commandResult": {
+						yield* handleVolumeCommandResult(message.payload);
+						break;
+					}
+					default: {
+						yield* onEvent(message);
 						break;
 					}
 				}
+			});
+
+		const rejectStartupMessage = (rejection: AgentProtocolRejection) =>
+			Effect.gen(function* () {
+				yield* logger.effect.warn(
+					`Rejecting startup message from agent ${socket.data.agentId}: ${rejection.reason}`,
+				);
+				yield* onEvent({ type: "agent.protocolRejected", payload: rejection });
+				yield* Effect.sync(() => socket.close(1002, rejection.reason));
+				yield* closeSession();
 			});
 
 		return {
 			connectionId: socket.data.id,
 			handleMessage: (data: string) => {
 				return Effect.gen(function* () {
+					const currentState = yield* Ref.get(state);
+
+					if (!currentState.isReady) {
+						const startupMessage = parseAgentStartupMessage(data);
+						if (!("success" in startupMessage)) {
+							yield* rejectStartupMessage(startupMessage);
+							return;
+						}
+					}
+
 					const parsed = parseAgentMessage(data);
 
 					if (parsed === null) {
-						yield* Effect.sync(() => {
-							logger.warn(`Invalid JSON from agent ${socket.data.agentId}`);
-						});
+						yield* logger.effect.warn(`Invalid JSON from agent ${socket.data.agentId}`);
 						return;
 					}
 
 					if (!parsed.success) {
-						yield* Effect.sync(() => {
-							logger.warn(`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`);
-						});
+						if (!currentState.isReady) {
+							yield* rejectStartupMessage({
+								reason: "invalid_agent_ready",
+								supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+								supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+							});
+							return;
+						}
+
+						yield* logger.effect.warn(
+							`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`,
+						);
 						return;
 					}
 
 					yield* handleAgentMessage(parsed.data);
 				});
 			},
-			sendBackup: (payload) => {
-				return Effect.gen(function* () {
-					const queued = yield* offerOutbound(createControllerMessage("backup.run", payload));
+			sendBackup: (payload) => offerOutbound(createControllerMessage("backup.run", payload)),
+			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
+			sendRestore: (payload) => offerOutbound(createControllerMessage("restore.run", payload)),
+			sendRestoreCancel: (payload) => offerOutbound(createControllerMessage("restore.cancel", payload)),
+			runVolumeCommand: (command) =>
+				Effect.gen(function* () {
+					const commandId = Bun.randomUUIDv7();
+					const description = `volume command ${command.name}`;
+					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
+					yield* setPendingCommand(commandId, { deferred, description });
 
-					if (queued) {
-						yield* setTrackedBackupJob(payload.jobId, { scheduleId: payload.scheduleId, state: "pending" });
+					const queued = yield* offerOutbound(
+						createControllerMessage("volume.command", { commandId, command }),
+					);
+					if (!queued) {
+						yield* removePendingCommand(commandId);
+						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
 					}
 
-					return queued;
-				});
-			},
-			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
+					return yield* Deferred.await(deferred).pipe(
+						Effect.timeoutFail({
+							duration: "60 seconds",
+							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
+						}),
+						Effect.ensuring(removePendingCommand(commandId)),
+					);
+				}),
 			isReady: () => Ref.get(state).pipe(Effect.map((current) => current.isReady)),
 			run,
 		};

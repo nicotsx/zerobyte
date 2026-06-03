@@ -13,11 +13,12 @@ import { config as appConfig } from "~/server/core/config";
 import { restic } from "~/server/core/restic";
 import { db } from "~/server/db/db";
 import { repositoriesTable, volumesTable } from "~/server/db/schema";
+import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
-import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "~/schemas/volumes";
+import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
-import { toMessage } from "~/server/utils/errors";
+import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
 
 const envSecretPrefix = "env://";
@@ -154,7 +155,6 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 
 		const existing = existingRepositories.find((r) => r.provisioningId === provisioningId);
 		const encryptedConfig = await encryptProvisionedRepositoryConfig(repository.config);
-
 		if (!existing) {
 			const id = Bun.randomUUIDv7();
 
@@ -171,9 +171,12 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 			});
 
 			if (!repository.config.isExistingRepository) {
-				const result = await restic
-					.init(encryptedConfig, repository.organizationId, { timeoutMs: appConfig.serverIdleTimeout * 1000 })
-					.catch((error) => ({ success: false, error }));
+				const result = await runEffectPromise(
+					restic.init(encryptedConfig, {
+						organizationId: repository.organizationId,
+						timeoutMs: appConfig.serverIdleTimeout * 1000,
+					}),
+				).catch((error) => ({ success: false, error }));
 
 				await db
 					.update(repositoriesTable)
@@ -186,7 +189,9 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 					.where(eq(repositoriesTable.id, id));
 
 				if (result.error) {
-					logger.error(`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`);
+					logger.error(
+						`Provisioned repository ${repository.name} failed to initialize: ${toMessage(result.error)}`,
+					);
 				}
 			}
 			continue;
@@ -228,6 +233,7 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 				type: volume.backend,
 				config: await encryptProvisionedVolumeConfig(volume.config),
 				autoRemount: volume.autoRemount,
+				agentId: LOCAL_AGENT_ID,
 				status: volume.autoRemount ? "mounted" : "unmounted",
 				organizationId: volume.organizationId,
 			});
@@ -239,6 +245,7 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 			type: volume.backend,
 			config: await encryptProvisionedVolumeConfig(volume.config),
 			autoRemount: volume.autoRemount,
+			agentId: LOCAL_AGENT_ID,
 			organizationId: volume.organizationId,
 			updatedAt: Date.now(),
 		};

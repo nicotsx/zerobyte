@@ -5,8 +5,15 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeSpawn } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import type { ResticDeps } from "../types";
+import { Data, Effect } from "effect";
+import { toMessage } from "../../utils";
+
+class ResticLsCommandError extends Data.TaggedError("ResticLsCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
 
 const lsNodeSchema = z.object({
 	name: z.string(),
@@ -49,98 +56,111 @@ type ResticLsResult = {
 	};
 };
 
-export const ls = async (
+export const ls = (
 	config: RepositoryConfig,
 	snapshotId: string,
-	organizationId: string,
 	path: string | undefined,
-	options: { offset?: number; limit?: number } | undefined,
+	options: { organizationId: string; offset?: number; limit?: number },
 	deps: ResticDeps,
-): Promise<ResticLsResult> => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, organizationId, deps);
+) => {
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, options.organizationId, deps);
 
-	const args: string[] = ["--repo", repoUrl, "ls", "--long"];
+			const args: string[] = ["--repo", repoUrl, "ls", "--long"];
 
-	addCommonArgs(args, env, config);
-	args.push("--", snapshotId);
+			addCommonArgs(args, env, config);
+			args.push("--", snapshotId);
 
-	if (path) {
-		args.push(path);
-	}
-
-	let snapshot: LsSnapshotInfo | null = null;
-	const nodes: LsNode[] = [];
-	let totalNodes = 0;
-	let isFirstLine = true;
-	let hasMore = false;
-
-	const offset = Math.max(options?.offset ?? 0, 0);
-	const limit = Math.min(Math.max(options?.limit ?? 500, 1), 500);
-
-	logger.debug(`Running restic ls with args: ${args.join(" ")}`);
-
-	const res = await safeSpawn({
-		command: "restic",
-		args,
-		env,
-		onStdout: (line) => {
-			const trimmedLine = line.trim();
-			if (!trimmedLine) {
-				return;
+			if (path) {
+				args.push(path);
 			}
 
-			try {
-				const data = JSON.parse(trimmedLine);
+			let snapshot: LsSnapshotInfo | null = null;
+			const nodes: LsNode[] = [];
+			let totalNodes = 0;
+			let isFirstLine = true;
+			let hasMore = false;
 
-				if (isFirstLine) {
-					isFirstLine = false;
-					const snapshotValidation = lsSnapshotInfoSchema.safeParse(data);
-					if (snapshotValidation.success) {
-						snapshot = snapshotValidation.data;
+			const offset = Math.max(options?.offset ?? 0, 0);
+			const limit = Math.min(Math.max(options?.limit ?? 500, 1), 500);
+
+			logger.debug(`Running restic ls with args: ${args.join(" ")}`);
+
+			const res = await safeSpawn({
+				command: "restic",
+				args,
+				env,
+				onStdout: (line) => {
+					const trimmedLine = line.trim();
+					if (!trimmedLine) {
+						return;
 					}
-					return;
-				}
 
-				const nodeValidation = lsNodeSchema.safeParse(data);
-				if (!nodeValidation.success) {
-					logger.warn(`Skipping invalid node: ${nodeValidation.error.message}`);
-					return;
-				}
+					try {
+						const data = JSON.parse(trimmedLine);
 
-				if (totalNodes >= offset && totalNodes < offset + limit) {
-					nodes.push(nodeValidation.data);
-				}
-				totalNodes++;
+						if (isFirstLine) {
+							isFirstLine = false;
+							const snapshotValidation = lsSnapshotInfoSchema.safeParse(data);
+							if (snapshotValidation.success) {
+								snapshot = snapshotValidation.data;
+							}
+							return;
+						}
 
-				if (totalNodes >= offset + limit + 1) {
-					hasMore = true;
-				}
-			} catch {
-				// Ignore JSON parse errors for non-JSON lines
+						const nodeValidation = lsNodeSchema.safeParse(data);
+						if (!nodeValidation.success) {
+							logger.warn(`Skipping invalid node: ${nodeValidation.error.message}`);
+							return;
+						}
+
+						if (totalNodes >= offset && totalNodes < offset + limit) {
+							nodes.push(nodeValidation.data);
+						}
+						totalNodes++;
+
+						if (totalNodes >= offset + limit + 1) {
+							hasMore = true;
+						}
+					} catch {
+						// Ignore JSON parse errors for non-JSON lines
+					}
+				},
+			});
+
+			await cleanupTemporaryKeys(env, deps);
+
+			if (res.exitCode !== 0) {
+				logger.error(`Restic ls failed: ${res.error}`);
+				throw createResticError(res.exitCode, res.stderr || res.error);
 			}
+
+			if (totalNodes > offset + limit) {
+				hasMore = true;
+			}
+
+			return {
+				snapshot,
+				nodes,
+				pagination: {
+					offset,
+					limit,
+					total: totalNodes,
+					hasMore,
+				},
+			} as ResticLsResult;
+		},
+		catch: (error) => {
+			if (isResticError(error)) {
+				return error;
+			}
+
+			return new ResticLsCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
 		},
 	});
-
-	await cleanupTemporaryKeys(env, deps);
-
-	if (res.exitCode !== 0) {
-		logger.error(`Restic ls failed: ${res.error}`);
-		throw new ResticError(res.exitCode, res.stderr || res.error);
-	}
-
-	if (totalNodes > offset + limit) {
-		hasMore = true;
-	}
-
-	return {
-		snapshot,
-		nodes,
-		pagination: {
-			offset,
-			limit,
-			total: totalNodes,
-			hasMore,
-		},
-	};
 };

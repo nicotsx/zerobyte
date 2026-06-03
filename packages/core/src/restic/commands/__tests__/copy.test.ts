@@ -3,6 +3,7 @@ import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { copy } from "../copy";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -49,7 +50,14 @@ describe("copy command", () => {
 	test("treats flag-like snapshot IDs as positional args", async () => {
 		const { getArgs } = setup();
 
-		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: ["--help"], tag: "daily" }, mockDeps);
+		await Effect.runPromise(
+			copy(
+				sourceConfig,
+				destConfig,
+				{ organizationId: "org-1", snapshotIds: ["--help"], tag: "daily" },
+				mockDeps,
+			),
+		);
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);
@@ -59,7 +67,7 @@ describe("copy command", () => {
 	test("defaults to 'latest' when no snapshotIds are provided", async () => {
 		const { getArgs } = setup();
 
-		await copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps);
+		await Effect.runPromise(copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps));
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);
@@ -69,11 +77,13 @@ describe("copy command", () => {
 	test("passes multiple snapshot IDs after separator", async () => {
 		const { getArgs } = setup();
 
-		await copy(
-			sourceConfig,
-			destConfig,
-			{ organizationId: "org-1", snapshotIds: ["abc123", "def456", "ghi789"], tag: "daily" },
-			mockDeps,
+		await Effect.runPromise(
+			copy(
+				sourceConfig,
+				destConfig,
+				{ organizationId: "org-1", snapshotIds: ["abc123", "def456", "ghi789"], tag: "daily" },
+				mockDeps,
+			),
 		);
 
 		const separatorIndex = getArgs().indexOf("--");
@@ -84,7 +94,9 @@ describe("copy command", () => {
 	test("defaults to 'latest' when snapshotIds is empty array", async () => {
 		const { getArgs } = setup();
 
-		await copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: [], tag: "daily" }, mockDeps);
+		await Effect.runPromise(
+			copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: [], tag: "daily" }, mockDeps),
+		);
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);

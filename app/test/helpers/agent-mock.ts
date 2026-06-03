@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
 import type { SafeSpawnParams } from "@zerobyte/core/node";
-import type { BackupExecutionResult } from "~/server/modules/agents/agents-manager";
+import type { BackupExecutionProgress, BackupExecutionResult } from "~/server/modules/agents/agents-manager";
 
 export const createAgentBackupMocks = (
 	resticBackupMock: (params: SafeSpawnParams) => Promise<{
@@ -14,7 +14,15 @@ export const createAgentBackupMocks = (
 	const runningBackups = new Map<number, { resolve: (result: BackupExecutionResult) => void; cancelled: boolean }>();
 
 	const runBackupMock = vi.fn(
-		async (_agentId: string, request: { scheduleId: number; payload: { jobId: string }; signal: AbortSignal }) => {
+		async (
+			_agentId: string,
+			request: {
+				scheduleId: number;
+				payload: { jobId: string };
+				signal: AbortSignal;
+				onProgress: (progress: BackupExecutionProgress) => void;
+			},
+		) => {
 			return new Promise<BackupExecutionResult>((resolve) => {
 				runningBackups.set(request.scheduleId, { resolve, cancelled: false });
 

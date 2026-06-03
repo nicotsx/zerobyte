@@ -8,6 +8,7 @@ import { restic } from "~/server/core/restic";
 import { createTestSession } from "~/test/helpers/auth";
 import { generateShortId } from "~/server/utils/id";
 import { provisionedResourcesSchema, readProvisionedResourcesFile, syncProvisionedResources } from "./provisioning";
+import { Effect } from "effect";
 
 describe("provisioning", () => {
 	let session: Awaited<ReturnType<typeof createTestSession>>;
@@ -17,7 +18,7 @@ describe("provisioning", () => {
 	});
 
 	beforeEach(async () => {
-		vi.spyOn(restic, "init").mockResolvedValue({ success: true, error: null });
+		vi.spyOn(restic, "init").mockReturnValue(Effect.succeed({ success: true, error: null }));
 
 		await db.delete(backupSchedulesTable);
 		await db.delete(volumesTable);
@@ -361,7 +362,7 @@ describe("provisioning", () => {
 		const { organizationId } = session;
 		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
 		const provisioningPath = path.join(tempDir, "provisioning.json");
-		const initMock = vi.fn(() => Promise.resolve({ success: true, error: null }));
+		const initMock = vi.fn(() => Effect.succeed({ success: true, error: null }));
 
 		vi.spyOn(restic, "init").mockImplementation(initMock);
 

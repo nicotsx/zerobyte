@@ -101,6 +101,7 @@ export const NFSForm = ({ form }: Props) => {
 							<div className="flex items-center space-x-2">
 								<input
 									type="checkbox"
+									aria-label="Mount volume as read-only"
 									checked={field.value ?? false}
 									onChange={(e) => field.onChange(e.target.checked)}
 									className="rounded border-gray-300"

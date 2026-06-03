@@ -3,6 +3,7 @@ import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { deleteSnapshots } from "../delete-snapshots";
 import type { ResticDeps } from "../../types";
+import { Effect } from "effect";
 
 const mockDeps: ResticDeps = {
 	resolveSecret: async (s) => s,
@@ -43,10 +44,28 @@ describe("deleteSnapshots command", () => {
 		const { getArgs } = setup();
 		const snapshotIds = ["--help", "--password-command=sh -c 'id'"];
 
-		await deleteSnapshots(config, snapshotIds, "org-1", mockDeps);
+		await Effect.runPromise(deleteSnapshots(config, snapshotIds, { organizationId: "org-1" }, mockDeps));
 
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
+	});
+
+	test("rejects empty snapshot IDs before building restic env", async () => {
+		setup();
+		const deps = {
+			...mockDeps,
+			resolveSecret: vi.fn(mockDeps.resolveSecret),
+		};
+
+		await expect(
+			Effect.runPromise(deleteSnapshots(config, [], { organizationId: "org-1" }, deps)),
+		).rejects.toMatchObject({
+			message: "No snapshot IDs provided for deletion.",
+		});
+
+		expect(deps.resolveSecret).not.toHaveBeenCalled();
+		expect(nodeModule.safeExec).not.toHaveBeenCalled();
+		expect(cleanupModule.cleanupTemporaryKeys).not.toHaveBeenCalled();
 	});
 });

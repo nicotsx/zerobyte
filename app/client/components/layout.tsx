@@ -64,7 +64,7 @@ export function Layout({ loaderData }: Props) {
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<a
-											href="https://github.com/nicotsx/zerobyte/issues/new"
+											href="https://github.com/nicotsx/zerobyte/issues/new/choose"
 											target="_blank"
 											rel="noreferrer"
 											className={buttonVariants({

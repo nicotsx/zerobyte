@@ -25,6 +25,8 @@ export default defineConfig({
 						"app/client/**/*.test.tsx",
 						"app/client/**/*.spec.ts",
 						"app/client/**/*.spec.tsx",
+						"app/test/integration/**/*.test.ts",
+						"app/test/integration/**/*.spec.ts",
 					],
 					setupFiles: ["./app/test/setup.ts"],
 				},

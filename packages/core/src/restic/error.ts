@@ -1,3 +1,5 @@
+import { Data } from "effect";
+
 const resticErrorCodes: Record<number, string> = {
 	1: "Command failed: An error occurred while executing the command.",
 	2: "Go runtime error: A runtime error occurred in the Go program.",
@@ -23,3 +25,34 @@ export class ResticError extends Error {
 		this.name = "ResticError";
 	}
 }
+
+export class ResticLockError extends Data.TaggedError("ResticLockError")<{
+	code: number;
+	summary: string;
+	details: string;
+	message: string;
+}> {
+	constructor(details: string) {
+		const summary = resticErrorCodes[11]!;
+		super({
+			code: 11,
+			summary,
+			details,
+			message: details ? `${summary}\n${details}` : summary,
+		});
+		this.name = "ResticLockError";
+	}
+}
+
+export type AnyResticError = ResticError | ResticLockError;
+
+export const isResticError = (error: unknown): error is AnyResticError =>
+	error instanceof ResticError || error instanceof ResticLockError;
+
+export const createResticError = (code: number, details: string) => {
+	if (code === 11) {
+		return new ResticLockError(details);
+	}
+
+	return new ResticError(code, details);
+};

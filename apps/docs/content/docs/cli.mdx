@@ -1,0 +1,43 @@
+---
+title: CLI Reference
+description: Short reference for Zerobyte admin CLI commands
+---
+
+The Zerobyte CLI is useful for account recovery and admin maintenance tasks that are easier to run from the server than from the web UI.
+
+Run commands inside the Zerobyte container:
+
+```bash
+docker exec -it zerobyte bun run cli <command>
+```
+
+Use `--help` to see all options:
+
+```bash
+docker exec -it zerobyte bun run cli --help
+docker exec -it zerobyte bun run cli reset-password --help
+```
+
+Most commands prompt for missing values when run interactively.
+
+## Commands
+
+| Command | Useful for |
+|---------|------------|
+| `reset-password` | Reset a user's password when they are locked out or forgot it. Invalidates existing sessions. |
+| `disable-2fa` | Disable two-factor authentication for a user who lost access to their 2FA device. |
+| `change-username` | Rename a user account. Invalidates existing sessions. |
+| `change-email` | Change a user's email address. Removes linked SSO accounts for that user and invalidates sessions. |
+| `rekey-2fa` | Re-encrypt existing 2FA secrets using the current `APP_SECRET`, usually after migrating from an older secret setup. |
+| `assign-organization` | Move a user to another organization by organization slug. Invalidates existing sessions. |
+
+## Examples
+
+```bash
+docker exec -it zerobyte bun run cli reset-password --username admin
+docker exec -it zerobyte bun run cli disable-2fa --username admin
+docker exec -it zerobyte bun run cli change-email --username admin --email admin@example.com
+docker exec -it zerobyte bun run cli assign-organization --username admin --organization default
+```
+
+For non-interactive use, pass the command options directly instead of relying on prompts.

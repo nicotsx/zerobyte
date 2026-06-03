@@ -3,6 +3,10 @@ import { createApp } from "~/server/app";
 import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } from "~/test/helpers/auth";
 import { systemService } from "../system.service";
 import * as authHelpers from "~/server/modules/auth/helpers";
+import { db } from "~/server/db/db";
+import { organization } from "~/server/db/schema";
+import { eq } from "drizzle-orm";
+import { cryptoUtils } from "~/server/utils/crypto";
 
 const app = createApp();
 
@@ -123,6 +127,35 @@ describe("system security", () => {
 	});
 
 	describe("input validation", () => {
+		test("should return complete decrypted restic password content", async () => {
+			const { cryptoUtils: actualCryptoUtils } =
+				await vi.importActual<typeof import("~/server/utils/crypto")>("~/server/utils/crypto");
+			const resticPassword = "correct-restic-passwordb";
+			const encryptedResticPassword = await actualCryptoUtils.sealSecret(resticPassword);
+
+			await db
+				.update(organization)
+				.set({ metadata: { resticPassword: encryptedResticPassword } })
+				.where(eq(organization.id, session.organizationId));
+			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(true);
+			vi.spyOn(cryptoUtils, "resolveSecret").mockImplementationOnce(actualCryptoUtils.resolveSecret);
+
+			const res = await app.request("/api/v1/system/restic-password", {
+				method: "POST",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					password: "password",
+				}),
+			});
+
+			expect(res.status).toBe(200);
+			expect(res.headers.get("Content-Type")).toContain("text/plain");
+			expect(await res.text()).toBe(resticPassword);
+		});
+
 		test("should return 400 for invalid payload on restic-password", async () => {
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
@@ -137,7 +170,7 @@ describe("system security", () => {
 		});
 
 		test("should return 401 for incorrect password on restic-password", async () => {
-			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValue(false);
+			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
 
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",

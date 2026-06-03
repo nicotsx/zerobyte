@@ -402,6 +402,62 @@ describe("manual only schedules", () => {
 	});
 });
 
+describe("schedule webhooks", () => {
+	test("stores pre and post backup webhooks when creating a schedule", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+
+		const backupWebhooks = {
+			pre: {
+				url: "http://localhost:8080/stop",
+				headers: ["authorization: Bearer stop-token"],
+				body: '{"action":"stop"}',
+			},
+			post: {
+				url: "http://localhost:8080/start",
+				headers: ["authorization: Bearer start-token"],
+				body: '{"action":"start"}',
+			},
+		};
+
+		const schedule = await backupsService.createSchedule({
+			name: "with-webhooks",
+			volumeId: volume.shortId,
+			repositoryId: repository.shortId,
+			enabled: true,
+			cronExpression: "0 0 * * *",
+			backupWebhooks,
+			retryDelay: 15 * 60 * 1000,
+			maxRetries: 2,
+		});
+
+		expect(schedule.backupWebhooks).toEqual(backupWebhooks);
+	});
+
+	test("clears backup webhooks when updating a schedule with null values", async () => {
+		setup();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			repositoryId: repository.id,
+			backupWebhooks: {
+				pre: { url: "http://localhost:8080/stop" },
+				post: { url: "http://localhost:8080/start" },
+			},
+		});
+
+		const updated = await backupsService.updateSchedule(schedule.id, {
+			repositoryId: repository.shortId,
+			cronExpression: schedule.cronExpression,
+			backupWebhooks: null,
+			retryDelay: 15 * 60 * 1000,
+			maxRetries: 2,
+		});
+
+		expect(updated.backupWebhooks).toBeNull();
+	});
+});
+
 describe("listSchedules", () => {
 	test("should ignore schedules with missing relations", async () => {
 		setup();

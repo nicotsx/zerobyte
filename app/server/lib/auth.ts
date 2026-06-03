@@ -8,6 +8,7 @@ import {
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
 import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
@@ -27,6 +28,7 @@ export const auth = betterAuth({
 	baseURL: {
 		allowedHosts: config.allowedHosts,
 		protocol: "auto",
+		fallback: config.baseUrl,
 	},
 	trustedOrigins: config.trustedOrigins,
 	rateLimit: {
@@ -167,6 +169,26 @@ export const auth = betterAuth({
 			backupCodeOptions: {
 				storeBackupCodes: "encrypted",
 				amount: 5,
+			},
+		}),
+		passkey({
+			rpID: new URL(config.baseUrl).hostname,
+			rpName: "Zerobyte",
+			authenticatorSelection: {
+				userVerification: "required",
+				residentKey: "required",
+			},
+			authentication: {
+				afterVerification: async ({ verification }) => {
+					if (verification.authenticationInfo.userVerified) {
+						return;
+					}
+
+					throw new APIError("UNAUTHORIZED", {
+						message:
+							"Your passkey was accepted, but it did not confirm your identity with a PIN, biometrics, or screen lock. Please use a verified passkey or sign in with your password.",
+					});
+				},
 			},
 		}),
 		tanstackStartCookies(),

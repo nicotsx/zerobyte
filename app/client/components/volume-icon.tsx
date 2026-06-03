@@ -1,5 +1,5 @@
 import { Cloud, Folder, Server } from "lucide-react";
-import type { BackendType } from "~/schemas/volumes";
+import type { BackendType } from "@zerobyte/contracts/volumes";
 
 type VolumeIconProps = {
 	backend: BackendType;

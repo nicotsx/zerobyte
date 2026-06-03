@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { volumeSchema } from "../volumes/volume.dto";
+import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
+import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
 import { repositorySchema } from "../repositories/repositories.dto";
 import { backupProgressEventSchema } from "~/schemas/events-dto";
 
@@ -29,6 +30,7 @@ const backupScheduleSchema = z.object({
 	includePatterns: z.array(z.string()).nullable(),
 	oneFileSystem: z.boolean(),
 	customResticParams: z.array(z.string()).nullable(),
+	backupWebhooks: backupWebhooksSchema.nullable(),
 	maxRetries: z.number(),
 	retryDelay: z.number().transform((ms) => Math.round(ms / 60000)),
 	lastBackupAt: z.number().nullable(),
@@ -37,7 +39,7 @@ const backupScheduleSchema = z.object({
 	nextBackupAt: z.number().nullable(),
 	createdAt: z.number(),
 	updatedAt: z.number(),
-	volume: volumeSchema,
+	volume: publicVolumeSchema,
 	repository: repositorySchema,
 });
 
@@ -92,7 +94,7 @@ export const getBackupScheduleDto = describeRoute({
 	},
 });
 
-const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
+export const getBackupScheduleForVolumeResponse = backupScheduleSchema.nullable();
 
 export type GetBackupScheduleForVolumeResponseDto = z.infer<typeof getBackupScheduleForVolumeResponse>;
 
@@ -126,6 +128,7 @@ export const createBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z
 		.number()
@@ -138,7 +141,7 @@ export const createBackupScheduleBody = z.object({
 
 export type CreateBackupScheduleBody = z.infer<typeof createBackupScheduleBody>;
 
-const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+export const createBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type CreateBackupScheduleDto = z.infer<typeof createBackupScheduleResponse>;
 
@@ -171,6 +174,7 @@ export const updateBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z
 		.number()
@@ -183,7 +187,7 @@ export const updateBackupScheduleBody = z.object({
 
 export type UpdateBackupScheduleBody = z.infer<typeof updateBackupScheduleBody>;
 
-const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
+export const updateBackupScheduleResponse = backupScheduleSchema.omit({ volume: true, repository: true });
 
 export type UpdateBackupScheduleDto = z.infer<typeof updateBackupScheduleResponse>;
 

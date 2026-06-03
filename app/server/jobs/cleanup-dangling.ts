@@ -5,14 +5,21 @@ import { volumeService } from "../modules/volumes/volume.service";
 import { readMountInfo } from "../utils/mountinfo";
 import { getVolumePath } from "../modules/volumes/helpers";
 import { logger } from "@zerobyte/core/node";
-import { executeUnmount } from "../modules/backends/utils/backend-utils";
+import { executeUnmount } from "../../../apps/agent/src/volume-host/backends/utils";
 import { toMessage } from "../utils/errors";
 import { VOLUME_MOUNT_BASE } from "../core/constants";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
+import { config } from "../core/config";
+import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
 export class CleanupDanglingMountsJob extends Job {
 	async run() {
+		if (config.flags.enableLocalAgent) {
+			logger.debug("Skipping controller-local dangling mount cleanup because local volume execution is agent-owned.");
+			return { done: true, timestamp: new Date() };
+		}
+
 		const organizations = await db.query.organization.findMany({});
 		if (organizations.length === 0) {
 			logger.warn("No organizations found; skipping dangling mount cleanup to avoid false positives.");
@@ -22,7 +29,7 @@ export class CleanupDanglingMountsJob extends Job {
 		const allVolumes = [];
 		for (const org of organizations) {
 			const volumes = await withContext({ organizationId: org.id }, async () => volumeService.listVolumes());
-			allVolumes.push(...volumes);
+			allVolumes.push(...volumes.filter((volume) => volume.agentId === LOCAL_AGENT_ID));
 		}
 
 		const allSystemMounts = await readMountInfo();

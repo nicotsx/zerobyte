@@ -1,0 +1,35 @@
+name: Integration Tests
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  integration:
+    name: Integration
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Run integration tests
+        env:
+          SKIP_VOLUME_MOUNT_INTEGRATION_TESTS: "true"
+        run: bun run test:integration
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: failure()
+        with:
+          name: integration-artifacts
+          path: |
+            app/test/integration/artifacts/compose.log
+            app/test/integration/artifacts/docker-output.log
+            app/test/integration/artifacts/runs/**
+          retention-days: 5

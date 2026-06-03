@@ -11,7 +11,7 @@ export const handleBackupCancelCommand = (context: ControllerCommandContext, pay
 			return;
 		}
 
-		if (running.scheduleId !== payload.scheduleId) {
+		if (running.kind !== "backup" || running.scheduleId !== payload.scheduleId) {
 			logger.warn(`Ignoring cancel for backup ${payload.jobId} due to schedule mismatch ${payload.scheduleId}`);
 			return;
 		}

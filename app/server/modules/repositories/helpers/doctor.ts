@@ -3,7 +3,7 @@ import { type DoctorStep, type DoctorResult, type RepositoryConfig } from "@zero
 import { z } from "zod";
 import { getOrganizationId } from "~/server/core/request-context";
 import { restic } from "~/server/core/restic";
-import { toMessage } from "~/server/utils/errors";
+import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { safeJsonParse } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
 import { db } from "~/server/db/db";
@@ -17,7 +17,7 @@ class AbortError extends Error {
 
 const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => {
 	const orgId = getOrganizationId();
-	const result = await restic.unlock(config, { signal, organizationId: orgId }).then(
+	const result = await runEffectPromise(restic.unlock(config, { signal, organizationId: orgId })).then(
 		(result) => ({ success: true, message: result.message, error: null }),
 		(error) => ({ success: false, message: null, error: toMessage(error) }),
 	);
@@ -32,7 +32,9 @@ const runUnlockStep = async (config: RepositoryConfig, signal?: AbortSignal) => 
 
 const runCheckStep = async (config: RepositoryConfig, signal: AbortSignal) => {
 	const orgId = getOrganizationId();
-	const result = await restic.check(config, { readData: false, signal, organizationId: orgId }).then(
+	const result = await runEffectPromise(
+		restic.check(config, { readData: false, signal, organizationId: orgId }),
+	).then(
 		(result) => result,
 		(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
 	);
@@ -47,7 +49,7 @@ const runCheckStep = async (config: RepositoryConfig, signal: AbortSignal) => {
 
 const runRepairIndexStep = async (config: RepositoryConfig, signal: AbortSignal) => {
 	const orgId = getOrganizationId();
-	const result = await restic.repairIndex(config, { signal, organizationId: orgId }).then(
+	const result = await runEffectPromise(restic.repairIndex(config, { signal, organizationId: orgId })).then(
 		(result) => ({ success: true, output: result.output, error: null }),
 		(error) => ({ success: false, output: null, error: toMessage(error) }),
 	);

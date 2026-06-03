@@ -45,6 +45,7 @@ describe("parseConfig", () => {
 				ENABLE_DEV_PANEL: "true",
 				SERVER_IP: "0.0.0.0",
 				SERVER_IDLE_TIMEOUT: "120",
+				WEBHOOK_TIMEOUT: "90",
 				PORT: "8080",
 				APP_VERSION: "1.2.3",
 				MIGRATIONS_PATH: "/tmp/migrations",
@@ -57,6 +58,7 @@ describe("parseConfig", () => {
 			environment: "development",
 			serverIp: "0.0.0.0",
 			serverIdleTimeout: 120,
+			webhookTimeout: 90,
 			resticHostname: "configured-restic-host",
 			port: 8080,
 			migrationsPath: "/tmp/migrations",
@@ -73,6 +75,7 @@ describe("parseConfig", () => {
 			},
 			provisioningPath: "/tmp/provisioning",
 			allowedHosts: ["example.com", "admin.example.com", "localhost:3000"],
+			webhookAllowedOrigins: [],
 		});
 	});
 

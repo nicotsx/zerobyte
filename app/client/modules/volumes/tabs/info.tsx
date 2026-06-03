@@ -33,7 +33,9 @@ function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
 			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
-			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>{value}</span>
+			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
+				{value}
+			</span>
 		</div>
 	);
 }
@@ -43,12 +45,19 @@ function BackendConfigRows({ volume }: { volume: Volume }) {
 
 	switch (config.backend) {
 		case "directory":
-			return <ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Directory Path" value={config.path} mono />;
+			return (
+				<ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Directory Path" value={config.path} mono />
+			);
 		case "nfs":
 			return (
 				<>
 					<ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Server" value={config.server} mono />
-					<ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Export Path" value={config.exportPath} mono />
+					<ConfigRow
+						icon={<FolderOpen className="h-4 w-4" />}
+						label="Export Path"
+						value={config.exportPath}
+						mono
+					/>
 				</>
 			);
 		case "smb":
@@ -84,6 +93,8 @@ function BackendConfigRows({ volume }: { volume: Volume }) {
 }
 
 function DonutChart({ statfs }: { statfs: StatFs }) {
+	const { used = 0, total = 0 } = statfs;
+
 	const chartData = useMemo(
 		() => [
 			{ name: "Used", value: statfs.used, fill: "var(--strong-accent)" },
@@ -93,8 +104,8 @@ function DonutChart({ statfs }: { statfs: StatFs }) {
 	);
 
 	const usagePercentage = useMemo(() => {
-		return Math.round((statfs.used / statfs.total) * 100);
-	}, [statfs]);
+		return Math.round((used / total) * 100);
+	}, [used, total]);
 
 	return (
 		<ChartContainer config={{}} className="mx-auto aspect-square max-h-[200px]">
@@ -114,10 +125,18 @@ function DonutChart({ statfs }: { statfs: StatFs }) {
 							if (viewBox && "cx" in viewBox && "cy" in viewBox) {
 								return (
 									<text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-										<tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold">
+										<tspan
+											x={viewBox.cx}
+											y={viewBox.cy}
+											className="fill-foreground text-2xl font-bold"
+										>
 											{usagePercentage}%
 										</tspan>
-										<tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} className="fill-muted-foreground text-xs">
+										<tspan
+											x={viewBox.cx}
+											y={(viewBox.cy || 0) + 20}
+											className="fill-muted-foreground text-xs"
+										>
 											Used
 										</tspan>
 									</text>
@@ -132,7 +151,9 @@ function DonutChart({ statfs }: { statfs: StatFs }) {
 }
 
 export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
-	const hasStorage = statfs.total > 0;
+	const { total = 0, used = 0, free = 0 } = statfs;
+
+	const hasStorage = total > 0;
 
 	return (
 		<Card className="px-6 py-6 @container/inner">
@@ -144,7 +165,11 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 					</CardTitle>
 					<div className="space-y-0 divide-y divide-border/50">
 						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Name" value={volume.name} />
-						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={backendLabels[volume.type]} />
+						<ConfigRow
+							icon={<HardDrive className="h-4 w-4" />}
+							label="Backend"
+							value={backendLabels[volume.type]}
+						/>
 						<BackendConfigRows volume={volume} />
 					</div>
 				</div>
@@ -162,21 +187,21 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 									<HardDrive className="h-4 w-4 text-muted-foreground" />
 									<span className="text-sm font-medium">Total</span>
 								</div>
-								<ByteSize bytes={statfs.total} className="font-mono text-sm" />
+								<ByteSize bytes={total} className="font-mono text-sm" />
 							</div>
 							<div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
 								<div className="flex items-center gap-3">
 									<div className="h-3 w-3 rounded-full bg-strong-accent" />
 									<span className="text-sm font-medium">Used</span>
 								</div>
-								<ByteSize bytes={statfs.used} className="font-mono text-sm" />
+								<ByteSize bytes={used} className="font-mono text-sm" />
 							</div>
 							<div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
 								<div className="flex items-center gap-3">
 									<div className="h-3 w-3 rounded-full bg-primary" />
 									<span className="text-sm font-medium">Free</span>
 								</div>
-								<ByteSize bytes={statfs.free} className="font-mono text-sm" />
+								<ByteSize bytes={free} className="font-mono text-sm" />
 							</div>
 						</div>
 					</div>

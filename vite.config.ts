@@ -6,20 +6,14 @@ import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 
 export default defineConfig({
+	clearScreen: false,
 	plugins: [
 		tanstackStart({
 			srcDirectory: "app",
-			router: {
-				routesDirectory: "routes",
-			},
-			importProtection: {
-				behavior: "error",
-			},
+			router: { routesDirectory: "routes" },
+			importProtection: { behavior: "error" },
 		}),
-		nitro({
-			preset: "bun",
-			plugins: ["./app/server/plugins/bootstrap.ts"],
-		}),
+		nitro({ preset: "bun", plugins: ["./app/server/plugins/bootstrap.ts"] }),
 		viteReact(),
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),
@@ -37,6 +31,7 @@ export default defineConfig({
 	server: {
 		host: "0.0.0.0",
 		port: 3000,
+		allowedHosts: [".ts.net"],
 	},
 	fmt: {
 		printWidth: 120,
@@ -51,6 +46,7 @@ export default defineConfig({
 		},
 		options: {
 			typeAware: true,
+			typeCheck: true,
 		},
 		rules: {
 			"no-unused-vars": [
@@ -78,7 +74,7 @@ export default defineConfig({
 		],
 	},
 	staged: {
-		"*.{js,jsx,ts,tsx,json,jsonc}": "vp fmt --write",
+		"*.{js,jsx,ts,tsx,json,jsonc}": "vp check --fix",
 	},
 	run: {
 		cache: {

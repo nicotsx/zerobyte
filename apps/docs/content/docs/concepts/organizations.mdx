@@ -30,6 +30,16 @@ Invited SSO users behave differently: Zerobyte creates their membership in the i
   Zerobyte also has an instance-wide user role named `admin` for global tasks such as registration control and user management. That global role is separate from organization roles like `member`, `admin`, and `owner`.
 </Callout>
 
+## Current permission model
+
+Zerobyte does not currently provide fine-grained RBAC for backup operations. Authenticated organization members are trusted operators for the organization's repositories, volumes, backup schedules, restores, and notification destinations.
+
+The `member`, `admin`, and `owner` roles mainly control organization-management actions. For example, standard members cannot manage members, SSO settings, invitations, or recovery-key downloads, but they can still operate backup resources inside the organization.
+
+<Callout type="warn">
+  Only add users to an organization if you are comfortable with them managing that organization's backup resources and using the storage, volume, and notification capabilities configured for the Zerobyte instance.
+</Callout>
+
 ## Invitations
 
 Organization invitations carry four important pieces of data:

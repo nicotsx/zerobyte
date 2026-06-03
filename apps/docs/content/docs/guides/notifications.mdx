@@ -36,6 +36,10 @@ You create destinations under **Notifications**. You route them per backup sched
 | `Generic Webhook` | Arbitrary HTTP endpoints and automation systems | URL, method, headers, content type, optional JSON template keys |
 | `Custom (Shoutrrr URL)` | Power users or services not exposed by the built-in forms | Raw Shoutrrr URL |
 
+<Callout type="warn">
+  Outbound HTTP notification destinations must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. This applies to Generic Webhook, Gotify, self-hosted ntfy servers, and Custom Shoutrrr URLs that resolve to a custom HTTP endpoint.
+</Callout>
+
 ## Which type should I use?
 
 - Choose **Email** when you already trust an SMTP relay and want easy fan-out to multiple recipients.
@@ -163,6 +167,10 @@ Each assignment is independent. One schedule can send failures to Email, warning
     - `App Token`
     - `Priority` from `0` to `10`
     - `Path` (optional)
+
+    **Notes**
+
+    - Add the Gotify server origin, such as `https://gotify.example.com`, to `WEBHOOK_ALLOWED_ORIGINS`.
   </Tab>
 
   <Tab value="ntfy">
@@ -178,6 +186,8 @@ Each assignment is independent. One schedule can send failures to Email, warning
 
     **Notes**
 
+    - Leave `Server URL` empty to use `ntfy.sh`.
+    - Add self-hosted ntfy origins, such as `https://ntfy.example.com`, to `WEBHOOK_ALLOWED_ORIGINS`.
     - If you set an access token, it takes precedence over username and password.
     - Priority values are `max`, `high`, `default`, `low`, and `min`.
 
@@ -236,6 +246,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
 
     **Notes**
 
+    - Add the webhook origin, such as `https://hooks.example.com`, to `WEBHOOK_ALLOWED_ORIGINS`.
     - Headers are entered one per line as `Key: Value`.
     - With JSON mode enabled, Zerobyte sends a body shaped like `{titleKey: "...", messageKey: "..."}`.
     - With JSON mode disabled, the request body is plain notification text.
@@ -260,6 +271,8 @@ Each assignment is independent. One schedule can send failures to Email, warning
     Use Custom when you already know the exact Shoutrrr URL you want Zerobyte to use.
 
     See the [Shoutrrr documentation](https://shoutrrr.nickfedor.com/services/overview) for the supported URL formats and service-specific options.
+
+    If the Shoutrrr URL targets a custom HTTP endpoint, add that endpoint origin to `WEBHOOK_ALLOWED_ORIGINS`.
 
     **Fields**
 

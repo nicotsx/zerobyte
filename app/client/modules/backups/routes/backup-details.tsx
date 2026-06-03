@@ -79,7 +79,10 @@ export function ScheduleDetailsPage(props: Props) {
 		isLoading,
 		failureReason,
 	} = useQuery({
-		...listSnapshotsOptions({ path: { shortId: schedule.repository.shortId }, query: { backupId: schedule.shortId } }),
+		...listSnapshotsOptions({
+			path: { shortId: schedule.repository.shortId },
+			query: { backupId: schedule.shortId },
+		}),
 		initialData: loaderData.snapshots,
 	});
 
@@ -167,6 +170,9 @@ export function ScheduleDetailsPage(props: Props) {
 				excludeIfPresent: schedule.excludeIfPresent || [],
 				oneFileSystem: schedule.oneFileSystem,
 				customResticParams: schedule.customResticParams || [],
+				backupWebhooks: schedule.backupWebhooks,
+				maxRetries: schedule.maxRetries,
+				retryDelay: schedule.retryDelay,
 			},
 		});
 	};
@@ -252,8 +258,8 @@ export function ScheduleDetailsPage(props: Props) {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete snapshot?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete the snapshot and all its data from the
-							repository.
+							This action cannot be undone. This will permanently delete the snapshot and all its data
+							from the repository.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

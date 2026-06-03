@@ -1,5 +1,6 @@
 import { Effect, Fiber, Queue, Ref } from "effect";
 import {
+	AGENT_PROTOCOL_VERSION,
 	createAgentMessage,
 	parseControllerMessage,
 	type AgentWireMessage,
@@ -9,6 +10,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
+import { resolveResticHostname } from "./restic/hostname";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -120,14 +122,33 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					return;
 				}
 
-				yield* handleControllerCommand(commandContext, parsed.data);
+				const commandEffect: Effect.Effect<unknown, unknown, never> = handleControllerCommand(
+					commandContext,
+					parsed.data,
+				);
+
+				yield* commandEffect.pipe(
+					Effect.catchAll((error) =>
+						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(error)}`)),
+					),
+				);
 			}),
 		),
 	);
 
 	return {
 		onOpen: () => {
-			void Effect.runPromise(offerOutbound(createAgentMessage("agent.ready", { agentId: "" }))).catch((error) => {
+			void Effect.runPromise(
+				offerOutbound(
+					createAgentMessage("agent.ready", {
+						agentId: "",
+						protocolVersion: AGENT_PROTOCOL_VERSION,
+						hostname: resolveResticHostname(),
+						platform: process.platform,
+						capabilities: { backup: true, restore: true, volume: true, restic: true },
+					}),
+				),
+			).catch((error) => {
 				logger.error(`Failed to queue ready message: ${toMessage(error)}`);
 			});
 		},

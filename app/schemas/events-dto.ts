@@ -2,7 +2,7 @@ import { z } from "zod";
 import { resticBackupProgressMetricsSchema, resticBackupRunSummarySchema } from "@zerobyte/core/restic";
 
 const backupEventStatusSchema = z.enum(["success", "error", "stopped", "warning"]);
-const restoreEventStatusSchema = z.enum(["success", "error"]);
+const restoreEventStatusSchema = z.enum(["success", "error", "cancelled"]);
 
 const backupEventBaseSchema = z.object({
 	scheduleId: z.string(),
@@ -15,6 +15,7 @@ const organizationScopedSchema = z.object({
 });
 
 const restoreEventBaseSchema = z.object({
+	restoreId: z.string(),
 	repositoryId: z.string(),
 	snapshotId: z.string(),
 });
@@ -51,6 +52,8 @@ const restoreProgressEventSchema = restoreEventBaseSchema.extend(restoreProgress
 const restoreCompletedEventSchema = restoreEventBaseSchema.extend({
 	status: restoreEventStatusSchema,
 	error: z.string().optional(),
+	filesRestored: z.number().optional(),
+	filesSkipped: z.number().optional(),
 });
 
 const serverBackupStartedEventSchema = organizationScopedSchema.extend(backupStartedEventSchema.shape);

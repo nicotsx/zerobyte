@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthLayout } from "~/client/components/auth-layout";
@@ -10,12 +10,14 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/clie
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
+import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
+import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
 import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
 import { cn } from "~/client/lib/utils";
-import { SsoLoginSection } from "~/client/modules/sso/components/sso-login-section";
+import { AlternativeSignInSection } from "../components/alternative-sign-in-section";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -32,6 +34,23 @@ type LoginPageProps = {
 	error?: string;
 };
 
+type PasskeySignInError = {
+	code?: string;
+	message?: string;
+	status?: number;
+	statusText?: string;
+};
+
+function isPasskeyVerificationFailure(error: PasskeySignInError | null) {
+	return error?.code === "AUTHENTICATION_FAILED" || error?.code === "UNAUTHORIZED";
+}
+
+function hasSkippedRecoveryKeyDownload(userId: string) {
+	return document.cookie
+		.split(";")
+		.some((cookie) => cookie.trim() === `${RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME}=${userId}`);
+}
+
 export function LoginPage({ error }: LoginPageProps = {}) {
 	const navigate = useNavigate();
 	const [showResetDialog, setShowResetDialog] = useState(false);
@@ -42,6 +61,52 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 	const [trustDevice, setTrustDevice] = useState(false);
 	const errorCode = decodeLoginError(error);
 	const errorDescription = errorCode ? getLoginErrorDescription(errorCode) : null;
+
+	const navigateAfterLogin = useCallback(async () => {
+		const session = await authClient.getSession();
+
+		if (
+			session.data?.user &&
+			!session.data.user.hasDownloadedResticPassword &&
+			!hasSkippedRecoveryKeyDownload(session.data.user.id)
+		) {
+			void navigate({ to: "/download-recovery-key" });
+		} else {
+			void navigate({ to: "/volumes" });
+		}
+	}, [navigate]);
+
+	useEffect(() => {
+		const autoSignIn = async () => {
+			if (
+				typeof PublicKeyCredential === "undefined" ||
+				!PublicKeyCredential.isConditionalMediationAvailable ||
+				!(await PublicKeyCredential.isConditionalMediationAvailable())
+			) {
+				return;
+			}
+
+			const { data, error } = await authClient.signIn.passkey({
+				autoFill: true,
+			});
+
+			if (isPasskeyVerificationFailure(error)) {
+				void navigate({
+					to: "/login",
+					search: {
+						error: PASSKEY_LOGIN_FAILED_ERROR,
+					},
+				});
+				return;
+			}
+
+			if (data) {
+				await navigateAfterLogin();
+			}
+		};
+
+		void autoSignIn();
+	}, [navigate, navigateAfterLogin]);
 
 	const form = useForm<LoginFormValues>({
 		resolver: zodResolver(loginSchema),
@@ -76,12 +141,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 			return;
 		}
 
-		const d = await authClient.getSession();
-		if (data.user && !d.data?.user.hasDownloadedResticPassword) {
-			void navigate({ to: "/download-recovery-key" });
-		} else {
-			void navigate({ to: "/volumes" });
-		}
+		await navigateAfterLogin();
 	};
 
 	const handleVerify2FA = async () => {
@@ -113,7 +173,11 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		if (data) {
 			toast.success("Login successful");
 			const session = await authClient.getSession();
-			if (session.data?.user && !session.data.user.hasDownloadedResticPassword) {
+			if (
+				session.data?.user &&
+				!session.data.user.hasDownloadedResticPassword &&
+				!hasSkippedRecoveryKeyDownload(session.data.user.id)
+			) {
 				void navigate({ to: "/download-recovery-key" });
 			} else {
 				void navigate({ to: "/volumes" });
@@ -130,7 +194,10 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 
 	if (requires2FA) {
 		return (
-			<AuthLayout title="Two-Factor Authentication" description="Enter the 6-digit code from your authenticator app">
+			<AuthLayout
+				title="Two-Factor Authentication"
+				description="Enter the 6-digit code from your authenticator app"
+			>
 				<div className="space-y-6">
 					<div className="space-y-4 flex flex-col items-center">
 						<Label htmlFor="totp-code">Authentication code</Label>
@@ -161,6 +228,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 						<input
 							type="checkbox"
 							id="trust-device"
+							aria-label="Trust this device for 30 days"
 							checked={trustDevice}
 							onChange={(e) => setTrustDevice(e.target.checked)}
 							className="h-4 w-4"
@@ -199,7 +267,11 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
 			<Form {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-					<div className={cn("rounded-md border border-destructive/50 p-3 text-sm", { hidden: !errorDescription })}>
+					<div
+						className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
+							hidden: !errorDescription,
+						})}
+					>
 						{errorDescription}
 					</div>
 					<FormField
@@ -209,7 +281,13 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 							<FormItem>
 								<FormLabel>Username</FormLabel>
 								<FormControl>
-									<Input {...field} type="text" placeholder="admin" disabled={isLoggingIn} />
+									<Input
+										{...field}
+										type="text"
+										placeholder="admin"
+										disabled={isLoggingIn}
+										autoComplete="username webauthn"
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -231,7 +309,12 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 									</button>
 								</div>
 								<FormControl>
-									<Input {...field} type="password" disabled={isLoggingIn} />
+									<Input
+										{...field}
+										type="password"
+										disabled={isLoggingIn}
+										autoComplete="current-password webauthn"
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>
@@ -243,7 +326,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				</form>
 			</Form>
 
-			<SsoLoginSection />
+			<AlternativeSignInSection onPasskeySignIn={navigateAfterLogin} />
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

@@ -1,5 +1,4 @@
-import { safeExec } from "@zerobyte/core/node";
-import { logger } from "@zerobyte/core/node";
+import { logger, safeExec, sanitizeSensitiveData } from "@zerobyte/core/node";
 import { toMessage } from "./errors";
 
 interface SendNotificationParams {
@@ -23,7 +22,7 @@ export async function sendNotification(params: SendNotificationParams) {
 			return { success: true };
 		}
 
-		const errorMessage = result.stderr || result.stdout || "Unknown error";
+		const errorMessage = sanitizeSensitiveData(result.stderr || result.stdout || "Unknown error");
 		logger.error(`Failed to send notification: ${errorMessage}`);
 		return {
 			success: false,

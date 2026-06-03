@@ -41,6 +41,12 @@ const serverEventPayloads = {
 	"volume:unmounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:updated": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:status_changed": payload<{ organizationId: string; volumeName: string; status: string }>(),
+	"notification:updated": payload<{
+		organizationId: string;
+		notificationId: number;
+		notificationName: string;
+		status: "healthy" | "error" | "unknown";
+	}>(),
 	"doctor:started": payload<{ organizationId: string; repositoryId: string; repositoryName: string }>(),
 	"doctor:completed": payload<
 		{

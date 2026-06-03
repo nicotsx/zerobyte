@@ -1,4 +1,4 @@
-import type { BackendConfig } from "~/schemas/volumes";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { cryptoUtils, transformOptionalSecret, type SecretTransformer } from "~/server/utils/crypto";
 
 export const mapVolumeConfigSecrets = async (
@@ -31,4 +31,8 @@ export const mapVolumeConfigSecrets = async (
 
 export const encryptVolumeConfig = async (config: BackendConfig): Promise<BackendConfig> => {
 	return await mapVolumeConfigSecrets(config, cryptoUtils.sealSecret);
+};
+
+export const decryptVolumeConfig = async (config: BackendConfig): Promise<BackendConfig> => {
+	return await mapVolumeConfigSecrets(config, cryptoUtils.resolveSecret);
 };

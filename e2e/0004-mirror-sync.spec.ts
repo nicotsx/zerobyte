@@ -12,8 +12,25 @@ type RepositorySummary = {
 	shortId: string;
 };
 
+type MirrorAssignmentSummary = {
+	repositoryId: string;
+	lastCopyStatus: "success" | "error" | "in_progress" | null;
+};
+
+type MirrorSyncStatus = {
+	sourceCount: number;
+	mirrorCount: number;
+	missingSnapshots: unknown[];
+};
+
 function getRunId(testInfo: TestInfo) {
 	return `${testInfo.parallelIndex}-${testInfo.retry}-${randomUUID().slice(0, 8)}`;
+}
+
+function getBackupShortId(backupPageUrl: string) {
+	const backupShortId = new URL(backupPageUrl).pathname.split("/").filter(Boolean).at(-1);
+	expect(backupShortId).toBeTruthy();
+	return backupShortId!;
 }
 
 function getWorkerTestDataPath() {
@@ -35,8 +52,8 @@ async function getRepositoryShortId(page: Page, name: string) {
 }
 
 async function createRepository(page: Page, name: string) {
-	await gotoAndWaitForAppReady(page, "/repositories");
-	await page.getByRole("button", { name: "Create repository" }).click();
+	await gotoAndWaitForAppReady(page, "/repositories/create");
+	await expect(page.getByRole("textbox", { name: "Name" })).toBeVisible();
 	await page.getByRole("textbox", { name: "Name" }).fill(name);
 	await page.getByRole("combobox", { name: "Backend" }).click();
 	await page.getByRole("option", { name: "Local" }).click();
@@ -82,6 +99,25 @@ async function createBackupJob(page: Page, backupName: string, volumeName: strin
 	await expect(page.getByText("Backup job created successfully")).toBeVisible();
 }
 
+async function waitForMirrorSyncComplete(page: Page, backupShortId: string, mirrorRepoShortId: string) {
+	await expect(async () => {
+		const mirrorsResponse = await page.request.get(`/api/v1/backups/${backupShortId}/mirrors`);
+		expect(mirrorsResponse.ok()).toBe(true);
+		const mirrors = (await mirrorsResponse.json()) as MirrorAssignmentSummary[];
+		const mirror = mirrors.find((entry) => entry.repositoryId === mirrorRepoShortId);
+		expect(mirror?.lastCopyStatus).toBe("success");
+
+		const statusResponse = await page.request.get(
+			`/api/v1/backups/${backupShortId}/mirrors/${mirrorRepoShortId}/status`,
+		);
+		expect(statusResponse.ok()).toBe(true);
+		const status = (await statusResponse.json()) as MirrorSyncStatus;
+		expect(status.sourceCount).toBe(1);
+		expect(status.mirrorCount).toBe(1);
+		expect(status.missingSnapshots).toHaveLength(0);
+	}).toPass({ timeout: 30000 });
+}
+
 test("can sync missing snapshots to a mirror repository", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const volumeName = `Volume-${runId}`;
@@ -104,6 +140,7 @@ test("can sync missing snapshots to a mirror repository", async ({ page }, testI
 	await createBackupJob(page, backupName, volumeName, primaryRepoName);
 
 	const backupPageUrl = page.url();
+	const backupShortId = getBackupShortId(backupPageUrl);
 	const primaryRepoShortId = await getRepositoryShortId(page, primaryRepoName);
 	const mirrorRepoShortId = await getRepositoryShortId(page, mirrorRepoName);
 
@@ -142,20 +179,17 @@ test("can sync missing snapshots to a mirror repository", async ({ page }, testI
 	const syncButton = syncDialog.getByRole("button", { name: "Sync 1 snapshots" });
 	await expect(syncButton).toBeEnabled();
 
-	// Click sync button and wait for the mirror repository to contain the snapshot.
+	// Click sync and wait on the mirror status that backs this dialog and row.
 	await syncButton.click();
-	await gotoAndWaitForAppReady(page, `/repositories/${mirrorRepoShortId}`);
-	await page.getByRole("tab", { name: "Snapshots" }).click();
-	await expect(page.getByText("Backup snapshots stored in this repository.")).toBeVisible();
-	await expect(async () => {
-		await page.getByRole("button", { name: "Refresh" }).click();
-		await expect(page.getByRole("checkbox", { name: /Select snapshot/ })).toHaveCount(1);
-	}).toPass({ timeout: 30000 });
+	await waitForMirrorSyncComplete(page, backupShortId, mirrorRepoShortId);
 	await gotoAndWaitForAppReady(page, backupPageUrl);
 
 	// Open sync dialog again and verify all snapshots are synced
-	await mirrorRow.getByRole("button").first().click();
-	await expect(syncDialog.getByRole("heading", { name: "Sync snapshots" })).toBeVisible();
+	await expect(async () => {
+		await expect(mirrorRow).toBeVisible();
+		await mirrorRow.getByRole("button").first().click();
+		await expect(syncDialog.getByRole("heading", { name: "Sync snapshots" })).toBeVisible();
+	}).toPass({ timeout: 15000 });
 	await expect(syncDialog.getByText(/All 1 snapshots are already synced/)).toBeVisible({ timeout: 15000 });
 	await syncDialog.getByRole("button", { name: "Cancel" }).click();
 

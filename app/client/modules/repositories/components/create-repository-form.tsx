@@ -92,7 +92,13 @@ const defaultValuesForType = (repoBase: string) => ({
 	azure: { backend: "azure" as const, compressionMode: "auto" as const },
 	rclone: { backend: "rclone" as const, compressionMode: "auto" as const },
 	rest: { backend: "rest" as const, compressionMode: "auto" as const },
-	sftp: { backend: "sftp" as const, compressionMode: "auto" as const, port: 22, skipHostKeyCheck: false },
+	sftp: {
+		backend: "sftp" as const,
+		compressionMode: "auto" as const,
+		port: 22,
+		skipHostKeyCheck: false,
+		allowLegacySshRsa: false,
+	},
 });
 
 export const CreateRepositoryForm = ({
@@ -251,7 +257,9 @@ export const CreateRepositoryForm = ({
 							</FormControl>
 							<div className="space-y-1">
 								<FormLabel>Import existing repository</FormLabel>
-								<FormDescription>Check this if the repository already exists at the specified location</FormDescription>
+								<FormDescription>
+									Check this if the repository already exists at the specified location
+								</FormDescription>
 							</div>
 						</FormItem>
 					)}
@@ -281,8 +289,8 @@ export const CreateRepositoryForm = ({
 								</SelectContent>
 							</Select>
 							<FormDescription>
-								Choose whether to use Zerobyte's recovery key (which you downloaded when creating your account) or enter
-								a custom password for the existing repository.
+								Choose whether to use Zerobyte's recovery key (which you downloaded when creating your
+								account) or enter a custom password for the existing repository.
 							</FormDescription>
 						</FormItem>
 

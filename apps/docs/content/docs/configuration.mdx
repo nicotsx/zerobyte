@@ -37,6 +37,8 @@ Zerobyte is configured through environment variables and Docker Compose settings
 | `RESTIC_HOSTNAME` | Hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
 | `TRUST_PROXY` | Set to `true` to trust `X-Forwarded-For` headers from a reverse proxy. | `false` |
 | `TRUSTED_ORIGINS` | Comma-separated list of additional trusted origins for CORS. | (none) |
+| `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations. | (none) |
+| `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds. | `60` |
 | `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error`. | `info` |
 | `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. | `60` |
 | `RCLONE_CONFIG_DIR` | Path to the rclone config directory inside the container. | `/root/.config/rclone` |

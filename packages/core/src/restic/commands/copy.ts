@@ -4,71 +4,92 @@ import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
 import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
+import { Data, Effect } from "effect";
+import { toMessage } from "../../utils";
 
-export const copy = async (
+class ResticCopyCommandError extends Data.TaggedError("ResticCopyCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
+
+export const copy = (
 	sourceConfig: RepositoryConfig,
 	destConfig: RepositoryConfig,
 	options: { organizationId: string; tag?: string; snapshotIds?: string[] },
 	deps: ResticDeps,
 ) => {
-	const sourceRepoUrl = buildRepoUrl(sourceConfig);
-	const destRepoUrl = buildRepoUrl(destConfig);
+	return Effect.tryPromise({
+		try: async () => {
+			const sourceRepoUrl = buildRepoUrl(sourceConfig);
+			const destRepoUrl = buildRepoUrl(destConfig);
 
-	const sourceEnv = await buildEnv(sourceConfig, options.organizationId, deps);
-	const destEnv = await buildEnv(destConfig, options.organizationId, deps);
+			const sourceEnv = await buildEnv(sourceConfig, options.organizationId, deps);
+			const destEnv = await buildEnv(destConfig, options.organizationId, deps);
 
-	const env: Record<string, string> = {
-		...sourceEnv,
-		...destEnv,
-		RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE!,
-	};
+			const env: Record<string, string> = {
+				...sourceEnv,
+				...destEnv,
+				RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE!,
+			};
 
-	const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
+			const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
 
-	if (options.tag) {
-		args.push("--tag", options.tag);
-	}
+			if (options.tag) {
+				args.push("--tag", options.tag);
+			}
 
-	addCommonArgs(args, env, destConfig, { skipBandwidth: true });
+			addCommonArgs(args, env, destConfig, { skipBandwidth: true });
 
-	const sourceDownloadLimit = formatBandwidthLimit(sourceConfig.downloadLimit);
-	const destUploadLimit = formatBandwidthLimit(destConfig.uploadLimit);
+			const sourceDownloadLimit = formatBandwidthLimit(sourceConfig.downloadLimit);
+			const destUploadLimit = formatBandwidthLimit(destConfig.uploadLimit);
 
-	if (sourceDownloadLimit) {
-		args.push("--limit-download", sourceDownloadLimit);
-	}
+			if (sourceDownloadLimit) {
+				args.push("--limit-download", sourceDownloadLimit);
+			}
 
-	if (destUploadLimit) {
-		args.push("--limit-upload", destUploadLimit);
-	}
+			if (destUploadLimit) {
+				args.push("--limit-upload", destUploadLimit);
+			}
 
-	if (options.snapshotIds && options.snapshotIds.length > 0) {
-		args.push("--", ...options.snapshotIds);
-	} else {
-		args.push("--", "latest");
-	}
+			if (options.snapshotIds && options.snapshotIds.length > 0) {
+				args.push("--", ...options.snapshotIds);
+			} else {
+				args.push("--", "latest");
+			}
 
-	logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
-	logger.debug(`Executing: restic ${args.join(" ")}`);
+			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
+			logger.debug(`Executing: restic ${args.join(" ")}`);
 
-	const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env });
 
-	await cleanupTemporaryKeys(sourceEnv, deps);
-	await cleanupTemporaryKeys(destEnv, deps);
+			await cleanupTemporaryKeys(sourceEnv, deps);
+			await cleanupTemporaryKeys(destEnv, deps);
 
-	const { stdout, stderr } = res;
+			const { stdout, stderr } = res;
 
-	if (res.exitCode !== 0) {
-		logger.error(`Restic copy failed: ${stderr}`);
-		throw new ResticError(res.exitCode, stderr);
-	}
+			if (res.exitCode !== 0) {
+				logger.error(`Restic copy failed: ${stderr}`);
+				throw createResticError(res.exitCode, stderr);
+			}
 
-	logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
-	return {
-		success: true,
-		output: stdout,
-	};
+			logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
+			return {
+				success: true,
+				output: stdout,
+			};
+		},
+		catch: (error) => {
+			if (isResticError(error)) {
+				return error;
+			}
+
+			return new ResticCopyCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
+	});
 };

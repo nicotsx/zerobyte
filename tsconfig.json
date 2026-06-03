@@ -1,5 +1,5 @@
 {
-	"include": ["app/**/*"],
+	"include": ["app/**/*", "e2e/**/*", "playwright.config.ts"],
 	"compilerOptions": {
 		"plugins": [{ "name": "@effect/language-service" }],
 		"lib": ["DOM", "DOM.Iterable", "ES2023"],

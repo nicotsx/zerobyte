@@ -158,6 +158,74 @@ describe("backup command", () => {
 			expect(patternIncludeContent).toBe("/mnt/data/**/*.zip");
 		});
 
+		test("writes raw include paths containing line breaks as single entries", async () => {
+			const lineBreakDir = "/mnt/data/photos\n2026";
+			const carriageReturnDir = "/mnt/data/photos\r2025";
+			let rawIncludeContent = "";
+			setup({
+				onSpawnCall: async (params) => {
+					const rawIncludeIndex = params.args.indexOf("--files-from-raw");
+
+					if (rawIncludeIndex > -1) {
+						rawIncludeContent = await Bun.file(params.args[rawIncludeIndex + 1]!).text();
+					}
+				},
+			});
+
+			await runBackup(
+				config,
+				"/mnt/data",
+				{
+					organizationId: "org-1",
+					includePaths: [lineBreakDir, carriageReturnDir],
+				},
+				mockDeps,
+			);
+
+			expect(rawIncludeContent).toBe(`${lineBreakDir}\0${carriageReturnDir}\0`);
+		});
+
+		test("rejects unsupported characters before writing raw include files", async () => {
+			const { getArgs } = setup();
+
+			const error = await runBackupError(
+				config,
+				"/mnt/data",
+				{
+					organizationId: "org-1",
+					includePaths: ["/mnt/data/safe\0/etc/passwd"],
+					includePatterns: ["/mnt/data/**/*.zip"],
+				},
+				mockDeps,
+			);
+
+			expect(String(error.message)).toContain("includePaths contains an unsupported path character");
+			expect(getArgs()).toEqual([]);
+		});
+
+		test("rejects unsupported characters before writing include pattern files", async () => {
+			const { getArgs } = setup();
+
+			for (const includePattern of [
+				"/mnt/data/safe\0/etc/passwd",
+				"/mnt/data/safe\n/etc/passwd",
+				"/mnt/data/safe\r/etc/passwd",
+			]) {
+				const error = await runBackupError(
+					config,
+					"/mnt/data",
+					{
+						organizationId: "org-1",
+						includePatterns: [includePattern],
+					},
+					mockDeps,
+				);
+
+				expect(String(error.message)).toContain("includePatterns contains an unsupported path character");
+				expect(getArgs()).toEqual([]);
+			}
+		});
+
 		test("always includes DEFAULT_EXCLUDES as --exclude args", async () => {
 			const { getOptionValues } = setup();
 			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
@@ -232,7 +300,9 @@ describe("backup command", () => {
 
 			const error = await runBackupError(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 			expect(error).toBeInstanceOf(ResticError);
-			expect((error as ResticError).summary).toBe("Command failed: An error occurred while executing the command.");
+			expect((error as ResticError).summary).toBe(
+				"Command failed: An error occurred while executing the command.",
+			);
 			expect((error as ResticError).details).toBe(
 				"Permissions 0755 for '/tmp/zerobyte-ssh-key' are too open.\nThis private key will be ignored.",
 			);
@@ -327,7 +397,8 @@ describe("backup command", () => {
 		test("ignores valid JSON lines that do not match the progress schema", async () => {
 			const progressUpdates: unknown[] = [];
 			setup({
-				onSpawnCall: (params) => params.onStdout?.(JSON.stringify({ message_type: "verbose_status", action: "scan" })),
+				onSpawnCall: (params) =>
+					params.onStdout?.(JSON.stringify({ message_type: "verbose_status", action: "scan" })),
 			});
 
 			await runBackup(

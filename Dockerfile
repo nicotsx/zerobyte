@@ -1,8 +1,8 @@
-FROM oven/bun:1.3.13-alpine@sha256:4de475389889577f346c636f956b42a5c31501b654664e9ae5726f94d7bb5349 AS base
+FROM oven/bun:1.3.14-alpine@sha256:5acc90a93e91ff07bf72aa90a7c9f0fa189765aec90b47bdbf2152d2196383c0 AS base
 
 ARG RESTIC_VERSION="0.18.1"
-ARG RCLONE_VERSION="1.73.5"
-ARG SHOUTRRR_VERSION="0.14.3"
+ARG RCLONE_VERSION="1.74.2"
+ARG SHOUTRRR_VERSION="0.15.1"
 
 ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
     VITE_RCLONE_VERSION=${RCLONE_VERSION} \
@@ -10,7 +10,7 @@ ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
 
 RUN apk update --no-cache && \
     apk upgrade --no-cache && \
-    apk add --no-cache davfs2=1.6.1-r2 openssh-client fuse3 sshfs tini tzdata
+	apk add --no-cache acl attr cifs-utils davfs2=1.6.1-r2 openssh-client fuse3 sshfs tini tzdata
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
@@ -43,6 +43,15 @@ RUN if [ "${TARGETARCH}" = "arm64" ]; then \
 RUN bzip2 -d restic.bz2 && chmod +x restic
 RUN mv rclone-v*-linux-*/rclone /deps/rclone && chmod +x /deps/rclone
 RUN tar -xzf shoutrrr.tar.gz && chmod +x shoutrrr
+
+# ------------------------------
+# RUNTIME TOOLS
+# ------------------------------
+FROM base AS runtime-tools
+
+COPY --from=deps /deps/restic /usr/local/bin/restic
+COPY --from=deps /deps/rclone /usr/local/bin/rclone
+COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
 # ------------------------------
 # DEVELOPMENT

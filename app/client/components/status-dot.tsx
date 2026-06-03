@@ -54,7 +54,7 @@ export const StatusDot = ({ variant, label, animated }: StatusDotProps) => {
 				</span>
 			</TooltipTrigger>
 			<TooltipContent>
-				<p>{label}</p>
+				<p className="capitalize">{label}</p>
 			</TooltipContent>
 		</Tooltip>
 	);

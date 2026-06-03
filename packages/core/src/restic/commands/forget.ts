@@ -6,61 +6,82 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import type { RepositoryConfig } from "../schemas";
 import { logger, safeExec } from "../../node";
-import { ResticError } from "../error";
+import { createResticError, isResticError } from "../error";
+import { toMessage } from "../../utils";
+import { Data, Effect } from "effect";
 
-export const forget = async (
+class ResticForgetCommandError extends Data.TaggedError("ResticForgetCommandError")<{
+	cause: unknown;
+	message: string;
+}> {}
+
+export const forget = (
 	config: RepositoryConfig,
 	options: RetentionPolicy,
 	extra: { tag: string; organizationId: string; dryRun?: boolean },
 	deps: ResticDeps,
 ) => {
-	const repoUrl = buildRepoUrl(config);
-	const env = await buildEnv(config, extra.organizationId, deps);
+	return Effect.tryPromise({
+		try: async () => {
+			const repoUrl = buildRepoUrl(config);
+			const env = await buildEnv(config, extra.organizationId, deps);
 
-	const args: string[] = ["--repo", repoUrl, "forget", "--group-by", "tags", "--tag", extra.tag];
+			const args: string[] = ["--repo", repoUrl, "forget", "--group-by", "tags", "--tag", extra.tag];
 
-	if (extra.dryRun) {
-		args.push("--dry-run", "--no-lock");
-	}
+			if (extra.dryRun) {
+				args.push("--dry-run", "--no-lock");
+			}
 
-	if (options.keepLast) {
-		args.push("--keep-last", String(options.keepLast));
-	}
-	if (options.keepHourly) {
-		args.push("--keep-hourly", String(options.keepHourly));
-	}
-	if (options.keepDaily) {
-		args.push("--keep-daily", String(options.keepDaily));
-	}
-	if (options.keepWeekly) {
-		args.push("--keep-weekly", String(options.keepWeekly));
-	}
-	if (options.keepMonthly) {
-		args.push("--keep-monthly", String(options.keepMonthly));
-	}
-	if (options.keepYearly) {
-		args.push("--keep-yearly", String(options.keepYearly));
-	}
-	if (options.keepWithinDuration) {
-		args.push("--keep-within-duration", options.keepWithinDuration);
-	}
+			if (options.keepLast) {
+				args.push("--keep-last", String(options.keepLast));
+			}
+			if (options.keepHourly) {
+				args.push("--keep-hourly", String(options.keepHourly));
+			}
+			if (options.keepDaily) {
+				args.push("--keep-daily", String(options.keepDaily));
+			}
+			if (options.keepWeekly) {
+				args.push("--keep-weekly", String(options.keepWeekly));
+			}
+			if (options.keepMonthly) {
+				args.push("--keep-monthly", String(options.keepMonthly));
+			}
+			if (options.keepYearly) {
+				args.push("--keep-yearly", String(options.keepYearly));
+			}
+			if (options.keepWithinDuration) {
+				args.push("--keep-within-duration", options.keepWithinDuration);
+			}
 
-	if (!extra.dryRun) {
-		args.push("--prune");
-	}
+			if (!extra.dryRun) {
+				args.push("--prune");
+			}
 
-	addCommonArgs(args, env, config);
+			addCommonArgs(args, env, config);
 
-	const res = await safeExec({ command: "restic", args, env });
-	await cleanupTemporaryKeys(env, deps);
+			const res = await safeExec({ command: "restic", args, env });
+			await cleanupTemporaryKeys(env, deps);
 
-	if (res.exitCode !== 0) {
-		logger.error(`Restic forget failed: ${res.stderr}`);
-		throw new ResticError(res.exitCode, res.stderr);
-	}
+			if (res.exitCode !== 0) {
+				logger.error(`Restic forget failed: ${res.stderr}`);
+				throw createResticError(res.exitCode, res.stderr);
+			}
 
-	const lines = res.stdout.split("\n").filter((line) => line.trim());
-	const result = extra.dryRun ? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]") : null;
+			const lines = res.stdout.split("\n").filter((line) => line.trim());
+			const result = extra.dryRun ? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]") : null;
 
-	return { success: true, data: result };
+			return { success: true, data: result };
+		},
+		catch: (error) => {
+			if (isResticError(error)) {
+				return error;
+			}
+
+			return new ResticForgetCommandError({
+				cause: error,
+				message: toMessage(error),
+			});
+		},
+	});
 };

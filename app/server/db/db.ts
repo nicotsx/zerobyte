@@ -33,6 +33,7 @@ const runMigrations = async () => {
 	migrate(db, { migrationsFolder });
 
 	sqlite.run("PRAGMA foreign_keys = ON;");
+	sqlite.run("PRAGMA busy_timeout = 5000;");
 };
 
 export const runDbMigrations = () => {
