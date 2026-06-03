@@ -106,20 +106,36 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 		const isShiftClick = event && "shiftKey" in event && event.shiftKey;
 
 		// Attempt range selection first
-		if (isShiftClick && lastSelectedId) {
-			const lastIndex = snapshots.findIndex((s) => s.short_id === lastSelectedId);
+		if (isShiftClick && snapshots.length > 0) {
 			const currentIndex = snapshots.findIndex((s) => s.short_id === snapshotId);
 
-			if (lastIndex !== -1 && currentIndex !== -1) {
-				// Valid range selection
-				const start = Math.min(lastIndex, currentIndex);
-				const end = Math.max(lastIndex, currentIndex);
+			if (currentIndex !== -1) {
+				// If lastSelectedId exists, use it; otherwise start from the first item (index 0)
+				let startIndex: number;
+				if (lastSelectedId) {
+					startIndex = snapshots.findIndex((s) => s.short_id === lastSelectedId);
+					// If lastSelectedId no longer exists in snapshots (stale reference), fall back to single selection
+					if (startIndex === -1) {
+						const newSelected = new Set(selectedIds);
+						if (newSelected.has(snapshotId)) {
+							newSelected.delete(snapshotId);
+						} else {
+							newSelected.add(snapshotId);
+						}
+						setSelectedIds(newSelected);
+						setLastSelectedId(snapshotId);
+						return;
+					}
+				} else {
+					startIndex = 0;
+				}
+
+				// Valid range selection - replace the entire selection with the new range
+				const start = Math.min(startIndex, currentIndex);
+				const end = Math.max(startIndex, currentIndex);
 				const rangeIds = new Set(snapshots.slice(start, end + 1).map((s) => s.short_id));
 
-				// Add selected range to existing selection
-				const newSelected = new Set(selectedIds);
-				rangeIds.forEach((id) => newSelected.add(id));
-				setSelectedIds(newSelected);
+				setSelectedIds(rangeIds);
 				setLastSelectedId(snapshotId);
 				return;
 			}
