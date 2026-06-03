@@ -21,6 +21,27 @@ import {
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
+export const AGENT_PROTOCOL_VERSION = 1;
+export const SUPPORTED_AGENT_PROTOCOL_MIN_VERSION = 1;
+export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = 1;
+
+export type AgentProtocolRejectionReason =
+	| "agent_too_old"
+	| "agent_too_new"
+	| "invalid_agent_ready"
+	| "unexpected_startup_message"
+	| "invalid_startup_json";
+
+export type AgentProtocolRejection = {
+	reason: AgentProtocolRejectionReason;
+	protocolVersion?: number;
+	supportedProtocolMinVersion: number;
+	supportedProtocolMaxVersion: number;
+	hostname?: string;
+	platform?: string;
+	messageType?: string;
+};
+
 const backupExecutionOptionsSchema = z.object({
 	oneFileSystem: z.boolean(),
 	excludePatterns: z.array(z.string()).nullable(),
@@ -179,6 +200,21 @@ const agentReadySchema = z.object({
 	}),
 });
 
+const agentStartupMessageSchema = z.object({
+	type: z.string(),
+	payload: z.unknown().optional(),
+});
+
+const stableAgentReadySchema = z.object({
+	type: z.literal("agent.ready"),
+	payload: z.object({
+		protocolVersion: z.number(),
+		hostname: z.string().optional(),
+		platform: z.string().optional(),
+		capabilities: z.record(z.string(), z.unknown()).optional(),
+	}),
+});
+
 const backupStartedSchema = z.object({
 	type: z.literal("backup.started"),
 	payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
@@ -301,6 +337,69 @@ export const parseAgentMessage = (data: string) => {
 	}
 
 	return agentMessageSchema.safeParse(parsed);
+};
+
+export const parseAgentStartupMessage = (data: string): AgentProtocolRejection | { success: true; data: unknown } => {
+	const parsed = safeJsonParse(data);
+	if (parsed === null) {
+		return {
+			reason: "invalid_startup_json",
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	const startupMessage = agentStartupMessageSchema.safeParse(parsed);
+	if (!startupMessage.success) {
+		return {
+			reason: "unexpected_startup_message",
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	if (startupMessage.data.type !== "agent.ready") {
+		return {
+			reason: "unexpected_startup_message",
+			messageType: startupMessage.data.type,
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	const readyMessage = stableAgentReadySchema.safeParse(parsed);
+	if (!readyMessage.success) {
+		return {
+			reason: "invalid_agent_ready",
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	const { protocolVersion, hostname, platform } = readyMessage.data.payload;
+	if (protocolVersion < SUPPORTED_AGENT_PROTOCOL_MIN_VERSION) {
+		return {
+			reason: "agent_too_old",
+			protocolVersion,
+			hostname,
+			platform,
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	if (protocolVersion > SUPPORTED_AGENT_PROTOCOL_MAX_VERSION) {
+		return {
+			reason: "agent_too_new",
+			protocolVersion,
+			hostname,
+			platform,
+			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+		};
+	}
+
+	return { success: true, data: parsed };
 };
 
 export const createControllerMessage = <TType extends ControllerMessage["type"]>(

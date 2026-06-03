@@ -207,12 +207,47 @@ test("websocket lifecycle updates agent connection status", async () => {
 	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), {
 		backup: true,
 		protocolVersion: 1,
+		protocolCompatible: true,
 		hostname: "host",
 		platform: "linux",
 	});
 	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
 	expect(stop).toHaveBeenCalledWith(true);
+});
+
+test("websocket protocol rejection forwards the event and closes the connection", async () => {
+	const serve = vi
+		.spyOn(Bun, "serve")
+		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+	const { runtime, onEvent } = await startRuntime(vi.fn());
+	const websocket = serve.mock.calls[0]?.[0].websocket;
+	const socket = createSocket("connection-1");
+
+	await websocket?.open?.(fromPartial(socket));
+	await websocket?.message?.(
+		fromPartial(socket),
+		JSON.stringify({
+			type: "agent.ready",
+			payload: {
+				protocolVersion: 2,
+				hostname: "host",
+				platform: "linux",
+			},
+		}),
+	);
+	await Effect.runPromise(runtime.stop);
+
+	expect(onEvent).toHaveBeenCalledWith(
+		expect.objectContaining({
+			type: "agent.protocolRejected",
+			agentId: LOCAL_AGENT_ID,
+			agentName: LOCAL_AGENT_NAME,
+			payload: expect.objectContaining({ reason: "agent_too_new" }),
+		}),
+	);
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
+	expect(socket.close).toHaveBeenCalledWith(1002, "agent_too_new");
 });
 
 test("websocket restore events are forwarded with agent metadata", async () => {
@@ -224,6 +259,8 @@ test("websocket restore events are forwarded with agent metadata", async () => {
 	const socket = createSocket("connection-1");
 
 	await websocket?.open?.(fromPartial(socket));
+	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", readyPayload));
+	onEvent.mockClear();
 	await websocket?.message?.(
 		fromPartial(socket),
 		createAgentMessage("restore.completed", {

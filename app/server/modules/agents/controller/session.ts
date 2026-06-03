@@ -3,7 +3,11 @@ import type { AgentKind } from "../../../db/schema";
 import {
 	createControllerMessage,
 	parseAgentMessage,
+	parseAgentStartupMessage,
+	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+	SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
 	type AgentMessage,
+	type AgentProtocolRejection,
 	type BackupCancelPayload,
 	type BackupRunPayload,
 	type ControllerWireMessage,
@@ -27,6 +31,7 @@ type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
 
 type SessionState = {
 	isReady: boolean;
+	protocolVersion: number | null;
 	lastSeenAt: number | null;
 	lastPongAt: number | null;
 };
@@ -35,6 +40,7 @@ type PendingCommand = { deferred: Deferred.Deferred<VolumeCommandResponsePayload
 
 export type ControllerAgentSessionEvent =
 	| Exclude<AgentMessage, { type: "volume.commandResult" }>
+	| { type: "agent.protocolRejected"; payload: AgentProtocolRejection }
 	| { type: "agent.disconnected" };
 
 export type ControllerAgentSession = {
@@ -59,6 +65,7 @@ export const createControllerAgentSession = (
 		const pendingCommands = yield* Ref.make(new Map<string, PendingCommand>());
 		const state = yield* Ref.make<SessionState>({
 			isReady: false,
+			protocolVersion: null,
 			lastSeenAt: null,
 			lastPongAt: null,
 		});
@@ -183,7 +190,12 @@ export const createControllerAgentSession = (
 				switch (message.type) {
 					case "agent.ready": {
 						const readyAt = Date.now();
-						yield* updateState((current) => ({ ...current, isReady: true, lastSeenAt: readyAt }));
+						yield* updateState((current) => ({
+							...current,
+							isReady: true,
+							protocolVersion: message.payload.protocolVersion,
+							lastSeenAt: readyAt,
+						}));
 						yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
 						yield* onEvent(message);
 						break;
@@ -209,10 +221,30 @@ export const createControllerAgentSession = (
 				}
 			});
 
+		const rejectStartupMessage = (rejection: AgentProtocolRejection) =>
+			Effect.gen(function* () {
+				yield* logger.effect.warn(
+					`Rejecting startup message from agent ${socket.data.agentId}: ${rejection.reason}`,
+				);
+				yield* onEvent({ type: "agent.protocolRejected", payload: rejection });
+				yield* Effect.sync(() => socket.close(1002, rejection.reason));
+				yield* closeSession();
+			});
+
 		return {
 			connectionId: socket.data.id,
 			handleMessage: (data: string) => {
 				return Effect.gen(function* () {
+					const currentState = yield* Ref.get(state);
+
+					if (!currentState.isReady) {
+						const startupMessage = parseAgentStartupMessage(data);
+						if (!("success" in startupMessage)) {
+							yield* rejectStartupMessage(startupMessage);
+							return;
+						}
+					}
+
 					const parsed = parseAgentMessage(data);
 
 					if (parsed === null) {
@@ -221,6 +253,15 @@ export const createControllerAgentSession = (
 					}
 
 					if (!parsed.success) {
+						if (!currentState.isReady) {
+							yield* rejectStartupMessage({
+								reason: "invalid_agent_ready",
+								supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+								supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+							});
+							return;
+						}
+
 						yield* logger.effect.warn(
 							`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`,
 						);

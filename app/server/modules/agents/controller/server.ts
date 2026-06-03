@@ -3,6 +3,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import type {
 	AgentMessage,
+	AgentProtocolRejection,
 	BackupCancelPayload,
 	BackupRunPayload,
 	RestoreCancelPayload,
@@ -26,6 +27,7 @@ type AgentEventContext = {
 
 export type AgentManagerEvent =
 	| (AgentEventContext & { type: "agent.disconnected" })
+	| (AgentEventContext & { type: "agent.protocolRejected"; payload: AgentProtocolRejection })
 	| (AgentEventContext & AgentMessage);
 
 type ControllerAgentSessionHandle = {
@@ -92,10 +94,16 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 						await agentsService.markAgentOnline(agentId, at, {
 							...event.payload.capabilities,
 							protocolVersion: event.payload.protocolVersion,
+							protocolCompatible: true,
 							hostname: event.payload.hostname,
 							platform: event.payload.platform,
 						});
 					});
+				}
+				case "agent.protocolRejected": {
+					return Effect.sync(() =>
+						onEvent({ type: "agent.protocolRejected", agentId, agentName, payload: event.payload }),
+					);
 				}
 				case "heartbeat.pong": {
 					const at = Date.now();

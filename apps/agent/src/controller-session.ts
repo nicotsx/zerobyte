@@ -1,5 +1,6 @@
 import { Effect, Fiber, Queue, Ref } from "effect";
 import {
+	AGENT_PROTOCOL_VERSION,
 	createAgentMessage,
 	parseControllerMessage,
 	type AgentWireMessage,
@@ -141,7 +142,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 				offerOutbound(
 					createAgentMessage("agent.ready", {
 						agentId: "",
-						protocolVersion: 1,
+						protocolVersion: AGENT_PROTOCOL_VERSION,
 						hostname: resolveResticHostname(),
 						platform: process.platform,
 						capabilities: { backup: true, restore: true, volume: true, restic: true },

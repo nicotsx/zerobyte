@@ -2,7 +2,11 @@ import { Effect, Exit, Fiber, Scope } from "effect";
 import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { createAgentMessage, type AgentMessage } from "@zerobyte/contracts/agent-protocol";
+import {
+	createAgentMessage,
+	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+	type AgentMessage,
+} from "@zerobyte/contracts/agent-protocol";
 import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
@@ -133,6 +137,19 @@ test("invalid inbound messages are ignored", () => {
 	const onEvent = vi.fn(() => Effect.void);
 	const { session, close } = createSession(onEvent);
 
+	Effect.runSync(
+		session.handleMessage(
+			createAgentMessage("agent.ready", {
+				agentId: LOCAL_AGENT_ID,
+				protocolVersion: 1,
+				hostname: "host",
+				platform: "linux",
+				capabilities: { backup: true },
+			}),
+		),
+	);
+	onEvent.mockClear();
+
 	Effect.runSync(session.handleMessage("not json"));
 	Effect.runSync(session.handleMessage(JSON.stringify({ type: "backup.progress", payload: {} })));
 
@@ -193,6 +210,19 @@ test("backup agent messages are forwarded unchanged", () => {
 		},
 	} satisfies Extract<AgentMessage, { type: "backup.progress" }>;
 
+	Effect.runSync(
+		session.handleMessage(
+			createAgentMessage("agent.ready", {
+				agentId: LOCAL_AGENT_ID,
+				protocolVersion: 1,
+				hostname: "host",
+				platform: "linux",
+				capabilities: { backup: true },
+			}),
+		),
+	);
+	onEvent.mockClear();
+
 	Effect.runSync(session.handleMessage(createAgentMessage(message.type, message.payload)));
 
 	expect(onEvent).toHaveBeenCalledWith(
@@ -206,6 +236,53 @@ test("backup agent messages are forwarded unchanged", () => {
 		}),
 	);
 	close();
+});
+
+test("unsupported agent protocol rejects startup and closes the session", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, socket } = createSession(onEvent);
+
+	Effect.runSync(
+		session.handleMessage(
+			JSON.stringify({
+				type: "agent.ready",
+				payload: {
+					protocolVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION + 1,
+					hostname: "host",
+					platform: "linux",
+				},
+			}),
+		),
+	);
+
+	expect(Effect.runSync(session.isReady())).toBe(false);
+	expect(onEvent).toHaveBeenCalledWith({
+		type: "agent.protocolRejected",
+		payload: expect.objectContaining({
+			reason: "agent_too_new",
+			protocolVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION + 1,
+			hostname: "host",
+			platform: "linux",
+		}),
+	});
+	expect(socket.close).toHaveBeenCalledWith(1002, "agent_too_new");
+});
+
+test("pre-ready non-ready messages reject startup and close the session", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, socket } = createSession(onEvent);
+
+	Effect.runSync(session.handleMessage(createAgentMessage("heartbeat.pong", { sentAt: 123 })));
+
+	expect(Effect.runSync(session.isReady())).toBe(false);
+	expect(onEvent).toHaveBeenCalledWith({
+		type: "agent.protocolRejected",
+		payload: expect.objectContaining({
+			reason: "unexpected_startup_message",
+			messageType: "heartbeat.pong",
+		}),
+	});
+	expect(socket.close).toHaveBeenCalledWith(1002, "unexpected_startup_message");
 });
 
 test("a dropped backup.cancel closes the session and reports a transport disconnect", async () => {
