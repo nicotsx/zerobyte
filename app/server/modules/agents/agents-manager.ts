@@ -242,6 +242,10 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 			);
 			break;
 		}
+		case "agent.protocolRejected": {
+			logger.warn(`Rejected agent protocol for ${event.agentName} (${event.agentId}): ${event.payload.reason}`);
+			break;
+		}
 		case "backup.started": {
 			getActiveBackupRun(event.payload.jobId, event.payload.scheduleId, event.type, event.agentId);
 			break;
