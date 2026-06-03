@@ -303,7 +303,9 @@ describe("volumeService.testConnection", () => {
 			username: "backup-user",
 			password: encryptedPassword,
 			domain: "",
-			version: "3.0",
+			vers: "3.0",
+			port: 445,
+			mapToContainerUidGid: false,
 			readOnly: false,
 		});
 
