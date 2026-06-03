@@ -60,6 +60,7 @@ export const SMBForm = ({ form }: Props) => {
 							<div className="flex items-center space-x-2">
 								<input
 									type="checkbox"
+									aria-label="Connect as guest"
 									checked={field.value ?? false}
 									onChange={(e) => {
 										field.onChange(e.target.checked);
@@ -179,6 +180,7 @@ export const SMBForm = ({ form }: Props) => {
 							<div className="flex items-center space-x-2">
 								<input
 									type="checkbox"
+									aria-label="Map all files to container user/group"
 									checked={field.value ?? false}
 									onChange={(e) => field.onChange(e.target.checked)}
 									className="rounded border-gray-300"
@@ -187,8 +189,8 @@ export const SMBForm = ({ form }: Props) => {
 							</div>
 						</FormControl>
 						<FormDescription>
-							Keep the old behavior by forcing the SMB mount to present every file and directory as owned by the
-							container user and group instead of using server reported ownership.
+							Keep the old behavior by forcing the SMB mount to present every file and directory as owned
+							by the container user and group instead of using server reported ownership.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>
@@ -205,6 +207,7 @@ export const SMBForm = ({ form }: Props) => {
 							<div className="flex items-center space-x-2">
 								<input
 									type="checkbox"
+									aria-label="Mount volume as read-only"
 									checked={field.value ?? false}
 									onChange={(e) => field.onChange(e.target.checked)}
 									className="rounded border-gray-300"

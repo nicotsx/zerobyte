@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
-import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
+import { getLoginErrorDescription, PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
 
 const { mockGetLoginOptions, mockNavigate, mockPasskeySignIn } = vi.hoisted(() => ({
 	mockGetLoginOptions: vi.fn(async () => ({ hasPasskeySignIn: false })),
@@ -125,11 +125,7 @@ describe("LoginPage", () => {
 
 		render(<LoginPage error={"PASSKEY_LOGIN_FAILED"} />, { withSuspense: true });
 
-		expect(
-			await screen.findByText(
-				"Passkey sign-in failed. If 2FA is enabled, use a passkey protected by a PIN, biometrics, or screen lock, or sign in with your password and authenticator code.",
-			),
-		).toBeTruthy();
+		expect(await screen.findByText(getLoginErrorDescription(PASSKEY_LOGIN_FAILED_ERROR))).toBeTruthy();
 	});
 
 	test("does not show error message for invalid error codes", async () => {

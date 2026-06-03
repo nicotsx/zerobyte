@@ -228,6 +228,7 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 						<input
 							type="checkbox"
 							id="trust-device"
+							aria-label="Trust this device for 30 days"
 							checked={trustDevice}
 							onChange={(e) => setTrustDevice(e.target.checked)}
 							className="h-4 w-4"
