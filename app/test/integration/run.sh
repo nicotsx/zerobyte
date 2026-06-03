@@ -36,7 +36,11 @@ if [[ "$exit_code" -eq 0 ]]; then
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
-	"${compose[@]}" up --build --no-color --detach --wait sftp webdav smb nfs >>"$docker_output_log" 2>&1 || exit_code=$?
+	volume_services=(sftp webdav smb)
+	if [[ "${SKIP_VOLUME_MOUNT_INTEGRATION_TESTS:-false}" != "true" ]]; then
+		volume_services+=(nfs)
+	fi
+	"${compose[@]}" up --build --no-color --detach --wait "${volume_services[@]}" >>"$docker_output_log" 2>&1 || exit_code=$?
 fi
 
 if [[ "$exit_code" -eq 0 ]]; then
