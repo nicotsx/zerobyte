@@ -87,6 +87,7 @@
 		"hono-rate-limiter": "^0.5.3",
 		"http-errors-enhanced": "^4.0.2",
 		"input-otp": "^1.4.2",
+		"ipaddr.js": "^2.4.0",
 		"lucide-react": "^1.17.0",
 		"qrcode.react": "^4.2.0",
 		"react": "^19.2.6",

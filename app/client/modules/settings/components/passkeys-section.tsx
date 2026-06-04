@@ -24,6 +24,8 @@ import {
 } from "~/client/components/ui/dialog";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
+import { getIsSecureContext } from "~/client/functions/is-secure-context";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
 import { useTimeFormat } from "~/client/lib/datetime";
@@ -38,6 +40,7 @@ type PasskeyEntry = {
 
 export function PasskeysSection() {
 	const { formatDateTime } = useTimeFormat();
+	const isSecureContext = getIsSecureContext();
 	const { data: passkeys, isPending } = useQuery({
 		queryKey: ["passkeys"],
 		queryFn: async () => {
@@ -111,6 +114,8 @@ export function PasskeysSection() {
 
 	const handleAddPasskey = (e: React.ChangeEvent) => {
 		e.preventDefault();
+		if (!isSecureContext) return;
+
 		const name = newPasskeyName.trim() || undefined;
 		addPasskeyMutation.mutate(name);
 	};
@@ -149,10 +154,19 @@ export function PasskeysSection() {
 						Passkeys use your device's biometrics or screen lock instead of a password. They are
 						phishing-resistant and cannot be reused across sites.
 					</p>
-					<Button onClick={() => setAddDialogOpen(true)}>
-						<Plus className="h-4 w-4 mr-2" />
-						Add passkey
-					</Button>
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<span className="inline-flex">
+								<Button onClick={() => setAddDialogOpen(true)} disabled={!isSecureContext}>
+									<Plus className="h-4 w-4 mr-2" />
+									Add passkey
+								</Button>
+							</span>
+						</TooltipTrigger>
+						<TooltipContent className={cn({ hidden: isSecureContext })}>
+							<p>Passkeys can only be added over HTTPS or from localhost.</p>
+						</TooltipContent>
+					</Tooltip>
 				</div>
 
 				<p className={cn("text-sm text-muted-foreground", { hidden: !isPending })}>Loading passkeys...</p>
@@ -233,7 +247,7 @@ export function PasskeysSection() {
 							<Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
 								Cancel
 							</Button>
-							<Button type="submit" loading={addPasskeyMutation.isPending}>
+							<Button type="submit" loading={addPasskeyMutation.isPending} disabled={!isSecureContext}>
 								<Fingerprint className="h-4 w-4 mr-2" />
 								Add passkey
 							</Button>
