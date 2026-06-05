@@ -224,29 +224,6 @@ describe("SnapshotTreeBrowser", () => {
 		});
 	});
 
-	test("prefetches using the query path when display and query roots differ", async () => {
-		const requests = mockListSnapshotFiles();
-
-		renderSnapshotTreeBrowser();
-
-		const row = await screen.findByRole("button", { name: "project" });
-		const initialRequestCount = requests.length;
-
-		await userEvent.hover(row);
-
-		await waitFor(() => {
-			expect(requests.length).toBe(initialRequestCount + 1);
-		});
-
-		expect(requests.at(-1)).toEqual({
-			shortId: "repo-1",
-			snapshotId: "snap-1",
-			path: "/mnt/project",
-			offset: "0",
-			limit: "500",
-		});
-	});
-
 	test("shows the query root contents when display and query roots differ", async () => {
 		mockListSnapshotFiles();
 

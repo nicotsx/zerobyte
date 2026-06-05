@@ -218,13 +218,36 @@ describe("repositoriesService.listSnapshotFiles", () => {
 		let active = 0;
 		let maxActive = 0;
 		let releaseAll = false;
+		let exclusiveAcquired = false;
+		let releaseExclusive: (() => void) | undefined;
+		let exclusivePromise: Promise<() => void> | undefined;
 		const releaseWaiters: Array<() => void> = [];
+		const exclusiveController = new AbortController();
 
 		const releaseWaitingCommands = () => {
 			const waiters = releaseWaiters.splice(0);
 			for (const release of waiters) {
 				release();
 			}
+		};
+
+		const resolveWithin = async <T>(promise: Promise<T>, timeoutMs: number) => {
+			return await new Promise<T>((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					reject(new Error(`Expected promise to resolve within ${timeoutMs}ms`));
+				}, timeoutMs);
+
+				promise.then(
+					(value) => {
+						clearTimeout(timeout);
+						resolve(value);
+					},
+					(error) => {
+						clearTimeout(timeout);
+						reject(error);
+					},
+				);
+			});
 		};
 
 		const lsSpy = vi.spyOn(restic, "ls").mockImplementation((_config, snapshotId, _path, options) =>
@@ -277,7 +300,22 @@ describe("repositoriesService.listSnapshotFiles", () => {
 			});
 			expect(maxActive).toBe(2);
 
+			exclusivePromise = repoMutex
+				.acquireExclusive(repository.id, "delete", exclusiveController.signal)
+				.then((release) => {
+					exclusiveAcquired = true;
+					releaseExclusive = release;
+					return release;
+				});
+
 			releaseWaitingCommands();
+
+			releaseExclusive = await resolveWithin(exclusivePromise, 2000);
+			expect(exclusiveAcquired).toBe(true);
+			expect(active).toBe(0);
+
+			releaseExclusive();
+			releaseExclusive = undefined;
 
 			await waitForExpect(() => {
 				expect(releaseWaiters).toHaveLength(2);
@@ -287,9 +325,17 @@ describe("repositoriesService.listSnapshotFiles", () => {
 			releaseWaitingCommands();
 			await Promise.all(calls);
 		} finally {
+			if (releaseExclusive) {
+				releaseExclusive();
+			} else {
+				exclusiveController.abort();
+			}
 			releaseAll = true;
 			releaseWaitingCommands();
 			await Promise.allSettled(calls);
+			if (exclusivePromise) {
+				await Promise.allSettled([exclusivePromise]);
+			}
 		}
 
 		expect(lsSpy).toHaveBeenCalledTimes(4);
