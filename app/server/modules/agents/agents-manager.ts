@@ -431,16 +431,8 @@ export const agentManager = {
 			});
 			getActiveBackupScheduleIdsByJobId().set(request.payload.jobId, request.scheduleId);
 		});
-		const cancelOnAbort = () => {
-			void requestBackupCancellation(agentId, request.scheduleId).catch((error) => {
-				logger.error(`Failed to cancel backup ${request.scheduleId} after abort: ${String(error)}`);
-			});
-		};
-		request.signal.addEventListener("abort", cancelOnAbort, { once: true });
-
 		try {
 			if (!(await Effect.runPromise(runtime.sendBackup(agentId, request.payload)))) {
-				request.signal.removeEventListener("abort", cancelOnAbort);
 				clearActiveBackupRun(request.scheduleId);
 				return {
 					status: "unavailable",
@@ -448,17 +440,10 @@ export const agentManager = {
 				} satisfies BackupExecutionResult;
 			}
 
-			if (request.signal.aborted) {
-				await requestBackupCancellation(agentId, request.scheduleId);
-			}
-
 			return await completion;
 		} catch (error) {
-			request.signal.removeEventListener("abort", cancelOnAbort);
 			clearActiveBackupRun(request.scheduleId);
 			throw error;
-		} finally {
-			request.signal.removeEventListener("abort", cancelOnAbort);
 		}
 	},
 	cancelBackup: async (agentId: string, scheduleId: number) => {
@@ -504,16 +489,8 @@ export const agentManager = {
 				cancellationRequested: false,
 			});
 		});
-		const cancelOnAbort = () => {
-			void requestRestoreCancellation(agentId, request.payload.restoreId).catch((error) => {
-				logger.error(`Failed to cancel restore ${request.payload.restoreId} after abort: ${String(error)}`);
-			});
-		};
-		request.signal.addEventListener("abort", cancelOnAbort, { once: true });
-
 		try {
 			if (!(await Effect.runPromise(runtime.sendRestore(agentId, request.payload)))) {
-				request.signal.removeEventListener("abort", cancelOnAbort);
 				clearActiveRestoreRun(request.payload.restoreId);
 				return {
 					status: "unavailable",
@@ -521,16 +498,11 @@ export const agentManager = {
 				};
 			}
 
-			if (request.signal.aborted) {
-				await requestRestoreCancellation(agentId, request.payload.restoreId);
-			}
-
 			return {
 				status: "started",
-				result: completion.finally(() => request.signal.removeEventListener("abort", cancelOnAbort)),
+				result: completion,
 			};
 		} catch (error) {
-			request.signal.removeEventListener("abort", cancelOnAbort);
 			clearActiveRestoreRun(request.payload.restoreId);
 			throw error;
 		}

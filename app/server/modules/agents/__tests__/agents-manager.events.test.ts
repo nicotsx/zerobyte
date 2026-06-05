@@ -270,34 +270,6 @@ test("runBackup rejects before sending when the abort signal is already aborted"
 	await stopAgentController();
 });
 
-test("runBackup requests cancellation when the abort signal fires while sending", async () => {
-	resetAgentRuntime();
-	const abortController = new AbortController();
-	controllerMock.sendBackup.mockImplementation(() =>
-		Effect.sync(() => {
-			abortController.abort();
-			return true;
-		}),
-	);
-	controllerMock.cancelBackup.mockImplementation(() => Effect.succeed(false));
-	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
-
-	await startAgentController();
-	const result = await agentManager.runBackup("local", {
-		scheduleId: 42,
-		payload: backupPayload,
-		signal: abortController.signal,
-		onProgress: vi.fn(),
-	});
-
-	expect(result).toEqual({ status: "cancelled" });
-	expect(controllerMock.cancelBackup).toHaveBeenCalledWith("local", {
-		jobId: "job-1",
-		scheduleId: "schedule-1",
-	});
-	await stopAgentController();
-});
-
 test("restore events are delivered to the running restore callbacks", async () => {
 	resetAgentRuntime();
 	controllerMock.sendRestore.mockImplementation(() => Effect.succeed(true));
