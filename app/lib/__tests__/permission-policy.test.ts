@@ -109,6 +109,14 @@ describe("permissions", () => {
 				authSource: "browser-session",
 			}),
 		).toEqual({ allowed: false, reason: "instanceRole" });
+
+		expect(
+			evaluatePermission("passwordLogin.manage", {
+				runtime: "server",
+				instanceRole: "admin",
+				authSource: "browser-session",
+			}).allowed,
+		).toBe(true);
 	});
 
 	test("models runtime features independently from user roles", () => {

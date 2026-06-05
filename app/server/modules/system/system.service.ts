@@ -6,7 +6,7 @@ import { cache, cacheKeys } from "../../utils/cache";
 import { logger } from "@zerobyte/core/node";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
-import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
+import { PASSWORD_LOGIN_ENABLED_KEY, REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
 import type { BackendType } from "@zerobyte/contracts/volumes";
 import type { RepositoryBackend } from "@zerobyte/core/restic";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
@@ -134,6 +134,26 @@ const setRegistrationEnabled = async (enabled: boolean) => {
 	logger.info(`Registration enabled set to: ${enabled}`);
 };
 
+const isPasswordLoginEnabled = async () => {
+	const result = await db.query.appMetadataTable.findFirst({
+		where: { key: PASSWORD_LOGIN_ENABLED_KEY },
+	});
+
+	// Default to true so existing deployments are unaffected
+	return result === undefined || result.value === "true";
+};
+
+const setPasswordLoginEnabled = async (enabled: boolean) => {
+	const now = Date.now();
+
+	await db
+		.insert(appMetadataTable)
+		.values({ key: PASSWORD_LOGIN_ENABLED_KEY, value: JSON.stringify(enabled), createdAt: now, updatedAt: now })
+		.onConflictDoUpdate({ target: appMetadataTable.key, set: { value: JSON.stringify(enabled), updatedAt: now } });
+
+	logger.info(`Password login enabled set to: ${enabled}`);
+};
+
 const isDevPanelEnabled = () => config.flags.enableDevPanel;
 
 export const systemService = {
@@ -141,5 +161,7 @@ export const systemService = {
 	getUpdates,
 	isRegistrationEnabled,
 	setRegistrationEnabled,
+	isPasswordLoginEnabled,
+	setPasswordLoginEnabled,
 	isDevPanelEnabled,
 };

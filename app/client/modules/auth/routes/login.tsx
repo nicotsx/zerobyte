@@ -1,4 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -10,13 +13,13 @@ import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "~/clie
 import { Label } from "~/client/components/ui/label";
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
-import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
-import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
-import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
-import { ResetPasswordDialog } from "../components/reset-password-dialog";
-import { useNavigate } from "@tanstack/react-router";
-import { normalizeUsername } from "~/lib/username";
 import { cn } from "~/client/lib/utils";
+import { decodeLoginError, getLoginErrorDescription } from "~/client/lib/sso-errors";
+import { getLoginOptions } from "~/server/lib/functions/login-options";
+import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
+import { PASSKEY_LOGIN_FAILED_ERROR } from "~/lib/sso-errors";
+import { normalizeUsername } from "~/lib/username";
+import { ResetPasswordDialog } from "../components/reset-password-dialog";
 import { AlternativeSignInSection } from "../components/alternative-sign-in-section";
 import { z } from "zod";
 
@@ -53,6 +56,11 @@ function hasSkippedRecoveryKeyDownload(userId: string) {
 
 export function LoginPage({ error }: LoginPageProps = {}) {
 	const navigate = useNavigate();
+	const getOptions = useServerFn(getLoginOptions);
+	const { data: loginOptions } = useSuspenseQuery({
+		queryKey: ["login-options"],
+		queryFn: getOptions,
+	});
 	const [showResetDialog, setShowResetDialog] = useState(false);
 	const [isLoggingIn, setIsLoggingIn] = useState(false);
 	const [requires2FA, setRequires2FA] = useState(false);
@@ -265,66 +273,68 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 
 	return (
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
-			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-					<div
-						className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
-							hidden: !errorDescription,
-						})}
-					>
-						{errorDescription}
-					</div>
-					<FormField
-						control={form.control}
-						name="username"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Username</FormLabel>
-								<FormControl>
-									<Input
-										{...field}
-										type="text"
-										placeholder="admin"
-										disabled={isLoggingIn}
-										autoComplete="username webauthn"
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<FormField
-						control={form.control}
-						name="password"
-						render={({ field }) => (
-							<FormItem>
-								<div className="flex items-center justify-between">
-									<FormLabel>Password</FormLabel>
-									<button
-										type="button"
-										className="text-xs text-muted-foreground hover:underline"
-										onClick={() => setShowResetDialog(true)}
-									>
-										Forgot your password?
-									</button>
-								</div>
-								<FormControl>
-									<Input
-										{...field}
-										type="password"
-										disabled={isLoggingIn}
-										autoComplete="current-password webauthn"
-									/>
-								</FormControl>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<Button type="submit" className="w-full" loading={isLoggingIn}>
-						Login
-					</Button>
-				</form>
-			</Form>
+			{loginOptions.passwordLoginEnabled && (
+				<Form {...form}>
+					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+						<div
+							className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
+								hidden: !errorDescription,
+							})}
+						>
+							{errorDescription}
+						</div>
+						<FormField
+							control={form.control}
+							name="username"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Username</FormLabel>
+									<FormControl>
+										<Input
+											{...field}
+											type="text"
+											placeholder="admin"
+											disabled={isLoggingIn}
+											autoComplete="username webauthn"
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<FormField
+							control={form.control}
+							name="password"
+							render={({ field }) => (
+								<FormItem>
+									<div className="flex items-center justify-between">
+										<FormLabel>Password</FormLabel>
+										<button
+											type="button"
+											className="text-xs text-muted-foreground hover:underline"
+											onClick={() => setShowResetDialog(true)}
+										>
+											Forgot your password?
+										</button>
+									</div>
+									<FormControl>
+										<Input
+											{...field}
+											type="password"
+											disabled={isLoggingIn}
+											autoComplete="current-password webauthn"
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+						<Button type="submit" className="w-full" loading={isLoggingIn}>
+							Login
+						</Button>
+					</form>
+				</Form>
+			)}
 
 			<AlternativeSignInSection onPasskeySignIn={navigateAfterLogin} />
 

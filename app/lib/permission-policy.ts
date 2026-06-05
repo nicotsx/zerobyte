@@ -51,6 +51,11 @@ const PERMISSIONS = {
 		instanceRoles: ["admin"],
 		authSources: ["browser-session"],
 	},
+	"passwordLogin.manage": {
+		feature: "instanceAdministration",
+		instanceRoles: ["admin"],
+		authSources: ["browser-session"],
+	},
 	"organizationSettings.view": {
 		feature: "organizationAdministration",
 		orgRoles: ["owner", "admin"],

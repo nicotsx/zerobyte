@@ -8,7 +8,7 @@ import {
 } from "~/lib/sso-errors";
 
 const { mockGetLoginOptions, mockNavigate, mockPasskeySignIn } = vi.hoisted(() => ({
-	mockGetLoginOptions: vi.fn(async () => ({ hasPasskeySignIn: false })),
+	mockGetLoginOptions: vi.fn(async () => ({ hasPasskeySignIn: false, passwordLoginEnabled: true })),
 	mockNavigate: vi.fn(async () => {}),
 	mockPasskeySignIn: vi.fn(
 		async (): Promise<{
@@ -67,7 +67,7 @@ const mockSsoProvidersRequest = (
 
 afterEach(() => {
 	mockGetLoginOptions.mockClear();
-	mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false });
+	mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false, passwordLoginEnabled: true });
 	mockNavigate.mockClear();
 	mockPasskeySignIn.mockClear();
 	mockPasskeySignIn.mockResolvedValue({ data: null, error: null });
@@ -147,7 +147,7 @@ describe("LoginPage", () => {
 
 	test("renders passkey sign-in when an active user has a passkey", async () => {
 		mockSsoProvidersRequest();
-		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true, passwordLoginEnabled: true });
 
 		render(<LoginPage />, { withSuspense: true });
 
@@ -156,7 +156,7 @@ describe("LoginPage", () => {
 
 	test("redirects passkey verification failures to the login error box", async () => {
 		mockSsoProvidersRequest();
-		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true, passwordLoginEnabled: true });
 		mockPasskeySignIn.mockResolvedValue({
 			data: null,
 			error: { code: "AUTHENTICATION_FAILED", message: "Authentication failed" },
@@ -178,7 +178,7 @@ describe("LoginPage", () => {
 
 	test("redirects unauthorized passkey failures to the login error box", async () => {
 		mockSsoProvidersRequest();
-		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true, passwordLoginEnabled: true });
 		mockPasskeySignIn.mockResolvedValue({
 			data: null,
 			error: { code: "UNAUTHORIZED", message: "Unauthorized" },
@@ -200,7 +200,7 @@ describe("LoginPage", () => {
 
 	test("preserves specific passkey login error codes", async () => {
 		mockSsoProvidersRequest();
-		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true });
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: true, passwordLoginEnabled: true });
 		mockPasskeySignIn.mockResolvedValue({
 			data: null,
 			error: { code: "ERROR_INVALID_RP_ID", message: "Auth cancelled" },
@@ -273,5 +273,16 @@ describe("LoginPage", () => {
 		await screen.findByText("Login to your account");
 		expect(screen.queryByText("Alternative Sign-in")).toBeNull();
 		expect(screen.queryByRole("button", { name: "Sign in with passkey" })).toBeNull();
+	});
+
+	test("hides the password form when password login is disabled", async () => {
+		mockSsoProvidersRequest();
+		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false, passwordLoginEnabled: false });
+
+		render(<LoginPage />, { withSuspense: true });
+
+		await screen.findByText("Login to your account");
+		expect(screen.queryByLabelText("Username")).toBeNull();
+		expect(screen.queryByLabelText("Password")).toBeNull();
 	});
 });

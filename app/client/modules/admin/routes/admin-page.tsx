@@ -3,7 +3,9 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Users, Settings as SettingsIcon } from "lucide-react";
 import { toast } from "sonner";
 import {
+	getPasswordLoginStatusOptions,
 	getRegistrationStatusOptions,
+	setPasswordLoginStatusMutation,
 	setRegistrationStatusMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
@@ -38,6 +40,22 @@ export function AdminPage({ appContext }: Props) {
 		},
 	});
 
+	const passwordLoginStatus = useSuspenseQuery({
+		...getPasswordLoginStatusOptions(),
+	});
+
+	const updatePasswordLoginStatusMutation = useMutation({
+		...setPasswordLoginStatusMutation(),
+		onSuccess: () => {
+			toast.success("Login settings updated");
+		},
+		onError: (error) => {
+			toast.error("Failed to update login settings", {
+				description: error.message,
+			});
+		},
+	});
+
 	const onTabChange = (value: string) => {
 		void navigate({ to: ".", search: () => ({ tab: value }) });
 	};
@@ -58,7 +76,9 @@ export function AdminPage({ appContext }: Props) {
 									<Users className="size-5" />
 									User Management
 								</CardTitle>
-								<CardDescription className="mt-1.5">Manage users, roles and permissions</CardDescription>
+								<CardDescription className="mt-1.5">
+									Manage users, roles and permissions
+								</CardDescription>
 							</div>
 							<UserManagement currentUser={appContext.user} />
 						</Card>
@@ -79,7 +99,9 @@ export function AdminPage({ appContext }: Props) {
 										<Label htmlFor="enable-registrations" className="text-base">
 											Enable new user registrations
 										</Label>
-										<p className="text-sm text-muted-foreground max-w-2xl">When enabled, new users can sign up</p>
+										<p className="text-sm text-muted-foreground max-w-2xl">
+											When enabled, new users can sign up
+										</p>
 									</div>
 									<Switch
 										id="enable-registrations"
@@ -88,6 +110,25 @@ export function AdminPage({ appContext }: Props) {
 											updateRegistrationStatusMutation.mutate({ body: { enabled: checked } })
 										}
 										disabled={updateRegistrationStatusMutation.isPending}
+									/>
+								</div>
+								<div className="flex items-center justify-between pt-4 border-t border-border/50">
+									<div className="space-y-0.5">
+										<Label htmlFor="enable-password-login" className="text-base">
+											Enable password login
+										</Label>
+										<p className="text-sm text-muted-foreground max-w-2xl">
+											When disabled, the username and password form is hidden on the login page.
+											Users can still sign in via SSO or passkeys.
+										</p>
+									</div>
+									<Switch
+										id="enable-password-login"
+										checked={passwordLoginStatus.data.enabled}
+										onCheckedChange={(checked) =>
+											updatePasswordLoginStatusMutation.mutate({ body: { enabled: checked } })
+										}
+										disabled={updatePasswordLoginStatusMutation.isPending}
 									/>
 								</div>
 							</CardContent>

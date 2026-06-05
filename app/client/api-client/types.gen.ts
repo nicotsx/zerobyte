@@ -5140,6 +5140,44 @@ export type SetRegistrationStatusResponses = {
 
 export type SetRegistrationStatusResponse = SetRegistrationStatusResponses[keyof SetRegistrationStatusResponses];
 
+export type GetPasswordLoginStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/password-login-status';
+};
+
+export type GetPasswordLoginStatusResponses = {
+    /**
+     * Password login status
+     */
+    200: {
+        enabled: boolean;
+    };
+};
+
+export type GetPasswordLoginStatusResponse = GetPasswordLoginStatusResponses[keyof GetPasswordLoginStatusResponses];
+
+export type SetPasswordLoginStatusData = {
+    body: {
+        enabled: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/password-login-status';
+};
+
+export type SetPasswordLoginStatusResponses = {
+    /**
+     * Password login status updated
+     */
+    200: {
+        enabled: boolean;
+    };
+};
+
+export type SetPasswordLoginStatusResponse = SetPasswordLoginStatusResponses[keyof SetPasswordLoginStatusResponses];
+
 export type DownloadResticPasswordData = {
     body: {
         password: string;

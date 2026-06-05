@@ -11,6 +11,10 @@ import {
 	getRegistrationStatusDto,
 	registrationStatusBody,
 	type RegistrationStatusDto,
+	getPasswordLoginStatusDto,
+	setPasswordLoginStatusDto,
+	passwordLoginStatusBody,
+	type PasswordLoginStatusDto,
 	getDevPanelDto,
 	type DevPanelDto,
 } from "./system.dto";
@@ -101,6 +105,24 @@ export const systemController = new Hono()
 			} catch (_error) {
 				return c.json({ message: "Failed to retrieve Restic password" }, 500);
 			}
+		},
+	)
+	.get("/password-login-status", getPasswordLoginStatusDto, async (c) => {
+		const enabled = await systemService.isPasswordLoginEnabled();
+
+		return c.json<PasswordLoginStatusDto>({ enabled }, 200);
+	})
+	.put(
+		"/password-login-status",
+		requirePermission("passwordLogin.manage"),
+		setPasswordLoginStatusDto,
+		validator("json", passwordLoginStatusBody),
+		async (c) => {
+			const body = c.req.valid("json");
+
+			await systemService.setPasswordLoginEnabled(body.enabled);
+
+			return c.json<PasswordLoginStatusDto>({ enabled: body.enabled }, 200);
 		},
 	)
 	.get("/dev-panel", getDevPanelDto, async (c) => {

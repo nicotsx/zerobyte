@@ -19,6 +19,7 @@ import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { isValidUsername, normalizeUsername } from "~/lib/username";
 import { ensureOnlyOneUser } from "./auth/middlewares/only-one-user";
 import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy-user";
+import { enforcePasswordLoginPolicy } from "./auth/middlewares/password-login-policy";
 import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
 import { ssoIntegration } from "../modules/sso/sso.integration";
 import { ACCOUNT_LINK_REQUIRED_DESCRIPTION } from "~/lib/sso-errors";
@@ -53,6 +54,7 @@ export const auth = betterAuth({
 			}
 
 			await ensureOnlyOneUser(ctx);
+			await enforcePasswordLoginPolicy(ctx);
 			await convertLegacyUserOnFirstLogin(ctx);
 		}),
 	},

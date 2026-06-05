@@ -87,6 +87,8 @@ describe("system security", () => {
 			{ method: "GET", path: "/api/v1/system/updates" },
 			{ method: "GET", path: "/api/v1/system/registration-status" },
 			{ method: "PUT", path: "/api/v1/system/registration-status" },
+			{ method: "GET", path: "/api/v1/system/password-login-status" },
+			{ method: "PUT", path: "/api/v1/system/password-login-status" },
 			{ method: "POST", path: "/api/v1/system/restic-password" },
 			{ method: "GET", path: "/api/v1/system/dev-panel" },
 		];
@@ -132,7 +134,44 @@ describe("system security", () => {
 					...globalAdminSession.headers,
 					"Content-Type": "application/json",
 				},
+				body: JSON.stringify({ enabled: true }),
+			});
+			expect(res.status).toBe(200);
+		});
+	});
+
+	describe("password-login-status endpoint", () => {
+		test("GET /api/v1/system/password-login-status should be accessible with valid session", async () => {
+			const res = await app.request("/api/v1/system/password-login-status", {
+				headers: session.headers,
+			});
+			expect(res.status).toBe(200);
+			const body = await res.json();
+			expect(typeof body.enabled).toBe("boolean");
+		});
+
+		test("PUT /api/v1/system/password-login-status should return 403 for non-admin users", async () => {
+			const res = await app.request("/api/v1/system/password-login-status", {
+				method: "PUT",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
 				body: JSON.stringify({ enabled: false }),
+			});
+			expect(res.status).toBe(403);
+			const body = await res.json();
+			expect(body.message).toBe("Forbidden");
+		});
+
+		test("PUT /api/v1/system/password-login-status should be accessible to global admin", async () => {
+			const res = await app.request("/api/v1/system/password-login-status", {
+				method: "PUT",
+				headers: {
+					...globalAdminSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ enabled: true }),
 			});
 			expect(res.status).toBe(200);
 		});

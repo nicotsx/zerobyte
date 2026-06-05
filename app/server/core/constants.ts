@@ -17,3 +17,4 @@ export const RESTORE_BLOCKED_ROOTS = [REPOSITORY_BASE, RESTIC_CACHE_DIR, RCLONE_
 export const DEFAULT_EXCLUDES = [RESTIC_PASS_FILE, REPOSITORY_BASE, RESTIC_CACHE_DIR];
 
 export const REGISTRATION_ENABLED_KEY = "registrations_enabled";
+export const PASSWORD_LOGIN_ENABLED_KEY = "password_login_enabled";
