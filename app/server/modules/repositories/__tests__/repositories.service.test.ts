@@ -740,8 +740,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 	};
 
 	test("rejects protected targets even when the local agent is enabled", async () => {
-		const { organizationId, userId, repositoryId, repositoryShortId, restoreMock } =
-			await setupRestoreSnapshotScenario();
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
 		const targetPath = nodePath.join(os.tmpdir(), "zerobyte-restore-target");
 
 		await expect(
@@ -756,8 +755,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 	});
 
 	test("restores to a custom target outside protected roots", async () => {
-		const { organizationId, userId, repositoryId, repositoryShortId, restoreMock } =
-			await setupRestoreSnapshotScenario();
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
 		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
 
 		try {
