@@ -9,6 +9,11 @@ import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { getOrganizationId } from "~/server/core/request-context";
 import { mirrorQueries, repositoryQueries, scheduleQueries } from "../backups.queries";
 
+const isMirrorCopyCancellation = (error: unknown) => {
+	const message = toMessage(error);
+	return message === "Repository mutex is shutting down" || message === "Operation aborted";
+};
+
 export async function runForget(scheduleId: number, repositoryId?: string, organizationIdOverride?: string) {
 	const organizationId = organizationIdOverride ?? getOrganizationId();
 	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
@@ -154,6 +159,17 @@ export async function syncSnapshotsToMirror(
 		});
 	} catch (error) {
 		const errorMessage = toMessage(error);
+		if (isMirrorCopyCancellation(error)) {
+			logger.info(
+				`[Background] Mirror sync to repository ${mirrorRepository.name} was cancelled: ${errorMessage}`,
+			);
+			await mirrorQueries.updateStatus(scheduleId, mirrorRepositoryId, {
+				lastCopyStatus: null,
+				lastCopyError: null,
+			});
+			return;
+		}
+
 		logger.error(
 			`[Background] Failed to sync all snapshots to mirror repository ${mirrorRepository.name}: ${errorMessage}`,
 		);
@@ -243,6 +259,17 @@ async function copyToSingleMirror(
 		});
 	} catch (error) {
 		const errorMessage = toMessage(error);
+		if (isMirrorCopyCancellation(error)) {
+			logger.info(
+				`[Background] Mirror copy to repository ${mirror.repository.name} was cancelled: ${errorMessage}`,
+			);
+			await mirrorQueries.updateStatus(scheduleId, mirror.repositoryId, {
+				lastCopyStatus: null,
+				lastCopyError: null,
+			});
+			return;
+		}
+
 		logger.error(`[Background] Failed to copy to mirror repository ${mirror.repository.name}: ${errorMessage}`);
 
 		await mirrorQueries.updateStatus(scheduleId, mirror.repositoryId, {

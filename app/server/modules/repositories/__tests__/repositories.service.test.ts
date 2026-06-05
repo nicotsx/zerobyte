@@ -22,7 +22,7 @@ import { ResticError } from "@zerobyte/core/restic/server";
 import { repoMutex } from "~/server/core/repository-mutex";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { repositoriesService } from "../repositories.service";
-import { holdExclusiveLock } from "~/test/helpers/repository-mutex";
+import { holdExclusiveLock, holdSharedLock } from "~/test/helpers/repository-mutex";
 
 const createTestRepository = async (organizationId: string, overrides: Partial<RepositoryInsert> = {}) => {
 	const id = randomUUID();
@@ -388,6 +388,47 @@ describe("repositoriesService.checkHealth", () => {
 	});
 });
 
+describe("repositoriesService.startDoctor", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("marks a queued doctor as cancelled when repository mutex shutdown aborts it", async () => {
+		const repository = await createTestRepository(session.organizationId, {
+			status: "healthy",
+			lastError: "previous error",
+		});
+		const releaseLock = await holdSharedLock(repository.id, "backup");
+
+		try {
+			await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.startDoctor(repository.shortId),
+			);
+
+			await waitForExpect(async () => {
+				const runningRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+				expect(runningRepository?.status).toBe("doctor");
+			});
+			await waitForExpect(async () => {
+				const waiters = await db.query.repositoryLockWaitersTable.findMany({
+					where: { repositoryId: repository.id },
+				});
+				expect(waiters).toHaveLength(1);
+			});
+
+			await repoMutex.shutdown({ timeoutMs: 10 });
+		} finally {
+			await releaseLock();
+		}
+
+		await waitForExpect(async () => {
+			const cancelledRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+			expect(cancelledRepository?.status).toBe("cancelled");
+			expect(cancelledRepository?.lastError).toBe("Repository mutex is shutting down");
+		});
+	});
+});
+
 describe("repositoriesService.dumpSnapshot", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
@@ -699,7 +740,8 @@ describe("repositoriesService.restoreSnapshot", () => {
 	};
 
 	test("rejects protected targets even when the local agent is enabled", async () => {
-		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const { organizationId, userId, repositoryId, repositoryShortId, restoreMock } =
+			await setupRestoreSnapshotScenario();
 		const targetPath = nodePath.join(os.tmpdir(), "zerobyte-restore-target");
 
 		await expect(
@@ -714,7 +756,8 @@ describe("repositoriesService.restoreSnapshot", () => {
 	});
 
 	test("restores to a custom target outside protected roots", async () => {
-		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const { organizationId, userId, repositoryId, repositoryShortId, restoreMock } =
+			await setupRestoreSnapshotScenario();
 		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
 
 		try {
@@ -833,6 +876,34 @@ describe("repositoriesService.restoreSnapshot", () => {
 				}),
 			).toBeNull();
 		});
+	});
+
+	test("cancels a mutex-aborted restore before it starts", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
+		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
+		await withContext({ organizationId, userId }, () =>
+			repositoriesService.getSnapshotDetails(repositoryShortId, "snapshot-restore"),
+		);
+		vi.spyOn(repoMutex, "runShared").mockRejectedValueOnce(new Error("Repository mutex is shutting down"));
+
+		try {
+			const result = await withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", {
+					targetPath,
+				}),
+			);
+
+			expect(restoreMock).not.toHaveBeenCalled();
+			await waitForExpect(async () => {
+				const task = await db.query.tasksTable.findFirst({ where: { id: result.restoreId } });
+				expect(task?.status).toBe("cancelled");
+				expect(task?.error).toBe("Restore was cancelled");
+			});
+		} finally {
+			await fs.rm(targetPath, { recursive: true, force: true });
+		}
+
+		expect(restoreMock).not.toHaveBeenCalled();
 	});
 
 	test("routes restore to the requested target agent", async () => {

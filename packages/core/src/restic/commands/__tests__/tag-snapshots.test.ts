@@ -52,4 +52,25 @@ describe("tagSnapshots command", () => {
 		expect(separatorIndex).toBeGreaterThan(-1);
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
 	});
+
+	test("does not treat a cleanup-time abort as a failed successful tag", async () => {
+		const controller = new AbortController();
+		setup();
+		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(async () => {
+			controller.abort(new Error("aborted during cleanup"));
+		});
+
+		const result = await Effect.runPromise(
+			tagSnapshots(
+				config,
+				["snapshot-1"],
+				{ add: ["keep"] },
+				{ organizationId: "org-1", signal: controller.signal },
+				mockDeps,
+			),
+		);
+
+		expect(result).toEqual({ success: true });
+		expect(cleanupModule.cleanupTemporaryKeys).toHaveBeenCalledTimes(1);
+	});
 });

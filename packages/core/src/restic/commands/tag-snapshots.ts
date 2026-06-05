@@ -53,15 +53,19 @@ export const tagSnapshots = (
 			addCommonArgs(args, env, config);
 			args.push("--", ...snapshotIds);
 
-			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
-			await cleanupTemporaryKeys(env, deps);
-
-			if (options.signal?.aborted) {
-				logger.warn("Restic snapshot tagging was aborted by signal.");
-				throw new Error("Operation aborted");
+			let res: Awaited<ReturnType<typeof safeExec>>;
+			try {
+				res = await safeExec({ command: "restic", args, env, signal: options.signal });
+			} finally {
+				await cleanupTemporaryKeys(env, deps);
 			}
 
 			if (res.exitCode !== 0) {
+				if (options.signal?.aborted) {
+					logger.warn("Restic snapshot tagging was aborted by signal.");
+					throw new Error("Operation aborted");
+				}
+
 				logger.error(`Restic snapshot tagging failed: ${res.stderr}`);
 				throw createResticError(res.exitCode, res.stderr);
 			}

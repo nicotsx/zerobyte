@@ -167,7 +167,13 @@ export const executeDoctor = async (
 			completedAt: Date.now(),
 		});
 	} catch (error) {
-		if (error instanceof AbortError) {
+		const errorMessage = toMessage(error);
+		const isCancellation =
+			error instanceof AbortError ||
+			errorMessage === "Repository mutex is shutting down" ||
+			errorMessage === "Operation aborted";
+
+		if (isCancellation) {
 			const doctorResult: DoctorResult = {
 				success: false,
 				steps,
@@ -179,7 +185,7 @@ export const executeDoctor = async (
 				.set({
 					status: "cancelled",
 					lastChecked: Date.now(),
-					lastError: toMessage(error),
+					lastError: errorMessage,
 					doctorResult,
 				})
 				.where(eq(repositoriesTable.id, repositoryId));
@@ -188,7 +194,7 @@ export const executeDoctor = async (
 				organizationId,
 				repositoryId: repositoryShortId,
 				repositoryName,
-				error: toMessage(error),
+				error: errorMessage,
 			});
 		} else {
 			await db

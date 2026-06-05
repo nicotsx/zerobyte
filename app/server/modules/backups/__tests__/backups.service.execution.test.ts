@@ -1256,6 +1256,32 @@ describe("mirror operations", () => {
 		expect(updatedMirror?.lastCopyAt).not.toBeNull();
 	});
 
+	test("should clear mirror in-progress status when shutdown aborts copy", async () => {
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+
+		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.sync(() => {
+				throw new Error("Repository mutex is shutting down");
+			}),
+		);
+
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+
+		const mirrors = await backupsService.getMirrors(schedule.id);
+		const updatedMirror = mirrors.find((m) => m.id === mirror.id);
+		expect(updatedMirror?.lastCopyStatus).toBeNull();
+		expect(updatedMirror?.lastCopyError).toBeNull();
+		expect(resticCopyMock).toHaveBeenCalledTimes(1);
+	});
+
 	test("should run forget on mirror after successful copy when retention policy exists", async () => {
 		// arrange
 		const { resticCopyMock, resticForgetMock } = setup();

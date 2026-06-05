@@ -7,7 +7,7 @@ type MirrorStatusType = "in_progress" | "success" | "error";
 
 type MirrorStatusUpdate = {
 	lastCopyAt?: number | null;
-	lastCopyStatus?: MirrorStatusType;
+	lastCopyStatus?: MirrorStatusType | null;
 	lastCopyError?: string | null;
 };
 
@@ -48,7 +48,9 @@ export const scheduleQueries = {
 		return db
 			.update(backupSchedulesTable)
 			.set({ ...status, updatedAt: Date.now() })
-			.where(and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)));
+			.where(
+				and(eq(backupSchedulesTable.id, scheduleId), eq(backupSchedulesTable.organizationId, organizationId)),
+			);
 	},
 };
 
