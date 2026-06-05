@@ -687,9 +687,10 @@ const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 
 	if (!snapshots) {
 		snapshots = await repoMutex.runShared(repository.id, `snapshot_details:${snapshotId}`, async ({ signal }) => {
-			return await runEffectPromise(restic.snapshots(repository.config, { organizationId, signal }));
+			const snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId, signal }));
+			cache.set(cacheKey, snapshots);
+			return snapshots;
 		});
-		cache.set(cacheKey, snapshots);
 	}
 
 	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
