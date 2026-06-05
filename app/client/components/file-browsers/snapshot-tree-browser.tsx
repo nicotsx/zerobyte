@@ -5,7 +5,6 @@ import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-b
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
-import { logger } from "~/client/lib/logger";
 
 function createPathPrefixFns(basePath: string) {
 	return {
@@ -83,16 +82,6 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 					query: { path: displayPath, offset: offset, limit: pageSize },
 				}),
 			);
-		},
-		prefetchFolder: (displayPath) => {
-			void queryClient
-				.prefetchQuery(
-					listSnapshotFilesOptions({
-						path: { shortId: repositoryId, snapshotId },
-						query: { path: displayPath, offset: 0, limit: pageSize },
-					}),
-				)
-				.catch((e) => logger.error(e));
 		},
 		pathTransform: displayPathFns,
 	});

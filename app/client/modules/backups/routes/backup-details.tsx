@@ -63,9 +63,7 @@ export function ScheduleDetailsPage(props: Props) {
 	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const searchParams = useSearch({ from: "/(dashboard)/backups/$backupId/" });
-	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(
-		initialSnapshotId ?? loaderData.snapshots?.at(-1)?.short_id,
-	);
+	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(initialSnapshotId);
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [snapshotToDelete, setSnapshotToDelete] = useState<string | null>(null);
 

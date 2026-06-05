@@ -208,6 +208,95 @@ describe("repositoriesService repository stats", () => {
 	});
 });
 
+describe("repositoriesService.listSnapshotFiles", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("limits concurrent restic ls commands per repository", async () => {
+		const repository = await createTestRepository(session.organizationId);
+		let active = 0;
+		let maxActive = 0;
+		let releaseAll = false;
+		const releaseWaiters: Array<() => void> = [];
+
+		const releaseWaitingCommands = () => {
+			const waiters = releaseWaiters.splice(0);
+			for (const release of waiters) {
+				release();
+			}
+		};
+
+		const lsSpy = vi.spyOn(restic, "ls").mockImplementation((_config, snapshotId, _path, options) =>
+			Effect.promise(async () => {
+				active++;
+				maxActive = Math.max(maxActive, active);
+
+				try {
+					if (!releaseAll) {
+						await new Promise<void>((resolve) => releaseWaiters.push(resolve));
+					}
+
+					return {
+						snapshot: {
+							id: snapshotId,
+							short_id: snapshotId,
+							time: new Date().toISOString(),
+							tree: "tree",
+							paths: ["/"],
+							hostname: "host",
+							struct_type: "snapshot" as const,
+							message_type: "snapshot" as const,
+						},
+						nodes: [],
+						pagination: {
+							offset: options.offset ?? 0,
+							limit: options.limit ?? 500,
+							total: 0,
+							hasMore: false,
+						},
+					};
+				} finally {
+					active--;
+				}
+			}),
+		);
+
+		const calls = Array.from({ length: 4 }, (_, index) =>
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.listSnapshotFiles(repository.shortId, `snapshot-${index}`, "/", {
+					offset: 0,
+					limit: 100,
+				}),
+			),
+		);
+
+		try {
+			await waitForExpect(() => {
+				expect(releaseWaiters).toHaveLength(2);
+			});
+			expect(maxActive).toBe(2);
+
+			releaseWaitingCommands();
+
+			await waitForExpect(() => {
+				expect(releaseWaiters).toHaveLength(2);
+			});
+			expect(maxActive).toBe(2);
+
+			releaseWaitingCommands();
+			await Promise.all(calls);
+		} finally {
+			releaseAll = true;
+			releaseWaitingCommands();
+			await Promise.allSettled(calls);
+		}
+
+		expect(lsSpy).toHaveBeenCalledTimes(4);
+		expect(maxActive).toBeLessThanOrEqual(2);
+	});
+});
+
 describe("repositoriesService.dumpSnapshot", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();

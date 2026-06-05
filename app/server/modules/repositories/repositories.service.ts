@@ -42,6 +42,7 @@ import type { ParsedTask, TaskInput } from "../tasks/tasks.schemas";
 import { Effect } from "effect";
 
 const runningDoctors = new Map<string, AbortController>();
+const lsLimiters = new Map<string, Effect.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
 
 type RestoreTaskInput = Extract<TaskInput, { kind: "restore" }>;
@@ -97,6 +98,15 @@ const updateActiveRestoreTask = (restoreId: string, eventName: string, update: (
 		logger.warn(`Received ${eventName} for inactive restore ${restoreId}: ${toMessage(error)}`);
 		return null;
 	}
+};
+
+const getLsLimiter = (repositoryId: string) => {
+	let limiter = lsLimiters.get(repositoryId);
+	if (!limiter) {
+		limiter = Effect.unsafeMakeSemaphore(2);
+		lsLimiters.set(repositoryId, limiter);
+	}
+	return limiter;
 };
 
 const findActiveRestoreTask = (
@@ -472,7 +482,9 @@ const listSnapshotFiles = async (
 	const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
 	try {
 		const result = await runEffectPromise(
-			restic.ls(repository.config, snapshotId, path, { organizationId, offset, limit }),
+			restic
+				.ls(repository.config, snapshotId, path, { organizationId, offset, limit })
+				.pipe(getLsLimiter(repository.id).withPermits(1)),
 		);
 
 		if (!result.snapshot) {
