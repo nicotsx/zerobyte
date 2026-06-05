@@ -460,6 +460,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				const executionResult = await backupExecutor.execute({
 					jobId: task.id,
 					scheduleId,
+					trackedAbortController: abortController,
 					schedule: ctx.schedule,
 					volume: ctx.volume,
 					repository: ctx.repository,
@@ -514,7 +515,16 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		);
 	} catch (error) {
 		if (abortController.signal.aborted) {
-			taskStore.cancel(task.id, "Backup was stopped by the user");
+			const message = "Backup was stopped by the user";
+			await handleBackupCancellation(scheduleId, ctx.organizationId, message);
+			taskStore.cancel(task.id, message);
+			return;
+		}
+
+		if (toMessage(error) === "Repository mutex is shutting down") {
+			const message = toMessage(error);
+			await handleBackupCancellation(scheduleId, ctx.organizationId, message);
+			taskStore.cancel(task.id, message);
 			return;
 		}
 

@@ -102,4 +102,24 @@ describe("copy command", () => {
 		expect(separatorIndex).toBeGreaterThan(-1);
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
 	});
+
+	test("does not treat a cleanup-time abort as a failed successful copy", async () => {
+		const controller = new AbortController();
+		setup();
+		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(async () => {
+			controller.abort(new Error("aborted during cleanup"));
+		});
+
+		const result = await Effect.runPromise(
+			copy(
+				sourceConfig,
+				destConfig,
+				{ organizationId: "org-1", tag: "daily", signal: controller.signal },
+				mockDeps,
+			),
+		);
+
+		expect(result).toEqual({ success: true, output: "copied" });
+		expect(cleanupModule.cleanupTemporaryKeys).toHaveBeenCalledTimes(2);
+	});
 });

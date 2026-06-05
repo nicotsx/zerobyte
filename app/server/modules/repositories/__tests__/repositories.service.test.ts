@@ -357,6 +357,37 @@ describe("repositoriesService.listSnapshotFiles", () => {
 	});
 });
 
+describe("repositoriesService.checkHealth", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("does not persist an aborted health check as a repository error", async () => {
+		const repository = await createTestRepository(session.organizationId, {
+			status: "healthy",
+			lastError: "previous error",
+		});
+		let shutdownPromise: Promise<void> | null = null;
+		vi.spyOn(restic, "check").mockImplementation(() => {
+			shutdownPromise = repoMutex.shutdown({ timeoutMs: 10 });
+			return Effect.succeed({ success: false, hasErrors: true, output: "", error: "Operation aborted" });
+		});
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.checkHealth(repository.shortId),
+			),
+		).rejects.toThrow("Repository mutex is shutting down");
+		await shutdownPromise;
+
+		const persistedRepository = await db.query.repositoriesTable.findFirst({
+			where: { id: repository.id },
+		});
+		expect(persistedRepository?.status).toBe("healthy");
+		expect(persistedRepository?.lastError).toBe("previous error");
+	});
+});
+
 describe("repositoriesService.dumpSnapshot", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();

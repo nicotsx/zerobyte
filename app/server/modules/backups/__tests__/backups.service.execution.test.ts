@@ -26,6 +26,7 @@ import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { holdExclusiveLock } from "~/test/helpers/repository-mutex";
+import { repoMutex } from "~/server/core/repository-mutex";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -868,6 +869,42 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 		expect(task?.status).toBe("cancelled");
 		expect(task?.cancellationRequested).toBe(true);
+		expect(resticBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("should cancel a queued backup when repository mutex shutdown aborts it", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const releaseLock = await holdExclusiveLock(repository.id, "test");
+		const executePromise = backupsService.executeBackup(schedule.id);
+
+		try {
+			await waitForExpect(async () => {
+				const task = await getBackupTaskForSchedule(schedule.id);
+				expect(task?.status).toBe("queued");
+			});
+
+			expect(resticBackupMock).not.toHaveBeenCalled();
+
+			await repoMutex.shutdown({ timeoutMs: 10 });
+		} finally {
+			await releaseLock();
+		}
+
+		await executePromise;
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Repository mutex is shutting down");
+		expect(task?.status).toBe("cancelled");
+		expect(task?.error).toBe("Repository mutex is shutting down");
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 

@@ -583,6 +583,27 @@ describe("RepositoryMutex", () => {
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
 
+	test("should release the lease without invoking the operation when aborted after acquisition", async () => {
+		const repoId = "abort-after-acquire";
+		const abortController = new AbortController();
+		let operationStarted = false;
+		const abortReason = new Error("caller aborted");
+
+		const operation = repoMutex.runShared(
+			repoId,
+			"abort-before-callback",
+			async () => {
+				operationStarted = true;
+			},
+			abortController.signal,
+		);
+		abortController.abort(abortReason);
+
+		await expect(operation).rejects.toThrow("caller aborted");
+		expect(operationStarted).toBe(false);
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
 	test("shutdown should release owned lock rows after the timeout when an operation ignores abort", async () => {
 		const repoId = "shutdown-timeout-release";
 		const started = createDeferred<AbortSignal>();

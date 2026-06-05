@@ -63,19 +63,22 @@ export const copy = (
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 
-			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
-
-			await cleanupTemporaryKeys(sourceEnv, deps);
-			await cleanupTemporaryKeys(destEnv, deps);
-
-			if (options.signal?.aborted) {
-				logger.warn("Restic copy was aborted by signal.");
-				throw new Error("Operation aborted");
+			let res: Awaited<ReturnType<typeof safeExec>>;
+			try {
+				res = await safeExec({ command: "restic", args, env, signal: options.signal });
+			} finally {
+				await cleanupTemporaryKeys(sourceEnv, deps);
+				await cleanupTemporaryKeys(destEnv, deps);
 			}
 
 			const { stdout, stderr } = res;
 
 			if (res.exitCode !== 0) {
+				if (options.signal?.aborted) {
+					logger.warn("Restic copy was aborted by signal.");
+					throw new Error("Operation aborted");
+				}
+
 				logger.error(`Restic copy failed: ${stderr}`);
 				throw createResticError(res.exitCode, stderr);
 			}

@@ -147,6 +147,7 @@ export class RepositoryMutex {
 
 	private async runWithLease<T>(lease: RepositoryLease, operation: RepositoryOperation<T>) {
 		try {
+			this.throwIfAborted(lease.signal);
 			return await operation({ signal: lease.signal });
 		} finally {
 			lease.release();

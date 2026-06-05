@@ -715,6 +715,9 @@ const checkHealth = async (shortId: ShortId) => {
 		const { hasErrors, error } = await runEffectPromise(
 			restic.check(repository.config, { organizationId, signal }),
 		);
+		if (signal.aborted) {
+			throw signal.reason ?? new Error("Operation aborted");
+		}
 
 		await db
 			.update(repositoriesTable)
