@@ -32,6 +32,7 @@ export const dump = (
 		organizationId: string;
 		path?: string;
 		archive?: false;
+		signal?: AbortSignal;
 	},
 	deps: ResticDeps,
 ) => {
@@ -64,6 +65,12 @@ export const dump = (
 
 			let stream: Readable | null = null;
 			let abortController: AbortController | null = new AbortController();
+			const abortDump = () => abortController?.abort(options.signal?.reason);
+			if (options.signal?.aborted) {
+				abortDump();
+			} else {
+				options.signal?.addEventListener("abort", abortDump, { once: true });
+			}
 
 			const maxStderrChars = 64 * 1024;
 			let stderrTail = "";
@@ -97,6 +104,7 @@ export const dump = (
 					throw createResticError(result.exitCode, stderr);
 				})
 				.finally(async () => {
+					options.signal?.removeEventListener("abort", abortDump);
 					abortController = null;
 					await cleanup();
 				});

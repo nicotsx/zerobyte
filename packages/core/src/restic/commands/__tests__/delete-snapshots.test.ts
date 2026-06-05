@@ -68,4 +68,19 @@ describe("deleteSnapshots command", () => {
 		expect(nodeModule.safeExec).not.toHaveBeenCalled();
 		expect(cleanupModule.cleanupTemporaryKeys).not.toHaveBeenCalled();
 	});
+
+	test("does not treat a cleanup-time abort as a failed successful deletion", async () => {
+		const controller = new AbortController();
+		setup();
+		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(async () => {
+			controller.abort(new Error("aborted during cleanup"));
+		});
+
+		const result = await Effect.runPromise(
+			deleteSnapshots(config, ["snapshot-1"], { organizationId: "org-1", signal: controller.signal }, mockDeps),
+		);
+
+		expect(result).toEqual({ success: true });
+		expect(cleanupModule.cleanupTemporaryKeys).toHaveBeenCalledTimes(1);
+	});
 });

@@ -16,7 +16,11 @@ class ResticStatsCommandError extends Data.TaggedError("ResticStatsCommandError"
 	message: string;
 }> {}
 
-export const stats = (config: RepositoryConfig, options: { organizationId: string }, deps: ResticDeps) => {
+export const stats = (
+	config: RepositoryConfig,
+	options: { organizationId: string; signal?: AbortSignal },
+	deps: ResticDeps,
+) => {
 	return Effect.tryPromise({
 		try: async () => {
 			const repoUrl = buildRepoUrl(config);
@@ -25,8 +29,13 @@ export const stats = (config: RepositoryConfig, options: { organizationId: strin
 			const args = ["--repo", repoUrl, "stats", "--mode", "raw-data"];
 			addCommonArgs(args, env, config);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
 			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic stats was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic stats retrieval failed: ${res.stderr}`);

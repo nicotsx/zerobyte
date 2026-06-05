@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
-import { tagSnapshots } from "../tag-snapshots";
+import { forget } from "../forget";
 import type { ResticDeps } from "../../types";
 import { Effect } from "effect";
 
@@ -22,38 +22,18 @@ const config = {
 };
 
 const setup = () => {
-	let capturedArgs: string[] = [];
-
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
-		capturedArgs = args ?? [];
+	vi.spyOn(nodeModule, "safeExec").mockImplementation(async () => {
 		return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
 	});
-
-	return {
-		getArgs: () => capturedArgs,
-	};
 };
 
 afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe("tagSnapshots command", () => {
-	test("treats flag-like snapshot IDs as positional args", async () => {
-		const { getArgs } = setup();
-		const snapshotIds = ["--help", "--password-command=sh -c 'id'"];
-
-		await Effect.runPromise(
-			tagSnapshots(config, snapshotIds, { add: ["keep"] }, { organizationId: "org-1" }, mockDeps),
-		);
-
-		const separatorIndex = getArgs().indexOf("--");
-		expect(separatorIndex).toBeGreaterThan(-1);
-		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
-	});
-
-	test("does not treat a cleanup-time abort as a failed successful tag", async () => {
+describe("forget command", () => {
+	test("does not treat a cleanup-time abort as a failed successful forget", async () => {
 		const controller = new AbortController();
 		setup();
 		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(async () => {
@@ -61,16 +41,15 @@ describe("tagSnapshots command", () => {
 		});
 
 		const result = await Effect.runPromise(
-			tagSnapshots(
+			forget(
 				config,
-				["snapshot-1"],
-				{ add: ["keep"] },
-				{ organizationId: "org-1", signal: controller.signal },
+				{ keepLast: 1 },
+				{ organizationId: "org-1", tag: "daily", signal: controller.signal },
 				mockDeps,
 			),
 		);
 
-		expect(result).toEqual({ success: true });
+		expect(result).toEqual({ success: true, data: null });
 		expect(cleanupModule.cleanupTemporaryKeys).toHaveBeenCalledTimes(1);
 	});
 });

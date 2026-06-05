@@ -16,7 +16,6 @@ import { NotFoundError } from "http-errors-enhanced";
 import { fromAny } from "@total-typescript/shoehorn";
 import { scheduleQueries } from "../backups.queries";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
-import { repoMutex } from "~/server/core/repository-mutex";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
 import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
@@ -26,6 +25,8 @@ import { db } from "~/server/db/db";
 import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { holdExclusiveLock } from "~/test/helpers/repository-mutex";
+import { repoMutex } from "~/server/core/repository-mutex";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -842,7 +843,7 @@ describe("stop backup", () => {
 			repositoryId: repository.id,
 		});
 
-		const releaseLock = await repoMutex.acquireExclusive(repository.id, "test");
+		const releaseLock = await holdExclusiveLock(repository.id, "test");
 		const executePromise = backupsService.executeBackup(schedule.id);
 
 		try {
@@ -857,7 +858,7 @@ describe("stop backup", () => {
 
 			await backupsService.stopBackup(schedule.id);
 		} finally {
-			releaseLock();
+			await releaseLock();
 		}
 
 		await executePromise;
@@ -868,6 +869,42 @@ describe("stop backup", () => {
 		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
 		expect(task?.status).toBe("cancelled");
 		expect(task?.cancellationRequested).toBe(true);
+		expect(resticBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("should cancel a queued backup when repository mutex shutdown aborts it", async () => {
+		const { resticBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		const releaseLock = await holdExclusiveLock(repository.id, "test");
+		const executePromise = backupsService.executeBackup(schedule.id);
+
+		try {
+			await waitForExpect(async () => {
+				const task = await getBackupTaskForSchedule(schedule.id);
+				expect(task?.status).toBe("queued");
+			});
+
+			expect(resticBackupMock).not.toHaveBeenCalled();
+
+			await repoMutex.shutdown({ timeoutMs: 10 });
+		} finally {
+			await releaseLock();
+		}
+
+		await executePromise;
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Repository mutex is shutting down");
+		expect(task?.status).toBe("cancelled");
+		expect(task?.error).toBe("Repository mutex is shutting down");
 		expect(resticBackupMock).not.toHaveBeenCalled();
 	});
 
@@ -1217,6 +1254,32 @@ describe("mirror operations", () => {
 		expect(updatedMirror?.lastCopyStatus).toBe("error");
 		expect(updatedMirror?.lastCopyError).toBe("Copy failed");
 		expect(updatedMirror?.lastCopyAt).not.toBeNull();
+	});
+
+	test("should clear mirror in-progress status when shutdown aborts copy", async () => {
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+
+		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.sync(() => {
+				throw new Error("Repository mutex is shutting down");
+			}),
+		);
+
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+
+		const mirrors = await backupsService.getMirrors(schedule.id);
+		const updatedMirror = mirrors.find((m) => m.id === mirror.id);
+		expect(updatedMirror?.lastCopyStatus).toBeNull();
+		expect(updatedMirror?.lastCopyError).toBeNull();
+		expect(resticCopyMock).toHaveBeenCalledTimes(1);
 	});
 
 	test("should run forget on mirror after successful copy when retention policy exists", async () => {

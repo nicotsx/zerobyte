@@ -29,6 +29,11 @@ type RestoreExecutionHandle = {
 
 const shouldRunInController = (agentId: string) => agentId === LOCAL_AGENT_ID && !appConfig.flags.enableLocalAgent;
 
+const isAbortLikeError = (error: unknown) => {
+	const message = toMessage(error);
+	return message === "Repository mutex is shutting down" || message === "Operation aborted";
+};
+
 const createRestoreRunPayload = async (request: RestoreExecutionRequest): Promise<RestoreRunPayload> => {
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(request.organizationId);
 	const resticPassword = await resticDeps.resolveSecret(encryptedResticPassword);
@@ -70,7 +75,7 @@ const executeControllerRestore = async (
 
 		return { status: "completed", result };
 	} catch (error) {
-		if (signal.aborted) {
+		if (signal.aborted || isAbortLikeError(error)) {
 			return { status: "cancelled", message: "Restore was cancelled" };
 		}
 
@@ -101,7 +106,7 @@ const executeAgentRestore = async (
 
 		return await started.result;
 	} catch (error) {
-		if (signal.aborted) {
+		if (signal.aborted || isAbortLikeError(error)) {
 			return { status: "cancelled", message: "Restore was cancelled" };
 		}
 
@@ -113,24 +118,25 @@ const executeRestoreWithRepositoryLock = async (
 	request: RestoreExecutionRequest,
 	signal: AbortSignal,
 ): Promise<RestoreExecutionResult> => {
-	let releaseLock: (() => void) | null = null;
-
 	try {
-		releaseLock = await repoMutex.acquireShared(request.repositoryId, `restore:${request.restoreId}`, signal);
+		return await repoMutex.runShared(
+			request.repositoryId,
+			`restore:${request.restoreId}`,
+			async ({ signal: operationSignal }) => {
+				if (shouldRunInController(request.executionAgentId)) {
+					return await executeControllerRestore(request, operationSignal);
+				}
 
-		if (shouldRunInController(request.executionAgentId)) {
-			return await executeControllerRestore(request, signal);
-		}
-
-		return await executeAgentRestore(request, signal);
+				return await executeAgentRestore(request, operationSignal);
+			},
+			signal,
+		);
 	} catch (error) {
-		if (signal.aborted) {
+		if (signal.aborted || isAbortLikeError(error)) {
 			return { status: "cancelled", message: "Restore was cancelled" };
 		}
 
 		return { status: "failed", error: toMessage(error) };
-	} finally {
-		releaseLock?.();
 	}
 };
 

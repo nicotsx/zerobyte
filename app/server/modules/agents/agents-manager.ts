@@ -431,7 +431,6 @@ export const agentManager = {
 			});
 			getActiveBackupScheduleIdsByJobId().set(request.payload.jobId, request.scheduleId);
 		});
-
 		try {
 			if (!(await Effect.runPromise(runtime.sendBackup(agentId, request.payload)))) {
 				clearActiveBackupRun(request.scheduleId);
@@ -441,11 +440,7 @@ export const agentManager = {
 				} satisfies BackupExecutionResult;
 			}
 
-			if (request.signal.aborted) {
-				await requestBackupCancellation(agentId, request.scheduleId);
-			}
-
-			return completion;
+			return await completion;
 		} catch (error) {
 			clearActiveBackupRun(request.scheduleId);
 			throw error;
@@ -494,7 +489,6 @@ export const agentManager = {
 				cancellationRequested: false,
 			});
 		});
-
 		try {
 			if (!(await Effect.runPromise(runtime.sendRestore(agentId, request.payload)))) {
 				clearActiveRestoreRun(request.payload.restoreId);
@@ -504,11 +498,10 @@ export const agentManager = {
 				};
 			}
 
-			if (request.signal.aborted) {
-				await requestRestoreCancellation(agentId, request.payload.restoreId);
-			}
-
-			return { status: "started", result: completion };
+			return {
+				status: "started",
+				result: completion,
+			};
 		} catch (error) {
 			clearActiveRestoreRun(request.payload.restoreId);
 			throw error;

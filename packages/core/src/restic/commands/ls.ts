@@ -60,7 +60,7 @@ export const ls = (
 	config: RepositoryConfig,
 	snapshotId: string,
 	path: string | undefined,
-	options: { organizationId: string; offset?: number; limit?: number },
+	options: { organizationId: string; offset?: number; limit?: number; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -92,6 +92,7 @@ export const ls = (
 				command: "restic",
 				args,
 				env,
+				signal: options.signal,
 				onStdout: (line) => {
 					const trimmedLine = line.trim();
 					if (!trimmedLine) {
@@ -131,6 +132,11 @@ export const ls = (
 			});
 
 			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic ls was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic ls failed: ${res.error}`);

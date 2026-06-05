@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
+import { repoMutex } from "../../../core/repository-mutex";
 import * as bootstrapModule from "../bootstrap";
 import { agentManager } from "../../agents/agents-manager";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -32,6 +33,9 @@ describe("shutdown", () => {
 		const stopApplicationRuntime = vi.fn(async () => {
 			events.push("agents.stop");
 		});
+		const shutdownRepoMutex = vi.fn(async () => {
+			events.push("repo-mutex.shutdown");
+		});
 		const runVolumeCommand = vi.spyOn(agentManager, "runVolumeCommand");
 
 		const volume = await createTestVolume({
@@ -45,13 +49,14 @@ describe("shutdown", () => {
 		});
 
 		vi.spyOn(Scheduler, "stop").mockImplementation(stopScheduler);
+		vi.spyOn(repoMutex, "shutdown").mockImplementation(shutdownRepoMutex);
 		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(stopApplicationRuntime);
 
 		const { shutdown } = await loadShutdownModule();
 
 		await shutdown();
 
-		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
+		expect(events).toEqual(["scheduler.stop", "repo-mutex.shutdown", "agents.stop"]);
 		expect(runVolumeCommand).not.toHaveBeenCalled();
 		const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
 		expect(updated).toBeDefined();
@@ -63,6 +68,9 @@ describe("shutdown", () => {
 		const events: string[] = [];
 		vi.spyOn(Scheduler, "stop").mockImplementation(async () => {
 			events.push("scheduler.stop");
+		});
+		vi.spyOn(repoMutex, "shutdown").mockImplementation(async () => {
+			events.push("repo-mutex.shutdown");
 		});
 		vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(async () => {
 			events.push("agents.stop");
@@ -82,7 +90,7 @@ describe("shutdown", () => {
 		await shutdown();
 
 		const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
-		expect(events).toEqual(["scheduler.stop", "agents.stop"]);
+		expect(events).toEqual(["scheduler.stop", "repo-mutex.shutdown", "agents.stop"]);
 		expect(runVolumeCommand).not.toHaveBeenCalled();
 		expect(updated).toBeDefined();
 		expect(updated!.status).toBe("mounted");

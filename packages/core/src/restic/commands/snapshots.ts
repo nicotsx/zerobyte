@@ -33,7 +33,7 @@ const snapshotInfoSchema = z.object({
 
 export const snapshots = (
 	config: RepositoryConfig,
-	options: { tags?: string[]; organizationId: string },
+	options: { tags?: string[]; organizationId: string; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -58,11 +58,17 @@ export const snapshots = (
 				command: "restic",
 				args,
 				env,
+				signal: options.signal,
 				onStdout: (line) => {
 					stdoutLines.push(line);
 				},
 			});
 			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic snapshots was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				const errorMessage = res.stderr || res.error;

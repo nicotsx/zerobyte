@@ -451,73 +451,80 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	let domainHandlerCompleted = false;
 
 	try {
-		const releaseLock = await repoMutex.acquireShared(
+		await repoMutex.runShared(
 			ctx.repository.id,
 			`backup:${ctx.volume.name}`,
+			async ({ signal }) => {
+				taskStore.markRunning(task.id);
+
+				const executionResult = await backupExecutor.execute({
+					jobId: task.id,
+					scheduleId,
+					trackedAbortController: abortController,
+					schedule: ctx.schedule,
+					volume: ctx.volume,
+					repository: ctx.repository,
+					organizationId: ctx.organizationId,
+					signal,
+					onProgress: (progress) => {
+						updateBackupProgress(ctx, progress);
+						try {
+							taskStore.updateProgress(task.id, { kind: "backup", progress });
+						} catch (error) {
+							logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
+						}
+					},
+				});
+
+				switch (executionResult.status) {
+					case "unavailable": {
+						await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+						domainHandlerCompleted = true;
+						taskStore.fail(task.id, toMessage(executionResult.error));
+						return;
+					}
+					case "completed":
+						await finalizeSuccessfulBackup(
+							ctx,
+							executionResult.exitCode,
+							executionResult.result,
+							executionResult.warningDetails,
+						);
+						domainHandlerCompleted = true;
+						taskStore.complete(task.id, {
+							kind: "backup",
+							exitCode: executionResult.exitCode,
+							result: executionResult.result,
+							warningDetails: executionResult.warningDetails,
+						});
+						return;
+					case "failed": {
+						await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
+						domainHandlerCompleted = true;
+						taskStore.fail(task.id, toMessage(executionResult.error));
+						return;
+					}
+					case "cancelled":
+						await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
+						domainHandlerCompleted = true;
+						taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
+						return;
+				}
+			},
 			abortController.signal,
 		);
-
-		try {
-			taskStore.markRunning(task.id);
-
-			const executionResult = await backupExecutor.execute({
-				jobId: task.id,
-				scheduleId,
-				schedule: ctx.schedule,
-				volume: ctx.volume,
-				repository: ctx.repository,
-				organizationId: ctx.organizationId,
-				signal: abortController.signal,
-				onProgress: (progress) => {
-					updateBackupProgress(ctx, progress);
-					try {
-						taskStore.updateProgress(task.id, { kind: "backup", progress });
-					} catch (error) {
-						logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
-					}
-				},
-			});
-
-			switch (executionResult.status) {
-				case "unavailable": {
-					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
-					domainHandlerCompleted = true;
-					taskStore.fail(task.id, toMessage(executionResult.error));
-					return;
-				}
-				case "completed":
-					await finalizeSuccessfulBackup(
-						ctx,
-						executionResult.exitCode,
-						executionResult.result,
-						executionResult.warningDetails,
-					);
-					domainHandlerCompleted = true;
-					taskStore.complete(task.id, {
-						kind: "backup",
-						exitCode: executionResult.exitCode,
-						result: executionResult.result,
-						warningDetails: executionResult.warningDetails,
-					});
-					return;
-				case "failed": {
-					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
-					domainHandlerCompleted = true;
-					taskStore.fail(task.id, toMessage(executionResult.error));
-					return;
-				}
-				case "cancelled":
-					await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
-					domainHandlerCompleted = true;
-					taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
-					return;
-			}
-		} finally {
-			releaseLock();
-		}
 	} catch (error) {
 		if (abortController.signal.aborted) {
-			taskStore.cancel(task.id, "Backup was stopped by the user");
+			const message = "Backup was stopped by the user";
+			await handleBackupCancellation(scheduleId, ctx.organizationId, message);
+			taskStore.cancel(task.id, message);
+			return;
+		}
+
+		if (toMessage(error) === "Repository mutex is shutting down") {
+			const message = toMessage(error);
+			await handleBackupCancellation(scheduleId, ctx.organizationId, message);
+			taskStore.cancel(task.id, message);
 			return;
 		}
 

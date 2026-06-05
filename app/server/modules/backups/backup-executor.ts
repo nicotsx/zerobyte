@@ -17,6 +17,7 @@ const IGNORE_INODE_FLAG = "--ignore-inode";
 type BackupExecutionRequest = {
 	jobId: string;
 	scheduleId: number;
+	trackedAbortController: AbortController;
 	schedule: BackupSchedule;
 	volume: Volume;
 	repository: Repository;
@@ -109,6 +110,19 @@ const executeBackupWithoutAgent = async (
 	);
 };
 
+const getTrackedExecution = (scheduleId: number, abortController: AbortController) => {
+	const trackedExecution = activeControllersByScheduleId.get(scheduleId);
+	if (!trackedExecution) {
+		throw new Error(`Backup execution for schedule ${scheduleId} was not tracked`);
+	}
+
+	if (trackedExecution.abortController !== abortController) {
+		throw new Error(`Backup execution for schedule ${scheduleId} was superseded`);
+	}
+
+	return trackedExecution;
+};
+
 export const backupExecutor = {
 	track: (scheduleId: number) => {
 		const abortController = new AbortController();
@@ -121,10 +135,7 @@ export const backupExecutor = {
 		}
 	},
 	execute: async (request: BackupExecutionRequest) => {
-		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
-		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
-			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
-		}
+		getTrackedExecution(request.scheduleId, request.trackedAbortController);
 
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
@@ -137,6 +148,7 @@ export const backupExecutor = {
 		}
 
 		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
+		const trackedExecution = getTrackedExecution(request.scheduleId, request.trackedAbortController);
 		trackedExecution.agentId = executionAgentId;
 
 		const executionResult = await agentManager.runBackup(executionAgentId, {
