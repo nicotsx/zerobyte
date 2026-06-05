@@ -18,7 +18,7 @@ export const tagSnapshots = (
 	config: RepositoryConfig,
 	snapshotIds: string[],
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
-	options: { organizationId: string },
+	options: { organizationId: string; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -53,8 +53,13 @@ export const tagSnapshots = (
 			addCommonArgs(args, env, config);
 			args.push("--", ...snapshotIds);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
 			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic snapshot tagging was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic snapshot tagging failed: ${res.stderr}`);

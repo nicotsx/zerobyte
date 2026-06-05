@@ -20,6 +20,7 @@ export async function runForget(scheduleId: number, repositoryId?: string, organ
 	if (!schedule.retentionPolicy) {
 		throw new BadRequestError("No retention policy configured for this schedule");
 	}
+	const retentionPolicy = schedule.retentionPolicy;
 
 	const repository = await repositoryQueries.findById(repositoryId ?? schedule.repositoryId, organizationId);
 
@@ -28,16 +29,12 @@ export async function runForget(scheduleId: number, repositoryId?: string, organ
 	}
 
 	logger.info(`running retention policy (forget) for schedule ${scheduleId}`);
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `forget:${scheduleId}`);
-
-	try {
+	await repoMutex.runExclusive(repository.id, `forget:${scheduleId}`, async ({ signal }) => {
 		await runEffectPromise(
-			restic.forget(repository.config, schedule.retentionPolicy, { tag: schedule.shortId, organizationId }),
+			restic.forget(repository.config, retentionPolicy, { tag: schedule.shortId, organizationId, signal }),
 		);
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
-	} finally {
-		releaseLock();
-	}
+	});
 
 	logger.info(`Retention policy applied successfully for schedule ${scheduleId}`);
 }
@@ -114,23 +111,23 @@ export async function syncSnapshotsToMirror(
 			lastCopyError: null,
 		});
 
-		const releaseLocks = await repoMutex.acquireMany([
-			{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_sync_source:${scheduleId}` },
-			{ repositoryId: mirrorRepository.id, type: "exclusive", operation: `mirror_sync:${scheduleId}` },
-		]);
-
-		try {
-			await runEffectPromise(
-				restic.copy(sourceRepository.config, mirrorRepository.config, {
-					tag: schedule.shortId,
-					organizationId,
-					snapshotIds,
-				}),
-			);
-			cache.delByPrefix(cacheKeys.repository.all(mirrorRepository.id));
-		} finally {
-			releaseLocks();
-		}
+		await repoMutex.runMany(
+			[
+				{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_sync_source:${scheduleId}` },
+				{ repositoryId: mirrorRepository.id, type: "exclusive", operation: `mirror_sync:${scheduleId}` },
+			],
+			async ({ signal }) => {
+				await runEffectPromise(
+					restic.copy(sourceRepository.config, mirrorRepository.config, {
+						tag: schedule.shortId,
+						organizationId,
+						snapshotIds,
+						signal,
+					}),
+				);
+				cache.delByPrefix(cacheKeys.repository.all(mirrorRepository.id));
+			},
+		);
 
 		if (schedule.retentionPolicy) {
 			void runForget(scheduleId, mirrorRepository.id, organizationId).catch((error) => {
@@ -204,22 +201,22 @@ async function copyToSingleMirror(
 			lastCopyError: null,
 		});
 
-		const releaseLocks = await repoMutex.acquireMany([
-			{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_source:${scheduleId}` },
-			{ repositoryId: mirror.repository.id, type: "exclusive", operation: `mirror:${scheduleId}` },
-		]);
-
-		try {
-			await runEffectPromise(
-				restic.copy(sourceRepository.config, mirror.repository.config, {
-					tag: schedule.shortId,
-					organizationId,
-				}),
-			);
-			cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));
-		} finally {
-			releaseLocks();
-		}
+		await repoMutex.runMany(
+			[
+				{ repositoryId: sourceRepository.id, type: "shared", operation: `mirror_source:${scheduleId}` },
+				{ repositoryId: mirror.repository.id, type: "exclusive", operation: `mirror:${scheduleId}` },
+			],
+			async ({ signal }) => {
+				await runEffectPromise(
+					restic.copy(sourceRepository.config, mirror.repository.config, {
+						tag: schedule.shortId,
+						organizationId,
+						signal,
+					}),
+				);
+				cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));
+			},
+		);
 
 		if (retentionPolicy) {
 			void runForget(scheduleId, mirror.repository.id, organizationId).catch((error) => {

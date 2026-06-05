@@ -22,6 +22,7 @@ import { ResticError } from "@zerobyte/core/restic/server";
 import { repoMutex } from "~/server/core/repository-mutex";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { repositoriesService } from "../repositories.service";
+import { holdExclusiveLock } from "~/test/helpers/repository-mutex";
 
 const createTestRepository = async (organizationId: string, overrides: Partial<RepositoryInsert> = {}) => {
 	const id = randomUUID();
@@ -220,9 +221,17 @@ describe("repositoriesService.listSnapshotFiles", () => {
 		let releaseAll = false;
 		let exclusiveAcquired = false;
 		let releaseExclusive: (() => void) | undefined;
-		let exclusivePromise: Promise<() => void> | undefined;
+		let exclusivePromise: Promise<void> | undefined;
 		const releaseWaiters: Array<() => void> = [];
 		const exclusiveController = new AbortController();
+		let resolveExclusiveStarted: () => void = () => {};
+		let resolveExclusiveReleased: () => void = () => {};
+		const exclusiveStarted = new Promise<void>((resolve) => {
+			resolveExclusiveStarted = resolve;
+		});
+		const exclusiveReleased = new Promise<void>((resolve) => {
+			resolveExclusiveReleased = resolve;
+		});
 
 		const releaseWaitingCommands = () => {
 			const waiters = releaseWaiters.splice(0);
@@ -300,22 +309,27 @@ describe("repositoriesService.listSnapshotFiles", () => {
 			});
 			expect(maxActive).toBe(2);
 
-			exclusivePromise = repoMutex
-				.acquireExclusive(repository.id, "delete", exclusiveController.signal)
-				.then((release) => {
+			exclusivePromise = repoMutex.runExclusive(
+				repository.id,
+				"delete",
+				async () => {
 					exclusiveAcquired = true;
-					releaseExclusive = release;
-					return release;
-				});
+					releaseExclusive = resolveExclusiveReleased;
+					resolveExclusiveStarted();
+					await exclusiveReleased;
+				},
+				exclusiveController.signal,
+			);
 
 			releaseWaitingCommands();
 
-			releaseExclusive = await resolveWithin(exclusivePromise, 2000);
+			await resolveWithin(exclusiveStarted, 2000);
 			expect(exclusiveAcquired).toBe(true);
 			expect(active).toBe(0);
 
-			releaseExclusive();
+			releaseExclusive?.();
 			releaseExclusive = undefined;
+			await resolveWithin(exclusivePromise, 2000);
 
 			await waitForExpect(() => {
 				expect(releaseWaiters).toHaveLength(2);
@@ -373,10 +387,11 @@ describe("repositoriesService.dumpSnapshot", () => {
 		snapshotPaths?: string[];
 	}) => {
 		const organizationId = session.organizationId;
+		const repositoryId = randomUUID();
 		const shortId = generateShortId();
 
 		await db.insert(repositoriesTable).values({
-			id: randomUUID(),
+			id: repositoryId,
 			shortId,
 			name: `Repository-${randomUUID()}`,
 			type: "local",
@@ -421,9 +436,26 @@ describe("repositoriesService.dumpSnapshot", () => {
 		return {
 			organizationId,
 			userId: session.user.id,
+			repositoryId,
 			shortId,
 			basePath,
 		};
+	};
+	const rejectWithin = async <T>(promise: Promise<T>, timeoutMs: number) => {
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		try {
+			return await Promise.race([
+				promise,
+				new Promise<T>((_resolve, reject) => {
+					timeout = setTimeout(
+						() => reject(new Error(`Expected promise to reject within ${timeoutMs}ms`)),
+						timeoutMs,
+					);
+				}),
+			]);
+		} finally {
+			clearTimeout(timeout);
+		}
 	};
 
 	test("returns a tar download rooted at the selected directory within the snapshot", async () => {
@@ -546,6 +578,29 @@ describe("repositoriesService.dumpSnapshot", () => {
 				archive: true,
 			}),
 		);
+	});
+
+	test("rejects when shutdown cancels the dump before it acquires the mutex", async () => {
+		const { organizationId, userId, repositoryId, shortId } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-shutdown",
+			basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+		});
+		const holderStarted = new Promise<AbortSignal>((resolve) => {
+			void repoMutex.runExclusive(repositoryId, "holder", async ({ signal }) => {
+				resolve(signal);
+				await new Promise<void>((done) => signal.addEventListener("abort", () => done(), { once: true }));
+			});
+		});
+
+		await holderStarted;
+		const dump = withContext({ organizationId, userId }, () =>
+			repositoriesService.dumpSnapshot(shortId, "snapshot-shutdown"),
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		await repoMutex.shutdown({ timeoutMs: 100 });
+
+		await expect(rejectWithin(dump, 1000)).rejects.toThrow("Repository mutex is shutting down");
 	});
 });
 
@@ -696,7 +751,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 		});
 		restoreMock.mockResolvedValueOnce({ status: "started", result: restoreResult });
 
-		const releaseExclusive = await repoMutex.acquireExclusive(repositoryId, "check");
+		const releaseExclusive = await holdExclusiveLock(repositoryId, "check");
 		let restoreId = "";
 		try {
 			const restoreStart = withContext({ organizationId, userId }, () =>
@@ -720,7 +775,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			expect(task?.id).toBe(restoreId);
 			expect(task?.status).toBe("queued");
 		} finally {
-			releaseExclusive();
+			await releaseExclusive();
 			await fs.rm(targetPath, { recursive: true, force: true });
 		}
 

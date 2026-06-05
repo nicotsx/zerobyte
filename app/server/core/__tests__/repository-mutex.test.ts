@@ -2,7 +2,19 @@ import { describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { repositoryLocksTable, repositoryLockWaitersTable } from "~/server/db/schema";
+import {
+	createDeferred,
+	holdExclusiveLock as holdExclusive,
+	holdManyLocks as holdMany,
+	holdSharedLock as holdShared,
+} from "~/test/helpers/repository-mutex";
 import { repoMutex } from "../repository-mutex";
+
+const loadRepositoryMutexModule = async () => {
+	const moduleUrl = new URL("../repository-mutex.ts", import.meta.url);
+	moduleUrl.searchParams.set("test", crypto.randomUUID());
+	return import(moduleUrl.href) as Promise<typeof import("../repository-mutex")>;
+};
 
 const acquireWithin = <T>(promise: Promise<T>, ms = 500) =>
 	Promise.race([
@@ -17,15 +29,15 @@ describe("RepositoryMutex", () => {
 		const repoId = "test-repo";
 		const results: string[] = [];
 
-		const releaseShared1 = await repoMutex.acquireShared(repoId, "backup-1");
+		const releaseShared1 = await holdShared(repoId, "backup-1");
 		results.push("acquired-shared-1");
 
-		const exclusivePromise = repoMutex.acquireExclusive(repoId, "unlock").then((release) => {
+		const exclusivePromise = holdExclusive(repoId, "unlock").then((release) => {
 			results.push("acquired-exclusive");
 			return release;
 		});
 
-		const shared2Promise = repoMutex.acquireShared(repoId, "backup-2").then((release) => {
+		const shared2Promise = holdShared(repoId, "backup-2").then((release) => {
 			results.push("acquired-shared-2");
 			return release;
 		});
@@ -34,33 +46,33 @@ describe("RepositoryMutex", () => {
 
 		expect(results).toEqual(["acquired-shared-1"]);
 
-		releaseShared1();
+		await releaseShared1();
 
 		const releaseExclusive = await exclusivePromise;
 		expect(results).toEqual(["acquired-shared-1", "acquired-exclusive"]);
 
-		releaseExclusive();
+		await releaseExclusive();
 
 		const releaseShared2 = await shared2Promise;
 		expect(results).toEqual(["acquired-shared-1", "acquired-exclusive", "acquired-shared-2"]);
 
-		releaseShared2();
+		await releaseShared2();
 	});
 
 	test("should remove aborted acquisitions from the wait queue", async () => {
 		const repoId = "abort-test";
 		const results: string[] = [];
 
-		const releaseShared1 = await repoMutex.acquireShared(repoId, "backup-1");
+		const releaseShared1 = await holdShared(repoId, "backup-1");
 		results.push("acquired-shared-1");
 
 		const controller = new AbortController();
-		const exclusivePromise = repoMutex.acquireExclusive(repoId, "unlock", controller.signal).catch((err) => {
+		const exclusivePromise = holdExclusive(repoId, "unlock", controller.signal).catch((err) => {
 			results.push("aborted-exclusive");
 			throw err;
 		});
 
-		const shared2Promise = repoMutex.acquireShared(repoId, "backup-2").then((release) => {
+		const shared2Promise = holdShared(repoId, "backup-2").then((release) => {
 			results.push("acquired-shared-2");
 			return release;
 		});
@@ -73,25 +85,25 @@ describe("RepositoryMutex", () => {
 		await expect(exclusivePromise).rejects.toThrow();
 		expect(results).toEqual(["acquired-shared-1", "aborted-exclusive"]);
 
-		releaseShared1();
+		await releaseShared1();
 
 		// After exclusive is aborted, shared-2 should be next
 		const releaseShared2 = await shared2Promise;
 		expect(results).toEqual(["acquired-shared-1", "aborted-exclusive", "acquired-shared-2"]);
 
-		releaseShared2();
+		await releaseShared2();
 	});
 
 	test("should handle multiple aborts correctly", async () => {
 		const repoId = "multi-abort";
-		const releaseShared1 = await repoMutex.acquireShared(repoId, "backup-1");
+		const releaseShared1 = await holdShared(repoId, "backup-1");
 
 		const controller1 = new AbortController();
 		const controller2 = new AbortController();
 
-		const p1 = repoMutex.acquireExclusive(repoId, "ex-1", controller1.signal);
-		const p2 = repoMutex.acquireExclusive(repoId, "ex-2", controller2.signal);
-		const p3 = repoMutex.acquireExclusive(repoId, "ex-3");
+		const p1 = holdExclusive(repoId, "ex-1", controller1.signal);
+		const p2 = holdExclusive(repoId, "ex-2", controller2.signal);
+		const p3 = holdExclusive(repoId, "ex-3");
 
 		controller2.abort();
 		await expect(p2).rejects.toThrow();
@@ -99,11 +111,11 @@ describe("RepositoryMutex", () => {
 		controller1.abort();
 		await expect(p1).rejects.toThrow();
 
-		releaseShared1();
+		await releaseShared1();
 
 		const releaseEx3 = await p3;
 		expect(releaseEx3).toBeDefined();
-		releaseEx3();
+		await releaseEx3();
 	});
 
 	test("should remove signal listener and not release unacquired lock on abort", async () => {
@@ -119,9 +131,9 @@ describe("RepositoryMutex", () => {
 		};
 
 		// Hold the lock so the next one has to wait
-		const release = await repoMutex.acquireExclusive(repoId, "holder");
+		const release = await holdExclusive(repoId, "holder");
 
-		const abortedAcquisition = repoMutex.acquireShared(repoId, "waiter", signal);
+		const abortedAcquisition = holdShared(repoId, "waiter", signal);
 
 		// Trigger abort while it's waiting
 		controller.abort();
@@ -130,21 +142,21 @@ describe("RepositoryMutex", () => {
 		expect(removed).toBe(true);
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
-		release();
+		await release();
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
 
 	test("should allow concurrent shared locks", async () => {
 		const repoId = "concurrent-shared";
-		const release1 = await repoMutex.acquireShared(repoId, "op1");
-		const release2 = await repoMutex.acquireShared(repoId, "op2");
-		const release3 = await repoMutex.acquireShared(repoId, "op3");
+		const release1 = await holdShared(repoId, "op1");
+		const release2 = await holdShared(repoId, "op2");
+		const release3 = await holdShared(repoId, "op3");
 
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
-		release1();
-		release2();
-		release3();
+		await release1();
+		await release2();
+		await release3();
 
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
@@ -153,10 +165,10 @@ describe("RepositoryMutex", () => {
 		const repoId = "shared-blocks-exclusive";
 		let exclusiveAcquired = false;
 
-		const releaseShared1 = await repoMutex.acquireShared(repoId, "s1");
-		const releaseShared2 = await repoMutex.acquireShared(repoId, "s2");
+		const releaseShared1 = await holdShared(repoId, "s1");
+		const releaseShared2 = await holdShared(repoId, "s2");
 
-		const exclusivePromise = repoMutex.acquireExclusive(repoId, "e1").then((release) => {
+		const exclusivePromise = holdExclusive(repoId, "e1").then((release) => {
 			exclusiveAcquired = true;
 			return release;
 		});
@@ -164,29 +176,29 @@ describe("RepositoryMutex", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(exclusiveAcquired).toBe(false);
 
-		releaseShared1();
+		await releaseShared1();
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(exclusiveAcquired).toBe(false); // still waiting for s2
 
-		releaseShared2();
+		await releaseShared2();
 		const releaseExclusive = await exclusivePromise;
 		expect(exclusiveAcquired).toBe(true);
 
-		releaseExclusive();
+		await releaseExclusive();
 	});
 
 	test("should block all locks while exclusive lock is held", async () => {
 		const repoId = "exclusive-blocks-all";
 		const results: string[] = [];
 
-		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		const releaseExclusive = await holdExclusive(repoId, "e1");
 		results.push("e1-acquired");
 
-		const s1Promise = repoMutex.acquireShared(repoId, "s1").then((release) => {
+		const s1Promise = holdShared(repoId, "s1").then((release) => {
 			results.push("s1-acquired");
 			return release;
 		});
-		const e2Promise = repoMutex.acquireExclusive(repoId, "e2").then((release) => {
+		const e2Promise = holdExclusive(repoId, "e2").then((release) => {
 			results.push("e2-acquired");
 			return release;
 		});
@@ -194,34 +206,34 @@ describe("RepositoryMutex", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(results).toEqual(["e1-acquired"]);
 
-		releaseExclusive();
+		await releaseExclusive();
 
 		const releaseS1 = await s1Promise;
 		expect(results).toEqual(["e1-acquired", "s1-acquired"]);
 
-		releaseS1();
+		await releaseS1();
 
 		const releaseE2 = await e2Promise;
 		expect(results).toEqual(["e1-acquired", "s1-acquired", "e2-acquired"]);
 
-		releaseE2();
+		await releaseE2();
 	});
 
 	test("should grant all waiting shared locks at once when exclusive lock is released", async () => {
 		const repoId = "batch-shared";
 		const results: string[] = [];
 
-		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		const releaseExclusive = await holdExclusive(repoId, "e1");
 
-		const s1Promise = repoMutex.acquireShared(repoId, "s1").then((release) => {
+		const s1Promise = holdShared(repoId, "s1").then((release) => {
 			results.push("s1");
 			return release;
 		});
-		const s2Promise = repoMutex.acquireShared(repoId, "s2").then((release) => {
+		const s2Promise = holdShared(repoId, "s2").then((release) => {
 			results.push("s2");
 			return release;
 		});
-		const s3Promise = repoMutex.acquireShared(repoId, "s3").then((release) => {
+		const s3Promise = holdShared(repoId, "s3").then((release) => {
 			results.push("s3");
 			return release;
 		});
@@ -229,7 +241,7 @@ describe("RepositoryMutex", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(results).toEqual([]);
 
-		releaseExclusive();
+		await releaseExclusive();
 
 		const [releaseS1, releaseS2, releaseS3] = await Promise.all([s1Promise, s2Promise, s3Promise]);
 
@@ -238,29 +250,27 @@ describe("RepositoryMutex", () => {
 		expect(results).toContain("s2");
 		expect(results).toContain("s3");
 
-		releaseS1();
-		releaseS2();
-		releaseS3();
+		await releaseS1();
+		await releaseS2();
+		await releaseS3();
 	});
 
 	test("should wait to acquire all many-lock requests before locking any repository", async () => {
-		const releaseSharedB = await repoMutex.acquireShared("repo-b", "holder-b");
+		const releaseSharedB = await holdShared("repo-b", "holder-b");
 		let manyAcquired = false;
 		let exclusiveAAcquired = false;
 
-		const manyPromise = repoMutex
-			.acquireMany([
-				{ repositoryId: "repo-b", type: "exclusive", operation: "many-b" },
-				{ repositoryId: "repo-a", type: "shared", operation: "many-a" },
-			])
-			.then((release) => {
-				manyAcquired = true;
-				return release;
-			});
+		const manyPromise = holdMany([
+			{ repositoryId: "repo-b", type: "exclusive", operation: "many-b" },
+			{ repositoryId: "repo-a", type: "shared", operation: "many-a" },
+		]).then((release) => {
+			manyAcquired = true;
+			return release;
+		});
 
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
-		const exclusiveAPromise = repoMutex.acquireExclusive("repo-a", "exclusive-a").then((release) => {
+		const exclusiveAPromise = holdExclusive("repo-a", "exclusive-a").then((release) => {
 			exclusiveAAcquired = true;
 			return release;
 		});
@@ -269,23 +279,23 @@ describe("RepositoryMutex", () => {
 		expect(exclusiveAAcquired).toBe(true);
 		expect(manyAcquired).toBe(false);
 
-		releaseSharedB();
+		await releaseSharedB();
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(manyAcquired).toBe(false);
 
 		const releaseExclusiveA = await exclusiveAPromise;
-		releaseExclusiveA();
+		await releaseExclusiveA();
 
 		const releaseMany = await manyPromise;
 		expect(manyAcquired).toBe(true);
-		releaseMany();
+		await releaseMany();
 	});
 
-	test("should abort acquireMany without leaving partial locks behind", async () => {
-		const releaseExclusiveB = await repoMutex.acquireExclusive("repo-b", "holder-b");
+	test("should abort runMany without leaving partial locks behind", async () => {
+		const releaseExclusiveB = await holdExclusive("repo-b", "holder-b");
 		const controller = new AbortController();
 
-		const manyPromise = repoMutex.acquireMany(
+		const manyPromise = holdMany(
 			[
 				{ repositoryId: "repo-b", type: "exclusive", operation: "many-b" },
 				{ repositoryId: "repo-a", type: "shared", operation: "many-a" },
@@ -296,7 +306,7 @@ describe("RepositoryMutex", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
 		let exclusiveAAcquired = false;
-		const exclusiveAPromise = repoMutex.acquireExclusive("repo-a", "exclusive-a").then((release) => {
+		const exclusiveAPromise = holdExclusive("repo-a", "exclusive-a").then((release) => {
 			exclusiveAAcquired = true;
 			return release;
 		});
@@ -310,17 +320,17 @@ describe("RepositoryMutex", () => {
 		const releaseExclusiveA = await exclusiveAPromise;
 		expect(exclusiveAAcquired).toBe(true);
 
-		releaseExclusiveA();
-		releaseExclusiveB();
+		await releaseExclusiveA();
+		await releaseExclusiveB();
 	});
 
-	test("should abort acquireMany if the signal aborts after waiting resolves", async () => {
+	test("should abort runMany if the signal aborts after waiting resolves", async () => {
 		const repoA = "many-abort-after-wake-a";
 		const repoB = "many-abort-after-wake-b";
-		const releaseExclusiveB = await repoMutex.acquireExclusive(repoB, "holder-b");
+		const releaseExclusiveB = await holdExclusive(repoB, "holder-b");
 		const controller = new AbortController();
 
-		const manyPromise = repoMutex.acquireMany(
+		const manyPromise = holdMany(
 			[
 				{ repositoryId: repoB, type: "exclusive", operation: "many-b" },
 				{ repositoryId: repoA, type: "shared", operation: "many-a" },
@@ -330,7 +340,7 @@ describe("RepositoryMutex", () => {
 
 		await new Promise((resolve) => setTimeout(resolve, 10));
 
-		releaseExclusiveB();
+		await releaseExclusiveB();
 		controller.abort(new Error("stop after wake"));
 
 		await expect(manyPromise).rejects.toThrow("stop after wake");
@@ -341,17 +351,17 @@ describe("RepositoryMutex", () => {
 	test("should not leave a promoted shared lock behind if that waiter aborts before observing acquisition", async () => {
 		vi.useFakeTimers();
 		const repoId = "shared-abort-after-promotion";
-		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "holder");
-		const firstSharedPromise = repoMutex.acquireShared(repoId, "shared-1");
+		const releaseExclusive = await holdExclusive(repoId, "holder");
+		const firstSharedPromise = holdShared(repoId, "shared-1");
 
 		try {
 			await vi.advanceTimersByTimeAsync(100);
 
 			const controller = new AbortController();
-			const secondSharedPromise = repoMutex.acquireShared(repoId, "shared-2", controller.signal);
+			const secondSharedPromise = holdShared(repoId, "shared-2", controller.signal);
 
 			await vi.advanceTimersByTimeAsync(140);
-			releaseExclusive();
+			await releaseExclusive();
 
 			// The first shared waiter wakes first and promotes both shared waiters.
 			await vi.advanceTimersByTimeAsync(10);
@@ -360,7 +370,7 @@ describe("RepositoryMutex", () => {
 			controller.abort(new Error("abort after promotion"));
 			await expect(secondSharedPromise).rejects.toThrow("abort after promotion");
 
-			releaseShared1();
+			await releaseShared1();
 
 			const remainingLocks = await db.query.repositoryLocksTable.findMany({
 				where: { repositoryId: { eq: repoId } },
@@ -378,14 +388,14 @@ describe("RepositoryMutex", () => {
 	test("should safely handle multiple calls to the release function", async () => {
 		const repoId = "idempotent-release";
 
-		const releaseShared = await repoMutex.acquireShared(repoId, "s1");
-		releaseShared();
-		releaseShared(); // Should not throw or cause issues
-		releaseShared();
+		const releaseShared = await holdShared(repoId, "s1");
+		await releaseShared();
+		await releaseShared(); // Should not throw or cause issues
+		await releaseShared();
 
-		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
-		releaseExclusive();
-		releaseExclusive(); // Should not throw
+		const releaseExclusive = await holdExclusive(repoId, "e1");
+		await releaseExclusive();
+		await releaseExclusive(); // Should not throw
 
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
@@ -395,8 +405,8 @@ describe("RepositoryMutex", () => {
 		const controller = new AbortController();
 		controller.abort(new Error("pre-aborted"));
 
-		await expect(repoMutex.acquireShared(repoId, "s1", controller.signal)).rejects.toThrow("pre-aborted");
-		await expect(repoMutex.acquireExclusive(repoId, "e1", controller.signal)).rejects.toThrow("pre-aborted");
+		await expect(holdShared(repoId, "s1", controller.signal)).rejects.toThrow("pre-aborted");
+		await expect(holdExclusive(repoId, "e1", controller.signal)).rejects.toThrow("pre-aborted");
 
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
@@ -406,22 +416,22 @@ describe("RepositoryMutex", () => {
 
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 
-		const releaseShared1 = await repoMutex.acquireShared(repoId, "s1");
+		const releaseShared1 = await holdShared(repoId, "s1");
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
-		const releaseShared2 = await repoMutex.acquireShared(repoId, "s2");
+		const releaseShared2 = await holdShared(repoId, "s2");
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
-		releaseShared1();
+		await releaseShared1();
 		expect(repoMutex.isLocked(repoId)).toBe(true); // still locked by s2
 
-		releaseShared2();
+		await releaseShared2();
 		expect(repoMutex.isLocked(repoId)).toBe(false); // all shared released
 
-		const releaseExclusive = await repoMutex.acquireExclusive(repoId, "e1");
+		const releaseExclusive = await holdExclusive(repoId, "e1");
 		expect(repoMutex.isLocked(repoId)).toBe(true);
 
-		releaseExclusive();
+		await releaseExclusive();
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
 
@@ -441,7 +451,7 @@ describe("RepositoryMutex", () => {
 			heartbeatAt: now - 10_000,
 		});
 
-		const releaseShared = await acquireWithin(repoMutex.acquireShared(repoId, "backup"));
+		const releaseShared = await acquireWithin(holdShared(repoId, "backup"));
 
 		try {
 			const expiredLock = await db.query.repositoryLocksTable.findFirst({
@@ -451,7 +461,7 @@ describe("RepositoryMutex", () => {
 			expect(expiredLock).toBeUndefined();
 			expect(repoMutex.isLocked(repoId)).toBe(true);
 		} finally {
-			releaseShared();
+			await releaseShared();
 			await db.delete(repositoryLocksTable).where(eq(repositoryLocksTable.repositoryId, repoId));
 		}
 	});
@@ -472,7 +482,7 @@ describe("RepositoryMutex", () => {
 			heartbeatAt: now - 10_000,
 		});
 
-		const releaseShared = await acquireWithin(repoMutex.acquireShared(repoId, "backup"));
+		const releaseShared = await acquireWithin(holdShared(repoId, "backup"));
 
 		try {
 			const expiredWaiter = await db.query.repositoryLockWaitersTable.findFirst({
@@ -482,7 +492,7 @@ describe("RepositoryMutex", () => {
 			expect(expiredWaiter).toBeUndefined();
 			expect(repoMutex.isLocked(repoId)).toBe(true);
 		} finally {
-			releaseShared();
+			await releaseShared();
 			await db.delete(repositoryLockWaitersTable).where(eq(repositoryLockWaitersTable.repositoryId, repoId));
 			await db.delete(repositoryLocksTable).where(eq(repositoryLocksTable.repositoryId, repoId));
 		}
@@ -491,7 +501,7 @@ describe("RepositoryMutex", () => {
 	test("should release only the caller lock row", async () => {
 		const repoId = "release-own-row";
 		const foreignLockId = "foreign-release-own-row";
-		const releaseShared = await repoMutex.acquireShared(repoId, "owned-shared");
+		const releaseShared = await holdShared(repoId, "owned-shared");
 		const now = Date.now();
 
 		try {
@@ -506,7 +516,7 @@ describe("RepositoryMutex", () => {
 				heartbeatAt: now,
 			});
 
-			releaseShared();
+			await releaseShared();
 
 			const remainingLocks = await db.query.repositoryLocksTable.findMany({
 				where: { repositoryId: { eq: repoId } },
@@ -516,8 +526,108 @@ describe("RepositoryMutex", () => {
 			expect(remainingLocks.map((lock) => lock.operation)).toEqual(["foreign-shared"]);
 			expect(repoMutex.isLocked(repoId)).toBe(true);
 		} finally {
-			releaseShared();
+			await releaseShared();
 			await db.delete(repositoryLocksTable).where(eq(repositoryLocksTable.repositoryId, repoId));
 		}
+	});
+
+	test("shutdown should abort an active managed operation and release its lock", async () => {
+		const repoId = "shutdown-active";
+		const started = createDeferred<AbortSignal>();
+		const operation = repoMutex.runShared(repoId, "active", async ({ signal }) => {
+			started.resolve(signal);
+			await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+		});
+
+		const signal = await started.promise;
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		await repoMutex.shutdown({ timeoutMs: 100 });
+		await operation;
+
+		expect(signal.aborted).toBe(true);
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("shutdown should abort queued managed operations before they start", async () => {
+		const repoId = "shutdown-queued";
+		const holderStarted = createDeferred<AbortSignal>();
+		const holder = repoMutex.runExclusive(repoId, "holder", async ({ signal }) => {
+			holderStarted.resolve(signal);
+			await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+		});
+		await holderStarted.promise;
+
+		let queuedStarted = false;
+		const queued = repoMutex.runShared(repoId, "queued", async () => {
+			queuedStarted = true;
+		});
+		const queuedResult = queued.then(
+			() => null,
+			(error: unknown) => error,
+		);
+
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		await repoMutex.shutdown({ timeoutMs: 100 });
+		await holder;
+
+		const queuedError = await queuedResult;
+		expect(queuedError).toBeInstanceOf(Error);
+		expect(String((queuedError as Error).message)).toContain("Repository mutex is shutting down");
+		expect(queuedStarted).toBe(false);
+
+		const remainingWaiters = await db.query.repositoryLockWaitersTable.findMany({
+			where: { repositoryId: { eq: repoId } },
+		});
+		expect(remainingWaiters).toEqual([]);
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("shutdown should release owned lock rows after the timeout when an operation ignores abort", async () => {
+		const repoId = "shutdown-timeout-release";
+		const started = createDeferred<AbortSignal>();
+		const finish = createDeferred();
+		const operation = repoMutex.runExclusive(repoId, "stuck", async ({ signal }) => {
+			started.resolve(signal);
+			await finish.promise;
+		});
+
+		const signal = await started.promise;
+		expect(repoMutex.isLocked(repoId)).toBe(true);
+
+		await repoMutex.shutdown({ timeoutMs: 10 });
+
+		expect(signal.aborted).toBe(true);
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+
+		finish.resolve();
+		await operation;
+		expect(repoMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("should reuse the same global repository mutex when the module is evaluated more than once", async () => {
+		const { repoMutex: reloadedMutex } = await loadRepositoryMutexModule();
+		const repoId = "shutdown-other-instance";
+		const started = createDeferred<AbortSignal>();
+		const operation = reloadedMutex.runShared(repoId, "active", async ({ signal }) => {
+			started.resolve(signal);
+			await new Promise<void>((resolve) => signal.addEventListener("abort", () => resolve(), { once: true }));
+		});
+
+		const signal = await started.promise;
+		expect(reloadedMutex).toBe(repoMutex);
+		expect(reloadedMutex.isLocked(repoId)).toBe(true);
+
+		await repoMutex.shutdown({ timeoutMs: 100 });
+		await operation;
+
+		expect(signal.aborted).toBe(true);
+		expect(reloadedMutex.isLocked(repoId)).toBe(false);
+	});
+
+	test("shutdown should be idempotent", async () => {
+		await Promise.all([repoMutex.shutdown({ timeoutMs: 10 }), repoMutex.shutdown({ timeoutMs: 10 })]);
+
+		await expect(repoMutex.runShared("post-shutdown", "op", () => "ok")).resolves.toBe("ok");
 	});
 });

@@ -122,7 +122,7 @@ export const backupExecutor = {
 	},
 	execute: async (request: BackupExecutionRequest) => {
 		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
-		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
+		if (!trackedExecution) {
 			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
 		}
 

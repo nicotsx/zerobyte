@@ -113,24 +113,25 @@ const executeRestoreWithRepositoryLock = async (
 	request: RestoreExecutionRequest,
 	signal: AbortSignal,
 ): Promise<RestoreExecutionResult> => {
-	let releaseLock: (() => void) | null = null;
-
 	try {
-		releaseLock = await repoMutex.acquireShared(request.repositoryId, `restore:${request.restoreId}`, signal);
+		return await repoMutex.runShared(
+			request.repositoryId,
+			`restore:${request.restoreId}`,
+			async ({ signal: operationSignal }) => {
+				if (shouldRunInController(request.executionAgentId)) {
+					return await executeControllerRestore(request, operationSignal);
+				}
 
-		if (shouldRunInController(request.executionAgentId)) {
-			return await executeControllerRestore(request, signal);
-		}
-
-		return await executeAgentRestore(request, signal);
+				return await executeAgentRestore(request, operationSignal);
+			},
+			signal,
+		);
 	} catch (error) {
 		if (signal.aborted) {
 			return { status: "cancelled", message: "Restore was cancelled" };
 		}
 
 		return { status: "failed", error: toMessage(error) };
-	} finally {
-		releaseLock?.();
 	}
 };
 

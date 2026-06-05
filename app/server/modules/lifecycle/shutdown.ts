@@ -1,4 +1,5 @@
 import { Scheduler } from "../../core/scheduler";
+import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
 import { logger } from "@zerobyte/core/node";
 import { stopApplicationRuntime } from "./bootstrap";
@@ -8,9 +9,7 @@ import { toMessage } from "../../utils/errors";
 import { config } from "../../core/config";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 
-export const shutdown = async () => {
-	await Scheduler.stop();
-
+const unmountVolumes = async () => {
 	if (!config.flags.enableLocalAgent) {
 		const volumes = await db.query.volumesTable.findMany({
 			where: { AND: [{ status: "mounted" }, { agentId: LOCAL_AGENT_ID }] },
@@ -24,6 +23,8 @@ export const shutdown = async () => {
 			logger.info(`Volume ${volume.name} unmount status: ${status}${error ? `, error: ${error}` : ""}`);
 		}
 	}
+};
 
-	await stopApplicationRuntime();
+export const shutdown = async () => {
+	await Promise.allSettled([Scheduler.stop(), repoMutex.shutdown(), unmountVolumes(), stopApplicationRuntime()]);
 };

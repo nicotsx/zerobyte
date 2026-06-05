@@ -18,7 +18,7 @@ class ResticForgetCommandError extends Data.TaggedError("ResticForgetCommandErro
 export const forget = (
 	config: RepositoryConfig,
 	options: RetentionPolicy,
-	extra: { tag: string; organizationId: string; dryRun?: boolean },
+	extra: { tag: string; organizationId: string; dryRun?: boolean; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -60,8 +60,13 @@ export const forget = (
 
 			addCommonArgs(args, env, config);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env, signal: extra.signal });
 			await cleanupTemporaryKeys(env, deps);
+
+			if (extra.signal?.aborted) {
+				logger.warn("Restic forget was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic forget failed: ${res.stderr}`);

@@ -18,7 +18,7 @@ class ResticCopyCommandError extends Data.TaggedError("ResticCopyCommandError")<
 export const copy = (
 	sourceConfig: RepositoryConfig,
 	destConfig: RepositoryConfig,
-	options: { organizationId: string; tag?: string; snapshotIds?: string[] },
+	options: { organizationId: string; tag?: string; snapshotIds?: string[]; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -63,10 +63,15 @@ export const copy = (
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
 
 			await cleanupTemporaryKeys(sourceEnv, deps);
 			await cleanupTemporaryKeys(destEnv, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic copy was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			const { stdout, stderr } = res;
 

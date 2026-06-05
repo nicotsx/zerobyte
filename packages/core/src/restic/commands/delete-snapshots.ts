@@ -17,7 +17,7 @@ class ResticDeleteSnapshotCommandError extends Data.TaggedError("ResticDeleteSna
 export const deleteSnapshots = (
 	config: RepositoryConfig,
 	snapshotIds: string[],
-	options: { organizationId: string },
+	options: { organizationId: string; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -33,8 +33,13 @@ export const deleteSnapshots = (
 			addCommonArgs(args, env, config);
 			args.push("--", ...snapshotIds);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: "restic", args, env, signal: options.signal });
 			await cleanupTemporaryKeys(env, deps);
+
+			if (options.signal?.aborted) {
+				logger.warn("Restic snapshot deletion was aborted by signal.");
+				throw new Error("Operation aborted");
+			}
 
 			if (res.exitCode !== 0) {
 				logger.error(`Restic snapshot deletion failed: ${res.stderr}`);
@@ -59,7 +64,7 @@ export const deleteSnapshots = (
 export const deleteSnapshot = (
 	config: RepositoryConfig,
 	snapshotId: string,
-	options: { organizationId: string },
+	options: { organizationId: string; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return deleteSnapshots(config, [snapshotId], options, deps);

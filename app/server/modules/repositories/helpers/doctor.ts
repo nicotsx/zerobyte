@@ -130,29 +130,30 @@ export const executeDoctor = async (
 	const organizationId = getOrganizationId();
 
 	try {
-		const releaseLock = await repoMutex.acquireExclusive(repositoryId, "doctor", signal);
+		await repoMutex.runExclusive(
+			repositoryId,
+			"doctor",
+			async ({ signal: operationSignal }) => {
+				// Step 1: Unlock repository
+				const unlockStep = await runUnlockStep(repositoryConfig, operationSignal);
+				steps.push(unlockStep);
+				checkAbortSignal(operationSignal);
 
-		try {
-			// Step 1: Unlock repository
-			const unlockStep = await runUnlockStep(repositoryConfig, signal);
-			steps.push(unlockStep);
-			checkAbortSignal(signal);
+				// Step 2: Check repository
+				const checkStep = await runCheckStep(repositoryConfig, operationSignal);
+				steps.push(checkStep);
+				checkAbortSignal(operationSignal);
 
-			// Step 2: Check repository
-			const checkStep = await runCheckStep(repositoryConfig, signal);
-			steps.push(checkStep);
-			checkAbortSignal(signal);
-
-			// Step 3: Repair index if suggested
-			const checkOutput = parseCheckOutput(checkStep.output);
-			if (checkOutput?.suggest_repair_index) {
-				const repairStep = await runRepairIndexStep(repositoryConfig, signal);
-				steps.push(repairStep);
-				checkAbortSignal(signal);
-			}
-		} finally {
-			releaseLock();
-		}
+				// Step 3: Repair index if suggested
+				const checkOutput = parseCheckOutput(checkStep.output);
+				if (checkOutput?.suggest_repair_index) {
+					const repairStep = await runRepairIndexStep(repositoryConfig, operationSignal);
+					steps.push(repairStep);
+					checkAbortSignal(operationSignal);
+				}
+			},
+			signal,
+		);
 
 		const finalStatus = determineRepositoryStatus(steps);
 		await saveDoctorResults(repositoryId, steps, finalStatus);

@@ -24,6 +24,24 @@ interface AcquiredLock {
 	acquiredAt: number;
 }
 
+interface RepositoryLease {
+	signal: AbortSignal;
+	release: () => void;
+}
+
+interface ActiveRepositoryOperation {
+	abortController: AbortController;
+	cleanup: () => void;
+	completion: Promise<unknown>;
+	release: (() => void) | null;
+}
+
+type RepositoryOperationContext = {
+	signal: AbortSignal;
+};
+
+type RepositoryOperation<T> = (context: RepositoryOperationContext) => T | Promise<T>;
+
 type RepositoryMutexTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type HeartbeatTarget = "lock" | "waiter";
 type QueueAttempt = { status: "acquired"; lock: AcquiredLock } | { status: "waiting" } | { status: "missing" };
@@ -32,11 +50,27 @@ const LOCK_LEASE_MS = 30_000;
 const LOCK_HEARTBEAT_MS = 5_000;
 const LOCK_POLL_MS = 250;
 const LOCK_POLL_CLEANUP_MS = 5_000;
+const SHUTDOWN_WAIT_MS = 5_000;
+const REPOSITORY_MUTEX_INSTANCE = Symbol.for("zerobyte.repositoryMutex.instance");
 
-class RepositoryMutex {
+function getRepositoryMutex() {
+	const globalObject = globalThis as typeof globalThis & Record<symbol, RepositoryMutex | undefined>;
+	const mutex = globalObject[REPOSITORY_MUTEX_INSTANCE];
+
+	if (mutex) return mutex;
+
+	const newMutex = new RepositoryMutex();
+	globalObject[REPOSITORY_MUTEX_INSTANCE] = newMutex;
+	return newMutex;
+}
+
+export class RepositoryMutex {
 	private ownerId = `owner_${Bun.randomUUIDv7()}`;
 	private heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
+	private activeOperations = new Map<string, ActiveRepositoryOperation>();
 	private nextPollCleanupAt = 0;
+	private shuttingDown = false;
+	private shutdownPromise: Promise<void> | null = null;
 
 	private generateLockId(): string {
 		return `lock_${Bun.randomUUIDv7()}`;
@@ -56,6 +90,126 @@ class RepositoryMutex {
 		if (!signal?.aborted) return;
 		releaseLock();
 		throw this.abortReason(signal);
+	}
+
+	private throwIfShuttingDown() {
+		if (this.shuttingDown) {
+			throw new Error("Repository mutex is shutting down");
+		}
+	}
+
+	private createOperationController(signal?: AbortSignal) {
+		const abortController = new AbortController();
+		const abortOperation = () => {
+			if (!abortController.signal.aborted) {
+				abortController.abort(signal ? this.abortReason(signal) : new Error("Operation aborted"));
+			}
+		};
+
+		if (signal?.aborted) {
+			abortOperation();
+		} else {
+			signal?.addEventListener("abort", abortOperation, { once: true });
+		}
+
+		return {
+			abortController,
+			cleanup: () => signal?.removeEventListener("abort", abortOperation),
+		};
+	}
+
+	private createLease(releaseLock: () => void, signal?: AbortSignal): RepositoryLease {
+		const abortController = new AbortController();
+		let released = false;
+		const abortLease = () => {
+			if (!abortController.signal.aborted) {
+				abortController.abort(signal ? this.abortReason(signal) : new Error("Operation aborted"));
+			}
+		};
+
+		if (signal?.aborted) {
+			abortLease();
+		} else {
+			signal?.addEventListener("abort", abortLease, { once: true });
+		}
+
+		return {
+			signal: abortController.signal,
+			release: () => {
+				if (released) return;
+
+				released = true;
+				signal?.removeEventListener("abort", abortLease);
+				releaseLock();
+			},
+		};
+	}
+
+	private async runWithLease<T>(lease: RepositoryLease, operation: RepositoryOperation<T>) {
+		try {
+			return await operation({ signal: lease.signal });
+		} finally {
+			lease.release();
+		}
+	}
+
+	private runManagedOperation<T>(
+		openLease: (signal: AbortSignal) => Promise<RepositoryLease>,
+		operation: RepositoryOperation<T>,
+		signal?: AbortSignal,
+	) {
+		this.throwIfShuttingDown();
+
+		const operationId = `operation_${Bun.randomUUIDv7()}`;
+		const { abortController, cleanup } = this.createOperationController(signal);
+		const activeOperation: ActiveRepositoryOperation = {
+			abortController,
+			cleanup,
+			completion: Promise.resolve(),
+			release: null,
+		};
+
+		const completion = (async () => {
+			const lease = await openLease(abortController.signal);
+			activeOperation.release = lease.release;
+			return await this.runWithLease(lease, operation);
+		})();
+
+		activeOperation.completion = completion.finally(() => {
+			cleanup();
+			this.activeOperations.delete(operationId);
+		});
+		this.activeOperations.set(operationId, activeOperation);
+
+		return activeOperation.completion as Promise<T>;
+	}
+
+	private waitForShutdownSettled(operations: ActiveRepositoryOperation[], timeoutMs: number) {
+		if (operations.length === 0) {
+			return Promise.resolve();
+		}
+
+		return new Promise<void>((resolve) => {
+			const timeout = setTimeout(resolve, timeoutMs);
+			void Promise.allSettled(operations.map((operation) => operation.completion)).then(() => {
+				clearTimeout(timeout);
+				resolve();
+			});
+		});
+	}
+
+	private releaseOwnedRows() {
+		db.transaction((tx) => {
+			tx.delete(repositoryLockWaitersTable).where(eq(repositoryLockWaitersTable.ownerId, this.ownerId)).run();
+			tx.delete(repositoryLocksTable).where(eq(repositoryLocksTable.ownerId, this.ownerId)).run();
+		});
+	}
+
+	private stopAllHeartbeats() {
+		for (const timer of this.heartbeatTimers.values()) {
+			clearInterval(timer);
+		}
+		this.heartbeatTimers.clear();
 	}
 
 	private waitForPoll(signal?: AbortSignal) {
@@ -328,40 +482,23 @@ class RepositoryMutex {
 		}
 	}
 
-	async acquireShared(repositoryId: string, operation: string, signal?: AbortSignal) {
+	private async openSingleLease(request: LockRequest, signal?: AbortSignal) {
 		this.throwIfAborted(signal);
 
-		const request: LockRequest = { repositoryId, type: "shared", operation };
 		const releaseLock = this.tryAcquireImmediately(request, signal);
 		if (releaseLock) {
-			return releaseLock;
+			return this.createLease(releaseLock, signal);
 		}
 
-		logger.debug(`[Mutex] Waiting for shared lock on repo ${repositoryId}: ${operation}`);
-		return await this.waitForQueuedLock(request, signal);
+		logger.debug(`[Mutex] Waiting for ${request.type} lock on repo ${request.repositoryId}: ${request.operation}`);
+		return this.createLease(await this.waitForQueuedLock(request, signal), signal);
 	}
 
-	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-
-		const request: LockRequest = { repositoryId, type: "exclusive", operation };
-		const releaseLock = this.tryAcquireImmediately(request, signal);
-		if (releaseLock) {
-			logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
-			return releaseLock;
-		}
-
-		logger.debug(`[Mutex] Waiting for exclusive lock on repo ${repositoryId}: ${operation}`);
-		const queuedReleaseLock = await this.waitForQueuedLock(request, signal);
-		logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
-		return queuedReleaseLock;
-	}
-
-	async acquireMany(requests: LockRequest[], signal?: AbortSignal) {
+	private async openManyLease(requests: LockRequest[], signal?: AbortSignal) {
 		this.throwIfAborted(signal);
 
 		if (requests.length === 0) {
-			return () => {};
+			return this.createLease(() => {}, signal);
 		}
 
 		const seenRepositoryIds = new Set<string>();
@@ -379,11 +516,85 @@ class RepositoryMutex {
 				const releaseLocks = this.createReleaseMany(locks);
 				this.releaseIfAborted(releaseLocks, signal);
 
-				return releaseLocks;
+				return this.createLease(releaseLocks, signal);
 			}
 
 			await this.waitForPoll(signal);
 		}
+	}
+
+	async runShared<T>(
+		repositoryId: string,
+		operation: string,
+		callback: RepositoryOperation<T>,
+		signal?: AbortSignal,
+	) {
+		return this.runManagedOperation(
+			(operationSignal) => this.openSingleLease({ repositoryId, type: "shared", operation }, operationSignal),
+			callback,
+			signal,
+		);
+	}
+
+	async runExclusive<T>(
+		repositoryId: string,
+		operation: string,
+		callback: RepositoryOperation<T>,
+		signal?: AbortSignal,
+	) {
+		return this.runManagedOperation(
+			async (operationSignal) => {
+				const lease = await this.openSingleLease(
+					{ repositoryId, type: "exclusive", operation },
+					operationSignal,
+				);
+				logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
+				return lease;
+			},
+			callback,
+			signal,
+		);
+	}
+
+	async runMany<T>(requests: LockRequest[], callback: RepositoryOperation<T>, signal?: AbortSignal) {
+		return this.runManagedOperation(
+			(operationSignal) => this.openManyLease(requests, operationSignal),
+			callback,
+			signal,
+		);
+	}
+
+	async shutdown(options: { timeoutMs?: number } = {}) {
+		if (this.shutdownPromise) {
+			return await this.shutdownPromise;
+		}
+
+		this.shuttingDown = true;
+		this.shutdownPromise = (async () => {
+			const activeOperations = [...this.activeOperations.values()];
+			const reason = new Error("Repository mutex is shutting down");
+
+			for (const operation of activeOperations) {
+				if (!operation.abortController.signal.aborted) {
+					operation.abortController.abort(reason);
+				}
+			}
+
+			await this.waitForShutdownSettled(activeOperations, options.timeoutMs ?? SHUTDOWN_WAIT_MS);
+
+			for (const operation of activeOperations) {
+				operation.release?.();
+				operation.cleanup();
+			}
+
+			this.releaseOwnedRows();
+			this.stopAllHeartbeats();
+		})().finally(() => {
+			this.shuttingDown = false;
+			this.shutdownPromise = null;
+		});
+
+		return await this.shutdownPromise;
 	}
 
 	isLocked(repositoryId: string) {
@@ -493,4 +704,4 @@ class RepositoryMutex {
 	}
 }
 
-export const repoMutex = new RepositoryMutex();
+export const repoMutex = getRepositoryMutex();

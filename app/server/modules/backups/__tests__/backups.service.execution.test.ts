@@ -16,7 +16,6 @@ import { NotFoundError } from "http-errors-enhanced";
 import { fromAny } from "@total-typescript/shoehorn";
 import { scheduleQueries } from "../backups.queries";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
-import { repoMutex } from "~/server/core/repository-mutex";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
 import { agentManager } from "~/server/modules/agents/agents-manager";
 import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
@@ -26,6 +25,7 @@ import { db } from "~/server/db/db";
 import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { holdExclusiveLock } from "~/test/helpers/repository-mutex";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -842,7 +842,7 @@ describe("stop backup", () => {
 			repositoryId: repository.id,
 		});
 
-		const releaseLock = await repoMutex.acquireExclusive(repository.id, "test");
+		const releaseLock = await holdExclusiveLock(repository.id, "test");
 		const executePromise = backupsService.executeBackup(schedule.id);
 
 		try {
@@ -857,7 +857,7 @@ describe("stop backup", () => {
 
 			await backupsService.stopBackup(schedule.id);
 		} finally {
-			releaseLock();
+			await releaseLock();
 		}
 
 		await executePromise;

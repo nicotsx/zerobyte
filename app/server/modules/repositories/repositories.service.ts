@@ -334,10 +334,9 @@ const getRepository = async (shortId: ShortId) => {
 };
 
 const runAndStoreRepositoryStats = async (repository: Repository): Promise<ResticStatsDto> => {
-	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
-	try {
+	return repoMutex.runShared(repository.id, "stats", async ({ signal }) => {
 		const stats = await runEffectPromise(
-			restic.stats(repository.config, { organizationId: repository.organizationId }),
+			restic.stats(repository.config, { organizationId: repository.organizationId, signal }),
 		);
 
 		await db
@@ -351,9 +350,7 @@ const runAndStoreRepositoryStats = async (repository: Repository): Promise<Resti
 			);
 
 		return stats;
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const refreshRepositoryStats = async (shortId: ShortId) => {
@@ -419,24 +416,21 @@ const listSnapshots = async (shortId: ShortId, backupId?: ShortId) => {
 		return cached;
 	}
 
-	const releaseLock = await repoMutex.acquireShared(repository.id, "snapshots");
-	try {
+	return repoMutex.runShared(repository.id, "snapshots", async ({ signal }) => {
 		let snapshots = [];
 
 		if (backupId) {
 			snapshots = await runEffectPromise(
-				restic.snapshots(repository.config, { tags: [backupId], organizationId }),
+				restic.snapshots(repository.config, { tags: [backupId], organizationId, signal }),
 			);
 		} else {
-			snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
+			snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId, signal }));
 		}
 
 		cache.set(cacheKey, snapshots);
 
 		return snapshots;
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const listSnapshotFiles = async (
@@ -483,10 +477,9 @@ const listSnapshotFiles = async (
 	await runEffectPromise(limiter.take(1));
 
 	try {
-		const releaseLock = await repoMutex.acquireShared(repository.id, `ls:${snapshotId}`);
-		try {
+		return await repoMutex.runShared(repository.id, `ls:${snapshotId}`, async ({ signal }) => {
 			const result = await runEffectPromise(
-				restic.ls(repository.config, snapshotId, path, { organizationId, offset, limit }),
+				restic.ls(repository.config, snapshotId, path, { organizationId, offset, limit, signal }),
 			);
 
 			if (!result.snapshot) {
@@ -511,9 +504,7 @@ const listSnapshotFiles = async (
 			cache.set(cacheKey, result);
 
 			return response;
-		} finally {
-			releaseLock();
-		}
+		});
 	} finally {
 		await runEffectPromise(limiter.release(1));
 	}
@@ -616,60 +607,71 @@ const dumpSnapshot = async (shortId: ShortId, snapshotId: string, path?: string,
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireShared(repository.id, `dump:${snapshotId}`);
-	let dumpStream: ResticDumpStream | null = null;
+	type DumpSnapshotResult = ResticDumpStream & { filename: string; contentType: string };
+	let resolveStarted: (result: DumpSnapshotResult) => void = () => {};
+	let rejectStarted: (error: unknown) => void = () => {};
+	const started = new Promise<DumpSnapshotResult>((resolve, reject) => {
+		resolveStarted = resolve;
+		rejectStarted = reject;
+	});
+	let lockCompletion: Promise<void>;
 
-	try {
-		const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
-		const preparedDump = prepareSnapshotDump({
-			snapshotId,
-			snapshotPaths: snapshot.paths,
-			requestedPath: path,
-		});
-		const dumpOptions: Parameters<typeof restic.dump>[2] = {
-			organizationId,
-			path: preparedDump.path,
-		};
+	// The response returns once the stream opens, but the lock must stay held until the stream finishes.
+	lockCompletion = repoMutex.runShared(repository.id, `dump:${snapshotId}`, async ({ signal }) => {
+		let dumpStream: ResticDumpStream | null = null;
+		try {
+			const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
+			const preparedDump = prepareSnapshotDump({
+				snapshotId,
+				snapshotPaths: snapshot.paths,
+				requestedPath: path,
+			});
+			const dumpOptions: Parameters<typeof restic.dump>[2] = {
+				organizationId,
+				path: preparedDump.path,
+				signal,
+			};
 
-		let filename = preparedDump.filename;
-		let contentType = "application/x-tar";
+			let filename = preparedDump.filename;
+			let contentType = "application/x-tar";
 
-		if (path && preparedDump.path !== "/") {
-			if (!kind) {
-				throw new BadRequestError("Path kind is required when downloading a specific snapshot path");
-			}
+			if (path && preparedDump.path !== "/") {
+				if (!kind) {
+					throw new BadRequestError("Path kind is required when downloading a specific snapshot path");
+				}
 
-			if (kind === "file") {
-				dumpOptions.archive = false;
-				contentType = "application/octet-stream";
-				const fileName = nodePath.posix.basename(preparedDump.path);
-				if (fileName) {
-					filename = fileName;
+				if (kind === "file") {
+					dumpOptions.archive = false;
+					contentType = "application/octet-stream";
+					const fileName = nodePath.posix.basename(preparedDump.path);
+					if (fileName) {
+						filename = fileName;
+					}
 				}
 			}
+
+			dumpStream = await runEffectPromise(restic.dump(repository.config, preparedDump.snapshotRef, dumpOptions));
+
+			serverEvents.emit("dump:started", {
+				organizationId,
+				repositoryId: repository.shortId,
+				snapshotId,
+				path: preparedDump.path,
+				filename,
+			});
+
+			resolveStarted({ ...dumpStream, completion: lockCompletion, filename, contentType });
+
+			await dumpStream.completion;
+		} catch (error) {
+			rejectStarted(error);
+			dumpStream?.abort();
+			throw error;
 		}
+	});
+	void lockCompletion.catch(rejectStarted);
 
-		dumpStream = await runEffectPromise(restic.dump(repository.config, preparedDump.snapshotRef, dumpOptions));
-
-		serverEvents.emit("dump:started", {
-			organizationId,
-			repositoryId: repository.shortId,
-			snapshotId,
-			path: preparedDump.path,
-			filename,
-		});
-
-		const completion = dumpStream.completion.finally(releaseLock);
-		void completion.catch(() => {});
-
-		return { ...dumpStream, completion, filename, contentType };
-	} catch (error) {
-		if (dumpStream) {
-			dumpStream.abort();
-		}
-		releaseLock();
-		throw error;
-	}
+	return await started;
 };
 
 const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
@@ -684,13 +686,10 @@ const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 	let snapshots = cache.get<Effect.Effect.Success<ReturnType<typeof restic.snapshots>>>(cacheKey);
 
 	if (!snapshots) {
-		const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);
-		try {
-			snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
-			cache.set(cacheKey, snapshots);
-		} finally {
-			releaseLock();
-		}
+		snapshots = await repoMutex.runShared(repository.id, `snapshot_details:${snapshotId}`, async ({ signal }) => {
+			return await runEffectPromise(restic.snapshots(repository.config, { organizationId, signal }));
+		});
+		cache.set(cacheKey, snapshots);
 	}
 
 	const snapshot = snapshots.find((snap) => snap.id === snapshotId || snap.short_id === snapshotId);
@@ -712,9 +711,10 @@ const checkHealth = async (shortId: ShortId) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, "check");
-	try {
-		const { hasErrors, error } = await runEffectPromise(restic.check(repository.config, { organizationId }));
+	return repoMutex.runExclusive(repository.id, "check", async ({ signal }) => {
+		const { hasErrors, error } = await runEffectPromise(
+			restic.check(repository.config, { organizationId, signal }),
+		);
 
 		await db
 			.update(repositoriesTable)
@@ -731,9 +731,7 @@ const checkHealth = async (shortId: ShortId) => {
 			);
 
 		return { lastError: error };
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const startDoctor = async (shortId: ShortId) => {
@@ -810,18 +808,15 @@ const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
-	try {
-		await runEffectPromise(restic.deleteSnapshot(repository.config, snapshotId, { organizationId }));
+	await repoMutex.runExclusive(repository.id, `delete:${snapshotId}`, async ({ signal }) => {
+		await runEffectPromise(restic.deleteSnapshot(repository.config, snapshotId, { organizationId, signal }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 		void runAndStoreRepositoryStats(repository).catch((error) => {
 			logger.error(
 				`Failed to refresh repository stats after snapshot deletion for ${repository.shortId}: ${toMessage(error)}`,
 			);
 		});
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
@@ -833,14 +828,11 @@ const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
 	}
 
 	let shouldRefreshStats = false;
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
-	try {
-		await runEffectPromise(restic.deleteSnapshots(repository.config, snapshotIds, { organizationId }));
+	await repoMutex.runExclusive(repository.id, `delete:bulk`, async ({ signal }) => {
+		await runEffectPromise(restic.deleteSnapshots(repository.config, snapshotIds, { organizationId, signal }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
 		shouldRefreshStats = true;
-	} finally {
-		releaseLock();
-	}
+	});
 
 	if (!shouldRefreshStats) {
 		return;
@@ -865,13 +857,10 @@ const tagSnapshots = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `tag:bulk`);
-	try {
-		await runEffectPromise(restic.tagSnapshots(repository.config, snapshotIds, tags, { organizationId }));
+	await repoMutex.runExclusive(repository.id, `tag:bulk`, async ({ signal }) => {
+		await runEffectPromise(restic.tagSnapshots(repository.config, snapshotIds, tags, { organizationId, signal }));
 		cache.delByPrefix(cacheKeys.repository.all(repository.id));
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const refreshSnapshots = async (shortId: ShortId) => {
@@ -884,9 +873,8 @@ const refreshSnapshots = async (shortId: ShortId) => {
 
 	cache.delByPrefix(cacheKeys.repository.all(repository.id));
 
-	const releaseLock = await repoMutex.acquireShared(repository.id, "refresh");
-	try {
-		const snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId }));
+	return repoMutex.runShared(repository.id, "refresh", async ({ signal }) => {
+		const snapshots = await runEffectPromise(restic.snapshots(repository.config, { organizationId, signal }));
 		const cacheKey = cacheKeys.repository.snapshots(repository.id);
 		cache.set(cacheKey, snapshots);
 
@@ -894,9 +882,7 @@ const refreshSnapshots = async (shortId: ShortId) => {
 			message: "Snapshot cache cleared and refreshed",
 			count: snapshots.length,
 		};
-	} finally {
-		releaseLock();
-	}
+	});
 };
 
 const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody) => {
@@ -982,13 +968,9 @@ const unlockRepository = async (shortId: ShortId) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, "unlock");
-	try {
-		const result = await runEffectPromise(restic.unlock(repository.config, { organizationId }));
-		return result;
-	} finally {
-		releaseLock();
-	}
+	return repoMutex.runExclusive(repository.id, "unlock", async ({ signal }) => {
+		return await runEffectPromise(restic.unlock(repository.config, { organizationId, signal }));
+	});
 };
 
 const execResticCommand = async (
