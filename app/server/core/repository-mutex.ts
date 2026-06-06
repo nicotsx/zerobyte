@@ -7,6 +7,7 @@ import {
 	type RepositoryLock,
 	type RepositoryLockWaiter,
 } from "../db/schema";
+import { Effect, Exit, Fiber, Schedule, Scope } from "effect";
 
 type LockType = "shared" | "exclusive";
 
@@ -35,55 +36,16 @@ const LOCK_POLL_CLEANUP_MS = 5_000;
 
 class RepositoryMutex {
 	private ownerId = `owner_${Bun.randomUUIDv7()}`;
-	private heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
 	private nextPollCleanupAt = 0;
 
 	private generateLockId(): string {
 		return `lock_${Bun.randomUUIDv7()}`;
 	}
 
-	private abortReason(signal: AbortSignal) {
-		return signal.reason || new Error("Operation aborted");
-	}
-
 	private throwIfAborted(signal?: AbortSignal) {
 		if (signal?.aborted) {
-			throw this.abortReason(signal);
+			throw signal.reason || new Error("Operation aborted");
 		}
-	}
-
-	private releaseIfAborted(releaseLock: () => void, signal?: AbortSignal) {
-		if (!signal?.aborted) return;
-		releaseLock();
-		throw this.abortReason(signal);
-	}
-
-	private waitForPoll(signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-
-		return new Promise<void>((resolve, reject) => {
-			let settled = false;
-			const timeout = setTimeout(() => settle(resolve), LOCK_POLL_MS);
-
-			const onAbort = () => {
-				settle(() => reject(this.abortReason(signal!)));
-			};
-
-			const cleanup = () => {
-				clearTimeout(timeout);
-				signal?.removeEventListener("abort", onAbort);
-			};
-
-			const settle = (callback: () => void) => {
-				if (settled) return;
-
-				settled = true;
-				cleanup();
-				callback();
-			};
-
-			signal?.addEventListener("abort", onAbort, { once: true });
-		});
 	}
 
 	private cleanupExpired(tx: RepositoryMutexTransaction, now: number) {
@@ -181,43 +143,50 @@ class RepositoryMutex {
 		});
 	}
 
-	private tryAcquireImmediately(request: LockRequest, signal?: AbortSignal) {
-		const locks = this.tryAcquireManyRows([request]);
-		if (!locks || locks.length === 0) return null;
+	private tryAcquireImmediately(request: LockRequest) {
+		return Effect.gen(this, function* () {
+			const locks = this.tryAcquireManyRows([request]);
+			if (!locks || locks.length === 0) return null;
 
-		const [lock] = locks;
-		const releaseLock = this.createRelease(lock);
-		this.releaseIfAborted(releaseLock, signal);
-
-		return releaseLock;
+			const [lock] = locks;
+			return yield* this.createRelease(lock);
+		});
 	}
 
 	private createWaiter(request: LockRequest, waiterId: string) {
 		const now = Date.now();
 
-		db.transaction((tx) => {
-			this.cleanupExpired(tx, now);
-			tx.insert(repositoryLockWaitersTable)
-				.values({
-					id: waiterId,
-					repositoryId: request.repositoryId,
-					type: request.type,
-					operation: request.operation,
-					ownerId: this.ownerId,
-					requestedAt: now,
-					expiresAt: now + LOCK_LEASE_MS,
-					heartbeatAt: now,
-				})
-				.run();
+		return Effect.sync(() => {
+			db.transaction((tx) => {
+				this.cleanupExpired(tx, now);
+				tx.insert(repositoryLockWaitersTable)
+					.values({
+						id: waiterId,
+						repositoryId: request.repositoryId,
+						type: request.type,
+						operation: request.operation,
+						ownerId: this.ownerId,
+						requestedAt: now,
+						expiresAt: now + LOCK_LEASE_MS,
+						heartbeatAt: now,
+					})
+					.run();
+			});
 		});
 	}
 
 	private deleteWaiter(waiterId: string) {
-		db.delete(repositoryLockWaitersTable)
-			.where(
-				and(eq(repositoryLockWaitersTable.id, waiterId), eq(repositoryLockWaitersTable.ownerId, this.ownerId)),
-			)
-			.run();
+		return Effect.sync(() =>
+			db
+				.delete(repositoryLockWaitersTable)
+				.where(
+					and(
+						eq(repositoryLockWaitersTable.id, waiterId),
+						eq(repositoryLockWaitersTable.ownerId, this.ownerId),
+					),
+				)
+				.run(),
+		);
 	}
 
 	private deleteWaiterRow(tx: RepositoryMutexTransaction, waiterId: string): void {
@@ -293,97 +262,49 @@ class RepositoryMutex {
 		});
 	}
 
-	private async waitForQueuedLock(request: LockRequest, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-
+	private waitForQueuedLock(request: LockRequest) {
 		const waiterId = this.generateLockId();
-		this.createWaiter(request, waiterId);
-		this.startHeartbeat("waiter", waiterId);
 
-		try {
-			while (true) {
-				this.throwIfAborted(signal);
-
-				const attempt = this.tryPromoteWaiter(waiterId);
+		const attempt = Effect.sync(() => this.tryPromoteWaiter(waiterId)).pipe(
+			Effect.flatMap((attempt) => {
 				if (attempt.status === "acquired") {
-					this.stopHeartbeat(waiterId);
-					const releaseLock = this.createRelease(attempt.lock);
-					this.releaseIfAborted(releaseLock, signal);
-
-					return releaseLock;
+					return Effect.succeed(attempt.lock);
 				}
 
 				if (attempt.status === "missing") {
-					this.createWaiter(request, waiterId);
-					this.startHeartbeat("waiter", waiterId);
+					return Effect.gen(this, function* () {
+						yield* this.createWaiter(request, waiterId);
+						yield* this.startHeartbeat("waiter", waiterId);
+
+						return yield* Effect.fail("retry");
+					});
 				}
 
-				await this.waitForPoll(signal);
-			}
-		} catch (error) {
-			this.stopHeartbeat(waiterId);
-			this.deleteWaiter(waiterId);
-			this.release({ id: waiterId });
-			throw error;
-		}
-	}
+				return Effect.fail("retry");
+			}),
+		);
 
-	async acquireShared(repositoryId: string, operation: string, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
+		const cleanupAbandonedWaiter = Effect.gen(this, function* () {
+			yield* this.deleteWaiter(waiterId);
+			yield* this.release({ id: waiterId });
+		});
 
-		const request: LockRequest = { repositoryId, type: "shared", operation };
-		const releaseLock = this.tryAcquireImmediately(request, signal);
-		if (releaseLock) {
-			return releaseLock;
-		}
+		return Effect.scoped(
+			Effect.gen(this, function* () {
+				const lock = yield* attempt.pipe(
+					Effect.retry(Schedule.spaced(LOCK_POLL_MS)),
+					Effect.onExit((exit) => {
+						if (Exit.isSuccess(exit)) {
+							return Effect.void;
+						}
 
-		logger.debug(`[Mutex] Waiting for shared lock on repo ${repositoryId}: ${operation}`);
-		return await this.waitForQueuedLock(request, signal);
-	}
+						return cleanupAbandonedWaiter;
+					}),
+				);
 
-	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-
-		const request: LockRequest = { repositoryId, type: "exclusive", operation };
-		const releaseLock = this.tryAcquireImmediately(request, signal);
-		if (releaseLock) {
-			logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
-			return releaseLock;
-		}
-
-		logger.debug(`[Mutex] Waiting for exclusive lock on repo ${repositoryId}: ${operation}`);
-		const queuedReleaseLock = await this.waitForQueuedLock(request, signal);
-		logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
-		return queuedReleaseLock;
-	}
-
-	async acquireMany(requests: LockRequest[], signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-
-		if (requests.length === 0) {
-			return () => {};
-		}
-
-		const seenRepositoryIds = new Set<string>();
-		for (const request of requests) {
-			if (seenRepositoryIds.has(request.repositoryId)) {
-				throw new Error(`Duplicate repository lock request: ${request.repositoryId}`);
-			}
-			seenRepositoryIds.add(request.repositoryId);
-		}
-
-		const sortedRequests = [...requests].sort((a, b) => a.repositoryId.localeCompare(b.repositoryId));
-		while (true) {
-			const locks = this.tryAcquireManyRows(sortedRequests);
-			if (locks) {
-				const releaseLocks = this.createReleaseMany(locks);
-				this.releaseIfAborted(releaseLocks, signal);
-
-				return releaseLocks;
-			}
-
-			await this.waitForPoll(signal);
-		}
+				return yield* this.createRelease(lock);
+			}),
+		);
 	}
 
 	isLocked(repositoryId: string) {
@@ -396,69 +317,87 @@ class RepositoryMutex {
 	}
 
 	private createReleaseMany(locks: AcquiredLock[]) {
-		const releases = locks.map((lock) => this.createRelease(lock));
-		let released = false;
+		return Effect.gen(this, function* () {
+			const releases = yield* Effect.all(locks.map((lock) => this.createRelease(lock)));
+			let released = false;
 
-		return () => {
-			if (released) return;
+			return () => {
+				if (released) return;
 
-			released = true;
-			for (const release of releases.toReversed()) {
-				release();
-			}
-		};
+				released = true;
+				for (const release of releases.toReversed()) {
+					release();
+				}
+			};
+		});
 	}
 
 	private createRelease(lock: AcquiredLock) {
-		this.startHeartbeat("lock", lock.id);
-		let released = false;
+		return Effect.gen(this, function* () {
+			const heartbeatFiber = yield* this.startHeartbeat("lock", lock.id);
+			let released = false;
 
-		return () => {
-			if (released) return;
+			return () => {
+				if (released) return;
 
-			released = true;
-			this.stopHeartbeat(lock.id);
-			this.release(lock);
-		};
+				released = true;
+				Effect.runFork(Fiber.interrupt(heartbeatFiber));
+				Effect.runSync(this.release(lock));
+			};
+		});
 	}
 
 	private release(lock: Pick<AcquiredLock, "id">) {
-		const releasedLock = db.transaction((tx) => {
-			const row = tx.query.repositoryLocksTable
-				.findFirst({ where: { AND: [{ id: { eq: lock.id } }, { ownerId: { eq: this.ownerId } }] } })
-				.sync();
+		return Effect.gen(this, function* () {
+			const releasedLock = db.transaction((tx) => {
+				const row = tx.query.repositoryLocksTable
+					.findFirst({ where: { AND: [{ id: { eq: lock.id } }, { ownerId: { eq: this.ownerId } }] } })
+					.sync();
 
-			if (!row) return null;
+				if (!row) return null;
 
-			tx.delete(repositoryLocksTable)
-				.where(and(eq(repositoryLocksTable.id, lock.id), eq(repositoryLocksTable.ownerId, this.ownerId)))
-				.run();
+				tx.delete(repositoryLocksTable)
+					.where(and(eq(repositoryLocksTable.id, lock.id), eq(repositoryLocksTable.ownerId, this.ownerId)))
+					.run();
 
-			return row;
+				return row;
+			});
+
+			if (!releasedLock) return;
+
+			const duration = Date.now() - releasedLock.acquiredAt;
+
+			yield* logger.effect.debug(
+				`[Mutex] Released ${releasedLock.type} lock for repo ${releasedLock.repositoryId}: ${releasedLock.operation} (held for ${duration}ms)`,
+			);
 		});
-
-		if (!releasedLock) return;
-
-		const duration = Date.now() - releasedLock.acquiredAt;
-		logger.debug(
-			`[Mutex] Released ${releasedLock.type} lock for repo ${releasedLock.repositoryId}: ${releasedLock.operation} (held for ${duration}ms)`,
-		);
 	}
 
-	private startHeartbeat(target: HeartbeatTarget, lockId: string) {
-		this.stopHeartbeat(lockId);
-
-		const heartbeat = () => {
+	private startHeartbeat(
+		target: "waiter",
+		lockId: string,
+	): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope>;
+	private startHeartbeat(
+		target: "lock",
+		lockId: string,
+	): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, never>;
+	private startHeartbeat(
+		target: HeartbeatTarget,
+		lockId: string,
+	): Effect.Effect<Fiber.RuntimeFiber<unknown, never>, never, Scope.Scope> {
+		const heartbeat = Effect.gen(this, function* () {
 			const now = Date.now();
 			const values = { heartbeatAt: now, expiresAt: now + LOCK_LEASE_MS };
 
-			try {
-				if (target === "lock") {
+			if (target === "lock") {
+				yield* Effect.sync(() => {
 					db.update(repositoryLocksTable)
 						.set(values)
 						.where(and(eq(repositoryLocksTable.id, lockId), eq(repositoryLocksTable.ownerId, this.ownerId)))
 						.run();
-				} else {
+				});
+			} else {
+				yield* Effect.sync(() => {
 					db.update(repositoryLockWaitersTable)
 						.set(values)
 						.where(
@@ -468,28 +407,95 @@ class RepositoryMutex {
 							),
 						)
 						.run();
-				}
-			} catch (error) {
-				logger.warn(`[Mutex] Failed to heartbeat ${target} ${lockId}: ${String(error)}`);
+				});
 			}
-		};
+		}).pipe(
+			Effect.catchAll((error) =>
+				logger.effect.warn(`[Mutex] Failed to heartbeat ${target} ${lockId}: ${String(error)}`),
+			),
+		);
 
-		const timer = setInterval(heartbeat, LOCK_HEARTBEAT_MS);
-		if (timer && "unref" in timer) {
-			timer.unref();
+		const repeat = heartbeat.pipe(Effect.repeat(Schedule.spaced(LOCK_HEARTBEAT_MS)));
+
+		if (target === "waiter") {
+			// For waiters, we can stop heartbeating when the releaser is dropped, so we use a scoped fiber
+			return repeat.pipe(Effect.forkScoped);
 		}
 
-		this.heartbeatTimers.set(lockId, timer);
+		// For locks, the heartbeat must outlive the acquire scope.
+		// It is interrupted manually by the returned release function.
+		// TODO: max lifetime for lock heartbeats to prevent leaks if the releaser is never called?
+		return repeat.pipe(Effect.forkDaemon);
 	}
 
-	private stopHeartbeat(lockId: string) {
-		const timer = this.heartbeatTimers.get(lockId);
-		if (!timer) {
-			return;
-		}
+	private acquireSharedEffect(repositoryId: string, operation: string) {
+		return Effect.gen(this, function* () {
+			const request: LockRequest = { repositoryId, type: "shared", operation };
+			const releaseLock = yield* this.tryAcquireImmediately(request);
+			if (releaseLock) return releaseLock;
 
-		clearInterval(timer);
-		this.heartbeatTimers.delete(lockId);
+			yield* logger.effect.debug(`[Mutex] Waiting for shared lock on repo ${repositoryId}: ${operation}`);
+			return yield* this.waitForQueuedLock(request);
+		});
+	}
+
+	private acquireExclusiveEffect(repositoryId: string, operation: string) {
+		return Effect.gen(this, function* () {
+			const request: LockRequest = { repositoryId, type: "exclusive", operation };
+			const releaseLock = yield* this.tryAcquireImmediately(request);
+			if (releaseLock) {
+				yield* logger.effect.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
+				return releaseLock;
+			}
+
+			logger.debug(`[Mutex] Waiting for exclusive lock on repo ${repositoryId}: ${operation}`);
+			const queuedReleaseLock = yield* this.waitForQueuedLock(request);
+			logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
+			return queuedReleaseLock;
+		});
+	}
+
+	private acquireManyEffect(requests: LockRequest[]) {
+		return Effect.gen(this, function* () {
+			if (requests.length === 0) {
+				return () => {};
+			}
+
+			const seenRepositoryIds = new Set<string>();
+			for (const request of requests) {
+				if (seenRepositoryIds.has(request.repositoryId)) {
+					throw new Error(`Duplicate repository lock request: ${request.repositoryId}`);
+				}
+				seenRepositoryIds.add(request.repositoryId);
+			}
+
+			const sortedRequests = [...requests].sort((a, b) => a.repositoryId.localeCompare(b.repositoryId));
+
+			const locks = yield* Effect.sync(() => this.tryAcquireManyRows(sortedRequests)).pipe(
+				Effect.flatMap((locks) => {
+					if (locks) return Effect.succeed(locks);
+					return Effect.fail("retry");
+				}),
+				Effect.retry(Schedule.spaced(LOCK_POLL_MS)),
+			);
+
+			return yield* this.createReleaseMany(locks);
+		});
+	}
+
+	async acquireShared(repositoryId: string, operation: string, signal?: AbortSignal) {
+		this.throwIfAborted(signal);
+		return await Effect.runPromise(this.acquireSharedEffect(repositoryId, operation), { signal });
+	}
+
+	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal) {
+		this.throwIfAborted(signal);
+		return await Effect.runPromise(this.acquireExclusiveEffect(repositoryId, operation), { signal });
+	}
+
+	async acquireMany(requests: LockRequest[], signal?: AbortSignal) {
+		this.throwIfAborted(signal);
+		return await Effect.runPromise(this.acquireManyEffect(requests), { signal });
 	}
 }
 
