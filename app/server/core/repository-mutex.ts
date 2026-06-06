@@ -34,6 +34,18 @@ const LOCK_HEARTBEAT_MS = 5_000;
 const LOCK_POLL_MS = 250;
 const LOCK_POLL_CLEANUP_MS = 5_000;
 
+const REPOSITORY_MUTEX_INSTANCE = Symbol.for("zerobyte.repositoryMutex.instance");
+function getRepositoryMutex() {
+	const globalObject = globalThis as typeof globalThis & Record<symbol, RepositoryMutex | undefined>;
+	const mutex = globalObject[REPOSITORY_MUTEX_INSTANCE];
+
+	if (mutex) return mutex;
+
+	const newMutex = new RepositoryMutex();
+	globalObject[REPOSITORY_MUTEX_INSTANCE] = newMutex;
+	return newMutex;
+}
+
 class RepositoryMutex {
 	private ownerId = `owner_${Bun.randomUUIDv7()}`;
 	private nextPollCleanupAt = 0;
@@ -42,10 +54,8 @@ class RepositoryMutex {
 		return `lock_${Bun.randomUUIDv7()}`;
 	}
 
-	private throwIfAborted(signal?: AbortSignal) {
-		if (signal?.aborted) {
-			throw signal.reason || new Error("Operation aborted");
-		}
+	private abortReason(signal: AbortSignal): Error {
+		return signal.reason || new Error("Operation aborted");
 	}
 
 	private cleanupExpired(tx: RepositoryMutexTransaction, now: number) {
@@ -154,9 +164,8 @@ class RepositoryMutex {
 	}
 
 	private createWaiter(request: LockRequest, waiterId: string) {
-		const now = Date.now();
-
 		return Effect.sync(() => {
+			const now = Date.now();
 			db.transaction((tx) => {
 				this.cleanupExpired(tx, now);
 				tx.insert(repositoryLockWaitersTable)
@@ -349,19 +358,23 @@ class RepositoryMutex {
 
 	private release(lock: Pick<AcquiredLock, "id">) {
 		return Effect.gen(this, function* () {
-			const releasedLock = db.transaction((tx) => {
-				const row = tx.query.repositoryLocksTable
-					.findFirst({ where: { AND: [{ id: { eq: lock.id } }, { ownerId: { eq: this.ownerId } }] } })
-					.sync();
+			const releasedLock = yield* Effect.sync(() =>
+				db.transaction((tx) => {
+					const row = tx.query.repositoryLocksTable
+						.findFirst({ where: { AND: [{ id: { eq: lock.id } }, { ownerId: { eq: this.ownerId } }] } })
+						.sync();
 
-				if (!row) return null;
+					if (!row) return null;
 
-				tx.delete(repositoryLocksTable)
-					.where(and(eq(repositoryLocksTable.id, lock.id), eq(repositoryLocksTable.ownerId, this.ownerId)))
-					.run();
+					tx.delete(repositoryLocksTable)
+						.where(
+							and(eq(repositoryLocksTable.id, lock.id), eq(repositoryLocksTable.ownerId, this.ownerId)),
+						)
+						.run();
 
-				return row;
-			});
+					return row;
+				}),
+			);
 
 			if (!releasedLock) return;
 
@@ -390,14 +403,14 @@ class RepositoryMutex {
 			const values = { heartbeatAt: now, expiresAt: now + LOCK_LEASE_MS };
 
 			if (target === "lock") {
-				yield* Effect.sync(() => {
+				yield* Effect.try(() => {
 					db.update(repositoryLocksTable)
 						.set(values)
 						.where(and(eq(repositoryLocksTable.id, lockId), eq(repositoryLocksTable.ownerId, this.ownerId)))
 						.run();
 				});
 			} else {
-				yield* Effect.sync(() => {
+				yield* Effect.try(() => {
 					db.update(repositoryLockWaitersTable)
 						.set(values)
 						.where(
@@ -448,9 +461,9 @@ class RepositoryMutex {
 				return releaseLock;
 			}
 
-			logger.debug(`[Mutex] Waiting for exclusive lock on repo ${repositoryId}: ${operation}`);
+			yield* logger.effect.debug(`[Mutex] Waiting for exclusive lock on repo ${repositoryId}: ${operation}`);
 			const queuedReleaseLock = yield* this.waitForQueuedLock(request);
-			logger.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
+			yield* logger.effect.debug(`[Mutex] Acquired exclusive lock for repo ${repositoryId}: ${operation}`);
 			return queuedReleaseLock;
 		});
 	}
@@ -483,20 +496,66 @@ class RepositoryMutex {
 		});
 	}
 
+	private runWithSignal<A, E>(effect: Effect.Effect<A, E>, signal?: AbortSignal) {
+		if (!signal) return Effect.runPromise(effect);
+
+		if (signal.aborted) {
+			return Promise.reject(this.abortReason(signal));
+		}
+
+		return new Promise<A>((resolve, reject) => {
+			const fiber = Effect.runFork(effect);
+			let settled = false;
+			let aborting = false;
+
+			const complete = (callback: () => void) => {
+				if (settled) return;
+
+				settled = true;
+				signal.removeEventListener("abort", onAbort);
+				callback();
+			};
+
+			const onAbort = () => {
+				aborting = true;
+				Effect.runPromise(Fiber.interrupt(fiber)).then(
+					(exit) =>
+						complete(() => {
+							if (Exit.isSuccess(exit)) {
+								resolve(exit.value);
+								return;
+							}
+
+							reject(this.abortReason(signal));
+						}),
+					(error) => complete(() => reject(error)),
+				);
+			};
+
+			signal.addEventListener("abort", onAbort, { once: true });
+
+			Effect.runPromise(Fiber.join(fiber)).then(
+				(value) => complete(() => resolve(value)),
+				(error) => {
+					if (!aborting) {
+						complete(() => reject(error));
+					}
+				},
+			);
+		});
+	}
+
 	async acquireShared(repositoryId: string, operation: string, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-		return await Effect.runPromise(this.acquireSharedEffect(repositoryId, operation), { signal });
+		return await this.runWithSignal(this.acquireSharedEffect(repositoryId, operation), signal);
 	}
 
 	async acquireExclusive(repositoryId: string, operation: string, signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-		return await Effect.runPromise(this.acquireExclusiveEffect(repositoryId, operation), { signal });
+		return await this.runWithSignal(this.acquireExclusiveEffect(repositoryId, operation), signal);
 	}
 
 	async acquireMany(requests: LockRequest[], signal?: AbortSignal) {
-		this.throwIfAborted(signal);
-		return await Effect.runPromise(this.acquireManyEffect(requests), { signal });
+		return await this.runWithSignal(this.acquireManyEffect(requests), signal);
 	}
 }
 
-export const repoMutex = new RepositoryMutex();
+export const repoMutex = getRepositoryMutex();

@@ -134,6 +134,37 @@ describe("RepositoryMutex", () => {
 		expect(repoMutex.isLocked(repoId)).toBe(false);
 	});
 
+	test("should reject aborted queued acquisitions only after waiter cleanup finishes", async () => {
+		const repoId = "abort-waits-for-cleanup";
+		const releaseHolder = await repoMutex.acquireExclusive(repoId, "holder");
+		const controller = new AbortController();
+		const waitingAcquisition = repoMutex.acquireShared(repoId, "waiter", controller.signal);
+
+		try {
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			const waitersBeforeAbort = await db.query.repositoryLockWaitersTable.findMany({
+				where: { repositoryId: { eq: repoId } },
+			});
+
+			expect(waitersBeforeAbort.map((waiter) => waiter.operation)).toEqual(["waiter"]);
+
+			controller.abort(new Error("stop"));
+			await expect(waitingAcquisition).rejects.toThrow("stop");
+
+			const waitersAfterAbort = await db.query.repositoryLockWaitersTable.findMany({
+				where: { repositoryId: { eq: repoId } },
+			});
+
+			expect(waitersAfterAbort).toEqual([]);
+			expect(repoMutex.isLocked(repoId)).toBe(true);
+		} finally {
+			releaseHolder();
+			await db.delete(repositoryLockWaitersTable).where(eq(repositoryLockWaitersTable.repositoryId, repoId));
+			await db.delete(repositoryLocksTable).where(eq(repositoryLocksTable.repositoryId, repoId));
+		}
+	});
+
 	test("should allow concurrent shared locks", async () => {
 		const repoId = "concurrent-shared";
 		const release1 = await repoMutex.acquireShared(repoId, "op1");
