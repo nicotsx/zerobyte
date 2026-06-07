@@ -11,6 +11,7 @@ import * as MdxConfig from "./source.config";
 
 const config = defineConfig({
 	server: {
+		host: true,
 		port: 4000,
 	},
 	plugins: [

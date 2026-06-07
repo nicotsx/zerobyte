@@ -1,5 +1,4 @@
 import path from "node:path";
-import { throttle } from "es-toolkit";
 import { findCommonAncestor } from "../../utils/common-ancestor";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
@@ -99,27 +98,6 @@ export const restore = (
 			args.push("--", restoreArg);
 
 			const onProgress = options.onProgress;
-			const streamProgress = throttle((data: string) => {
-				if (!onProgress) {
-					return;
-				}
-
-				try {
-					const jsonData = JSON.parse(data);
-					if (jsonData.message_type !== "status") {
-						return;
-					}
-
-					const progress = restoreProgressSchema.safeParse(jsonData);
-					if (progress.success) {
-						onProgress(progress.data);
-					} else {
-						logger.error(progress.error.message);
-					}
-				} catch {
-					// Ignore JSON parse errors for non-JSON lines
-				}
-			}, 1000);
 
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 			const res = yield* Effect.tryPromise(() =>
@@ -129,8 +107,24 @@ export const restore = (
 					env,
 					signal: options.signal,
 					onStdout: (data) => {
-						if (onProgress) {
-							streamProgress(data);
+						if (!onProgress) {
+							return;
+						}
+
+						try {
+							const jsonData = JSON.parse(data);
+							if (jsonData.message_type !== "status") {
+								return;
+							}
+
+							const progress = restoreProgressSchema.safeParse(jsonData);
+							if (progress.success) {
+								onProgress(progress.data);
+							} else {
+								logger.error(progress.error.message);
+							}
+						} catch {
+							// Ignore JSON parse errors for non-JSON lines
 						}
 					},
 				}),

@@ -106,6 +106,7 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `APP_SECRET_FILE`         | Path to a file containing `APP_SECRET`, useful with Docker or Kubernetes secrets. Mutually exclusive with `APP_SECRET`.                   | (none)                 |
 | `PORT`                    | The port the web interface and API will listen on.                                                                                        | `4096`                 |
 | `RESTIC_HOSTNAME`         | The hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                        | `zerobyte`             |
+| `GOMAXPROCS`              | Optional positive integer passed to Restic processes to limit CPU scheduler threads. Useful for reducing CPU pressure during backups.     | Restic default         |
 | `TZ`                      | Timezone for the container (e.g., `Europe/Zurich`). **Crucial for accurate backup scheduling.**                                           | `UTC`                  |
 | `TRUST_PROXY`             | When `true`, trust an existing `X-Forwarded-For` header from your reverse proxy. Leave `false` for direct deployments.                    | `false`                |
 | `TRUSTED_ORIGINS`         | Comma-separated list of extra trusted origins for CORS (e.g., `http://localhost:3000,http://example.com`).                                | (none)                 |
@@ -115,6 +116,25 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `SERVER_IDLE_TIMEOUT`     | Idle timeout for the server in seconds.                                                                                                   | `60`                   |
 | `RCLONE_CONFIG_DIR`       | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`       | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
+
+### Performance tuning
+
+If backups use too much CPU, set `GOMAXPROCS` on the Zerobyte container and restart it:
+
+```yaml
+environment:
+  - GOMAXPROCS=2
+```
+
+This limits the Go scheduler used by Restic child processes. Existing operations are not changed; the new value applies to Restic processes started after the container restart.
+
+Other useful Restic tuning options:
+
+- Set repository compression to `off` to reduce CPU usage, or `auto` for the usual balance. `max` can save more space but uses more CPU.
+- Use repository upload/download limits to avoid saturating network links.
+- Use backup schedule **Custom restic parameters** for advanced per-job flags such as `--read-concurrency 1`, `--exclude-larger-than 10G`, or `--no-scan`.
+
+See the full guide: [Performance tuning](https://zerobyte.app/docs/guides/performance-tuning).
 
 ### Webhook and notification network policy
 

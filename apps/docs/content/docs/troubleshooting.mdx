@@ -224,6 +224,16 @@ Rclone volumes (mounting cloud storage as a data source) require:
 
 ## Backup Issues
 
+### Backups or restores use too much CPU
+
+Start with the performance tuning guide. The usual fixes are:
+
+- Set `GOMAXPROCS=1` or `GOMAXPROCS=2` on the Zerobyte container and restart
+- Change repository compression mode from `max` to `auto` or `off`
+- Add `--read-concurrency 1` to the affected backup schedule's custom Restic parameters
+
+See [Performance tuning](/docs/guides/performance-tuning) for the full workflow and supported advanced flags.
+
 ### Restore Fails with `lchown` or `operation not permitted`
 
 If you restore directly to SFTP, SMB, WebDAV, rclone, or another mounted filesystem, the destination may accept file contents but reject ownership, mode, timestamp, or xattr updates.
@@ -243,8 +253,10 @@ sudo chmod -R 755 /path/to/your/data
 - Check network bandwidth (for cloud repositories)
 - Check disk I/O performance
 - Enable compression for large compressible files
-- Adjust parallel upload settings in repository configuration
+- Try `--read-concurrency 4` or `--read-concurrency 8` for fast local SSD/NVMe sources
 - Consider bandwidth limits if other services are affected
+
+See [Performance tuning](/docs/guides/performance-tuning) before changing multiple performance settings at once.
 
 ### Repository Locked
 

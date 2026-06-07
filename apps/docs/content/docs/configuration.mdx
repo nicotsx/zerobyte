@@ -35,6 +35,7 @@ Zerobyte is configured through environment variables and Docker Compose settings
 |----------|-------------|---------|
 | `PORT` | Port the web interface and API listen on inside the container. | `4096` |
 | `RESTIC_HOSTNAME` | Hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
+| `GOMAXPROCS` | Optional positive integer passed to Restic processes to limit CPU scheduler threads. See [Performance tuning](/docs/guides/performance-tuning). | Restic default |
 | `TRUST_PROXY` | Set to `true` to trust `X-Forwarded-For` headers from a reverse proxy. | `false` |
 | `TRUSTED_ORIGINS` | Comma-separated list of additional trusted origins for CORS. | (none) |
 | `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations. | (none) |

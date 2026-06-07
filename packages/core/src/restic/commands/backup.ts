@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Data, Effect } from "effect";
-import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "../schemas";
 import { type ResticBackupProgressDto, resticBackupOutputSchema, resticBackupProgressSchema } from "../restic-dto";
 import { addCommonArgs } from "../helpers/add-common-args";
@@ -132,13 +131,20 @@ export const backup = (
 				args.push("--", source);
 			}
 
-			const logData = throttle((data: string) => {
-				logger.info(data.trim());
-			}, 5000);
 			const stderrLines: string[] = [];
 
-			const streamProgress = throttle((data: string) => {
-				if (options.onProgress) {
+			logger.debug(`Executing: restic ${args.join(" ")}`);
+			const res = await safeSpawn({
+				command: "restic",
+				args,
+				env,
+				signal: options.signal,
+				onStdout: (data) => {
+					logger.info(data.trim());
+					if (!options.onProgress) {
+						return;
+					}
+
 					try {
 						const jsonData = JSON.parse(data);
 						if (jsonData.message_type !== "status") {
@@ -153,20 +159,6 @@ export const backup = (
 						}
 					} catch {
 						// Ignore JSON parse errors for non-JSON lines
-					}
-				}
-			}, 1000);
-
-			logger.debug(`Executing: restic ${args.join(" ")}`);
-			const res = await safeSpawn({
-				command: "restic",
-				args,
-				env,
-				signal: options.signal,
-				onStdout: (data) => {
-					logData(data);
-					if (options.onProgress) {
-						streamProgress(data);
 					}
 				},
 				onStderr: (error) => {

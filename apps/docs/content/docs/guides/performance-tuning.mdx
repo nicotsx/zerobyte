@@ -1,0 +1,214 @@
+---
+title: Performance Tuning
+description: Reduce CPU, network, and disk pressure from backups and restores
+---
+
+import { Callout } from "fumadocs-ui/components/callout";
+
+Most performance tuning is a trade between CPU, network bandwidth, source disk I/O, and repository storage. This guide covers the Zerobyte settings and Restic flags that are safe to adjust.
+
+Change one setting at a time, then compare runtime, CPU, memory, network usage, source disk pressure, and repository behavior. A setting that helps one source can make another source worse.
+
+## Quick recipes
+
+| Goal                                      | Recommended setting                                            | Trade-off                                     |
+| ----------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| Lower CPU usage for all Restic operations | Set `GOMAXPROCS=1` or `GOMAXPROCS=2` on the Zerobyte container | Backups, restores, and checks may take longer |
+| Lower CPU usage for one repository        | Set repository compression mode to `off`                       | Uses more storage and may upload more data    |
+| Reduce source disk pressure               | Add `--read-concurrency 1` to the backup schedule              | Lower throughput on fast storage              |
+| Improve throughput on fast storage        | Try `--read-concurrency 4` or `--read-concurrency 8`           | More source I/O and CPU pressure              |
+| Avoid saturating the network              | Set repository upload/download limits                          | Longer backup or restore runtime              |
+| Avoid backing up very large files         | Add `--exclude-larger-than 10G` to the backup schedule         | Files above the limit are skipped             |
+
+## Where to tune
+
+Some settings apply globally, some apply to one repository, and some apply only to one backup schedule.
+
+| Scope                  | Setting                                                                 | Use it for                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Zerobyte container     | `GOMAXPROCS`                                                            | Capping CPU available to all Restic operations: backups, restores, checks   |
+| Repository settings    | Compression mode, upload limit, download limit                          | Repository-wide storage, CPU, and network trade-offs                       |
+| Backup schedule        | **Advanced** > **Custom restic parameters**                             | Per-source backup behavior such as read concurrency, pack size, scan mode   |
+
+Custom Restic parameters are appended to the `restic backup` command for that schedule only. Enter one flag per line.
+
+Example low-impact schedule:
+
+```text
+--read-concurrency 1
+--exclude-larger-than 10G
+--no-scan
+```
+
+Example faster schedule for a local NVMe source:
+
+```text
+--read-concurrency 8
+```
+
+## Limit Restic CPU usage with GOMAXPROCS
+
+The standard Go environment variable `GOMAXPROCS` limits how many operating system threads can execute Go code at the same time. Add it to the Zerobyte container environment:
+
+```yaml docker-compose.yml
+services:
+  zerobyte:
+    environment:
+      - GOMAXPROCS=2
+```
+
+Then restart Zerobyte:
+
+```bash
+docker compose up -d
+```
+
+Use these starting points:
+
+| Host                           | Suggested value                                 |
+| ------------------------------ | ----------------------------------------------- |
+| Small NAS or low-power mini PC | `1`                                             |
+| Shared home server             | `2`                                             |
+| Dedicated backup box           | Leave unset, or use `4` if you still want a cap |
+
+## Choose compression mode
+
+Repository compression mode is configured on the repository form. Zerobyte passes it to Restic backups as `--compression`.
+
+| Mode   | When to use it                                                                | Trade-off                                   |
+| ------ | ----------------------------------------------------------------------------- | ------------------------------------------- |
+| `off`  | CPU is the bottleneck, data is already compressed, or storage is cheap        | Larger repositories and more upload traffic |
+| `auto` | General-purpose default                                                       | Balanced CPU and storage usage              |
+| `max`  | Storage or upload bandwidth is expensive and backup runtime is less important | Highest CPU usage                           |
+
+Good candidates for `off` include video libraries, JPEG/HEIC photo archives, already-compressed archives such as `.zip`, `.7z`, `.gz`, and `.zst`, VM images, and application data that is compressed before Zerobyte sees it.
+
+Good candidates for `max` include text-heavy project directories, logs, and slow or expensive remote storage links where CPU is available.
+
+Compression mode affects new backup data. It does not rewrite or recompress existing packs already stored in the repository.
+
+## Limit upload and download bandwidth
+
+Repository settings include upload and download limits. These map to Restic's `--limit-upload` and `--limit-download` options and apply to operations for that repository.
+
+Use bandwidth limits when backups make the internet connection unusable, a remote storage provider throttles or disconnects large transfers, or restores should not starve other services on the same host.
+
+Prefer the repository bandwidth fields over custom Restic parameters. The UI uses `Kbps`, `Mbps`, and `Gbps`; Zerobyte converts those values to the unit Restic expects.
+
+## Tune pack size
+
+Restic stores data in pack files. The `--pack-size` option changes the target pack size in MiB. Restic's default target is 16 MiB.
+
+Larger pack files can improve performance when the bottleneck is per-file or per-object overhead rather than raw throughput. This is common with very large repositories with many pack files, backends with file count or object count pressure, Google Drive or similar rclone-backed storage, OpenStack Swift-like object storage, and local HDD repositories where creating many small files is expensive.
+
+Suggested starting points:
+
+| Situation                                         | Try               |
+| ------------------------------------------------- | ----------------- |
+| Slow HDD or small NAS repository                  | `--pack-size 32`  |
+| Large repository on object storage or rclone      | `--pack-size 64`  |
+| Very large repository with high upload speed      | `--pack-size 128` |
+
+Example:
+
+```text
+--pack-size 64
+```
+
+Do not jump straight to very large values. Larger packs reduce object count, but each pack is a larger unit to upload, retry, rewrite, and cache. If an upload fails near the end of a large pack, more work may need to be repeated.
+
+<Callout type="info">
+	In Zerobyte, `--pack-size` in custom Restic parameters affects only the backup schedule where you set it. It does not rewrite existing repository data and it does not automatically apply to every other schedule.
+</Callout>
+
+## Tune read concurrency
+
+`--read-concurrency` controls how many files Restic reads in parallel during backup. It is one of the most useful knobs for slow machines because it directly changes pressure on the source filesystem.
+
+| Source type                     | Suggested value |
+| ------------------------------- | --------------- |
+| USB HDD, SD card, low-power NAS | `1`             |
+| Network mount or FUSE source    | `1` or `2`      |
+| SATA SSD                        | `2` or `4`      |
+| NVMe SSD                        | `4` or `8`      |
+
+Use low values when the machine is CPU or disk constrained:
+
+```text
+--read-concurrency 1
+```
+
+Use higher values only when the source can keep up:
+
+```text
+--read-concurrency 4
+```
+
+If the backup host becomes sluggish, lower `--read-concurrency` before changing pack size. If Restic is idle waiting on storage, increase it one step and compare the next run.
+
+## Keep the cache local
+
+Restic uses a local cache for repository metadata. Zerobyte places this cache in the configured Restic cache directory, which defaults to `/var/lib/zerobyte/restic/cache` inside the container.
+
+Keep the cache on local storage. Do not place `/var/lib/zerobyte` or the Restic cache on a network share. A slow cache can make snapshots, checks, forget operations, and backups feel much slower than the repository itself.
+
+Avoid these flags unless you are diagnosing a cache problem:
+
+| Flag              | What it does                           | Why it can hurt performance                               |
+| ----------------- | -------------------------------------- | --------------------------------------------------------- |
+| `--no-cache`      | Disables Restic's local metadata cache | Forces Restic to fetch metadata from the repository again |
+| `--cleanup-cache` | Removes old cache directories          | Can discard cache data useful to later operations         |
+
+If a repository behaves strangely after moving storage or changing credentials, `--cleanup-cache` can be useful for one diagnostic run. Do not leave it in a normal schedule as a performance tweak.
+
+## Skip progress scanning
+
+By default, Restic scans the source to estimate total work and provide progress information. On very large trees, slow network mounts, or filesystems with high directory traversal cost, that initial scan can be expensive.
+
+Use `--no-scan` to skip the initial scan:
+
+```text
+--no-scan
+```
+
+This can make a backup start doing useful work sooner, but progress reporting may be less complete. It does not reduce the actual file content Restic must read to create the backup.
+
+## Baselines
+
+For a low-power NAS, mini PC, or shared server, start with this conservative setup:
+
+1. Set `GOMAXPROCS=1` or `GOMAXPROCS=2` on the Zerobyte container.
+2. Use repository compression mode `auto` for mixed data, or `off` for mostly compressed media.
+3. Add `--read-concurrency 1` to heavy backup schedules.
+4. Keep the Restic cache on local storage.
+5. If the repository creates too many small objects or files, test `--pack-size 32` on one schedule.
+
+For S3-compatible storage, rclone remotes, and other object stores where each uploaded object has overhead:
+
+1. Keep compression at `auto` unless CPU is clearly the bottleneck.
+2. Test `--pack-size 64` on one backup schedule.
+3. If object count is still a problem and uploads are reliable, test `--pack-size 128`.
+4. Use repository upload/download limits if the link is shared with other services.
+5. Avoid `--no-cache`; metadata round trips are often the slow part on remote repositories.
+
+## Troubleshooting
+
+For high CPU usage, use this order:
+
+1. Check whether compression mode is `max`. If yes, switch to `auto` or `off` and run the next backup.
+2. Set `GOMAXPROCS=2` on the Zerobyte container and restart.
+3. If the source disk is also busy, add `--read-concurrency 1` to the affected backup schedule.
+4. If the repository is remote and uploads saturate the host, add a repository upload limit.
+5. Watch a few scheduled runs before making further changes.
+
+If backups are still too heavy, reduce the schedule frequency or split very large sources into separate schedules so the heavy work does not run all at once.
+
+For slow backups, use this order:
+
+1. Make sure the source and repository are not on the same slow disk.
+2. Use compression mode `auto` before trying `max`.
+3. If the source is fast SSD/NVMe storage, try `--read-concurrency 4`.
+4. If the bottleneck is network upload, keep compression enabled and remove upload limits during a test window.
+5. Check repository storage latency. Cloud, rclone, and network filesystems can be much slower than local disk.
+
+A faster backup that starves the NAS, VM host, or network may be worse than a slower predictable one.
