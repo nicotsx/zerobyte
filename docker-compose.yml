@@ -95,7 +95,7 @@ services:
       - TINYAUTH_OIDC_PUBLICKEYPATH=/data/tinyauth_oidc_key.pub
       - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_CLIENTID=zerobyte-test
       - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_CLIENTSECRET=test-secret-12345
-      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_TRUSTEDREDIRECTURIS=http://localhost:4096/api/auth/sso/callback/test-oidc-register,http://localhost:4096/api/auth/sso/callback/test-oidc-uninvited,http://localhost:4096/api/auth/sso/callback/test-oidc-invited,http://localhost:4096/api/auth/sso/callback/test-oidc-autolink
+      - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_TRUSTEDREDIRECTURIS=http://localhost:4096/api/auth/sso/callback/test-oidc-register,http://localhost:4096/api/auth/sso/callback/test-oidc-uninvited,http://localhost:4096/api/auth/sso/callback/test-oidc-invited,http://localhost:4096/api/auth/sso/callback/test-oidc-autolink,http://localhost:4096/api/auth/sso/callback/test-oidc-existing-member
       - TINYAUTH_OIDC_CLIENTS_ZEROBYTE_NAME=Zerobyte Test
       - TINYAUTH_LOG_LEVEL=debug
       - TINYAUTH_LOG_JSON=true
