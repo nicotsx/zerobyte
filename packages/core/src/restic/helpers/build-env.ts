@@ -30,7 +30,6 @@ export const buildEnv = async (
 
 	const env: ResticEnv = {
 		RESTIC_CACHE_DIR: deps.resticCacheDir,
-		RESTIC_PROGRESS_FPS: "1",
 		PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
 	};
 	if (Number.isInteger(goMaxProcs) && goMaxProcs > 0) {

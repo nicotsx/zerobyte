@@ -104,7 +104,7 @@ export const restore = (
 				safeSpawn({
 					command: "restic",
 					args,
-					env,
+					env: { ...env, RESTIC_PROGRESS_FPS: "1" },
 					signal: options.signal,
 					onStdout: (data) => {
 						if (!onProgress) {
