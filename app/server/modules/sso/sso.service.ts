@@ -26,7 +26,7 @@ class SsoService {
 	async getSsoProviderById(providerId: string) {
 		return db.query.ssoProvider.findFirst({
 			where: { providerId },
-			columns: { id: true, providerId: true, organizationId: true },
+			columns: { id: true, providerId: true, organizationId: true, autoLinkMatchingEmails: true },
 		});
 	}
 

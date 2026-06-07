@@ -103,7 +103,10 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 		expect(membership?.organizationId).toBe(organizationId);
 		expect(membership?.role).toBe("member");
 
-		const updatedInvitations = await db.select().from(invitation).where(eq(invitation.organizationId, organizationId));
+		const updatedInvitations = await db
+			.select()
+			.from(invitation)
+			.where(eq(invitation.organizationId, organizationId));
 		const updatedInvitation = updatedInvitations.find((i) => i.email === "invited@example.com");
 		expect(updatedInvitation?.status).toBe("accepted");
 	});
@@ -341,7 +344,10 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 
 		expect(membership.organizationId).toBe(invitedOrgId);
 
-		const [updatedInvitation] = await db.select().from(invitation).where(eq(invitation.organizationId, invitedOrgId));
+		const [updatedInvitation] = await db
+			.select()
+			.from(invitation)
+			.where(eq(invitation.organizationId, invitedOrgId));
 		expect(updatedInvitation.status).toBe("accepted");
 	});
 });
@@ -359,7 +365,9 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 	async function setupOrgWithProvider(providerId: string, autoLinkMatchingEmails = false) {
 		const orgId = randomId();
 		const ownerId = await createUser(`owner-${randomSlug("u")}@example.com`, randomSlug("owner"));
-		await db.insert(organization).values({ id: orgId, name: "Acme", slug: randomSlug("acme"), createdAt: new Date() });
+		await db
+			.insert(organization)
+			.values({ id: orgId, name: "Acme", slug: randomSlug("acme"), createdAt: new Date() });
 		await db.insert(ssoProvider).values({
 			id: randomId(),
 			providerId,
@@ -372,7 +380,10 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		return { orgId, ownerId };
 	}
 
-	const autoLinkingStates = [false, true] as const;
+	const autoLinkingCases = [
+		{ autoLinkingEnabled: false, autoLinkingLabel: "disabled" },
+		{ autoLinkingEnabled: true, autoLinkingLabel: "enabled" },
+	] as const;
 
 	test("allows linking for a user who is already a member of the org", async () => {
 		const { orgId } = await setupOrgWithProvider("oidc-acme");
@@ -390,8 +401,9 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		expect(allowed).toBe(true);
 	});
 
-	for (const autoLinkingEnabled of autoLinkingStates) {
-		test(`allows linking for a new SSO user with a valid pending invitation (auto-linking ${autoLinkingEnabled ? "enabled" : "disabled"})`, async () => {
+	test.each(autoLinkingCases)(
+		"allows linking for a new SSO user with a valid pending invitation (auto-linking $autoLinkingLabel)",
+		async ({ autoLinkingEnabled }) => {
 			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
 			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
 			const userId = await createUser("alice@example.com", randomSlug("alice"));
@@ -409,9 +421,12 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
 
 			expect(allowed).toBe(true);
-		});
+		},
+	);
 
-		test(`blocks linking for an existing user account even with a pending invitation (auto-linking ${autoLinkingEnabled ? "enabled" : "disabled"})`, async () => {
+	test.each(autoLinkingCases)(
+		"allows linking for an existing user account with a pending invitation when auto-linking is $autoLinkingLabel",
+		async ({ autoLinkingEnabled }) => {
 			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
 			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
 			const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
@@ -428,9 +443,9 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 
 			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId);
 
-			expect(allowed).toBe(false);
-		});
-	}
+			expect(allowed).toBe(autoLinkingEnabled);
+		},
+	);
 
 	test("blocks linking for a user with no membership and no invitation in the org", async () => {
 		await setupOrgWithProvider("oidc-acme");

@@ -413,6 +413,20 @@ test("auto-link policy enforces invitation and controls account linking", async 
 	await setProviderAutoLinking(page, providerIds.autoLink, true);
 
 	await withOidcLoginAttempt(browser, providerIds.autoLink, autoLinkTargetEmail, async (ssoPage) => {
-		await expectAccountLinkRequiredLoginError(ssoPage);
+		await ssoPage.waitForURL(/\/volumes/, { timeout: 30000 });
+		await waitForAppReady(ssoPage);
+		await expect(ssoPage).toHaveURL(/\/volumes/);
 	});
+
+	await expect
+		.poll(async () => {
+			return getInvitationStatusByEmail(page, autoLinkTargetEmail);
+		})
+		.toBe("accepted");
+
+	await expect
+		.poll(async () => {
+			return getOrgMemberIdByEmail(page, autoLinkTargetEmail);
+		})
+		.not.toBeNull();
 });

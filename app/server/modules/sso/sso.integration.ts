@@ -94,15 +94,6 @@ async function canLinkSsoAccount(userId: string, providerId: string): Promise<bo
 		return true;
 	}
 
-	const existingAccount = await db.query.account.findFirst({
-		where: { userId },
-		columns: { id: true },
-	});
-
-	if (existingAccount) {
-		return false;
-	}
-
 	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
 	if (!user) {
 		return false;
@@ -113,7 +104,16 @@ async function canLinkSsoAccount(userId: string, providerId: string): Promise<bo
 		normalizeEmail(user.email),
 	);
 
-	return !!pendingInvitation;
+	if (!pendingInvitation) {
+		return false;
+	}
+
+	const existingAccount = await db.query.account.findFirst({
+		where: { userId },
+		columns: { id: true },
+	});
+
+	return !existingAccount || ssoProviderRecord.autoLinkMatchingEmails;
 }
 
 async function resolveOrgMembershipOrThrow(userId: string, ctx: GenericEndpointContext | null) {
