@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Data, Effect } from "effect";
-import { throttle } from "es-toolkit";
 import type { CompressionMode, RepositoryConfig } from "../schemas";
 import { type ResticBackupProgressDto, resticBackupOutputSchema, resticBackupProgressSchema } from "../restic-dto";
 import { addCommonArgs } from "../helpers/add-common-args";
@@ -133,18 +132,15 @@ export const backup = (
 			}
 
 			const stderrLines: string[] = [];
-			const logData = throttle((data: string) => {
-				logger.info(data.trim());
-			}, 5000);
+			const resticProgressFps = process.env.RESTIC_PROGRESS_FPS ?? "1";
 
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 			const res = await safeSpawn({
 				command: "restic",
 				args,
-				env: { ...env, RESTIC_PROGRESS_FPS: "1" },
+				env: { ...env, RESTIC_PROGRESS_FPS: resticProgressFps },
 				signal: options.signal,
 				onStdout: (data) => {
-					logData(data);
 					if (!options.onProgress) {
 						return;
 					}

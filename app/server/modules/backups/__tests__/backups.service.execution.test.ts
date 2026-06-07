@@ -300,6 +300,7 @@ describe("backup execution - validation failures", () => {
 
 	test("persists latest backup progress while preserving execution", async () => {
 		const { runBackupMock } = setup();
+		const updateProgressSpy = vi.spyOn(taskStore, "updateProgress");
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
@@ -319,6 +320,17 @@ describe("backup execution - validation failures", () => {
 				bytes_done: 250,
 				current_files: ["file.txt"],
 			});
+			request.onProgress({
+				message_type: "status",
+				seconds_elapsed: 2,
+				seconds_remaining: 8,
+				percent_done: 0.5,
+				total_files: 100,
+				files_done: 50,
+				total_bytes: 1000,
+				bytes_done: 500,
+				current_files: ["later.txt"],
+			});
 
 			return {
 				status: "completed",
@@ -332,12 +344,13 @@ describe("backup execution - validation failures", () => {
 
 		const task = await getBackupTaskForSchedule(schedule.id);
 		expect(task?.status).toBe("succeeded");
+		expect(updateProgressSpy).toHaveBeenCalledTimes(1);
 		expect(task?.progress).toMatchObject({
 			kind: "backup",
 			progress: {
-				percent_done: 0.25,
-				bytes_done: 250,
-				current_files: ["file.txt"],
+				percent_done: 0.5,
+				bytes_done: 500,
+				current_files: ["later.txt"],
 			},
 		});
 	});
