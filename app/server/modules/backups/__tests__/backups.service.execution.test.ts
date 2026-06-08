@@ -344,7 +344,23 @@ describe("backup execution - validation failures", () => {
 
 		const task = await getBackupTaskForSchedule(schedule.id);
 		expect(task?.status).toBe("succeeded");
-		expect(updateProgressSpy).toHaveBeenCalledTimes(1);
+		expect(updateProgressSpy).toHaveBeenCalledTimes(2);
+		expect(updateProgressSpy.mock.calls[0]?.[1]).toMatchObject({
+			kind: "backup",
+			progress: {
+				percent_done: 0.25,
+				bytes_done: 250,
+				current_files: ["file.txt"],
+			},
+		});
+		expect(updateProgressSpy.mock.calls[1]?.[1]).toMatchObject({
+			kind: "backup",
+			progress: {
+				percent_done: 0.5,
+				bytes_done: 500,
+				current_files: ["later.txt"],
+			},
+		});
 		expect(task?.progress).toMatchObject({
 			kind: "backup",
 			progress: {

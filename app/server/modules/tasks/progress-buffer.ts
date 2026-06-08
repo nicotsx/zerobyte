@@ -13,6 +13,7 @@ export const createTaskProgressBuffer = (taskId: string, options: TaskProgressBu
 	let latestProgress: TaskProgress | null = null;
 	let dirty = false;
 	let disposed = false;
+	let hasPersistedProgress = false;
 	let timer: ReturnType<typeof setTimeout> | null = null;
 
 	const clearTimer = () => {
@@ -27,6 +28,7 @@ export const createTaskProgressBuffer = (taskId: string, options: TaskProgressBu
 		try {
 			taskStore.updateProgress(taskId, latestProgress);
 			dirty = false;
+			hasPersistedProgress = true;
 		} catch (error) {
 			options.onError?.(error);
 		}
@@ -50,8 +52,14 @@ export const createTaskProgressBuffer = (taskId: string, options: TaskProgressBu
 		update: (progress: TaskProgress) => {
 			if (disposed) return;
 
+			const shouldPersistImmediately = !hasPersistedProgress;
 			latestProgress = progress;
 			dirty = true;
+
+			if (shouldPersistImmediately) {
+				persistLatest();
+			}
+
 			schedulePersist();
 		},
 		flush: () => {
