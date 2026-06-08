@@ -47,6 +47,7 @@ import { parseError } from "~/client/lib/errors";
 import { type AppContext } from "~/context";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { PasskeysSection } from "../components/passkeys-section";
+import { ApiTokensSection } from "../components/api-tokens-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
@@ -478,6 +479,8 @@ export function SettingsPage({
 							<TwoFactorSection twoFactorEnabled={appContext.user?.twoFactorEnabled} />
 
 							<PasskeysSection />
+
+							<ApiTokensSection />
 						</Card>
 					</TabsContent>
 

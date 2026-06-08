@@ -574,3 +574,42 @@ export const passkey = sqliteTable(
 	(table) => [index("passkey_userId_idx").on(table.userId), index("passkey_credentialID_idx").on(table.credentialID)],
 );
 export type Passkey = typeof passkey.$inferSelect;
+
+export type ApiKeyMetadata = {
+	organizationId?: string;
+};
+
+export const apikey = sqliteTable(
+	"apikey",
+	{
+		id: text("id").primaryKey(),
+		configId: text("config_id").notNull().default("default"),
+		name: text("name"),
+		start: text("start"),
+		prefix: text("prefix"),
+		key: text("key").notNull(),
+		referenceId: text("reference_id").notNull(),
+		refillInterval: integer("refill_interval"),
+		refillAmount: integer("refill_amount"),
+		lastRefillAt: integer("last_refill_at", { mode: "timestamp_ms" }),
+		enabled: integer("enabled", { mode: "boolean" }),
+		rateLimitEnabled: integer("rate_limit_enabled", { mode: "boolean" }),
+		rateLimitTimeWindow: integer("rate_limit_time_window"),
+		rateLimitMax: integer("rate_limit_max"),
+		requestCount: integer("request_count"),
+		remaining: integer("remaining"),
+		lastRequest: integer("last_request", { mode: "timestamp_ms" }),
+		expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.notNull()
+			.$onUpdate(() => new Date())
+			.default(sql`(unixepoch() * 1000)`),
+		permissions: text("permissions"),
+		metadata: text("metadata"),
+	},
+	(table) => [index("apikey_referenceId_idx").on(table.referenceId)],
+);
+export type ApiKey = typeof apikey.$inferSelect;

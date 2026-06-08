@@ -6,6 +6,7 @@ import {
 	organizationClient,
 	inferAdditionalFields,
 } from "better-auth/client/plugins";
+import { apiKeyClient } from "@better-auth/api-key/client";
 import { ssoClient } from "@better-auth/sso/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import type { auth } from "~/server/lib/auth";
@@ -19,5 +20,6 @@ export const authClient = createAuthClient({
 		ssoClient(),
 		twoFactorClient(),
 		passkeyClient(),
+		apiKeyClient(),
 	],
 });

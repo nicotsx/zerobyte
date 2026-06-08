@@ -37,6 +37,7 @@
 		"test:codegen": "playwright codegen localhost:4096"
 	},
 	"dependencies": {
+		"@better-auth/api-key": "^1.6.11",
 		"@better-auth/passkey": "^1.6.12",
 		"@better-auth/sso": "^1.6.12",
 		"@dnd-kit/core": "^6.3.1",

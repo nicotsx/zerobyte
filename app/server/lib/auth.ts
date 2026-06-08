@@ -8,6 +8,7 @@ import {
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
+import { apiKey } from "@better-auth/api-key";
 import { passkey } from "@better-auth/passkey";
 import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
@@ -191,6 +192,13 @@ export const auth = betterAuth({
 							"Your passkey was accepted, but it did not confirm your identity with a PIN, biometrics, or screen lock. Please use a verified passkey or sign in with your password.",
 					});
 				},
+			},
+		}),
+		apiKey({
+			defaultPrefix: "zb_",
+			enableMetadata: true,
+			rateLimit: {
+				enabled: !config.flags.disableRateLimiting,
 			},
 		}),
 		tanstackStartCookies(),
