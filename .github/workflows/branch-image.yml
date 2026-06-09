@@ -1,0 +1,92 @@
+name: Branch Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+run-name: Branch image for ${{ github.ref_name }}
+
+jobs:
+  determine-image-tag:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Set image tag
+        id: tag
+        run: echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+  checks:
+    uses: ./.github/workflows/checks.yml
+
+  e2e-tests:
+    uses: ./.github/workflows/e2e.yml
+
+  integration-tests:
+    uses: ./.github/workflows/integration.yml
+
+  build-image:
+    environment: release
+    timeout-minutes: 15
+    needs: [determine-image-tag, checks, e2e-tests, integration-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4
+        with:
+          driver: cloud
+          endpoint: "meienberger/runtipi-builder"
+          install: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/zerobyte
+          tags: |
+            type=raw,value=${{ needs.determine-image-tag.outputs.image_tag }}
+          flavor: |
+            latest=false
+
+      - name: Push image to GitHub Container Registry
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7
+        with:
+          context: .
+          target: production
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ needs.determine-image-tag.outputs.image_tag }}
+
+      - name: Write image summary
+        run: |
+          echo "Published image:" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`ghcr.io/${{ github.repository_owner }}/zerobyte:${{ needs.determine-image-tag.outputs.image_tag }}\`" >> "$GITHUB_STEP_SUMMARY"
