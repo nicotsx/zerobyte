@@ -18,7 +18,12 @@ export type ControllerSession = {
 	close: () => void;
 };
 
-export const createControllerSession = (ws: WebSocket): ControllerSession => {
+type ControllerSocket = {
+	send: (data: string) => void;
+	close: () => void;
+};
+
+export const createControllerSession = (ws: ControllerSocket): ControllerSession => {
 	let isClosed = false;
 	const outboundQueue = Effect.runSync(Queue.bounded<AgentWireMessage>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));

@@ -44,7 +44,7 @@ const assignUserToOrganization = async (userId: string, organizationId: string) 
 		} else {
 			tx.insert(member)
 				.values({
-					id: Bun.randomUUIDv7(),
+					id: crypto.randomUUID(),
 					organizationId,
 					userId,
 					role: "member",

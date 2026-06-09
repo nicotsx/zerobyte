@@ -27,7 +27,11 @@ export type AgentConnectionData = {
 	agentKind: AgentKind;
 };
 
-type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
+export type AgentSocket = {
+	data: AgentConnectionData;
+	send: (data: string) => number | void;
+	close: (code?: number, reason?: string) => void;
+};
 
 type SessionState = {
 	isReady: boolean;
@@ -277,7 +281,7 @@ export const createControllerAgentSession = (
 			sendRestoreCancel: (payload) => offerOutbound(createControllerMessage("restore.cancel", payload)),
 			runVolumeCommand: (command) =>
 				Effect.gen(function* () {
-					const commandId = Bun.randomUUIDv7();
+					const commandId = crypto.randomUUID();
 					const description = `volume command ${command.name}`;
 					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
 					yield* setPendingCommand(commandId, { deferred, description });

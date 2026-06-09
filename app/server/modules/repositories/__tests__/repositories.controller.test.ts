@@ -60,7 +60,7 @@ const createManagedRepositoryRecord = async (organizationId: string) => {
 	const [repository] = await db
 		.insert(repositoriesTable)
 		.values({
-			id: Bun.randomUUIDv7(),
+			id: crypto.randomUUID(),
 			provisioningId: `provisioned:${crypto.randomUUID()}`,
 			shortId: generateShortId(),
 			name: `Managed-${crypto.randomUUID()}`,

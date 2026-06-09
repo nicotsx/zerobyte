@@ -47,11 +47,11 @@ function getRepositoryMutex() {
 }
 
 class RepositoryMutex {
-	private ownerId = `owner_${Bun.randomUUIDv7()}`;
+	private ownerId = `owner_${crypto.randomUUID()}`;
 	private nextPollCleanupAt = 0;
 
 	private generateLockId(): string {
-		return `lock_${Bun.randomUUIDv7()}`;
+		return `lock_${crypto.randomUUID()}`;
 	}
 
 	private abortReason(signal: AbortSignal): Error {

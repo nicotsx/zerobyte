@@ -1,4 +1,4 @@
-FROM oven/bun:1.3.14-alpine@sha256:5acc90a93e91ff07bf72aa90a7c9f0fa189765aec90b47bdbf2152d2196383c0 AS base
+FROM node:26.2.0-alpine AS node-base
 
 ARG RESTIC_VERSION="0.18.1"
 ARG RCLONE_VERSION="1.74.2"
@@ -14,11 +14,23 @@ RUN apk update --no-cache && \
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
+FROM node-base AS pnpm-base
+
+WORKDIR /app
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="${PNPM_HOME}:${PATH}"
+
+RUN npm install --global pnpm@11.5.2
+
+COPY ./pnpm-lock.yaml ./
+RUN pnpm fetch --frozen-lockfile
+
 
 # ------------------------------
 # DEPENDENCIES
 # ------------------------------
-FROM base AS deps
+FROM node-base AS deps
 
 WORKDIR /deps
 
@@ -47,7 +59,7 @@ RUN tar -xzf shoutrrr.tar.gz && chmod +x shoutrrr
 # ------------------------------
 # RUNTIME TOOLS
 # ------------------------------
-FROM base AS runtime-tools
+FROM node-base AS runtime-tools
 
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
@@ -56,7 +68,7 @@ COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 # ------------------------------
 # DEVELOPMENT
 # ------------------------------
-FROM base AS development
+FROM pnpm-base AS development
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
@@ -69,24 +81,24 @@ COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
 COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
-COPY ./package.json ./bun.lock ./
+COPY ./package.json ./pnpm-lock.yaml ./pnpm-workspace.yaml ./
 COPY ./packages/core/package.json ./packages/core/package.json
 COPY ./packages/contracts/package.json ./packages/contracts/package.json
 COPY ./apps/agent/package.json ./apps/agent/package.json
 COPY ./apps/docs/package.json ./apps/docs/package.json
 
-RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile --ignore-scripts
+RUN VITE_GIT_HOOKS=0 pnpm install --frozen-lockfile
 
 COPY . .
 
 EXPOSE 3000
 
-CMD ["bun", "run", "dev"]
+CMD ["pnpm", "run", "dev"]
 
 # ------------------------------
 # PRODUCTION
 # ------------------------------
-FROM base AS builder
+FROM pnpm-base AS builder
 
 ARG APP_VERSION=dev
 ENV VITE_APP_VERSION=${APP_VERSION}
@@ -94,20 +106,21 @@ ENV PORT=4096
 
 WORKDIR /app
 
-COPY ./package.json ./bun.lock ./
+COPY ./package.json ./pnpm-lock.yaml ./pnpm-workspace.yaml ./
 COPY ./packages/core/package.json ./packages/core/package.json
 COPY ./packages/contracts/package.json ./packages/contracts/package.json
 COPY ./apps/agent/package.json ./apps/agent/package.json
 COPY ./apps/docs/package.json ./apps/docs/package.json
 
-RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile
+RUN VITE_GIT_HOOKS=0 pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN bun run build
-RUN bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun
+RUN pnpm run build
+RUN pnpm exec esbuild apps/agent/src/index.ts --bundle --platform=node --format=esm --outfile=.output/agent/index.mjs
+RUN mkdir -p .node-runtime/node_modules && cp -R -L node_modules/ws .node-runtime/node_modules/ws
 
-FROM base AS production
+FROM node-base AS production
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
@@ -117,6 +130,7 @@ ENV PORT=4096
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/.node-runtime/node_modules ./node_modules
 
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
@@ -131,4 +145,4 @@ COPY ./LICENSE ./LICENSE.md
 
 EXPOSE 4096
 
-CMD ["bun", ".output/server/index.mjs"]
+CMD ["node", ".output/server/index.mjs"]

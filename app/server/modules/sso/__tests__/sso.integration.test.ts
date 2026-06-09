@@ -26,7 +26,7 @@ function createMockSsoCallbackContext(providerId: string, cookie?: string): Gene
 }
 
 function randomId() {
-	return Bun.randomUUIDv7();
+	return crypto.randomUUID();
 }
 
 function randomSlug(prefix: string) {

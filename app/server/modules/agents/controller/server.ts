@@ -1,6 +1,9 @@
+import { createServer, type IncomingMessage } from "node:http";
+import type { Duplex } from "node:stream";
 import { Data, Effect, Exit, Fiber, Scope } from "effect";
-import { logger } from "@zerobyte/core/node";
+import { logger, webSocketRawDataToString } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
+import { WebSocketServer, type RawData, type WebSocket } from "ws";
 import type {
 	AgentMessage,
 	AgentProtocolRejection,
@@ -13,7 +16,7 @@ import type {
 } from "@zerobyte/contracts/agent-protocol";
 import {
 	createControllerAgentSession,
-	type AgentConnectionData,
+	type AgentSocket,
 	type ControllerAgentSession,
 	type ControllerAgentSessionEvent,
 } from "./session";
@@ -35,6 +38,13 @@ type ControllerAgentSessionHandle = {
 	session: ControllerAgentSession;
 	scope: Scope.CloseableScope;
 };
+
+type AgentManagerServer = {
+	port: number;
+	stop: () => Promise<void>;
+};
+
+type NodeAgentSocket = WebSocket & AgentSocket;
 
 class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServerError")<{
 	cause: unknown;
@@ -119,7 +129,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 		};
 	};
 
-	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+	const createSession = (ws: AgentSocket) =>
 		Effect.gen(function* () {
 			const scope = yield* Scope.make();
 
@@ -162,7 +172,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			return true;
 		});
 
-	const handleMessage = (ws: Bun.ServerWebSocket<AgentConnectionData>, data: unknown) =>
+	const handleMessage = (ws: AgentSocket, data: unknown) =>
 		Effect.gen(function* () {
 			if (typeof data !== "string") {
 				yield* logger.effect.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
@@ -178,7 +188,7 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			yield* session.handleMessage(data);
 		});
 
-	const handleOpen = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+	const handleOpen = (ws: AgentSocket) =>
 		Effect.gen(function* () {
 			yield* Effect.promise(() =>
 				agentsService.markAgentConnecting({
@@ -194,17 +204,13 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
 		});
 
-	const handleClose = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+	const handleClose = (ws: AgentSocket) =>
 		Effect.gen(function* () {
 			yield* removeSession(ws.data.agentId, ws.data.id);
 			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
 		});
 
-	const runWebSocketHandler = (
-		ws: Bun.ServerWebSocket<AgentConnectionData>,
-		event: string,
-		effect: Effect.Effect<void>,
-	) =>
+	const runWebSocketHandler = (ws: AgentSocket, event: string, effect: Effect.Effect<void>) =>
 		Effect.runPromise(
 			effect.pipe(
 				Effect.catchAllCause((cause) =>
@@ -215,57 +221,147 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 			),
 		);
 
-	const acquireServer = Effect.acquireRelease(
-		Effect.sync(() =>
-			Bun.serve<AgentConnectionData>({
-				hostname: "127.0.0.1",
-				port: 0,
-				async fetch(req, srv) {
-					const authorizationHeader = req.headers.get("authorization");
-					const token = authorizationHeader?.slice("Bearer ".length);
+	const rejectUpgrade = (socket: Duplex, status: number, statusText: string, message: string) => {
+		socket.write(
+			[
+				`HTTP/1.1 ${status} ${statusText}`,
+				"Connection: close",
+				`Content-Length: ${Buffer.byteLength(message)}`,
+				"Content-Type: text/plain; charset=utf-8",
+				"",
+				message,
+			].join("\r\n"),
+		);
+		socket.destroy();
+	};
 
-					if (!token) {
-						return new Response("Missing token", { status: 401 });
-					}
+	const toTextMessage = (data: RawData, isBinary: boolean): unknown => {
+		if (isBinary) {
+			return data;
+		}
 
-					const result = await validateAgentToken(token);
-					if (!result) {
-						return new Response("Invalid or revoked token", { status: 401 });
-					}
+		return webSocketRawDataToString(data);
+	};
 
-					const upgraded = srv.upgrade(req, {
-						data: {
-							id: Bun.randomUUIDv7(),
-							agentId: result.agentId,
-							organizationId: result.organizationId,
-							agentName: result.agentName,
-							agentKind: result.agentKind,
-						},
-					});
-					if (upgraded) return undefined;
-					return new Response("WebSocket upgrade failed", { status: 400 });
-				},
-				websocket: {
-					open: async (ws) => {
-						await runWebSocketHandler(ws, "open", handleOpen(ws));
-						if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
-							ws.close();
+	const startServer = () =>
+		new Promise<AgentManagerServer>((resolve, reject) => {
+			const httpServer = createServer((_request, response) => {
+				response.writeHead(404);
+				response.end();
+			});
+			const websocketServer = new WebSocketServer({ noServer: true });
+
+			const stop = async () => {
+				for (const client of websocketServer.clients) {
+					client.terminate();
+				}
+
+				await Promise.all([
+					new Promise<void>((closeResolve, closeReject) => {
+						websocketServer.close((error) => {
+							if (error) {
+								closeReject(error);
+								return;
+							}
+
+							closeResolve();
+						});
+					}),
+					new Promise<void>((closeResolve, closeReject) => {
+						if (!httpServer.listening) {
+							closeResolve();
+							return;
 						}
-					},
-					message: async (ws, data) => {
-						await runWebSocketHandler(ws, "message", handleMessage(ws, data));
-					},
-					close: async (ws) => {
-						await runWebSocketHandler(ws, "close", handleClose(ws));
-					},
-				},
-			}),
-		),
+
+						httpServer.close((error) => {
+							if (error) {
+								closeReject(error);
+								return;
+							}
+
+							closeResolve();
+						});
+					}),
+				]);
+			};
+
+			const handleUpgrade = async (request: IncomingMessage, socket: Duplex, head: Buffer) => {
+				const rawAuthorizationHeader = request.headers.authorization;
+				const authorizationHeader = Array.isArray(rawAuthorizationHeader)
+					? rawAuthorizationHeader[0]
+					: rawAuthorizationHeader;
+				const token = authorizationHeader?.slice("Bearer ".length);
+
+				if (!token) {
+					rejectUpgrade(socket, 401, "Unauthorized", "Missing token");
+					return;
+				}
+
+				const result = await validateAgentToken(token);
+				if (!result) {
+					rejectUpgrade(socket, 401, "Unauthorized", "Invalid or revoked token");
+					return;
+				}
+
+				websocketServer.handleUpgrade(request, socket, head, (websocket) => {
+					const agentSocket = websocket as NodeAgentSocket;
+					agentSocket.data = {
+						id: crypto.randomUUID(),
+						agentId: result.agentId,
+						organizationId: result.organizationId,
+						agentName: result.agentName,
+						agentKind: result.agentKind,
+					};
+					websocketServer.emit("connection", agentSocket, request);
+				});
+			};
+
+			httpServer.on("upgrade", (request, socket, head) => {
+				void handleUpgrade(request, socket, head).catch((error) => {
+					logger.error(`Agent websocket upgrade failed: ${toMessage(error)}`);
+					rejectUpgrade(socket, 400, "Bad Request", "WebSocket upgrade failed");
+				});
+			});
+
+			websocketServer.on("connection", (socket) => {
+				const ws = socket as NodeAgentSocket;
+
+				void runWebSocketHandler(ws, "open", handleOpen(ws)).then(() => {
+					if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
+						ws.close();
+					}
+				});
+				ws.on("message", (data, isBinary) => {
+					void runWebSocketHandler(ws, "message", handleMessage(ws, toTextMessage(data, isBinary)));
+				});
+				ws.on("close", () => {
+					void runWebSocketHandler(ws, "close", handleClose(ws));
+				});
+			});
+
+			httpServer.once("error", reject);
+			httpServer.listen(0, "127.0.0.1", () => {
+				httpServer.off("error", reject);
+				const address = httpServer.address();
+				if (!address || typeof address === "string") {
+					void stop().finally(() => reject(new Error("Agent Manager server did not report a port")));
+					return;
+				}
+
+				resolve({ port: address.port, stop });
+			});
+		});
+
+	const acquireServer = Effect.acquireRelease(
+		Effect.tryPromise({
+			try: startServer,
+			catch: (error) => new StopAgentManagerServerError({ cause: error }),
+		}),
 		(server) =>
 			closeAllSessions.pipe(
 				Effect.andThen(
 					Effect.tryPromise({
-						try: () => server.stop(true),
+						try: () => server.stop(),
 						catch: (error) => new StopAgentManagerServerError({ cause: error }),
 					}),
 				),

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Effect } from "effect";
+import { readFile } from "node:fs/promises";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../node/spawn";
 import { ResticError } from "../../error";
@@ -132,11 +133,11 @@ describe("backup command", () => {
 					const patternIncludeIndex = params.args.indexOf("--files-from");
 
 					if (rawIncludeIndex > -1) {
-						rawIncludeContent = await Bun.file(params.args[rawIncludeIndex + 1]!).text();
+						rawIncludeContent = await readFile(params.args[rawIncludeIndex + 1]!, "utf8");
 					}
 
 					if (patternIncludeIndex > -1) {
-						patternIncludeContent = await Bun.file(params.args[patternIncludeIndex + 1]!).text();
+						patternIncludeContent = await readFile(params.args[patternIncludeIndex + 1]!, "utf8");
 					}
 				},
 			});
@@ -168,7 +169,7 @@ describe("backup command", () => {
 					const rawIncludeIndex = params.args.indexOf("--files-from-raw");
 
 					if (rawIncludeIndex > -1) {
-						rawIncludeContent = await Bun.file(params.args[rawIncludeIndex + 1]!).text();
+						rawIncludeContent = await readFile(params.args[rawIncludeIndex + 1]!, "utf8");
 					}
 				},
 			});

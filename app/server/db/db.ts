@@ -1,8 +1,8 @@
-import { Database } from "bun:sqlite";
 import { relations } from "./relations";
 import path from "node:path";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { DatabaseSync } from "node:sqlite";
+import { drizzle } from "drizzle-orm/node-sqlite";
+import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import { DATABASE_URL } from "../core/constants";
 import fs from "node:fs";
 import { config } from "../core/config";
@@ -14,7 +14,7 @@ if (fs.existsSync(path.join(path.dirname(DATABASE_URL), "ironmount.db")) && !fs.
 	fs.renameSync(path.join(path.dirname(DATABASE_URL), "ironmount.db"), DATABASE_URL);
 }
 
-export const sqlite = new Database(DATABASE_URL);
+export const sqlite = new DatabaseSync(DATABASE_URL, { enableDoubleQuotedStringLiterals: true });
 export const db = drizzle({ client: sqlite, relations, schema });
 
 let migrationsPromise: Promise<void> | undefined;
@@ -32,8 +32,8 @@ const runMigrations = async () => {
 
 	migrate(db, { migrationsFolder });
 
-	sqlite.run("PRAGMA foreign_keys = ON;");
-	sqlite.run("PRAGMA busy_timeout = 5000;");
+	sqlite.exec("PRAGMA foreign_keys = ON;");
+	sqlite.exec("PRAGMA busy_timeout = 5000;");
 };
 
 export const runDbMigrations = () => {

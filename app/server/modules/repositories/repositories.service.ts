@@ -262,7 +262,7 @@ const listRepositories = async () => {
 
 const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
 	const organizationId = getOrganizationId();
-	const id = Bun.randomUUIDv7();
+	const id = crypto.randomUUID();
 	const shortId = generateShortId();
 	if (config.backend === "local" && !config.isExistingRepository) {
 		config.path = `${config.path}/${shortId}`;

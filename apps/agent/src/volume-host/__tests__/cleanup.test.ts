@@ -45,5 +45,5 @@ test("keeps volume directories that are still mounted on the agent host", async 
 
 	await cleanupDanglingVolumeMountDirectories();
 
-	await expect(fs.access(localVolumeDir)).resolves.toBeNull();
+	await expect(fs.access(localVolumeDir)).resolves.toBeUndefined();
 });

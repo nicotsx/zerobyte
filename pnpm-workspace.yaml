@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+minimumReleaseAge: 4320
+minimumReleaseAgeExclude:
+  - "@zerobyte/*"
+
+preferSymlinkedExecutables: true
+
+allowBuilds:
+  esbuild: true
+  lightningcss: false
+  msw: true
+  sharp: false
+  workerd: false

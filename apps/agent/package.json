@@ -5,15 +5,12 @@
 	"module": "src/index.ts",
 	"scripts": {
 		"tsc": "tsc --noEmit",
-		"test": "bunx --bun vitest run --config ./vitest.config.ts"
+		"test": "vitest run --config ./vitest.config.ts"
 	},
 	"dependencies": {
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
 		"effect": "^3.21.2"
-	},
-	"devDependencies": {
-		"@types/bun": "latest"
 	},
 	"peerDependencies": {
 		"typescript": "^6.0.3"

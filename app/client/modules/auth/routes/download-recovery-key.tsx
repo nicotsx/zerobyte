@@ -16,7 +16,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 
 const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
-	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
+	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte npm run --silent cli -- reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
 	hasCredentialPassword: boolean;

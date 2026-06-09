@@ -411,7 +411,7 @@ After installing Vite+ globally, you can run Zerobyte locally during development
 
 ```bash
 vp install
-bun run dev
+pnpm run dev
 ```
 
 For local development, create a `.env.local` file at the repo root and override the Docker paths:

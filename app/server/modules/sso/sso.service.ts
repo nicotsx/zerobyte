@@ -180,7 +180,7 @@ class SsoService {
 	async createInvitationSsoIntent(intent: SsoInvitationIntent) {
 		const token = crypto.randomUUID();
 		await db.insert(verification).values({
-			id: Bun.randomUUIDv7(),
+			id: crypto.randomUUID(),
 			identifier: getIntentIdentifier(token),
 			value: JSON.stringify({ ...intent, email: normalizeEmail(intent.email) }),
 			expiresAt: new Date(Date.now() + SSO_INVITATION_INTENT_TTL_MS),

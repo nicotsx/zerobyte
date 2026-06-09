@@ -17,7 +17,7 @@ const userSsoInvitationsUrl = new URL("/api/v1/auth/sso-invitations", "http://lo
 
 function buildRegisterBody(organizationId: string, suffix: string) {
 	return {
-		providerId: `oidc-${suffix}-${Bun.randomUUIDv7()}`,
+		providerId: `oidc-${suffix}-${crypto.randomUUID()}`,
 		issuer: "https://issuer.example.com",
 		domain: "example.com",
 		organizationId,
@@ -79,7 +79,7 @@ describe("SSO provider registration authorization", () => {
 
 	test("rejects users who are owners elsewhere but only members of the target organization", async () => {
 		const { headers, user } = await createTestSession();
-		const targetOrgId = Bun.randomUUIDv7();
+		const targetOrgId = crypto.randomUUID();
 
 		await db.insert(organization).values({
 			id: targetOrgId,
@@ -89,7 +89,7 @@ describe("SSO provider registration authorization", () => {
 		});
 
 		await db.insert(member).values({
-			id: Bun.randomUUIDv7(),
+			id: crypto.randomUUID(),
 			userId: user.id,
 			organizationId: targetOrgId,
 			role: "member",
@@ -126,7 +126,7 @@ describe("organization invitation acceptance", () => {
 	test("requires org SSO verification before an unverified local recipient can claim an invitation", async () => {
 		const inviter = await createTestSession();
 		const recipient = await createTestSession();
-		const invitationId = Bun.randomUUIDv7();
+		const invitationId = crypto.randomUUID();
 
 		await db.update(usersTable).set({ emailVerified: false }).where(eq(usersTable.id, recipient.user.id));
 		await db.insert(invitation).values({
@@ -141,7 +141,7 @@ describe("organization invitation acceptance", () => {
 		});
 		await db.insert(ssoProvider).values([
 			{
-				id: Bun.randomUUIDv7(),
+				id: crypto.randomUUID(),
 				providerId: "oidc-primary",
 				organizationId: inviter.organizationId,
 				userId: inviter.user.id,
@@ -149,7 +149,7 @@ describe("organization invitation acceptance", () => {
 				domain: "example.com",
 			},
 			{
-				id: Bun.randomUUIDv7(),
+				id: crypto.randomUUID(),
 				providerId: "oidc-backup",
 				organizationId: inviter.organizationId,
 				userId: inviter.user.id,

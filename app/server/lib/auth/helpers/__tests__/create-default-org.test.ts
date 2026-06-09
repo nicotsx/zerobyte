@@ -7,7 +7,7 @@ import { ensureDefaultOrg } from "../create-default-org";
 const CREATE_DEFAULT_ORG_ROLLBACK_TRIGGER = "create_default_org_member_abort";
 
 function randomId() {
-	return Bun.randomUUIDv7();
+	return crypto.randomUUID();
 }
 
 function randomSlug(prefix: string) {

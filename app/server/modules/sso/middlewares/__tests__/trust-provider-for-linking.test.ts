@@ -6,7 +6,7 @@ import { resolveTrustedProvidersForRequest } from "../trust-provider-for-linking
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../../sso.service";
 
 function randomId() {
-	return Bun.randomUUIDv7();
+	return crypto.randomUUID();
 }
 
 function randomSlug(prefix: string) {

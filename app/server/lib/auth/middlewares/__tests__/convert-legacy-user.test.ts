@@ -4,6 +4,14 @@ vi.mock("better-auth/crypto", () => ({
 	hashPassword: vi.fn(async () => "test-account-password-hash"),
 }));
 
+const legacyPasswordMocks = vi.hoisted(() => ({
+	verifyLegacyPassword: vi.fn(),
+}));
+
+vi.mock("~/server/utils/legacy-password", () => ({
+	verifyLegacyPassword: legacyPasswordMocks.verifyLegacyPassword,
+}));
+
 import { convertLegacyUserOnFirstLogin } from "../convert-legacy-user";
 import { db } from "~/server/db/db";
 import { usersTable, account, organization, member } from "~/server/db/schema";
@@ -11,7 +19,7 @@ import type { AuthMiddlewareContext } from "~/server/lib/auth";
 
 describe("convertLegacyUserOnFirstLogin", () => {
 	const legacyPasswordHash = "legacy-password-hash";
-	const verifyPassword = vi.spyOn(Bun.password, "verify");
+	const verifyPassword = legacyPasswordMocks.verifyLegacyPassword;
 
 	beforeEach(async () => {
 		verifyPassword.mockReset();

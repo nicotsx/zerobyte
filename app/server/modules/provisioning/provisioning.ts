@@ -156,7 +156,7 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 		const existing = existingRepositories.find((r) => r.provisioningId === provisioningId);
 		const encryptedConfig = await encryptProvisionedRepositoryConfig(repository.config);
 		if (!existing) {
-			const id = Bun.randomUUIDv7();
+			const id = crypto.randomUUID();
 
 			await db.insert(repositoriesTable).values({
 				id,

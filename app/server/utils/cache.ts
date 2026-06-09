@@ -1,6 +1,6 @@
-import { Database } from "bun:sqlite";
 import path from "node:path";
 import fs from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { DATABASE_URL } from "../core/constants";
 
 const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
@@ -18,9 +18,9 @@ const createCache = (options: CacheOptions = {}) => {
 		fs.mkdirSync(dir, { recursive: true });
 	}
 
-	const db = new Database(dbPath);
+	const db = new DatabaseSync(dbPath);
 
-	db.run("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expiration INTEGER)");
+	db.exec("CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, value TEXT, expiration INTEGER)");
 
 	const set = (key: string, value: unknown, expirationSeconds = ONE_DAY_IN_SECONDS) => {
 		const expiration = Date.now() + expirationSeconds * 1000;
@@ -92,7 +92,7 @@ const createCache = (options: CacheOptions = {}) => {
 	};
 
 	const clear = () => {
-		db.run("DELETE FROM cache");
+		db.exec("DELETE FROM cache");
 	};
 
 	return {

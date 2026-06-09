@@ -21,9 +21,6 @@
 		"@zerobyte/core": "workspace:*",
 		"zod": "^4.4.3"
 	},
-	"devDependencies": {
-		"@types/bun": "latest"
-	},
 	"peerDependencies": {
 		"typescript": "^6.0.3"
 	}

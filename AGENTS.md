@@ -2,7 +2,7 @@
 
 - Never create migration files manually. Always use the provided command to generate migrations
 - If you realize an automated migration is incorrect, make sure to remove all the associated entries from the `_journal.json` and the newly created files located in `app/drizzle/` before re-generating the migration
-- The dev server runs through Portless. Start it with `bun run dev`, then use `portless get zerobyte` to get the current worktree-specific URL. Do not assume a fixed port like `3000` or `4096`. Username is `admin` and password is `password`
+- The dev server runs through Portless. Start it with `pnpm run dev`, then use `portless get zerobyte` to get the current worktree-specific URL. Do not assume a fixed port like `3000` or `4096`. Username is `admin` and password is `password`
 - The repo is https://github.com/nicotsx/zerobyte
 - If you need to run a specific restic command on a repository, you can open and use the dev panel with `Meta+Shift+D`
 
@@ -14,7 +14,7 @@ Zerobyte is a backup automation tool built on top of Restic that provides a web 
 
 ```bash
 # Start the dev server through Portless
-bun run dev
+pnpm run dev
 
 # Get the current app URL for this worktree
 portless get zerobyte
@@ -29,41 +29,41 @@ Portless applies git worktree prefixes automatically, so linked worktrees may re
 
 ```bash
 # Run type checking and generate React Router types
-bun run tsc
+pnpm run tsc
 ```
 
 ### Testing
 
 ```bash
 # Run all tests
-bun run test
+pnpm run test
 
 # Run a specific test file
-bunx dotenv-cli -e .env.test -- bunx --bun vitest run --project server path/to/test.ts
+pnpm exec dotenv -e .env.test -- vitest run --project server path/to/test.ts
 ```
 
 ### Building
 
 ```bash
 # Build for production
-bun run build
+pnpm run build
 ```
 
 ### Database Migrations
 
 ```bash
 # Generate new migration from schema changes
-bun gen:migrations
+pnpm run gen:migrations
 
 # Generate a custom empty migration
-bunx drizzle-kit generate --custom --name=fix-timestamps-to-ms
+pnpm exec drizzle-kit generate --custom --name=fix-timestamps-to-ms
 
 ```
 
 ### API Client Generation
 
 ```bash
-bun run gen:api-client
+pnpm run gen:api-client
 ```
 
 ### Code Quality
@@ -73,7 +73,7 @@ bun run gen:api-client
 vp fmt <path> --write
 
 # Lint
-bun run lint
+pnpm run lint
 ```
 
 ### Invalidation

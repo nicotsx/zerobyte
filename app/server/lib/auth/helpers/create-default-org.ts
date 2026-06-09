@@ -38,7 +38,7 @@ export type DefaultOrganizationData = {
 
 export async function buildDefaultOrganizationData(
 	user: Pick<User, "name" | "email">,
-	organizationId = Bun.randomUUIDv7(),
+	organizationId = crypto.randomUUID(),
 ): Promise<DefaultOrganizationData> {
 	const resticPassword = cryptoUtils.generateResticPassword();
 
@@ -62,7 +62,7 @@ async function createDefaultOrganizationMembership(user: User) {
 
 		tx.insert(member)
 			.values({
-				id: Bun.randomUUIDv7(),
+				id: crypto.randomUUID(),
 				userId: user.id,
 				role: "owner",
 				organizationId: organizationData.id,

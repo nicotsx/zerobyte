@@ -3,3 +3,5 @@ export type { SafeSpawnParams, SafeSpawnParamsLines, SafeSpawnParamsRaw, SpawnRe
 export { logger } from "./logger.js";
 export { sanitizeSensitiveData } from "../utils/sanitize.js";
 export { FILE_MODES, writeFileWithMode } from "./fs.js";
+export { webSocketRawDataToString } from "./websocket.js";
+export type { WebSocketRawData } from "./websocket.js";

@@ -4,7 +4,7 @@ import { member, organization, sessionsTable, usersTable } from "~/server/db/sch
 type MembershipRole = "owner" | "admin" | "member";
 
 export function randomId() {
-	return Bun.randomUUIDv7();
+	return crypto.randomUUID();
 }
 
 export function randomSlug(prefix: string) {

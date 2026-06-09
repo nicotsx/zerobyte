@@ -1,12 +1,11 @@
 **
 
-!bun.lock
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
 !package.json
 !.gitignore
-!bunfig.toml
 
 !**/package.json
-!**/bun.lock
 !**/tsconfig.json
 !**/vite.config.ts
 !**/components.json

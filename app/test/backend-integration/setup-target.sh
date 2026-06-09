@@ -131,7 +131,7 @@ fi
 	SFTP_PASSWORD="$SFTP_PASSWORD" \
 	KNOWN_HOSTS_PATH="$KNOWN_HOSTS_PATH" \
 	CONFIG_PATH="$CONFIG_PATH" \
-	bun run "$SCRIPT_DIR/write-generated-config.ts"
+	node "$SCRIPT_DIR/write-generated-config.ts"
 
 echo "Provisioned $TARGET"
 echo "Generated config: $CONFIG_PATH"

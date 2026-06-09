@@ -13,7 +13,10 @@ export default defineConfig({
 			router: { routesDirectory: "routes" },
 			importProtection: { behavior: "error" },
 		}),
-		nitro({ preset: "bun", plugins: ["./app/server/plugins/bootstrap.ts"] }),
+		nitro({
+			preset: "node-server",
+			plugins: ["./app/server/plugins/bootstrap.ts"],
+		}),
 		viteReact(),
 		babel({ presets: [reactCompilerPreset()] }),
 		tailwindcss(),

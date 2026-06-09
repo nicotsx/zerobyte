@@ -93,7 +93,7 @@ test("respawns the local agent after an unexpected exit", async () => {
 
 	expect(spawnMock).toHaveBeenCalledTimes(2);
 	expect(spawnMock).toHaveBeenLastCalledWith(
-		"bun",
+		expect.stringContaining("tsx"),
 		expect.any(Array),
 		expect.objectContaining({
 			env: expect.objectContaining({ ZEROBYTE_CONTROLLER_URL: "ws://127.0.0.1:4567" }),
@@ -118,10 +118,8 @@ test("does not respawn the local agent after an intentional stop", async () => {
 
 test("does not start the websocket server when the local agent flag is disabled", async () => {
 	config.flags.enableLocalAgent = false;
-	const serve = vi.spyOn(Bun, "serve");
 
 	await startAgentController();
 
-	expect(serve).not.toHaveBeenCalled();
 	expect(processWithAgentRuntime.__zerobyteAgentRuntime?.agentManager).toBeNull();
 });

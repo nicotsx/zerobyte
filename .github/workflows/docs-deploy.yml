@@ -25,7 +25,7 @@ jobs:
 
       - name: Build docs
         working-directory: apps/docs
-        run: bun run build
+        run: pnpm run build
 
       - name: Build and deploy docs
         uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
@@ -33,9 +33,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/docs
-
-
-
-
-
-

@@ -51,7 +51,7 @@ async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext 
 	db.transaction((tx) => {
 		tx.insert(member)
 			.values({
-				id: Bun.randomUUIDv7(),
+				id: crypto.randomUUID(),
 				userId,
 				role: pendingInvitation.role as "member",
 				organizationId: pendingInvitation.organizationId,

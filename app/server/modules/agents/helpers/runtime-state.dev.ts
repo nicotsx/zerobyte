@@ -24,7 +24,6 @@ const hydrateAgentRuntimeState = (runtime: LegacyAgentRuntimeState): AgentRuntim
 });
 
 export const getDevAgentRuntimeState = (): AgentRuntimeState => {
-	// Bun reloads modules in place during development, so keep the live runtime on process.
 	const runtimeProcess = process as ProcessWithAgentRuntime;
 	const existingRuntime = runtimeProcess.__zerobyteAgentRuntime;
 	if (!existingRuntime) {

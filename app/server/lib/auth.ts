@@ -93,7 +93,7 @@ export const auth = betterAuth({
 					}
 
 					if (!user.username) {
-						user.username = Bun.randomUUIDv7();
+						user.username = crypto.randomUUID();
 					}
 
 					return { data: user };

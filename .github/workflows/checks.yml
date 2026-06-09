@@ -45,7 +45,7 @@ jobs:
 
       - name: Run type checks
         shell: bash
-        run: bun run tsc
+        run: pnpm run tsc
 
   test-server:
     timeout-minutes: 15
@@ -61,7 +61,7 @@ jobs:
 
       - name: Run server tests
         shell: bash
-        run: bun run test:server
+        run: pnpm run test:server
 
   test-client:
     timeout-minutes: 15
@@ -77,7 +77,7 @@ jobs:
 
       - name: Run client tests
         shell: bash
-        run: bun run test:client
+        run: pnpm run test:client
 
   build:
     timeout-minutes: 15
@@ -93,4 +93,4 @@ jobs:
 
       - name: Build project
         shell: bash
-        run: bun run build
+        run: pnpm run build

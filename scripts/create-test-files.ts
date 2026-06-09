@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * Creates temporary files for testing Zerobyte backup functionality.
  * Generates files with various sizes and content patterns.
@@ -83,7 +83,7 @@ function parseSize(size: string): number {
 
 function printHelp(): void {
 	console.info(`
-Usage: bun create-test-files.ts [options]
+Usage: node scripts/create-test-files.ts [options]
 
 Options:
   -c, --count <num>      Number of files to create (default: 10)

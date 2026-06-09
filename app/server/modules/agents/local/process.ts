@@ -20,6 +20,7 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState, controlle
 
 	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
+	const tsxEntryPoint = path.join(process.cwd(), "node_modules", ".bin", "tsx");
 
 	if (config.__prod__ && !existsSync(productionEntryPoint)) {
 		throw new Error(`Local agent entrypoint not found at ${productionEntryPoint}`);
@@ -27,8 +28,9 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState, controlle
 
 	const agentEntryPoint = config.__prod__ ? productionEntryPoint : sourceEntryPoint;
 	const agentToken = await deriveLocalAgentToken();
-	const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
-	const agentProcess = spawn("bun", args, {
+	const command = config.__prod__ ? "node" : tsxEntryPoint;
+	const args = config.__prod__ ? [agentEntryPoint] : ["watch", agentEntryPoint];
+	const agentProcess = spawn(command, args, {
 		env: {
 			...process.env,
 			ZEROBYTE_CONTROLLER_URL: controllerUrl,

@@ -180,7 +180,7 @@ describe("auth controller security", () => {
 		test("global admins can delete an account for a user outside their active organization", async () => {
 			const target = await createTestSession();
 
-			const retainedAccountId = Bun.randomUUIDv7();
+			const retainedAccountId = crypto.randomUUID();
 			await db.insert(account).values({
 				id: retainedAccountId,
 				accountId: `credential-${retainedAccountId}`,
@@ -189,7 +189,7 @@ describe("auth controller security", () => {
 				password: "password-hash",
 			});
 
-			const removableAccountId = Bun.randomUUIDv7();
+			const removableAccountId = crypto.randomUUID();
 			await db.insert(account).values({
 				id: removableAccountId,
 				accountId: `oidc-${removableAccountId}`,

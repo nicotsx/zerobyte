@@ -3,6 +3,7 @@ import { hashPassword } from "better-auth/crypto";
 import { Command } from "commander";
 import { and, eq } from "drizzle-orm";
 import { toMessage } from "~/server/utils/errors";
+import { hashLegacyPassword } from "~/server/utils/legacy-password";
 import { db } from "../../db/db";
 import { account, sessionsTable, usersTable } from "../../db/schema";
 
@@ -18,7 +19,7 @@ const resetPassword = async (username: string, newPassword: string) => {
 	}
 
 	const newPasswordHash = await hashPassword(newPassword);
-	const legacyHash = user.passwordHash ? await Bun.password.hash(newPassword) : null;
+	const legacyHash = user.passwordHash ? await hashLegacyPassword(newPassword) : null;
 
 	db.transaction((tx) => {
 		const existingAccount = tx

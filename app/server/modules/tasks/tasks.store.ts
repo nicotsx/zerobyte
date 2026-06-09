@@ -64,7 +64,7 @@ export const taskStore = {
 		const row = db
 			.insert(tasksTable)
 			.values({
-				id: params.id ?? Bun.randomUUIDv7(),
+				id: params.id ?? crypto.randomUUID(),
 				organizationId: params.organizationId,
 				kind: input.kind,
 				status: "queued",

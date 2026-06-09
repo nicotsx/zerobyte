@@ -5,6 +5,7 @@ import { account, usersTable, member, organization } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { UnauthorizedError } from "http-errors-enhanced";
 import { normalizeUsername } from "~/lib/username";
+import { verifyLegacyPassword } from "~/server/utils/legacy-password";
 import { buildDefaultOrganizationData, type DefaultOrganizationData } from "../helpers/create-default-org";
 
 export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) => {
@@ -25,7 +26,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 	});
 
 	if (legacyUser) {
-		const isValid = await Bun.password.verify(body.password, legacyUser.passwordHash ?? "");
+		const isValid = await verifyLegacyPassword(body.password, legacyUser.passwordHash ?? "");
 
 		if (isValid) {
 			const newUserId = crypto.randomUUID();
@@ -77,7 +78,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 				if (oldMembership?.organization) {
 					tx.insert(member)
 						.values({
-							id: Bun.randomUUIDv7(),
+							id: crypto.randomUUID(),
 							userId: newUserId,
 							organizationId: oldMembership.organization.id,
 							role: oldMembership.role,
@@ -89,7 +90,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 
 					tx.insert(member)
 						.values({
-							id: Bun.randomUUIDv7(),
+							id: crypto.randomUUID(),
 							userId: newUserId,
 							organizationId: newOrganizationData.id,
 							role: "owner",

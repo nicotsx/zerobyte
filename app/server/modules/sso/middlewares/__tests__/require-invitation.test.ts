@@ -23,7 +23,7 @@ function createMockSsoCallbackContext(providerId: string): GenericEndpointContex
 }
 
 function randomId() {
-	return Bun.randomUUIDv7();
+	return crypto.randomUUID();
 }
 
 function randomSlug(prefix: string) {

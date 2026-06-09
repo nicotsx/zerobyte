@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { promisify } from "node:util";
 import { eq } from "drizzle-orm";
 import { db } from "../../../db/db";
@@ -37,7 +38,7 @@ const legacyDecrypt = async (encryptedData: string): Promise<string> => {
 		return encryptedData;
 	}
 
-	const secret = (await Bun.file(RESTIC_PASS_FILE).text()).trim();
+	const secret = (await readFile(RESTIC_PASS_FILE, "utf-8")).trim();
 
 	const parts = encryptedData.split(":").slice(1); // Remove prefix
 	const saltHex = parts.shift() as string;
@@ -87,7 +88,7 @@ const execute = async () => {
 	const errors: MigrationError[] = [];
 
 	// Step 1: Read the legacy restic passfile
-	const legacyPassword = (await Bun.file(RESTIC_PASS_FILE).text()).trim();
+	const legacyPassword = (await readFile(RESTIC_PASS_FILE, "utf-8")).trim();
 
 	if (!legacyPassword) {
 		throw new Error("Legacy restic passfile is empty");

@@ -13,7 +13,7 @@ export default defineConfig({
 				command: "vp",
 				args: ["fmt", "--write", "{{path}}"],
 			},
-			{ command: "bun", args: ["scripts/patch-api-client.ts"] },
+			{ command: "node", args: ["scripts/patch-api-client.ts"] },
 		],
 	},
 	plugins: [...defaultPlugins, "@tanstack/react-query", "@hey-api/client-fetch"],

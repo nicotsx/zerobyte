@@ -64,6 +64,7 @@ There are many ways to contribute to Zerobyte:
 ### Reporting Bugs
 
 If you find a bug, please open an issue with:
+
 - A clear, descriptive title
 - Steps to reproduce the issue
 - Expected vs. actual behavior
@@ -73,6 +74,7 @@ If you find a bug, please open an issue with:
 ### Suggesting Features
 
 When suggesting a feature:
+
 - Check if it's already been suggested
 - Clearly describe the feature and its use case
 - Explain why it would be valuable to other users
@@ -90,6 +92,7 @@ When suggesting a feature:
 ### Improving Documentation
 
 Documentation improvements are always welcome! This includes:
+
 - Fixing typos or clarifying existing docs
 - Adding examples or use cases
 - Writing guides or tutorials
@@ -102,17 +105,20 @@ We welcome translations to make Zerobyte accessible to more users worldwide. Ple
 ## Development Setup
 
 1. **Clone your fork**:
+
    ```bash
    git clone https://github.com/your-username/zerobyte.git
    cd zerobyte
    ```
 
 2. **Set up your development environment**:
-    ```bash
-   bun run start:dev
-    ```
+
+   ```bash
+   pnpm run start:dev
+   ```
 
 3. **Create a feature branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -158,6 +164,7 @@ We welcome translations to make Zerobyte accessible to more users worldwide. Ple
 ## Questions?
 
 If you have questions about contributing, feel free to:
+
 - Open an issue with your question
 - Check existing issues and discussions
 - Reach out to the maintainers

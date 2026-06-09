@@ -1,5 +1,6 @@
-import { logger } from "@zerobyte/core/node";
+import { logger, webSocketRawDataToString } from "@zerobyte/core/node";
 import { Fiber } from "effect";
+import WebSocket from "ws";
 import { createControllerSession, type ControllerSession } from "./controller-session";
 import { startAgentJobs } from "./jobs";
 
@@ -59,24 +60,24 @@ export class Agent {
 		});
 		this.controllerSession = createControllerSession(this.ws);
 
-		this.ws.onopen = () => {
+		this.ws.on("open", () => {
 			logger.info("Agent connected to controller");
 			this.controllerSession?.onOpen();
-		};
+		});
 
-		this.ws.onmessage = (event) => {
-			this.controllerSession?.onMessage(event.data);
-		};
-		this.ws.onclose = () => {
+		this.ws.on("message", (data, isBinary) => {
+			this.controllerSession?.onMessage(isBinary ? data : webSocketRawDataToString(data));
+		});
+		this.ws.on("close", () => {
 			this.controllerSession?.close();
 			this.controllerSession = null;
 			this.ws = null;
 			logger.info("Agent disconnected from controller");
 			this.scheduleReconnect();
-		};
-		this.ws.onerror = (error) => {
+		});
+		this.ws.on("error", (error) => {
 			logger.error("Agent encountered an error:", error);
-		};
+		});
 	}
 }
 
