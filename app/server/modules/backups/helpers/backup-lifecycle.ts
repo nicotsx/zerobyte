@@ -74,7 +74,11 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 	}
 
 	if (!repository) {
-		return { type: "failure", error: new NotFoundError("Repository not found"), partialContext: { schedule, volume } };
+		return {
+			type: "failure",
+			error: new NotFoundError("Repository not found"),
+			partialContext: { schedule, volume },
+		};
 	}
 
 	if (!requiresControllerLocalVolumeReadiness(volume)) {
@@ -154,6 +158,24 @@ export function updateBackupProgress(ctx: BackupContext, progress: BackupExecuti
 	});
 }
 
+async function runPostBackupMaintenance(ctx: BackupContext, scheduleId: number) {
+	if (ctx.schedule.retentionPolicy) {
+		await runForget(scheduleId, undefined, ctx.organizationId).catch((error) => {
+			logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
+		});
+	}
+
+	await copyToMirrors(scheduleId, ctx.repository, ctx.schedule.retentionPolicy, ctx.organizationId).catch((error) => {
+		logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
+	});
+
+	await repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
+		logger.error(
+			`Background repository stats refresh failed for schedule ${scheduleId} (${ctx.repository.shortId}): ${toMessage(error)}`,
+		);
+	});
+}
+
 export async function finalizeSuccessfulBackup(
 	ctx: BackupContext,
 	exitCode: number,
@@ -163,22 +185,9 @@ export async function finalizeSuccessfulBackup(
 	const scheduleId = ctx.schedule.id;
 	const finalStatus = exitCode === 0 && !warningDetails ? "success" : "warning";
 
-	if (ctx.schedule.retentionPolicy) {
-		void runForget(scheduleId, undefined, ctx.organizationId).catch((error) => {
-			logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
-		});
-	}
-
-	void copyToMirrors(scheduleId, ctx.repository, ctx.schedule.retentionPolicy, ctx.organizationId).catch((error) => {
-		logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
-	});
-
 	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
-
-	void repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
-		logger.error(
-			`Background repository stats refresh failed for schedule ${scheduleId} (${ctx.repository.shortId}): ${toMessage(error)}`,
-		);
+	void runPostBackupMaintenance(ctx, scheduleId).catch((error) => {
+		logger.error(`Post-backup maintenance failed for schedule ${scheduleId}: ${toMessage(error)}`);
 	});
 
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {

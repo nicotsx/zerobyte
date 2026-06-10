@@ -139,6 +139,7 @@ export const backup = (
 				command: "restic",
 				args,
 				env: { ...env, RESTIC_PROGRESS_FPS: resticProgressFps },
+				priority: "background",
 				signal: options.signal,
 				onStdout: (data) => {
 					if (!options.onProgress) {

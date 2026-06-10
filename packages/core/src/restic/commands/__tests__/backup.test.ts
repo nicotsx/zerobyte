@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
+import os from "node:os";
 import { Effect } from "effect";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../node/spawn";
@@ -63,11 +64,13 @@ type SetupOptions = {
 const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
 	let capturedEnv: SafeSpawnParams["env"];
+	let capturedPriority: SafeSpawnParams["priority"];
 
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
 		capturedEnv = params.env;
+		capturedPriority = params.priority;
 		return Promise.resolve(onSpawnCall?.(params)).then(() => ({
 			exitCode: 0,
 			summary: VALID_SUMMARY,
@@ -79,6 +82,7 @@ const setup = ({ spawnResult = {}, onSpawnCall }: SetupOptions = {}) => {
 	return {
 		getArgs: () => capturedArgs,
 		getEnv: () => capturedEnv,
+		getPriority: () => capturedPriority,
 		hasFlag: (flag: string) => capturedArgs.includes(flag),
 		getOptionValues: (option: string): string[] => {
 			const values: string[] = [];
@@ -268,6 +272,14 @@ describe("backup command", () => {
 			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(getEnv()?.RESTIC_PROGRESS_FPS).toBe("2");
+		});
+
+		test("runs restic backup as background-priority work", async () => {
+			const { getPriority } = setup();
+
+			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+
+			expect(getPriority()).toBe("background");
 		});
 	});
 
