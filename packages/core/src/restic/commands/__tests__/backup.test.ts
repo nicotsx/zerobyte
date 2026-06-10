@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import os from "node:os";
 import { Effect } from "effect";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as spawnModule from "../../../node/spawn";
