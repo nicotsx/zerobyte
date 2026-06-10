@@ -98,13 +98,14 @@ export const restore = (
 			args.push("--", restoreArg);
 
 			const onProgress = options.onProgress;
+			const resticProgressFps = process.env.RESTIC_PROGRESS_FPS ?? "1";
 
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 			const res = yield* Effect.tryPromise(() =>
 				safeSpawn({
 					command: "restic",
 					args,
-					env: { ...env, RESTIC_PROGRESS_FPS: "1" },
+					env: { ...env, RESTIC_PROGRESS_FPS: resticProgressFps },
 					signal: options.signal,
 					onStdout: (data) => {
 						if (!onProgress) {

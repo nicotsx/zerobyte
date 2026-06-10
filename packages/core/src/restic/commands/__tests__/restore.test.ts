@@ -49,10 +49,12 @@ type SetupOptions = {
 
 const setup = ({ spawnResult = {}, onSpawnCall, spawnError }: SetupOptions = {}) => {
 	let capturedArgs: string[] = [];
+	let capturedEnv: SafeSpawnParams["env"];
 
 	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation((params: SafeSpawnParams) => {
 		capturedArgs = params.args;
+		capturedEnv = params.env;
 		if (spawnError) {
 			return Promise.reject(spawnError);
 		}
@@ -85,6 +87,7 @@ const setup = ({ spawnResult = {}, onSpawnCall, spawnError }: SetupOptions = {})
 
 	return {
 		getArgs: () => capturedArgs,
+		getEnv: () => capturedEnv,
 		getRestoreArg,
 		getOptionValues,
 	};
@@ -92,6 +95,7 @@ const setup = ({ spawnResult = {}, onSpawnCall, spawnError }: SetupOptions = {})
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	delete process.env.RESTIC_PROGRESS_FPS;
 });
 
 const runRestore = (...args: Parameters<typeof restore>) => Effect.runPromise(restore(...args));
@@ -229,6 +233,35 @@ describe("restore command", () => {
 	});
 
 	describe("progress callbacks", () => {
+		test("defaults restic progress output to one update per second", async () => {
+			const { getEnv } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-123",
+				"/tmp/restore-target",
+				{ organizationId: "org-1", basePath: "/var/lib/zerobyte/volumes/vol123/_data" },
+				mockDeps,
+			);
+
+			expect(getEnv()?.RESTIC_PROGRESS_FPS).toBe("1");
+		});
+
+		test("respects an explicit RESTIC_PROGRESS_FPS environment value", async () => {
+			process.env.RESTIC_PROGRESS_FPS = "2";
+			const { getEnv } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-123",
+				"/tmp/restore-target",
+				{ organizationId: "org-1", basePath: "/var/lib/zerobyte/volumes/vol123/_data" },
+				mockDeps,
+			);
+
+			expect(getEnv()?.RESTIC_PROGRESS_FPS).toBe("2");
+		});
+
 		test("calls onProgress with parsed status updates", async () => {
 			const progressUpdates: unknown[] = [];
 			setup({ onSpawnCall: (params) => params.onStdout?.(validProgressLine) });

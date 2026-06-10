@@ -31,6 +31,7 @@ import { mirrorQueries } from "./backups.queries";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
+import { createTaskProgressBuffer } from "../tasks/progress-buffer";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 
@@ -448,6 +449,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	});
 
 	const abortController = backupExecutor.track(scheduleId);
+	const progressBuffer = createTaskProgressBuffer(task.id, {
+		onError: (error) => {
+			logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
+		},
+	});
 	let domainHandlerCompleted = false;
 
 	try {
@@ -470,22 +476,20 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 				signal: abortController.signal,
 				onProgress: (progress) => {
 					updateBackupProgress(ctx, progress);
-					try {
-						taskStore.updateProgress(task.id, { kind: "backup", progress });
-					} catch (error) {
-						logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
-					}
+					progressBuffer.update({ kind: "backup", progress });
 				},
 			});
 
 			switch (executionResult.status) {
 				case "unavailable": {
+					progressBuffer.flush();
 					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
 					domainHandlerCompleted = true;
 					taskStore.fail(task.id, toMessage(executionResult.error));
 					return;
 				}
 				case "completed":
+					progressBuffer.flush();
 					await finalizeSuccessfulBackup(
 						ctx,
 						executionResult.exitCode,
@@ -501,12 +505,14 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 					});
 					return;
 				case "failed": {
+					progressBuffer.flush();
 					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
 					domainHandlerCompleted = true;
 					taskStore.fail(task.id, toMessage(executionResult.error));
 					return;
 				}
 				case "cancelled":
+					progressBuffer.flush();
 					await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
 					domainHandlerCompleted = true;
 					taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
@@ -517,6 +523,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		}
 	} catch (error) {
 		if (abortController.signal.aborted) {
+			progressBuffer.flush();
 			taskStore.cancel(task.id, "Backup was stopped by the user");
 			return;
 		}
@@ -525,9 +532,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 			throw error;
 		}
 
+		progressBuffer.flush();
 		await handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
 		taskStore.fail(task.id, toMessage(error));
 	} finally {
+		progressBuffer.dispose();
 		backupExecutor.untrack(scheduleId, abortController);
 		cache.del(cacheKeys.backup.progress(scheduleId));
 	}

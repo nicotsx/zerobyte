@@ -97,6 +97,7 @@ const runBackupError = (...args: Parameters<typeof backup>) => Effect.runPromise
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	delete process.env.RESTIC_PROGRESS_FPS;
 });
 
 describe("backup command", () => {
@@ -250,6 +251,23 @@ describe("backup command", () => {
 			);
 
 			expect(getEnv()?.RCLONE_CONFIG).toBe(mockDeps.rcloneConfigFile);
+		});
+
+		test("defaults restic progress output to one update per second", async () => {
+			const { getEnv } = setup();
+
+			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+
+			expect(getEnv()?.RESTIC_PROGRESS_FPS).toBe("1");
+		});
+
+		test("respects an explicit RESTIC_PROGRESS_FPS environment value", async () => {
+			process.env.RESTIC_PROGRESS_FPS = "2";
+			const { getEnv } = setup();
+
+			await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+
+			expect(getEnv()?.RESTIC_PROGRESS_FPS).toBe("2");
 		});
 	});
 
