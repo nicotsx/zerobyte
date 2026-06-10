@@ -7,9 +7,9 @@ When running Zerobyte behind a reverse proxy, you need to configure the `BASE_UR
 
 ## Prerequisites
 
-Set the following environment variables in your `docker-compose.yml`:
+Set the following environment variables in your `compose.yaml`:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 environment:
   - BASE_URL=https://zerobyte.example.com
   - TRUST_PROXY=true  # Optional: trust X-Forwarded-For headers from your proxy
@@ -95,9 +95,9 @@ Caddy automatically handles `X-Forwarded-For`, `X-Forwarded-Proto`, and TLS, wit
 
 ### Traefik
 
-If you run Traefik as your reverse proxy, add labels to the Zerobyte service in your `docker-compose.yml`:
+If you run Traefik as your reverse proxy, add labels to the Zerobyte service in your `compose.yaml`:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     image: ghcr.io/nicotsx/zerobyte:v0.39
@@ -126,7 +126,7 @@ Make sure your Traefik instance is configured with a `websecure` entrypoint and 
 
 If you are using a reverse proxy on the same machine, bind the Zerobyte port to `127.0.0.1` so it is not directly accessible from the network:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 ports:
   - "127.0.0.1:4096:4096"
 ```

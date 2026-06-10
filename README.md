@@ -45,7 +45,7 @@ It contains up-to-date setup guides, configuration reference, and usage document
 
 ## Installation
 
-In order to run Zerobyte, you need to have Docker and Docker Compose installed on your server. Then, you can use the provided `docker-compose.yml` file to start the application.
+In order to run Zerobyte, you need to have Docker and Docker Compose installed on your server. Then, you can use the provided `compose.yaml` file to start the application.
 
 ```yaml
 services:
@@ -171,7 +171,7 @@ See `examples/provisioned-resources/README.md` for a full example.
 
 ### Simplified setup (no remote mounts)
 
-If you only need to back up locally-mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `docker-compose.yml`:
+If you only need to back up locally-mounted folders and don't require remote share mounting capabilities, you can remove the `SYS_ADMIN` capability and FUSE device from your `compose.yaml`:
 
 ```yaml
 services:
@@ -210,7 +210,7 @@ Zerobyte supports multiple volume backends including NFS, SMB, WebDAV, SFTP, and
 
 To add your first volume, navigate to the "Volumes" section in the web interface and click on "Create volume". Fill in the required details such as volume name, type, and connection settings.
 
-If you want to backup a local directory on the same host where Zerobyte is running, you'll first need to mount that directory into the Zerobyte container. You can do this by adding a volume mapping in your `docker-compose.yml` file. For example, to mount `/path/to/your/directory` from the host to `/mydata` in the container, you would add the following line under the `volumes` section:
+If you want to backup a local directory on the same host where Zerobyte is running, you'll first need to mount that directory into the Zerobyte container. You can do this by adding a volume mapping in your `compose.yaml` file. For example, to mount `/path/to/your/directory` from the host to `/mydata` in the container, you would add the following line under the `volumes` section:
 
 ```diff
 services:
@@ -234,7 +234,7 @@ services:
 +     - /path/to/your/directory:/mydata
 ```
 
-After updating the `docker-compose.yml` file, restart the Zerobyte container to apply the changes:
+After updating the `compose.yaml` file, restart the Zerobyte container to apply the changes:
 
 ```bash
 docker compose down
@@ -285,7 +285,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    rclone listremotes
    ```
 
-4. **Mount the rclone config into the Zerobyte container** by updating your `docker-compose.yml`:
+4. **Mount the rclone config into the Zerobyte container** by updating your `compose.yaml`:
 
    ```diff
    services:

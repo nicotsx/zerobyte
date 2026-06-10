@@ -12,7 +12,7 @@ At startup, Zerobyte reads the provisioning file, resolves any `env://...` or `f
 
 ## What this example includes
 
-- `docker-compose.yml` mounts a provisioning file and a Docker secret.
+- `compose.yaml` mounts a provisioning file and a Docker secret.
 - `.env.example` provides the environment variables used by `env://...` references.
 - `provisioning.example.json` provisions one S3 repository and one WebDAV volume.
 - `secrets/aws_secret_access_key.example` shows the file consumed by `file://aws_secret_access_key`.

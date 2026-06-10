@@ -49,7 +49,7 @@ Zerobyte is configured through environment variables and Docker Compose settings
 
 If you prefer not to place the app secret directly in `environment:`, mount it as a file and point `APP_SECRET_FILE` at that path.
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     environment:
@@ -185,7 +185,7 @@ This allows you to keep credentials in your deployment configuration rather than
 
 ### Example with Docker Secrets
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     environment:

@@ -45,7 +45,7 @@ async function detectRclone(): Promise<boolean> {
 		return true;
 	} catch (_) {
 		logger.warn(
-			`rclone capability: disabled. ` + `To enable: mount rclone config at ${RCLONE_CONFIG_DIR} in docker-compose.yml`,
+			`rclone capability: disabled. ` + `To enable: mount rclone config at ${RCLONE_CONFIG_DIR} in compose.yaml`,
 		);
 		return false;
 	}
@@ -83,10 +83,10 @@ async function detectSysAdmin(): Promise<boolean> {
 			return true;
 		}
 
-		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in docker-compose.yml");
+		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in compose.yaml");
 		return false;
 	} catch (_error) {
-		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in docker-compose.yml");
+		logger.warn("sysAdmin capability: disabled. " + "To enable: add 'cap_add: SYS_ADMIN' in compose.yaml");
 		return false;
 	}
 }

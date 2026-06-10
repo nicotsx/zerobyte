@@ -72,9 +72,9 @@ Replace `myremote` with the name you chose during configuration.
 
 ## Mounting rclone config into the container
 
-Zerobyte needs access to your rclone configuration file to discover and use your remotes. Mount it as a read-only volume in your `docker-compose.yml`:
+Zerobyte needs access to your rclone configuration file to discover and use your remotes. Mount it as a read-only volume in your `compose.yaml`:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 volumes:
   - /etc/localtime:/etc/localtime:ro
   - /var/lib/zerobyte:/var/lib/zerobyte
@@ -90,7 +90,7 @@ docker compose down && docker compose up -d
 <Callout type="info">
 For non-root container environments (e.g., TrueNAS), the config must be mounted to the correct user home directory. Set the `RCLONE_CONFIG_DIR` environment variable accordingly:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 environment:
   - RCLONE_CONFIG_DIR=/home/appuser/.config/rclone
 volumes:
@@ -157,9 +157,9 @@ Rclone volumes mount cloud storage as a filesystem inside the container, allowin
 
 ### Ensure FUSE support
 
-Your `docker-compose.yml` must include `SYS_ADMIN` and `/dev/fuse`:
+Your `compose.yaml` must include `SYS_ADMIN` and `/dev/fuse`:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 cap_add:
   - SYS_ADMIN
 devices:
@@ -214,7 +214,7 @@ If your rclone remote uses SFTP with `key_file` authentication, the path in the 
 
 **Recommended.** Mount your SSH keys into the container so rclone can find them at the expected path:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 volumes:
   - ~/.ssh:/root/.ssh:ro
 ```
@@ -235,7 +235,7 @@ This avoids any file path issues since the key is stored directly in the rclone 
 
 Forward your host's SSH agent socket into the container:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 environment:
   - SSH_AUTH_SOCK=/ssh-agent
 volumes:
@@ -288,7 +288,7 @@ If you mount the rclone config as a read-only volume (`:ro`), the updated tokens
 If the rclone remote dropdown is empty when creating a repository or volume:
 
 - Verify the rclone config is mounted correctly. Check that `~/.config/rclone/rclone.conf` exists on the host.
-- Confirm the mount path in `docker-compose.yml` matches the expected location inside the container (`/root/.config/rclone` by default, or the path set in `RCLONE_CONFIG_DIR`).
+- Confirm the mount path in `compose.yaml` matches the expected location inside the container (`/root/.config/rclone` by default, or the path set in `RCLONE_CONFIG_DIR`).
 - Restart the container after updating the volume mount.
 
 ### Failed to create file system
@@ -303,7 +303,7 @@ This usually means rclone cannot authenticate with the remote:
 
 If you see errors related to FUSE when creating rclone volumes:
 
-- Ensure your `docker-compose.yml` includes `cap_add: [SYS_ADMIN]` and `devices: [/dev/fuse:/dev/fuse]`.
+- Ensure your `compose.yaml` includes `cap_add: [SYS_ADMIN]` and `devices: [/dev/fuse:/dev/fuse]`.
 - Confirm you are running on a Linux host. FUSE mounts do not work with Docker on macOS or Windows.
 - Check that `/dev/fuse` exists on the host: `ls -la /dev/fuse`.
 

@@ -138,7 +138,7 @@ sudo aa-status
 docker inspect --format='{{.AppArmorProfile}}' zerobyte
 ```
 
-If AppArmor is enabled, you can disable it for the Zerobyte container by adding the following to your `docker-compose.yml`:
+If AppArmor is enabled, you can disable it for the Zerobyte container by adding the following to your `compose.yaml`:
 
 ```yaml
 services:

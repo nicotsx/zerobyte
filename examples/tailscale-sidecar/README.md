@@ -54,7 +54,7 @@ This example supports two Tailscale modes:
 - Over Tailscale: `http://<tailscale-ip>:4096` or `http://<tailscale-name>:4096` (if MagicDNS is enabled)
 - Locally (optional): the example publishes `4096:4096` on the host
 
-If you want Zerobyte to be reachable only via Tailscale, remove the `ports:` section from the `tailscale` service in [docker-compose.yml](docker-compose.yml). Zerobyte will still be able to access the internet and other resources outside the tailnet, but UI will only be accessible over Tailscale with possibility to further restrict access to it with ACLs/tags.
+If you want Zerobyte to be reachable only via Tailscale, remove the `ports:` section from the `tailscale` service in [compose.yaml](compose.yaml). Zerobyte will still be able to access the internet and other resources outside the tailnet, but UI will only be accessible over Tailscale with possibility to further restrict access to it with ACLs/tags.
 
 ## Notes
 
@@ -76,7 +76,7 @@ The example uses these environment variables (see [.env.example](.env.example)):
 
 - If the `tailscale` container can’t start due to missing TUN support, ensure your host has `/dev/net/tun` available and that Docker is allowed to use it.
 - If your tailnet uses ACLs/tags, set `TS_EXTRA_ARGS` accordingly (for example `--advertise-tags=tag:backup`).
-- If the `tailscale` container fails due to Docker Desktop / missing TUN support: set `TS_USERSPACE=true` in your `.env`, remove the `/dev/net/tun:/dev/net/tun` device mapping in [docker-compose.yml](docker-compose.yml), and keep `SYS_MODULE` disabled (commented out).
+- If the `tailscale` container fails due to Docker Desktop / missing TUN support: set `TS_USERSPACE=true` in your `.env`, remove the `/dev/net/tun:/dev/net/tun` device mapping in [compose.yaml](compose.yaml), and keep `SYS_MODULE` disabled (commented out).
 
 To confirm the tailnet address of the container:
 

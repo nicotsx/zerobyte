@@ -106,7 +106,7 @@ For this quick start, we'll add a local directory. First, ensure the directory i
 
 #### Mount the Directory
 
-Update your `docker-compose.yml` to mount the directory you want to backup:
+Update your `compose.yaml` to mount the directory you want to backup:
 
 ```yaml
 services:
@@ -757,7 +757,7 @@ Verify:
 
 Ensure:
 
-- Directory is mounted in `docker-compose.yml`
+- Directory is mounted in `compose.yaml`
 - Container was restarted after mounting: `docker compose restart`
 - Path matches the container path, not host path
 
