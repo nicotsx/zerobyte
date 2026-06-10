@@ -136,7 +136,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				const rangeIds = new Set(snapshots.slice(start, end + 1).map((s) => s.short_id));
 
 				setSelectedIds(rangeIds);
-				setLastSelectedId(snapshotId);
+				setLastSelectedId(snapshots[startIndex].short_id);
 				return;
 			}
 		}
@@ -346,7 +346,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 					<DialogHeader>
 						<DialogTitle>Re-tag snapshots</DialogTitle>
 						<DialogDescription>
-							Select a backup schedule to re-tag the {selectedIds.size} selected snapshots. All{" "}
+							Select a backup schedule to re-tag the {selectedIds.size} selected snapshots. All&nbsp;
 							{selectedIds.size} selected snapshots will be associated with the chosen schedule.
 						</DialogDescription>
 					</DialogHeader>
