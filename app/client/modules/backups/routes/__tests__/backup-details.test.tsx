@@ -108,10 +108,13 @@ const snapshot = {
 	},
 };
 
-const mockScheduleDetailsRequests = () => {
+const mockScheduleDetailsRequests = (
+	options: { scheduleOverride?: Record<string, unknown>; onScheduleRequest?: () => void } = {},
+) => {
 	server.use(
 		http.get("/api/v1/backups/:shortId", () => {
-			return HttpResponse.json(schedule);
+			options.onScheduleRequest?.();
+			return HttpResponse.json({ ...schedule, ...options.scheduleOverride });
 		}),
 		http.get("/api/v1/repositories/:shortId/snapshots", () => {
 			return HttpResponse.json([snapshot]);
@@ -176,5 +179,68 @@ describe("ScheduleDetailsPage", () => {
 		expect(screen.getByText("Files processed")).toBeTruthy();
 		expect(screen.getByRole("link", { name: /restore/i })).toBeTruthy();
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
+	});
+
+	test("polls the schedule only while a backup is running", async () => {
+		let idleScheduleRequests = 0;
+
+		mockScheduleDetailsRequests({
+			onScheduleRequest: () => {
+				idleScheduleRequests += 1;
+			},
+		});
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
+		await new Promise((resolve) => setTimeout(resolve, 1200));
+		expect(idleScheduleRequests).toBe(1);
+
+		cleanup();
+
+		let runningScheduleRequests = 0;
+
+		mockScheduleDetailsRequests({
+			scheduleOverride: { lastBackupStatus: "in_progress" },
+			onScheduleRequest: () => {
+				runningScheduleRequests += 1;
+			},
+		});
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule: fromAny({ ...schedule, lastBackupStatus: "in_progress" }),
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
+		await new Promise((resolve) => setTimeout(resolve, 1200));
+		expect(runningScheduleRequests).toBeGreaterThan(1);
 	});
 });

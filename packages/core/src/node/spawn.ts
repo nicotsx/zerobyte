@@ -1,4 +1,6 @@
 import { spawn, execFile, type ExecException, type ExecFileOptions } from "node:child_process";
+import { existsSync } from "node:fs";
+import { setPriority } from "node:os";
 import { createInterface } from "node:readline";
 import { promisify } from "node:util";
 
@@ -40,6 +42,7 @@ interface SafeSpawnParamsBase {
 	args: string[];
 	env?: NodeJS.ProcessEnv;
 	signal?: AbortSignal;
+	priority?: "background";
 	onStderr?: (error: string) => void;
 	onSpawn?: (child: ReturnType<typeof spawn>) => void;
 }
@@ -64,11 +67,36 @@ export type SpawnResult = {
 };
 
 const MAX_STDERR_LINES = 50;
+const BACKGROUND_NICE_VALUE = 10;
+
+const getBackgroundCommand = (command: string, args: string[]) => {
+	const ionice = ["/bin/ionice", "/usr/bin/ionice"].find((path) => existsSync(path));
+
+	if (ionice) {
+		return {
+			command: ionice,
+			args: ["-t", "-c", "3", command, ...args],
+		};
+	}
+
+	return { command, args };
+};
+
+const setBackgroundPriority = (pid: number | undefined) => {
+	if (!pid) return;
+
+	try {
+		setPriority(pid, BACKGROUND_NICE_VALUE);
+	} catch {
+		// some oses can reject priority changes
+	}
+};
 
 export function safeSpawn(params: SafeSpawnParamsLines): Promise<SpawnResult>;
 export function safeSpawn(params: SafeSpawnParamsRaw): Promise<SpawnResult>;
 export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
-	const { command, args, env = {}, signal, onStderr, onSpawn } = params;
+	const { command, args, env = {}, signal, priority, onStderr, onSpawn } = params;
+	const spawnCommand = priority === "background" ? getBackgroundCommand(command, args) : { command, args };
 	const stdoutMode = params.stdoutMode ?? "lines";
 	const onStdout = stdoutMode === "lines" ? params.onStdout : undefined;
 
@@ -77,12 +105,16 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 	const stderrLines: string[] = [];
 
 	return new Promise<SpawnResult>((resolve) => {
-		const child = spawn(command, args, {
+		const child = spawn(spawnCommand.command, spawnCommand.args, {
 			env: { ...process.env, ...env },
 			shell: false,
 			signal: signal,
 			stdio: ["ignore", "pipe", "pipe"],
 		});
+
+		if (priority === "background") {
+			setBackgroundPriority(child.pid);
+		}
 
 		onSpawn?.(child);
 

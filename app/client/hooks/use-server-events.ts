@@ -25,6 +25,7 @@ type SharedServerEventsState = {
 };
 
 const invalidatingEvents = new Set<ServerEventType>([
+	"backup:started",
 	"backup:completed",
 	"volume:updated",
 	"volume:status_changed",

@@ -432,7 +432,6 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 
 	const { context: ctx } = result;
 	cache.del(cacheKeys.backup.progress(scheduleId));
-	emitBackupStarted(ctx, scheduleId);
 
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupStatus: "in_progress",
@@ -449,6 +448,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	});
 
 	const abortController = backupExecutor.track(scheduleId);
+	emitBackupStarted(ctx, scheduleId);
 	const progressBuffer = createTaskProgressBuffer(task.id, {
 		onError: (error) => {
 			logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
