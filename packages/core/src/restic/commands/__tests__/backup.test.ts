@@ -262,12 +262,43 @@ describe("backup command", () => {
 			expect(result?.snapshot_id).toBe("abcd1234");
 		});
 
+		test("ignores restic diagnostic stderr on exit code 0", async () => {
+			setup({
+				onSpawnCall: (params) => {
+					params.onStderr?.("Load(<lock/b84b958297>, 0, 0) failed: Key not found");
+				},
+			});
+
+			const { exitCode, warningDetails } = await runBackup(
+				config,
+				"/mnt/data",
+				{ organizationId: "org-1" },
+				mockDeps,
+			);
+
+			expect(exitCode).toBe(0);
+			expect(warningDetails).toBeNull();
+		});
+
 		test("returns result without throwing on exit code 3 (partial read errors)", async () => {
 			setup({ spawnResult: { exitCode: 3 } });
 			const { result, exitCode } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
 
 			expect(exitCode).toBe(3);
 			expect(result).not.toBeNull();
+		});
+
+		test("keeps restic stderr on exit code 3", async () => {
+			setup({
+				spawnResult: { exitCode: 3 },
+				onSpawnCall: (params) => {
+					params.onStderr?.("error: open /mnt/data/private.db: permission denied");
+				},
+			});
+
+			const { warningDetails } = await runBackup(config, "/mnt/data", { organizationId: "org-1" }, mockDeps);
+
+			expect(warningDetails).toBe("error: open /mnt/data/private.db: permission denied");
 		});
 
 		test("throws ResticError on non-zero, non-3 exit codes", async () => {

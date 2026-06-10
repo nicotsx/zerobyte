@@ -619,6 +619,45 @@ describe("stop backup", () => {
 		);
 	});
 
+	test("should not warn when restic exits successfully with diagnostic stderr", async () => {
+		const { resticBackupMock } = setup();
+		const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementationOnce((params: SafeSpawnParams) => {
+			params.onStderr?.("Load(<lock/b84b958297>, 0, 0) failed: Key not found");
+
+			return Promise.resolve({
+				exitCode: 0,
+				summary: generateBackupOutput(),
+				error: "",
+			});
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		const task = await getBackupTaskForSchedule(schedule.id);
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		expect(updatedSchedule.lastBackupError).toBeNull();
+		expect(task?.status).toBe("succeeded");
+		expect(task?.result).toMatchObject({
+			kind: "backup",
+			exitCode: 0,
+			warningDetails: null,
+		});
+		expect(notificationSpy).toHaveBeenLastCalledWith(
+			schedule.id,
+			"success",
+			expect.objectContaining({ error: undefined }),
+		);
+	});
+
 	test("should store restic diagnostic details instead of the generic summary on hard failure", async () => {
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
