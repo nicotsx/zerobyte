@@ -75,7 +75,7 @@ const getBackgroundCommand = (command: string, args: string[]) => {
 	if (ionice) {
 		return {
 			command: ionice,
-			args: ["-c", "3", command, ...args],
+			args: ["-t", "-c", "3", command, ...args],
 		};
 	}
 
