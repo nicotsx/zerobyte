@@ -127,6 +127,33 @@ describe("useServerEvents", () => {
 		expect(MockEventSource.instances[0]?.close).toHaveBeenCalledTimes(1);
 	});
 
+	test("refreshes active queries when a backup starts", async () => {
+		const queryClient = createTestQueryClient();
+		let queryValue = "idle";
+
+		render(
+			<>
+				<ConnectionConsumer />
+				<QueryStatusConsumer getValue={() => queryValue} />
+			</>,
+			{ queryClient },
+		);
+
+		expect(MockEventSource.instances).toHaveLength(1);
+		expect(await screen.findByText("idle")).toBeTruthy();
+
+		queryValue = "running";
+
+		MockEventSource.instances[0]?.emit("backup:started", {
+			organizationId: "default-org",
+			scheduleId: "0b9c940b",
+			volumeName: "synology",
+			repositoryName: "swiss-backup",
+		});
+
+		expect(await screen.findByText("running")).toBeTruthy();
+	});
+
 	test("waits to subscribe until enabled", () => {
 		const queryClient = createTestQueryClient();
 		const view = render(<ConnectionConsumer enabled={false} />, { queryClient });
