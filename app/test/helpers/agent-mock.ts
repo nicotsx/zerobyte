@@ -72,7 +72,7 @@ export const createAgentBackupMocks = (
 							status: "completed",
 							exitCode: result.exitCode,
 							result: fromAny(parsedResult),
-							warningDetails: stderrLines.join("\n") || null,
+							warningDetails: result.exitCode === 0 ? null : stderrLines.join("\n") || null,
 						});
 						return;
 					}

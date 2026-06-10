@@ -170,6 +170,9 @@ export const backup = (
 				},
 			});
 
+			const stderrDetails = stderrLines.length > 0 ? stderrLines.join("\n") : null;
+			const warningDetails = res.exitCode === 0 ? null : stderrDetails;
+
 			if (includeFile) {
 				await fs.unlink(includeFile).catch(() => {});
 			}
@@ -194,7 +197,7 @@ export const backup = (
 				logger.error(`Restic backup failed: ${res.error}`);
 				logger.error(`Command executed: restic ${args.join(" ")}`);
 
-				throw createResticError(res.exitCode, stderrLines.join("\n") || res.stderr || res.error);
+				throw createResticError(res.exitCode, stderrDetails || res.stderr || res.error);
 			}
 
 			const lastLine = res.summary.trim();
@@ -214,14 +217,14 @@ export const backup = (
 				return {
 					result: null,
 					exitCode: res.exitCode,
-					warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+					warningDetails,
 				};
 			}
 
 			return {
 				result: result.data,
 				exitCode: res.exitCode,
-				warningDetails: stderrLines.length > 0 ? stderrLines.join("\n") : null,
+				warningDetails,
 			};
 		},
 		catch: (error) => {
