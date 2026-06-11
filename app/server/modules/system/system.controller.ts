@@ -15,7 +15,7 @@ import {
 	type DevPanelDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
-import { requireAdmin, requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
+import { requireAdmin, requireAuth, requireBrowserSession, requireOrgAdmin } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -56,6 +56,7 @@ export const systemController = new Hono()
 	)
 	.post(
 		"/restic-password",
+		requireBrowserSession,
 		requireOrgAdmin,
 		downloadResticPasswordDto,
 		validator("json", downloadResticPasswordBodySchema),
@@ -78,7 +79,10 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
-				await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, user.id));
+				await db
+					.update(usersTable)
+					.set({ hasDownloadedResticPassword: true })
+					.where(eq(usersTable.id, user.id));
 
 				c.header("Content-Type", "text/plain");
 				c.header("Content-Disposition", 'attachment; filename="restic.pass"');

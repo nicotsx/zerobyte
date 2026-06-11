@@ -2,6 +2,10 @@ import { createMiddleware } from "hono/factory";
 import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { withContext } from "~/server/core/request-context";
+import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
+
+const API_KEY_HEADER = "x-api-key";
+type AuthSource = "browser-session" | "api-key";
 
 declare module "hono" {
 	interface ContextVariableMap {
@@ -14,6 +18,7 @@ declare module "hono" {
 		};
 		organizationId: string;
 		membership: { role: string };
+		authSource: AuthSource;
 	}
 }
 
@@ -22,14 +27,35 @@ declare module "hono" {
  * Verifies the session cookie and attaches user to context
  */
 export const requireAuth = createMiddleware(async (c, next) => {
-	const sess = await auth.api.getSession({
-		headers: c.req.raw.headers,
+	const apiKey = c.req.header(API_KEY_HEADER);
+	const authSource: AuthSource = apiKey ? "api-key" : "browser-session";
+
+	if (apiKey && !c.req.path.startsWith("/api")) {
+		return c.json<unknown>({ message: "API key authentication is only supported for API v1 routes" }, 401);
+	}
+
+	const sess = await auth.api.getSession({ headers: c.req.raw.headers }).catch((error) => {
+		if (authSource === "api-key") {
+			return null;
+		}
+
+		throw error;
 	});
 
 	const { user, session } = sess ?? {};
-	const { activeOrganizationId } = session ?? {};
 
-	if (!user || !session || !activeOrganizationId) {
+	if (!user || !session) {
+		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
+	}
+
+	if (authSource === "api-key" && user.banned) {
+		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
+	}
+
+	const activeOrganizationId =
+		authSource === "api-key" ? await getApiKeyOrganizationId(session.id) : session.activeOrganizationId;
+
+	if (!activeOrganizationId) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
 
@@ -46,10 +72,19 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	c.set("user", user);
 	c.set("organizationId", activeOrganizationId);
 	c.set("membership", membership);
+	c.set("authSource", authSource);
 
 	await withContext({ organizationId: activeOrganizationId, userId: user.id }, async () => {
 		await next();
 	});
+});
+
+export const requireBrowserSession = createMiddleware(async (c, next) => {
+	if (c.get("authSource") === "api-key") {
+		return c.json({ message: "Browser session required" }, 401);
+	}
+
+	await next();
 });
 
 /**
@@ -67,6 +102,10 @@ export const requireOrgAdmin = createMiddleware(async (c, next) => {
 });
 
 export const requireAdmin = createMiddleware(async (c, next) => {
+	if (c.get("authSource") === "api-key") {
+		return c.json({ message: "Browser session required" }, 401);
+	}
+
 	const user = c.get("user");
 
 	if (!user || user.role !== "admin") {

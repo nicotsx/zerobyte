@@ -53,7 +53,10 @@ class AuthService {
 				if (org) {
 					const [volumes, repos, schedules] = await Promise.all([
 						db.select({ count: count() }).from(volumesTable).where(eq(volumesTable.organizationId, org.id)),
-						db.select({ count: count() }).from(repositoriesTable).where(eq(repositoriesTable.organizationId, org.id)),
+						db
+							.select({ count: count() })
+							.from(repositoriesTable)
+							.where(eq(repositoriesTable.organizationId, org.id)),
 						db
 							.select({ count: count() })
 							.from(backupSchedulesTable)
@@ -120,7 +123,12 @@ class AuthService {
 				for (const [affectedUserId, fallbackOrgId] of fallbackOrgByUser) {
 					tx.update(sessionsTable)
 						.set({ activeOrganizationId: fallbackOrgId })
-						.where(and(eq(sessionsTable.userId, affectedUserId), inArray(sessionsTable.activeOrganizationId, orgIds)))
+						.where(
+							and(
+								eq(sessionsTable.userId, affectedUserId),
+								inArray(sessionsTable.activeOrganizationId, orgIds),
+							),
+						)
 						.run();
 				}
 			}
@@ -238,7 +246,10 @@ class AuthService {
 						activeOrganizationId: fallbackMembership.organizationId,
 					})
 					.where(
-						and(eq(sessionsTable.userId, targetMember.userId), eq(sessionsTable.activeOrganizationId, organizationId)),
+						and(
+							eq(sessionsTable.userId, targetMember.userId),
+							eq(sessionsTable.activeOrganizationId, organizationId),
+						),
 					)
 					.run();
 				return;

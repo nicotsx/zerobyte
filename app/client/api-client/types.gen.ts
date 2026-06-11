@@ -108,6 +108,96 @@ export type GetUserDeletionImpactResponses = {
 
 export type GetUserDeletionImpactResponse = GetUserDeletionImpactResponses[keyof GetUserDeletionImpactResponses];
 
+export type GetApiKeysData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/api-keys';
+};
+
+export type GetApiKeysResponses = {
+    /**
+     * List of API keys
+     */
+    200: {
+        apiKeys: Array<{
+            id: string;
+            name: string | null;
+            createdAt: string;
+            expiresAt: string | null;
+            lastRequestAt: string | null;
+        }>;
+        limit: number;
+    };
+};
+
+export type GetApiKeysResponse = GetApiKeysResponses[keyof GetApiKeysResponses];
+
+export type CreateApiKeyData = {
+    body: {
+        name: string;
+        password: string;
+        expiresIn?: number | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/api-keys';
+};
+
+export type CreateApiKeyErrors = {
+    /**
+     * Invalid password
+     */
+    401: unknown;
+    /**
+     * Local credential password required
+     */
+    403: unknown;
+    /**
+     * API key limit reached
+     */
+    409: unknown;
+};
+
+export type CreateApiKeyResponses = {
+    /**
+     * API key created
+     */
+    200: {
+        id: string;
+        name: string | null;
+        createdAt: string;
+        expiresAt: string | null;
+        lastRequestAt: string | null;
+        key: string;
+    };
+};
+
+export type CreateApiKeyResponse = CreateApiKeyResponses[keyof CreateApiKeyResponses];
+
+export type DeleteApiKeyData = {
+    body?: never;
+    path: {
+        keyId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/api-keys/{keyId}';
+};
+
+export type DeleteApiKeyErrors = {
+    /**
+     * API key not found
+     */
+    404: unknown;
+};
+
+export type DeleteApiKeyResponses = {
+    /**
+     * API key revoked
+     */
+    200: unknown;
+};
+
 export type GetOrgMembersData = {
     body?: never;
     path?: never;

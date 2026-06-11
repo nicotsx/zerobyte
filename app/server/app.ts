@@ -15,6 +15,7 @@ import { volumeController } from "./modules/volumes/volume.controller";
 import { backupScheduleController } from "./modules/backups/backups.controller";
 import { eventsController } from "./modules/events/events.controller";
 import { notificationsController } from "./modules/notifications/notifications.controller";
+import { apiKeysController } from "./modules/api-keys/api-keys.controller";
 import { handleServiceError } from "./utils/errors";
 import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
@@ -84,9 +85,9 @@ export const createApp = () => {
 		}),
 	);
 
-	app
-		.get("/api/healthcheck", (c) => c.json({ status: "ok" }))
+	app.get("/api/healthcheck", (c) => c.json({ status: "ok" }))
 		.route("/api/v1/auth", authController)
+		.route("/api/v1/auth", apiKeysController)
 		.route("/api/v1/auth", ssoController)
 		.route("/api/v1/volumes", volumeController)
 		.route("/api/v1/repositories", repositoriesController)
@@ -95,7 +96,18 @@ export const createApp = () => {
 		.route("/api/v1/system", systemController)
 		.route("/api/v1/events", eventsController);
 
-	app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+	app.on(["POST", "GET"], "/api/auth/*", (c) => {
+		const pathname = new URL(c.req.url).pathname;
+		if (pathname.startsWith("/api/auth/api-key/")) {
+			return c.json({ message: "API key management is only supported through API v1 routes" }, 404);
+		}
+
+		if (c.req.header("x-api-key")) {
+			return c.json({ message: "API key authentication is only supported for API v1 routes" }, 401);
+		}
+
+		return auth.handler(c.req.raw);
+	});
 	app.get("/api/v1/openapi.json", generalDescriptor(app));
 	app.get("/api/v1/docs", requireAuth, scalarDescriptor);
 

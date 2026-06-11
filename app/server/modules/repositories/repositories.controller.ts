@@ -54,7 +54,7 @@ import {
 } from "./repositories.dto";
 import { repositoriesService } from "./repositories.service";
 import { getRcloneRemoteInfo, listRcloneRemotes } from "../../utils/rclone";
-import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
+import { requireAuth, requireBrowserSession, requireOrgAdmin } from "../auth/auth.middleware";
 import { toMessage } from "~/server/utils/errors";
 import { requireDevPanel } from "../auth/dev-panel.middleware";
 import { getSnapshotDuration } from "../../utils/snapshots";
@@ -291,6 +291,7 @@ export const repositoriesController = new Hono()
 	})
 	.post(
 		"/:shortId/exec",
+		requireBrowserSession,
 		requireDevPanel,
 		requireOrgAdmin,
 		devPanelExecDto,

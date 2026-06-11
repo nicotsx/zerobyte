@@ -8,6 +8,7 @@ import {
 } from "better-auth/client/plugins";
 import { ssoClient } from "@better-auth/sso/client";
 import { passkeyClient } from "@better-auth/passkey/client";
+import { apiKeyClient } from "@better-auth/api-key/client";
 import type { auth } from "~/server/lib/auth";
 
 export const authClient = createAuthClient({
@@ -19,5 +20,6 @@ export const authClient = createAuthClient({
 		ssoClient(),
 		twoFactorClient(),
 		passkeyClient(),
+		apiKeyClient(),
 	],
 });
