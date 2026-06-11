@@ -88,7 +88,15 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 		},
 	});
 
-	const handleCreate = (event: React.FormEvent) => {
+	const closeCreateDialog = () => {
+		setCreateDialogOpen(false);
+		setNewKeyName("");
+		setNewKeyExpiration("365");
+		setPassword("");
+		setCreatedKey(null);
+	};
+
+	const handleCreate = (event: React.ChangeEvent) => {
 		event.preventDefault();
 
 		const name = newKeyName.trim();
@@ -192,13 +200,8 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 			<Dialog
 				open={createDialogOpen}
 				onOpenChange={(open) => {
-					setCreateDialogOpen(open);
-					if (!open) {
-						setNewKeyName("");
-						setNewKeyExpiration("365");
-						setPassword("");
-						setCreatedKey(null);
-					}
+					if (open) setCreateDialogOpen(true);
+					else closeCreateDialog();
 				}}
 			>
 				<DialogContent>
@@ -265,22 +268,19 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 							</div>
 						</div>
 						<DialogFooter>
-							{createdKey ? (
-								<Button type="button" onClick={() => setCreateDialogOpen(false)}>
-									Done
+							<Button type="button" onClick={closeCreateDialog} className={cn({ hidden: !createdKey })}>
+								Done
+							</Button>
+							<span className={cn("flex items-center gap-2", { hidden: Boolean(createdKey) })}>
+								<Button type="button" variant="outline" onClick={closeCreateDialog}>
+									<X className="h-4 w-4 mr-2" />
+									Cancel
 								</Button>
-							) : (
-								<>
-									<Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-										<X className="h-4 w-4 mr-2" />
-										Cancel
-									</Button>
-									<Button type="submit" loading={createKey.isPending}>
-										<KeyRound className="h-4 w-4 mr-2" />
-										Create
-									</Button>
-								</>
-							)}
+								<Button type="submit" loading={createKey.isPending}>
+									<KeyRound className="h-4 w-4 mr-2" />
+									Create
+								</Button>
+							</span>
 						</DialogFooter>
 					</form>
 				</DialogContent>

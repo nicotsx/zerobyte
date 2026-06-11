@@ -5,7 +5,13 @@ export const MAX_API_KEYS_PER_USER_ORG = 10;
 
 export const listApiKeys = async (userId: string, organizationId: string) => {
 	const rows = await db.query.apikey.findMany({
-		where: { referenceId: userId },
+		where: {
+			AND: [
+				{ referenceId: userId },
+				{ OR: [{ enabled: true }, { enabled: { isNull: true } }] },
+				{ OR: [{ expiresAt: { isNull: true } }, { expiresAt: { gt: new Date() } }] },
+			],
+		},
 		orderBy: (table, { desc }) => [desc(table.createdAt)],
 	});
 
@@ -22,7 +28,13 @@ export const listApiKeys = async (userId: string, organizationId: string) => {
 
 export const countApiKeys = async (userId: string, organizationId: string) => {
 	const rows = await db.query.apikey.findMany({
-		where: { referenceId: userId },
+		where: {
+			AND: [
+				{ referenceId: userId },
+				{ OR: [{ enabled: true }, { enabled: { isNull: true } }] },
+				{ OR: [{ expiresAt: { isNull: true } }, { expiresAt: { gt: new Date() } }] },
+			],
+		},
 		columns: { metadata: true },
 	});
 

@@ -15,7 +15,7 @@ import {
 	updateSsoProviderAutoLinkingDto,
 } from "./sso.dto";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "./sso.service";
-import { requireAuth, requireOrgAdmin } from "../auth/auth.middleware";
+import { requireAuth, requireBrowserSession, requireOrgAdmin } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { mapAuthErrorToCode } from "./sso.errors";
 import { config } from "~/server/core/config";
@@ -27,7 +27,7 @@ export const ssoController = new Hono()
 		const providers = await ssoService.getPublicSsoProviders();
 		return c.json<PublicSsoProvidersDto>(providers);
 	})
-	.get("/sso-settings", requireAuth, requireOrgAdmin, getSsoSettingsDto, async (c) => {
+	.get("/sso-settings", requireAuth, requireBrowserSession, requireOrgAdmin, getSsoSettingsDto, async (c) => {
 		const headers = c.req.raw.headers;
 		const activeOrganizationId = c.get("organizationId");
 

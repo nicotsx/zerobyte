@@ -184,6 +184,48 @@ describe("API keys", () => {
 		expect(await res.json()).toEqual({ message: "API key limit reached" });
 	});
 
+	test("does not count or list expired or disabled API keys", async () => {
+		const session = await createTestSession();
+		await addCredentialPassword(session);
+		const storedKeys: Array<Awaited<ReturnType<typeof createStoredApiKey>>> = [];
+
+		for (let index = 0; index < 10; index++) {
+			storedKeys.push(await createStoredApiKey(session));
+		}
+
+		for (const key of storedKeys.slice(0, 5)) {
+			await db
+				.update(apikey)
+				.set({ expiresAt: new Date(Date.now() - 60_000) })
+				.where(eq(apikey.id, key.id));
+		}
+
+		for (const key of storedKeys.slice(5)) {
+			await db.update(apikey).set({ enabled: false }).where(eq(apikey.id, key.id));
+		}
+
+		const created = await createApiKey(session, "Replacement key");
+
+		expect(created.name).toBe("Replacement key");
+
+		const listRes = await app.request("/api/v1/auth/api-keys", { headers: session.headers });
+		expect(listRes.status).toBe(200);
+		const body = (await listRes.json()) as { apiKeys: Array<{ id: string }> };
+		expect(body.apiKeys.map((apiKey) => apiKey.id)).toEqual([created.id]);
+	});
+
+	test("does not allow direct Better Auth session lookup with API keys", async () => {
+		const session = await createTestSession();
+		await addCredentialPassword(session);
+		const created = await createApiKey(session);
+
+		const directSession = await auth.api.getSession({
+			headers: new Headers({ "x-api-key": created.key }),
+		});
+
+		expect(directSession).toBeNull();
+	});
+
 	test("does not allow API keys to access global admin endpoints", async () => {
 		const session = await createTestSessionWithGlobalAdmin();
 		await addCredentialPassword(session);
@@ -209,6 +251,19 @@ describe("API keys", () => {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({ command: "version" }),
+		});
+
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({ message: "Browser session required" });
+	});
+
+	test("does not allow API keys to access SSO settings", async () => {
+		const session = await createTestSessionWithOrgAdmin();
+		await addCredentialPassword(session);
+		const created = await createApiKey(session);
+
+		const res = await app.request("/api/v1/auth/sso-settings", {
+			headers: { "x-api-key": created.key },
 		});
 
 		expect(res.status).toBe(401);

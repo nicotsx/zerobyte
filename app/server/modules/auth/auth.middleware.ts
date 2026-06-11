@@ -6,16 +6,18 @@ import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
 
 const API_KEY_HEADER = "x-api-key";
 type AuthSource = "browser-session" | "api-key";
+type AuthenticatedUser = {
+	id: string;
+	email: string;
+	username: string;
+	hasDownloadedResticPassword: boolean;
+	role?: string | null | undefined;
+	banned?: boolean | null | undefined;
+};
 
 declare module "hono" {
 	interface ContextVariableMap {
-		user: {
-			id: string;
-			email: string;
-			username: string;
-			hasDownloadedResticPassword: boolean;
-			role?: string | null | undefined;
-		};
+		user: AuthenticatedUser;
 		organizationId: string;
 		membership: { role: string };
 		authSource: AuthSource;
@@ -27,33 +29,41 @@ declare module "hono" {
  * Verifies the session cookie and attaches user to context
  */
 export const requireAuth = createMiddleware(async (c, next) => {
-	const apiKey = c.req.header(API_KEY_HEADER);
-	const authSource: AuthSource = apiKey ? "api-key" : "browser-session";
+	const apiKeyValue = c.req.header(API_KEY_HEADER);
+	const authSource: AuthSource = apiKeyValue ? "api-key" : "browser-session";
+	let user: AuthenticatedUser | undefined;
+	let activeOrganizationId: string | null | undefined;
 
-	if (apiKey && !c.req.path.startsWith("/api")) {
+	if (apiKeyValue && !c.req.path.startsWith("/api/v1")) {
 		return c.json<unknown>({ message: "API key authentication is only supported for API v1 routes" }, 401);
 	}
 
-	const sess = await auth.api.getSession({ headers: c.req.raw.headers }).catch((error) => {
-		if (authSource === "api-key") {
-			return null;
+	if (apiKeyValue) {
+		const verification = await auth.api.verifyApiKey({ body: { key: apiKeyValue } }).catch(() => null);
+		const apiKey = verification?.valid ? verification.key : null;
+
+		if (!apiKey) {
+			return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 		}
 
-		throw error;
-	});
+		user = await db.query.usersTable.findFirst({ where: { id: apiKey.referenceId } });
+		activeOrganizationId = await getApiKeyOrganizationId(apiKey.id);
+	} else {
+		const sess = await auth.api.getSession({ headers: c.req.raw.headers });
 
-	const { user, session } = sess ?? {};
+		if (sess) {
+			user = sess.user;
+			activeOrganizationId = sess.session.activeOrganizationId;
+		}
+	}
 
-	if (!user || !session) {
+	if (!user) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
 
 	if (authSource === "api-key" && user.banned) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
-
-	const activeOrganizationId =
-		authSource === "api-key" ? await getApiKeyOrganizationId(session.id) : session.activeOrganizationId;
 
 	if (!activeOrganizationId) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
