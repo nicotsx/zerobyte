@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
-import { THEME_COOKIE_NAME } from "~/client/components/theme-provider";
+import { THEME_COOKIE_NAME, type Theme } from "~/client/components/theme-provider";
 import type { DateFormatPreference, TimeFormatPreference } from "~/client/lib/datetime";
 import { getLocaleFromAcceptLanguage } from "~/server/lib/accept-language";
 import { auth } from "~/server/lib/auth";
@@ -12,7 +12,7 @@ export const getRootLoaderData = createServerFn({ method: "GET" }).handler(async
 	const session = await auth.api.getSession({ headers });
 
 	return {
-		theme: (themeCookie === "light" ? "light" : "dark") as "light" | "dark",
+		theme: (themeCookie === "light" || themeCookie === "system" ? themeCookie : "dark") as Theme,
 		locale: getLocaleFromAcceptLanguage(acceptLanguage),
 		timeZone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
 		dateFormat: (session?.user.dateFormat ?? "MM/DD/YYYY") as DateFormatPreference,
