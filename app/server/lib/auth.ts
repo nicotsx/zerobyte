@@ -9,6 +9,7 @@ import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, twoFactor, username, organization, testUtils } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
+import { apiKey } from "@better-auth/api-key";
 import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
@@ -195,6 +196,10 @@ export const auth = betterAuth({
 					});
 				},
 			},
+		}),
+		apiKey({
+			enableSessionForAPIKeys: true,
+			defaultPrefix: "zb_",
 		}),
 		tanstackStartCookies(),
 		...(process.env.NODE_ENV === "test" ? [testUtils()] : []),

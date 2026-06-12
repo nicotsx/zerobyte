@@ -51,6 +51,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
 import { PendingInvitationsSection } from "../components/pending-invitations-section";
+import { ApiTokensSection } from "../components/api-tokens-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
 
@@ -231,6 +232,7 @@ export function SettingsPage({
 			<Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 				<TabsList>
 					<TabsTrigger value="account">Account</TabsTrigger>
+					<TabsTrigger value="api-tokens">API Tokens</TabsTrigger>
 					{isOrgAdmin && <TabsTrigger value="organization">Organization</TabsTrigger>}
 				</TabsList>
 
@@ -479,6 +481,10 @@ export function SettingsPage({
 
 							<PasskeysSection />
 						</Card>
+					</TabsContent>
+
+					<TabsContent value="api-tokens" className="mt-0">
+						<ApiTokensSection />
 					</TabsContent>
 
 					{isOrgAdmin && (
