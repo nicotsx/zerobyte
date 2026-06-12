@@ -32,7 +32,7 @@ body {
 @media (min-width: 48rem) {
 	html,
 	body {
-		overscroll-behavior: none;
+		overscroll-behavior-y: none;
 	}
 }
 
