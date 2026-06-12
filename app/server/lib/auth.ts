@@ -165,6 +165,9 @@ export const auth = betterAuth({
 		}),
 		organization({
 			allowUserToCreateOrganization: false,
+			organizationHooks: {
+				beforeAcceptInvitation: ssoIntegration.beforeAcceptInvitation,
+			},
 		}),
 		ssoIntegration.plugin,
 		twoFactor({

@@ -15,6 +15,12 @@ import { isSsoCallbackRequest, extractProviderIdFromContext, normalizeEmail } fr
 import { findMembershipWithOrganization } from "~/server/lib/auth/helpers/create-default-org";
 import { logger } from "@zerobyte/core/node";
 
+type AcceptInvitationHookData = {
+	invitation: {
+		organizationId: string;
+	};
+};
+
 async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext | null) {
 	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
 	if (!user) {
@@ -151,6 +157,17 @@ async function onUserCreated(user: User, ctx: GenericEndpointContext | null) {
 	await resolveOrgMembershipOrThrow(user.id, ctx);
 }
 
+async function beforeAcceptInvitation({ invitation }: AcceptInvitationHookData) {
+	const provider = await db.query.ssoProvider.findFirst({
+		where: { organizationId: invitation.organizationId },
+		columns: { id: true },
+	});
+
+	if (provider) {
+		throw new APIError("FORBIDDEN");
+	}
+}
+
 export const ssoIntegration = {
 	plugin: sso({
 		trustEmailVerified: false,
@@ -171,6 +188,8 @@ export const ssoIntegration = {
 	onUserCreate,
 
 	onUserCreated,
+
+	beforeAcceptInvitation,
 
 	resolveOrgMembershipOrThrow,
 
