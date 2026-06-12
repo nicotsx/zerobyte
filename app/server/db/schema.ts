@@ -586,7 +586,9 @@ export const apikey = sqliteTable(
 		configId: text("config_id").notNull().default("default"),
 		name: text("name"),
 		start: text("start"),
-		referenceId: text("reference_id").notNull(),
+		referenceId: text("reference_id")
+			.notNull()
+			.references(() => usersTable.id, { onDelete: "cascade" }),
 		prefix: text("prefix"),
 		key: text("key").notNull(),
 		refillInterval: integer("refill_interval"),
@@ -613,7 +615,7 @@ export const apikey = sqliteTable(
 	(table) => [
 		index("apikey_configId_idx").on(table.configId),
 		index("apikey_referenceId_idx").on(table.referenceId),
-		index("apikey_key_idx").on(table.key),
+		uniqueIndex("apikey_key_unique").on(table.key),
 	],
 );
 export type ApiKey = typeof apikey.$inferSelect;

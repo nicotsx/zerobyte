@@ -1,7 +1,7 @@
 import { db } from "~/server/db/db";
 import { parseApiKeyOrganizationId } from "./api-key-metadata";
 
-export const MAX_API_KEYS_PER_USER_ORG = 10;
+export const MAX_API_KEYS_PER_USER = 50;
 
 export const listApiKeys = async (userId: string, organizationId: string) => {
 	const rows = await db.query.apikey.findMany({
@@ -26,7 +26,7 @@ export const listApiKeys = async (userId: string, organizationId: string) => {
 		}));
 };
 
-export const countApiKeys = async (userId: string, organizationId: string) => {
+export const countActiveApiKeys = async (userId: string) => {
 	const rows = await db.query.apikey.findMany({
 		where: {
 			AND: [
@@ -35,10 +35,10 @@ export const countApiKeys = async (userId: string, organizationId: string) => {
 				{ OR: [{ expiresAt: { isNull: true } }, { expiresAt: { gt: new Date() } }] },
 			],
 		},
-		columns: { metadata: true },
+		columns: { id: true },
 	});
 
-	return rows.filter((row) => parseApiKeyOrganizationId(row.metadata) === organizationId).length;
+	return rows.length;
 };
 
 export const hasApiKey = async (userId: string, organizationId: string, apiKeyId: string) => {

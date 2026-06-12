@@ -39,7 +39,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	}
 
 	if (apiKeyValue) {
-		const verification = await auth.api.verifyApiKey({ body: { key: apiKeyValue } }).catch(() => null);
+		const verification = await auth.api.verifyApiKey({ body: { key: apiKeyValue } });
 		const apiKey = verification?.valid ? verification.key : null;
 
 		if (!apiKey) {

@@ -98,7 +98,7 @@ describe("API keys", () => {
 			limit: number;
 		};
 
-		expect(body.limit).toBe(10);
+		expect(body.limit).toBe(50);
 		expect(body.apiKeys).toEqual([
 			{
 				id: created.id,
@@ -163,11 +163,11 @@ describe("API keys", () => {
 		});
 	});
 
-	test("enforces the per-user per-organization API key limit", async () => {
+	test("enforces the per-user API key limit", async () => {
 		const session = await createTestSession();
 		await addCredentialPassword(session);
 
-		for (let index = 0; index < 10; index++) {
+		for (let index = 0; index < 50; index++) {
 			await createStoredApiKey(session);
 		}
 
@@ -184,7 +184,7 @@ describe("API keys", () => {
 		expect(await res.json()).toEqual({ message: "API key limit reached" });
 	});
 
-	test("does not count or list expired or disabled API keys", async () => {
+	test("does not list expired or disabled API keys", async () => {
 		const session = await createTestSession();
 		await addCredentialPassword(session);
 		const storedKeys: Array<Awaited<ReturnType<typeof createStoredApiKey>>> = [];
@@ -268,6 +268,36 @@ describe("API keys", () => {
 
 		expect(res.status).toBe(401);
 		expect(await res.json()).toEqual({ message: "Browser session required" });
+	});
+
+	test("does not allow API keys to mutate SSO admin resources", async () => {
+		const session = await createTestSessionWithOrgAdmin();
+		await addCredentialPassword(session);
+		const created = await createApiKey(session);
+
+		const routes = [
+			{ method: "DELETE", path: "/api/v1/auth/sso-providers/test-provider" },
+			{
+				method: "PATCH",
+				path: "/api/v1/auth/sso-providers/test-provider/auto-linking",
+				body: { enabled: true },
+			},
+			{ method: "DELETE", path: "/api/v1/auth/sso-invitations/test-invitation" },
+		];
+
+		for (const route of routes) {
+			const res = await app.request(route.path, {
+				method: route.method,
+				headers: {
+					"x-api-key": created.key,
+					"Content-Type": "application/json",
+				},
+				body: route.body ? JSON.stringify(route.body) : undefined,
+			});
+
+			expect(res.status).toBe(401);
+			expect(await res.json()).toEqual({ message: "Browser session required" });
+		}
 	});
 
 	test("authenticates API v1 requests with the key's bound organization", async () => {

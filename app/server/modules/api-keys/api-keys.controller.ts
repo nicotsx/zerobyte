@@ -8,7 +8,7 @@ import {
 	type CreateApiKeyDto,
 	type ListApiKeysDto,
 } from "./api-keys.dto";
-import { MAX_API_KEYS_PER_USER_ORG, countApiKeys, hasApiKey, listApiKeys } from "./api-keys.service";
+import { MAX_API_KEYS_PER_USER, countActiveApiKeys, hasApiKey, listApiKeys } from "./api-keys.service";
 import { requireAuth, requireBrowserSession } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { userHasCredentialPassword, verifyUserPassword } from "../auth/helpers";
@@ -19,7 +19,7 @@ export const apiKeysController = new Hono()
 		const organizationId = c.get("organizationId");
 		const apiKeys = await listApiKeys(user.id, organizationId);
 
-		return c.json<ListApiKeysDto>({ apiKeys, limit: MAX_API_KEYS_PER_USER_ORG });
+		return c.json<ListApiKeysDto>({ apiKeys, limit: MAX_API_KEYS_PER_USER });
 	})
 	.post(
 		"/api-keys",
@@ -42,8 +42,8 @@ export const apiKeysController = new Hono()
 				return c.json({ message: "Invalid password" }, 401);
 			}
 
-			const apiKeyCount = await countApiKeys(user.id, organizationId);
-			if (apiKeyCount >= MAX_API_KEYS_PER_USER_ORG) {
+			const apiKeyCount = await countActiveApiKeys(user.id);
+			if (apiKeyCount >= MAX_API_KEYS_PER_USER) {
 				return c.json({ message: "API key limit reached" }, 409);
 			}
 

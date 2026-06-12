@@ -106,21 +106,29 @@ export const ssoController = new Hono()
 			return c.json({ success: true });
 		},
 	)
-	.delete("/sso-providers/:providerId", requireAuth, requireOrgAdmin, deleteSsoProviderDto, async (c) => {
-		const providerId = c.req.param("providerId");
-		const organizationId = c.get("organizationId");
+	.delete(
+		"/sso-providers/:providerId",
+		requireAuth,
+		requireBrowserSession,
+		requireOrgAdmin,
+		deleteSsoProviderDto,
+		async (c) => {
+			const providerId = c.req.param("providerId");
+			const organizationId = c.get("organizationId");
 
-		const deleted = await ssoService.deleteSsoProvider(providerId, organizationId);
+			const deleted = await ssoService.deleteSsoProvider(providerId, organizationId);
 
-		if (!deleted) {
-			return c.json({ message: "Provider not found" }, 404);
-		}
+			if (!deleted) {
+				return c.json({ message: "Provider not found" }, 404);
+			}
 
-		return c.json({ success: true });
-	})
+			return c.json({ success: true });
+		},
+	)
 	.patch(
 		"/sso-providers/:providerId/auto-linking",
 		requireAuth,
+		requireBrowserSession,
 		requireOrgAdmin,
 		updateSsoProviderAutoLinkingDto,
 		validator("json", updateSsoProviderAutoLinkingBody),
@@ -138,19 +146,26 @@ export const ssoController = new Hono()
 			return c.json({ success: true });
 		},
 	)
-	.delete("/sso-invitations/:invitationId", requireAuth, requireOrgAdmin, deleteSsoInvitationDto, async (c) => {
-		const invitationId = c.req.param("invitationId");
-		const organizationId = c.get("organizationId");
+	.delete(
+		"/sso-invitations/:invitationId",
+		requireAuth,
+		requireBrowserSession,
+		requireOrgAdmin,
+		deleteSsoInvitationDto,
+		async (c) => {
+			const invitationId = c.req.param("invitationId");
+			const organizationId = c.get("organizationId");
 
-		const invitation = await ssoService.getSsoInvitationById(invitationId);
-		if (!invitation || invitation.organizationId !== organizationId) {
-			return c.json({ message: "Invitation not found" }, 404);
-		}
+			const invitation = await ssoService.getSsoInvitationById(invitationId);
+			if (!invitation || invitation.organizationId !== organizationId) {
+				return c.json({ message: "Invitation not found" }, 404);
+			}
 
-		await ssoService.deleteSsoInvitation(invitationId);
+			await ssoService.deleteSsoInvitation(invitationId);
 
-		return c.json({ success: true });
-	})
+			return c.json({ success: true });
+		},
+	)
 	.get("/login-error", async (c) => {
 		const error = c.req.query("error");
 		const errorCode = error ? mapAuthErrorToCode(error) : "SSO_LOGIN_FAILED";

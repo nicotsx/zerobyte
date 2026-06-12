@@ -62,7 +62,7 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 
 	const { data, isPending } = useQuery(getApiKeysOptions());
 	const apiKeys = data?.apiKeys ?? [];
-	const limit = data?.limit ?? 10;
+	const limit = data?.limit ?? 50;
 
 	const createKey = useMutation({
 		...createApiKeyMutation(),
@@ -96,7 +96,7 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 		setCreatedKey(null);
 	};
 
-	const handleCreate = (event: React.ChangeEvent) => {
+	const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
 		const name = newKeyName.trim();
@@ -128,14 +128,10 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 			<CardContent className="p-6 space-y-4">
 				<div className="flex items-start justify-between gap-4">
 					<div className="space-y-1">
-						<p className="text-sm font-medium">{apiKeys.length} active keys</p>
-						<p className="text-xs text-muted-foreground">Limit {limit} keys for this organization.</p>
+						<p className="text-sm font-medium">{apiKeys.length} active keys for this organization</p>
+						<p className="text-xs text-muted-foreground">Limit {limit} active keys per user.</p>
 					</div>
-					<Button
-						type="button"
-						disabled={!hasCredentialPassword || apiKeys.length >= limit}
-						onClick={() => setCreateDialogOpen(true)}
-					>
+					<Button type="button" disabled={!hasCredentialPassword} onClick={() => setCreateDialogOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
 						Create key
 					</Button>
