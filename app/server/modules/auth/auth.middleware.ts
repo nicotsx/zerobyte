@@ -26,11 +26,24 @@ export const requireAuth = createMiddleware(async (c, next) => {
 		headers: c.req.raw.headers,
 	});
 
-	const { user, session } = sess ?? {};
-	const { activeOrganizationId } = session ?? {};
+	let { user, session } = sess ?? {};
+	let { activeOrganizationId } = session ?? {};
 
-	if (!user || !session || !activeOrganizationId) {
+	if (!user || !session) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
+	}
+
+	if (!activeOrganizationId) {
+		const membership = await db.query.member.findFirst({
+			where: { userId: user.id },
+		});
+		if (membership) {
+			activeOrganizationId = membership.organizationId;
+		}
+	}
+
+	if (!activeOrganizationId) {
+		return c.json<unknown>({ message: "Invalid organization context" }, 403);
 	}
 
 	const membership = await db.query.member.findFirst({

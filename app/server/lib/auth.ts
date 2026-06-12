@@ -13,6 +13,7 @@ import { apiKey } from "@better-auth/api-key";
 import { createAuthMiddleware } from "better-auth/api";
 import { config } from "../core/config";
 import { db } from "../db/db";
+import * as schema from "../db/schema";
 import { cryptoUtils } from "../utils/crypto";
 import { authService } from "../modules/auth/auth.service";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
@@ -58,6 +59,7 @@ export const auth = betterAuth({
 	},
 	database: drizzleAdapter(db, {
 		provider: "sqlite",
+		schema,
 	}),
 	databaseHooks: {
 		account: {
