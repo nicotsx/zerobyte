@@ -74,6 +74,28 @@ describe("copy command", () => {
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
 	});
 
+	test("passes only copy-compatible custom restic params", async () => {
+		const { getArgs } = setup();
+
+		await Effect.runPromise(
+			copy(
+				sourceConfig,
+				destConfig,
+				{
+					organizationId: "org-1",
+					tag: "daily",
+					customResticParams: ["--pack-size 64", "--ignore-inode", "--no-cache"],
+				},
+				mockDeps,
+			),
+		);
+
+		expect(getArgs()).toContain("--pack-size");
+		expect(getArgs()).toContain("64");
+		expect(getArgs()).toContain("--no-cache");
+		expect(getArgs()).not.toContain("--ignore-inode");
+	});
+
 	test("passes multiple snapshot IDs after separator", async () => {
 		const { getArgs } = setup();
 

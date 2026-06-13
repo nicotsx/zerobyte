@@ -3,6 +3,7 @@ import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
+import { getCopyCompatibleCustomResticParams } from "../helpers/validate-custom-params";
 import type { RepositoryConfig } from "../schemas";
 import { createResticError, isResticError } from "../error";
 import { logger, safeExec } from "../../node";
@@ -18,7 +19,12 @@ class ResticCopyCommandError extends Data.TaggedError("ResticCopyCommandError")<
 export const copy = (
 	sourceConfig: RepositoryConfig,
 	destConfig: RepositoryConfig,
-	options: { organizationId: string; tag?: string; snapshotIds?: string[] },
+	options: {
+		organizationId: string;
+		tag?: string;
+		snapshotIds?: string[];
+		customResticParams?: string[];
+	},
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
@@ -39,6 +45,15 @@ export const copy = (
 
 			if (options.tag) {
 				args.push("--tag", options.tag);
+			}
+
+			if (options.customResticParams?.length) {
+				const customResticParams = getCopyCompatibleCustomResticParams(options.customResticParams);
+
+				for (const param of customResticParams) {
+					const tokens = param.trim().split(/\s+/).filter(Boolean);
+					args.push(...tokens);
+				}
 			}
 
 			addCommonArgs(args, env, destConfig, { skipBandwidth: true });

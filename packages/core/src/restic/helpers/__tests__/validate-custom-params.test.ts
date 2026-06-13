@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, test } from "vitest";
-import { validateCustomResticParams } from "../validate-custom-params";
+import { getCopyCompatibleCustomResticParams, validateCustomResticParams } from "../validate-custom-params";
 
 const supportedFlagsWithoutValues = [
 	"--verbose",
@@ -41,7 +41,11 @@ const validCustomParamArb = fc.oneof(
 		.tuple(fc.constantFrom(...positiveIntegerFlags), fc.integer({ min: 1, max: 100_000 }), fc.boolean())
 		.map(([flag, value, inline]) => (inline ? `${flag}=${value}` : `${flag} ${value}`)),
 	fc
-		.tuple(fc.integer({ min: 1, max: 100_000 }), fc.constantFrom("", "K", "M", "G", "T", "KiB", "MiB"), fc.boolean())
+		.tuple(
+			fc.integer({ min: 1, max: 100_000 }),
+			fc.constantFrom("", "K", "M", "G", "T", "KiB", "MiB"),
+			fc.boolean(),
+		)
 		.map(([value, suffix, inline]) =>
 			inline ? `--exclude-larger-than=${value}${suffix}` : `--exclude-larger-than ${value}${suffix}`,
 		),
@@ -65,6 +69,26 @@ describe("validateCustomResticParams", () => {
 		]);
 
 		expect(result).toBeNull();
+	});
+
+	test("filters custom params down to flags supported by copy", () => {
+		const result = getCopyCompatibleCustomResticParams([
+			"--pack-size 64",
+			"--ignore-inode",
+			"--no-cache --exclude-caches",
+			"--limit-upload=2048",
+			"--read-concurrency 4",
+			"-v",
+			"--no-lock",
+		]);
+
+		expect(result).toEqual(["--pack-size 64", "--no-cache", "--limit-upload=2048", "-v", "--no-lock"]);
+	});
+
+	test("validates skipped backup-only flags while filtering copy params", () => {
+		expect(() => getCopyCompatibleCustomResticParams(["--read-concurrency"])).toThrow(
+			'Flag "--read-concurrency" requires a value',
+		);
 	});
 
 	test("rejects positional arguments", () => {

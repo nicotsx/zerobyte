@@ -152,7 +152,8 @@ describe("getMirrorSyncStatus", () => {
 
 describe("syncMirror", () => {
 	test("should trigger sync and return success", async () => {
-		setup();
+		const { mockCopy } = setup();
+		mockCopy();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -168,6 +169,38 @@ describe("syncMirror", () => {
 		]);
 
 		expect(result.success).toBe(true);
+	});
+
+	test("should pass custom restic params to manual mirror sync", async () => {
+		const { mockCopy } = setup();
+		const copyMock = mockCopy();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			customResticParams: ["--pack-size 64", "--ignore-inode"],
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		const result = await backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		expect(result.success).toBe(true);
+		await waitForExpect(() => {
+			expect(copyMock).toHaveBeenCalledWith(
+				repository.config,
+				mirrorRepository.config,
+				expect.objectContaining({
+					tag: schedule.shortId,
+					organizationId: TEST_ORG_ID,
+					snapshotIds: ["snap1"],
+					customResticParams: ["--pack-size 64", "--ignore-inode"],
+				}),
+			);
+		});
 	});
 
 	test("should reject if mirror is already syncing", async () => {

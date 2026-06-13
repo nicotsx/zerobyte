@@ -44,7 +44,24 @@ const FLAG_SPECS = new Map<string, FlagSpec>([
 	["--no-lock", { requiresValue: false }],
 ]);
 
+const COPY_COMPATIBLE_FLAGS = new Set([
+	"--verbose",
+	"-v",
+	"--no-cache",
+	"--cleanup-cache",
+	"--limit-upload",
+	"--limit-download",
+	"--pack-size",
+	"--no-lock",
+]);
+
+const SUPPORTED_FLAGS = new Set(FLAG_SPECS.keys());
 const ALLOWED_FLAGS = [...FLAG_SPECS.keys()].join(", ");
+
+type CollectCustomResticParamsOptions = {
+	allowedFlags?: Set<string>;
+	skipDisallowed?: boolean;
+};
 
 function parseFlagToken(token: string) {
 	const eqIdx = token.indexOf("=");
@@ -66,7 +83,12 @@ function validateFlagValue(flag: string, value: string, spec: FlagSpec): string 
 	return spec.validateValue?.(value) ?? null;
 }
 
-export function validateCustomResticParams(params: string[]): string | null {
+function collectCustomResticParams(
+	params: string[],
+	{ allowedFlags = SUPPORTED_FLAGS, skipDisallowed = false }: CollectCustomResticParamsOptions = {},
+) {
+	const collectedParams: string[] = [];
+
 	for (const param of params) {
 		const tokens = param.trim().split(/\s+/).filter(Boolean);
 
@@ -88,34 +110,62 @@ export function validateCustomResticParams(params: string[]): string | null {
 				return `Unknown or unsupported flag "${flag}" in customResticParams. Permitted flags: ${ALLOWED_FLAGS}`;
 			}
 
+			let collectedParam = token;
+
 			if (!spec.requiresValue) {
 				if (inlineValue !== null && inlineValue !== "") {
 					return `Flag "${flag}" does not accept a value`;
 				}
-				continue;
-			}
-
-			if (inlineValue !== null) {
+			} else if (inlineValue !== null) {
 				const error = validateFlagValue(flag, inlineValue, spec);
 				if (error) {
 					return error;
 				}
-				continue;
+			} else {
+				const nextToken = tokens[index + 1];
+				if (!nextToken) {
+					return `Flag "${flag}" requires a value`;
+				}
+
+				const error = validateFlagValue(flag, nextToken, spec);
+				if (error) {
+					return error;
+				}
+
+				collectedParam = `${token} ${nextToken}`;
+				index += 1;
 			}
 
-			const nextToken = tokens[index + 1];
-			if (!nextToken) {
-				return `Flag "${flag}" requires a value`;
+			if (!allowedFlags.has(flag)) {
+				if (skipDisallowed) {
+					continue;
+				}
+
+				return `Unknown or unsupported flag "${flag}" in customResticParams. Permitted flags: ${ALLOWED_FLAGS}`;
 			}
 
-			const error = validateFlagValue(flag, nextToken, spec);
-			if (error) {
-				return error;
-			}
-
-			index += 1;
+			collectedParams.push(collectedParam);
 		}
 	}
 
-	return null;
+	return collectedParams;
+}
+
+export function validateCustomResticParams(params: string[]): string | null {
+	const result = collectCustomResticParams(params);
+
+	return typeof result === "string" ? result : null;
+}
+
+export function getCopyCompatibleCustomResticParams(params: string[]): string[] {
+	const result = collectCustomResticParams(params, {
+		allowedFlags: COPY_COMPATIBLE_FLAGS,
+		skipDisallowed: true,
+	});
+
+	if (typeof result === "string") {
+		throw new Error(result);
+	}
+
+	return result;
 }

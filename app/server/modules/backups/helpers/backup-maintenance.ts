@@ -125,6 +125,7 @@ export async function syncSnapshotsToMirror(
 					tag: schedule.shortId,
 					organizationId,
 					snapshotIds,
+					customResticParams: schedule.customResticParams ?? [],
 				}),
 			);
 			cache.delByPrefix(cacheKeys.repository.all(mirrorRepository.id));
@@ -214,6 +215,7 @@ async function copyToSingleMirror(
 				restic.copy(sourceRepository.config, mirror.repository.config, {
 					tag: schedule.shortId,
 					organizationId,
+					customResticParams: schedule.customResticParams ?? [],
 				}),
 			);
 			cache.delByPrefix(cacheKeys.repository.all(mirror.repository.id));

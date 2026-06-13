@@ -1140,6 +1140,35 @@ describe("mirror operations", () => {
 		);
 	});
 
+	test("should pass custom restic params to mirror copy", async () => {
+		// arrange
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+			customResticParams: ["--pack-size 64", "--ignore-inode"],
+		});
+
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		// act
+		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+
+		// assert
+		expect(resticCopyMock).toHaveBeenCalledWith(
+			sourceRepository.config,
+			mirrorRepository.config,
+			expect.objectContaining({
+				tag: schedule.shortId,
+				organizationId: TEST_ORG_ID,
+				customResticParams: ["--pack-size 64", "--ignore-inode"],
+			}),
+		);
+	});
+
 	test("should skip disabled mirrors", async () => {
 		// arrange
 		const { resticCopyMock } = setup();
