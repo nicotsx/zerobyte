@@ -54,10 +54,26 @@ function RootLayout() {
 	}, []);
 
 	return (
-		<html lang="en" className={theme === "dark" ? "dark" : undefined} style={{ colorScheme: theme }}>
+		<html
+			lang="en"
+			className={theme === "dark" ? "dark" : undefined}
+			style={{ colorScheme: theme === "system" ? undefined : theme }}
+			suppressHydrationWarning
+		>
 			<head>
 				<meta charSet="utf-8" />
-				<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+				<meta
+					name="viewport"
+					content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+				/>
+				{theme === "system" && (
+					// Applies the OS color scheme before first paint to avoid a flash; the server can't know it
+					<script
+						dangerouslySetInnerHTML={{
+							__html: `(function(){var d=window.matchMedia("(prefers-color-scheme: dark)").matches;var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";})();`,
+						}}
+					/>
+				)}
 				<link rel="icon" type="image/png" href="/images/favicon/favicon-96x96.png" sizes="96x96" />
 				<link rel="icon" type="image/svg+xml" href="/images/favicon/favicon.svg" />
 				<link rel="shortcut icon" href="/images/favicon/favicon.ico" />
