@@ -15,7 +15,7 @@ import {
 	removeOrgMemberDto,
 } from "./auth.dto";
 import { authService } from "./auth.service";
-import { requireAdmin, requireAuth, requireOrgAdmin } from "./auth.middleware";
+import { requireAuth, requirePermission } from "./auth.middleware";
 import { auth } from "~/server/lib/auth";
 
 export const authController = new Hono()
@@ -23,7 +23,7 @@ export const authController = new Hono()
 		const hasUsers = await authService.hasUsers();
 		return c.json<GetStatusDto>({ hasUsers });
 	})
-	.get("/admin-users", requireAuth, requireAdmin, getAdminUsersDto, async (c) => {
+	.get("/admin-users", requireAuth, requirePermission("instanceUsers.manage"), getAdminUsersDto, async (c) => {
 		const headers = c.req.raw.headers;
 
 		const usersData = await auth.api.listUsers({
@@ -46,27 +46,39 @@ export const authController = new Hono()
 			total: usersData.total,
 		});
 	})
-	.delete("/admin-users/:userId/accounts/:accountId", requireAuth, requireAdmin, deleteUserAccountDto, async (c) => {
-		const userId = c.req.param("userId");
-		const accountId = c.req.param("accountId");
-		const result = await authService.deleteUserAccount(userId, accountId);
+	.delete(
+		"/admin-users/:userId/accounts/:accountId",
+		requireAuth,
+		requirePermission("instanceUsers.manage"),
+		deleteUserAccountDto,
+		async (c) => {
+			const userId = c.req.param("userId");
+			const accountId = c.req.param("accountId");
+			const result = await authService.deleteUserAccount(userId, accountId);
 
-		if (result.lastAccount) {
-			return c.json({ message: "Cannot delete the last account of a user" }, 409);
-		}
+			if (result.lastAccount) {
+				return c.json({ message: "Cannot delete the last account of a user" }, 409);
+			}
 
-		if (result.notFound) {
-			return c.json({ message: "Account not found" }, 404);
-		}
+			if (result.notFound) {
+				return c.json({ message: "Account not found" }, 404);
+			}
 
-		return c.json({ success: true });
-	})
-	.get("/deletion-impact/:userId", requireAuth, requireAdmin, getUserDeletionImpactDto, async (c) => {
-		const userId = c.req.param("userId");
-		const impact = await authService.getUserDeletionImpact(userId);
-		return c.json<UserDeletionImpactDto>(impact);
-	})
-	.get("/org-members", requireAuth, requireOrgAdmin, getOrgMembersDto, async (c) => {
+			return c.json({ success: true });
+		},
+	)
+	.get(
+		"/deletion-impact/:userId",
+		requireAuth,
+		requirePermission("instanceUsers.manage"),
+		getUserDeletionImpactDto,
+		async (c) => {
+			const userId = c.req.param("userId");
+			const impact = await authService.getUserDeletionImpact(userId);
+			return c.json<UserDeletionImpactDto>(impact);
+		},
+	)
+	.get("/org-members", requireAuth, requirePermission("organizationMembers.manage"), getOrgMembersDto, async (c) => {
 		const organizationId = c.get("organizationId");
 		const result = await authService.getOrgMembers(organizationId);
 		return c.json<OrgMembersDto>(result);
@@ -74,7 +86,7 @@ export const authController = new Hono()
 	.patch(
 		"/org-members/:memberId/role",
 		requireAuth,
-		requireOrgAdmin,
+		requirePermission("organizationMembers.manage"),
 		updateMemberRoleDto,
 		validator("json", updateMemberRoleBody),
 		async (c) => {
@@ -95,19 +107,25 @@ export const authController = new Hono()
 			return c.json({ success: true });
 		},
 	)
-	.delete("/org-members/:memberId", requireAuth, requireOrgAdmin, removeOrgMemberDto, async (c) => {
-		const memberId = c.req.param("memberId");
-		const organizationId = c.get("organizationId");
+	.delete(
+		"/org-members/:memberId",
+		requireAuth,
+		requirePermission("organizationMembers.manage"),
+		removeOrgMemberDto,
+		async (c) => {
+			const memberId = c.req.param("memberId");
+			const organizationId = c.get("organizationId");
 
-		const result = await authService.removeOrgMember(memberId, organizationId);
+			const result = await authService.removeOrgMember(memberId, organizationId);
 
-		if (!result.found) {
-			return c.json({ message: "Member not found" }, 404);
-		}
+			if (!result.found) {
+				return c.json({ message: "Member not found" }, 404);
+			}
 
-		if (result.isOwner) {
-			return c.json({ message: "Cannot remove the organization owner" }, 403);
-		}
+			if (result.isOwner) {
+				return c.json({ message: "Cannot remove the organization owner" }, 403);
+			}
 
-		return c.json({ success: true });
-	});
+			return c.json({ success: true });
+		},
+	);

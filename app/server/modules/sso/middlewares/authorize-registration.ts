@@ -1,6 +1,7 @@
 import { APIError } from "better-auth/api";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
+import { checkPermissionForContext } from "~/server/lib/permission-service";
 
 export const authorizeSsoRegistration = async (ctx: AuthMiddlewareContext) => {
 	if (ctx.path !== "/sso/register") {
@@ -39,7 +40,26 @@ export const authorizeSsoRegistration = async (ctx: AuthMiddlewareContext) => {
 		throw new APIError("FORBIDDEN", { message: "You are not a member of this organization" });
 	}
 
-	if (membership.role !== "owner") {
+	const permission = checkPermissionForContext("ssoProvider.create", {
+		orgRole: membership.role,
+		authSource: "browser-session",
+	});
+
+	if (permission.allowed) {
+		return;
+	}
+
+	if (permission.reason === "runtime") {
+		throw new APIError("FORBIDDEN", { message: "Not available in desktop mode" });
+	}
+
+	if (permission.reason === "authSource") {
+		throw new APIError("UNAUTHORIZED", { message: "Browser session required" });
+	}
+
+	if (permission.reason === "orgRole") {
 		throw new APIError("FORBIDDEN", { message: "Only organization owners can register SSO providers" });
 	}
+
+	throw new APIError("FORBIDDEN", { message: "Forbidden" });
 };

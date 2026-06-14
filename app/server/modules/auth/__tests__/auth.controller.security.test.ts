@@ -70,7 +70,7 @@ describe("auth controller security", () => {
 		}
 	});
 
-	describe("org admin endpoints - require requireAuth + requireOrgAdmin", () => {
+	describe("organization management endpoints - require named organization permissions", () => {
 		const orgAdminEndpoints = [
 			{ method: "GET", path: "/api/v1/auth/sso-settings" },
 			{ method: "DELETE", path: "/api/v1/auth/sso-providers/test-provider" },
@@ -141,7 +141,7 @@ describe("auth controller security", () => {
 		});
 	});
 
-	describe("global admin endpoints - require requireAuth + requireAdmin", () => {
+	describe("instance user management endpoints - require instanceUsers.manage", () => {
 		const adminEndpoints = [
 			{ method: "GET", path: "/api/v1/auth/admin-users" },
 			{ method: "DELETE", path: "/api/v1/auth/admin-users/test-user/accounts/test-account" },

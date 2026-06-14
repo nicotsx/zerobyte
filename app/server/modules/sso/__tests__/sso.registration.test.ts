@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { createTestSession, createTestSessionWithOrgAdmin } from "~/test/helpers/auth";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../sso.service";
+import { config } from "~/server/core/config";
 
 const app = createApp();
 const ssoRegisterUrl = new URL("/api/auth/sso/register", "http://localhost:3000").toString();
@@ -34,6 +35,10 @@ function buildRegisterBody(organizationId: string, suffix: string) {
 }
 
 describe("SSO provider registration authorization", () => {
+	afterEach(() => {
+		config.runtime = "server";
+	});
+
 	beforeEach(async () => {
 		await db.delete(member);
 		await db.delete(account);
@@ -75,6 +80,25 @@ describe("SSO provider registration authorization", () => {
 
 		const body = await response.json();
 		expect(body.message).toBe("Only organization owners can register SSO providers");
+	});
+
+	test("rejects provider registration when SSO management is unavailable", async () => {
+		config.runtime = "desktop";
+		const { headers, organizationId } = await createTestSession();
+
+		const response = await app.request(ssoRegisterUrl, {
+			method: "POST",
+			headers: {
+				...headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(buildRegisterBody(organizationId, "desktop")),
+		});
+
+		expect(response.status).toBe(403);
+
+		const body = await response.json();
+		expect(body.message).toBe("Not available in desktop mode");
 	});
 
 	test("rejects users who are owners elsewhere but only members of the target organization", async () => {

@@ -15,19 +15,24 @@ import {
 	updateSsoProviderAutoLinkingDto,
 } from "./sso.dto";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "./sso.service";
-import { requireAuth, requireBrowserSession, requireOrgAdmin } from "../auth/auth.middleware";
+import { requireAuth, requireBrowserSession, requirePermission } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { mapAuthErrorToCode } from "./sso.errors";
 import { config } from "~/server/core/config";
 import { setCookie } from "hono/cookie";
 import { normalizeEmail } from "./utils/sso-context";
+import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 
 export const ssoController = new Hono()
 	.get("/sso-providers", getPublicSsoProvidersDto, async (c) => {
+		if (!serverHasRuntimeFeature("ssoManagement")) {
+			return c.json<PublicSsoProvidersDto>({ providers: [] });
+		}
+
 		const providers = await ssoService.getPublicSsoProviders();
 		return c.json<PublicSsoProvidersDto>(providers);
 	})
-	.get("/sso-settings", requireAuth, requireBrowserSession, requireOrgAdmin, getSsoSettingsDto, async (c) => {
+	.get("/sso-settings", requireAuth, requirePermission("sso.manage"), getSsoSettingsDto, async (c) => {
 		const headers = c.req.raw.headers;
 		const activeOrganizationId = c.get("organizationId");
 
@@ -110,8 +115,7 @@ export const ssoController = new Hono()
 	.delete(
 		"/sso-providers/:providerId",
 		requireAuth,
-		requireBrowserSession,
-		requireOrgAdmin,
+		requirePermission("sso.manage"),
 		deleteSsoProviderDto,
 		async (c) => {
 			const providerId = c.req.param("providerId");
@@ -129,8 +133,7 @@ export const ssoController = new Hono()
 	.patch(
 		"/sso-providers/:providerId/auto-linking",
 		requireAuth,
-		requireBrowserSession,
-		requireOrgAdmin,
+		requirePermission("sso.manage"),
 		updateSsoProviderAutoLinkingDto,
 		validator("json", updateSsoProviderAutoLinkingBody),
 		async (c) => {
@@ -150,8 +153,7 @@ export const ssoController = new Hono()
 	.delete(
 		"/sso-invitations/:invitationId",
 		requireAuth,
-		requireBrowserSession,
-		requireOrgAdmin,
+		requirePermission("sso.manage"),
 		deleteSsoInvitationDto,
 		async (c) => {
 			const invitationId = c.req.param("invitationId");
