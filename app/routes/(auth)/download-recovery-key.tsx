@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { DownloadRecoveryKeyPage } from "~/client/modules/auth/routes/download-recovery-key";
 import { auth } from "~/server/lib/auth";
+import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
 
 const getRecoveryKeyUserState = createServerFn({ method: "GET" }).handler(async () => {
@@ -11,6 +12,7 @@ const getRecoveryKeyUserState = createServerFn({ method: "GET" }).handler(async 
 
 	return {
 		hasCredentialPassword: session?.user ? await userHasCredentialPassword(session.user.id) : false,
+		requiresPassword: serverHasRuntimeFeature("recoveryKeyPasswordRequired"),
 		userId: session?.user.id ?? null,
 	};
 });
@@ -31,7 +33,13 @@ export const Route = createFileRoute("/(auth)/download-recovery-key")({
 });
 
 function RouteComponent() {
-	const { hasCredentialPassword, userId } = Route.useLoaderData();
+	const { hasCredentialPassword, requiresPassword, userId } = Route.useLoaderData();
 
-	return <DownloadRecoveryKeyPage hasCredentialPassword={hasCredentialPassword} userId={userId} />;
+	return (
+		<DownloadRecoveryKeyPage
+			hasCredentialPassword={hasCredentialPassword}
+			requiresPassword={requiresPassword}
+			userId={userId}
+		/>
+	);
 }

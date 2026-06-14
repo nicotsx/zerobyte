@@ -20,10 +20,11 @@ const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
 
 type Props = {
 	hasCredentialPassword: boolean;
+	requiresPassword: boolean;
 	userId: string | null;
 };
 
-export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props) {
+export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPassword, userId }: Props) {
 	const navigate = useNavigate();
 	const [password, setPassword] = useState("");
 	const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
@@ -55,13 +56,13 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props
 	const handleSubmit = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
-		if (!password) {
+		if (requiresPassword && !password) {
 			toast.error("Password is required");
 			return;
 		}
 
 		setBlockedMessage(null);
-		downloadResticPassword.mutate({ body: { password } });
+		downloadResticPassword.mutate({ body: { password: requiresPassword ? password : "" } });
 	};
 
 	const handleSkip = () => {
@@ -88,7 +89,7 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props
 			</Alert>
 
 			<form onSubmit={handleSubmit} className="space-y-4">
-				{(!hasCredentialPassword || blockedMessage) && (
+				{requiresPassword && (!hasCredentialPassword || blockedMessage) && (
 					<Alert variant="warning">
 						<AlertTriangle className="size-5" />
 						<AlertTitle>Local password required</AlertTitle>
@@ -98,7 +99,7 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props
 					</Alert>
 				)}
 
-				{hasCredentialPassword && (
+				{requiresPassword && hasCredentialPassword && (
 					<div className="space-y-2">
 						<Label htmlFor="password">Confirm Your Password</Label>
 						<Input
@@ -117,7 +118,7 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, userId }: Props
 				)}
 
 				<div className="flex flex-col gap-2">
-					{hasCredentialPassword && (
+					{(!requiresPassword || hasCredentialPassword) && (
 						<Button type="submit" loading={downloadResticPassword.isPending} className="w-full">
 							<Download size={16} className="mr-2" />
 							Download Recovery Key

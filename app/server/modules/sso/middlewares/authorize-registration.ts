@@ -1,7 +1,7 @@
 import { APIError } from "better-auth/api";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
-import { checkPermissionForContext } from "~/server/lib/permission-service";
+import { getPermission, withContext } from "~/server/core/request-context";
 
 export const authorizeSsoRegistration = async (ctx: AuthMiddlewareContext) => {
 	if (ctx.path !== "/sso/register") {
@@ -40,10 +40,15 @@ export const authorizeSsoRegistration = async (ctx: AuthMiddlewareContext) => {
 		throw new APIError("FORBIDDEN", { message: "You are not a member of this organization" });
 	}
 
-	const permission = checkPermissionForContext("ssoProvider.create", {
-		orgRole: membership.role,
-		authSource: "browser-session",
-	});
+	const permission = withContext(
+		{
+			organizationId,
+			userId: session.user.id,
+			orgRole: membership.role,
+			authSource: "browser-session",
+		},
+		() => getPermission("ssoProvider.create"),
+	);
 
 	if (permission.allowed) {
 		return;

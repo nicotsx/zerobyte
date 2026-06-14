@@ -73,6 +73,8 @@ const PERMISSIONS = {
 } as const satisfies Record<string, PermissionPolicy>;
 
 export type Permission = keyof typeof PERMISSIONS;
+export const PERMISSION_KEYS = Object.keys(PERMISSIONS) as Permission[];
+export const RUNTIME_FEATURE_KEYS = Object.keys(RUNTIME_FEATURES.server) as RuntimeFeature[];
 
 export type PermissionContext = {
 	instanceRole?: string | null;
@@ -116,8 +118,4 @@ export function evaluatePermission(permission: Permission, context: PermissionPo
 	}
 
 	return { allowed: true };
-}
-
-export function allowsPermission(permission: Permission, context: PermissionPolicyContext) {
-	return evaluatePermission(permission, context).allowed;
 }

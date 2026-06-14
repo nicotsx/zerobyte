@@ -4,7 +4,7 @@ import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } f
 import { systemService } from "../system.service";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { db } from "~/server/db/db";
-import { organization } from "~/server/db/schema";
+import { organization, usersTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { config } from "~/server/core/config";
@@ -21,6 +21,7 @@ beforeAll(async () => {
 
 afterEach(() => {
 	config.runtime = "server";
+	vi.restoreAllMocks();
 });
 
 describe("system security", () => {
@@ -181,6 +182,43 @@ describe("system security", () => {
 			expect(res.status).toBe(200);
 			expect(res.headers.get("Content-Type")).toContain("text/plain");
 			expect(await res.text()).toBe(resticPassword);
+		});
+
+		test("should download restic password without password re-authentication in desktop mode", async () => {
+			config.runtime = "desktop";
+			const { cryptoUtils: actualCryptoUtils } =
+				await vi.importActual<typeof import("~/server/utils/crypto")>("~/server/utils/crypto");
+			const resticPassword = "desktop-restic-password";
+			const encryptedResticPassword = await actualCryptoUtils.sealSecret(resticPassword);
+			const verifyPasswordSpy = vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
+
+			await db
+				.update(organization)
+				.set({ metadata: { resticPassword: encryptedResticPassword } })
+				.where(eq(organization.id, session.organizationId));
+			await db
+				.update(usersTable)
+				.set({ hasDownloadedResticPassword: false })
+				.where(eq(usersTable.id, session.user.id));
+			vi.spyOn(cryptoUtils, "resolveSecret").mockImplementationOnce(actualCryptoUtils.resolveSecret);
+
+			const res = await app.request("/api/v1/system/restic-password", {
+				method: "POST",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					password: "",
+				}),
+			});
+
+			expect(res.status).toBe(200);
+			expect(await res.text()).toBe(resticPassword);
+			expect(verifyPasswordSpy).not.toHaveBeenCalled();
+
+			const updatedUser = await db.query.usersTable.findFirst({ where: { id: session.user.id } });
+			expect(updatedUser?.hasDownloadedResticPassword).toBe(true);
 		});
 
 		test("should return 400 for invalid payload on restic-password", async () => {

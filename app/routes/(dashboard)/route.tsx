@@ -5,6 +5,7 @@ import { Layout } from "~/client/components/layout";
 import { SIDEBAR_COOKIE_NAME } from "~/client/components/ui/sidebar";
 import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
+import { getCurrentPermissionsOptions } from "~/server/lib/functions/current-permissions";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/(dashboard)")({
 	server: {
 		middleware: [authMiddleware],
 	},
+	beforeLoad: async ({ context }) => context.queryClient.fetchQuery(getCurrentPermissionsOptions()),
 	loader: async ({ context }) => {
 		const [authContext] = await Promise.all([
 			fetchUser(),

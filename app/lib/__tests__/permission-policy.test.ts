@@ -1,13 +1,13 @@
 import { describe, expect, test } from "vitest";
-import { allowsPermission, evaluatePermission, hasRuntimeFeature } from "../permission-policy";
+import { evaluatePermission, hasRuntimeFeature } from "../permission-policy";
 
 describe("permissions", () => {
 	test("allows organization settings only for org admins in runtimes that support organization administration", () => {
 		expect(
-			allowsPermission("organizationSettings.view", {
+			evaluatePermission("organizationSettings.view", {
 				runtime: "server",
 				orgRole: "admin",
-			}),
+			}).allowed,
 		).toBe(true);
 
 		expect(
@@ -27,11 +27,11 @@ describe("permissions", () => {
 
 	test("keeps SSO provider creation owner-only and browser-session-only", () => {
 		expect(
-			allowsPermission("ssoProvider.create", {
+			evaluatePermission("ssoProvider.create", {
 				runtime: "server",
 				orgRole: "owner",
 				authSource: "browser-session",
-			}),
+			}).allowed,
 		).toBe(true);
 
 		expect(
@@ -53,11 +53,11 @@ describe("permissions", () => {
 
 	test("requires desktop-sensitive instance administration to pass runtime, role, and auth source", () => {
 		expect(
-			allowsPermission("instanceAdministration.view", {
+			evaluatePermission("instanceAdministration.view", {
 				runtime: "server",
 				instanceRole: "admin",
 				authSource: "browser-session",
-			}),
+			}).allowed,
 		).toBe(true);
 
 		expect(

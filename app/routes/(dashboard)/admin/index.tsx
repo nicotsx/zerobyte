@@ -12,7 +12,7 @@ export const Route = createFileRoute("/(dashboard)/admin/")({
 	loader: async ({ context }) => {
 		const authContext = await fetchUser();
 
-		if (authContext.user?.role !== "admin") {
+		if (!context.permissions["instanceAdministration.view"]) {
 			throw redirect({ to: "/settings" });
 		}
 

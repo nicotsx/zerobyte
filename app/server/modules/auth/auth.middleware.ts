@@ -1,9 +1,9 @@
 import { createMiddleware } from "hono/factory";
 import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
-import { withContext } from "~/server/core/request-context";
+import { getPermission, withContext } from "~/server/core/request-context";
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
-import { checkPermissionForContext, type Permission } from "~/server/lib/permission-service";
+import type { Permission } from "~/lib/permission-policy";
 
 const API_KEY_HEADER = "x-api-key";
 type AuthSource = "browser-session" | "api-key";
@@ -85,9 +85,18 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	c.set("membership", membership);
 	c.set("authSource", authSource);
 
-	await withContext({ organizationId: activeOrganizationId, userId: user.id }, async () => {
-		await next();
-	});
+	await withContext(
+		{
+			organizationId: activeOrganizationId,
+			userId: user.id,
+			instanceRole: user.role,
+			orgRole: membership.role,
+			authSource,
+		},
+		async () => {
+			await next();
+		},
+	);
 });
 
 export const requireBrowserSession = createMiddleware(async (c, next) => {
@@ -100,11 +109,7 @@ export const requireBrowserSession = createMiddleware(async (c, next) => {
 
 export const requirePermission = (permission: Permission) =>
 	createMiddleware(async (c, next) => {
-		const result = checkPermissionForContext(permission, {
-			instanceRole: c.get("user")?.role,
-			orgRole: c.get("membership")?.role,
-			authSource: c.get("authSource"),
-		});
+		const result = getPermission(permission);
 
 		if (result.allowed) {
 			await next();

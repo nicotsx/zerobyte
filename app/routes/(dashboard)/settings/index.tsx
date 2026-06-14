@@ -16,16 +16,17 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 	validateSearch: z.object({ tab: z.string().optional() }),
 	errorComponent: () => <div>Failed to load settings</div>,
 	loader: async ({ context }) => {
-		const [authContext, orgContext, userInvitations] = await Promise.all([
-			fetchUser(),
-			context.queryClient.ensureQueryData({
-				queryKey: ["organization-context"],
-				queryFn: () => getOrganizationContext(),
-			}),
-			context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() }),
-		]);
-		const orgRole = orgContext.activeMember?.role;
-		const shouldPrefetchOrgQueries = orgRole === "owner" || orgRole === "admin";
+		const authContextPromise = fetchUser();
+		const orgContextPromise = context.queryClient.ensureQueryData({
+			queryKey: ["organization-context"],
+			queryFn: () => getOrganizationContext(),
+		});
+		const userInvitationsPromise = context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() });
+
+		const [authContext, userInvitations] = await Promise.all([authContextPromise, userInvitationsPromise]);
+		await orgContextPromise;
+
+		const shouldPrefetchOrgQueries = context.permissions["organizationSettings.view"];
 
 		if (shouldPrefetchOrgQueries) {
 			const [org, members, appOrigin] = await Promise.all([

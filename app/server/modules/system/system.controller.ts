@@ -22,6 +22,7 @@ import { eq } from "drizzle-orm";
 import { verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { getOrganizationId } from "~/server/core/request-context";
+import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 
 export const systemController = new Hono()
 	.use(requireAuth)
@@ -63,10 +64,13 @@ export const systemController = new Hono()
 			const user = c.get("user");
 			const organizationId = getOrganizationId();
 			const body = c.req.valid("json");
+			const requiresPassword = serverHasRuntimeFeature("recoveryKeyPasswordRequired");
 
-			const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });
-			if (!isPasswordValid) {
-				return c.json({ message: "Invalid password" }, 401);
+			if (requiresPassword) {
+				const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });
+				if (!isPasswordValid) {
+					return c.json({ message: "Invalid password" }, 401);
+				}
 			}
 
 			try {

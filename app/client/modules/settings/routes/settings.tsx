@@ -54,6 +54,7 @@ import { OrgMembersSection } from "../components/org-members-section";
 import { PendingInvitationsSection } from "../components/pending-invitations-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
+import { usePermissions } from "~/client/hooks/use-permissions";
 
 const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
 	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
@@ -81,15 +82,18 @@ export function SettingsPage({
 	const [downloadBlockedMessage, setDownloadBlockedMessage] = useState<string | null>(null);
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
 	const { dateFormat, timeFormat } = useRootLoaderData();
+	const permissions = usePermissions();
 
 	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
-	const activeTab = tab || "account";
 
 	const navigate = useNavigate();
-	const { activeMember, activeOrganization } = useOrganizationContext();
-	const isOrgAdmin = activeMember?.role === "owner" || activeMember?.role === "admin";
+	const { activeOrganization } = useOrganizationContext();
+	const showOrganizationSettings = permissions.can("organizationSettings.view");
+	const activeTab = tab === "organization" && !showOrganizationSettings ? "account" : tab || "account";
 	const { formatDateTime } = useTimeFormat();
 	const hasCredentialPassword = appContext.user?.hasCredentialPassword !== false;
+	const requiresRecoveryKeyPassword = permissions.hasRuntimeFeature("recoveryKeyPasswordRequired");
+	const canDownloadRecoveryKey = !requiresRecoveryKeyPassword || hasCredentialPassword;
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -174,7 +178,7 @@ export function SettingsPage({
 	const handleDownloadResticPassword = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
-		if (!downloadPassword) {
+		if (requiresRecoveryKeyPassword && !downloadPassword) {
 			toast.error("Password is required");
 			return;
 		}
@@ -182,7 +186,7 @@ export function SettingsPage({
 		setDownloadBlockedMessage(null);
 		downloadResticPassword.mutate({
 			body: {
-				password: downloadPassword,
+				password: requiresRecoveryKeyPassword ? downloadPassword : "",
 			},
 		});
 	};
@@ -232,7 +236,7 @@ export function SettingsPage({
 			<Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
 				<TabsList>
 					<TabsTrigger value="account">Account</TabsTrigger>
-					{isOrgAdmin && <TabsTrigger value="organization">Organization</TabsTrigger>}
+					{showOrganizationSettings && <TabsTrigger value="organization">Organization</TabsTrigger>}
 				</TabsList>
 
 				<div className="mt-2">
@@ -419,16 +423,20 @@ export function SettingsPage({
 											<DialogHeader>
 												<DialogTitle>Download Recovery Key</DialogTitle>
 												<DialogDescription>
-													{!hasCredentialPassword
-														? "A local credential password is required before this recovery key can be downloaded."
-														: "For security reasons, please enter your account password to download the recovery key file."}
+													{!requiresRecoveryKeyPassword
+														? "Download the recovery key file and store it somewhere safe."
+														: !hasCredentialPassword
+															? "A local credential password is required before this recovery key can be downloaded."
+															: "For security reasons, please enter your account password to download the recovery key file."}
 												</DialogDescription>
 											</DialogHeader>
 											<div className="space-y-4 py-4">
 												<Alert
 													variant="warning"
 													className={cn({
-														hidden: hasCredentialPassword && !downloadBlockedMessage,
+														hidden:
+															!requiresRecoveryKeyPassword ||
+															(hasCredentialPassword && !downloadBlockedMessage),
 													})}
 												>
 													<AlertTriangle className="size-5" />
@@ -438,7 +446,11 @@ export function SettingsPage({
 															RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE}
 													</AlertDescription>
 												</Alert>
-												<div className={cn("space-y-2", { hidden: !hasCredentialPassword })}>
+												<div
+													className={cn("space-y-2", {
+														hidden: !requiresRecoveryKeyPassword || !hasCredentialPassword,
+													})}
+												>
 													<Label htmlFor="download-password">Your Password</Label>
 													<Input
 														id="download-password"
@@ -446,7 +458,7 @@ export function SettingsPage({
 														value={downloadPassword}
 														onChange={(e) => setDownloadPassword(e.target.value)}
 														placeholder="Enter your password"
-														required
+														required={requiresRecoveryKeyPassword && hasCredentialPassword}
 													/>
 												</div>
 											</div>
@@ -465,7 +477,7 @@ export function SettingsPage({
 												<Button
 													type="submit"
 													loading={downloadResticPassword.isPending}
-													className={cn({ hidden: !hasCredentialPassword })}
+													className={cn({ hidden: !canDownloadRecoveryKey })}
 												>
 													<Download className="h-4 w-4 mr-2" />
 													Download
@@ -484,7 +496,7 @@ export function SettingsPage({
 						</Card>
 					</TabsContent>
 
-					{isOrgAdmin && (
+					{showOrganizationSettings && (
 						<TabsContent value="organization" className="mt-0 space-y-4">
 							<Card className="p-0 gap-0">
 								<div className="border-b border-border/50 bg-card-header p-6">

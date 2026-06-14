@@ -1,15 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { CreateSsoProviderPage } from "~/client/modules/sso/routes/create-sso-provider";
-import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 
 export const Route = createFileRoute("/(dashboard)/settings/sso/new")({
 	component: RouteComponent,
 	errorComponent: () => <div>Failed to load SSO registration</div>,
-	loader: async () => {
-		const orgContext = await getOrganizationContext();
-		const role = orgContext.activeMember?.role;
-
-		if (role !== "owner") {
+	loader: async ({ context }) => {
+		if (!context.permissions["ssoProvider.create"]) {
 			throw redirect({ to: "/settings" });
 		}
 	},
