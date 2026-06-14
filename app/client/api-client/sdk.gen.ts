@@ -40,28 +40,6 @@ export const deleteUserAccount = <ThrowOnError extends boolean = false>(options:
 export const getUserDeletionImpact = <ThrowOnError extends boolean = false>(options: Options<GetUserDeletionImpactData, ThrowOnError>): RequestResult<GetUserDeletionImpactResponses, unknown, ThrowOnError> => (options.client ?? client).get<GetUserDeletionImpactResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/deletion-impact/{userId}', ...options });
 
 /**
- * List API keys for the current user in the active organization
- */
-export const getApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeysResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/api-keys', ...options });
-
-/**
- * Create an API key for the current user in the active organization
- */
-export const createApiKey = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyData, ThrowOnError>) => (options.client ?? client).post<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError>({
-    url: '/api/v1/auth/api-keys',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Revoke an API key for the current user in the active organization
- */
-export const deleteApiKey = <ThrowOnError extends boolean = false>(options: Options<DeleteApiKeyData, ThrowOnError>) => (options.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({ url: '/api/v1/auth/api-keys/{keyId}', ...options });
-
-/**
  * Get members of the active organization
  */
 export const getOrgMembers = <ThrowOnError extends boolean = false>(options?: Options<GetOrgMembersData, ThrowOnError>): RequestResult<GetOrgMembersResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetOrgMembersResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/org-members', ...options });
@@ -82,6 +60,28 @@ export const updateMemberRole = <ThrowOnError extends boolean = false>(options: 
  * Remove a member from the active organization
  */
 export const removeOrgMember = <ThrowOnError extends boolean = false>(options: Options<RemoveOrgMemberData, ThrowOnError>): RequestResult<RemoveOrgMemberResponses, RemoveOrgMemberErrors, ThrowOnError> => (options.client ?? client).delete<RemoveOrgMemberResponses, RemoveOrgMemberErrors, ThrowOnError>({ url: '/api/v1/auth/org-members/{memberId}', ...options });
+
+/**
+ * List API keys for the current user in the active organization
+ */
+export const getApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeysData, ThrowOnError>): RequestResult<GetApiKeysResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetApiKeysResponses, unknown, ThrowOnError>({ url: '/api/v1/auth/api-keys', ...options });
+
+/**
+ * Create an API key for the current user in the active organization
+ */
+export const createApiKey = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyData, ThrowOnError>): RequestResult<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError> => (options.client ?? client).post<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError>({
+    url: '/api/v1/auth/api-keys',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Revoke an API key for the current user in the active organization
+ */
+export const deleteApiKey = <ThrowOnError extends boolean = false>(options: Options<DeleteApiKeyData, ThrowOnError>): RequestResult<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({ url: '/api/v1/auth/api-keys/{keyId}', ...options });
 
 /**
  * Get public SSO providers for the instance

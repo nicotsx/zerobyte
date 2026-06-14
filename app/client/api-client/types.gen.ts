@@ -108,6 +108,89 @@ export type GetUserDeletionImpactResponses = {
 
 export type GetUserDeletionImpactResponse = GetUserDeletionImpactResponses[keyof GetUserDeletionImpactResponses];
 
+export type GetOrgMembersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/org-members';
+};
+
+export type GetOrgMembersResponses = {
+    /**
+     * List of organization members
+     */
+    200: {
+        members: Array<{
+            id: string;
+            userId: string;
+            role: string;
+            createdAt: string;
+            user: {
+                name: string | null;
+                email: string;
+            };
+        }>;
+    };
+};
+
+export type GetOrgMembersResponse = GetOrgMembersResponses[keyof GetOrgMembersResponses];
+
+export type UpdateMemberRoleData = {
+    body: {
+        role: 'member' | 'admin';
+    };
+    path: {
+        memberId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/org-members/{memberId}/role';
+};
+
+export type UpdateMemberRoleErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Member not found
+     */
+    404: unknown;
+};
+
+export type UpdateMemberRoleResponses = {
+    /**
+     * Member role updated successfully
+     */
+    200: unknown;
+};
+
+export type RemoveOrgMemberData = {
+    body?: never;
+    path: {
+        memberId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/org-members/{memberId}';
+};
+
+export type RemoveOrgMemberErrors = {
+    /**
+     * Forbidden
+     */
+    403: unknown;
+    /**
+     * Member not found
+     */
+    404: unknown;
+};
+
+export type RemoveOrgMemberResponses = {
+    /**
+     * Member removed successfully
+     */
+    200: unknown;
+};
+
 export type GetApiKeysData = {
     body?: never;
     path?: never;
@@ -194,89 +277,6 @@ export type DeleteApiKeyErrors = {
 export type DeleteApiKeyResponses = {
     /**
      * API key revoked
-     */
-    200: unknown;
-};
-
-export type GetOrgMembersData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/org-members';
-};
-
-export type GetOrgMembersResponses = {
-    /**
-     * List of organization members
-     */
-    200: {
-        members: Array<{
-            id: string;
-            userId: string;
-            role: string;
-            createdAt: string;
-            user: {
-                name: string | null;
-                email: string;
-            };
-        }>;
-    };
-};
-
-export type GetOrgMembersResponse = GetOrgMembersResponses[keyof GetOrgMembersResponses];
-
-export type UpdateMemberRoleData = {
-    body: {
-        role: 'member' | 'admin';
-    };
-    path: {
-        memberId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/org-members/{memberId}/role';
-};
-
-export type UpdateMemberRoleErrors = {
-    /**
-     * Forbidden
-     */
-    403: unknown;
-    /**
-     * Member not found
-     */
-    404: unknown;
-};
-
-export type UpdateMemberRoleResponses = {
-    /**
-     * Member role updated successfully
-     */
-    200: unknown;
-};
-
-export type RemoveOrgMemberData = {
-    body?: never;
-    path: {
-        memberId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/org-members/{memberId}';
-};
-
-export type RemoveOrgMemberErrors = {
-    /**
-     * Forbidden
-     */
-    403: unknown;
-    /**
-     * Member not found
-     */
-    404: unknown;
-};
-
-export type RemoveOrgMemberResponses = {
-    /**
-     * Member removed successfully
      */
     200: unknown;
 };
@@ -5064,9 +5064,12 @@ export type GetSystemInfoResponses = {
      * System information with enabled capabilities
      */
     200: {
+        runtime: 'server' | 'desktop';
         capabilities: {
             rclone: boolean;
             sysAdmin: boolean;
+            volumeBackends: Array<'directory' | 'nfs' | 'smb' | 'webdav' | 'rclone' | 'sftp'>;
+            repositoryBackends: Array<'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'sftp' | 'rest' | 'rclone'>;
         };
     };
 };

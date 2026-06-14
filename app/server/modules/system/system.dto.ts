@@ -4,9 +4,12 @@ import { describeRoute, resolver } from "hono-openapi";
 const capabilitiesSchema = z.object({
 	rclone: z.boolean(),
 	sysAdmin: z.boolean(),
+	volumeBackends: z.array(z.enum(["directory", "nfs", "smb", "webdav", "rclone", "sftp"])),
+	repositoryBackends: z.array(z.enum(["local", "s3", "r2", "gcs", "azure", "sftp", "rest", "rclone"])),
 });
 
 const systemInfoResponse = z.object({
+	runtime: z.enum(["server", "desktop"]),
 	capabilities: capabilitiesSchema,
 });
 

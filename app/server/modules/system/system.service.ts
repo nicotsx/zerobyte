@@ -4,6 +4,8 @@ import type { UpdateInfoDto } from "./system.dto";
 import semver from "semver";
 import { cache, cacheKeys } from "../../utils/cache";
 import { logger } from "@zerobyte/core/node";
+import type { BackendType } from "@zerobyte/contracts/volumes";
+import type { RepositoryBackend } from "@zerobyte/core/restic";
 import { db } from "../../db/db";
 import { appMetadataTable } from "../../db/schema";
 import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
@@ -11,8 +13,32 @@ import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
 const CACHE_TTL = 60 * 60;
 
 const getSystemInfo = async () => {
+	const capabilities = await getCapabilities();
+	const volumeBackends: BackendType[] = ["directory"];
+	const repositoryBackends: RepositoryBackend[] = ["local", "s3", "r2", "gcs", "azure", "sftp", "rest"];
+
+	if (config.runtime === "server") {
+		if (capabilities.sysAdmin) {
+			volumeBackends.push("nfs", "smb", "webdav", "sftp");
+		}
+
+		if (capabilities.sysAdmin && capabilities.rclone) {
+			volumeBackends.push("rclone");
+		}
+
+		if (capabilities.rclone) {
+			repositoryBackends.push("rclone");
+		}
+	}
+
 	return {
-		capabilities: await getCapabilities(),
+		runtime: config.runtime,
+		capabilities: {
+			rclone: capabilities.rclone,
+			sysAdmin: capabilities.sysAdmin,
+			volumeBackends,
+			repositoryBackends,
+		},
 	};
 };
 

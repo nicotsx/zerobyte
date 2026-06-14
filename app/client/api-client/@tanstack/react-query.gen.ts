@@ -111,58 +111,6 @@ export const getUserDeletionImpactOptions = (options: Options<GetUserDeletionImp
     queryKey: getUserDeletionImpactQueryKey(options)
 });
 
-export const getApiKeysQueryKey = (options?: Options<GetApiKeysData>) => createQueryKey('getApiKeys', options);
-
-/**
- * List API keys for the current user in the active organization
- */
-export const getApiKeysOptions = (options?: Options<GetApiKeysData>) => queryOptions<GetApiKeysResponse, DefaultError, GetApiKeysResponse, ReturnType<typeof getApiKeysQueryKey>>({
-    queryFn: async ({ queryKey, signal }) => {
-        const { data } = await getApiKeys({
-            ...options,
-            ...queryKey[0],
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: getApiKeysQueryKey(options)
-});
-
-/**
- * Create an API key for the current user in the active organization
- */
-export const createApiKeyMutation = (options?: Partial<Options<CreateApiKeyData>>): UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> => {
-    const mutationOptions: UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await createApiKey({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Revoke an API key for the current user in the active organization
- */
-export const deleteApiKeyMutation = (options?: Partial<Options<DeleteApiKeyData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteApiKeyData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteApiKeyData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteApiKey({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
 export const getOrgMembersQueryKey = (options?: Options<GetOrgMembersData>) => createQueryKey('getOrgMembers', options);
 
 /**
@@ -205,6 +153,58 @@ export const removeOrgMemberMutation = (options?: Partial<Options<RemoveOrgMembe
     const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<RemoveOrgMemberData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await removeOrgMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const getApiKeysQueryKey = (options?: Options<GetApiKeysData>) => createQueryKey('getApiKeys', options);
+
+/**
+ * List API keys for the current user in the active organization
+ */
+export const getApiKeysOptions = (options?: Options<GetApiKeysData>) => queryOptions<GetApiKeysResponse, DefaultError, GetApiKeysResponse, ReturnType<typeof getApiKeysQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiKeys({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiKeysQueryKey(options)
+});
+
+/**
+ * Create an API key for the current user in the active organization
+ */
+export const createApiKeyMutation = (options?: Partial<Options<CreateApiKeyData>>): UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createApiKey({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Revoke an API key for the current user in the active organization
+ */
+export const deleteApiKeyMutation = (options?: Partial<Options<DeleteApiKeyData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteApiKeyData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteApiKey({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

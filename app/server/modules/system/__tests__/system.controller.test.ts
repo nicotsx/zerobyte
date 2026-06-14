@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } from "~/test/helpers/auth";
 import { systemService } from "../system.service";
@@ -7,6 +7,7 @@ import { db } from "~/server/db/db";
 import { organization } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
+import { config } from "~/server/core/config";
 
 const app = createApp();
 
@@ -16,6 +17,10 @@ let globalAdminSession: Awaited<ReturnType<typeof createTestSessionWithGlobalAdm
 beforeAll(async () => {
 	session = await createTestSession();
 	globalAdminSession = await createTestSessionWithGlobalAdmin();
+});
+
+afterEach(() => {
+	config.runtime = "server";
 });
 
 describe("system security", () => {
@@ -41,6 +46,28 @@ describe("system security", () => {
 		});
 
 		expect(res.status).toBe(200);
+	});
+
+	test("returns desktop runtime and effective backend lists in desktop mode", async () => {
+		config.runtime = "desktop";
+
+		try {
+			const res = await app.request("/api/v1/system/info", {
+				headers: session.headers,
+			});
+
+			expect(res.status).toBe(200);
+			const body = await res.json();
+			expect(body).toMatchObject({
+				runtime: "desktop",
+				capabilities: {
+					volumeBackends: ["directory"],
+					repositoryBackends: ["local", "s3", "r2", "gcs", "azure", "sftp", "rest"],
+				},
+			});
+		} finally {
+			config.runtime = "server";
+		}
 	});
 
 	describe("unauthenticated access", () => {
