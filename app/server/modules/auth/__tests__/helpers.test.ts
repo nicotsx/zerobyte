@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, passkey, usersTable } from "~/server/db/schema";
 import { createUser, randomId, randomSlug } from "~/test/helpers/user-org";
-import { hasActivePasskeyUser, userHasCredentialPassword, verifyUserPassword } from "../helpers";
+import { hasActivePasskeyUser, userHasPassword, verifyUserPassword } from "../helpers";
 
 const { verifyPassword } = vi.hoisted(() => ({
 	verifyPassword: vi.fn(async ({ hash }: { hash: string }) => hash === "credential-password-hash"),
@@ -67,7 +67,7 @@ describe("verifyUserPassword", () => {
 		});
 	});
 
-	test("returns false when the user has no credential password account", async () => {
+	test("returns false when the user has no password account", async () => {
 		const userId = await createUser(`${randomSlug("user")}@example.com`);
 		await createAccount({ userId, providerId: "oidc-acme", password: null });
 
@@ -78,7 +78,7 @@ describe("verifyUserPassword", () => {
 	});
 });
 
-describe("userHasCredentialPassword", () => {
+describe("userHasPassword", () => {
 	beforeEach(async () => {
 		await db.delete(passkey);
 		await db.delete(account);
@@ -89,21 +89,21 @@ describe("userHasCredentialPassword", () => {
 		const userId = await createUser(`${randomSlug("user")}@example.com`);
 		await createAccount({ userId, providerId: "credential", password: "credential-password-hash" });
 
-		await expect(userHasCredentialPassword(userId)).resolves.toBe(true);
+		await expect(userHasPassword(userId)).resolves.toBe(true);
 	});
 
 	test("returns false when the user only has SSO accounts", async () => {
 		const userId = await createUser(`${randomSlug("user")}@example.com`);
 		await createAccount({ userId, providerId: "oidc-acme", password: null });
 
-		await expect(userHasCredentialPassword(userId)).resolves.toBe(false);
+		await expect(userHasPassword(userId)).resolves.toBe(false);
 	});
 
 	test("returns false when the credential account has no password", async () => {
 		const userId = await createUser(`${randomSlug("user")}@example.com`);
 		await createAccount({ userId, providerId: "credential", password: null });
 
-		await expect(userHasCredentialPassword(userId)).resolves.toBe(false);
+		await expect(userHasPassword(userId)).resolves.toBe(false);
 	});
 });
 

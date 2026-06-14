@@ -1449,7 +1449,7 @@ export const setRegistrationStatusMutation = (options?: Partial<Options<SetRegis
 };
 
 /**
- * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and password re-authentication.
+ * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and may require password re-authentication.
  */
 export const downloadResticPasswordMutation = (options?: Partial<Options<DownloadResticPasswordData>>): UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> => {
     const mutationOptions: UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> = {

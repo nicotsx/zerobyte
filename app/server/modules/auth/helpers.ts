@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import { verifyPassword } from "better-auth/crypto";
+import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { passkey, usersTable } from "~/server/db/schema";
 
@@ -7,6 +8,8 @@ type PasswordVerificationBody = {
 	userId: string;
 	password: string;
 };
+
+export const isPasswordAuthSupported = () => config.runtime !== "desktop";
 
 export const verifyUserPassword = async ({ password, userId }: PasswordVerificationBody) => {
 	const userAccount = await db.query.account.findFirst({
@@ -25,7 +28,7 @@ export const verifyUserPassword = async ({ password, userId }: PasswordVerificat
 	return true;
 };
 
-export const userHasCredentialPassword = async (userId: string) => {
+export const userHasPassword = async (userId: string) => {
 	const userAccount = await db.query.account.findFirst({
 		where: { AND: [{ userId }, { providerId: "credential" }] },
 		columns: { password: true },

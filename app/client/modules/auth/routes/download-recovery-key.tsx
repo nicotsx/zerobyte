@@ -15,16 +15,16 @@ import {
 } from "~/lib/recovery-key-skip";
 import { useNavigate } from "@tanstack/react-router";
 
-const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
-	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
+const RECOVERY_KEY_PASSWORD_REQUIRED_MESSAGE =
+	"Downloading the recovery key requires a local password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
-	hasCredentialPassword: boolean;
-	requiresPassword: boolean;
+	passwordAuthSupported: boolean;
+	hasPassword: boolean;
 	userId: string | null;
 };
 
-export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPassword, userId }: Props) {
+export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, userId }: Props) {
 	const navigate = useNavigate();
 	const [password, setPassword] = useState("");
 	const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPasswor
 		},
 		onError: (error) => {
 			const message = parseError(error)?.message;
-			setBlockedMessage(message?.includes("credential password") ? message : null);
+			setBlockedMessage(message?.includes("local password") ? message : null);
 			toast.error("Failed to download recovery key", { description: message });
 		},
 	});
@@ -56,13 +56,13 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPasswor
 	const handleSubmit = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
-		if (requiresPassword && !password) {
+		if (passwordAuthSupported && !password) {
 			toast.error("Password is required");
 			return;
 		}
 
 		setBlockedMessage(null);
-		downloadResticPassword.mutate({ body: { password: requiresPassword ? password : "" } });
+		downloadResticPassword.mutate({ body: { password: passwordAuthSupported ? password : "" } });
 	};
 
 	const handleSkip = () => {
@@ -89,17 +89,15 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPasswor
 			</Alert>
 
 			<form onSubmit={handleSubmit} className="space-y-4">
-				{requiresPassword && (!hasCredentialPassword || blockedMessage) && (
+				{passwordAuthSupported && (!hasPassword || blockedMessage) && (
 					<Alert variant="warning">
 						<AlertTriangle className="size-5" />
 						<AlertTitle>Local password required</AlertTitle>
-						<AlertDescription>
-							{blockedMessage ?? RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE}
-						</AlertDescription>
+						<AlertDescription>{blockedMessage ?? RECOVERY_KEY_PASSWORD_REQUIRED_MESSAGE}</AlertDescription>
 					</Alert>
 				)}
 
-				{requiresPassword && hasCredentialPassword && (
+				{passwordAuthSupported && hasPassword && (
 					<div className="space-y-2">
 						<Label htmlFor="password">Confirm Your Password</Label>
 						<Input
@@ -118,7 +116,7 @@ export function DownloadRecoveryKeyPage({ hasCredentialPassword, requiresPasswor
 				)}
 
 				<div className="flex flex-col gap-2">
-					{(!requiresPassword || hasCredentialPassword) && (
+					{(!passwordAuthSupported || hasPassword) && (
 						<Button type="submit" loading={downloadResticPassword.isPending} className="w-full">
 							<Download size={16} className="mr-2" />
 							Download Recovery Key

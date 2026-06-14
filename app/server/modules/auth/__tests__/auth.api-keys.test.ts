@@ -5,6 +5,7 @@ import { createApp } from "~/server/app";
 import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { account, apikey, member, organization, sessionsTable } from "~/server/db/schema";
+import { config } from "~/server/core/config";
 import {
 	createTestSession,
 	createTestSessionWithGlobalAdmin,
@@ -29,10 +30,11 @@ type CreatedApiKey = {
 };
 
 beforeEach(async () => {
+	config.runtime = "server";
 	await db.delete(apikey);
 });
 
-async function addCredentialPassword(session: TestSession, password = "correct-password") {
+async function addPassword(session: TestSession, password = "correct-password") {
 	await db.insert(account).values({
 		id: randomId(),
 		accountId: randomSlug("credential"),
@@ -75,7 +77,7 @@ async function createStoredApiKey(session: TestSession, organizationId = session
 describe("API keys", () => {
 	test("creates and lists API keys for the current organization after password confirmation", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 
 		const created = await createApiKey(session, "Nightly automation");
 
@@ -113,7 +115,7 @@ describe("API keys", () => {
 
 	test("creates API keys with an optional expiration", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 
 		const expiresIn = 30 * 24 * 60 * 60;
 		const created = await createApiKey(session, "Monthly automation", expiresIn);
@@ -129,7 +131,7 @@ describe("API keys", () => {
 
 	test("rejects API key creation when the same request has the wrong password", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 
 		const res = await app.request("/api/v1/auth/api-keys", {
 			method: "POST",
@@ -145,7 +147,7 @@ describe("API keys", () => {
 		expect(await db.query.apikey.findMany({ where: { referenceId: session.user.id } })).toHaveLength(0);
 	});
 
-	test("blocks API key creation for users without a local credential password", async () => {
+	test("blocks API key creation for users without a local password", async () => {
 		const session = await createTestSession();
 
 		const res = await app.request("/api/v1/auth/api-keys", {
@@ -159,13 +161,35 @@ describe("API keys", () => {
 
 		expect(res.status).toBe(403);
 		expect(await res.json()).toEqual({
-			message: "A local credential password is required to create API keys",
+			message: "A local password is required to create API keys",
 		});
+	});
+
+	test("creates API keys without password confirmation when password auth is unsupported", async () => {
+		config.runtime = "desktop";
+		const session = await createTestSession();
+
+		const res = await app.request("/api/v1/auth/api-keys", {
+			method: "POST",
+			headers: {
+				...session.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ name: "Desktop key", password: "" }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual(
+			expect.objectContaining({
+				name: "Desktop key",
+				key: expect.stringMatching(/^zb_/),
+			}),
+		);
 	});
 
 	test("enforces the per-user API key limit", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 
 		for (let index = 0; index < 50; index++) {
 			await createStoredApiKey(session);
@@ -186,7 +210,7 @@ describe("API keys", () => {
 
 	test("does not list expired or disabled API keys", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const storedKeys: Array<Awaited<ReturnType<typeof createStoredApiKey>>> = [];
 
 		for (let index = 0; index < 10; index++) {
@@ -216,7 +240,7 @@ describe("API keys", () => {
 
 	test("does not allow direct Better Auth session lookup with API keys", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const directSession = await auth.api.getSession({
@@ -228,7 +252,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to access global admin endpoints", async () => {
 		const session = await createTestSessionWithGlobalAdmin();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const res = await app.request("/api/v1/auth/admin-users", {
@@ -241,7 +265,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to execute dev panel commands", async () => {
 		const session = await createTestSessionWithOrgAdmin();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const res = await app.request("/api/v1/repositories/test-repo/exec", {
@@ -259,7 +283,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to access SSO settings", async () => {
 		const session = await createTestSessionWithOrgAdmin();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const res = await app.request("/api/v1/auth/sso-settings", {
@@ -272,7 +296,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to access SSO invitation browser flow routes", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const routes = [
@@ -301,7 +325,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to mutate SSO admin resources", async () => {
 		const session = await createTestSessionWithOrgAdmin();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const routes = [
@@ -331,7 +355,7 @@ describe("API keys", () => {
 
 	test("authenticates API v1 requests with the key's bound organization", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		await db
 			.update(member)
 			.set({ role: "owner" })
@@ -376,7 +400,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys on Better Auth endpoints", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const res = await app.request("/api/auth/get-session", {
@@ -410,7 +434,7 @@ describe("API keys", () => {
 
 	test("does not allow API keys to download the recovery key", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const res = await app.request("/api/v1/system/restic-password", {
@@ -428,7 +452,7 @@ describe("API keys", () => {
 
 	test("revoked API keys fail future requests", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		const deleteRes = await app.request(`/api/v1/auth/api-keys/${created.id}`, {
@@ -447,7 +471,7 @@ describe("API keys", () => {
 
 	test("API keys fail after the user is removed from the bound organization", async () => {
 		const session = await createTestSession();
-		await addCredentialPassword(session);
+		await addPassword(session);
 		const created = await createApiKey(session);
 
 		await db

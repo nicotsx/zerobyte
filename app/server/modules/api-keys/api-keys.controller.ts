@@ -11,7 +11,7 @@ import {
 import { MAX_API_KEYS_PER_USER, countActiveApiKeys, hasApiKey, listApiKeys } from "./api-keys.service";
 import { requireAuth, requireBrowserSession } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
-import { userHasCredentialPassword, verifyUserPassword } from "../auth/helpers";
+import { isPasswordAuthSupported, userHasPassword, verifyUserPassword } from "../auth/helpers";
 
 export const apiKeysController = new Hono()
 	.get("/api-keys", requireAuth, requireBrowserSession, getApiKeysDto, async (c) => {
@@ -32,14 +32,16 @@ export const apiKeysController = new Hono()
 			const organizationId = c.get("organizationId");
 			const { expiresIn, name, password } = c.req.valid("json");
 
-			const hasCredentialPassword = await userHasCredentialPassword(user.id);
-			if (!hasCredentialPassword) {
-				return c.json({ message: "A local credential password is required to create API keys" }, 403);
-			}
+			if (isPasswordAuthSupported()) {
+				const hasPassword = await userHasPassword(user.id);
+				if (!hasPassword) {
+					return c.json({ message: "A local password is required to create API keys" }, 403);
+				}
 
-			const isPasswordValid = await verifyUserPassword({ userId: user.id, password });
-			if (!isPasswordValid) {
-				return c.json({ message: "Invalid password" }, 401);
+				const isPasswordValid = await verifyUserPassword({ userId: user.id, password });
+				if (!isPasswordValid) {
+					return c.json({ message: "Invalid password" }, 401);
+				}
 			}
 
 			const apiKeyCount = await countActiveApiKeys(user.id);

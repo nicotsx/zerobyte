@@ -37,7 +37,8 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 
 type Props = {
-	hasCredentialPassword: boolean;
+	passwordAuthSupported: boolean;
+	hasPassword: boolean;
 };
 
 type ApiKey = GetApiKeysResponse["apiKeys"][number];
@@ -51,7 +52,7 @@ const EXPIRATION_OPTIONS = [
 
 type ExpirationValue = (typeof EXPIRATION_OPTIONS)[number]["value"];
 
-export function ApiKeysSection({ hasCredentialPassword }: Props) {
+export function ApiKeysSection({ passwordAuthSupported, hasPassword }: Props) {
 	const { formatDateTime } = useTimeFormat();
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
 	const [newKeyName, setNewKeyName] = useState("");
@@ -63,6 +64,7 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 	const { data, isPending } = useQuery(getApiKeysOptions());
 	const apiKeys = data?.apiKeys ?? [];
 	const limit = data?.limit ?? 50;
+	const canCreateApiKey = !passwordAuthSupported || hasPassword;
 
 	const createKey = useMutation({
 		...createApiKeyMutation(),
@@ -105,13 +107,13 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 			return;
 		}
 
-		if (!password) {
+		if (passwordAuthSupported && !password) {
 			toast.error("Password is required");
 			return;
 		}
 
 		const expiresIn = newKeyExpiration === "never" ? null : Number(newKeyExpiration) * 24 * 60 * 60;
-		createKey.mutate({ body: { name, password, expiresIn } });
+		createKey.mutate({ body: { name, password: passwordAuthSupported ? password : "", expiresIn } });
 	};
 
 	return (
@@ -131,18 +133,16 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 						<p className="text-sm font-medium">{apiKeys.length} active keys for this organization</p>
 						<p className="text-xs text-muted-foreground">Limit {limit} active keys per user.</p>
 					</div>
-					<Button type="button" disabled={!hasCredentialPassword} onClick={() => setCreateDialogOpen(true)}>
+					<Button type="button" disabled={!canCreateApiKey} onClick={() => setCreateDialogOpen(true)}>
 						<Plus className="h-4 w-4 mr-2" />
 						Create key
 					</Button>
 				</div>
 
-				<Alert variant="warning" className={cn({ hidden: hasCredentialPassword })}>
+				<Alert variant="warning" className={cn({ hidden: !passwordAuthSupported || hasPassword })}>
 					<KeyRound className="size-5" />
 					<AlertTitle>Local password required</AlertTitle>
-					<AlertDescription>
-						A local credential password is required before API keys can be created.
-					</AlertDescription>
+					<AlertDescription>A local password is required before API keys can be created.</AlertDescription>
 				</Alert>
 
 				<p className={cn("text-sm text-muted-foreground", { hidden: !isPending })}>Loading API keys...</p>
@@ -239,14 +239,14 @@ export function ApiKeysSection({ hasCredentialPassword }: Props) {
 									</SelectContent>
 								</Select>
 							</div>
-							<div className={cn("space-y-2", { hidden: Boolean(createdKey) })}>
+							<div className={cn("space-y-2", { hidden: Boolean(createdKey) || !passwordAuthSupported })}>
 								<Label htmlFor="api-key-password">Current password</Label>
 								<Input
 									id="api-key-password"
 									type="password"
 									value={password}
 									onChange={(event) => setPassword(event.target.value)}
-									required
+									required={passwordAuthSupported}
 								/>
 							</div>
 							<div className={cn("min-w-0", { hidden: !createdKey })}>

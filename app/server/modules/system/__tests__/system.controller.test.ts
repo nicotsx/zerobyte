@@ -165,6 +165,7 @@ describe("system security", () => {
 				.update(organization)
 				.set({ metadata: { resticPassword: encryptedResticPassword } })
 				.where(eq(organization.id, session.organizationId));
+			vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
 			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(true);
 			vi.spyOn(cryptoUtils, "resolveSecret").mockImplementationOnce(actualCryptoUtils.resolveSecret);
 
@@ -235,6 +236,7 @@ describe("system security", () => {
 		});
 
 		test("should return 401 for incorrect password on restic-password", async () => {
+			vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
 			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
 
 			const res = await app.request("/api/v1/system/restic-password", {

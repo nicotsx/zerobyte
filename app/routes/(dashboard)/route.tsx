@@ -8,7 +8,7 @@ import { auth } from "~/server/lib/auth";
 import { getCurrentPermissionsOptions } from "~/server/lib/functions/current-permissions";
 import { getOrganizationContext } from "~/server/lib/functions/organization-context";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
-import { userHasCredentialPassword } from "~/server/modules/auth/helpers";
+import { isPasswordAuthSupported, userHasPassword } from "~/server/modules/auth/helpers";
 import { authService } from "~/server/modules/auth/auth.service";
 import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
 
@@ -16,7 +16,8 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
 	const session = await auth.api.getSession({ headers });
 	const hasUsers = await authService.hasUsers();
-	const hasCredentialPassword = session?.user ? await userHasCredentialPassword(session.user.id) : false;
+	const passwordAuthSupported = isPasswordAuthSupported();
+	const hasPassword = passwordAuthSupported && session?.user ? await userHasPassword(session.user.id) : false;
 
 	const sidebarCookie = getCookie(SIDEBAR_COOKIE_NAME);
 	const sidebarOpen = !sidebarCookie ? true : sidebarCookie === "true";
@@ -24,7 +25,8 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 		!!session?.user && getCookie(RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME) === session.user.id;
 
 	return {
-		user: session?.user ? { ...session.user, hasCredentialPassword } : null,
+		user: session?.user ? { ...session.user, hasPassword } : null,
+		passwordAuthSupported,
 		hasUsers,
 		sidebarOpen,
 		hasSkippedRecoveryKeyDownload,

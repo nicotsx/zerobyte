@@ -7,12 +7,13 @@ type User = {
 	dateFormat: string;
 	timeFormat: string;
 	twoFactorEnabled?: boolean | null;
-	hasCredentialPassword?: boolean;
+	hasPassword?: boolean;
 	role?: string | null | undefined;
 };
 
 export type AppContext = {
 	user: User | null;
+	passwordAuthSupported: boolean;
 	hasUsers: boolean;
 	sidebarOpen: boolean;
 	hasSkippedRecoveryKeyDownload: boolean;

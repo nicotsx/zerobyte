@@ -56,8 +56,8 @@ import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
 import { usePermissions } from "~/client/hooks/use-permissions";
 
-const RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE =
-	"Downloading the recovery key requires a local credential password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
+const RECOVERY_KEY_PASSWORD_REQUIRED_MESSAGE =
+	"Downloading the recovery key requires a local password. Ask an operator to run `docker exec -it zerobyte bun run cli reset-password` for your user, then sign in with that password and try again.";
 
 type Props = {
 	appContext: AppContext;
@@ -91,9 +91,9 @@ export function SettingsPage({
 	const showOrganizationSettings = permissions.can("organizationSettings.view");
 	const activeTab = tab === "organization" && !showOrganizationSettings ? "account" : tab || "account";
 	const { formatDateTime } = useTimeFormat();
-	const hasCredentialPassword = appContext.user?.hasCredentialPassword !== false;
-	const requiresRecoveryKeyPassword = permissions.hasRuntimeFeature("recoveryKeyPasswordRequired");
-	const canDownloadRecoveryKey = !requiresRecoveryKeyPassword || hasCredentialPassword;
+	const passwordAuthSupported = appContext.passwordAuthSupported;
+	const hasPassword = appContext.user?.hasPassword === true;
+	const canDownloadRecoveryKey = !passwordAuthSupported || hasPassword;
 
 	const handleLogout = async () => {
 		await authClient.signOut({
@@ -129,7 +129,7 @@ export function SettingsPage({
 		},
 		onError: (error) => {
 			const message = parseError(error)?.message;
-			setDownloadBlockedMessage(message?.includes("credential password") ? message : null);
+			setDownloadBlockedMessage(message?.includes("local password") ? message : null);
 			toast.error("Failed to download Restic password", {
 				description: message,
 			});
@@ -178,7 +178,7 @@ export function SettingsPage({
 	const handleDownloadResticPassword = (e: React.SubmitEvent) => {
 		e.preventDefault();
 
-		if (requiresRecoveryKeyPassword && !downloadPassword) {
+		if (passwordAuthSupported && !downloadPassword) {
 			toast.error("Password is required");
 			return;
 		}
@@ -186,7 +186,7 @@ export function SettingsPage({
 		setDownloadBlockedMessage(null);
 		downloadResticPassword.mutate({
 			body: {
-				password: requiresRecoveryKeyPassword ? downloadPassword : "",
+				password: passwordAuthSupported ? downloadPassword : "",
 			},
 		});
 	};
@@ -337,7 +337,7 @@ export function SettingsPage({
 
 							<div
 								className={cn("border-t border-border/50 bg-card-header p-6", {
-									hidden: !hasCredentialPassword,
+									hidden: !hasPassword,
 								})}
 							>
 								<CardTitle className="flex items-center gap-2">
@@ -348,7 +348,7 @@ export function SettingsPage({
 									Update your password to keep your account secure
 								</CardDescription>
 							</div>
-							<CardContent className={cn("p-6", { hidden: !hasCredentialPassword })}>
+							<CardContent className={cn("p-6", { hidden: !hasPassword })}>
 								<form onSubmit={handleChangePassword} className="space-y-4">
 									<div className="space-y-2">
 										<Label htmlFor="current-password">Current Password</Label>
@@ -423,10 +423,10 @@ export function SettingsPage({
 											<DialogHeader>
 												<DialogTitle>Download Recovery Key</DialogTitle>
 												<DialogDescription>
-													{!requiresRecoveryKeyPassword
+													{!passwordAuthSupported
 														? "Download the recovery key file and store it somewhere safe."
-														: !hasCredentialPassword
-															? "A local credential password is required before this recovery key can be downloaded."
+														: !hasPassword
+															? "A local password is required before this recovery key can be downloaded."
 															: "For security reasons, please enter your account password to download the recovery key file."}
 												</DialogDescription>
 											</DialogHeader>
@@ -435,20 +435,20 @@ export function SettingsPage({
 													variant="warning"
 													className={cn({
 														hidden:
-															!requiresRecoveryKeyPassword ||
-															(hasCredentialPassword && !downloadBlockedMessage),
+															!passwordAuthSupported ||
+															(hasPassword && !downloadBlockedMessage),
 													})}
 												>
 													<AlertTriangle className="size-5" />
 													<AlertTitle>Local password required</AlertTitle>
 													<AlertDescription>
 														{downloadBlockedMessage ??
-															RECOVERY_KEY_CREDENTIAL_REQUIRED_MESSAGE}
+															RECOVERY_KEY_PASSWORD_REQUIRED_MESSAGE}
 													</AlertDescription>
 												</Alert>
 												<div
 													className={cn("space-y-2", {
-														hidden: !requiresRecoveryKeyPassword || !hasCredentialPassword,
+														hidden: !passwordAuthSupported || !hasPassword,
 													})}
 												>
 													<Label htmlFor="download-password">Your Password</Label>
@@ -458,7 +458,7 @@ export function SettingsPage({
 														value={downloadPassword}
 														onChange={(e) => setDownloadPassword(e.target.value)}
 														placeholder="Enter your password"
-														required={requiresRecoveryKeyPassword && hasCredentialPassword}
+														required={passwordAuthSupported && hasPassword}
 													/>
 												</div>
 											</div>
@@ -488,7 +488,7 @@ export function SettingsPage({
 								</Dialog>
 							</CardContent>
 
-							<ApiKeysSection hasCredentialPassword={hasCredentialPassword} />
+							<ApiKeysSection passwordAuthSupported={passwordAuthSupported} hasPassword={hasPassword} />
 
 							<TwoFactorSection twoFactorEnabled={appContext.user?.twoFactorEnabled} />
 

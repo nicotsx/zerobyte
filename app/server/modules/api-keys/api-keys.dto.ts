@@ -61,7 +61,7 @@ export const createApiKeyDto = describeRoute({
 			description: "Invalid password",
 		},
 		403: {
-			description: "Local credential password required",
+			description: "Local password required",
 		},
 		409: {
 			description: "API key limit reached",

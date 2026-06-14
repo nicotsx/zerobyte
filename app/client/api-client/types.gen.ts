@@ -233,7 +233,7 @@ export type CreateApiKeyErrors = {
      */
     401: unknown;
     /**
-     * Local credential password required
+     * Local password required
      */
     403: unknown;
     /**
