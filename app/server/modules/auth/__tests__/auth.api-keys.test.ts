@@ -270,6 +270,35 @@ describe("API keys", () => {
 		expect(await res.json()).toEqual({ message: "Browser session required" });
 	});
 
+	test("does not allow API keys to access SSO invitation browser flow routes", async () => {
+		const session = await createTestSession();
+		await addCredentialPassword(session);
+		const created = await createApiKey(session);
+
+		const routes = [
+			{ method: "GET", path: "/api/v1/auth/sso-invitations" },
+			{
+				method: "POST",
+				path: "/api/v1/auth/sso-invitations/test-invitation/verify",
+				body: { providerId: "test-provider" },
+			},
+		];
+
+		for (const route of routes) {
+			const res = await app.request(route.path, {
+				method: route.method,
+				headers: {
+					"x-api-key": created.key,
+					"Content-Type": "application/json",
+				},
+				body: route.body ? JSON.stringify(route.body) : undefined,
+			});
+
+			expect(res.status).toBe(401);
+			expect(await res.json()).toEqual({ message: "Browser session required" });
+		}
+	});
+
 	test("does not allow API keys to mutate SSO admin resources", async () => {
 		const session = await createTestSessionWithOrgAdmin();
 		await addCredentialPassword(session);

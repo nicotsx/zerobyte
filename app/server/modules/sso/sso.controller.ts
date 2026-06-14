@@ -61,7 +61,7 @@ export const ssoController = new Hono()
 			})),
 		});
 	})
-	.get("/sso-invitations", requireAuth, getUserSsoInvitationsDto, async (c) => {
+	.get("/sso-invitations", requireAuth, requireBrowserSession, getUserSsoInvitationsDto, async (c) => {
 		const user = c.get("user");
 		const invitations = await ssoService.listPendingInvitationsForUser(user.email);
 
@@ -70,6 +70,7 @@ export const ssoController = new Hono()
 	.post(
 		"/sso-invitations/:invitationId/verify",
 		requireAuth,
+		requireBrowserSession,
 		startInvitationSsoVerificationDto,
 		validator("json", startInvitationSsoVerificationBody),
 		async (c) => {
