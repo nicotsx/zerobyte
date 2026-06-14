@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
 import { THEME_COOKIE_NAME } from "~/client/components/theme-provider";
-import type { DateFormatPreference, TimeFormatPreference } from "~/client/lib/datetime";
+import type { DateFormatPreference, TimeFormatPreference } from "~/lib/datetime";
 import { getLocaleFromAcceptLanguage } from "~/server/lib/accept-language";
 import { auth } from "~/server/lib/auth";
 
