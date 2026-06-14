@@ -17,7 +17,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "~/client/components/ui/alert-dialog";
-import { PathSelector } from "~/client/components/path-selector";
+import { FolderSelector } from "~/client/components/folder-selector";
 import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-tree-browser";
 import { RestoreProgress } from "~/client/components/restore-progress";
 import { restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -252,7 +252,10 @@ export function RestoreForm({
 							</span>
 						</TooltipTrigger>
 						<TooltipContent className={cn({ hidden: canDownload })}>
-							<p>Download is available only for one selected item, or with no selection to download everything.</p>
+							<p>
+								Download is available only for one selected item, or with no selection to download
+								everything.
+							</p>
 						</TooltipContent>
 					</Tooltip>
 					<Button variant="primary" onClick={handleRestore} disabled={isRestoreRunning || !canRestore}>
@@ -271,9 +274,9 @@ export function RestoreForm({
 							<AlertTriangle className="size-4" />
 							<AlertTitle>Source paths do not match</AlertTitle>
 							<AlertDescription>
-								This snapshot was created from source paths that do not match this Zerobyte server or the current linked
-								volume. Restoring to the original location is unavailable. Restore it to a custom location, or download
-								it instead.
+								This snapshot was created from source paths that do not match this Zerobyte server or
+								the current linked volume. Restoring to the original location is unavailable. Restore it
+								to a custom location, or download it instead.
 							</AlertDescription>
 						</Alert>
 					)}
@@ -309,8 +312,10 @@ export function RestoreForm({
 							</div>
 							{restoreLocation === "custom" && (
 								<div className="space-y-2">
-									<PathSelector value={customTargetPath || "/"} onChange={setCustomTargetPath} />
-									<p className="text-xs text-muted-foreground">Files will be restored directly to this path</p>
+									<FolderSelector value={customTargetPath || "/"} onChange={setCustomTargetPath} />
+									<p className="text-xs text-muted-foreground">
+										Files will be restored directly to this path
+									</p>
 								</div>
 							)}
 						</CardContent>
@@ -322,7 +327,10 @@ export function RestoreForm({
 							<CardDescription>How to handle existing files</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-3">
-							<Select value={overwriteMode} onValueChange={(value) => setOverwriteMode(value as OverwriteMode)}>
+							<Select
+								value={overwriteMode}
+								onValueChange={(value) => setOverwriteMode(value as OverwriteMode)}
+							>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select overwrite behavior" />
 								</SelectTrigger>
@@ -350,7 +358,10 @@ export function RestoreForm({
 						<CardHeader className="cursor-pointer" onClick={() => setShowAdvanced(!showAdvanced)}>
 							<div className="flex items-center justify-between">
 								<CardTitle className="text-base">Advanced options</CardTitle>
-								<ChevronDown size={16} className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+								<ChevronDown
+									size={16}
+									className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+								/>
 							</div>
 						</CardHeader>
 						{showAdvanced && (

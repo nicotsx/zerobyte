@@ -25,9 +25,9 @@ import {
 	smbConfigSchema,
 	volumeConfigSchema,
 	webdavConfigSchema,
+	type BackendType,
 } from "@zerobyte/contracts/volumes";
 import { testConnectionMutation } from "../../../api-client/@tanstack/react-query.gen";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { DirectoryForm, NFSForm, SMBForm, WebDAVForm, RcloneForm, SFTPForm } from "./volume-forms";
@@ -88,6 +88,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 	const { getValues, watch } = form;
 
 	const { capabilities } = useSystemInfo();
+	const isBackendAllowed = (backend: BackendType) => capabilities.volumeBackends.includes(backend);
 	const scrollToFirstError = useScrollToFormError();
 	const watchedBackend = watch("backend");
 
@@ -178,77 +179,14 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 										</SelectTrigger>
 									</FormControl>
 									<SelectContent>
-										<SelectItem value="directory">Directory</SelectItem>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div>
-													<SelectItem disabled={!capabilities.sysAdmin} value="nfs">
-														NFS
-													</SelectItem>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-												<p>Remote mounts require SYS_ADMIN capability</p>
-											</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div>
-													<SelectItem disabled={!capabilities.sysAdmin} value="smb">
-														SMB
-													</SelectItem>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-												<p>Remote mounts require SYS_ADMIN capability</p>
-											</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div>
-													<SelectItem disabled={!capabilities.sysAdmin} value="webdav">
-														WebDAV
-													</SelectItem>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-												<p>Remote mounts require SYS_ADMIN capability</p>
-											</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div>
-													<SelectItem disabled={!capabilities.sysAdmin} value="sftp">
-														SFTP
-													</SelectItem>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-												<p>Remote mounts require SYS_ADMIN capability</p>
-											</TooltipContent>
-										</Tooltip>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<div>
-													<SelectItem
-														disabled={!capabilities.rclone || !capabilities.sysAdmin}
-														value="rclone"
-													>
-														rclone
-													</SelectItem>
-												</div>
-											</TooltipTrigger>
-											<TooltipContent className={cn({ hidden: capabilities.sysAdmin })}>
-												<p>Remote mounts require SYS_ADMIN capability</p>
-											</TooltipContent>
-											<TooltipContent
-												className={cn({
-													hidden: !capabilities.sysAdmin || capabilities.rclone,
-												})}
-											>
-												<p>Setup rclone to use this backend</p>
-											</TooltipContent>
-										</Tooltip>
+										{isBackendAllowed("directory") && (
+											<SelectItem value="directory">Directory</SelectItem>
+										)}
+										{isBackendAllowed("nfs") && <SelectItem value="nfs">NFS</SelectItem>}
+										{isBackendAllowed("smb") && <SelectItem value="smb">SMB</SelectItem>}
+										{isBackendAllowed("webdav") && <SelectItem value="webdav">WebDAV</SelectItem>}
+										{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
+										{isBackendAllowed("rclone") && <SelectItem value="rclone">rclone</SelectItem>}
 									</SelectContent>
 								</Select>
 								<FormDescription>Choose the storage backend for this volume.</FormDescription>

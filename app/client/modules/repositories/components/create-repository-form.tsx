@@ -17,7 +17,6 @@ import {
 import { Input } from "../../../components/ui/input";
 import { SecretInput } from "../../../components/ui/secret-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../../../components/ui/tooltip";
 import { useSystemInfo } from "~/client/hooks/use-system-info";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import {
@@ -30,6 +29,7 @@ import {
 	restRepositoryConfigSchema,
 	s3RepositoryConfigSchema,
 	sftpRepositoryConfigSchema,
+	type RepositoryBackend,
 } from "@zerobyte/core/restic";
 import { Checkbox } from "../../../components/ui/checkbox";
 import {
@@ -132,6 +132,7 @@ export const CreateRepositoryForm = ({
 	const [passwordMode, setPasswordMode] = useState<"default" | "custom">("default");
 
 	const { capabilities } = useSystemInfo();
+	const isBackendAllowed = (backend: RepositoryBackend) => capabilities.repositoryBackends.includes(backend);
 	const scrollToFirstError = useScrollToFormError();
 
 	return (
@@ -188,23 +189,20 @@ export const CreateRepositoryForm = ({
 									</SelectTrigger>
 								</FormControl>
 								<SelectContent>
-									<SelectItem value="local">Local</SelectItem>
-									<SelectItem value="s3">S3</SelectItem>
-									<SelectItem value="r2">Cloudflare R2</SelectItem>
-									<SelectItem value="gcs">Google Cloud Storage</SelectItem>
-									<SelectItem value="azure">Azure Blob Storage</SelectItem>
-									<SelectItem value="rest">REST Server</SelectItem>
-									<SelectItem value="sftp">SFTP</SelectItem>
-									<Tooltip>
-										<TooltipTrigger>
-											<SelectItem disabled={!capabilities.rclone} value="rclone">
-												rclone (40+ cloud providers)
-											</SelectItem>
-										</TooltipTrigger>
-										<TooltipContent className={cn({ hidden: capabilities.rclone })}>
-											<p>Setup rclone to use this backend</p>
-										</TooltipContent>
-									</Tooltip>
+									{isBackendAllowed("local") && <SelectItem value="local">Local</SelectItem>}
+									{isBackendAllowed("s3") && <SelectItem value="s3">S3</SelectItem>}
+									{isBackendAllowed("r2") && <SelectItem value="r2">Cloudflare R2</SelectItem>}
+									{isBackendAllowed("gcs") && (
+										<SelectItem value="gcs">Google Cloud Storage</SelectItem>
+									)}
+									{isBackendAllowed("azure") && (
+										<SelectItem value="azure">Azure Blob Storage</SelectItem>
+									)}
+									{isBackendAllowed("rest") && <SelectItem value="rest">REST Server</SelectItem>}
+									{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
+									{isBackendAllowed("rclone") && (
+										<SelectItem value="rclone">rclone (40+ cloud providers)</SelectItem>
+									)}
 								</SelectContent>
 							</Select>
 							<FormDescription>Choose the storage backend for this repository.</FormDescription>
