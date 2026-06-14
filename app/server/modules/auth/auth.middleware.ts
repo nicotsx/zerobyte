@@ -3,6 +3,7 @@ import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { withContext } from "~/server/core/request-context";
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
+import { checkPermissionForContext, type Permission } from "~/server/lib/permission-service";
 
 const API_KEY_HEADER = "x-api-key";
 type AuthSource = "browser-session" | "api-key";
@@ -96,6 +97,30 @@ export const requireBrowserSession = createMiddleware(async (c, next) => {
 
 	await next();
 });
+
+export const requirePermission = (permission: Permission) =>
+	createMiddleware(async (c, next) => {
+		const result = checkPermissionForContext(permission, {
+			instanceRole: c.get("user")?.role,
+			orgRole: c.get("membership")?.role,
+			authSource: c.get("authSource"),
+		});
+
+		if (result.allowed) {
+			await next();
+			return;
+		}
+
+		if (result.reason === "runtime") {
+			return c.json({ message: "Not available in desktop mode" }, 403);
+		}
+
+		if (result.reason === "authSource") {
+			return c.json({ message: "Browser session required" }, 401);
+		}
+
+		return c.json({ message: "Forbidden" }, 403);
+	});
 
 /**
  * Middleware to require organization owner or admin role
