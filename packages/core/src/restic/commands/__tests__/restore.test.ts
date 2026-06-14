@@ -143,6 +143,31 @@ describe("restore command", () => {
 			expect(getOptionValues("--include")).toEqual(["backup.20260301-233001.7z"]);
 		});
 
+		test("escapes selected file brackets when restoring from a non-root target", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-bracket-file",
+				"/tmp/restore-target",
+				{
+					organizationId: "org-1",
+					include: [
+						"/media/A Very English Scandal (2018) [tmdbid-79299]/Season 01/A Very English Scandal (2018) - S01E01 - Folge 1 [1080p H264 UND AAC] chapters.xml",
+					],
+					selectedItemKind: "file",
+				},
+				mockDeps,
+			);
+
+			expect(getRestoreArg()).toBe(
+				"snapshot-bracket-file:/media/A Very English Scandal (2018) [tmdbid-79299]/Season 01",
+			);
+			expect(getOptionValues("--include")).toEqual([
+				"A Very English Scandal (2018) - S01E01 - Folge 1 \\[1080p H264 UND AAC\\] chapters.xml",
+			]);
+		});
+
 		test("treats flag-like snapshot IDs as positional restore args", async () => {
 			const { getArgs, getRestoreArg } = setup();
 

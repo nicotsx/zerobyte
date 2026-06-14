@@ -22,6 +22,8 @@ class ResticRestoreCommandError extends Data.TaggedError("ResticRestoreCommandEr
 	message: string;
 }> {}
 
+const escapeResticIncludePattern = (pattern: string) => pattern.replace(/[\\*?[\]]/g, "\\$&");
+
 export const restore = (
 	config: RepositoryConfig,
 	snapshotId: string,
@@ -64,7 +66,7 @@ export const restore = (
 			if (options.include?.length) {
 				if (target === "/") {
 					for (const pattern of options.include) {
-						args.push("--include", pattern);
+						args.push("--include", escapeResticIncludePattern(pattern));
 					}
 				} else {
 					const strippedIncludes = options.include.map((pattern) =>
@@ -76,7 +78,7 @@ export const restore = (
 
 					if (!includesCoverRestoreRoot) {
 						for (const pattern of strippedIncludes) {
-							args.push("--include", pattern);
+							args.push("--include", escapeResticIncludePattern(pattern));
 						}
 					}
 				}
