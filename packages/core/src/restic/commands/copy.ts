@@ -78,7 +78,7 @@ export const copy = (
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: deps.resticCommand ?? "restic", args, env });
 
 			await cleanupTemporaryKeys(sourceEnv, deps);
 			await cleanupTemporaryKeys(destEnv, deps);

@@ -136,7 +136,7 @@ export const backup = (
 
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 			const res = await safeSpawn({
-				command: "restic",
+				command: deps.resticCommand ?? "restic",
 				args,
 				env: { ...env, RESTIC_PROGRESS_FPS: resticProgressFps },
 				priority: "background",

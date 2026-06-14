@@ -29,9 +29,9 @@ describe("buildRepoUrl", () => {
 				expected: "s3:https://s3.amazonaws.com/my-bucket",
 			},
 		])("$label → $expected", ({ endpoint, bucket, expected }) => {
-			expect(buildRepoUrl({ backend: "s3", endpoint, bucket, accessKeyId: "test", secretAccessKey: "test" })).toBe(
-				expected,
-			);
+			expect(
+				buildRepoUrl({ backend: "s3", endpoint, bucket, accessKeyId: "test", secretAccessKey: "test" }),
+			).toBe(expected);
 		});
 	});
 
@@ -56,9 +56,9 @@ describe("buildRepoUrl", () => {
 				expected: "s3:myaccount.r2.cloudflarestorage.com/my-bucket",
 			},
 		])("$label → $expected", ({ endpoint, bucket, expected }) => {
-			expect(buildRepoUrl({ backend: "r2", endpoint, bucket, accessKeyId: "test", secretAccessKey: "test" })).toBe(
-				expected,
-			);
+			expect(
+				buildRepoUrl({ backend: "r2", endpoint, bucket, accessKeyId: "test", secretAccessKey: "test" }),
+			).toBe(expected);
 		});
 	});
 

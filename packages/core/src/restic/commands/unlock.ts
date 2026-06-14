@@ -31,7 +31,7 @@ export const unlock = (
 			addCommonArgs(args, env, config);
 
 			const res = await safeExec({
-				command: "restic",
+				command: deps.resticCommand ?? "restic",
 				args,
 				env,
 				signal: options.signal,

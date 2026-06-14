@@ -55,7 +55,7 @@ export const snapshots = (
 
 			const stdoutLines: string[] = [];
 			const res = await safeSpawn({
-				command: "restic",
+				command: deps.resticCommand ?? "restic",
 				args,
 				env,
 				onStdout: (line) => {

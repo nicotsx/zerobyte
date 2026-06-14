@@ -89,7 +89,7 @@ export const ls = (
 			logger.debug(`Running restic ls with args: ${args.join(" ")}`);
 
 			const res = await safeSpawn({
-				command: "restic",
+				command: deps.resticCommand ?? "restic",
 				args,
 				env,
 				onStdout: (line) => {

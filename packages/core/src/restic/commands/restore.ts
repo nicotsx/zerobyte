@@ -103,7 +103,7 @@ export const restore = (
 			logger.debug(`Executing: restic ${args.join(" ")}`);
 			const res = yield* Effect.tryPromise(() =>
 				safeSpawn({
-					command: "restic",
+					command: deps.resticCommand ?? "restic",
 					args,
 					env: { ...env, RESTIC_PROGRESS_FPS: resticProgressFps },
 					signal: options.signal,

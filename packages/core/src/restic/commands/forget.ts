@@ -60,7 +60,7 @@ export const forget = (
 
 			addCommonArgs(args, env, config);
 
-			const res = await safeExec({ command: "restic", args, env });
+			const res = await safeExec({ command: deps.resticCommand ?? "restic", args, env });
 			await cleanupTemporaryKeys(env, deps);
 
 			if (res.exitCode !== 0) {

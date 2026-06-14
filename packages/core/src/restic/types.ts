@@ -9,6 +9,7 @@ export interface ResticDeps {
 	defaultExcludes: string[];
 	rcloneConfigFile: string;
 	hostname?: string;
+	resticCommand?: string;
 }
 
 export interface RetentionPolicy {

@@ -69,7 +69,7 @@ export const dump = (
 			let stderrTail = "";
 
 			const completion = safeSpawn({
-				command: "restic",
+				command: deps.resticCommand ?? "restic",
 				args,
 				env,
 				signal: abortController.signal,

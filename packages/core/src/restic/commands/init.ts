@@ -55,7 +55,12 @@ export const init = (
 			const args = ["init", "--repo", repoUrl];
 			addCommonArgs(args, env, config);
 
-			const res = await safeExec({ command: "restic", args, env, timeout: options?.timeoutMs ?? 60000 });
+			const res = await safeExec({
+				command: deps.resticCommand ?? "restic",
+				args,
+				env,
+				timeout: options?.timeoutMs ?? 60000,
+			});
 			await cleanupTemporaryKeys(env, deps);
 
 			if (res.exitCode !== 0) {

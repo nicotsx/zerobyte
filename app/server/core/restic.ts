@@ -28,6 +28,7 @@ export const resticDeps: ResticDeps = {
 	defaultExcludes: DEFAULT_EXCLUDES,
 	rcloneConfigFile: RCLONE_CONFIG_FILE,
 	hostname: config.resticHostname,
+	resticCommand: config.resticCommand,
 };
 
 export const restic = createRestic(resticDeps);

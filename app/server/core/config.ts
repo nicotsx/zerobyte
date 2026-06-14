@@ -29,6 +29,7 @@ const envSchema = z
 		ENABLE_LOCAL_AGENT: z.string().default("false"),
 		WEBHOOK_ALLOWED_ORIGINS: z.string().optional(),
 		PROVISIONING_PATH: z.string().optional(),
+		RESTIC_COMMAND: z.string().default("restic"),
 	})
 	.transform((s, ctx) => {
 		let baseUrl = unquote(s.BASE_URL);
@@ -51,6 +52,7 @@ const envSchema = z
 		const authOrigins = [baseUrl, ...uniqueTrustedOrigins];
 		const { allowedHosts, invalidOrigins } = buildAllowedHosts(authOrigins);
 		let appSecret = s.APP_SECRET;
+		const resticCommand = unquote(s.RESTIC_COMMAND);
 
 		if (!appSecret && !s.APP_SECRET_FILE) {
 			const errorMessage = [
@@ -137,6 +139,7 @@ const envSchema = z
 			provisioningPath: s.PROVISIONING_PATH,
 			allowedHosts,
 			webhookAllowedOrigins,
+			resticCommand,
 		};
 	});
 

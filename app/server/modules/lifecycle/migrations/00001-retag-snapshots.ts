@@ -21,7 +21,7 @@ const migrateTag = async (
 	addCommonArgs(args, env);
 
 	logger.info(`Migrating snapshots for schedule '${scheduleName}' from tag '${oldTag}' to '${newTag}'`);
-	const res = await safeExec({ command: "restic", args, env });
+	const res = await safeExec({ command: resticDeps.resticCommand ?? "restic", args, env });
 	await cleanupTemporaryKeys(env, resticDeps);
 
 	if (res.exitCode !== 0) {
@@ -68,7 +68,10 @@ const execute = async () => {
 				});
 
 				if (!mirrorRepo) {
-					errors.push({ name: `schedule-mirror:${schedule.name}`, error: `Associated mirror repository not found` });
+					errors.push({
+						name: `schedule-mirror:${schedule.name}`,
+						error: `Associated mirror repository not found`,
+					});
 					continue;
 				}
 

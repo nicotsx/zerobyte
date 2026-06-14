@@ -76,6 +76,7 @@ describe("parseConfig", () => {
 			provisioningPath: "/tmp/provisioning",
 			allowedHosts: ["example.com", "admin.example.com", "localhost:3000"],
 			webhookAllowedOrigins: [],
+			resticCommand: "restic",
 		});
 	});
 
