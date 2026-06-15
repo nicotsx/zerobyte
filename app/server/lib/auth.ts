@@ -155,6 +155,14 @@ export const auth = betterAuth({
 	},
 	session: {
 		modelName: "sessionsTable",
+		additionalFields: {
+			authSource: {
+				type: "string",
+				returned: true,
+				input: false,
+				defaultValue: "browser-session",
+			},
+		},
 	},
 	plugins: [
 		username({

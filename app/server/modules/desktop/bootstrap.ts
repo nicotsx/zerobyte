@@ -6,11 +6,7 @@ import { usersTable } from "~/server/db/schema";
 import { ensureDefaultOrg } from "~/server/lib/auth/helpers/create-default-org";
 import { auth } from "~/server/lib/auth";
 import { cryptoUtils } from "~/server/utils/crypto";
-
-export const DESKTOP_USER_EMAIL = "desktop@zerobyte.local";
-export const DESKTOP_USERNAME = "desktop-admin";
-
-export const getDesktopUserPassword = () => cryptoUtils.deriveSecret("zerobyte:desktop-user-password");
+import { DESKTOP_USER_EMAIL, DESKTOP_USERNAME } from "./constants";
 
 type DesktopDateTimePreferences = {
 	dateFormat: DateFormatPreference;
@@ -22,10 +18,10 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 		return;
 	}
 
-	const password = await getDesktopUserPassword();
 	let user = await db.query.usersTable.findFirst({ where: { email: DESKTOP_USER_EMAIL } });
 
 	if (!user) {
+		const password = await cryptoUtils.deriveSecret("zerobyte:desktop-user-password");
 		await auth.api.signUpEmail({
 			body: {
 				email: DESKTOP_USER_EMAIL,
@@ -52,4 +48,11 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 		.update(usersTable)
 		.set({ role: "admin", emailVerified: true, updatedAt: new Date() })
 		.where(eq(usersTable.id, user.id));
+
+	const desktopUser = await db.query.usersTable.findFirst({ where: { id: user.id } });
+	if (!desktopUser) {
+		throw new Error("Failed to load desktop user");
+	}
+
+	return desktopUser;
 };

@@ -1,5 +1,5 @@
 export type Runtime = "server" | "desktop";
-export type AuthSource = "browser-session" | "api-key";
+export type AuthSource = "browser-session" | "desktop-session" | "api-key";
 
 export type RuntimeFeature =
 	| "instanceAdministration"
@@ -65,7 +65,7 @@ const PERMISSIONS = {
 	},
 	"recoveryKey.download": {
 		orgRoles: ["owner", "admin"],
-		authSources: ["browser-session"],
+		authSources: ["browser-session", "desktop-session"],
 	},
 } as const satisfies Record<string, PermissionPolicy>;
 

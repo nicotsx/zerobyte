@@ -19,7 +19,7 @@ import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
-import { isPasswordAuthSupported, userHasPassword, verifyUserPassword } from "../auth/helpers";
+import { userHasPassword, verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { getOrganizationId } from "~/server/core/request-context";
 
@@ -63,20 +63,25 @@ export const systemController = new Hono()
 			const user = c.get("user");
 			const organizationId = getOrganizationId();
 			const body = c.req.valid("json");
-			if (isPasswordAuthSupported()) {
+			if (c.get("authSource") !== "desktop-session") {
 				const hasPassword = await userHasPassword(user.id);
 				if (!hasPassword) {
 					return c.json({ message: "A local password is required to download the recovery key" }, 403);
 				}
 
-				const isPasswordValid = await verifyUserPassword({ password: body.password, userId: user.id });
+				const isPasswordValid = await verifyUserPassword({
+					password: body.password,
+					userId: user.id,
+				});
 				if (!isPasswordValid) {
 					return c.json({ message: "Invalid password" }, 401);
 				}
 			}
 
 			try {
-				const org = await db.query.organization.findFirst({ where: { id: organizationId } });
+				const org = await db.query.organization.findFirst({
+					where: { id: organizationId },
+				});
 
 				if (!org?.metadata?.resticPassword) {
 					return c.json({ message: "Organization Restic password not found" }, 404);

@@ -3,10 +3,9 @@ import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { getPermission, withContext } from "~/server/core/request-context";
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
-import type { Permission } from "~/lib/permission-policy";
+import type { AuthSource, Permission } from "~/lib/permission-policy";
 
 const API_KEY_HEADER = "x-api-key";
-type AuthSource = "browser-session" | "api-key";
 type AuthenticatedUser = {
 	id: string;
 	email: string;
@@ -31,7 +30,7 @@ declare module "hono" {
  */
 export const requireAuth = createMiddleware(async (c, next) => {
 	const apiKeyValue = c.req.header(API_KEY_HEADER);
-	const authSource: AuthSource = apiKeyValue ? "api-key" : "browser-session";
+	let authSource: AuthSource = apiKeyValue ? "api-key" : "browser-session";
 	let user: AuthenticatedUser | undefined;
 	let activeOrganizationId: string | null | undefined;
 
@@ -55,6 +54,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 		if (sess) {
 			user = sess.user;
 			activeOrganizationId = sess.session.activeOrganizationId;
+			authSource = sess.session.authSource === "desktop-session" ? "desktop-session" : "browser-session";
 		}
 	}
 
@@ -100,7 +100,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 });
 
 export const requireBrowserSession = createMiddleware(async (c, next) => {
-	if (c.get("authSource") === "api-key") {
+	if (c.get("authSource") !== "browser-session") {
 		return c.json({ message: "Browser session required" }, 401);
 	}
 
@@ -142,7 +142,7 @@ export const requireOrgAdmin = createMiddleware(async (c, next) => {
 });
 
 export const requireAdmin = createMiddleware(async (c, next) => {
-	if (c.get("authSource") === "api-key") {
+	if (c.get("authSource") !== "browser-session") {
 		return c.json({ message: "Browser session required" }, 401);
 	}
 

@@ -1,7 +1,7 @@
 import { BadRequestError, UnauthorizedError } from "http-errors-enhanced";
 import { config } from "~/server/core/config";
 import { auth } from "~/server/lib/auth";
-import { DESKTOP_USER_EMAIL, ensureDesktopIdentity, getDesktopUserPassword } from "~/server/modules/desktop/bootstrap";
+import { ensureDesktopIdentity } from "~/server/modules/desktop/bootstrap";
 import { cryptoUtils } from "~/server/utils/crypto";
 import type { CreateDesktopSessionBody } from "./desktop.dto";
 
@@ -26,21 +26,23 @@ export const verifyDesktopLaunchSecret = (secret: string | undefined) => {
 	}
 };
 
-const createDesktopSessionResponse = async (body: CreateDesktopSessionBody) => {
+const createDesktopSession = async (body: CreateDesktopSessionBody) => {
 	assertDesktopRuntime();
-	await ensureDesktopIdentity(body);
 
-	const password = await getDesktopUserPassword();
-	return auth.api.signInEmail({
-		body: {
-			email: DESKTOP_USER_EMAIL,
-			password,
-			rememberMe: true,
-		},
-		asResponse: true,
-	});
+	const user = await ensureDesktopIdentity(body);
+	if (!user) {
+		throw new Error("Failed to bootstrap desktop user");
+	}
+
+	const ctx = await auth.$context;
+	const session = await ctx.internalAdapter.createSession(user.id, false, { authSource: "desktop-session" }, true);
+	if (!session) {
+		throw new Error("Failed to create desktop session");
+	}
+
+	return { session, user };
 };
 
 export const desktopService = {
-	createDesktopSessionResponse,
+	createDesktopSession,
 };

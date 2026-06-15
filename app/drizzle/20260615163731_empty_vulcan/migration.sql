@@ -1,0 +1,1 @@
+ALTER TABLE `sessions_table` ADD `auth_source` text DEFAULT 'browser-session' NOT NULL;

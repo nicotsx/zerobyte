@@ -45,7 +45,7 @@ export const authorizeSsoRegistration = async (ctx: AuthMiddlewareContext) => {
 			organizationId,
 			userId: session.user.id,
 			orgRole: membership.role,
-			authSource: "browser-session",
+			authSource: session.session.authSource,
 		},
 		() => getPermission("ssoProvider.create"),
 	);

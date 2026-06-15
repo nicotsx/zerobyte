@@ -17,6 +17,9 @@ export function getCurrentPermissionsOptions(
 	return { queryKey: currentPermissionsQueryKey, queryFn };
 }
 
+const toSessionAuthSource = (authSource: string | undefined) =>
+	authSource === "desktop-session" ? "desktop-session" : "browser-session";
+
 export const getCurrentPermissions = createServerFn({ method: "GET" }).handler(
 	async (): Promise<CurrentPermissions> => {
 		const headers = getRequestHeaders();
@@ -27,7 +30,7 @@ export const getCurrentPermissions = createServerFn({ method: "GET" }).handler(
 		const { permissions, features } = resolvePermissions({
 			instanceRole: session?.user?.role,
 			orgRole: activeMember?.role,
-			authSource: session?.user ? ("browser-session" as const) : null,
+			authSource: session?.user ? toSessionAuthSource(session.session.authSource) : null,
 		});
 
 		return { permissions, features };

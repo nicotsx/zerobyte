@@ -15,6 +15,8 @@ import type { NotificationConfig, NotificationType } from "~/schemas/notificatio
 import type { ShortId } from "~/server/utils/branded";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
+type SessionAuthSource = "browser-session" | "desktop-session";
+
 /**
  * Users Table
  */
@@ -65,6 +67,7 @@ export const sessionsTable = sqliteTable(
 		userAgent: text("user_agent"),
 		impersonatedBy: text("impersonated_by"),
 		activeOrganizationId: text("active_organization_id"),
+		authSource: text("auth_source").$type<SessionAuthSource>().notNull().default("browser-session"),
 	},
 	(table) => [index("sessionsTable_userId_idx").on(table.userId)],
 );

@@ -46,6 +46,40 @@ describe("permissions", () => {
 			evaluatePermission("ssoProvider.create", {
 				runtime: "server",
 				orgRole: "owner",
+				authSource: "desktop-session",
+			}),
+		).toEqual({ allowed: false, reason: "authSource" });
+
+		expect(
+			evaluatePermission("ssoProvider.create", {
+				runtime: "server",
+				orgRole: "owner",
+				authSource: "api-key",
+			}),
+		).toEqual({ allowed: false, reason: "authSource" });
+	});
+
+	test("allows recovery-key download for browser and desktop sessions but not API keys", () => {
+		expect(
+			evaluatePermission("recoveryKey.download", {
+				runtime: "desktop",
+				orgRole: "owner",
+				authSource: "desktop-session",
+			}).allowed,
+		).toBe(true);
+
+		expect(
+			evaluatePermission("recoveryKey.download", {
+				runtime: "server",
+				orgRole: "owner",
+				authSource: "browser-session",
+			}).allowed,
+		).toBe(true);
+
+		expect(
+			evaluatePermission("recoveryKey.download", {
+				runtime: "desktop",
+				orgRole: "owner",
 				authSource: "api-key",
 			}),
 		).toEqual({ allowed: false, reason: "authSource" });
