@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
-import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
+import {
+	account,
+	invitation,
+	member,
+	organization,
+	sessionsTable,
+	ssoProvider,
+	usersTable,
+	verification,
+} from "~/server/db/schema";
 import { createTestSession, createTestSessionWithOrgAdmin } from "~/test/helpers/auth";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../sso.service";
 import { config } from "~/server/core/config";
@@ -84,7 +93,11 @@ describe("SSO provider registration authorization", () => {
 
 	test("rejects provider registration when SSO management is unavailable", async () => {
 		config.runtime = "desktop";
-		const { headers, organizationId } = await createTestSession();
+		const { headers, organizationId, session } = await createTestSession();
+		await db
+			.update(sessionsTable)
+			.set({ authSource: "desktop-session" })
+			.where(eq(sessionsTable.token, session.token));
 
 		const response = await app.request(ssoRegisterUrl, {
 			method: "POST",

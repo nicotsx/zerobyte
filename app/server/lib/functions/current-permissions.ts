@@ -3,6 +3,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Permission, RuntimeFeature } from "~/lib/permission-policy";
 import { resolvePermissions } from "~/server/core/request-context";
 import { auth } from "~/server/lib/auth";
+import { getSessionAuthSource } from "~/server/modules/auth/helpers";
 
 export const currentPermissionsQueryKey = ["current-permissions"] as const;
 
@@ -17,9 +18,6 @@ export function getCurrentPermissionsOptions(
 	return { queryKey: currentPermissionsQueryKey, queryFn };
 }
 
-const toSessionAuthSource = (authSource: string | undefined) =>
-	authSource === "desktop-session" ? "desktop-session" : "browser-session";
-
 export const getCurrentPermissions = createServerFn({ method: "GET" }).handler(
 	async (): Promise<CurrentPermissions> => {
 		const headers = getRequestHeaders();
@@ -30,7 +28,7 @@ export const getCurrentPermissions = createServerFn({ method: "GET" }).handler(
 		const { permissions, features } = resolvePermissions({
 			instanceRole: session?.user?.role,
 			orgRole: activeMember?.role,
-			authSource: session?.user ? toSessionAuthSource(session.session.authSource) : null,
+			authSource: session?.user ? getSessionAuthSource(session.session.authSource) : null,
 		});
 
 		return { permissions, features };

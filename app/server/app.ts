@@ -22,6 +22,7 @@ import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
 import { auth } from "~/server/lib/auth";
 import { db } from "./db/db";
+import { invalidateAuthSession, isSessionAuthSourceAllowed } from "./modules/auth/helpers";
 
 const requestLogger = async (c: Context, next: Next) => {
 	const method = c.req.method;
@@ -98,7 +99,7 @@ export const createApp = () => {
 		.route("/api/v1/desktop", desktopController)
 		.route("/api/v1/events", eventsController);
 
-	app.on(["POST", "GET"], "/api/auth/*", (c) => {
+	app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 		const pathname = new URL(c.req.url).pathname;
 		if (pathname.startsWith("/api/auth/api-key/")) {
 			return c.json({ message: "API key management is only supported through API v1 routes" }, 404);
@@ -106,6 +107,13 @@ export const createApp = () => {
 
 		if (c.req.header("x-api-key")) {
 			return c.json({ message: "API key authentication is only supported for API v1 routes" }, 401);
+		}
+
+		const session = await auth.api.getSession({ headers: c.req.raw.headers });
+		if (session && !isSessionAuthSourceAllowed(session.session.authSource)) {
+			await invalidateAuthSession(session.session.token, c);
+
+			return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 		}
 
 		return auth.handler(c.req.raw);

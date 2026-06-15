@@ -12,6 +12,7 @@ import { Effect } from "effect";
 import { systemService } from "~/server/modules/system/system.service";
 import { repositoriesService } from "../repositories.service";
 import { eq } from "drizzle-orm";
+import { config } from "~/server/core/config";
 
 const app = createApp();
 
@@ -26,6 +27,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	config.runtime = "server";
 	vi.restoreAllMocks();
 });
 
@@ -156,6 +158,7 @@ describe("repositories security", () => {
 		});
 
 		test("POST /api/v1/repositories/:shortId/exec should allow desktop sessions", async () => {
+			config.runtime = "desktop";
 			const desktopSession = await createTestSession();
 			await db.update(member).set({ role: "admin" }).where(eq(member.userId, desktopSession.user.id));
 			await db

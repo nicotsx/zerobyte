@@ -1,9 +1,10 @@
 import { createMiddleware } from "hono/factory";
 import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
-import { getPermission, withContext } from "~/server/core/request-context";
+import { getPermission, hasFeature, withContext } from "~/server/core/request-context";
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
-import type { AuthSource, Permission } from "~/lib/permission-policy";
+import type { AuthSource, Permission, RuntimeFeature } from "~/lib/permission-policy";
+import { getSessionAuthSource, invalidateAuthSession, isSessionAuthSourceAllowed } from "./helpers";
 
 const API_KEY_HEADER = "x-api-key";
 type AuthenticatedUser = {
@@ -52,9 +53,15 @@ export const requireAuth = createMiddleware(async (c, next) => {
 		const sess = await auth.api.getSession({ headers: c.req.raw.headers });
 
 		if (sess) {
+			if (!isSessionAuthSourceAllowed(sess.session.authSource)) {
+				await invalidateAuthSession(sess.session.token, c);
+
+				return c.json<unknown>({ message: "Invalid or expired session" }, 401);
+			}
+
 			user = sess.user;
 			activeOrganizationId = sess.session.activeOrganizationId;
-			authSource = sess.session.authSource === "desktop-session" ? "desktop-session" : "browser-session";
+			authSource = getSessionAuthSource(sess.session.authSource);
 		}
 	}
 
@@ -114,6 +121,15 @@ export const requireUserSession = createMiddleware(async (c, next) => {
 
 	await next();
 });
+
+export const requireRuntimeFeature = (feature: RuntimeFeature) =>
+	createMiddleware(async (c, next) => {
+		if (!hasFeature(feature)) {
+			return c.json({ message: "Not available in desktop mode" }, 403);
+		}
+
+		await next();
+	});
 
 export const requirePermission = (permission: Permission) =>
 	createMiddleware(async (c, next) => {

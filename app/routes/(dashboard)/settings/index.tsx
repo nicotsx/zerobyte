@@ -21,10 +21,12 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 			queryKey: ["organization-context"],
 			queryFn: () => getOrganizationContext(),
 		});
-		const userInvitationsPromise = context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() });
 
-		const [authContext, userInvitations] = await Promise.all([authContextPromise, userInvitationsPromise]);
-		await orgContextPromise;
+		const authContext = await authContextPromise;
+		const userInvitationsPromise = context.features.ssoManagement
+			? context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() })
+			: Promise.resolve([]);
+		const [userInvitations] = await Promise.all([userInvitationsPromise, orgContextPromise]);
 
 		const shouldPrefetchOrgQueries = context.permissions["organizationSettings.view"];
 

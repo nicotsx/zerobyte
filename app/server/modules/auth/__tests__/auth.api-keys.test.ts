@@ -74,6 +74,16 @@ async function createStoredApiKey(session: TestSession, organizationId = session
 	});
 }
 
+async function createDesktopRuntimeSession() {
+	config.runtime = "desktop";
+	const session = await createTestSession();
+	await db
+		.update(sessionsTable)
+		.set({ authSource: "desktop-session" })
+		.where(eq(sessionsTable.token, session.session.token));
+	return session;
+}
+
 describe("API keys", () => {
 	test("creates and lists API keys for the current organization after password confirmation", async () => {
 		const session = await createTestSession();
@@ -165,7 +175,7 @@ describe("API keys", () => {
 		});
 	});
 
-	test("creates API keys without password confirmation when password auth is unsupported", async () => {
+	test("rejects browser sessions in desktop runtime", async () => {
 		config.runtime = "desktop";
 		const session = await createTestSession();
 
@@ -178,13 +188,21 @@ describe("API keys", () => {
 			body: JSON.stringify({ name: "Desktop key", password: "" }),
 		});
 
-		expect(res.status).toBe(200);
-		expect(await res.json()).toEqual(
-			expect.objectContaining({
-				name: "Desktop key",
-				key: expect.stringMatching(/^zb_/),
-			}),
-		);
+		expect(res.status).toBe(401);
+		expect(await res.json()).toEqual({
+			message: "Invalid or expired session",
+		});
+	});
+
+	test("does not expose API key endpoints when the runtime feature is unavailable", async () => {
+		const session = await createDesktopRuntimeSession();
+
+		const res = await app.request("/api/v1/auth/api-keys", {
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(403);
+		expect(await res.json()).toEqual({ message: "Not available in desktop mode" });
 	});
 
 	test("enforces the per-user API key limit", async () => {
@@ -320,6 +338,33 @@ describe("API keys", () => {
 
 			expect(res.status).toBe(401);
 			expect(await res.json()).toEqual({ message: "Browser session required" });
+		}
+	});
+
+	test("does not expose SSO invitation browser flow routes when the runtime feature is unavailable", async () => {
+		const session = await createDesktopRuntimeSession();
+
+		const routes = [
+			{ method: "GET", path: "/api/v1/auth/sso-invitations" },
+			{
+				method: "POST",
+				path: "/api/v1/auth/sso-invitations/test-invitation/verify",
+				body: { providerId: "test-provider" },
+			},
+		];
+
+		for (const route of routes) {
+			const res = await app.request(route.path, {
+				method: route.method,
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: route.body ? JSON.stringify(route.body) : undefined,
+			});
+
+			expect(res.status).toBe(403);
+			expect(await res.json()).toEqual({ message: "Not available in desktop mode" });
 		}
 	});
 

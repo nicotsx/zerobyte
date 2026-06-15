@@ -60,10 +60,11 @@ describe("system security", () => {
 
 	test("returns desktop runtime and effective backend lists in desktop mode", async () => {
 		config.runtime = "desktop";
+		const desktopAuthSession = await createDesktopTestSession();
 
 		try {
 			const res = await app.request("/api/v1/system/info", {
-				headers: session.headers,
+				headers: desktopAuthSession.headers,
 			});
 
 			expect(res.status).toBe(200);
@@ -236,15 +237,15 @@ describe("system security", () => {
 			expect(updatedUser?.hasDownloadedResticPassword).toBe(true);
 		});
 
-		test("requires password re-authentication for browser sessions in desktop mode", async () => {
+		test("rejects browser sessions in desktop mode", async () => {
 			config.runtime = "desktop";
-			vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
+			const browserSession = await createTestSession();
 			const verifyPasswordSpy = vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
 
 			const res = await app.request("/api/v1/system/restic-password", {
 				method: "POST",
 				headers: {
-					...session.headers,
+					...browserSession.headers,
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
@@ -253,12 +254,30 @@ describe("system security", () => {
 			});
 
 			expect(res.status).toBe(401);
-			expect(verifyPasswordSpy).toHaveBeenCalledWith({
-				password: "wrong-password",
-				userId: session.user.id,
-			});
+			expect(verifyPasswordSpy).not.toHaveBeenCalled();
 			const body = await res.json();
-			expect(body.message).toBe("Invalid password");
+			expect(body.message).toBe("Invalid or expired session");
+		});
+
+		test("rejects desktop sessions outside desktop mode", async () => {
+			const desktopAuthSession = await createDesktopTestSession();
+			const verifyPasswordSpy = vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
+
+			const res = await app.request("/api/v1/system/restic-password", {
+				method: "POST",
+				headers: {
+					...desktopAuthSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					password: "wrong-password",
+				}),
+			});
+
+			expect(res.status).toBe(401);
+			expect(verifyPasswordSpy).not.toHaveBeenCalled();
+			const body = await res.json();
+			expect(body.message).toBe("Invalid or expired session");
 		});
 
 		test("should return 400 for invalid payload on restic-password", async () => {

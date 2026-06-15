@@ -62,7 +62,9 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 		}
 
 		setBlockedMessage(null);
-		downloadResticPassword.mutate({ body: { password: passwordAuthSupported ? password : "" } });
+		downloadResticPassword.mutate({
+			body: { password: passwordAuthSupported ? password : "" },
+		});
 	};
 
 	const handleSkip = () => {

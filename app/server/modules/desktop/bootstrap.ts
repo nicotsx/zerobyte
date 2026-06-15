@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
+import { UnauthorizedError } from "http-errors-enhanced";
 import type { DateFormatPreference, TimeFormatPreference } from "~/lib/datetime";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { usersTable } from "~/server/db/schema";
+import { verifyUserPassword } from "~/server/modules/auth/helpers";
 import { ensureDefaultOrg } from "~/server/lib/auth/helpers/create-default-org";
 import { auth } from "~/server/lib/auth";
 import { cryptoUtils } from "~/server/utils/crypto";
@@ -19,9 +21,9 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 	}
 
 	let user = await db.query.usersTable.findFirst({ where: { email: DESKTOP_USER_EMAIL } });
+	const password = await cryptoUtils.deriveSecret("zerobyte:desktop-user-password");
 
 	if (!user) {
-		const password = await cryptoUtils.deriveSecret("zerobyte:desktop-user-password");
 		await auth.api.signUpEmail({
 			body: {
 				email: DESKTOP_USER_EMAIL,
@@ -36,6 +38,8 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 		});
 
 		user = await db.query.usersTable.findFirst({ where: { email: DESKTOP_USER_EMAIL } });
+	} else if (!(await verifyUserPassword({ userId: user.id, password }))) {
+		throw new UnauthorizedError("Reserved desktop user is not trusted");
 	}
 
 	if (!user) {

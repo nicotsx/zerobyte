@@ -1,16 +1,38 @@
 import { eq } from "drizzle-orm";
 import { verifyPassword } from "better-auth/crypto";
+import type { Context } from "hono";
+import { deleteCookie } from "hono/cookie";
+import { hasRuntimeFeature } from "~/lib/permission-policy";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { passkey, usersTable } from "~/server/db/schema";
+import { auth } from "~/server/lib/auth";
 
 type PasswordVerificationBody = {
 	userId: string;
 	password: string;
 };
 
-export const isPasswordAuthSupported = (authSource?: string | null) =>
-	authSource === undefined ? config.runtime !== "desktop" : authSource !== "desktop-session";
+type SessionAuthSource = "browser-session" | "desktop-session";
+
+export const getSessionAuthSource = (authSource: string | null | undefined): SessionAuthSource =>
+	authSource === "desktop-session" ? "desktop-session" : "browser-session";
+
+export const isSessionAuthSourceAllowed = (authSource: string | null | undefined) =>
+	getSessionAuthSource(authSource) === (config.runtime === "desktop" ? "desktop-session" : "browser-session");
+
+export const invalidateAuthSession = async (token: string, c?: Context) => {
+	const authContext = await auth.$context;
+	await authContext.internalAdapter.deleteSession(token);
+
+	if (c) {
+		for (const cookie of Object.values(authContext.authCookies)) {
+			deleteCookie(c, cookie.name, cookie.attributes);
+		}
+	}
+};
+
+export const isPasswordAuthSupported = () => hasRuntimeFeature(config.runtime, "passwordAuthentication");
 
 export const verifyUserPassword = async ({ password, userId }: PasswordVerificationBody) => {
 	const userAccount = await db.query.account.findFirst({

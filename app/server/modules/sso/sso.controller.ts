@@ -15,7 +15,7 @@ import {
 	updateSsoProviderAutoLinkingDto,
 } from "./sso.dto";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "./sso.service";
-import { requireAuth, requireBrowserSession, requirePermission } from "../auth/auth.middleware";
+import { requireAuth, requireBrowserSession, requirePermission, requireRuntimeFeature } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { mapAuthErrorToCode } from "./sso.errors";
 import { config } from "~/server/core/config";
@@ -66,15 +66,23 @@ export const ssoController = new Hono()
 			})),
 		});
 	})
-	.get("/sso-invitations", requireAuth, requireBrowserSession, getUserSsoInvitationsDto, async (c) => {
-		const user = c.get("user");
-		const invitations = await ssoService.listPendingInvitationsForUser(user.email);
+	.get(
+		"/sso-invitations",
+		requireAuth,
+		requireRuntimeFeature("ssoManagement"),
+		requireBrowserSession,
+		getUserSsoInvitationsDto,
+		async (c) => {
+			const user = c.get("user");
+			const invitations = await ssoService.listPendingInvitationsForUser(user.email);
 
-		return c.json<UserSsoInvitationsDto>(invitations);
-	})
+			return c.json<UserSsoInvitationsDto>(invitations);
+		},
+	)
 	.post(
 		"/sso-invitations/:invitationId/verify",
 		requireAuth,
+		requireRuntimeFeature("ssoManagement"),
 		requireBrowserSession,
 		startInvitationSsoVerificationDto,
 		validator("json", startInvitationSsoVerificationBody),

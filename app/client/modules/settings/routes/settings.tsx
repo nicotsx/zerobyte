@@ -271,10 +271,12 @@ export function SettingsPage({
 								</div>
 							</CardContent>
 
-							<PendingInvitationsSection
-								initialInvitations={initialUserInvitations}
-								userEmail={appContext.user?.email}
-							/>
+							{permissions.hasRuntimeFeature("ssoManagement") && (
+								<PendingInvitationsSection
+									initialInvitations={initialUserInvitations}
+									userEmail={appContext.user?.email}
+								/>
+							)}
 
 							<div className="border-t border-border/50 bg-card-header p-6">
 								<CardTitle className="flex items-center gap-2">
@@ -488,7 +490,12 @@ export function SettingsPage({
 								</Dialog>
 							</CardContent>
 
-							<ApiKeysSection passwordAuthSupported={passwordAuthSupported} hasPassword={hasPassword} />
+							{permissions.hasRuntimeFeature("apiKeys") && (
+								<ApiKeysSection
+									passwordAuthSupported={passwordAuthSupported}
+									hasPassword={hasPassword}
+								/>
+							)}
 
 							<TwoFactorSection twoFactorEnabled={appContext.user?.twoFactorEnabled} />
 

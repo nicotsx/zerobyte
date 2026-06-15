@@ -114,5 +114,9 @@ describe("permissions", () => {
 	test("models runtime features independently from user roles", () => {
 		expect(hasRuntimeFeature("server", "remoteVolumeBackends")).toBe(true);
 		expect(hasRuntimeFeature("desktop", "remoteVolumeBackends")).toBe(false);
+		expect(hasRuntimeFeature("server", "apiKeys")).toBe(true);
+		expect(hasRuntimeFeature("desktop", "apiKeys")).toBe(false);
+		expect(hasRuntimeFeature("server", "passwordAuthentication")).toBe(true);
+		expect(hasRuntimeFeature("desktop", "passwordAuthentication")).toBe(false);
 	});
 });

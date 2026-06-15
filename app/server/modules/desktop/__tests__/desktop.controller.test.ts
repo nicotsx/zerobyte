@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
+import { hashPassword } from "better-auth/crypto";
 import { createApp } from "~/server/app";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { usersTable } from "~/server/db/schema";
+import { account, usersTable } from "~/server/db/schema";
 import { createTestSession } from "~/test/helpers/auth";
 import { DESKTOP_LAUNCH_SECRET_HEADER } from "../desktop.service";
 import { DESKTOP_USER_EMAIL } from "../constants";
@@ -19,6 +20,32 @@ afterEach(() => {
 const useDesktopRuntime = () => {
 	config.runtime = "desktop";
 	config.desktop.launchSecret = launchSecret;
+};
+
+const createDesktopSessionCookie = async () => {
+	useDesktopRuntime();
+
+	const res = await app.request("/api/v1/desktop/session", {
+		method: "POST",
+		headers: {
+			[DESKTOP_LAUNCH_SECRET_HEADER]: launchSecret,
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ dateFormat: "DD/MM/YYYY", timeFormat: "24h" }),
+	});
+	const cookie = res.headers.get("set-cookie")?.split(";")[0];
+	const body = (await res.clone().json()) as { token: string };
+
+	expect(res.status).toBe(200);
+	expect(cookie).toBeTruthy();
+
+	return { cookie: cookie ?? "", token: body.token };
+};
+
+const expectSessionCookieCleared = (res: Response) => {
+	const setCookie = res.headers.get("set-cookie");
+	expect(setCookie).toContain("zerobyte.session_token=");
+	expect(setCookie).toContain("Max-Age=0");
 };
 
 describe("desktopController", () => {
@@ -77,30 +104,81 @@ describe("desktopController", () => {
 		expect(desktopAuthSession?.authSource).toBe("desktop-session");
 	});
 
-	test("does not treat desktop sessions as browser sessions for admin routes", async () => {
+	test("rejects reserved desktop users that do not have the derived desktop credential", async () => {
 		useDesktopRuntime();
+		await db.delete(usersTable).where(eq(usersTable.email, DESKTOP_USER_EMAIL));
 
-		const res = await app.request("/api/v1/desktop/session", {
-			method: "POST",
-			headers: {
-				[DESKTOP_LAUNCH_SECRET_HEADER]: launchSecret,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ dateFormat: "DD/MM/YYYY", timeFormat: "24h" }),
-		});
+		const userId = crypto.randomUUID();
+		try {
+			await db.insert(usersTable).values({
+				id: userId,
+				username: `desktop-collision-${crypto.randomUUID()}`,
+				name: "Desktop Collision",
+				email: DESKTOP_USER_EMAIL,
+			});
+			await db.insert(account).values({
+				id: crypto.randomUUID(),
+				accountId: DESKTOP_USER_EMAIL,
+				providerId: "credential",
+				userId,
+				password: await hashPassword("wrong-password"),
+			});
 
-		const cookie = res.headers.get("set-cookie")?.split(";")[0];
-		expect(cookie).toBeTruthy();
+			const res = await app.request("/api/v1/desktop/session", {
+				method: "POST",
+				headers: {
+					[DESKTOP_LAUNCH_SECRET_HEADER]: launchSecret,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ dateFormat: "DD/MM/YYYY", timeFormat: "24h" }),
+			});
 
+			expect(res.status).toBe(401);
+			expect(await db.query.sessionsTable.findFirst({ where: { userId } })).toBeUndefined();
+		} finally {
+			await db.delete(usersTable).where(eq(usersTable.email, DESKTOP_USER_EMAIL));
+		}
+	});
+
+	test("does not treat desktop sessions as browser sessions for admin routes", async () => {
+		const v1Session = await createDesktopSessionCookie();
 		config.runtime = "server";
 
 		const adminRes = await app.request("/api/v1/auth/admin-users", {
 			headers: {
-				Cookie: cookie ?? "",
+				Cookie: v1Session.cookie,
 			},
 		});
 
 		expect(adminRes.status).toBe(401);
+		expectSessionCookieCleared(adminRes);
+		expect(await db.query.sessionsTable.findFirst({ where: { token: v1Session.token } })).toBeUndefined();
+
+		const directSession = await createDesktopSessionCookie();
+		config.runtime = "server";
+		const directSessionRes = await app.request("/api/auth/get-session", {
+			headers: {
+				Cookie: directSession.cookie,
+			},
+		});
+
+		expect(directSessionRes.status).toBe(401);
+		expectSessionCookieCleared(directSessionRes);
+		expect(await db.query.sessionsTable.findFirst({ where: { token: directSession.token } })).toBeUndefined();
+
+		const betterAuthAdminSession = await createDesktopSessionCookie();
+		config.runtime = "server";
+		const betterAuthAdminRes = await app.request("/api/auth/admin/list-users", {
+			headers: {
+				Cookie: betterAuthAdminSession.cookie,
+			},
+		});
+
+		expect(betterAuthAdminRes.status).toBe(401);
+		expectSessionCookieCleared(betterAuthAdminRes);
+		expect(
+			await db.query.sessionsTable.findFirst({ where: { token: betterAuthAdminSession.token } }),
+		).toBeUndefined();
 	});
 
 	test("does not allow browser sessions to self-mark as desktop sessions", async () => {

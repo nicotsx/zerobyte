@@ -5,7 +5,9 @@ export type RuntimeFeature =
 	| "instanceAdministration"
 	| "organizationAdministration"
 	| "ssoManagement"
-	| "remoteVolumeBackends";
+	| "remoteVolumeBackends"
+	| "apiKeys"
+	| "passwordAuthentication";
 
 export const RUNTIME_FEATURES = {
 	server: {
@@ -13,12 +15,16 @@ export const RUNTIME_FEATURES = {
 		organizationAdministration: true,
 		ssoManagement: true,
 		remoteVolumeBackends: true,
+		apiKeys: true,
+		passwordAuthentication: true,
 	},
 	desktop: {
 		instanceAdministration: false,
 		organizationAdministration: false,
 		ssoManagement: false,
 		remoteVolumeBackends: false,
+		apiKeys: false,
+		passwordAuthentication: false,
 	},
 } as const satisfies Record<Runtime, Record<RuntimeFeature, boolean>>;
 

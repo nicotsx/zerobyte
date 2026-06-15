@@ -9,21 +9,29 @@ import {
 	type ListApiKeysDto,
 } from "./api-keys.dto";
 import { MAX_API_KEYS_PER_USER, countActiveApiKeys, hasApiKey, listApiKeys } from "./api-keys.service";
-import { requireAuth, requireBrowserSession } from "../auth/auth.middleware";
+import { requireAuth, requireBrowserSession, requireRuntimeFeature } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
 import { isPasswordAuthSupported, userHasPassword, verifyUserPassword } from "../auth/helpers";
 
 export const apiKeysController = new Hono()
-	.get("/api-keys", requireAuth, requireBrowserSession, getApiKeysDto, async (c) => {
-		const user = c.get("user");
-		const organizationId = c.get("organizationId");
-		const apiKeys = await listApiKeys(user.id, organizationId);
+	.get(
+		"/api-keys",
+		requireAuth,
+		requireRuntimeFeature("apiKeys"),
+		requireBrowserSession,
+		getApiKeysDto,
+		async (c) => {
+			const user = c.get("user");
+			const organizationId = c.get("organizationId");
+			const apiKeys = await listApiKeys(user.id, organizationId);
 
-		return c.json<ListApiKeysDto>({ apiKeys, limit: MAX_API_KEYS_PER_USER });
-	})
+			return c.json<ListApiKeysDto>({ apiKeys, limit: MAX_API_KEYS_PER_USER });
+		},
+	)
 	.post(
 		"/api-keys",
 		requireAuth,
+		requireRuntimeFeature("apiKeys"),
 		requireBrowserSession,
 		createApiKeyDto,
 		validator("json", createApiKeyBody),
@@ -69,20 +77,27 @@ export const apiKeysController = new Hono()
 			});
 		},
 	)
-	.delete("/api-keys/:keyId", requireAuth, requireBrowserSession, deleteApiKeyDto, async (c) => {
-		const user = c.get("user");
-		const organizationId = c.get("organizationId");
-		const keyId = c.req.param("keyId");
+	.delete(
+		"/api-keys/:keyId",
+		requireAuth,
+		requireRuntimeFeature("apiKeys"),
+		requireBrowserSession,
+		deleteApiKeyDto,
+		async (c) => {
+			const user = c.get("user");
+			const organizationId = c.get("organizationId");
+			const keyId = c.req.param("keyId");
 
-		const belongsToUserOrganization = await hasApiKey(user.id, organizationId, keyId);
-		if (!belongsToUserOrganization) {
-			return c.json({ message: "API key not found" }, 404);
-		}
+			const belongsToUserOrganization = await hasApiKey(user.id, organizationId, keyId);
+			if (!belongsToUserOrganization) {
+				return c.json({ message: "API key not found" }, 404);
+			}
 
-		await auth.api.deleteApiKey({
-			headers: c.req.raw.headers,
-			body: { keyId },
-		});
+			await auth.api.deleteApiKey({
+				headers: c.req.raw.headers,
+				body: { keyId },
+			});
 
-		return c.json({ success: true });
-	});
+			return c.json({ success: true });
+		},
+	);
