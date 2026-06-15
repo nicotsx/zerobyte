@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { createApp } from "~/server/app";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { sessionsTable, usersTable } from "~/server/db/schema";
+import { usersTable } from "~/server/db/schema";
 import { createTestSession } from "~/test/helpers/auth";
 import { DESKTOP_LAUNCH_SECRET_HEADER } from "../desktop.service";
 import { DESKTOP_USER_EMAIL } from "../constants";
