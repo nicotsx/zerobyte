@@ -119,11 +119,22 @@ function generateResticPassword(): string {
 	return crypto.randomBytes(32).toString("hex");
 }
 
+function timingSafeEqualString(provided: string, expected: string): boolean {
+	const providedBuffer = Buffer.from(provided);
+	const expectedBuffer = Buffer.from(expected);
+
+	return (
+		providedBuffer.byteLength === expectedBuffer.byteLength &&
+		crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+	);
+}
+
 export const cryptoUtils = {
 	resolveSecret,
 	sealSecret,
 	sealOptionalSecret,
 	deriveSecret,
 	generateResticPassword,
+	timingSafeEqualString,
 	isEncrypted,
 };

@@ -5175,3 +5175,20 @@ export type GetDevPanelResponses = {
 };
 
 export type GetDevPanelResponse = GetDevPanelResponses[keyof GetDevPanelResponses];
+
+export type CreateDesktopSessionData = {
+    body: {
+        dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY/MM/DD';
+        timeFormat: '12h' | '24h';
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/desktop/session';
+};
+
+export type CreateDesktopSessionResponses = {
+    /**
+     * Desktop session created successfully
+     */
+    200: unknown;
+};
