@@ -107,6 +107,14 @@ export const requireBrowserSession = createMiddleware(async (c, next) => {
 	await next();
 });
 
+export const requireUserSession = createMiddleware(async (c, next) => {
+	if (c.get("authSource") === "api-key") {
+		return c.json({ message: "Browser session required" }, 401);
+	}
+
+	await next();
+});
+
 export const requirePermission = (permission: Permission) =>
 	createMiddleware(async (c, next) => {
 		const result = getPermission(permission);

@@ -8,7 +8,7 @@ import { isPasswordAuthSupported, userHasPassword } from "~/server/modules/auth/
 const getRecoveryKeyUserState = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
 	const session = await auth.api.getSession({ headers });
-	const passwordAuthSupported = isPasswordAuthSupported();
+	const passwordAuthSupported = isPasswordAuthSupported(session?.session.authSource);
 
 	return {
 		passwordAuthSupported,

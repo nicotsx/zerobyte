@@ -3,12 +3,15 @@ import crypto from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
-import { repositoriesTable } from "~/server/db/schema";
+import { member, repositoriesTable, sessionsTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { restic } from "~/server/core/restic";
 import { Effect } from "effect";
+import { systemService } from "~/server/modules/system/system.service";
+import { repositoriesService } from "../repositories.service";
+import { eq } from "drizzle-orm";
 
 const app = createApp();
 
@@ -150,6 +153,30 @@ describe("repositories security", () => {
 			expect(res.status).toBe(401);
 			const body = await res.json();
 			expect(body.message).toBe("Invalid or expired session");
+		});
+
+		test("POST /api/v1/repositories/:shortId/exec should allow desktop sessions", async () => {
+			const desktopSession = await createTestSession();
+			await db.update(member).set({ role: "admin" }).where(eq(member.userId, desktopSession.user.id));
+			await db
+				.update(sessionsTable)
+				.set({ authSource: "desktop-session" })
+				.where(eq(sessionsTable.token, desktopSession.session.token));
+			vi.spyOn(systemService, "isDevPanelEnabled").mockReturnValue(true);
+			const execSpy = vi.spyOn(repositoriesService, "execResticCommand").mockResolvedValue({ exitCode: 0 });
+
+			const res = await app.request("/api/v1/repositories/test-repo/exec", {
+				method: "POST",
+				headers: {
+					...desktopSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ command: "version" }),
+			});
+
+			expect(res.status).toBe(200);
+			await res.text();
+			expect(execSpy).toHaveBeenCalled();
 		});
 	});
 

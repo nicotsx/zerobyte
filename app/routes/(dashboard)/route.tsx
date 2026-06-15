@@ -16,7 +16,7 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
 	const session = await auth.api.getSession({ headers });
 	const hasUsers = await authService.hasUsers();
-	const passwordAuthSupported = isPasswordAuthSupported();
+	const passwordAuthSupported = isPasswordAuthSupported(session?.session.authSource);
 	const hasPassword = passwordAuthSupported && session?.user ? await userHasPassword(session.user.id) : false;
 
 	const sidebarCookie = getCookie(SIDEBAR_COOKIE_NAME);

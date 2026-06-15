@@ -9,7 +9,8 @@ type PasswordVerificationBody = {
 	password: string;
 };
 
-export const isPasswordAuthSupported = () => config.runtime !== "desktop";
+export const isPasswordAuthSupported = (authSource?: string | null) =>
+	authSource === undefined ? config.runtime !== "desktop" : authSource !== "desktop-session";
 
 export const verifyUserPassword = async ({ password, userId }: PasswordVerificationBody) => {
 	const userAccount = await db.query.account.findFirst({
