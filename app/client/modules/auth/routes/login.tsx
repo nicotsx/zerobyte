@@ -273,16 +273,17 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 
 	return (
 		<AuthLayout title="Login to your account" description="Enter your credentials below to login to your account">
+			<div
+				className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
+					hidden: !errorDescription,
+				})}
+			>
+				{errorDescription}
+			</div>
+
 			{loginOptions.passwordLoginEnabled && (
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-						<div
-							className={cn("rounded-md border border-destructive/50 p-3 text-sm", {
-								hidden: !errorDescription,
-							})}
-						>
-							{errorDescription}
-						</div>
 						<FormField
 							control={form.control}
 							name="username"

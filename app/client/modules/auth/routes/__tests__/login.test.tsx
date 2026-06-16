@@ -279,9 +279,9 @@ describe("LoginPage", () => {
 		mockSsoProvidersRequest();
 		mockGetLoginOptions.mockResolvedValue({ hasPasskeySignIn: false, passwordLoginEnabled: false });
 
-		render(<LoginPage />, { withSuspense: true });
+		render(<LoginPage error="INVITE_REQUIRED" />, { withSuspense: true });
 
-		await screen.findByText("Login to your account");
+		expect(await screen.findByText(inviteOnlyMessage)).toBeTruthy();
 		expect(screen.queryByLabelText("Username")).toBeNull();
 		expect(screen.queryByLabelText("Password")).toBeNull();
 	});
