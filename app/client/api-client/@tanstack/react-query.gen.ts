@@ -4,10 +4,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, cancelDoctor, createApiKey, createBackupSchedule, createDesktopSession, createNotificationDestination, createRepository, createVolume, deleteApiKey, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, downloadResticPassword, dumpSnapshot, getAdminUsers, getApiKeys, getBackupProgress, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getMirrorSyncStatus, getNotificationDestination, getOrgMembers, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getUpdates, getUserDeletionImpact, getUserSsoInvitations, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, mountVolume, type Options, refreshRepositoryStats, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setRegistrationStatus, startDoctor, startInvitationSsoVerification, stopBackup, syncMirror, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
-import { getPasswordLoginStatus, setPasswordLoginStatus } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelDoctorData, CancelDoctorResponse, CreateApiKeyData, CreateApiKeyResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateDesktopSessionData, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteApiKeyData, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, GetAdminUsersData, GetAdminUsersResponse, GetApiKeysData, GetApiKeysResponse, GetBackupProgressData, GetBackupProgressResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetMirrorSyncStatusData, GetMirrorSyncStatusResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetUserSsoInvitationsData, GetUserSsoInvitationsResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, RefreshRepositoryStatsData, RefreshRepositoryStatsResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StartInvitationSsoVerificationData, StopBackupData, StopBackupResponse, SyncMirrorData, SyncMirrorResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
-import type { GetPasswordLoginStatusData, GetPasswordLoginStatusResponse, SetPasswordLoginStatusData, SetPasswordLoginStatusResponse } from '../types.gen';
+import { browseFilesystem, cancelDoctor, createApiKey, createBackupSchedule, createDesktopSession, createNotificationDestination, createRepository, createVolume, deleteApiKey, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, downloadResticPassword, dumpSnapshot, getAdminUsers, getApiKeys, getBackupProgress, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getMirrorSyncStatus, getNotificationDestination, getOrgMembers, getPasswordLoginStatus, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getUpdates, getUserDeletionImpact, getUserSsoInvitations, getVolume, healthCheckVolume, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listVolumes, mountVolume, type Options, refreshRepositoryStats, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, runBackupNow, runForget, setPasswordLoginStatus, setRegistrationStatus, startDoctor, startInvitationSsoVerification, stopBackup, syncMirror, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelDoctorData, CancelDoctorResponse, CreateApiKeyData, CreateApiKeyResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateDesktopSessionData, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteApiKeyData, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, GetAdminUsersData, GetAdminUsersResponse, GetApiKeysData, GetApiKeysResponse, GetBackupProgressData, GetBackupProgressResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetMirrorSyncStatusData, GetMirrorSyncStatusResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPasswordLoginStatusData, GetPasswordLoginStatusResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetUserSsoInvitationsData, GetUserSsoInvitationsResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, RefreshRepositoryStatsData, RefreshRepositoryStatsResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetPasswordLoginStatusData, SetPasswordLoginStatusResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StartInvitationSsoVerificationData, StopBackupData, StopBackupResponse, SyncMirrorData, SyncMirrorResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -1450,10 +1448,27 @@ export const setRegistrationStatusMutation = (options?: Partial<Options<SetRegis
     return mutationOptions;
 };
 
+/**
+ * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and may require password re-authentication.
+ */
+export const downloadResticPasswordMutation = (options?: Partial<Options<DownloadResticPasswordData>>): UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> => {
+    const mutationOptions: UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await downloadResticPassword({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const getPasswordLoginStatusQueryKey = (options?: Options<GetPasswordLoginStatusData>) => createQueryKey('getPasswordLoginStatus', options);
 
 /**
- * Get whether password-based login is enabled
+ * Get whether password-based login is disabled
  */
 export const getPasswordLoginStatusOptions = (options?: Options<GetPasswordLoginStatusData>) => queryOptions<GetPasswordLoginStatusResponse, DefaultError, GetPasswordLoginStatusResponse, ReturnType<typeof getPasswordLoginStatusQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -1469,29 +1484,12 @@ export const getPasswordLoginStatusOptions = (options?: Options<GetPasswordLogin
 });
 
 /**
- * Enable or disable password-based login. Requires global admin role.
+ * Disable or re-enable password-based login. Requires global admin role.
  */
 export const setPasswordLoginStatusMutation = (options?: Partial<Options<SetPasswordLoginStatusData>>): UseMutationOptions<SetPasswordLoginStatusResponse, DefaultError, Options<SetPasswordLoginStatusData>> => {
     const mutationOptions: UseMutationOptions<SetPasswordLoginStatusResponse, DefaultError, Options<SetPasswordLoginStatusData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await setPasswordLoginStatus({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-/**
- * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and may require password re-authentication.
- */
-export const downloadResticPasswordMutation = (options?: Partial<Options<DownloadResticPasswordData>>): UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> => {
-    const mutationOptions: UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await downloadResticPassword({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

@@ -4,10 +4,11 @@ import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } f
 import { systemService } from "../system.service";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { db } from "~/server/db/db";
-import { organization, sessionsTable, usersTable } from "~/server/db/schema";
+import { appMetadataTable, organization, sessionsTable, usersTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { config } from "~/server/core/config";
+import { PASSWORD_LOGIN_DISABLED_KEY } from "~/server/core/constants";
 
 const app = createApp();
 
@@ -142,12 +143,15 @@ describe("system security", () => {
 
 	describe("password-login-status endpoint", () => {
 		test("GET /api/v1/system/password-login-status should be accessible with valid session", async () => {
+			await db.delete(appMetadataTable).where(eq(appMetadataTable.key, PASSWORD_LOGIN_DISABLED_KEY));
+
 			const res = await app.request("/api/v1/system/password-login-status", {
 				headers: session.headers,
 			});
 			expect(res.status).toBe(200);
 			const body = await res.json();
-			expect(typeof body.enabled).toBe("boolean");
+			expect(typeof body.disabled).toBe("boolean");
+			expect(body.disabled).toBe(false);
 		});
 
 		test("PUT /api/v1/system/password-login-status should return 403 for non-admin users", async () => {
@@ -157,7 +161,7 @@ describe("system security", () => {
 					...session.headers,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ enabled: false }),
+				body: JSON.stringify({ disabled: true }),
 			});
 			expect(res.status).toBe(403);
 			const body = await res.json();
@@ -171,9 +175,10 @@ describe("system security", () => {
 					...globalAdminSession.headers,
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ enabled: true }),
+				body: JSON.stringify({ disabled: false }),
 			});
 			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ disabled: false });
 		});
 	});
 

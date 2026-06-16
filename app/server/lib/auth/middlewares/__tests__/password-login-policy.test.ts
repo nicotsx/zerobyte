@@ -13,21 +13,21 @@ describe("enforcePasswordLoginPolicy", () => {
 	});
 
 	test("skips non-password sign-in endpoints", async () => {
-		const isPasswordLoginEnabled = vi.spyOn(systemService, "isPasswordLoginEnabled").mockResolvedValue(false);
+		const isPasswordLoginDisabled = vi.spyOn(systemService, "isPasswordLoginDisabled").mockResolvedValue(true);
 
 		await expect(enforcePasswordLoginPolicy(createContext("/sign-in/sso"))).resolves.toBeUndefined();
 
-		expect(isPasswordLoginEnabled).not.toHaveBeenCalled();
+		expect(isPasswordLoginDisabled).not.toHaveBeenCalled();
 	});
 
 	test("allows username password sign-in when password login is enabled", async () => {
-		vi.spyOn(systemService, "isPasswordLoginEnabled").mockResolvedValue(true);
+		vi.spyOn(systemService, "isPasswordLoginDisabled").mockResolvedValue(false);
 
 		await expect(enforcePasswordLoginPolicy(createContext("/sign-in/username"))).resolves.toBeUndefined();
 	});
 
 	test("blocks username and email password sign-in when password login is disabled", async () => {
-		vi.spyOn(systemService, "isPasswordLoginEnabled").mockResolvedValue(false);
+		vi.spyOn(systemService, "isPasswordLoginDisabled").mockResolvedValue(true);
 
 		await expect(enforcePasswordLoginPolicy(createContext("/sign-in/username"))).rejects.toThrow(
 			"Password login is disabled",
@@ -39,11 +39,11 @@ describe("enforcePasswordLoginPolicy", () => {
 
 	test("blocks password sign-in when the runtime does not support password authentication", async () => {
 		config.runtime = "desktop";
-		const isPasswordLoginEnabled = vi.spyOn(systemService, "isPasswordLoginEnabled").mockResolvedValue(true);
+		const isPasswordLoginDisabled = vi.spyOn(systemService, "isPasswordLoginDisabled").mockResolvedValue(false);
 
 		await expect(enforcePasswordLoginPolicy(createContext("/sign-in/username"))).rejects.toThrow(
 			"Password login is disabled",
 		);
-		expect(isPasswordLoginEnabled).not.toHaveBeenCalled();
+		expect(isPasswordLoginDisabled).not.toHaveBeenCalled();
 	});
 });

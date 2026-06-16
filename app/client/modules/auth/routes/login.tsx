@@ -337,7 +337,10 @@ export function LoginPage({ error }: LoginPageProps = {}) {
 				</Form>
 			)}
 
-			<AlternativeSignInSection onPasskeySignIn={navigateAfterLogin} />
+			<AlternativeSignInSection
+				hasPasskeySignIn={loginOptions.hasPasskeySignIn}
+				onPasskeySignIn={navigateAfterLogin}
+			/>
 
 			<ResetPasswordDialog open={showResetDialog} onOpenChange={setShowResetDialog} />
 		</AuthLayout>

@@ -108,9 +108,9 @@ export const systemController = new Hono()
 		},
 	)
 	.get("/password-login-status", getPasswordLoginStatusDto, async (c) => {
-		const enabled = await systemService.isPasswordLoginEnabled();
+		const disabled = await systemService.isPasswordLoginDisabled();
 
-		return c.json<PasswordLoginStatusDto>({ enabled }, 200);
+		return c.json<PasswordLoginStatusDto>({ disabled }, 200);
 	})
 	.put(
 		"/password-login-status",
@@ -120,9 +120,9 @@ export const systemController = new Hono()
 		async (c) => {
 			const body = c.req.valid("json");
 
-			await systemService.setPasswordLoginEnabled(body.enabled);
+			await systemService.setPasswordLoginDisabled(body.disabled);
 
-			return c.json<PasswordLoginStatusDto>({ enabled: body.enabled }, 200);
+			return c.json<PasswordLoginStatusDto>({ disabled: body.disabled }, 200);
 		},
 	)
 	.get("/dev-panel", getDevPanelDto, async (c) => {

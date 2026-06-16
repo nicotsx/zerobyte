@@ -3,6 +3,7 @@ import { assignOrganizationCommand } from "./commands/assign-organization";
 import { changeEmailCommand } from "./commands/change-email";
 import { changeUsernameCommand } from "./commands/change-username";
 import { disable2FACommand } from "./commands/disable-2fa";
+import { enablePasswordLoginCommand } from "./commands/enable-password-login";
 import { rekey2FACommand } from "./commands/rekey-2fa";
 import { resetPasswordCommand } from "./commands/reset-password";
 import { config } from "../core/config";
@@ -16,6 +17,7 @@ program
 	.version(config.appVersion);
 program.addCommand(resetPasswordCommand);
 program.addCommand(disable2FACommand);
+program.addCommand(enablePasswordLoginCommand);
 program.addCommand(changeUsernameCommand);
 program.addCommand(changeEmailCommand);
 program.addCommand(rekey2FACommand);
