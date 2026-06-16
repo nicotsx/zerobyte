@@ -402,6 +402,27 @@ describe("manual only schedules", () => {
 	});
 });
 
+describe("schedule retention policy", () => {
+	test("should clear retention policy when updating with an empty policy", async () => {
+		setup();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			repositoryId: repository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+
+		const updatedSchedule = await backupsService.updateSchedule(schedule.id, {
+			repositoryId: repository.shortId,
+			cronExpression: schedule.cronExpression,
+			retentionPolicy: {},
+			retryDelay: 15 * 60 * 1000,
+			maxRetries: 2,
+		});
+
+		expect(updatedSchedule.retentionPolicy).toBeNull();
+	});
+});
+
 describe("schedule webhooks", () => {
 	test("stores pre and post backup webhooks when creating a schedule", async () => {
 		setup();

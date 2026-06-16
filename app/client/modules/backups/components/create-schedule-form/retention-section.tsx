@@ -22,7 +22,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								type="number"
 								min={0}
 								placeholder="Optional"
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the N most recent snapshots.</FormDescription>
@@ -43,7 +44,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								min={0}
 								placeholder="Optional"
 								{...field}
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the last N hourly snapshots.</FormDescription>
@@ -64,7 +66,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								min={0}
 								placeholder="e.g., 7"
 								{...field}
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the last N daily snapshots.</FormDescription>
@@ -85,7 +88,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								min={0}
 								placeholder="e.g., 4"
 								{...field}
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the last N weekly snapshots.</FormDescription>
@@ -106,7 +110,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								min={0}
 								placeholder="e.g., 6"
 								{...field}
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the last N monthly snapshots.</FormDescription>
@@ -127,7 +132,8 @@ export const RetentionSection = ({ form }: RetentionSectionProps) => {
 								min={0}
 								placeholder="Optional"
 								{...field}
-								onChange={(v) => field.onChange(v.target.value === "" ? undefined : Number(v.target.value))}
+								value={field.value ?? ""}
+								onChange={(v) => field.onChange(v.target.value)}
 							/>
 						</FormControl>
 						<FormDescription>Keep the last N yearly snapshots.</FormDescription>

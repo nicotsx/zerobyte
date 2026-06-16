@@ -187,22 +187,39 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	}
 
 	const cronExpression = data.cronExpression ?? schedule.cronExpression;
-	const nextBackupAt =
-		data.cronExpression === ""
-			? null
-			: data.cronExpression
-				? calculateNextRun(cronExpression)
-				: schedule.nextBackupAt;
+	let nextBackupAt = schedule.nextBackupAt;
+
+	if (data.cronExpression === "") {
+		nextBackupAt = null;
+	} else if (data.cronExpression) {
+		nextBackupAt = calculateNextRun(cronExpression);
+	}
+
+	const { retentionPolicy: requestedRetentionPolicy, ...updateData } = data;
+	let retentionPolicy: typeof requestedRetentionPolicy | null = requestedRetentionPolicy;
+	if (requestedRetentionPolicy !== undefined && Object.keys(requestedRetentionPolicy).length === 0) {
+		retentionPolicy = null;
+	}
+
+	const updateValues = {
+		...updateData,
+		repositoryId: repository.id,
+		backupWebhooks: data.backupWebhooks,
+		nextBackupAt,
+		updatedAt: Date.now(),
+	};
+
+	if (data.backupWebhooks === undefined) {
+		updateValues.backupWebhooks = schedule.backupWebhooks;
+	}
+
+	if (retentionPolicy !== undefined) {
+		Object.assign(updateValues, { retentionPolicy });
+	}
 
 	const [updated] = await db
 		.update(backupSchedulesTable)
-		.set({
-			...data,
-			repositoryId: repository.id,
-			backupWebhooks: data.backupWebhooks === undefined ? schedule.backupWebhooks : data.backupWebhooks,
-			nextBackupAt,
-			updatedAt: Date.now(),
-		})
+		.set(updateValues)
 		.where(and(eq(backupSchedulesTable.id, schedule.id), eq(backupSchedulesTable.organizationId, organizationId)))
 		.returning();
 

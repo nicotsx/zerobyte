@@ -31,7 +31,19 @@ const volumeFilesResponse = {
 	hasMore: false,
 };
 
-const renderEditBackupPage = ({ enabled, cronExpression }: { enabled: boolean; cronExpression: string }) => {
+const renderEditBackupPage = ({
+	enabled,
+	cronExpression,
+	retentionPolicy = null,
+	maxRetries,
+	retryDelay,
+}: {
+	enabled: boolean;
+	cronExpression: string;
+	retentionPolicy?: Record<string, number> | null;
+	maxRetries?: number;
+	retryDelay?: number;
+}) => {
 	const submittedBody = new Promise<Record<string, unknown>>((resolve) => {
 		server.use(
 			http.get("/api/v1/backups/:shortId", () => {
@@ -42,7 +54,7 @@ const renderEditBackupPage = ({ enabled, cronExpression }: { enabled: boolean; c
 					repository,
 					volume,
 					cronExpression,
-					retentionPolicy: null,
+					retentionPolicy,
 					includePaths: ["/project"],
 					includePatterns: [],
 					excludePatterns: [],
@@ -50,6 +62,8 @@ const renderEditBackupPage = ({ enabled, cronExpression }: { enabled: boolean; c
 					oneFileSystem: false,
 					customResticParams: [],
 					backupWebhooks: null,
+					maxRetries,
+					retryDelay,
 				});
 			}),
 			http.get("/api/v1/repositories", () => {
@@ -124,6 +138,61 @@ test("preserves a disabled schedule when saving a non-manual frequency", async (
 		enabled: false,
 		cronExpression: "00 02 * * *",
 	});
+});
+
+test("submits an empty retention policy when clearing the last keep value", async () => {
+	const { submittedBody } = renderEditBackupPage({
+		enabled: true,
+		cronExpression: "0 2 * * *",
+		retentionPolicy: { keepDaily: 7 },
+	});
+
+	const keepDailyInput = await screen.findByLabelText("Keep daily");
+	if (!(keepDailyInput instanceof HTMLInputElement)) {
+		throw new Error("Expected Keep daily field to be an input");
+	}
+	expect(keepDailyInput.value).toBe("7");
+
+	await userEvent.clear(keepDailyInput);
+	expect(keepDailyInput.value).toBe("");
+
+	await userEvent.click(screen.getByRole("button", { name: "Update schedule" }));
+
+	await expect(submittedBody).resolves.toMatchObject({
+		retentionPolicy: {},
+	});
+});
+
+test("clears optional advanced numeric fields visually", async () => {
+	const { submittedBody } = renderEditBackupPage({
+		enabled: true,
+		cronExpression: "0 2 * * *",
+		maxRetries: 2,
+		retryDelay: 15,
+	});
+
+	await userEvent.click(await screen.findByText("Advanced"));
+
+	const maxRetriesInput = screen.getByLabelText("Maximum retries");
+	const retryDelayInput = screen.getByLabelText("Retry delay");
+	if (!(maxRetriesInput instanceof HTMLInputElement) || !(retryDelayInput instanceof HTMLInputElement)) {
+		throw new Error("Expected advanced numeric fields to be inputs");
+	}
+
+	expect(maxRetriesInput.value).toBe("2");
+	expect(retryDelayInput.value).toBe("15");
+
+	await userEvent.clear(maxRetriesInput);
+	await userEvent.clear(retryDelayInput);
+
+	expect(maxRetriesInput.value).toBe("");
+	expect(retryDelayInput.value).toBe("");
+
+	await userEvent.click(screen.getByRole("button", { name: "Update schedule" }));
+
+	const body = await submittedBody;
+	expect("maxRetries" in body).toBe(false);
+	expect("retryDelay" in body).toBe(false);
 });
 
 test("submits webhook headers and body as plain config values", async () => {

@@ -48,9 +48,14 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		postBackupWebhookUrl: schedule.backupWebhooks?.post?.url ?? "",
 		postBackupWebhookHeadersText: schedule.backupWebhooks?.post?.headers?.join("\n") ?? "",
 		postBackupWebhookBody: schedule.backupWebhooks?.post?.body ?? "",
-		maxRetries: schedule.maxRetries,
-		retryDelay: schedule.retryDelay,
+		maxRetries: schedule.maxRetries?.toString(),
+		retryDelay: schedule.retryDelay?.toString(),
 		...cronValues,
-		...schedule.retentionPolicy,
+		keepLast: schedule.retentionPolicy?.keepLast?.toString(),
+		keepHourly: schedule.retentionPolicy?.keepHourly?.toString(),
+		keepDaily: schedule.retentionPolicy?.keepDaily?.toString(),
+		keepWeekly: schedule.retentionPolicy?.keepWeekly?.toString(),
+		keepMonthly: schedule.retentionPolicy?.keepMonthly?.toString(),
+		keepYearly: schedule.retentionPolicy?.keepYearly?.toString(),
 	};
 };

@@ -39,7 +39,10 @@ export function EditBackupPage({ backupId }: { backupId: string }) {
 			formValues.cronExpression,
 		);
 
-		const retentionPolicy: Record<string, number> = {};
+		const retentionPolicy: NonNullable<typeof schedule.retentionPolicy> = {};
+		if (schedule.retentionPolicy?.keepWithinDuration) {
+			retentionPolicy.keepWithinDuration = schedule.retentionPolicy.keepWithinDuration;
+		}
 		if (formValues.keepLast) retentionPolicy.keepLast = formValues.keepLast;
 		if (formValues.keepHourly) retentionPolicy.keepHourly = formValues.keepHourly;
 		if (formValues.keepDaily) retentionPolicy.keepDaily = formValues.keepDaily;
@@ -53,16 +56,27 @@ export function EditBackupPage({ backupId }: { backupId: string }) {
 				...formValues,
 				enabled: formValues.frequency === "manual" ? false : schedule.enabled,
 				cronExpression,
-				retentionPolicy: Object.keys(retentionPolicy).length > 0 ? retentionPolicy : undefined,
+				retentionPolicy,
 			},
 		});
 	};
 
 	return (
 		<div>
-			<CreateScheduleForm volume={schedule.volume} initialValues={schedule} onSubmit={handleSubmit} formId={formId} />
+			<CreateScheduleForm
+				volume={schedule.volume}
+				initialValues={schedule}
+				onSubmit={handleSubmit}
+				formId={formId}
+			/>
 			<div className="flex justify-end mt-4 gap-2">
-				<Button type="submit" className="ml-auto" variant="primary" form={formId} loading={updateSchedule.isPending}>
+				<Button
+					type="submit"
+					className="ml-auto"
+					variant="primary"
+					form={formId}
+					loading={updateSchedule.isPending}
+				>
 					<Save className="h-4 w-4 mr-2" />
 					Update schedule
 				</Button>

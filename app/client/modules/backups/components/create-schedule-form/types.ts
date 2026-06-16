@@ -15,6 +15,15 @@ const webhookHeadersSchema = z.string().refine(
 	{ message: "Headers must use non-empty Key: Value format with valid header names" },
 );
 
+const optionalNumberInputSchema = (numberSchema: z.ZodNumber = z.number()) =>
+	z
+		.string()
+		.optional()
+		.transform((value) => (value === "" || value === undefined ? undefined : Number(value)))
+		.pipe(numberSchema.optional());
+
+const optionalRetentionCountSchema = optionalNumberInputSchema();
+
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
 	repositoryId: z.string(),
@@ -27,12 +36,12 @@ export const internalFormSchema = z.object({
 	weeklyDay: z.string().optional(),
 	monthlyDays: z.array(z.string()).optional(),
 	cronExpression: z.string().optional(),
-	keepLast: z.number().optional(),
-	keepHourly: z.number().optional(),
-	keepDaily: z.number().optional(),
-	keepWeekly: z.number().optional(),
-	keepMonthly: z.number().optional(),
-	keepYearly: z.number().optional(),
+	keepLast: optionalRetentionCountSchema,
+	keepHourly: optionalRetentionCountSchema,
+	keepDaily: optionalRetentionCountSchema,
+	keepWeekly: optionalRetentionCountSchema,
+	keepMonthly: optionalRetentionCountSchema,
+	keepYearly: optionalRetentionCountSchema,
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
 	preBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
@@ -41,8 +50,8 @@ export const internalFormSchema = z.object({
 	postBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
 	postBackupWebhookHeadersText: webhookHeadersSchema.optional(),
 	postBackupWebhookBody: z.string().optional(),
-	maxRetries: z.number().min(0).max(32).optional(),
-	retryDelay: z.number().min(1).max(1440).optional(),
+	maxRetries: optionalNumberInputSchema(z.number().min(0).max(32)),
+	retryDelay: optionalNumberInputSchema(z.number().min(1).max(1440)),
 });
 
 export const weeklyDays = [
@@ -55,13 +64,20 @@ export const weeklyDays = [
 	{ label: "Sunday", value: "0" },
 ];
 
-export type InternalFormValues = z.infer<typeof internalFormSchema>;
+export type InternalFormValues = z.input<typeof internalFormSchema>;
+export type InternalFormOutputValues = z.output<typeof internalFormSchema>;
 
 export type BackupScheduleFormValues = Omit<
-	InternalFormValues,
+	InternalFormOutputValues,
 	| "excludePatternsText"
 	| "excludeIfPresentText"
 	| "includePatterns"
+	| "keepLast"
+	| "keepHourly"
+	| "keepDaily"
+	| "keepWeekly"
+	| "keepMonthly"
+	| "keepYearly"
 	| "customResticParamsText"
 	| "preBackupWebhookUrl"
 	| "preBackupWebhookHeadersText"
@@ -75,4 +91,10 @@ export type BackupScheduleFormValues = Omit<
 	includePatterns?: string[];
 	customResticParams?: string[];
 	backupWebhooks?: BackupWebhooks | null;
+	keepLast?: number;
+	keepHourly?: number;
+	keepDaily?: number;
+	keepWeekly?: number;
+	keepMonthly?: number;
+	keepYearly?: number;
 };

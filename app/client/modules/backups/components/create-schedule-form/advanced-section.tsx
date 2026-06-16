@@ -32,7 +32,8 @@ const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, descripti
 							<Input {...field} type="url" placeholder={urlPlaceholder} />
 						</FormControl>
 						<FormDescription>
-							{description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are not followed.
+							{description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are not
+							followed.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>
@@ -67,7 +68,9 @@ const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, descripti
 						<FormControl>
 							<Textarea {...field} placeholder={bodyPlaceholder} className="font-mono text-sm min-h-24" />
 						</FormControl>
-						<FormDescription>Optional raw POST body. Leave empty to send the backup context JSON.</FormDescription>
+						<FormDescription>
+							Optional raw POST body. Leave empty to send the backup context JSON.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -93,10 +96,12 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 								max={32}
 								value={field.value ?? ""}
 								placeholder="e.g., 2"
-								onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+								onChange={(e) => field.onChange(e.target.value)}
 							/>
 						</FormControl>
-						<FormDescription>Maximum number of retry attempts if a backup fails (default: 2).</FormDescription>
+						<FormDescription>
+							Maximum number of retry attempts if a backup fails (default: 2).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -116,10 +121,12 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 								step={1}
 								placeholder="e.g., 15"
 								value={field.value ?? ""}
-								onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+								onChange={(e) => field.onChange(e.target.value)}
 							/>
 						</FormControl>
-						<FormDescription>Delay in minutes before retrying a failed backup (default: 15 minutes).</FormDescription>
+						<FormDescription>
+							Delay in minutes before retrying a failed backup (default: 15 minutes).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -153,8 +160,8 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 						</FormControl>
 						<FormDescription>
 							Advanced: enter one restic flag per line (e.g.{" "}
-							<code className="bg-muted px-1 rounded">--exclude-larger-than 500M</code>). Only the supported flag list
-							is accepted.
+							<code className="bg-muted px-1 rounded">--exclude-larger-than 500M</code>). Only the
+							supported flag list is accepted.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>
