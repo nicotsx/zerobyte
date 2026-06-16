@@ -77,10 +77,7 @@ export function PasskeysSection() {
 
 	const renamePasskeyMutation = useMutation({
 		mutationFn: async ({ id, name }: { id: string; name: string }) => {
-			const { error } = await authClient.$fetch("/passkey/update-passkey", {
-				method: "POST",
-				body: { id, name },
-			});
+			const { error } = await authClient.passkey.updatePasskey({ id, name });
 			if (error) throw error;
 		},
 		onSuccess: () => {
