@@ -24,20 +24,30 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 	const password = await cryptoUtils.deriveSecret("zerobyte:desktop-user-password");
 
 	if (!user) {
-		await auth.api.signUpEmail({
-			body: {
-				email: DESKTOP_USER_EMAIL,
-				password,
-				name: "Zerobyte",
-				username: DESKTOP_USERNAME,
-				rememberMe: false,
-				hasDownloadedResticPassword: false,
-				dateFormat,
-				timeFormat,
-			},
+		const authContext = await auth.$context;
+		const passwordHash = await authContext.password.hash(password);
+
+		await authContext.internalAdapter.createUser({
+			email: DESKTOP_USER_EMAIL,
+			name: "Zerobyte",
+			username: DESKTOP_USERNAME,
+			hasDownloadedResticPassword: false,
+			dateFormat,
+			timeFormat,
+			emailVerified: false,
 		});
 
 		user = await db.query.usersTable.findFirst({ where: { email: DESKTOP_USER_EMAIL } });
+		if (!user) {
+			throw new Error("Failed to bootstrap desktop user");
+		}
+
+		await authContext.internalAdapter.linkAccount({
+			userId: user.id,
+			providerId: "credential",
+			accountId: user.id,
+			password: passwordHash,
+		});
 	} else if (!(await verifyUserPassword({ userId: user.id, password }))) {
 		throw new UnauthorizedError("Reserved desktop user is not trusted");
 	}
