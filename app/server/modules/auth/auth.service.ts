@@ -8,9 +8,11 @@ import {
 	repositoriesTable,
 	backupSchedulesTable,
 	account,
+	apikey,
 } from "../../db/schema";
 import { eq, ne, and, count, inArray } from "drizzle-orm";
 import type { UserDeletionImpactDto } from "./auth.dto";
+import { parseApiKeyOrganizationId } from "../api-keys/api-key-metadata";
 
 class AuthService {
 	/**
@@ -237,6 +239,18 @@ class AuthService {
 					columns: { organizationId: true },
 				})
 				.sync();
+			const apiKeyIds = tx.query.apikey
+				.findMany({
+					where: { referenceId: targetMember.userId },
+					columns: { id: true, metadata: true },
+				})
+				.sync()
+				.filter((apiKey) => parseApiKeyOrganizationId(apiKey.metadata) === organizationId)
+				.map((apiKey) => apiKey.id);
+
+			if (apiKeyIds.length > 0) {
+				tx.delete(apikey).where(inArray(apikey.id, apiKeyIds)).run();
+			}
 
 			tx.delete(member).where(eq(member.id, memberId)).run();
 

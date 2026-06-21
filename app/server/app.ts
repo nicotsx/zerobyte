@@ -105,6 +105,10 @@ export const createApp = () => {
 			return c.json({ message: "API key management is only supported through API v1 routes" }, 404);
 		}
 
+		if (pathname === "/api/auth/organization/remove-member" || pathname === "/api/auth/organization/leave") {
+			return c.json({ message: "Organization member removal is only supported through API v1 routes" }, 404);
+		}
+
 		if (c.req.header("x-api-key")) {
 			return c.json({ message: "API key authentication is only supported for API v1 routes" }, 401);
 		}

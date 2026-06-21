@@ -6,6 +6,7 @@ import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
 import { account, apikey, member, organization, sessionsTable } from "~/server/db/schema";
 import { config } from "~/server/core/config";
+import { authService } from "../auth.service";
 import {
 	createTestSession,
 	createTestSessionWithGlobalAdmin,
@@ -477,6 +478,89 @@ describe("API keys", () => {
 		expect(await db.query.apikey.findMany({ where: { referenceId: session.user.id } })).toHaveLength(0);
 	});
 
+	test("does not expose Better Auth's direct organization member removal endpoints", async () => {
+		const ownerSession = await createTestSession();
+		const targetSession = await createTestSession();
+		const targetMembershipId = randomId();
+		await db.insert(member).values({
+			id: targetMembershipId,
+			organizationId: ownerSession.organizationId,
+			userId: targetSession.user.id,
+			role: "member",
+			createdAt: new Date(),
+		});
+		const targetKey = await createStoredApiKey(targetSession, ownerSession.organizationId);
+
+		const removeRes = await app.request("/api/auth/organization/remove-member", {
+			method: "POST",
+			headers: {
+				...ownerSession.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ memberIdOrEmail: targetMembershipId, organizationId: ownerSession.organizationId }),
+		});
+
+		expect(removeRes.status).toBe(404);
+		expect(await removeRes.json()).toEqual({
+			message: "Organization member removal is only supported through API v1 routes",
+		});
+
+		const targetMembership = await db.query.member.findFirst({
+			where: { id: targetMembershipId },
+			columns: { id: true },
+		});
+		expect(targetMembership).toEqual({ id: targetMembershipId });
+
+		const keyRes = await app.request("/api/v1/system/info", {
+			headers: { "x-api-key": targetKey.key },
+		});
+		expect(keyRes.status).toBe(200);
+	});
+
+	test("does not expose Better Auth's direct organization leave endpoint", async () => {
+		const memberSession = await createTestSession();
+		const ownerSession = await createTestSession();
+		await db
+			.update(member)
+			.set({ role: "member" })
+			.where(
+				and(eq(member.userId, memberSession.user.id), eq(member.organizationId, memberSession.organizationId)),
+			);
+		await db.insert(member).values({
+			id: randomId(),
+			organizationId: memberSession.organizationId,
+			userId: ownerSession.user.id,
+			role: "owner",
+			createdAt: new Date(),
+		});
+		const memberKey = await createStoredApiKey(memberSession);
+
+		const leaveRes = await app.request("/api/auth/organization/leave", {
+			method: "POST",
+			headers: {
+				...memberSession.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ organizationId: memberSession.organizationId }),
+		});
+
+		expect(leaveRes.status).toBe(404);
+		expect(await leaveRes.json()).toEqual({
+			message: "Organization member removal is only supported through API v1 routes",
+		});
+
+		const membership = await db.query.member.findFirst({
+			where: { AND: [{ userId: memberSession.user.id }, { organizationId: memberSession.organizationId }] },
+			columns: { id: true },
+		});
+		expect(membership).toBeDefined();
+
+		const keyRes = await app.request("/api/v1/system/info", {
+			headers: { "x-api-key": memberKey.key },
+		});
+		expect(keyRes.status).toBe(200);
+	});
+
 	test("does not allow API keys to download the recovery key", async () => {
 		const session = await createTestSession();
 		await addPassword(session);
@@ -512,6 +596,61 @@ describe("API keys", () => {
 
 		expect(res.status).toBe(401);
 		expect(await res.json()).toEqual({ message: "Invalid or expired session" });
+	});
+
+	test("does not reactivate old organization API keys when a removed member is re-added", async () => {
+		const session = await createTestSession();
+		await addPassword(session);
+		await db
+			.update(member)
+			.set({ role: "member" })
+			.where(and(eq(member.userId, session.user.id), eq(member.organizationId, session.organizationId)));
+		const membership = await db.query.member.findFirst({
+			where: { AND: [{ userId: session.user.id }, { organizationId: session.organizationId }] },
+			columns: { id: true },
+		});
+		if (!membership) {
+			throw new Error("Expected test membership to exist");
+		}
+
+		const removedOrgKey = await createApiKey(session);
+		const otherOrgId = randomId();
+		await db.insert(organization).values({
+			id: otherOrgId,
+			name: "Other Org",
+			slug: randomSlug("other-org"),
+			createdAt: new Date(),
+		});
+		await db.insert(member).values({
+			id: randomId(),
+			organizationId: otherOrgId,
+			userId: session.user.id,
+			role: "member",
+			createdAt: new Date(),
+		});
+		const otherOrgKey = await createStoredApiKey(session, otherOrgId);
+
+		const result = await authService.removeOrgMember(membership.id, session.organizationId);
+		expect(result).toEqual({ found: true, isOwner: false });
+
+		await db.insert(member).values({
+			id: randomId(),
+			organizationId: session.organizationId,
+			userId: session.user.id,
+			role: "member",
+			createdAt: new Date(),
+		});
+
+		const removedOrgRes = await app.request("/api/v1/system/info", {
+			headers: { "x-api-key": removedOrgKey.key },
+		});
+		expect(removedOrgRes.status).toBe(401);
+		expect(await removedOrgRes.json()).toEqual({ message: "Invalid or expired session" });
+
+		const otherOrgRes = await app.request("/api/v1/system/info", {
+			headers: { "x-api-key": otherOrgKey.key },
+		});
+		expect(otherOrgRes.status).toBe(200);
 	});
 
 	test("API keys fail after the user is removed from the bound organization", async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { db, sqlite } from "~/server/db/db";
-import { account, member, organization, sessionsTable, usersTable } from "~/server/db/schema";
+import { account, apikey, member, organization, sessionsTable, usersTable } from "~/server/db/schema";
 import {
 	createMembership,
 	createOrganization,
@@ -30,10 +30,24 @@ async function createAccount({ userId, providerId }: { userId: string; providerI
 	return id;
 }
 
+async function createApiKeyRecord({ userId, organizationId }: { userId: string; organizationId: string }) {
+	const id = randomId();
+
+	await db.insert(apikey).values({
+		id,
+		referenceId: userId,
+		key: randomSlug("api-key"),
+		metadata: JSON.stringify({ organizationId }),
+	});
+
+	return id;
+}
+
 describe("authService account and membership management", () => {
 	beforeEach(async () => {
 		dropTrigger(DELETE_USER_ACCOUNT_ROLLBACK_TRIGGER);
 		dropTrigger(REMOVE_ORG_MEMBER_ROLLBACK_TRIGGER);
+		await db.delete(apikey);
 		await db.delete(account);
 		await db.delete(member);
 		await db.delete(sessionsTable);
@@ -196,6 +210,40 @@ describe("authService account and membership management", () => {
 		expect(removedMembership).toBeUndefined();
 	});
 
+	test("removeOrgMember deletes API keys for the removed organization only", async () => {
+		const userId = await createUser(`${randomSlug("user")}@example.com`);
+		const removedOrgId = await createOrganization("Removed Org");
+		const fallbackOrgId = await createOrganization("Fallback Org");
+		const membershipId = await createMembership({
+			userId,
+			organizationId: removedOrgId,
+			role: "member",
+		});
+		await createMembership({
+			userId,
+			organizationId: fallbackOrgId,
+			role: "member",
+		});
+		const removedOrgApiKeyId = await createApiKeyRecord({ userId, organizationId: removedOrgId });
+		const fallbackOrgApiKeyId = await createApiKeyRecord({ userId, organizationId: fallbackOrgId });
+
+		const result = await authService.removeOrgMember(membershipId, removedOrgId);
+
+		expect(result).toEqual({ found: true, isOwner: false });
+
+		const removedOrgApiKey = await db.query.apikey.findFirst({
+			where: { id: removedOrgApiKeyId },
+			columns: { id: true },
+		});
+		const fallbackOrgApiKey = await db.query.apikey.findFirst({
+			where: { id: fallbackOrgApiKeyId },
+			columns: { id: true },
+		});
+
+		expect(removedOrgApiKey).toBeUndefined();
+		expect(fallbackOrgApiKey).toEqual({ id: fallbackOrgApiKeyId });
+	});
+
 	test("removeOrgMember rolls back membership removal when session reassignment fails", async () => {
 		const userId = await createUser(`${randomSlug("user")}@example.com`);
 		const removedOrgId = await createOrganization("Removed Org");
@@ -211,6 +259,7 @@ describe("authService account and membership management", () => {
 			role: "member",
 		});
 		await createSession({ userId, activeOrganizationId: removedOrgId });
+		const apiKeyId = await createApiKeyRecord({ userId, organizationId: removedOrgId });
 
 		sqlite.exec(`
 			CREATE TRIGGER ${REMOVE_ORG_MEMBER_ROLLBACK_TRIGGER}
@@ -238,9 +287,14 @@ describe("authService account and membership management", () => {
 			where: { id: membershipId },
 			columns: { id: true },
 		});
+		const apiKey = await db.query.apikey.findFirst({
+			where: { id: apiKeyId },
+			columns: { id: true },
+		});
 
 		expect(session?.activeOrganizationId).toBe(removedOrgId);
 		expect(removedMembership).toEqual({ id: membershipId });
+		expect(apiKey).toEqual({ id: apiKeyId });
 	});
 
 	test("removeOrgMember returns isOwner=true and does not remove owner membership", async () => {
@@ -251,6 +305,7 @@ describe("authService account and membership management", () => {
 			organizationId: orgId,
 			role: "owner",
 		});
+		const apiKeyId = await createApiKeyRecord({ userId, organizationId: orgId });
 
 		const result = await authService.removeOrgMember(membershipId, orgId);
 
@@ -260,8 +315,13 @@ describe("authService account and membership management", () => {
 			where: { id: membershipId },
 			columns: { id: true, role: true },
 		});
+		const existingApiKey = await db.query.apikey.findFirst({
+			where: { id: apiKeyId },
+			columns: { id: true },
+		});
 
 		expect(existingMembership).toEqual({ id: membershipId, role: "owner" });
+		expect(existingApiKey).toEqual({ id: apiKeyId });
 	});
 
 	test("removeOrgMember returns found=false for missing membership and leaves members/sessions unchanged", async () => {
@@ -279,6 +339,7 @@ describe("authService account and membership management", () => {
 			role: "member",
 		});
 		await createSession({ userId, activeOrganizationId: orgId });
+		const apiKeyId = await createApiKeyRecord({ userId, organizationId: orgId });
 
 		const membersBefore = await db.query.member.findMany({
 			where: { userId },
@@ -305,9 +366,14 @@ describe("authService account and membership management", () => {
 			where: { id: membershipId },
 			columns: { id: true },
 		});
+		const apiKeyStillExists = await db.query.apikey.findFirst({
+			where: { id: apiKeyId },
+			columns: { id: true },
+		});
 
 		expect(membersAfter).toEqual(membersBefore);
 		expect(sessionsAfter).toEqual(sessionsBefore);
 		expect(membershipStillExists).toEqual({ id: membershipId });
+		expect(apiKeyStillExists).toEqual({ id: apiKeyId });
 	});
 });

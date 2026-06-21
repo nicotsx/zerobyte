@@ -53,21 +53,21 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 									),
 									description: (
 										<>
-											<p>
+											<div>
 												When selecting a custom path, ensure it is mounted from the host machine
 												into the container.
-											</p>
-											<p className="font-medium">
+											</div>
+											<div className="font-medium">
 												If the path is not a host mount, you will lose your repository data when
 												the container restarts.
-											</p>
-											<p className="text-sm text-muted-foreground">
+											</div>
+											<div className="text-sm text-muted-foreground">
 												The default path{" "}
 												<code className="bg-muted px-1 rounded">
 													{constants.REPOSITORY_BASE}
 												</code>{" "}
 												is safe to use if you followed the recommended Docker Compose setup.
-											</p>
+											</div>
 										</>
 									),
 									continueLabel: "I Understand, Continue",

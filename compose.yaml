@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
-    container_name: zerobyte
+    container_name: zerobyte-dev
     restart: unless-stopped
     devices:
       - /dev/fuse:/dev/fuse
@@ -31,7 +31,7 @@ services:
       target: production
       args:
         - APP_VERSION=0.20.0
-    container_name: zerobyte
+    container_name: zerobyte-prod
     restart: unless-stopped
     devices:
       - /dev/fuse:/dev/fuse
@@ -55,7 +55,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: production
-    container_name: zerobyte
+    container_name: zerobyte-e2e
     restart: unless-stopped
     environment:
       - DISABLE_RATE_LIMITING=true
