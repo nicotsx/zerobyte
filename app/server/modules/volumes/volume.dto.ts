@@ -10,7 +10,7 @@ import {
 	volumeOperationResultSchema,
 } from "@zerobyte/contracts/volumes";
 
-export const volumeSchema = publicVolumeSchema;
+const volumeSchema = publicVolumeSchema;
 
 const listVolumesResponse = volumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;

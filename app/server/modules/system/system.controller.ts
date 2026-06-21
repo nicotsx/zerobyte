@@ -29,6 +29,7 @@ import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { userHasPassword, verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
+import { config } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
 import {
 	createEncryptedOrganizationConfigExport,
@@ -145,7 +146,7 @@ export const systemController = new Hono()
 			}
 
 			const resticPassword = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
-			const content = await createEncryptedOrganizationConfigExport(organizationId, resticPassword);
+			const content = await createEncryptedOrganizationConfigExport(organizationId, config.appSecret, resticPassword);
 
 			c.header("Content-Type", "text/plain");
 			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');
@@ -170,22 +171,24 @@ export const systemController = new Hono()
 		}
 
 		try {
-			const imported = await importEncryptedOrganizationConfig(
+			const result = await importEncryptedOrganizationConfig(
 				organizationId,
 				user.id,
 				body.encryptedConfig,
-				body.resticPassword,
+				body.sourceAppSecret,
 			);
 
 			return c.json<ImportConfigResponseDto>(
 				{
-					message: "Configuration imported successfully",
-					imported,
+					message:
+						result.warnings.length > 0 ? "Configuration imported with warnings" : "Configuration imported successfully",
+					imported: result.imported,
+					warnings: result.warnings,
 				},
 				200,
 			);
 		} catch (_error) {
-			return c.json({ message: "Invalid export file or Restic password" }, 400);
+			return c.json({ message: "Invalid export file or source APP_SECRET" }, 400);
 		}
 	})
 	.get("/dev-panel", getDevPanelDto, async (c) => {

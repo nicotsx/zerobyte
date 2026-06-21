@@ -1,0 +1,118 @@
+{
+	"version": 1,
+	"resticPassword": "test-restic-password",
+	"repositories": [
+		{
+			"ref": "repository:1",
+			"name": "Fixture Primary Repository",
+			"config": {
+				"backend": "rclone",
+				"remote": "fixture-primary",
+				"path": "/primary",
+				"customPassword": "encv1:1de2629f550456097de4ef9546896a7f:a2b30d1b99ea8ea813872b4b:22147b2895349bf7bb5b920d86458088e1bfed908a5c6e71:bb79f188ca8fb517ed8fc3c6088cf14f"
+			},
+			"compressionMode": "max",
+			"uploadLimit": {
+				"enabled": true,
+				"value": 100,
+				"unit": "Mbps"
+			},
+			"downloadLimit": {
+				"enabled": false,
+				"value": 5,
+				"unit": "Kbps"
+			}
+		},
+		{
+			"ref": "repository:2",
+			"name": "Fixture Mirror Repository",
+			"config": {
+				"backend": "rclone",
+				"remote": "fixture-mirror",
+				"path": "/mirror"
+			},
+			"compressionMode": "off",
+			"uploadLimit": {
+				"enabled": false,
+				"value": 5,
+				"unit": "Kbps"
+			},
+			"downloadLimit": {
+				"enabled": true,
+				"value": 9,
+				"unit": "Mbps"
+			}
+		}
+	],
+	"volumes": [
+		{
+			"ref": "volume:1",
+			"name": "Fixture Volume",
+			"config": {
+				"backend": "rclone",
+				"remote": "fixture-volume",
+				"path": "/data",
+				"readOnly": true
+			},
+			"autoRemount": false
+		}
+	],
+	"backupSchedules": [
+		{
+			"ref": "schedule:1",
+			"name": "Fixture Nightly Backup",
+			"volumeRef": "volume:1",
+			"repositoryRef": "repository:1",
+			"enabled": true,
+			"cronExpression": "0 2 * * *",
+			"retentionPolicy": {
+				"keepLast": 5,
+				"keepDaily": 2,
+				"keepWithinDuration": "30d"
+			},
+			"excludePatterns": ["*.tmp", "cache/**"],
+			"excludeIfPresent": [".nobackup"],
+			"includePaths": ["/Documents"],
+			"includePatterns": ["**/*.md"],
+			"oneFileSystem": true,
+			"customResticParams": ["--tag", "fixture"],
+			"maxRetries": 4,
+			"retryDelay": 120000,
+			"sortOrder": 8
+		}
+	],
+	"notificationDestinations": [
+		{
+			"ref": "destination:1",
+			"name": "Fixture Notification",
+			"enabled": true,
+			"config": {
+				"type": "generic",
+				"url": "https://example.com/fixture-webhook",
+				"method": "POST",
+				"contentType": "application/json",
+				"headers": ["X-Fixture: true"],
+				"useJson": true,
+				"titleKey": "title",
+				"messageKey": "message"
+			}
+		}
+	],
+	"backupScheduleMirrors": [
+		{
+			"scheduleRef": "schedule:1",
+			"repositoryRef": "repository:2",
+			"enabled": false
+		}
+	],
+	"backupScheduleNotifications": [
+		{
+			"scheduleRef": "schedule:1",
+			"destinationRef": "destination:1",
+			"notifyOnStart": true,
+			"notifyOnSuccess": false,
+			"notifyOnWarning": true,
+			"notifyOnFailure": false
+		}
+	]
+}

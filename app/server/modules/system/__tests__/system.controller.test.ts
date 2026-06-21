@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } from "~/test/helpers/auth";
@@ -19,10 +20,14 @@ import {
 import { generateShortId } from "~/server/utils/id";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
+import { decryptNotificationConfig } from "~/server/modules/notifications/notification-config-secrets";
+import { decryptRepositoryConfig } from "~/server/modules/repositories/repository-config-secrets";
+import { decryptVolumeConfig } from "~/server/modules/volumes/volume-config-secrets";
 import { config } from "~/server/core/config";
 import { PASSWORD_LOGIN_DISABLED_KEY } from "~/server/core/constants";
 
 const app = createApp();
+const configTransferFixtureSourceAppSecret = "fixture-source-app-secret-for-config-transfer-v1";
 
 let session: Awaited<ReturnType<typeof createTestSession>>;
 let globalAdminSession: Awaited<ReturnType<typeof createTestSessionWithGlobalAdmin>>;
@@ -45,6 +50,408 @@ afterEach(() => {
 	config.runtime = "server";
 	vi.restoreAllMocks();
 });
+
+const repositoryDurableFields = [
+	"name",
+	"type",
+	"config",
+	"compressionMode",
+	"uploadLimitEnabled",
+	"uploadLimitValue",
+	"uploadLimitUnit",
+	"downloadLimitEnabled",
+	"downloadLimitValue",
+	"downloadLimitUnit",
+];
+
+const repositoryIgnoredFields = [
+	"id",
+	"shortId",
+	"provisioningId",
+	"status",
+	"lastChecked",
+	"lastError",
+	"doctorResult",
+	"stats",
+	"statsUpdatedAt",
+	"createdAt",
+	"updatedAt",
+	"organizationId",
+];
+
+const volumeDurableFields = ["name", "type", "config", "autoRemount"];
+
+const volumeIgnoredFields = [
+	"agentId",
+	"id",
+	"shortId",
+	"provisioningId",
+	"status",
+	"lastError",
+	"lastHealthCheck",
+	"createdAt",
+	"updatedAt",
+	"organizationId",
+];
+
+const backupScheduleDurableFields = [
+	"name",
+	"volumeId",
+	"repositoryId",
+	"enabled",
+	"cronExpression",
+	"retentionPolicy",
+	"excludePatterns",
+	"excludeIfPresent",
+	"includePaths",
+	"includePatterns",
+	"oneFileSystem",
+	"customResticParams",
+	"backupWebhooks",
+	"sortOrder",
+	"maxRetries",
+	"retryDelay",
+];
+
+const backupScheduleIgnoredFields = [
+	"id",
+	"shortId",
+	"lastBackupAt",
+	"lastBackupStatus",
+	"lastBackupError",
+	"nextBackupAt",
+	"failureRetryCount",
+	"createdAt",
+	"updatedAt",
+	"organizationId",
+];
+
+const notificationDestinationDurableFields = ["name", "enabled", "type", "config"];
+
+const notificationDestinationIgnoredFields = [
+	"id",
+	"status",
+	"lastChecked",
+	"lastError",
+	"createdAt",
+	"updatedAt",
+	"organizationId",
+];
+
+const backupScheduleMirrorDurableFields = ["scheduleId", "repositoryId", "enabled"];
+
+const backupScheduleMirrorIgnoredFields = ["id", "lastCopyAt", "lastCopyStatus", "lastCopyError", "createdAt"];
+
+const backupScheduleNotificationDurableFields = [
+	"scheduleId",
+	"destinationId",
+	"notifyOnStart",
+	"notifyOnSuccess",
+	"notifyOnWarning",
+	"notifyOnFailure",
+];
+
+const backupScheduleNotificationIgnoredFields = ["createdAt"];
+
+const expectKnownConfigFields = (record: object, durableFields: string[], ignoredFields: string[]) => {
+	expect(Object.keys(record).sort()).toEqual([...durableFields, ...ignoredFields].sort());
+};
+
+const sortConfigRecords = <T>(items: T[]) =>
+	[...items].sort((first, second) => JSON.stringify(first).localeCompare(JSON.stringify(second)));
+
+const getMappedName = <T>(namesById: Map<T, string>, id: T, label: string) => {
+	const name = namesById.get(id);
+
+	if (!name) {
+		throw new Error(`Expected ${label} ${String(id)} to be present`);
+	}
+
+	return name;
+};
+
+const createCompleteDurableConfiguration = async (organizationId: string) => {
+	const [volume] = await db
+		.insert(volumesTable)
+		.values({
+			shortId: generateShortId(),
+			name: "Parity Volume",
+			type: "rclone",
+			config: { backend: "rclone", remote: "parity-volume", path: "/source", readOnly: true },
+			status: "mounted",
+			lastError: "stale volume error",
+			lastHealthCheck: 111,
+			autoRemount: false,
+			organizationId,
+		})
+		.returning();
+
+	const [primaryRepository] = await db
+		.insert(repositoriesTable)
+		.values({
+			id: crypto.randomUUID(),
+			shortId: generateShortId(),
+			name: "Parity Primary Repository",
+			type: "s3",
+			config: {
+				backend: "s3",
+				endpoint: "https://s3.example.test",
+				bucket: "parity-primary",
+				accessKeyId: "parity-access-key",
+				secretAccessKey: "parity-secret-key",
+				customPassword: "parity-repository-password",
+				cacert: "parity-ca-cert",
+				insecureTls: true,
+				isExistingRepository: true,
+			},
+			compressionMode: "max",
+			status: "error",
+			lastChecked: 222,
+			lastError: "stale repository error",
+			uploadLimitEnabled: true,
+			uploadLimitValue: 123,
+			uploadLimitUnit: "Mbps",
+			downloadLimitEnabled: true,
+			downloadLimitValue: 45,
+			downloadLimitUnit: "Kbps",
+			organizationId,
+		})
+		.returning();
+
+	const [mirrorRepository] = await db
+		.insert(repositoriesTable)
+		.values({
+			id: crypto.randomUUID(),
+			shortId: generateShortId(),
+			name: "Parity Mirror Repository",
+			type: "rclone",
+			config: {
+				backend: "rclone",
+				remote: "parity-mirror",
+				path: "/copy",
+				customPassword: "parity-mirror-password",
+			},
+			compressionMode: "off",
+			status: "healthy",
+			uploadLimitEnabled: false,
+			uploadLimitValue: 7,
+			uploadLimitUnit: "Gbps",
+			downloadLimitEnabled: true,
+			downloadLimitValue: 8,
+			downloadLimitUnit: "Mbps",
+			organizationId,
+		})
+		.returning();
+
+	const [schedule] = await db
+		.insert(backupSchedulesTable)
+		.values({
+			shortId: generateShortId(),
+			name: "Parity Schedule",
+			volumeId: volume.id,
+			repositoryId: primaryRepository.id,
+			enabled: true,
+			cronExpression: "*/15 * * * *",
+			retentionPolicy: {
+				keepLast: 11,
+				keepHourly: 12,
+				keepDaily: 13,
+				keepWeekly: 14,
+				keepMonthly: 15,
+				keepYearly: 16,
+				keepWithinDuration: "90d",
+			},
+			excludePatterns: ["*.tmp", "cache/**"],
+			excludeIfPresent: [".nobackup", ".skip-backup"],
+			includePaths: ["/Documents", "/Pictures"],
+			includePatterns: ["**/*.md", "**/*.jpg"],
+			lastBackupAt: 333,
+			lastBackupStatus: "warning",
+			lastBackupError: "stale schedule error",
+			nextBackupAt: 444,
+			oneFileSystem: true,
+			customResticParams: ["--tag", "parity"],
+			backupWebhooks: {
+				pre: {
+					url: "https://hooks.example.test/pre",
+					headers: ["Authorization: Bearer pre-token"],
+					body: '{"phase":"pre"}',
+				},
+				post: {
+					url: "https://hooks.example.test/post",
+				},
+			},
+			sortOrder: 17,
+			failureRetryCount: 5,
+			maxRetries: 6,
+			retryDelay: 75_000,
+			organizationId,
+		})
+		.returning();
+
+	const [destination] = await db
+		.insert(notificationDestinationsTable)
+		.values({
+			name: "Parity Notification",
+			enabled: false,
+			type: "slack",
+			config: {
+				type: "slack",
+				webhookUrl: "https://hooks.slack.example.test/parity",
+				username: "Zerobyte",
+				iconEmoji: ":floppy_disk:",
+			},
+			organizationId,
+		})
+		.returning();
+
+	await db.insert(backupScheduleMirrorsTable).values({
+		scheduleId: schedule.id,
+		repositoryId: mirrorRepository.id,
+		enabled: false,
+		lastCopyAt: 555,
+		lastCopyStatus: "in_progress",
+		lastCopyError: "stale copy error",
+	});
+
+	await db.insert(backupScheduleNotificationsTable).values({
+		scheduleId: schedule.id,
+		destinationId: destination.id,
+		notifyOnStart: true,
+		notifyOnSuccess: false,
+		notifyOnWarning: true,
+		notifyOnFailure: false,
+	});
+};
+
+const loadNormalizedConfigState = async (organizationId: string) => {
+	const [repositories, volumes, backupSchedules, notificationDestinations] = await Promise.all([
+		db.query.repositoriesTable.findMany({ where: { organizationId } }),
+		db.query.volumesTable.findMany({ where: { organizationId } }),
+		db.query.backupSchedulesTable.findMany({ where: { organizationId } }),
+		db.query.notificationDestinationsTable.findMany({ where: { organizationId } }),
+	]);
+
+	const scheduleIds = backupSchedules.map((schedule) => schedule.id);
+	const [backupScheduleMirrors, backupScheduleNotifications] =
+		scheduleIds.length === 0
+			? [[], []]
+			: await Promise.all([
+					db.query.backupScheduleMirrorsTable.findMany({ where: { scheduleId: { in: scheduleIds } } }),
+					db.query.backupScheduleNotificationsTable.findMany({ where: { scheduleId: { in: scheduleIds } } }),
+				]);
+
+	for (const repository of repositories) {
+		expectKnownConfigFields(repository, repositoryDurableFields, repositoryIgnoredFields);
+	}
+
+	for (const volume of volumes) {
+		expectKnownConfigFields(volume, volumeDurableFields, volumeIgnoredFields);
+	}
+
+	for (const schedule of backupSchedules) {
+		expectKnownConfigFields(schedule, backupScheduleDurableFields, backupScheduleIgnoredFields);
+	}
+
+	for (const destination of notificationDestinations) {
+		expectKnownConfigFields(destination, notificationDestinationDurableFields, notificationDestinationIgnoredFields);
+	}
+
+	for (const mirror of backupScheduleMirrors) {
+		expectKnownConfigFields(mirror, backupScheduleMirrorDurableFields, backupScheduleMirrorIgnoredFields);
+	}
+
+	for (const notification of backupScheduleNotifications) {
+		expectKnownConfigFields(
+			notification,
+			backupScheduleNotificationDurableFields,
+			backupScheduleNotificationIgnoredFields,
+		);
+	}
+
+	const volumeNamesById = new Map(volumes.map((volume) => [volume.id, volume.name]));
+	const repositoryNamesById = new Map(repositories.map((repository) => [repository.id, repository.name]));
+	const scheduleNamesById = new Map(backupSchedules.map((schedule) => [schedule.id, schedule.name]));
+	const destinationNamesById = new Map(
+		notificationDestinations.map((destination) => [destination.id, destination.name]),
+	);
+
+	return {
+		repositories: sortConfigRecords(
+			await Promise.all(
+				repositories.map(async (repository) => ({
+					name: repository.name,
+					type: repository.type,
+					config: await decryptRepositoryConfig(repository.config),
+					compressionMode: repository.compressionMode,
+					uploadLimitEnabled: repository.uploadLimitEnabled,
+					uploadLimitValue: repository.uploadLimitValue,
+					uploadLimitUnit: repository.uploadLimitUnit,
+					downloadLimitEnabled: repository.downloadLimitEnabled,
+					downloadLimitValue: repository.downloadLimitValue,
+					downloadLimitUnit: repository.downloadLimitUnit,
+				})),
+			),
+		),
+		volumes: sortConfigRecords(
+			await Promise.all(
+				volumes.map(async (volume) => ({
+					name: volume.name,
+					type: volume.type,
+					config: await decryptVolumeConfig(volume.config),
+					autoRemount: volume.autoRemount,
+				})),
+			),
+		),
+		backupSchedules: sortConfigRecords(
+			backupSchedules.map((schedule) => ({
+				name: schedule.name,
+				volumeName: getMappedName(volumeNamesById, schedule.volumeId, "volume"),
+				repositoryName: getMappedName(repositoryNamesById, schedule.repositoryId, "repository"),
+				enabled: schedule.enabled,
+				cronExpression: schedule.cronExpression,
+				retentionPolicy: schedule.retentionPolicy,
+				excludePatterns: schedule.excludePatterns,
+				excludeIfPresent: schedule.excludeIfPresent,
+				includePaths: schedule.includePaths,
+				includePatterns: schedule.includePatterns,
+				oneFileSystem: schedule.oneFileSystem,
+				customResticParams: schedule.customResticParams,
+				backupWebhooks: schedule.backupWebhooks,
+				sortOrder: schedule.sortOrder,
+				maxRetries: schedule.maxRetries,
+				retryDelay: schedule.retryDelay,
+			})),
+		),
+		notificationDestinations: sortConfigRecords(
+			await Promise.all(
+				notificationDestinations.map(async (destination) => ({
+					name: destination.name,
+					enabled: destination.enabled,
+					type: destination.type,
+					config: await decryptNotificationConfig(destination.config),
+				})),
+			),
+		),
+		backupScheduleMirrors: sortConfigRecords(
+			backupScheduleMirrors.map((mirror) => ({
+				scheduleName: getMappedName(scheduleNamesById, mirror.scheduleId, "backup schedule"),
+				repositoryName: getMappedName(repositoryNamesById, mirror.repositoryId, "repository"),
+				enabled: mirror.enabled,
+			})),
+		),
+		backupScheduleNotifications: sortConfigRecords(
+			backupScheduleNotifications.map((notification) => ({
+				scheduleName: getMappedName(scheduleNamesById, notification.scheduleId, "backup schedule"),
+				destinationName: getMappedName(destinationNamesById, notification.destinationId, "notification destination"),
+				notifyOnStart: notification.notifyOnStart,
+				notifyOnSuccess: notification.notifyOnSuccess,
+				notifyOnWarning: notification.notifyOnWarning,
+				notifyOnFailure: notification.notifyOnFailure,
+			})),
+		),
+	};
+};
 
 describe("system security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
@@ -387,6 +794,168 @@ describe("system security", () => {
 	});
 
 	describe("configuration transfer", () => {
+		test("should import released v1 configuration fixture", async () => {
+			const encryptedConfig = (
+				await readFile(new URL("../__fixtures__/config-transfer/v1-full.zbex", import.meta.url), "utf8")
+			).trim();
+			const plaintextPayload = JSON.parse(
+				await readFile(new URL("../__fixtures__/config-transfer/v1-full.payload.json", import.meta.url), "utf8"),
+			);
+			const decryptedPayload = JSON.parse(
+				await cryptoUtils.decryptWithSecret(encryptedConfig, {
+					prefix: "zbcfg:",
+					secret: configTransferFixtureSourceAppSecret,
+				}),
+			);
+			const targetSession = await createTestSession();
+
+			expect(decryptedPayload).toEqual(plaintextPayload);
+
+			const importRes = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...targetSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					encryptedConfig,
+					sourceAppSecret: configTransferFixtureSourceAppSecret,
+				}),
+			});
+
+			expect(importRes.status).toBe(200);
+			expect(await importRes.json()).toEqual({
+				message: "Configuration imported successfully",
+				imported: {
+					repositories: plaintextPayload.repositories.length,
+					volumes: plaintextPayload.volumes.length,
+					backupSchedules: plaintextPayload.backupSchedules.length,
+					notificationDestinations: plaintextPayload.notificationDestinations.length,
+					backupScheduleMirrors: plaintextPayload.backupScheduleMirrors.length,
+					backupScheduleNotifications: plaintextPayload.backupScheduleNotifications.length,
+				},
+				warnings: [],
+			});
+
+			const normalizedConfig = await loadNormalizedConfigState(targetSession.organizationId);
+			expect(normalizedConfig.repositories).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						name: "Fixture Primary Repository",
+						config: expect.objectContaining({ backend: "rclone", customPassword: "fixture-primary-password" }),
+						compressionMode: "max",
+						uploadLimitEnabled: true,
+						uploadLimitValue: 100,
+						downloadLimitEnabled: false,
+					}),
+					expect.objectContaining({
+						name: "Fixture Mirror Repository",
+						compressionMode: "off",
+						downloadLimitEnabled: true,
+						downloadLimitValue: 9,
+					}),
+				]),
+			);
+			expect(normalizedConfig.volumes).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						name: "Fixture Volume",
+						config: { backend: "rclone", remote: "fixture-volume", path: "/data", readOnly: true },
+						autoRemount: false,
+					}),
+				]),
+			);
+			expect(normalizedConfig.backupSchedules).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						name: "Fixture Nightly Backup",
+						volumeName: "Fixture Volume",
+						repositoryName: "Fixture Primary Repository",
+						enabled: true,
+						retentionPolicy: { keepLast: 5, keepDaily: 2, keepWithinDuration: "30d" },
+						oneFileSystem: true,
+						customResticParams: ["--tag", "fixture"],
+					}),
+				]),
+			);
+			expect(normalizedConfig.notificationDestinations).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						name: "Fixture Notification",
+						enabled: true,
+						type: "generic",
+					}),
+				]),
+			);
+			expect(normalizedConfig.backupScheduleMirrors).toEqual([
+				{ scheduleName: "Fixture Nightly Backup", repositoryName: "Fixture Mirror Repository", enabled: false },
+			]);
+			expect(normalizedConfig.backupScheduleNotifications).toEqual([
+				{
+					scheduleName: "Fixture Nightly Backup",
+					destinationName: "Fixture Notification",
+					notifyOnStart: true,
+					notifyOnSuccess: false,
+					notifyOnWarning: true,
+					notifyOnFailure: false,
+				},
+			]);
+
+			const importedRepositories = await db.query.repositoriesTable.findMany({
+				where: { organizationId: targetSession.organizationId },
+			});
+			const importedVolume = await db.query.volumesTable.findFirst({
+				where: { organizationId: targetSession.organizationId },
+			});
+			const importedSchedule = await db.query.backupSchedulesTable.findFirst({
+				where: { organizationId: targetSession.organizationId },
+			});
+
+			expect(importedRepositories.every((repository) => repository.status === "unknown")).toBe(true);
+			expect(importedRepositories.every((repository) => repository.lastChecked === null)).toBe(true);
+			expect(importedVolume?.status).toBe("unmounted");
+			expect(importedVolume?.lastError).toBeNull();
+			expect(importedSchedule?.lastBackupAt).toBeNull();
+			expect(importedSchedule?.lastBackupStatus).toBeNull();
+			expect(importedSchedule?.lastBackupError).toBeNull();
+			expect(importedSchedule?.failureRetryCount).toBe(0);
+			expect(importedSchedule?.nextBackupAt).toBeGreaterThan(Date.now());
+
+			const targetOrg = await db.query.organization.findFirst({ where: { id: targetSession.organizationId } });
+			expect(targetOrg?.metadata?.resticPassword).toBeDefined();
+			expect(await cryptoUtils.resolveSecret(targetOrg?.metadata?.resticPassword ?? "")).toBe("test-restic-password");
+		});
+
+		test("should preserve current durable configuration fields on round trip", async () => {
+			const sourceSession = await createTestSession();
+			await createCompleteDurableConfiguration(sourceSession.organizationId);
+			const sourceConfig = await loadNormalizedConfigState(sourceSession.organizationId);
+
+			const exportRes = await app.request("/api/v1/system/config-export", {
+				method: "POST",
+				headers: sourceSession.headers,
+			});
+
+			expect(exportRes.status).toBe(200);
+			const encryptedConfig = await exportRes.text();
+			const targetSession = await createTestSession();
+
+			const importRes = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...targetSession.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					encryptedConfig,
+					sourceAppSecret: config.appSecret,
+				}),
+			});
+
+			expect(importRes.status).toBe(200);
+			expect(await loadNormalizedConfigState(targetSession.organizationId)).toEqual(sourceConfig);
+		});
+
 		test("should export and import encrypted organization configuration", async () => {
 			const sourceSession = await createTestSession();
 
@@ -404,6 +973,10 @@ describe("system security", () => {
 					organizationId: sourceSession.organizationId,
 				})
 				.returning();
+			const sealedSourceRepositoryPassword = await cryptoUtils.encryptWithSecret("source-repository-password", {
+				prefix: "encv1:",
+				secret: config.appSecret,
+			});
 
 			const [sourceRepository] = await db
 				.insert(repositoriesTable)
@@ -412,7 +985,11 @@ describe("system security", () => {
 					shortId: generateShortId(),
 					name: "Source Repository",
 					type: "local",
-					config: { backend: "local", path: "/tmp/source-repository" },
+					config: {
+						backend: "local",
+						path: "/tmp/source-repository",
+						customPassword: sealedSourceRepositoryPassword,
+					},
 					compressionMode: "max",
 					status: "error",
 					lastChecked: 456,
@@ -457,6 +1034,7 @@ describe("system security", () => {
 					includePatterns: ["**/*.txt"],
 					oneFileSystem: false,
 					customResticParams: ["--json"],
+					backupWebhooks: { pre: null, post: null },
 					lastBackupAt: 789,
 					lastBackupStatus: "in_progress",
 					lastBackupError: "stale schedule error",
@@ -510,15 +1088,22 @@ describe("system security", () => {
 			expect(exportRes.status).toBe(200);
 			const encryptedConfig = await exportRes.text();
 			expect(encryptedConfig.startsWith("zbcfg:")).toBe(true);
+			await expect(
+				cryptoUtils.decryptWithSecret(encryptedConfig, {
+					prefix: "zbcfg:",
+					secret: "test-restic-password",
+				}),
+			).rejects.toThrow();
 
 			const decryptedPayload = JSON.parse(
 				await cryptoUtils.decryptWithSecret(encryptedConfig, {
 					prefix: "zbcfg:",
-					secret: "test-restic-password",
+					secret: config.appSecret,
 				}),
 			);
 
-			expect(decryptedPayload.version).toBe(2);
+			expect(decryptedPayload.version).toBe(1);
+			expect(decryptedPayload.resticPassword).toBe("test-restic-password");
 
 			const exportedRepository = decryptedPayload.repositories.find(
 				(repository: { name: string }) => repository.name === "Source Repository",
@@ -533,6 +1118,8 @@ describe("system security", () => {
 			expect(exportedRepository).not.toHaveProperty("id");
 			expect(exportedRepository).not.toHaveProperty("shortId");
 			expect(exportedRepository).not.toHaveProperty("status");
+			expect(exportedRepository.config.customPassword).toBe(sealedSourceRepositoryPassword);
+			expect(exportedRepository.config.customPassword).not.toBe("source-repository-password");
 
 			const exportedSchedule = decryptedPayload.backupSchedules.find(
 				(schedule: { name: string }) => schedule.name === "Source Schedule",
@@ -542,6 +1129,7 @@ describe("system security", () => {
 				volumeRef: expect.any(String),
 				repositoryRef: expect.any(String),
 				retryDelay: 15 * 60 * 1000,
+				backupWebhooks: { pre: null, post: null },
 				sortOrder: 4,
 			});
 			expect(exportedSchedule).not.toHaveProperty("id");
@@ -586,10 +1174,20 @@ describe("system security", () => {
 				},
 				body: JSON.stringify({
 					encryptedConfig,
-					resticPassword: "test-restic-password",
+					sourceAppSecret: config.appSecret,
 				}),
 			});
 			expect(importRes.status).toBe(200);
+			const importBody = await importRes.json();
+			expect(importBody.message).toBe("Configuration imported with warnings");
+			expect(importBody.warnings).toEqual(
+				expect.arrayContaining([
+					'Volume "Source Volume" uses local directory path "/tmp/source-volume". Verify this path on this server before using it.',
+					'Repository "Source Repository" uses local path "/tmp/source-repository". Verify that this repository exists on this server before using it.',
+					'Repository "Mirror Repository" uses local path "/tmp/mirror-repository". Verify that this repository exists on this server before using it.',
+					'Disabled schedule "Source Schedule" because it references volume "Source Volume", repository "Source Repository", and repository "Mirror Repository". Re-enable it after validating those imported paths on this server.',
+				]),
+			);
 
 			const importedRepositories = await db.query.repositoriesTable.findMany({
 				where: { organizationId: targetSession.organizationId },
@@ -659,6 +1257,9 @@ describe("system security", () => {
 			expect(importedSourceRepository.uploadLimitValue).toBe(42);
 			expect(importedSourceRepository.downloadLimitEnabled).toBe(true);
 			expect(importedSourceRepository.downloadLimitValue).toBe(21);
+			expect(await decryptRepositoryConfig(importedSourceRepository.config)).toMatchObject({
+				customPassword: "source-repository-password",
+			});
 
 			expect(importedVolume).toMatchObject({
 				name: "Source Volume",
@@ -671,6 +1272,7 @@ describe("system security", () => {
 				name: "Source Schedule",
 				volumeId: importedVolume.id,
 				repositoryId: importedSourceRepository.id,
+				enabled: false,
 				retentionPolicy: { keepLast: 7 },
 				excludePatterns: [".DS_Store"],
 				excludeIfPresent: [".nobackup"],
@@ -727,7 +1329,7 @@ describe("system security", () => {
 				},
 				body: JSON.stringify({
 					encryptedConfig: "zbcfgv1:invalid",
-					resticPassword: "test-restic-password",
+					sourceAppSecret: config.appSecret,
 				}),
 			});
 
@@ -736,7 +1338,7 @@ describe("system security", () => {
 			expect(body.message).toBe("Configuration import is only available during onboarding");
 		});
 
-		test("should return 400 for invalid restic password on config-import", async () => {
+		test("should return 400 for invalid source APP_SECRET on config-import", async () => {
 			const sourceSession = await createTestSession();
 			const exportRes = await app.request("/api/v1/system/config-export", {
 				method: "POST",
@@ -755,13 +1357,13 @@ describe("system security", () => {
 				},
 				body: JSON.stringify({
 					encryptedConfig,
-					resticPassword: "wrong-password",
+					sourceAppSecret: "wrong-source-app-secret",
 				}),
 			});
 
 			expect(importRes.status).toBe(400);
 			const body = await importRes.json();
-			expect(body.message).toBe("Invalid export file or Restic password");
+			expect(body.message).toBe("Invalid export file or source APP_SECRET");
 		});
 	});
 });

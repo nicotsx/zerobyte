@@ -85,7 +85,7 @@ export const downloadResticPasswordDto = describeRoute({
 });
 
 export const exportConfigDto = describeRoute({
-	description: "Export encrypted organization configuration using the organization's Restic password",
+	description: "Export encrypted organization configuration for recovery with the source instance APP_SECRET",
 	tags: ["System"],
 	operationId: "exportConfig",
 	responses: {
@@ -102,7 +102,7 @@ export const exportConfigDto = describeRoute({
 
 export const importConfigBodySchema = z.object({
 	encryptedConfig: z.string().min(1),
-	resticPassword: z.string().min(1),
+	sourceAppSecret: z.string().min(1),
 });
 
 export const importConfigResponse = z.object({
@@ -115,12 +115,13 @@ export const importConfigResponse = z.object({
 		backupScheduleMirrors: z.number(),
 		backupScheduleNotifications: z.number(),
 	}),
+	warnings: z.array(z.string()),
 });
 
 export type ImportConfigResponseDto = z.infer<typeof importConfigResponse>;
 
 export const importConfigDto = describeRoute({
-	description: "Import an encrypted organization configuration during onboarding",
+	description: "Import an encrypted organization configuration during onboarding using the source instance APP_SECRET",
 	tags: ["System"],
 	operationId: "importConfig",
 	responses: {

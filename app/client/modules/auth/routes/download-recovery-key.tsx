@@ -32,7 +32,7 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 	const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
 	const isDesktopRuntime = runtime === "desktop";
 	const [importFile, setImportFile] = useState<File | null>(null);
-	const [importResticPassword, setImportResticPassword] = useState("");
+	const [sourceAppSecret, setSourceAppSecret] = useState("");
 
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
@@ -56,8 +56,15 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 
 	const importConfig = useMutation({
 		...importConfigMutation(),
-		onSuccess: () => {
-			toast.success("Configuration imported successfully!");
+		onSuccess: (data) => {
+			if (data.warnings.length > 0) {
+				toast.warning("Configuration imported with warnings", {
+					description: data.warnings.join("\n"),
+				});
+			} else {
+				toast.success("Configuration imported successfully!");
+			}
+
 			void navigate({ to: "/volumes", replace: true });
 		},
 		onError: (error) => {
@@ -94,8 +101,8 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 			return;
 		}
 
-		if (!importResticPassword) {
-			toast.error("Restic password is required");
+		if (!sourceAppSecret) {
+			toast.error("Source APP_SECRET is required");
 			return;
 		}
 
@@ -104,7 +111,7 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 		importConfig.mutate({
 			body: {
 				encryptedConfig,
-				resticPassword: importResticPassword,
+				sourceAppSecret,
 			},
 		});
 	};
@@ -185,7 +192,9 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 				<div className="space-y-1">
 					<h2 className="text-sm font-medium">Or import a previous configuration</h2>
 					<p className="text-xs text-muted-foreground">
-						Use an encrypted export file from another Zerobyte instance and your previous Restic password.
+						Use an encrypted export file from another Zerobyte instance and its source APP_SECRET. Imported local
+						directory volumes and local repositories will require review, and dependent schedules will stay disabled
+						until you validate those paths on this server.
 					</p>
 				</div>
 
@@ -203,13 +212,13 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 				</div>
 
 				<div className="space-y-2">
-					<Label htmlFor="import-restic-password">Previous Restic password</Label>
+					<Label htmlFor="source-app-secret">Source APP_SECRET</Label>
 					<Input
-						id="import-restic-password"
+						id="source-app-secret"
 						type="password"
-						value={importResticPassword}
-						onChange={(e) => setImportResticPassword(e.target.value)}
-						placeholder="Enter your previous Restic password"
+						value={sourceAppSecret}
+						onChange={(e) => setSourceAppSecret(e.target.value)}
+						placeholder="Enter the source APP_SECRET"
 						required
 						disabled={importConfig.isPending}
 					/>
