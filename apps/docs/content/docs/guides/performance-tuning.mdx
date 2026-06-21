@@ -50,7 +50,7 @@ Example faster schedule for a local NVMe source:
 
 The standard Go environment variable `GOMAXPROCS` limits how many operating system threads can execute Go code at the same time. Add it to the Zerobyte container environment:
 
-```yaml docker-compose.yml
+```yaml compose.yaml
 services:
   zerobyte:
     environment:

@@ -61,8 +61,8 @@ jobs:
 
       - name: Check CLI version
         run: |
-          expected_version=$(docker exec zerobyte printenv APP_VERSION)
-          cli_version=$(docker exec zerobyte bun run --silent cli --version)
+          expected_version=$(docker exec zerobyte-e2e printenv APP_VERSION)
+          cli_version=$(docker exec zerobyte-e2e bun run --silent cli --version)
           echo "$cli_version"
           test "$cli_version" = "$expected_version"
 
@@ -94,7 +94,7 @@ jobs:
       - name: Debug - print content of /test-data in container
         if: failure()
         run: |
-          docker exec zerobyte /bin/ash -c "ls -la /test-data" || true
+          docker exec zerobyte-e2e /bin/ash -c "ls -la /test-data" || true
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()

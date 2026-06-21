@@ -114,8 +114,8 @@ export const FolderSelector = ({
 							<AlertDialogTitle className="flex items-center gap-2">
 								{webBrowser.warning.title}
 							</AlertDialogTitle>
-							<AlertDialogDescription className="space-y-3">
-								{webBrowser.warning.description}
+							<AlertDialogDescription asChild>
+								<div className="space-y-3">{webBrowser.warning.description}</div>
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<AlertDialogFooter>
