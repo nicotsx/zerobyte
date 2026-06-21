@@ -393,21 +393,25 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		{ autoLinkingEnabled: true, autoLinkingLabel: "enabled" },
 	] as const;
 
-	test("allows linking for a user who is already a member of the org", async () => {
-		const { orgId } = await setupOrgWithProvider("oidc-acme");
-		const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
-		await db.insert(member).values({
-			id: randomId(),
-			userId,
-			organizationId: orgId,
-			role: "member",
-			createdAt: new Date(),
-		});
+	test.each(autoLinkingCases)(
+		"allows linking for an existing organization member only when auto-linking is $autoLinkingLabel",
+		async ({ autoLinkingEnabled }) => {
+			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
+			const { orgId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
+			const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+			await db.insert(member).values({
+				id: randomId(),
+				userId,
+				organizationId: orgId,
+				role: "member",
+				createdAt: new Date(),
+			});
 
-		const allowed = await ssoIntegration.canLinkSsoAccount(userId, "oidc-acme", null);
+			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId, null);
 
-		expect(allowed).toBe(true);
-	});
+			expect(allowed).toBe(autoLinkingEnabled);
+		},
+	);
 
 	test.each(autoLinkingCases)(
 		"allows linking for a new SSO user with a valid pending invitation (auto-linking $autoLinkingLabel)",
