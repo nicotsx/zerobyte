@@ -588,12 +588,12 @@ export const setPasswordLoginStatus = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Export encrypted organization configuration using the organization's Restic password
+ * Export encrypted organization configuration for recovery with the source instance APP_SECRET
  */
 export const exportConfig = <ThrowOnError extends boolean = false>(options?: Options<ExportConfigData, ThrowOnError>): RequestResult<ExportConfigResponses, unknown, ThrowOnError> => (options?.client ?? client).post<ExportConfigResponses, unknown, ThrowOnError>({ url: '/api/v1/system/config-export', ...options });
 
 /**
- * Import an encrypted organization configuration during onboarding
+ * Import an encrypted organization configuration during onboarding using the source instance APP_SECRET
  */
 export const importConfig = <ThrowOnError extends boolean = false>(options: Options<ImportConfigData, ThrowOnError>): RequestResult<ImportConfigResponses, unknown, ThrowOnError> => (options.client ?? client).post<ImportConfigResponses, unknown, ThrowOnError>({
     url: '/api/v1/system/config-import',

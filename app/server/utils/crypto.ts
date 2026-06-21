@@ -129,6 +129,14 @@ const decrypt = async (encryptedData: string) => {
 	});
 };
 
+const resolveSecretWithSecret = async (value: string, secret: string): Promise<string> => {
+	return decryptWithSecret(value, {
+		passthroughIfNotEncrypted: true,
+		prefix: encryptionPrefix,
+		secret,
+	});
+};
+
 /**
  * Resolves secret references and encrypted database values.
  */
@@ -174,6 +182,7 @@ function timingSafeEqualString(provided: string, expected: string): boolean {
 export const cryptoUtils = {
 	decryptWithSecret,
 	encryptWithSecret,
+	resolveSecretWithSecret,
 	resolveSecret,
 	sealSecret,
 	sealOptionalSecret,

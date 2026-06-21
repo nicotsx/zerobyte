@@ -512,7 +512,7 @@ export function SettingsPage({
 									/>
 									<p className="text-sm text-muted-foreground max-w-2xl pt-2">
 										Download an encrypted export of your organization configuration. You can import it during onboarding
-										on a new Zerobyte instance with your existing Restic password.
+										on a new Zerobyte instance with the source instance APP_SECRET.
 									</p>
 									<Button variant="outline" onClick={() => exportConfig.mutate({})} loading={exportConfig.isPending}>
 										<Download className="h-4 w-4 mr-2" />

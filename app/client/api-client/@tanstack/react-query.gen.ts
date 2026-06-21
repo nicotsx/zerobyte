@@ -1501,7 +1501,7 @@ export const setPasswordLoginStatusMutation = (options?: Partial<Options<SetPass
 };
 
 /**
- * Export encrypted organization configuration using the organization's Restic password
+ * Export encrypted organization configuration for recovery with the source instance APP_SECRET
  */
 export const exportConfigMutation = (options?: Partial<Options<ExportConfigData>>): UseMutationOptions<ExportConfigResponse, DefaultError, Options<ExportConfigData>> => {
     const mutationOptions: UseMutationOptions<ExportConfigResponse, DefaultError, Options<ExportConfigData>> = {
@@ -1518,7 +1518,7 @@ export const exportConfigMutation = (options?: Partial<Options<ExportConfigData>
 };
 
 /**
- * Import an encrypted organization configuration during onboarding
+ * Import an encrypted organization configuration during onboarding using the source instance APP_SECRET
  */
 export const importConfigMutation = (options?: Partial<Options<ImportConfigData>>): UseMutationOptions<ImportConfigResponse, DefaultError, Options<ImportConfigData>> => {
     const mutationOptions: UseMutationOptions<ImportConfigResponse, DefaultError, Options<ImportConfigData>> = {

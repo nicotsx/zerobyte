@@ -5215,7 +5215,7 @@ export type ExportConfigResponse = ExportConfigResponses[keyof ExportConfigRespo
 export type ImportConfigData = {
     body: {
         encryptedConfig: string;
-        resticPassword: string;
+        sourceAppSecret: string;
     };
     path?: never;
     query?: never;
@@ -5236,6 +5236,7 @@ export type ImportConfigResponses = {
             backupScheduleMirrors: number;
             backupScheduleNotifications: number;
         };
+        warnings: Array<string>;
     };
 };
 

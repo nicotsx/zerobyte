@@ -1,8 +1,4 @@
-import { BANDWIDTH_UNITS, COMPRESSION_MODES, repositoryConfigSchema } from "@zerobyte/core/restic";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
-import { notificationConfigSchema } from "~/schemas/notifications";
-import { volumeConfigSchema } from "~/schemas/volumes";
 import { db } from "~/server/db/db";
 import {
 	backupScheduleMirrorsTable,
@@ -16,116 +12,45 @@ import {
 } from "~/server/db/schema";
 import { calculateNextRun } from "~/server/modules/backups/backup.helpers";
 import {
-	decryptNotificationConfig,
-	encryptNotificationConfig,
-} from "~/server/modules/notifications/notification-config-secrets";
-import {
-	decryptRepositoryConfig,
-	encryptRepositoryConfig,
-} from "~/server/modules/repositories/repository-config-secrets";
-import { decryptVolumeConfig, encryptVolumeConfig } from "~/server/modules/volumes/volume-config-secrets";
+	parseConfigTransferPayload,
+	parseCurrentConfigTransferPayload,
+} from "~/server/modules/system/config-transfer/payload";
+import { mapNotificationConfigSecrets } from "~/server/modules/notifications/notification-config-secrets";
+import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
+import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { generateShortId } from "~/server/utils/id";
-
-const transferRefSchema = z.string().min(1);
-
-const retentionPolicySchema = z.object({
-	keepLast: z.number().optional(),
-	keepHourly: z.number().optional(),
-	keepDaily: z.number().optional(),
-	keepWeekly: z.number().optional(),
-	keepMonthly: z.number().optional(),
-	keepYearly: z.number().optional(),
-	keepWithinDuration: z.string().optional(),
-});
-
-const bandwidthLimitSchema = z.object({
-	enabled: z.boolean(),
-	value: z.number(),
-	unit: z.enum(BANDWIDTH_UNITS),
-});
-
-const exportedRepositorySchema = z.object({
-	ref: transferRefSchema,
-	name: z.string().min(1),
-	config: repositoryConfigSchema,
-	compressionMode: z.enum(COMPRESSION_MODES),
-	uploadLimit: bandwidthLimitSchema,
-	downloadLimit: bandwidthLimitSchema,
-});
-
-const exportedVolumeSchema = z.object({
-	ref: transferRefSchema,
-	name: z.string().min(1),
-	config: volumeConfigSchema,
-	autoRemount: z.boolean(),
-});
-
-const exportedBackupScheduleSchema = z.object({
-	ref: transferRefSchema,
-	name: z.string().min(1),
-	volumeRef: transferRefSchema,
-	repositoryRef: transferRefSchema,
-	enabled: z.boolean(),
-	cronExpression: z.string(),
-	retentionPolicy: retentionPolicySchema.nullable(),
-	excludePatterns: z.array(z.string()),
-	excludeIfPresent: z.array(z.string()),
-	includePaths: z.array(z.string()),
-	includePatterns: z.array(z.string()),
-	oneFileSystem: z.boolean(),
-	customResticParams: z.array(z.string()),
-	maxRetries: z.number().int().min(0),
-	retryDelay: z.number().int().min(0),
-	sortOrder: z.number().int(),
-});
-
-const exportedNotificationDestinationSchema = z.object({
-	ref: transferRefSchema,
-	name: z.string().min(1),
-	enabled: z.boolean(),
-	config: notificationConfigSchema,
-});
-
-const exportedBackupScheduleMirrorSchema = z.object({
-	scheduleRef: transferRefSchema,
-	repositoryRef: transferRefSchema,
-	enabled: z.boolean(),
-});
-
-const exportedBackupScheduleNotificationSchema = z.object({
-	scheduleRef: transferRefSchema,
-	destinationRef: transferRefSchema,
-	notifyOnStart: z.boolean(),
-	notifyOnSuccess: z.boolean(),
-	notifyOnWarning: z.boolean(),
-	notifyOnFailure: z.boolean(),
-});
-
-const configTransferPayloadV2Schema = z.object({
-	version: z.literal(2),
-	repositories: z.array(exportedRepositorySchema),
-	volumes: z.array(exportedVolumeSchema),
-	backupSchedules: z.array(exportedBackupScheduleSchema),
-	notificationDestinations: z.array(exportedNotificationDestinationSchema),
-	backupScheduleMirrors: z.array(exportedBackupScheduleMirrorSchema),
-	backupScheduleNotifications: z.array(exportedBackupScheduleNotificationSchema),
-});
-
-const configTransferPayloadSchema = z.discriminatedUnion("version", [configTransferPayloadV2Schema]);
 
 const configTransferPrefix = "zbcfg:";
 
 const createTransferRef = (prefix: string, index: number) => `${prefix}:${index + 1}`;
 
-const decodeEncryptedPayload = async (encryptedConfig: string, resticPassword: string) => {
+const pushUnique = (items: string[], value: string) => {
+	if (!items.includes(value)) {
+		items.push(value);
+	}
+};
+
+const joinWithAnd = (items: string[]) => {
+	if (items.length <= 1) {
+		return items[0] ?? "";
+	}
+
+	if (items.length === 2) {
+		return `${items[0]} and ${items[1]}`;
+	}
+
+	return `${items.slice(0, -1).join(", ")}, and ${items[items.length - 1]}`;
+};
+
+const decodeEncryptedPayload = async (encryptedConfig: string, sourceAppSecret: string) => {
 	const decryptedPayload = await cryptoUtils.decryptWithSecret(encryptedConfig, {
 		prefix: configTransferPrefix,
-		secret: resticPassword,
+		secret: sourceAppSecret,
 	});
 	const parsed = JSON.parse(decryptedPayload) as unknown;
 
-	return configTransferPayloadSchema.parse(parsed);
+	return parseConfigTransferPayload(parsed);
 };
 
 export const isOrganizationConfigEmpty = async (organizationId: string) => {
@@ -139,7 +64,11 @@ export const isOrganizationConfigEmpty = async (organizationId: string) => {
 	return !repository && !volume && !schedule && !destination;
 };
 
-export const createEncryptedOrganizationConfigExport = async (organizationId: string, resticPassword: string) => {
+export const createEncryptedOrganizationConfigExport = async (
+	organizationId: string,
+	sourceAppSecret: string,
+	resticPassword: string,
+) => {
 	const [repositories, volumes, backupSchedules, notificationDestinations] = await Promise.all([
 		db.query.repositoriesTable.findMany({ where: { organizationId } }),
 		db.query.volumesTable.findMany({ where: { organizationId } }),
@@ -157,33 +86,12 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 					db.query.backupScheduleNotificationsTable.findMany({ where: { scheduleId: { in: scheduleIds } } }),
 				]);
 
-	const [decryptedRepositories, decryptedVolumes, decryptedNotificationDestinations] = await Promise.all([
-		Promise.all(
-			repositories.map(async (repository) => ({
-				...repository,
-				config: await decryptRepositoryConfig(repository.config),
-			})),
-		),
-		Promise.all(
-			volumes.map(async (volume) => ({
-				...volume,
-				config: await decryptVolumeConfig(volume.config),
-			})),
-		),
-		Promise.all(
-			notificationDestinations.map(async (destination) => ({
-				...destination,
-				config: await decryptNotificationConfig(destination.config),
-			})),
-		),
-	]);
-
 	const repositoryRefMap = new Map<string, string>();
 	const volumeRefMap = new Map<number, string>();
 	const scheduleRefMap = new Map<number, string>();
 	const destinationRefMap = new Map<number, string>();
 
-	const exportedRepositories = decryptedRepositories.map((repository, index) => {
+	const exportedRepositories = repositories.map((repository, index) => {
 		const ref = createTransferRef("repository", index);
 		repositoryRefMap.set(repository.id, ref);
 
@@ -205,7 +113,7 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 		};
 	});
 
-	const exportedVolumes = decryptedVolumes.map((volume, index) => {
+	const exportedVolumes = volumes.map((volume, index) => {
 		const ref = createTransferRef("volume", index);
 		volumeRefMap.set(volume.id, ref);
 
@@ -246,13 +154,14 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 			includePatterns: schedule.includePatterns ?? [],
 			oneFileSystem: schedule.oneFileSystem,
 			customResticParams: schedule.customResticParams ?? [],
+			backupWebhooks: schedule.backupWebhooks ?? null,
 			maxRetries: schedule.maxRetries,
 			retryDelay: schedule.retryDelay,
 			sortOrder: schedule.sortOrder,
 		};
 	});
 
-	const exportedDestinations = decryptedNotificationDestinations.map((destination, index) => {
+	const exportedDestinations = notificationDestinations.map((destination, index) => {
 		const ref = createTransferRef("destination", index);
 		destinationRefMap.set(destination.id, ref);
 
@@ -305,8 +214,9 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 		};
 	});
 
-	const payload = configTransferPayloadV2Schema.parse({
-		version: 2,
+	const payload = parseCurrentConfigTransferPayload({
+		version: 1,
+		resticPassword,
 		repositories: exportedRepositories,
 		volumes: exportedVolumes,
 		backupSchedules: exportedSchedules,
@@ -317,7 +227,7 @@ export const createEncryptedOrganizationConfigExport = async (organizationId: st
 
 	return await cryptoUtils.encryptWithSecret(JSON.stringify(payload), {
 		prefix: configTransferPrefix,
-		secret: resticPassword,
+		secret: sourceAppSecret,
 	});
 };
 
@@ -325,32 +235,77 @@ export const importEncryptedOrganizationConfig = async (
 	organizationId: string,
 	userId: string,
 	encryptedConfig: string,
-	resticPassword: string,
+	sourceAppSecret: string,
 ) => {
-	const parsedPayload = await decodeEncryptedPayload(encryptedConfig, resticPassword);
+	const parsedPayload = await decodeEncryptedPayload(encryptedConfig, sourceAppSecret);
+	const warnings: string[] = [];
+	const volumeValidationRequirements = new Map<string, string>();
+	const repositoryValidationRequirements = new Map<string, string>();
+	const mirrorValidationRequirementsByScheduleRef = new Map<string, string[]>();
+	const resealImportedSecret = async (value: string) => {
+		const plaintext = await cryptoUtils.resolveSecretWithSecret(value, sourceAppSecret);
+
+		return await cryptoUtils.sealSecret(plaintext);
+	};
+
+	for (const volume of parsedPayload.volumes) {
+		if (volume.config.backend !== "directory") {
+			continue;
+		}
+
+		volumeValidationRequirements.set(volume.ref, `volume "${volume.name}"`);
+		pushUnique(
+			warnings,
+			`Volume "${volume.name}" uses local directory path "${volume.config.path}". Verify this path on this server before using it.`,
+		);
+	}
+
+	for (const repository of parsedPayload.repositories) {
+		if (repository.config.backend !== "local") {
+			continue;
+		}
+
+		repositoryValidationRequirements.set(repository.ref, `repository "${repository.name}"`);
+		pushUnique(
+			warnings,
+			`Repository "${repository.name}" uses local path "${repository.config.path}". Verify that this repository exists on this server before using it.`,
+		);
+	}
+
+	for (const mirror of parsedPayload.backupScheduleMirrors) {
+		const repositoryRequirement = repositoryValidationRequirements.get(mirror.repositoryRef);
+
+		if (!repositoryRequirement) {
+			continue;
+		}
+
+		const currentRequirements = mirrorValidationRequirementsByScheduleRef.get(mirror.scheduleRef) ?? [];
+		pushUnique(currentRequirements, repositoryRequirement);
+		mirrorValidationRequirementsByScheduleRef.set(mirror.scheduleRef, currentRequirements);
+	}
 
 	const [encryptedRepositories, encryptedVolumes, encryptedNotificationDestinations] = await Promise.all([
 		Promise.all(
 			parsedPayload.repositories.map(async (repository) => ({
 				...repository,
-				config: await encryptRepositoryConfig(repository.config),
+				config: await mapRepositoryConfigSecrets(repository.config, resealImportedSecret),
 			})),
 		),
 		Promise.all(
 			parsedPayload.volumes.map(async (volume) => ({
 				...volume,
-				config: await encryptVolumeConfig(volume.config),
+				config: await mapVolumeConfigSecrets(volume.config, resealImportedSecret),
 			})),
 		),
 		Promise.all(
 			parsedPayload.notificationDestinations.map(async (destination) => ({
 				...destination,
-				config: await encryptNotificationConfig(destination.config),
+				config: await mapNotificationConfigSecrets(destination.config, resealImportedSecret),
 			})),
 		),
 	]);
 
-	const sealedResticPassword = await cryptoUtils.sealSecret(resticPassword);
+	const sealedResticPassword = await cryptoUtils.sealSecret(parsedPayload.resticPassword);
 
 	db.transaction((tx) => {
 		const org = tx.query.organization.findFirst({ where: { id: organizationId }, columns: { metadata: true } }).sync();
@@ -428,6 +383,7 @@ export const importEncryptedOrganizationConfig = async (
 		for (const schedule of parsedPayload.backupSchedules) {
 			const mappedVolumeId = volumeIdMap.get(schedule.volumeRef);
 			const mappedRepositoryId = repositoryIdMap.get(schedule.repositoryRef);
+			const validationRequirements = new Set<string>();
 
 			if (!mappedVolumeId) {
 				throw new Error(`Imported volume ${schedule.volumeRef} not found`);
@@ -437,6 +393,22 @@ export const importEncryptedOrganizationConfig = async (
 				throw new Error(`Imported repository ${schedule.repositoryRef} not found`);
 			}
 
+			const volumeValidationRequirement = volumeValidationRequirements.get(schedule.volumeRef);
+			if (volumeValidationRequirement) {
+				validationRequirements.add(volumeValidationRequirement);
+			}
+
+			const repositoryValidationRequirement = repositoryValidationRequirements.get(schedule.repositoryRef);
+			if (repositoryValidationRequirement) {
+				validationRequirements.add(repositoryValidationRequirement);
+			}
+
+			for (const mirrorValidationRequirement of mirrorValidationRequirementsByScheduleRef.get(schedule.ref) ?? []) {
+				validationRequirements.add(mirrorValidationRequirement);
+			}
+
+			const shouldDisableForValidation = validationRequirements.size > 0;
+
 			const importedScheduleShortId = generateShortId();
 
 			tx.insert(backupSchedulesTable)
@@ -445,7 +417,7 @@ export const importEncryptedOrganizationConfig = async (
 					name: schedule.name,
 					volumeId: mappedVolumeId,
 					repositoryId: mappedRepositoryId,
-					enabled: schedule.enabled,
+					enabled: shouldDisableForValidation ? false : schedule.enabled,
 					cronExpression: schedule.cronExpression,
 					retentionPolicy: schedule.retentionPolicy,
 					excludePatterns: schedule.excludePatterns,
@@ -458,6 +430,7 @@ export const importEncryptedOrganizationConfig = async (
 					nextBackupAt: schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null,
 					oneFileSystem: schedule.oneFileSystem,
 					customResticParams: schedule.customResticParams,
+					backupWebhooks: schedule.backupWebhooks,
 					sortOrder: schedule.sortOrder,
 					failureRetryCount: 0,
 					maxRetries: schedule.maxRetries,
@@ -465,6 +438,13 @@ export const importEncryptedOrganizationConfig = async (
 					organizationId,
 				})
 				.run();
+
+			if (shouldDisableForValidation && schedule.enabled) {
+				pushUnique(
+					warnings,
+					`Disabled schedule "${schedule.name}" because it references ${joinWithAnd([...validationRequirements])}. Re-enable it after validating those imported paths on this server.`,
+				);
+			}
 
 			const insertedSchedule = tx.query.backupSchedulesTable
 				.findFirst({
@@ -557,7 +537,7 @@ export const importEncryptedOrganizationConfig = async (
 		}
 
 		tx.update(organization)
-			.set({ metadata: { ...(org.metadata ?? {}), resticPassword: sealedResticPassword } })
+			.set({ metadata: { ...org.metadata, resticPassword: sealedResticPassword } })
 			.where(eq(organization.id, organizationId))
 			.run();
 
@@ -565,11 +545,14 @@ export const importEncryptedOrganizationConfig = async (
 	});
 
 	return {
-		repositories: parsedPayload.repositories.length,
-		volumes: parsedPayload.volumes.length,
-		backupSchedules: parsedPayload.backupSchedules.length,
-		notificationDestinations: parsedPayload.notificationDestinations.length,
-		backupScheduleMirrors: parsedPayload.backupScheduleMirrors.length,
-		backupScheduleNotifications: parsedPayload.backupScheduleNotifications.length,
+		imported: {
+			repositories: parsedPayload.repositories.length,
+			volumes: parsedPayload.volumes.length,
+			backupSchedules: parsedPayload.backupSchedules.length,
+			notificationDestinations: parsedPayload.notificationDestinations.length,
+			backupScheduleMirrors: parsedPayload.backupScheduleMirrors.length,
+			backupScheduleNotifications: parsedPayload.backupScheduleNotifications.length,
+		},
+		warnings,
 	};
 };
