@@ -1,14 +1,25 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions, type Tray } from "electron";
 import { toMessage } from "@zerobyte/core/utils";
 import { startDesktopRuntime, type DesktopRuntime } from "./desktop-runtime";
 import { createDesktopSession } from "./desktop-session";
+import { createTray, createTrayPopoverWindow, toggleTrayPopover, updateTrayStatus } from "./desktop-tray";
 import { createDesktopWindow } from "./desktop-window";
 import { saveSecurityScopedBookmark, startAccessingSavedBookmarks } from "./security-scoped-bookmarks";
 
+const trayStatusPollMs = 30_000;
+
+type BackupScheduleTrayStatus = {
+	lastBackupStatus: "success" | "error" | "in_progress" | "warning" | null;
+};
+
 let mainWindow: BrowserWindow | null = null;
+let trayPopoverWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
 let runtime: DesktopRuntime | null = null;
+let authCookieHeader: string | null = null;
 let stopAccessingBookmarks: (() => void) | null = null;
 let isQuitting = false;
+let trayStatusTimer: ReturnType<typeof setInterval> | null = null;
 
 const quitApp = () => {
 	isQuitting = true;
@@ -26,6 +37,9 @@ const createWindow = async (appPath?: string) => {
 		isQuitting: () => isQuitting,
 		appPath,
 	});
+	if (trayPopoverWindow && !trayPopoverWindow.isDestroyed()) {
+		trayPopoverWindow.hide();
+	}
 };
 
 const focusMainWindow = () => {
@@ -77,6 +91,65 @@ const chooseFolder = async () => {
 	return selectedPath;
 };
 
+const getTrayPopoverWindow = async () => {
+	if (!runtime) {
+		throw new Error("Zerobyte server is not running");
+	}
+
+	if (trayPopoverWindow && !trayPopoverWindow.isDestroyed()) {
+		return trayPopoverWindow;
+	}
+
+	trayPopoverWindow = await createTrayPopoverWindow({
+		serverUrl: runtime.url,
+		isQuitting: () => isQuitting,
+	});
+
+	return trayPopoverWindow;
+};
+
+const refreshTrayStatus = async () => {
+	if (!runtime || !tray || !authCookieHeader) {
+		return;
+	}
+
+	try {
+		const response = await fetch(`${runtime.url}/api/v1/backups`, {
+			headers: {
+				cookie: authCookieHeader,
+			},
+		});
+
+		if (!response.ok) {
+			return;
+		}
+
+		const schedules = (await response.json()) as BackupScheduleTrayStatus[];
+		const runningCount = schedules.filter((schedule) => schedule.lastBackupStatus === "in_progress").length;
+		const attentionCount = schedules.filter(
+			(schedule) => schedule.lastBackupStatus === "error" || schedule.lastBackupStatus === "warning",
+		).length;
+
+		updateTrayStatus(tray, { runningCount, attentionCount });
+	} catch {
+		// The server can be temporarily unavailable during startup or shutdown.
+	}
+};
+
+const setupTray = () => {
+	tray = createTray({
+		openWindow: () => void createWindow(),
+		togglePopover: (bounds) => {
+			void getTrayPopoverWindow()
+				.then((window) => toggleTrayPopover(window, bounds))
+				.catch((error) => {
+					dialog.showErrorBox("Zerobyte tray failed to open", toMessage(error));
+				});
+		},
+		quit: quitApp,
+	});
+};
+
 if (!app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
@@ -89,9 +162,13 @@ if (!app.requestSingleInstanceLock()) {
 			runtime = await startDesktopRuntime((status) => {
 				dialog.showErrorBox("Zerobyte stopped", `Server process exited with ${status}`);
 			});
-			await createDesktopSession(runtime.url, runtime.launchSecret);
+			authCookieHeader = await createDesktopSession(runtime.url, runtime.launchSecret);
+			setupTray();
+			void refreshTrayStatus();
+			trayStatusTimer = setInterval(() => void refreshTrayStatus(), trayStatusPollMs);
 			await createWindow();
 		} catch (error) {
+			if (trayStatusTimer) clearInterval(trayStatusTimer);
 			stopAccessingBookmarks?.();
 			stopAccessingBookmarks = null;
 			dialog.showErrorBox("Zerobyte failed to start", toMessage(error));
@@ -102,8 +179,10 @@ if (!app.requestSingleInstanceLock()) {
 
 app.on("before-quit", () => {
 	isQuitting = true;
+	if (trayStatusTimer) clearInterval(trayStatusTimer);
 	runtime?.stop();
 	runtime = null;
+	authCookieHeader = null;
 	stopAccessingBookmarks?.();
 	stopAccessingBookmarks = null;
 });

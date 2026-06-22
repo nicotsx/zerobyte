@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
 import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DesktopTrayRouteImport } from './routes/desktop/tray'
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
 import { Route as authLoginRouteImport } from './routes/(auth)/login'
@@ -51,6 +52,11 @@ const authRouteRoute = authRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesktopTrayRoute = DesktopTrayRouteImport.update({
+  id: '/desktop/tray',
+  path: '/desktop/tray',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof authLoginRouteWithChildren
   '/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/desktop/tray': typeof DesktopTrayRoute
   '/login/error': typeof authLoginErrorRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/create': typeof dashboardNotificationsCreateRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/login': typeof authLoginRouteWithChildren
   '/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/desktop/tray': typeof DesktopTrayRoute
   '/login/error': typeof authLoginErrorRoute
   '/backups/create': typeof dashboardBackupsCreateRoute
   '/notifications/create': typeof dashboardNotificationsCreateRoute
@@ -273,6 +281,7 @@ export interface FileRoutesById {
   '/(auth)/login': typeof authLoginRouteWithChildren
   '/(auth)/onboarding': typeof authOnboardingRoute
   '/api/$': typeof ApiSplatRoute
+  '/desktop/tray': typeof DesktopTrayRoute
   '/(auth)/login/error': typeof authLoginErrorRoute
   '/(dashboard)/backups/create': typeof dashboardBackupsCreateRoute
   '/(dashboard)/notifications/create': typeof dashboardNotificationsCreateRoute
@@ -305,6 +314,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/api/$'
+    | '/desktop/tray'
     | '/login/error'
     | '/backups/create'
     | '/notifications/create'
@@ -335,6 +345,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/api/$'
+    | '/desktop/tray'
     | '/login/error'
     | '/backups/create'
     | '/notifications/create'
@@ -367,6 +378,7 @@ export interface FileRouteTypes {
     | '/(auth)/login'
     | '/(auth)/onboarding'
     | '/api/$'
+    | '/desktop/tray'
     | '/(auth)/login/error'
     | '/(dashboard)/backups/create'
     | '/(dashboard)/notifications/create'
@@ -397,6 +409,7 @@ export interface RootRouteChildren {
   authRouteRoute: typeof authRouteRouteWithChildren
   dashboardRouteRoute: typeof dashboardRouteRouteWithChildren
   ApiSplatRoute: typeof ApiSplatRoute
+  DesktopTrayRoute: typeof DesktopTrayRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -420,6 +433,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop/tray': {
+      id: '/desktop/tray'
+      path: '/desktop/tray'
+      fullPath: '/desktop/tray'
+      preLoaderRoute: typeof DesktopTrayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/$': {
@@ -708,6 +728,7 @@ const rootRouteChildren: RootRouteChildren = {
   authRouteRoute: authRouteRouteWithChildren,
   dashboardRouteRoute: dashboardRouteRouteWithChildren,
   ApiSplatRoute: ApiSplatRoute,
+  DesktopTrayRoute: DesktopTrayRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
