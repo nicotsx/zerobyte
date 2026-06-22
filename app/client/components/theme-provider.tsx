@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
@@ -15,6 +15,10 @@ const DEFAULT_THEME: Theme = "dark";
 
 export function ThemeProvider({ children, initialTheme }: { children: React.ReactNode; initialTheme?: Theme }) {
 	const [theme, setThemeState] = useState<Theme>(initialTheme ?? DEFAULT_THEME);
+
+	useEffect(() => {
+		window.zerobyteDesktop?.setTheme(theme);
+	}, [theme]);
 
 	const setTheme = useCallback((newTheme: Theme) => {
 		setThemeState(newTheme);

@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.json",
+	"include": ["electron/**/*", "scripts/**/*", "vite.*.config.ts"],
+	"compilerOptions": {
+		"types": ["bun", "node", "electron"],
+		"rootDirs": ["../.."],
+		"noEmit": true
+	}
+}
