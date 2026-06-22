@@ -1,0 +1,162 @@
+require "shellwords"
+require "fileutils"
+
+opt_out_usage
+default_platform(:mac)
+
+DESKTOP_DIR = File.expand_path("..", __dir__)
+REPO_ROOT = File.expand_path("../..", DESKTOP_DIR)
+APP_IDENTIFIER = "com.nicotsx.zerobyte"
+
+def env_value(*names)
+	names.each do |name|
+		value = ENV[name]
+		return value unless value.nil? || value.empty?
+	end
+
+	nil
+end
+
+def latest_mas_pkg
+	configured_pkg = env_value("ZEROBYTE_MAS_PKG")
+	return File.expand_path(configured_pkg, DESKTOP_DIR) if configured_pkg
+
+	packages = Dir[File.join(DESKTOP_DIR, "dist", "mas-arm64", "*.pkg")]
+	UI.user_error!("No MAS package found. Run `bundle exec fastlane mac build_mas` first.") if packages.empty?
+
+	packages.max_by { |path| File.mtime(path) }
+end
+
+def prepare_mas_output
+	output_dir = File.join(DESKTOP_DIR, "dist", "mas-arm64")
+	app_dir = File.join(output_dir, "Zerobyte.app")
+	return unless File.exist?(app_dir)
+	return if File.stat(app_dir).uid == Process.uid && File.writable?(app_dir)
+
+	stale_output_dir = "#{output_dir}.stale.#{Time.now.strftime("%Y%m%d%H%M%S")}"
+	FileUtils.mv(output_dir, stale_output_dir)
+	FileUtils.mkdir_p(output_dir)
+	UI.important("Moved stale MAS output to #{stale_output_dir}")
+end
+
+def current_git_tag
+	tag = `git -C #{Shellwords.escape(REPO_ROOT)} describe --tags --exact-match 2>/dev/null`.strip
+	tag.empty? ? nil : tag
+end
+
+def app_store_version
+	release_version = env_value("ZEROBYTE_DESKTOP_VERSION", "APP_VERSION", "GITHUB_REF_NAME") || current_git_tag
+	version = release_version&.sub(%r{\Arefs/tags/}, "")&.sub(/\Av/, "")&.match(/\A\d+\.\d+\.\d+/)&.[](0)
+
+	UI.user_error!("Mac App Store builds require a release version like v0.39.0 or v0.39.0-beta.3.") unless version
+
+	version
+end
+
+def app_store_api_key
+	return @app_store_api_key if @app_store_api_key
+
+	key_id = env_value("APP_STORE_CONNECT_API_KEY_ID", "ASC_KEY_ID")
+	issuer_id = env_value("APP_STORE_CONNECT_ISSUER_ID", "ASC_ISSUER_ID")
+	key_filepath = env_value("APP_STORE_CONNECT_API_KEY_PATH", "ASC_KEY_PATH")
+	key_content = env_value("APP_STORE_CONNECT_API_KEY_CONTENT", "ASC_KEY_CONTENT")
+	key_content_base64 = env_value("APP_STORE_CONNECT_API_KEY_BASE64", "ASC_KEY_BASE64")
+
+	UI.user_error!("Set APP_STORE_CONNECT_API_KEY_ID or ASC_KEY_ID.") unless key_id
+	UI.user_error!("Set APP_STORE_CONNECT_ISSUER_ID or ASC_ISSUER_ID.") unless issuer_id
+
+	options = {
+		key_id: key_id,
+		issuer_id: issuer_id,
+	}
+
+	if key_filepath
+		options[:key_filepath] = File.expand_path(key_filepath, DESKTOP_DIR)
+	elsif key_content_base64
+		options[:key_content] = key_content_base64
+		options[:is_key_content_base64] = true
+	elsif key_content
+		options[:key_content] = key_content
+	else
+		UI.user_error!(
+			"Set APP_STORE_CONNECT_API_KEY_PATH, APP_STORE_CONNECT_API_KEY_CONTENT, or APP_STORE_CONNECT_API_KEY_BASE64.",
+		)
+	end
+
+	@app_store_api_key = app_store_connect_api_key(**options)
+end
+
+def latest_numeric_testflight_build_number(version)
+	require "spaceship"
+
+	app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+	UI.user_error!("Could not find #{APP_IDENTIFIER} on App Store Connect.") unless app
+
+	build_uploads = Spaceship::ConnectAPI.get_build_uploads(
+		app_id: app.id,
+		filter: {
+			state: "PROCESSING,FAILED,COMPLETE",
+			"cfBundleShortVersionString" => version,
+			platform: Spaceship::ConnectAPI::Platform.map("osx"),
+		},
+		sort: "-uploadedDate",
+		limit: 200,
+	).all_pages.flat_map(&:to_models)
+
+	build_versions = build_uploads.map(&:cf_build_version).compact.map(&:to_s)
+	numeric_builds = build_versions.select { |build| build.match?(/\A\d+\z/) }.map(&:to_i)
+	ignored_builds = build_versions.reject { |build| build.match?(/\A\d+\z/) }.uniq
+
+	UI.important("Ignoring non-numeric App Store Connect build numbers: #{ignored_builds.join(", ")}") unless ignored_builds.empty?
+
+	numeric_builds.max || 0
+end
+
+def mas_build_number
+	explicit_build_number = env_value("ZEROBYTE_BUILD_NUMBER", "GITHUB_RUN_NUMBER", "BUILD_NUMBER")
+	return explicit_build_number if explicit_build_number
+
+	app_store_api_key
+
+	version = app_store_version
+	latest_build_number = latest_numeric_testflight_build_number(version)
+	next_build_number = latest_build_number + 1
+
+	UI.message("Latest numeric TestFlight build for #{version} is #{latest_build_number}; building #{next_build_number}.")
+
+	next_build_number.to_s
+end
+
+platform :mac do
+	desc "Build the signed Mac App Store package"
+	lane :build_mas do
+		build_number = mas_build_number
+		env = "ZEROBYTE_BUILD_NUMBER=#{Shellwords.escape(build_number)} "
+
+		prepare_mas_output
+		sh("cd #{Shellwords.escape(DESKTOP_DIR)} && #{env}bun run make:mas")
+	end
+
+	desc "Upload the latest signed Mac App Store package to App Store Connect"
+	lane :upload_testflight do
+		pkg = latest_mas_pkg
+		UI.message("Uploading #{pkg}")
+
+		upload_to_app_store(
+			api_key: app_store_api_key,
+			app_identifier: APP_IDENTIFIER,
+			pkg: pkg,
+			platform: "osx",
+			skip_metadata: true,
+			skip_screenshots: true,
+			force: true,
+			run_precheck_before_submit: false,
+		)
+	end
+
+	desc "Build and upload the Mac App Store package to App Store Connect"
+	lane :beta do |options|
+		build_mas unless options[:skip_build] || ENV["ZEROBYTE_SKIP_MAS_BUILD"] == "true"
+		upload_testflight
+	end
+end

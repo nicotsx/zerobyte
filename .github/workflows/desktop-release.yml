@@ -1,0 +1,103 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      publish_testflight:
+        required: false
+        type: boolean
+        default: false
+      upload_github_release:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    if: inputs.publish_testflight
+    environment: release
+    timeout-minutes: 30
+    runs-on: macos-15
+    permissions:
+      contents: read
+    env:
+      APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
+      ZEROBYTE_EXPORT_COMPLIANCE_CODE: ${{ secrets.ZEROBYTE_EXPORT_COMPLIANCE_CODE }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Install Fastlane dependencies
+        working-directory: apps/desktop
+        run: bundle install
+
+      - name: Build and upload to TestFlight
+        working-directory: apps/desktop
+        env:
+          FASTLANE_HIDE_CHANGELOG: "true"
+          FASTLANE_SKIP_UPDATE_CHECK: "true"
+        run: bundle exec fastlane mac beta
+
+  github-release:
+    if: inputs.upload_github_release
+    environment: release
+    timeout-minutes: 30
+    runs-on: macos-15
+    permissions:
+      contents: read
+    env:
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APPLE_API_KEY: ${{ runner.temp }}/AuthKey.p8
+      APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
+      ZEROBYTE_EXPORT_COMPLIANCE_CODE: ${{ secrets.ZEROBYTE_EXPORT_COMPLIANCE_CODE }}
+      ZEROBYTE_MAC_SIGN: "true"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Write App Store Connect API key
+        run: |
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$APPLE_API_KEY"
+          chmod 600 "$APPLE_API_KEY"
+
+      - name: Build DMG
+        working-directory: apps/desktop
+        run: bun run make
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-github-release
+          path: |
+            apps/desktop/dist/*.dmg
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0

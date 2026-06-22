@@ -2,3 +2,12 @@
 .runtime
 out
 dist
+profiles/*.provisionprofile
+fastlane/.env
+fastlane/.env.*
+!fastlane/.env.example
+fastlane/AuthKey_*.p8
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output

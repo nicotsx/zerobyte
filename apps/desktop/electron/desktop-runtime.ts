@@ -24,6 +24,10 @@ export type DesktopRuntime = {
 
 const ownerOnlyDirMode = 0o700;
 const ownerOnlyFileMode = 0o600;
+const desktopAppVersion = import.meta.env.VITE_APP_VERSION;
+if (app.isPackaged && !desktopAppVersion) {
+	throw new Error("Packaged desktop app is missing VITE_APP_VERSION.");
+}
 
 const chmodIfSupported = async (targetPath: string, mode: number) => {
 	if (process.platform !== "win32") {
@@ -99,7 +103,7 @@ const createServerEnv = (port: number, dirs: DesktopDirs, serverUrl: string, lau
 	BASE_URL: serverUrl,
 	TRUSTED_ORIGINS: serverUrl,
 	APP_SECRET: dirs.appSecret,
-	APP_VERSION: app.getVersion(),
+	APP_VERSION: desktopAppVersion,
 	ZEROBYTE_RUNTIME: "desktop",
 	ZEROBYTE_DESKTOP_LAUNCH_SECRET: launchSecret,
 	ZEROBYTE_DATABASE_URL: path.join(dirs.dataDir, "zerobyte.db"),

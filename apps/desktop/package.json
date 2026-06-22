@@ -9,6 +9,9 @@
 		"build:electron": "vite build --config vite.main.config.ts",
 		"package": "electron-builder --config electron-builder.config.cjs --mac dir --publish never",
 		"make": "electron-builder --config electron-builder.config.cjs --mac --publish never",
+		"make:mas": "electron-builder --config electron-builder.config.cjs --mac mas --publish never",
+		"make:mas-dev": "electron-builder --config electron-builder.config.cjs --mac mas-dev --publish never",
+		"publish": "electron-builder --config electron-builder.config.cjs --mac --publish always",
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
