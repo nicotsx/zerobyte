@@ -20,30 +20,46 @@ export type DesktopRuntime = {
 	stop: () => void;
 };
 
+const ownerOnlyDirMode = 0o700;
+const ownerOnlyFileMode = 0o600;
+
+const chmodIfSupported = async (targetPath: string, mode: number) => {
+	if (process.platform !== "win32") {
+		await fs.chmod(targetPath, mode);
+	}
+};
+
 const ensureFileSecret = async (filePath: string) => {
 	try {
 		const existing = await fs.readFile(filePath, "utf-8");
 		if (existing.trim().length >= 32) {
+			await chmodIfSupported(filePath, ownerOnlyFileMode);
 			return existing.trim();
 		}
 	} catch {
-		await fs.mkdir(path.dirname(filePath), { recursive: true });
+		await fs.mkdir(path.dirname(filePath), { recursive: true, mode: ownerOnlyDirMode });
+		await chmodIfSupported(path.dirname(filePath), ownerOnlyDirMode);
 	}
 
 	const secret = crypto.randomBytes(32).toString("hex");
-	await fs.writeFile(filePath, secret, "utf-8");
+	await fs.writeFile(filePath, secret, { encoding: "utf-8", mode: ownerOnlyFileMode });
+	await chmodIfSupported(filePath, ownerOnlyFileMode);
 	return secret;
 };
 
 const ensureDesktopDirs = async (): Promise<DesktopDirs> => {
 	const userData = app.getPath("userData");
 	const dataDir = path.join(userData, "data");
-	const resticCacheDir = path.join(userData, "restic", "cache");
+	const resticDir = path.join(userData, "restic");
+	const resticCacheDir = path.join(resticDir, "cache");
 	const repositoriesDir = path.join(userData, "repositories");
 	const volumesDir = path.join(userData, "volumes");
 
 	await Promise.all(
-		[dataDir, resticCacheDir, repositoriesDir, volumesDir].map((dir) => fs.mkdir(dir, { recursive: true })),
+		[dataDir, resticDir, resticCacheDir, repositoriesDir, volumesDir].map(async (dir) => {
+			await fs.mkdir(dir, { recursive: true, mode: ownerOnlyDirMode });
+			await chmodIfSupported(dir, ownerOnlyDirMode);
+		}),
 	);
 
 	return {
@@ -97,7 +113,7 @@ const waitForServer = async (serverUrl: string) => {
 
 	while (Date.now() < deadline) {
 		try {
-			const response = await fetch(`${serverUrl}/api/healthcheck`);
+			const response = await fetch(`${serverUrl}/api/healthcheck`, { signal: AbortSignal.timeout(5_000) });
 			if (response.ok) {
 				return;
 			}

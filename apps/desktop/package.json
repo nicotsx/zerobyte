@@ -9,6 +9,9 @@
 		"build:electron": "vite build --config vite.main.config.ts",
 		"tsc": "tsc --noEmit"
 	},
+	"dependencies": {
+		"@zerobyte/core": "workspace:*"
+	},
 	"devDependencies": {
 		"electron": "^39.2.7",
 		"typescript": "^6.0.3",

@@ -1,5 +1,5 @@
 import { app, session } from "electron";
-import { inferDateTimePreferences } from "../../../app/lib/datetime";
+import { inferDateTimePreferences } from "@zerobyte/core/utils";
 
 export const launchSecretHeader = "X-Zerobyte-Desktop-Launch-Secret";
 

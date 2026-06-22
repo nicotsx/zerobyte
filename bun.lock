@@ -128,6 +128,9 @@
     "apps/desktop": {
       "name": "@zerobyte/desktop",
       "version": "0.0.0",
+      "dependencies": {
+        "@zerobyte/core": "workspace:*",
+      },
       "devDependencies": {
         "electron": "^39.2.7",
         "typescript": "^6.0.3",

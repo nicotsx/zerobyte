@@ -26,19 +26,37 @@ const createWindow = async (appPath?: string) => {
 	});
 };
 
-void app.whenReady().then(async () => {
-	try {
-		nativeTheme.themeSource = "dark";
-		runtime = await startDesktopRuntime((status) => {
-			dialog.showErrorBox("Zerobyte stopped", `Server process exited with ${status}`);
-		});
-		await createDesktopSession(runtime.url, runtime.launchSecret);
-		await createWindow();
-	} catch (error) {
-		dialog.showErrorBox("Zerobyte failed to start", toMessage(error));
-		quitApp();
+const focusMainWindow = () => {
+	if (!mainWindow || mainWindow.isDestroyed()) {
+		return;
 	}
-});
+
+	mainWindow.show();
+	if (mainWindow.isMinimized()) {
+		mainWindow.restore();
+	}
+	mainWindow.focus();
+};
+
+if (!app.requestSingleInstanceLock()) {
+	app.quit();
+} else {
+	app.on("second-instance", focusMainWindow);
+
+	void app.whenReady().then(async () => {
+		try {
+			nativeTheme.themeSource = "dark";
+			runtime = await startDesktopRuntime((status) => {
+				dialog.showErrorBox("Zerobyte stopped", `Server process exited with ${status}`);
+			});
+			await createDesktopSession(runtime.url, runtime.launchSecret);
+			await createWindow();
+		} catch (error) {
+			dialog.showErrorBox("Zerobyte failed to start", toMessage(error));
+			quitApp();
+		}
+	});
+}
 
 app.on("before-quit", () => {
 	isQuitting = true;
