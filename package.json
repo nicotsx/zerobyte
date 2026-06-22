@@ -14,6 +14,7 @@
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"dev:desktop": "bun run --cwd apps/desktop start",
 		"build": "bunx --bun vite build",
+		"build:desktop": "bun run --cwd apps/desktop make",
 		"start": "bun run .output/server/index.mjs",
 		"test:integration": "bash app/test/integration/run.sh",
 		"preview": "bunx --bun vite preview",

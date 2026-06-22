@@ -7,6 +7,8 @@
 	"scripts": {
 		"start": "bun run build:electron && env -u ELECTRON_RUN_AS_NODE electron .",
 		"build:electron": "vite build --config vite.main.config.ts",
+		"package": "electron-builder --config electron-builder.config.cjs --mac dir --publish never",
+		"make": "electron-builder --config electron-builder.config.cjs --mac --publish never",
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
@@ -14,6 +16,7 @@
 	},
 	"devDependencies": {
 		"electron": "^39.2.7",
+		"electron-builder": "^26.15.3",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.16"
 	}
