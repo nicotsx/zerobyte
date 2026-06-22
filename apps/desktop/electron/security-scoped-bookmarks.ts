@@ -36,23 +36,21 @@ const startAccessingBookmark = (bookmarkPath: string, bookmark: string) => {
 		return;
 	}
 
+	const stopAccessing = app.startAccessingSecurityScopedResource(bookmark) as () => void;
 	activeAccessorsByPath.get(bookmarkPath)?.();
-	const stopAccessing = app.startAccessingSecurityScopedResource(bookmark);
-	activeAccessorsByPath.set(bookmarkPath, () => stopAccessing());
+	activeAccessorsByPath.set(bookmarkPath, stopAccessing);
 };
 
-export const saveSecurityScopedBookmark = async ({
-	path: selectedPath,
-	bookmark,
-}: Pick<SecurityScopedBookmarkGrant, "path"> & { bookmark?: string }) => {
+export const saveSecurityScopedBookmark = async (selectedPath: string, bookmark?: string) => {
 	if (!bookmark) return;
+
+	startAccessingBookmark(selectedPath, bookmark);
 
 	const grants = (await readGrants()).filter((grant) => grant.path !== selectedPath);
 
 	grants.push({ path: selectedPath, bookmark });
 
 	await writeGrants(grants);
-	startAccessingBookmark(selectedPath, bookmark);
 };
 
 export const startAccessingSavedBookmarks = async () => {
@@ -61,7 +59,9 @@ export const startAccessingSavedBookmarks = async () => {
 	}
 
 	for (const grant of await readGrants()) {
-		startAccessingBookmark(grant.path, grant.bookmark);
+		try {
+			startAccessingBookmark(grant.path, grant.bookmark);
+		} catch {}
 	}
 
 	return () => {

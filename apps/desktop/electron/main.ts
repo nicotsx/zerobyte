@@ -1,10 +1,9 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions } from "electron";
 import { toMessage } from "@zerobyte/core/utils";
 import { startDesktopRuntime, type DesktopRuntime } from "./desktop-runtime";
 import { createDesktopSession } from "./desktop-session";
 import { createDesktopWindow } from "./desktop-window";
-import { chooseFolder } from "./path-grants";
-import { startAccessingSavedBookmarks } from "./security-scoped-bookmarks";
+import { saveSecurityScopedBookmark, startAccessingSavedBookmarks } from "./security-scoped-bookmarks";
 
 let mainWindow: BrowserWindow | null = null;
 let runtime: DesktopRuntime | null = null;
@@ -41,6 +40,43 @@ const focusMainWindow = () => {
 	mainWindow.focus();
 };
 
+const isTrustedDesktopSender = (senderUrl?: string) => {
+	if (!runtime || !senderUrl) {
+		return false;
+	}
+
+	try {
+		return new URL(senderUrl).origin === new URL(runtime.url).origin;
+	} catch {
+		return false;
+	}
+};
+
+const chooseFolder = async () => {
+	const dialogOptions: OpenDialogOptions = {
+		properties: ["openDirectory", "createDirectory"],
+		securityScopedBookmarks: true,
+	};
+
+	const result = mainWindow
+		? await dialog.showOpenDialog(mainWindow, dialogOptions)
+		: await dialog.showOpenDialog(dialogOptions);
+
+	if (result.canceled || !result.filePaths[0]) {
+		return null;
+	}
+
+	const selectedPath = result.filePaths[0];
+	const bookmark = result.bookmarks?.[0];
+	if (process.platform === "darwin" && (process as NodeJS.Process & { mas?: boolean }).mas && !bookmark) {
+		throw new Error("Failed to create security-scoped bookmark");
+	}
+
+	await saveSecurityScopedBookmark(selectedPath, bookmark);
+
+	return selectedPath;
+};
+
 if (!app.requestSingleInstanceLock()) {
 	app.quit();
 } else {
@@ -74,8 +110,18 @@ app.on("before-quit", () => {
 
 app.on("window-all-closed", () => {});
 
-ipcMain.handle("desktop:choose-folder", () => chooseFolder(mainWindow));
-ipcMain.handle("desktop:open-main-window", (_event, appPath?: unknown) => {
+ipcMain.handle("desktop:choose-folder", (event) => {
+	if (!isTrustedDesktopSender(event.senderFrame?.url)) {
+		throw new Error("Invalid desktop IPC sender");
+	}
+
+	return chooseFolder();
+});
+ipcMain.handle("desktop:open-main-window", (event, appPath?: unknown) => {
+	if (!isTrustedDesktopSender(event.senderFrame?.url)) {
+		throw new Error("Invalid desktop IPC sender");
+	}
+
 	if (
 		appPath !== undefined &&
 		(typeof appPath !== "string" || !appPath.startsWith("/") || appPath.startsWith("//"))
@@ -85,10 +131,12 @@ ipcMain.handle("desktop:open-main-window", (_event, appPath?: unknown) => {
 
 	return createWindow(appPath);
 });
-ipcMain.on("desktop:quit", () => {
+ipcMain.on("desktop:quit", (event) => {
+	if (!isTrustedDesktopSender(event.senderFrame?.url)) return;
 	quitApp();
 });
-ipcMain.on("desktop:set-theme", (_event, theme) => {
+ipcMain.on("desktop:set-theme", (event, theme) => {
+	if (!isTrustedDesktopSender(event.senderFrame?.url)) return;
 	if (theme === "light" || theme === "dark") {
 		nativeTheme.themeSource = theme;
 	}
