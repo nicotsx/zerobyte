@@ -5,7 +5,6 @@ opt_out_usage
 default_platform(:mac)
 
 DESKTOP_DIR = File.expand_path("..", __dir__)
-REPO_ROOT = File.expand_path("../..", DESKTOP_DIR)
 APP_IDENTIFIER = "com.nicotsx.zerobyte"
 
 def env_value(*names)
@@ -37,20 +36,6 @@ def prepare_mas_output
 	FileUtils.mv(output_dir, stale_output_dir)
 	FileUtils.mkdir_p(output_dir)
 	UI.important("Moved stale MAS output to #{stale_output_dir}")
-end
-
-def current_git_tag
-	tag = `git -C #{Shellwords.escape(REPO_ROOT)} describe --tags --exact-match 2>/dev/null`.strip
-	tag.empty? ? nil : tag
-end
-
-def app_store_version
-	release_version = env_value("ZEROBYTE_DESKTOP_VERSION", "APP_VERSION", "GITHUB_REF_NAME") || current_git_tag
-	version = release_version&.sub(%r{\Arefs/tags/}, "")&.sub(/\Av/, "")&.match(/\A\d+\.\d+\.\d+/)&.[](0)
-
-	UI.user_error!("Mac App Store builds require a release version like v0.39.0 or v0.39.0-beta.3.") unless version
-
-	version
 end
 
 def app_store_api_key
@@ -86,45 +71,9 @@ def app_store_api_key
 	@app_store_api_key = app_store_connect_api_key(**options)
 end
 
-def latest_numeric_testflight_build_number(version)
-	require "spaceship"
-
-	app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
-	UI.user_error!("Could not find #{APP_IDENTIFIER} on App Store Connect.") unless app
-
-	build_uploads = Spaceship::ConnectAPI.get_build_uploads(
-		app_id: app.id,
-		filter: {
-			state: "PROCESSING,FAILED,COMPLETE",
-			"cfBundleShortVersionString" => version,
-			platform: Spaceship::ConnectAPI::Platform.map("osx"),
-		},
-		sort: "-uploadedDate",
-		limit: 200,
-	).all_pages.flat_map(&:to_models)
-
-	build_versions = build_uploads.map(&:cf_build_version).compact.map(&:to_s)
-	numeric_builds = build_versions.select { |build| build.match?(/\A\d+\z/) }.map(&:to_i)
-	ignored_builds = build_versions.reject { |build| build.match?(/\A\d+\z/) }.uniq
-
-	UI.important("Ignoring non-numeric App Store Connect build numbers: #{ignored_builds.join(", ")}") unless ignored_builds.empty?
-
-	numeric_builds.max || 0
-end
-
 def mas_build_number
-	explicit_build_number = env_value("ZEROBYTE_BUILD_NUMBER", "GITHUB_RUN_NUMBER", "BUILD_NUMBER")
-	return explicit_build_number if explicit_build_number
-
-	app_store_api_key
-
-	version = app_store_version
-	latest_build_number = latest_numeric_testflight_build_number(version)
-	next_build_number = latest_build_number + 1
-
-	UI.message("Latest numeric TestFlight build for #{version} is #{latest_build_number}; building #{next_build_number}.")
-
-	next_build_number.to_s
+	env_value("ZEROBYTE_BUILD_NUMBER", "GITHUB_RUN_NUMBER") ||
+		UI.user_error!("Set ZEROBYTE_BUILD_NUMBER or GITHUB_RUN_NUMBER.")
 end
 
 platform :mac do
