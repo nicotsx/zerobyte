@@ -1,19 +1,6 @@
 name: Desktop Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        required: true
-        type: string
-      publish_testflight:
-        required: false
-        type: boolean
-        default: false
-      upload_github_release:
-        required: false
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       release_tag:
@@ -47,6 +34,7 @@ jobs:
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
       ZEROBYTE_EXPORT_COMPLIANCE_CODE: ${{ secrets.ZEROBYTE_EXPORT_COMPLIANCE_CODE }}
+      ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64: ${{ secrets.ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64 }}
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -61,12 +49,28 @@ jobs:
         working-directory: apps/desktop
         run: bundle install
 
+      - name: Write MAS provisioning profile
+        run: |
+          : "${ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64:?Set ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64 secret}"
+          profile_path="$RUNNER_TEMP/mac-app-store.provisionprofile"
+          echo "ZEROBYTE_MAS_PROVISIONING_PROFILE=$profile_path" >> "$GITHUB_ENV"
+          printf '%s' "$ZEROBYTE_MAS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile_path"
+          chmod 600 "$profile_path"
+
       - name: Build and upload to TestFlight
         working-directory: apps/desktop
         env:
           FASTLANE_HIDE_CHANGELOG: "true"
           FASTLANE_SKIP_UPDATE_CHECK: "true"
         run: bundle exec fastlane mac beta
+
+      - name: Clean TestFlight release secrets
+        if: always()
+        run: |
+          if [ -n "${ZEROBYTE_MAS_PROVISIONING_PROFILE:-}" ]; then
+            rm -f "$ZEROBYTE_MAS_PROVISIONING_PROFILE"
+          fi
+          rm -rf apps/desktop/dist/mas-arm64
 
   github-release:
     if: inputs.upload_github_release
@@ -113,3 +117,9 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+
+      - name: Clean GitHub release secrets
+        if: always()
+        run: |
+          rm -f "$APPLE_API_KEY"
+          rm -rf apps/desktop/dist
