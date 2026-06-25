@@ -58,6 +58,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 		return (
 			snapshot.short_id.toLowerCase().includes(searchLower) ||
 			snapshot.paths.some((path) => path.toLowerCase().includes(searchLower)) ||
+			snapshot.hostname?.toLowerCase().includes(searchLower) ||
 			backup?.name?.toLowerCase().includes(searchLower) ||
 			backup?.volume?.name?.toLowerCase().includes(searchLower)
 		);
@@ -161,7 +162,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 				<Table className="border-t">
 					<TableBody>
 						<TableRow>
-							<TableCell colSpan={5} className="text-center py-12">
+							<TableCell colSpan={6} className="text-center py-12">
 								<div className="flex flex-col items-center gap-3">
 									<p className="text-muted-foreground">No snapshots match your search.</p>
 									<Button onClick={() => setSearchQuery("")} variant="outline" size="sm">

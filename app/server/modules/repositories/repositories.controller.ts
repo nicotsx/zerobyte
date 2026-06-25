@@ -131,6 +131,7 @@ export const repositoriesController = new Hono()
 				short_id: snapshot.short_id,
 				duration,
 				paths: snapshot.paths,
+				hostname: snapshot.hostname,
 				tags: snapshot.tags ?? [],
 				size: summary?.total_bytes_processed ?? 0,
 				time: new Date(snapshot.time).getTime(),
