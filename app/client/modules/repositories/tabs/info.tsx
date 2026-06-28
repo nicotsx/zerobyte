@@ -37,6 +37,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 
 	const config = repository.config as RepositoryConfig;
 	const hasLocalPath = Boolean(effectiveLocalPath);
+	const hasStorageClass = Boolean(config.storageClass);
 	const hasCaCert = Boolean(config.cacert);
 	const hasInsecureTlsConfig = config.insecureTls !== undefined;
 
@@ -95,6 +96,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 					{hasLocalPath && (
 						<ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Local Path" value={effectiveLocalPath!} mono />
 					)}
+					{hasStorageClass && <ConfigRow icon={<Archive className="h-4 w-4" />} label="Storage Class" value={config.storageClass!} mono />}
 					<ConfigRow
 						icon={<Archive className="h-4 w-4" />}
 						label="Compression Mode"
