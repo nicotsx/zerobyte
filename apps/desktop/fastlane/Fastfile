@@ -72,14 +72,14 @@ def app_store_api_key
 end
 
 def mas_build_number
-	explicit_build_number = env_value("ZEROBYTE_BUILD_NUMBER")
+	explicit_build_number = env_value("ZEROBYTE_BUILD_NUMBER", "BUILD_NUMBER")
 	return explicit_build_number if explicit_build_number
 
 	run_number = env_value("GITHUB_RUN_NUMBER")
 	run_attempt = env_value("GITHUB_RUN_ATTEMPT")
 	return [run_number, run_attempt].compact.join(".") if run_number
 
-	UI.user_error!("Set ZEROBYTE_BUILD_NUMBER or GITHUB_RUN_NUMBER.")
+	UI.user_error!("Set ZEROBYTE_BUILD_NUMBER, BUILD_NUMBER, or GITHUB_RUN_NUMBER.")
 end
 
 platform :mac do

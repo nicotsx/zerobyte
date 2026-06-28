@@ -177,5 +177,4 @@ await fs.mkdir(downloadsDir, { recursive: true });
 await stageApp();
 await stageBun();
 await stageRestic();
-await installExecutable(path.join(desktopDir, "electron", "restic", "wrapper.ts"), "zerobyte-restic.ts");
 await stageShoutrrr();

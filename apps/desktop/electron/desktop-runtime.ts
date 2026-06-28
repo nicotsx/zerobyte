@@ -5,7 +5,6 @@ import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { toMessage } from "@zerobyte/core/utils";
-import { startResticBridge } from "./restic/bridge";
 
 type DesktopDirs = {
 	dataDir: string;
@@ -155,7 +154,6 @@ export const startDesktopRuntime = async (
 	const url = `http://127.0.0.1:${port}`;
 	const launchSecret = crypto.randomBytes(32).toString("hex");
 	let stopped = false;
-	let stopResticBridge: (() => void) | null = null;
 	let command = "bunx";
 	let args = ["--bun", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
 	let cwd = process.env.ZEROBYTE_REPO_ROOT ?? path.resolve(process.cwd(), "../..");
@@ -163,19 +161,13 @@ export const startDesktopRuntime = async (
 
 	if (app.isPackaged) {
 		const binDir = path.join(dirs.resourcesDir, "bin");
-		const resticBridge = await startResticBridge({
-			realResticCommand: path.join(binDir, "restic"),
-			launchSecret,
-		});
-		stopResticBridge = resticBridge.stop;
 		command = path.join(binDir, "bun");
 		args = [path.join(dirs.resourcesDir, ".output", "server", "index.mjs")];
 		cwd = dirs.resourcesDir;
 		Object.assign(env, {
 			NODE_ENV: "production",
 			MIGRATIONS_PATH: path.join(dirs.resourcesDir, "assets", "migrations"),
-			RESTIC_COMMAND: path.join(binDir, "zerobyte-restic.ts"),
-			ZEROBYTE_DESKTOP_RESTIC_BRIDGE_URL: resticBridge.url,
+			RESTIC_COMMAND: path.join(binDir, "restic"),
 			PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
 		});
 	}
@@ -204,14 +196,12 @@ export const startDesktopRuntime = async (
 			launchSecret,
 			stop: () => {
 				stopped = true;
-				stopResticBridge?.();
 				serverProcess.kill("SIGTERM");
 			},
 		};
 	} catch (error) {
 		stopped = true;
 		serverProcess.off("exit", handleServerExit);
-		stopResticBridge?.();
 		serverProcess.kill("SIGTERM");
 		throw error;
 	}

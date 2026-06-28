@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.release_tag }}
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
@@ -94,7 +94,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.release_tag }}
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
