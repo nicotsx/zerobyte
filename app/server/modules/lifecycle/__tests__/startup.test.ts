@@ -9,6 +9,7 @@ import { notificationsService } from "~/server/modules/notifications/notificatio
 import { volumeService } from "~/server/modules/volumes/volume.service";
 import * as provisioningModule from "~/server/modules/provisioning/provisioning";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { withContext } from "~/server/core/request-context";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -50,6 +51,7 @@ test("marks active tasks stale and keeps stuck backup schedule recovery silent",
 		volumeId: volume.id,
 		repositoryId: repository.id,
 		lastBackupStatus: "in_progress",
+		nextBackupAt: Date.now() + 24 * 60 * 60 * 1000,
 	});
 	const task = taskStore.create({
 		id: "task-startup-active",
@@ -77,6 +79,32 @@ test("marks active tasks stale and keeps stuck backup schedule recovery silent",
 	expect(updatedTask?.finishedAt).toEqual(expect.any(Number));
 	expect(updatedSchedule?.lastBackupStatus).toBe("warning");
 	expect(updatedSchedule?.lastBackupError).toBe("Zerobyte was restarted during the last scheduled backup");
+	expect(updatedSchedule?.nextBackupAt).toBeNull();
+	await withContext({ organizationId: TEST_ORG_ID }, async () => {
+		expect(await backupsService.getSchedulesToExecute()).toContain(schedule.id);
+	});
 	expect(emitSpy).not.toHaveBeenCalledWith("backup:completed", expect.anything());
 	expect(notificationSpy).not.toHaveBeenCalled();
+});
+
+test("makes existing restart warnings executable again on startup", async () => {
+	const volume = await createTestVolume();
+	const repository = await createTestRepository();
+	const schedule = await createTestBackupSchedule({
+		volumeId: volume.id,
+		repositoryId: repository.id,
+		lastBackupStatus: "warning",
+		lastBackupError: "Zerobyte was restarted during the last scheduled backup",
+		nextBackupAt: Date.now() + 24 * 60 * 60 * 1000,
+	});
+
+	const { startup } = await loadStartupModule();
+
+	await startup();
+
+	const updatedSchedule = await db.query.backupSchedulesTable.findFirst({ where: { id: schedule.id } });
+	expect(updatedSchedule?.nextBackupAt).toBeNull();
+	await withContext({ organizationId: TEST_ORG_ID }, async () => {
+		expect(await backupsService.getSchedulesToExecute()).toContain(schedule.id);
+	});
 });

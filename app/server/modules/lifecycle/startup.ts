@@ -1,5 +1,5 @@
 import { Scheduler } from "../../core/scheduler";
-import { eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { db } from "../../db/db";
 import { backupSchedulesTable } from "../../db/schema";
 import { logger } from "@zerobyte/core/node";
@@ -19,6 +19,8 @@ import { syncProvisionedResources } from "../provisioning/provisioning";
 import { toMessage } from "~/server/utils/errors";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
+
+const restartBackupError = "Zerobyte was restarted during the last scheduled backup";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
@@ -113,10 +115,19 @@ export const startup = async () => {
 		.update(backupSchedulesTable)
 		.set({
 			lastBackupStatus: "warning",
-			lastBackupError: "Zerobyte was restarted during the last scheduled backup",
+			lastBackupError: restartBackupError,
+			nextBackupAt: null,
 			updatedAt: Date.now(),
 		})
-		.where(eq(backupSchedulesTable.lastBackupStatus, "in_progress"))
+		.where(
+			or(
+				eq(backupSchedulesTable.lastBackupStatus, "in_progress"),
+				and(
+					eq(backupSchedulesTable.lastBackupStatus, "warning"),
+					eq(backupSchedulesTable.lastBackupError, restartBackupError),
+				),
+			),
+		)
 		.catch((err) => {
 			logger.error(`Failed to update stuck backup schedules on startup: ${err.message}`);
 		});
