@@ -1,7 +1,13 @@
 import path from "node:path";
 import fc from "fast-check";
 import { describe, expect, test } from "vitest";
-import { hasPathListSeparator, isPathWithin, normalizeAbsolutePath } from "../path";
+import {
+	hasPathListSeparator,
+	isPathWithin,
+	normalizeAbsolutePath,
+	windowsHostPathToResticSnapshotPath,
+	windowsResticSnapshotPathToHostPath,
+} from "../path";
 
 const safePathSegmentArb = fc
 	.array(fc.constantFrom("a", "b", "c", "x", "y", "z", "0", "1", "2", "-", "_", ".", " "), {
@@ -91,6 +97,18 @@ describe("isPathWithin", () => {
 				},
 			),
 		);
+	});
+});
+
+describe("Windows restic snapshot path conversion", () => {
+	test("maps native Windows host paths to restic snapshot paths", () => {
+		expect(windowsHostPathToResticSnapshotPath("C:\\Users\\nicolas")).toBe("/C/Users/nicolas");
+		expect(windowsHostPathToResticSnapshotPath("c:/Users/nicolas/")).toBe("/C/Users/nicolas");
+	});
+
+	test("maps restic snapshot paths to native Windows host paths only when called explicitly", () => {
+		expect(windowsResticSnapshotPathToHostPath("/C/Users/nicolas")).toBe("C:\\Users\\nicolas");
+		expect(windowsResticSnapshotPathToHostPath("/d/source")).toBe("D:\\source");
 	});
 });
 

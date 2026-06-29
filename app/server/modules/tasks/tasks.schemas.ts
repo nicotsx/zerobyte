@@ -24,7 +24,8 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("restore"),
 		repositoryId: z.string(),
 		snapshotId: z.string(),
-		target: z.string(),
+		restoreLocation: z.enum(["original", "custom"]).optional(),
+		targetPath: z.string().optional(),
 	}),
 ]);
 

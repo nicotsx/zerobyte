@@ -526,7 +526,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 		);
 	});
 
-	test("downloads the full snapshot from root when source paths are non-posix", async () => {
+	test("downloads the full snapshot from root when source paths are native Windows paths", async () => {
 		const { organizationId, userId, shortId } = await setupDumpSnapshotScenario({
 			snapshotId: "snapshot-windows",
 			basePath: "/tmp/repro/source",
@@ -572,6 +572,17 @@ describe("repositoriesService.restoreSnapshot", () => {
 				},
 			);
 		});
+	};
+
+	const withPlatform = async <T>(platform: NodeJS.Platform, run: () => Promise<T>) => {
+		const originalPlatform = process.platform;
+		Object.defineProperty(process, "platform", { value: platform });
+
+		try {
+			return await run();
+		} finally {
+			Object.defineProperty(process, "platform", { value: originalPlatform });
+		}
 	};
 
 	beforeEach(() => {
@@ -647,11 +658,10 @@ describe("repositoriesService.restoreSnapshot", () => {
 				expect.objectContaining({
 					payload: expect.objectContaining({
 						snapshotId: "snapshot-restore",
-						target: targetPath,
+						snapshotPaths: ["/var/lib/zerobyte/volumes/vol123/_data"],
 						repositoryConfig: expect.objectContaining({ backend: "local" }),
-						options: expect.objectContaining({
-							organizationId,
-							basePath: "/var/lib/zerobyte/volumes/vol123/_data",
+						request: expect.objectContaining({
+							location: { kind: "custom", targetPath },
 						}),
 					}),
 				}),
@@ -768,7 +778,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			name: "Remote Agent",
 			kind: "remote",
 			status: "online",
-			capabilities: {},
+			capabilities: { platform: "linux" },
 			updatedAt: Date.now(),
 		});
 		vi.spyOn(restic, "snapshots").mockReturnValue(
@@ -802,7 +812,9 @@ describe("repositoriesService.restoreSnapshot", () => {
 				agentId,
 				expect.objectContaining({
 					payload: expect.objectContaining({
-						target: targetPath,
+						request: expect.objectContaining({
+							location: { kind: "custom", targetPath },
+						}),
 					}),
 				}),
 			);
@@ -830,7 +842,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			name: "Other Org Agent",
 			kind: "remote",
 			status: "online",
-			capabilities: {},
+			capabilities: { platform: "linux" },
 			updatedAt: Date.now(),
 		});
 		vi.spyOn(restic, "snapshots").mockReturnValue(
@@ -895,7 +907,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 		});
 	});
 
-	test("rejects original-location restore for snapshots with non-posix source paths", async () => {
+	test("rejects original-location restore for Windows snapshot paths on POSIX hosts", async () => {
 		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
 			"d:\\some\\path",
 		]);
@@ -912,7 +924,112 @@ describe("repositoriesService.restoreSnapshot", () => {
 		expect(restoreMock).not.toHaveBeenCalled();
 	});
 
-	test("allows restore-all to a custom target for snapshots with non-posix source paths", async () => {
+	test("allows original-location restore for Windows snapshot paths on Windows hosts", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
+			"C:\\Users\\nicolas\\Photos",
+			"C:\\Users\\nicolas\\Documents",
+		]);
+
+		await withPlatform("win32", () =>
+			withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore"),
+			),
+		);
+
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledWith(
+				"local",
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						snapshotId: "snapshot-restore",
+						snapshotPaths: ["C:\\Users\\nicolas\\Photos", "C:\\Users\\nicolas\\Documents"],
+						request: expect.objectContaining({
+							location: { kind: "original" },
+						}),
+					}),
+				}),
+			);
+		});
+	});
+
+	test("keeps the selected Windows file in its original folder", async () => {
+		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
+			"C:\\Users\\Nicolas\\Downloads",
+		]);
+
+		await withPlatform("win32", () =>
+			withContext({ organizationId, userId }, () =>
+				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", {
+					include: ["/C/Users/Nicolas/Downloads/DumpStack.log"],
+					selectedItemKind: "file",
+				}),
+			),
+		);
+
+		await waitForExpect(() => {
+			expect(restoreMock).toHaveBeenCalledWith(
+				"local",
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						request: expect.objectContaining({
+							location: { kind: "original" },
+							include: ["/C/Users/Nicolas/Downloads/DumpStack.log"],
+							selectedItemKind: "file",
+						}),
+					}),
+				}),
+			);
+		});
+	});
+
+	test("uses the target agent platform for target-scoped restore plans", async () => {
+		const organizationId = session.organizationId;
+		const agentId = `agent-${randomUUID()}`;
+		const repository = await createTestRepository(organizationId, {
+			type: "s3",
+			config: {
+				backend: "s3",
+				endpoint: "https://s3.example.com",
+				bucket: "bucket",
+				accessKeyId: "access-key",
+				secretAccessKey: "secret-key",
+			},
+		});
+		await db.insert(agentsTable).values({
+			id: agentId,
+			organizationId,
+			name: "Windows Agent",
+			kind: "remote",
+			status: "online",
+			capabilities: { platform: "win32" },
+			updatedAt: Date.now(),
+		});
+		vi.spyOn(restic, "snapshots").mockReturnValue(
+			Effect.succeed([
+				{
+					id: "snapshot-restore",
+					short_id: "snapshot-restore",
+					time: new Date().toISOString(),
+					paths: ["C:\\Users\\nicolas\\Photos", "C:\\Users\\nicolas\\Documents"],
+					hostname: "host",
+				},
+			]),
+		);
+		const plan = await withPlatform("linux", () =>
+			withContext({ organizationId, userId: session.user.id }, () =>
+				repositoriesService.getSnapshotRestorePlan(repository.shortId, "snapshot-restore", {
+					targetAgentId: agentId,
+				}),
+			),
+		);
+
+		expect(plan).toEqual({
+			queryBasePath: "/C/Users/nicolas",
+			requiresCustomTarget: false,
+		});
+	});
+
+	test("allows restore-all to a custom target for snapshots with native Windows source paths", async () => {
 		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario([
 			"d:\\some\\path",
 		]);
@@ -934,11 +1051,10 @@ describe("repositoriesService.restoreSnapshot", () => {
 				expect.objectContaining({
 					payload: expect.objectContaining({
 						snapshotId: "snapshot-restore",
-						target: targetPath,
+						snapshotPaths: ["d:\\some\\path"],
 						repositoryConfig: expect.objectContaining({ backend: "local" }),
-						options: expect.objectContaining({
-							organizationId,
-							basePath: "/",
+						request: expect.objectContaining({
+							location: { kind: "custom", targetPath },
 						}),
 					}),
 				}),

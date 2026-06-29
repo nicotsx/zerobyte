@@ -23,37 +23,40 @@ import { RestoreProgress } from "~/client/components/restore-progress";
 import { restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { type RestoreCompletedEvent, useServerEvents } from "~/client/hooks/use-server-events";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
-import { isPathWithin } from "@zerobyte/core/utils";
+import { isPathWithin, normalizeAbsolutePath, windowsHostPathToResticSnapshotPath } from "@zerobyte/core/utils";
 import type { Repository } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "~/client/lib/utils";
 
 type RestoreLocation = "original" | "custom";
+type SnapshotRestorePlan = { queryBasePath: string; requiresCustomTarget: boolean };
+
+const normalizeSnapshotBasePath = (value?: string) =>
+	windowsHostPathToResticSnapshotPath(value ?? "") ?? normalizeAbsolutePath(value ?? "/");
 
 interface RestoreFormProps {
 	repository: Repository;
 	snapshotId: string;
 	returnPath: string;
-	queryBasePath?: string;
+	snapshotSourcePathPlan: SnapshotRestorePlan;
 	displayBasePath?: string;
-	hasNonPosixSnapshotPaths?: boolean;
 }
 
 export function RestoreForm({
 	repository,
 	snapshotId,
 	returnPath,
-	queryBasePath,
+	snapshotSourcePathPlan,
 	displayBasePath,
-	hasNonPosixSnapshotPaths = false,
 }: RestoreFormProps) {
 	const navigate = useNavigate();
 	const { addEventListener } = useServerEvents();
 
-	const snapshotBasePath = queryBasePath ?? "/";
-	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
-	const restoreRequiresCustomTarget = hasNonPosixSnapshotPaths || hasMismatchedDisplayBasePath;
+	const snapshotBasePath = snapshotSourcePathPlan.queryBasePath;
+	const hasMismatchedDisplayBasePath =
+		displayBasePath && !isPathWithin(normalizeSnapshotBasePath(displayBasePath), snapshotBasePath);
+	const restoreRequiresCustomTarget = snapshotSourcePathPlan.requiresCustomTarget || !!hasMismatchedDisplayBasePath;
 
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>(
 		restoreRequiresCustomTarget ? "custom" : "original",

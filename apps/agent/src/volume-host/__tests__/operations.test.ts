@@ -62,5 +62,5 @@ test("listVolumeFiles rejects traversal outside the volume", async () => {
 test("listVolumeFiles reports missing directories consistently", async () => {
 	const volume = await createDirectoryVolume();
 
-	await expect(listVolumeFiles(volume, "missing", 0, 10)).rejects.toThrow("Directory not found");
+	await expect(listVolumeFiles(volume, "/missing", 0, 10)).rejects.toThrow("Directory not found");
 });

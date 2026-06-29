@@ -4,7 +4,11 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { isPathWithin, normalizeAbsolutePath, windowsHostPathToResticSnapshotPath } from "@zerobyte/core/utils";
+
+function normalizeSnapshotTreeBasePath(basePath?: string) {
+	return windowsHostPathToResticSnapshotPath(basePath ?? "") ?? normalizeAbsolutePath(basePath ?? "/");
+}
 
 function createPathPrefixFns(basePath: string) {
 	return {
@@ -46,7 +50,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
-	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
+	const normalizedDisplayBasePath = normalizeSnapshotTreeBasePath(displayBasePath);
 	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
 		? normalizedDisplayBasePath
 		: "/";

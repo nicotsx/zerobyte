@@ -1,4 +1,8 @@
-import type { RepositoryConfig } from "@zerobyte/core/restic";
+import {
+	createSnapshotRestoreExecutionPlan,
+	type RepositoryConfig,
+	type SnapshotRestoreRequest,
+} from "@zerobyte/core/restic";
 import type { RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { config as appConfig } from "~/server/core/config";
 import { repoMutex } from "../../core/repository-mutex";
@@ -7,8 +11,6 @@ import { runEffectPromise, toMessage } from "../../utils/errors";
 import { agentManager, type RestoreExecutionProgress, type RestoreExecutionResult } from "../agents/agents-manager";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 
-type RestoreExecutionOptions = Omit<Parameters<typeof restic.restore>[3], "organizationId" | "signal" | "onProgress">;
-
 type RestoreExecutionRequest = {
 	restoreId: string;
 	organizationId: string;
@@ -16,9 +18,9 @@ type RestoreExecutionRequest = {
 	repositoryShortId: string;
 	repositoryConfig: RepositoryConfig;
 	snapshotId: string;
-	target: string;
+	snapshotPaths: string[];
+	restoreRequest: SnapshotRestoreRequest;
 	executionAgentId: string;
-	options: RestoreExecutionOptions;
 	onStarted: () => void;
 	onProgress: (progress: RestoreExecutionProgress) => void;
 };
@@ -38,13 +40,10 @@ const createRestoreRunPayload = async (request: RestoreExecutionRequest): Promis
 		organizationId: request.organizationId,
 		repositoryId: request.repositoryShortId,
 		snapshotId: request.snapshotId,
-		target: request.target,
+		snapshotPaths: request.snapshotPaths,
 		repositoryConfig: request.repositoryConfig,
 		runtime: { password: resticPassword },
-		options: {
-			...request.options,
-			organizationId: request.organizationId,
-		},
+		request: request.restoreRequest,
 	};
 };
 
@@ -56,12 +55,18 @@ const executeControllerRestore = async (
 		return { status: "cancelled", message: "Restore was cancelled" };
 	}
 
-	request.onStarted();
-
 	try {
+		const plan = createSnapshotRestoreExecutionPlan({
+			snapshotPaths: request.snapshotPaths,
+			platform: process.platform,
+			request: request.restoreRequest,
+		});
+
+		request.onStarted();
+
 		const result = await runEffectPromise(
-			restic.restore(request.repositoryConfig, request.snapshotId, request.target, {
-				...request.options,
+			restic.restore(request.repositoryConfig, request.snapshotId, plan.target, {
+				...plan.options,
 				organizationId: request.organizationId,
 				signal,
 				onProgress: request.onProgress,

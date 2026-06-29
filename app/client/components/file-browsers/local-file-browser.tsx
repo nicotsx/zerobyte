@@ -3,7 +3,6 @@ import { browseFilesystemOptions } from "~/client/api-client/@tanstack/react-que
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
 
 type LocalFileBrowserProps = FileBrowserUiProps & {
@@ -13,10 +12,10 @@ type LocalFileBrowserProps = FileBrowserUiProps & {
 
 export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps }: LocalFileBrowserProps) => {
 	const queryClient = useQueryClient();
-	const normalizedInitialPath = normalizeAbsolutePath(initialPath);
+	const browsePath = initialPath.trim() ? initialPath : "/";
 
 	const { data, isLoading, error } = useQuery({
-		...browseFilesystemOptions({ query: { path: normalizedInitialPath } }),
+		...browseFilesystemOptions({ query: { path: browsePath } }),
 		enabled,
 	});
 

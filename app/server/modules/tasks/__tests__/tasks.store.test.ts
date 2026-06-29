@@ -55,7 +55,13 @@ const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create
 		resourceType: "repository",
 		resourceId: "repo-short",
 		targetAgentId: "local",
-		input: { kind: "restore", repositoryId: "repo-short", snapshotId: "snapshot-1", target: "/tmp/restore" },
+		input: {
+			kind: "restore",
+			repositoryId: "repo-short",
+			snapshotId: "snapshot-1",
+			restoreLocation: "custom",
+			targetPath: "/tmp/restore",
+		},
 		...overrides,
 	});
 

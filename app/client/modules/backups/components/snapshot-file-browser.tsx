@@ -6,7 +6,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { Link } from "@tanstack/react-router";
 import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-tree-browser";
-import { findCommonAncestor } from "@zerobyte/core/utils";
+import { getSnapshotSourcePathPlan, hostPathKindFromPath } from "@zerobyte/core/utils";
 
 interface Props {
 	snapshot: Snapshot;
@@ -30,8 +30,10 @@ export const SnapshotFileBrowser = (props: Props) => {
 	const { snapshot, repositoryId, backupId, displayBasePath, onDeleteSnapshot, isDeletingSnapshot } = props;
 	const { formatDateTime } = useTimeFormat();
 
-	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
-	const queryBasePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
+	const snapshotSourcePathPlan = getSnapshotSourcePathPlan({
+		snapshotPaths: snapshot.paths,
+		hostPathKind: hostPathKindFromPath(displayBasePath),
+	});
 
 	return (
 		<div className="space-y-4">
@@ -80,7 +82,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 					<SnapshotTreeBrowser
 						repositoryId={repositoryId}
 						snapshotId={snapshot.short_id}
-						queryBasePath={queryBasePath}
+						queryBasePath={snapshotSourcePathPlan.queryBasePath}
 						displayBasePath={displayBasePath}
 						{...treeProps}
 					/>

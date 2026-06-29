@@ -2,6 +2,7 @@ import os from "node:os";
 import path from "node:path";
 import { Effect, Runtime } from "effect";
 import { createAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { createSnapshotRestoreExecutionPlan } from "@zerobyte/core/restic";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
@@ -52,15 +53,21 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 
 		yield* Effect.fork(
 			Effect.gen(function* () {
-				assertAllowedRestoreTarget(payload.target);
+				const plan = createSnapshotRestoreExecutionPlan({
+					snapshotPaths: payload.snapshotPaths,
+					platform: process.platform,
+					request: payload.request,
+				});
+				assertAllowedRestoreTarget(plan.target);
 
 				const runtime = yield* Effect.runtime<never>();
 				const restic = createRestic(resticDeps(payload.runtime.password));
 
 				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
 
-				const result = yield* restic.restore(payload.repositoryConfig, payload.snapshotId, payload.target, {
-					...payload.options,
+				const result = yield* restic.restore(payload.repositoryConfig, payload.snapshotId, plan.target, {
+					...plan.options,
+					organizationId: payload.organizationId,
 					signal: abortController.signal,
 					onProgress: (progress) => {
 						void Runtime.runPromise(

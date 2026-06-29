@@ -2,7 +2,11 @@ import { Effect } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
+import {
+	createAgentMessage,
+	AGENT_PROTOCOL_VERSION,
+	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+} from "@zerobyte/contracts/agent-protocol";
 import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 
@@ -55,7 +59,7 @@ const backupVolume = {
 
 const readyPayload = {
 	agentId: LOCAL_AGENT_ID,
-	protocolVersion: 1,
+	protocolVersion: AGENT_PROTOCOL_VERSION,
 	hostname: "host",
 	platform: "linux",
 	capabilities: { backup: true },
@@ -205,11 +209,11 @@ test("websocket lifecycle updates agent connection status", async () => {
 		agentKind: LOCAL_AGENT_KIND,
 	});
 	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), {
+		platform: "linux",
 		backup: true,
-		protocolVersion: 1,
+		protocolVersion: AGENT_PROTOCOL_VERSION,
 		protocolCompatible: true,
 		hostname: "host",
-		platform: "linux",
 	});
 	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
@@ -230,7 +234,7 @@ test("websocket protocol rejection forwards the event and closes the connection"
 		JSON.stringify({
 			type: "agent.ready",
 			payload: {
-				protocolVersion: 2,
+				protocolVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION + 1,
 				hostname: "host",
 				platform: "linux",
 			},

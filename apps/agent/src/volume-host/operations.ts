@@ -2,12 +2,27 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { BackendConfig, Volume as AgentVolume } from "@zerobyte/contracts/volumes";
-import { toMessage } from "@zerobyte/core/utils";
+import { normalizeAbsolutePath, toMessage } from "@zerobyte/core/utils";
 import { Data, Effect } from "effect";
 import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
 
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
+
+const normalizeVolumePath = (value: string) => {
+	if (!value.startsWith("/")) {
+		throw new Error("Invalid path");
+	}
+
+	return normalizeAbsolutePath(value);
+};
+
+const resolveVolumePath = (volumePath: string, volumeRelativePath: string) => {
+	const segments = volumeRelativePath.slice(1).split("/").filter(Boolean);
+	return path.join(volumePath, ...segments);
+};
+
+const toVolumePath = (nativeRelativePath: string) => normalizeVolumePath(`/${nativeRelativePath.replace(/\\/g, "/")}`);
 
 export const listVolumeFiles = async (
 	volume: AgentVolume,
@@ -16,7 +31,13 @@ export const listVolumeFiles = async (
 	limit: number = DEFAULT_PAGE_SIZE,
 ) => {
 	const volumePath = getVolumePath(volume);
-	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
+	let requestPath: string;
+	try {
+		requestPath = normalizeVolumePath(subPath ?? "/");
+	} catch {
+		throw new Error("Invalid path");
+	}
+	const requestedPath = resolveVolumePath(volumePath, requestPath);
 	const normalizedPath = path.normalize(requestedPath);
 	const requestedRelativePath = path.relative(volumePath, normalizedPath);
 
@@ -66,7 +87,7 @@ export const listVolumeFiles = async (
 
 						return {
 							name: dirent.name,
-							path: `/${relativePath}`,
+							path: toVolumePath(relativePath),
 							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
 							size: dirent.isFile() ? stats.size : undefined,
 							modifiedAt: stats.mtimeMs,
@@ -80,7 +101,7 @@ export const listVolumeFiles = async (
 
 		return {
 			files: entries,
-			path: subPath || "/",
+			path: requestPath,
 			offset: startOffset,
 			limit: pageSize,
 			total,

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 import { fromAny } from "@total-typescript/shoehorn";
+import { getSnapshotSourcePathPlan } from "@zerobyte/core/utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -13,6 +14,9 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 });
 
 import { RestoreForm } from "../restore-form";
+
+const sourcePathPlan = (snapshotPaths: string[], hostPathKind: "posix" | "windows" = "posix") =>
+	getSnapshotSourcePathPlan({ snapshotPaths, hostPathKind });
 
 class MockEventSource {
 	addEventListener() {}
@@ -26,6 +30,19 @@ const originalEventSource = globalThis.EventSource;
 
 beforeEach(() => {
 	globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+	server.use(
+		http.get("/api/v1/system/info", () =>
+			HttpResponse.json({
+				runtime: "server",
+				capabilities: {
+					rclone: false,
+					sysAdmin: false,
+					volumeBackends: ["directory"],
+					repositoryBackends: ["local", "s3", "r2", "gcs", "azure", "sftp", "rest"],
+				},
+			}),
+		),
+	);
 });
 
 afterEach(() => {
@@ -62,7 +79,7 @@ describe("RestoreForm", () => {
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
 				snapshotId="snap-1"
 				returnPath="/repositories/repo-1/snap-1"
-				queryBasePath="/mnt/project/subdir"
+				snapshotSourcePathPlan={sourcePathPlan(["/mnt/project/subdir"])}
 				displayBasePath="/mnt"
 			/>,
 		);
@@ -81,7 +98,7 @@ describe("RestoreForm", () => {
 		});
 	});
 
-	test("restores the selected full path when the display root is unrelated", async () => {
+	test("requires a custom target when the display root is unrelated", async () => {
 		let restoreRequestBody: unknown;
 
 		server.use(
@@ -115,7 +132,7 @@ describe("RestoreForm", () => {
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
 				snapshotId="snap-1"
 				returnPath="/repositories/repo-1/snap-1"
-				queryBasePath="/mnt/project"
+				snapshotSourcePathPlan={sourcePathPlan(["/mnt/project"])}
 				displayBasePath="/other/root"
 			/>,
 		);
@@ -151,5 +168,26 @@ describe("RestoreForm", () => {
 				overwrite: "always",
 			});
 		});
+	});
+
+	test("allows original restore when Windows snapshot paths match a Windows host", () => {
+		server.use(
+			http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () =>
+				HttpResponse.json({ files: [] }),
+			),
+		);
+
+		render(
+			<RestoreForm
+				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
+				snapshotId="snap-1"
+				returnPath="/repositories/repo-1/snap-1"
+				snapshotSourcePathPlan={sourcePathPlan(["C:\\Users\\nicolas\\Photos"], "windows")}
+				displayBasePath="C:\\Users\\nicolas"
+			/>,
+		);
+
+		expect(screen.queryByText("Source paths do not match")).toBeNull();
+		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(false);
 	});
 });

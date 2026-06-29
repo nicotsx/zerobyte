@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getBackupSchedule } from "~/client/api-client";
-import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getRepositoryOptions,
+	getSnapshotDetailsOptions,
+	getSnapshotRestorePlanOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
-import { findCommonAncestor } from "@zerobyte/core/utils";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -15,7 +18,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			throw new Response("Not Found", { status: 404 });
 		}
 
-		const [snapshot, repository] = await Promise.all([
+		const [snapshot, repository, restorePlan] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({
 					path: { shortId: schedule.data.repository.shortId, snapshotId: params.snapshotId },
@@ -24,17 +27,21 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			context.queryClient.ensureQueryData({
 				...getRepositoryOptions({ path: { shortId: schedule.data.repository.shortId } }),
 			}),
+			context.queryClient.ensureQueryData({
+				...getSnapshotRestorePlanOptions({
+					path: { shortId: schedule.data.repository.shortId, snapshotId: params.snapshotId },
+				}),
+			}),
 		]);
 
-		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+		const displayBasePath = getVolumeMountPath(schedule.data.volume);
 
 		return {
 			snapshot,
 			repository,
 			schedule: schedule.data,
-			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
-			displayBasePath: getVolumeMountPath(schedule.data.volume),
-			hasNonPosixSnapshotPaths,
+			displayBasePath,
+			snapshotSourcePathPlan: restorePlan,
 		};
 	},
 	head: ({ params }) => ({
@@ -58,16 +65,15 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths } = Route.useLoaderData();
+	const { repository, displayBasePath, snapshotSourcePathPlan } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
 			returnPath={`/backups/${backupId}`}
 			snapshotId={snapshotId}
 			repository={repository}
-			queryBasePath={queryBasePath}
+			snapshotSourcePathPlan={snapshotSourcePathPlan}
 			displayBasePath={displayBasePath}
-			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 		/>
 	);
 }

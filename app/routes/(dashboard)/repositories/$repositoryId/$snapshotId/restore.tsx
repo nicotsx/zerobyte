@@ -1,19 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getBackupSchedule } from "~/client/api-client";
-import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getRepositoryOptions,
+	getSnapshotDetailsOptions,
+	getSnapshotRestorePlanOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
-import { findCommonAncestor } from "@zerobyte/core/utils";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/restore")({
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		const [snapshot, repository] = await Promise.all([
+		const [snapshot, repository, restorePlan] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({ path: { shortId: params.repositoryId, snapshotId: params.snapshotId } }),
 			}),
-			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { shortId: params.repositoryId } }) }),
+			context.queryClient.ensureQueryData({
+				...getRepositoryOptions({ path: { shortId: params.repositoryId } }),
+			}),
+			context.queryClient.ensureQueryData({
+				...getSnapshotRestorePlanOptions({
+					path: { shortId: params.repositoryId, snapshotId: params.snapshotId },
+				}),
+			}),
 		]);
 
 		let displayBasePath: string | undefined;
@@ -25,21 +35,24 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			}
 		}
 
-		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
-
 		return {
 			snapshot,
 			repository,
-			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
 			displayBasePath,
-			hasNonPosixSnapshotPaths,
+			snapshotSourcePathPlan: restorePlan,
 		};
 	},
 	staticData: {
 		breadcrumb: (match) => [
 			{ label: "Repositories", href: "/repositories" },
-			{ label: match.loaderData?.repository?.name || "Repository", href: `/repositories/${match.params.repositoryId}` },
-			{ label: match.params.snapshotId, href: `/repositories/${match.params.repositoryId}/${match.params.snapshotId}` },
+			{
+				label: match.loaderData?.repository?.name || "Repository",
+				href: `/repositories/${match.params.repositoryId}`,
+			},
+			{
+				label: match.params.snapshotId,
+				href: `/repositories/${match.params.repositoryId}/${match.params.snapshotId}`,
+			},
 			{ label: "Restore" },
 		],
 	},
@@ -56,16 +69,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths } = Route.useLoaderData();
+	const { repository, displayBasePath, snapshotSourcePathPlan } = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			repository={repository}
 			snapshotId={snapshotId}
-			queryBasePath={queryBasePath}
+			snapshotSourcePathPlan={snapshotSourcePathPlan}
 			displayBasePath={displayBasePath}
-			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 		/>
 	);
 }

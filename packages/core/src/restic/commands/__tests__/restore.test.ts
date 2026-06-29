@@ -186,6 +186,80 @@ describe("restore command", () => {
 			expect(separatorIndex).toBeGreaterThan(-1);
 			expect(getRestoreArg()).toBe("--help:/var/lib/zerobyte/volumes/vol123/_data");
 		});
+
+		test("uses restic snapshot tree syntax for Windows base paths restored to drive roots", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\",
+				{
+					organizationId: "org-1",
+					basePath: "C:\\Users\\nicolas",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/nicolas");
+		});
+
+		test("keeps the precomputed Windows original-location target for restore-all", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\Users",
+				{
+					organizationId: "org-1",
+					basePath: "/C/Users/nicolas",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\Users"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/nicolas");
+		});
+
+		test("keeps the precomputed Windows original-location target for selections", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\Users\\nicolas",
+				{
+					organizationId: "org-1",
+					include: ["/C/Users/nicolas/Downloads"],
+					selectedItemKind: "dir",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\Users\\nicolas"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/nicolas/Downloads");
+		});
+
+		test("strips selected Windows directories for custom drive-root targets", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\",
+				{
+					organizationId: "org-1",
+					include: ["C:\\Users\\nicolas\\Documents"],
+					selectedItemKind: "dir",
+				},
+				mockDeps,
+			);
+
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/nicolas/Documents");
+			expect(getOptionValues("--include")).toEqual([]);
+		});
 	});
 
 	describe("output handling", () => {

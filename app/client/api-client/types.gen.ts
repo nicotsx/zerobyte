@@ -2336,6 +2336,30 @@ export type GetSnapshotDetailsResponses = {
 
 export type GetSnapshotDetailsResponse = GetSnapshotDetailsResponses[keyof GetSnapshotDetailsResponses];
 
+export type GetSnapshotRestorePlanData = {
+    body?: never;
+    path: {
+        shortId: string;
+        snapshotId: string;
+    };
+    query?: {
+        targetAgentId?: string;
+    };
+    url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/restore-plan';
+};
+
+export type GetSnapshotRestorePlanResponses = {
+    /**
+     * Target-scoped snapshot restore plan
+     */
+    200: {
+        queryBasePath: string;
+        requiresCustomTarget: boolean;
+    };
+};
+
+export type GetSnapshotRestorePlanResponse = GetSnapshotRestorePlanResponses[keyof GetSnapshotRestorePlanResponses];
+
 export type ListSnapshotFilesData = {
     body?: never;
     path: {

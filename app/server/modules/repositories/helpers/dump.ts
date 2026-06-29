@@ -1,6 +1,6 @@
 import { BadRequestError } from "http-errors-enhanced";
 import path from "node:path";
-import { findCommonAncestor, normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { getSnapshotSourcePathPlan, normalizeAbsolutePath } from "@zerobyte/core/utils";
 
 const sanitizeFilenamePart = (value: string): string => {
 	const sanitized = value.replace(/[^a-zA-Z0-9._-]/g, "_").replace(/^_+|_+$/g, "");
@@ -16,8 +16,7 @@ export const prepareSnapshotDump = (params: {
 
 	const archiveFilename = `snapshot-${sanitizeFilenamePart(snapshotId)}.tar`;
 	const normalizedRequestedPath = normalizeAbsolutePath(requestedPath);
-	const hasNonPosixSnapshotPaths = snapshotPaths.some((snapshotPath) => !snapshotPath.startsWith("/"));
-	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshotPaths);
+	const { queryBasePath: basePath } = getSnapshotSourcePathPlan({ snapshotPaths });
 
 	if (basePath === "/") {
 		return {
