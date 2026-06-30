@@ -4,23 +4,7 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
-
-function createPathPrefixFns(basePath: string) {
-	return {
-		strip(path: string) {
-			if (basePath === "/") return path;
-			if (path === basePath) return "/";
-			if (path.startsWith(`${basePath}/`)) return path.slice(basePath.length);
-			return path;
-		},
-		add(displayPath: string) {
-			if (basePath === "/") return displayPath;
-			if (displayPath === "/") return basePath;
-			return `${basePath}${displayPath}`;
-		},
-	};
-}
+import { createSnapshotPathContext } from "@zerobyte/core/restic";
 
 type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	repositoryId: string;
@@ -45,11 +29,11 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 
 	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
-	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
-	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
-	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
-		? normalizedDisplayBasePath
-		: "/";
+	const snapshotPathContext = useMemo(
+		() => createSnapshotPathContext({ snapshotPaths: [queryBasePath], displayBasePath }),
+		[displayBasePath, queryBasePath],
+	);
+	const normalizedQueryBasePath = snapshotPathContext.browser.initialQueryPath();
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
@@ -59,7 +43,13 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		enabled,
 	});
 
-	const displayPathFns = useMemo(() => createPathPrefixFns(effectiveDisplayBasePath), [effectiveDisplayBasePath]);
+	const displayPathFns = useMemo(
+		() => ({
+			strip: snapshotPathContext.browser.toDisplayPath,
+			add: snapshotPathContext.browser.toSnapshotPath,
+		}),
+		[snapshotPathContext],
+	);
 
 	const displaySelectedPaths = useMemo(() => {
 		if (!selectedPaths) return undefined;

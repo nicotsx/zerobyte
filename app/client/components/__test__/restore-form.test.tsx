@@ -26,6 +26,19 @@ const originalEventSource = globalThis.EventSource;
 
 beforeEach(() => {
 	globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+	server.use(
+		http.get("/api/v1/system/info", () =>
+			HttpResponse.json({
+				runtime: "server",
+				capabilities: {
+					rclone: false,
+					sysAdmin: false,
+					volumeBackends: ["directory"],
+					repositoryBackends: ["local", "s3", "r2", "gcs", "azure", "sftp", "rest"],
+				},
+			}),
+		),
+	);
 });
 
 afterEach(() => {
@@ -62,7 +75,7 @@ describe("RestoreForm", () => {
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
 				snapshotId="snap-1"
 				returnPath="/repositories/repo-1/snap-1"
-				queryBasePath="/mnt/project/subdir"
+				snapshotSourcePathPlan={{ queryBasePath: "/mnt/project/subdir", requiresCustomTarget: false }}
 				displayBasePath="/mnt"
 			/>,
 		);
@@ -81,7 +94,7 @@ describe("RestoreForm", () => {
 		});
 	});
 
-	test("restores the selected full path when the display root is unrelated", async () => {
+	test("requires a custom target when the display root is unrelated", async () => {
 		let restoreRequestBody: unknown;
 
 		server.use(
@@ -115,7 +128,7 @@ describe("RestoreForm", () => {
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
 				snapshotId="snap-1"
 				returnPath="/repositories/repo-1/snap-1"
-				queryBasePath="/mnt/project"
+				snapshotSourcePathPlan={{ queryBasePath: "/mnt/project", requiresCustomTarget: false }}
 				displayBasePath="/other/root"
 			/>,
 		);
@@ -151,5 +164,26 @@ describe("RestoreForm", () => {
 				overwrite: "always",
 			});
 		});
+	});
+
+	test("allows original restore when Windows snapshot paths match a Windows host", () => {
+		server.use(
+			http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () =>
+				HttpResponse.json({ files: [] }),
+			),
+		);
+
+		render(
+			<RestoreForm
+				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
+				snapshotId="snap-1"
+				returnPath="/repositories/repo-1/snap-1"
+				snapshotSourcePathPlan={{ queryBasePath: "/C/Users/nicolas", requiresCustomTarget: false }}
+				displayBasePath="C:\\Users\\Nicolas"
+			/>,
+		);
+
+		expect(screen.queryByText("Source paths do not match")).toBeNull();
+		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(false);
 	});
 });

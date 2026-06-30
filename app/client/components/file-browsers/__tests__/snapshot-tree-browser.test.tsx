@@ -208,6 +208,33 @@ describe("SnapshotTreeBrowser", () => {
 		expect(selectedKind === "dir").toBe(true);
 	});
 
+	test("maps Windows display roots to restic snapshot tree paths", async () => {
+		mockListSnapshotFiles({
+			files: [
+				{ name: "Downloads", path: "/C/Users/nicolas/Downloads", type: "dir" },
+				{ name: "a.txt", path: "/C/Users/nicolas/Downloads/a.txt", type: "file" },
+			],
+		});
+
+		let selectedPaths: Set<string> | undefined;
+
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/C/Users/nicolas",
+			displayBasePath: "C:\\Users\\Nicolas",
+			withCheckboxes: true,
+			onSelectionChange: (paths) => {
+				selectedPaths = paths;
+			},
+		});
+
+		const row = await screen.findByRole("button", { name: "Downloads" });
+		const checkbox = within(row).getByRole("checkbox");
+
+		await userEvent.click(checkbox);
+
+		expect(selectedPaths ? Array.from(selectedPaths) : []).toEqual(["/C/Users/nicolas/Downloads"]);
+	});
+
 	test("uses the query base path for the initial request when display base path is broader", async () => {
 		const requests = mockListSnapshotFiles();
 
