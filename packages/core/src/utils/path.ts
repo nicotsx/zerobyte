@@ -1,3 +1,37 @@
+export const isWindowsHostPath = (value: string): boolean => /^[A-Za-z]:[\\/]/.test(value);
+
+export const normalizeWindowsHostPath = (value: string): string | undefined => {
+	if (!isWindowsHostPath(value)) return undefined;
+
+	const parts: string[] = [];
+	for (const part of value.slice(2).replace(/\\/g, "/").split("/")) {
+		if (!part || part === ".") continue;
+		if (part === "..") {
+			parts.pop();
+			continue;
+		}
+		parts.push(part);
+	}
+
+	return `${value[0]?.toUpperCase()}:\\${parts.join("\\")}`;
+};
+
+export const windowsHostPathToResticSnapshotPath = (value: string): string | undefined => {
+	const normalized = normalizeWindowsHostPath(value);
+	if (!normalized) return undefined;
+
+	const withoutDrive = normalized.slice(3).replace(/\\/g, "/");
+	return withoutDrive ? `/${normalized[0]}/${withoutDrive}` : `/${normalized[0]}`;
+};
+
+export const windowsResticSnapshotPathToHostPath = (value: string): string | undefined => {
+	const match = /^\/([A-Za-z])(?:\/(.*))?$/.exec(value);
+	if (!match?.[1]) return undefined;
+
+	const segments = match[2]?.split("/").filter(Boolean) ?? [];
+	return `${match[1].toUpperCase()}:\\${segments.join("\\")}`;
+};
+
 export const normalizeAbsolutePath = (value?: string): string => {
 	if (!value?.trim()) return "/";
 

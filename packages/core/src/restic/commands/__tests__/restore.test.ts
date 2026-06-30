@@ -186,6 +186,119 @@ describe("restore command", () => {
 			expect(separatorIndex).toBeGreaterThan(-1);
 			expect(getRestoreArg()).toBe("--help:/var/lib/zerobyte/volumes/vol123/_data");
 		});
+
+		test("uses basePath as an include when restoring a scoped path to the filesystem root", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-scoped-root",
+				"/",
+				{
+					organizationId: "org-1",
+					basePath: "/var/lib/app",
+				},
+				mockDeps,
+			);
+
+			expect(getRestoreArg()).toBe("snapshot-scoped-root");
+			expect(getOptionValues("--include")).toEqual(["/var/lib/app"]);
+		});
+
+		test("uses restic snapshot tree syntax for Windows base paths restored to drive roots", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\",
+				{
+					organizationId: "org-1",
+					basePath: "C:\\Users\\foo",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/foo");
+		});
+
+		test("keeps the precomputed Windows original-location target for restore-all", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\Users",
+				{
+					organizationId: "org-1",
+					basePath: "/C/Users/foo",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\Users"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/foo");
+			expect(getOptionValues("--include")).toEqual([]);
+		});
+
+		test("keeps the precomputed Windows original-location target for selections", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\Users\\foo",
+				{
+					organizationId: "org-1",
+					include: ["/C/Users/foo/Downloads"],
+					selectedItemKind: "dir",
+				},
+				mockDeps,
+			);
+
+			expect(getOptionValues("--target")).toEqual(["C:\\Users\\foo"]);
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/foo/Downloads");
+			expect(getOptionValues("--include")).toEqual([]);
+		});
+
+		test("strips selected Windows directories for custom drive-root targets", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\",
+				{
+					organizationId: "org-1",
+					include: ["C:\\Users\\foo\\Documents"],
+					selectedItemKind: "dir",
+				},
+				mockDeps,
+			);
+
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/foo/Documents");
+			expect(getOptionValues("--include")).toEqual([]);
+		});
+
+		test("passes exclude patterns verbatim", async () => {
+			const { getRestoreArg, getOptionValues } = setup();
+
+			await runRestore(
+				config,
+				"snapshot-windows",
+				"C:\\",
+				{
+					organizationId: "org-1",
+					basePath: "C:\\Users\\foo",
+					exclude: ["*.tmp", "C:\\Users\\foo\\Photos\\private"],
+				},
+				mockDeps,
+			);
+
+			expect(getRestoreArg()).toBe("snapshot-windows:/C/Users/foo");
+			expect(getOptionValues("--exclude")).toEqual(["*.tmp", "C:\\Users\\foo\\Photos\\private"]);
+		});
 	});
 
 	describe("output handling", () => {

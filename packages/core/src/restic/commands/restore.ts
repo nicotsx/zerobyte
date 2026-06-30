@@ -1,5 +1,3 @@
-import path from "node:path";
-import { findCommonAncestor } from "../../utils/common-ancestor";
 import { addCommonArgs } from "../helpers/add-common-args";
 import { buildEnv } from "../helpers/build-env";
 import { buildRepoUrl } from "../helpers/build-repo-url";
@@ -16,13 +14,13 @@ import {
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
+import { createRestorePathArgs } from "../helpers/restore-paths";
+import type { SnapshotSourcePathKind } from "../helpers/snapshot-paths";
 
 class ResticRestoreCommandError extends Data.TaggedError("ResticRestoreCommandError")<{
 	cause: unknown;
 	message: string;
 }> {}
-
-const escapeResticIncludePattern = (pattern: string) => pattern.replace(/[\\*?[\]]/g, "\\$&");
 
 export const restore = (
 	config: RepositoryConfig,
@@ -30,6 +28,7 @@ export const restore = (
 	target: string,
 	options: {
 		basePath?: string;
+		sourcePathKind?: SnapshotSourcePathKind;
 		organizationId: string;
 		include?: string[];
 		selectedItemKind?: "file" | "dir";
@@ -50,12 +49,15 @@ export const restore = (
 				(env) => Effect.promise(() => cleanupTemporaryKeys(env, deps)),
 			);
 
-			const includes = options.include?.length ? options.include : [options.basePath ?? "/"];
-			const commonAncestor =
-				options.selectedItemKind === "file" && includes.length === 1
-					? path.posix.dirname(includes[0] ?? "/")
-					: findCommonAncestor(includes);
-			const restoreArg = target === "/" ? snapshotId : `${snapshotId}:${commonAncestor}`;
+			const pathArgs = createRestorePathArgs({
+				snapshotId,
+				target,
+				basePath: options.basePath,
+				sourcePathKind: options.sourcePathKind,
+				include: options.include,
+				exclude: options.exclude,
+				selectedItemKind: options.selectedItemKind,
+			});
 
 			const args = ["--repo", repoUrl, "restore", "--target", target];
 
@@ -63,31 +65,12 @@ export const restore = (
 				args.push("--overwrite", options.overwrite);
 			}
 
-			if (options.include?.length) {
-				if (target === "/") {
-					for (const pattern of options.include) {
-						args.push("--include", escapeResticIncludePattern(pattern));
-					}
-				} else {
-					const strippedIncludes = options.include.map((pattern) =>
-						path.posix.relative(commonAncestor, pattern),
-					);
-					const includesCoverRestoreRoot = strippedIncludes.some(
-						(pattern) => pattern === "" || pattern === ".",
-					);
-
-					if (!includesCoverRestoreRoot) {
-						for (const pattern of strippedIncludes) {
-							args.push("--include", escapeResticIncludePattern(pattern));
-						}
-					}
-				}
+			for (const pattern of pathArgs.includePatterns) {
+				args.push("--include", pattern);
 			}
 
-			if (options.exclude?.length) {
-				for (const pattern of options.exclude) {
-					args.push("--exclude", pattern);
-				}
+			for (const pattern of pathArgs.excludePatterns) {
+				args.push("--exclude", pattern);
 			}
 
 			if (options.excludeXattr?.length) {
@@ -97,7 +80,7 @@ export const restore = (
 			}
 
 			addCommonArgs(args, env, config);
-			args.push("--", restoreArg);
+			args.push("--", pathArgs.restoreArg);
 
 			const onProgress = options.onProgress;
 			const resticProgressFps = process.env.RESTIC_PROGRESS_FPS ?? "1";
