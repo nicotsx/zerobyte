@@ -58,7 +58,11 @@ test("runs backend-backed volume commands on the agent host", async () => {
 			commandId: "command-1",
 			command: {
 				name: "volume.mount",
-				volume: { id: 1, config: { backend: "directory", path: "/tmp/source" }, provisioningId: undefined },
+				volume: {
+					id: 1,
+					config: { backend: "directory", path: "/tmp/source" },
+					provisioningId: undefined,
+				},
 			},
 		}),
 	);

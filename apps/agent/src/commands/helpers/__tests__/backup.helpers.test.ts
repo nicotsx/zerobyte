@@ -199,4 +199,12 @@ describe("backup path options", () => {
 		expect(options.includePaths).toEqual([path.join(volumePath, "movies [1]")]);
 		expect(options.includePatterns).toEqual([path.join(volumePath, "**/*.txt")]);
 	});
+
+	test("treats selected include paths as literal path values", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+
+		const options = createOptions(createPathOptions({ includePaths: ["/movies%20%5B1%5D"] }), volumePath);
+
+		expect(options.includePaths).toEqual([path.join(volumePath, "movies%20%5B1%5D")]);
+	});
 });
