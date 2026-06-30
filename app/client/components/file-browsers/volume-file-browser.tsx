@@ -10,6 +10,16 @@ type VolumeFileBrowserProps = FileBrowserUiProps & {
 	enabled?: boolean;
 };
 
+const mapVolumePathSegments = (volumePath: string, transform: (segment: string) => string) => {
+	const segments = volumePath.split("/").filter(Boolean).map(transform);
+	return segments.length ? `/${segments.join("/")}` : "/";
+};
+
+const volumePathTransform = {
+	strip: (volumePath: string) => mapVolumePathSegments(volumePath, decodeURIComponent),
+	add: (volumePath: string) => mapVolumePathSegments(volumePath, encodeURIComponent),
+};
+
 export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: VolumeFileBrowserProps) => {
 	const queryClient = useQueryClient();
 
@@ -39,6 +49,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 				)
 				.catch((e) => logger.error(e));
 		},
+		pathTransform: volumePathTransform,
 	});
 
 	return (
