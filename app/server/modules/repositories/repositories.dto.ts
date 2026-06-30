@@ -205,6 +205,15 @@ const snapshotSchema = z.object({
 	summary: resticSnapshotSummarySchema.optional(),
 });
 
+const snapshotSourcePathPlanSchema = z.object({
+	queryBasePath: z.string(),
+	requiresCustomTarget: z.boolean(),
+});
+
+export const getSnapshotRestorePlanQuery = z.object({
+	targetAgentId: z.string().optional(),
+});
+
 const listSnapshotsResponse = snapshotSchema.array();
 
 export type ListSnapshotsDto = z.infer<typeof listSnapshotsResponse>;
@@ -243,6 +252,35 @@ export const getSnapshotDetailsDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(getSnapshotDetailsResponse),
+				},
+			},
+		},
+	},
+});
+
+const getSnapshotRestorePlanResponse = snapshotSourcePathPlanSchema;
+
+export type GetSnapshotRestorePlanDto = z.infer<typeof getSnapshotRestorePlanResponse>;
+
+export const getSnapshotRestorePlanDto = describeRoute({
+	description: "Get a target-scoped restore plan for a snapshot",
+	tags: ["Repositories"],
+	operationId: "getSnapshotRestorePlan",
+	parameters: [
+		{
+			in: "query",
+			name: "targetAgentId",
+			required: false,
+			schema: { type: "string" },
+			description: "Agent that will execute the restore. Defaults to the local agent.",
+		},
+	],
+	responses: {
+		200: {
+			description: "Target-scoped snapshot restore plan",
+			content: {
+				"application/json": {
+					schema: resolver(getSnapshotRestorePlanResponse),
 				},
 			},
 		},

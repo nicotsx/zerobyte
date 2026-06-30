@@ -16,6 +16,8 @@ import {
 	getRepositoryStatsDto,
 	refreshRepositoryStatsDto,
 	getSnapshotDetailsDto,
+	getSnapshotRestorePlanDto,
+	getSnapshotRestorePlanQuery,
 	refreshSnapshotsDto,
 	listRcloneRemotesDto,
 	listRepositoriesDto,
@@ -43,6 +45,7 @@ import {
 	type GetRepositoryStatsDto,
 	type RefreshRepositoryStatsDto,
 	type GetSnapshotDetailsDto,
+	type GetSnapshotRestorePlanDto,
 	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
 	type ListSnapshotFilesDto,
@@ -168,6 +171,19 @@ export const repositoriesController = new Hono()
 
 		return c.json<GetSnapshotDetailsDto>(response, 200);
 	})
+	.get(
+		"/:shortId/snapshots/:snapshotId/restore-plan",
+		getSnapshotRestorePlanDto,
+		validator("query", getSnapshotRestorePlanQuery),
+		async (c) => {
+			const shortId = asShortId(c.req.param("shortId"));
+			const snapshotId = c.req.param("snapshotId");
+			const query = c.req.valid("query");
+			const result = await repositoriesService.getSnapshotRestorePlan(shortId, snapshotId, query);
+
+			return c.json<GetSnapshotRestorePlanDto>(result, 200);
+		},
+	)
 	.get(
 		"/:shortId/snapshots/:snapshotId/files",
 		listSnapshotFilesDto,

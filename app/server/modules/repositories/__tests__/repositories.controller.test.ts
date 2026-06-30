@@ -121,6 +121,7 @@ describe("repositories security", () => {
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/refresh" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
+			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/restore-plan" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/files" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/dump" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/restore" },
@@ -141,6 +142,25 @@ describe("repositories security", () => {
 				expect(body.message).toBe("Invalid or expired session");
 			});
 		}
+	});
+
+	test("GET restore-plan returns a plan and passes targetAgentId through", async () => {
+		const restorePlanSpy = vi.spyOn(repositoriesService, "getSnapshotRestorePlan").mockResolvedValue({
+			queryBasePath: "/C/Users/nicolas",
+			requiresCustomTarget: false,
+		});
+
+		const res = await app.request(
+			"/api/v1/repositories/repo-1/snapshots/snapshot-1/restore-plan?targetAgentId=agent-1",
+			{ headers: session.headers },
+		);
+
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			queryBasePath: "/C/Users/nicolas",
+			requiresCustomTarget: false,
+		});
+		expect(restorePlanSpy).toHaveBeenCalledWith("repo-1", "snapshot-1", { targetAgentId: "agent-1" });
 	});
 
 	describe("dev panel endpoint - requires dev panel access", () => {
