@@ -43,13 +43,10 @@ jobs:
   e2e-tests:
     uses: ./.github/workflows/e2e.yml
 
-  integration-tests:
-    uses: ./.github/workflows/integration.yml
-
   build-images:
     environment: release
     timeout-minutes: 15
-    needs: [determine-release-type, checks, e2e-tests, integration-tests]
+    needs: [determine-release-type, checks, e2e-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -108,7 +105,7 @@ jobs:
             APP_VERSION=${{ needs.determine-release-type.outputs.tagname }}
 
   publish-desktop-testflight:
-    needs: [determine-release-type, checks, e2e-tests, integration-tests]
+    needs: [determine-release-type, checks, e2e-tests]
     uses: ./.github/workflows/desktop-release.yml
     permissions:
       contents: read

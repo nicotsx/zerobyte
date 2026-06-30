@@ -79,6 +79,9 @@ jobs:
         shell: bash
         run: bun run test:client
 
+  test-integration:
+    uses: ./.github/workflows/integration.yml
+
   build:
     timeout-minutes: 15
     runs-on: ubuntu-latest
