@@ -32,6 +32,8 @@ type CreateTaskParams = {
 
 type MarkActiveStaleParams = Partial<TaskResource> & { error?: string };
 
+export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
+
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
 
 const activeStatusCondition = () => inArray(tasksTable.status, activeTaskStatuses);

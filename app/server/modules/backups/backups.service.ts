@@ -32,8 +32,10 @@ import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
 import { createTaskProgressBuffer } from "../tasks/progress-buffer";
+import type { ParsedTask } from "../tasks/tasks.schemas";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
+const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
 
 const tryCancelTask = (
 	taskId: string,
@@ -564,6 +566,81 @@ const getSchedulesToExecute = async () => {
 	return scheduleQueries.findExecutable(organizationId);
 };
 
+const getInterruptedBackupScheduleIds = (staleTasks: ParsedTask[]) => {
+	const backupTaskScheduleIds = new Set<number>();
+	const retryableScheduledTaskScheduleIds = new Set<number>();
+
+	for (const task of staleTasks) {
+		if (task.kind !== "backup" || task.resourceType !== BACKUP_TASK_RESOURCE_TYPE) {
+			continue;
+		}
+
+		const scheduleId = Number(task.resourceId);
+		if (!Number.isInteger(scheduleId)) {
+			continue;
+		}
+
+		backupTaskScheduleIds.add(scheduleId);
+		if (task.input.kind === "backup" && !task.input.manual && !task.cancellationRequested) {
+			retryableScheduledTaskScheduleIds.add(scheduleId);
+		}
+	}
+
+	return { backupTaskScheduleIds, retryableScheduledTaskScheduleIds };
+};
+
+const recoverInterruptedBackups = async (staleTasks: ParsedTask[]) => {
+	const { backupTaskScheduleIds, retryableScheduledTaskScheduleIds } = getInterruptedBackupScheduleIds(staleTasks);
+	const now = Date.now();
+
+	db.transaction((tx) => {
+		const recoveredSchedules = tx
+			.update(backupSchedulesTable)
+			.set({
+				lastBackupStatus: "warning",
+				lastBackupError: RESTART_BACKUP_ERROR,
+				updatedAt: now,
+			})
+			.where(eq(backupSchedulesTable.lastBackupStatus, "in_progress"))
+			.returning()
+			.all();
+
+		const recoveredScheduleIds = new Set<number>();
+		const retryScheduleIds = new Set<number>();
+
+		for (const schedule of recoveredSchedules) {
+			recoveredScheduleIds.add(schedule.id);
+
+			if (schedule.enabled && schedule.cronExpression && !backupTaskScheduleIds.has(schedule.id)) {
+				retryScheduleIds.add(schedule.id);
+			}
+		}
+
+		for (const scheduleId of retryableScheduledTaskScheduleIds) {
+			if (recoveredScheduleIds.has(scheduleId)) {
+				retryScheduleIds.add(scheduleId);
+			}
+		}
+
+		const retryScheduleIdList = [...retryScheduleIds];
+
+		if (retryScheduleIdList.length > 0) {
+			tx.update(backupSchedulesTable)
+				.set({
+					nextBackupAt: null,
+					updatedAt: now,
+				})
+				.where(
+					and(
+						inArray(backupSchedulesTable.id, retryScheduleIdList),
+						eq(backupSchedulesTable.lastBackupStatus, "warning"),
+					),
+				)
+				.run();
+		}
+	});
+};
+
 const stopBackup = async (scheduleId: number) => {
 	const organizationId = getOrganizationId();
 	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
@@ -694,6 +771,7 @@ export const backupsService = {
 	validateBackupExecution,
 	executeBackup,
 	getSchedulesToExecute,
+	recoverInterruptedBackups,
 	stopBackup,
 	runForget,
 	copyToMirrors,
