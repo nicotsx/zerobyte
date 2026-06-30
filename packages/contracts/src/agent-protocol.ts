@@ -8,6 +8,7 @@ import {
 	resticRestoreOutputSchema,
 	restoreProgressSchema,
 	type CompressionMode,
+	type SnapshotRestoreRequest,
 } from "@zerobyte/core/restic";
 import {
 	browseFilesystemResponseSchema,
@@ -126,22 +127,28 @@ const restoreIdentitySchema = z.object({
 	snapshotId: z.string(),
 });
 
+const overwriteModeSchema = z.enum(["always", "if-changed", "if-newer", "never"]);
+
+const snapshotRestoreRequestSchema = z.object({
+	location: z.discriminatedUnion("kind", [
+		z.object({ kind: z.literal("original") }),
+		z.object({ kind: z.literal("custom"), targetPath: z.string().min(1) }),
+	]),
+	include: z.array(z.string()).optional(),
+	selectedItemKind: z.enum(["file", "dir"]).optional(),
+	exclude: z.array(z.string()).optional(),
+	excludeXattr: z.array(z.string()).optional(),
+	delete: z.boolean().optional(),
+	overwrite: overwriteModeSchema.optional(),
+}) satisfies z.ZodType<SnapshotRestoreRequest>;
+
 const restoreRunSchema = z.object({
 	type: z.literal("restore.run"),
 	payload: restoreIdentitySchema.extend({
-		target: z.string(),
+		snapshotPaths: z.array(z.string()),
 		repositoryConfig: repositoryConfigSchema,
 		runtime: commandRuntimeSchema,
-		options: z.object({
-			basePath: z.string().optional(),
-			organizationId: z.string(),
-			include: z.array(z.string()).optional(),
-			selectedItemKind: z.enum(["file", "dir"]).optional(),
-			exclude: z.array(z.string()).optional(),
-			excludeXattr: z.array(z.string()).optional(),
-			delete: z.boolean().optional(),
-			overwrite: z.enum(["always", "if-changed", "if-newer", "never"]).optional(),
-		}),
+		request: snapshotRestoreRequestSchema,
 	}),
 });
 

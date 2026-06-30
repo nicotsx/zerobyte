@@ -55,7 +55,13 @@ const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create
 		resourceType: "repository",
 		resourceId: "repo-short",
 		targetAgentId: "local",
-		input: { kind: "restore", repositoryId: "repo-short", snapshotId: "snapshot-1", target: "/tmp/restore" },
+		input: {
+			kind: "restore",
+			repositoryId: "repo-short",
+			snapshotId: "snapshot-1",
+			restoreLocation: "custom",
+			targetPath: "/tmp/restore",
+		},
 		...overrides,
 	});
 
@@ -171,6 +177,33 @@ test("moves restore tasks through progress and success", () => {
 		throw new Error("Expected restore result");
 	}
 	expect(completed.result?.result.files_restored).toBe(4);
+});
+
+test("rejects ambiguous restore task inputs", () => {
+	expect(() =>
+		createRestoreTask({
+			id: "restore-missing-target",
+			input: {
+				kind: "restore",
+				repositoryId: "repo-short",
+				snapshotId: "snapshot-1",
+				restoreLocation: "custom",
+			} as never,
+		}),
+	).toThrow();
+
+	expect(() =>
+		createRestoreTask({
+			id: "restore-original-target",
+			input: {
+				kind: "restore",
+				repositoryId: "repo-short",
+				snapshotId: "snapshot-1",
+				restoreLocation: "original",
+				targetPath: "/tmp/restore",
+			} as never,
+		}),
+	).toThrow();
 });
 
 test("finds the newest active task for a resource and marks only matching active tasks stale", async () => {

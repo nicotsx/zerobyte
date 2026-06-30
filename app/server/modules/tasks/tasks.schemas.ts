@@ -13,20 +13,31 @@ export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
 export const taskKindSchema = z.enum(["backup", "restore"]);
 
-export const taskInputSchema = z.discriminatedUnion("kind", [
-	z.object({
-		kind: z.literal("backup"),
-		scheduleId: z.number(),
-		scheduleShortId: z.string(),
-		manual: z.boolean(),
+const backupTaskInputSchema = z.object({
+	kind: z.literal("backup"),
+	scheduleId: z.number(),
+	scheduleShortId: z.string(),
+	manual: z.boolean(),
+});
+
+const restoreTaskInputBaseSchema = z.object({
+	kind: z.literal("restore"),
+	repositoryId: z.string(),
+	snapshotId: z.string(),
+});
+
+const restoreTaskInputSchema = z.union([
+	restoreTaskInputBaseSchema.extend({
+		restoreLocation: z.literal("custom"),
+		targetPath: z.string().min(1),
 	}),
-	z.object({
-		kind: z.literal("restore"),
-		repositoryId: z.string(),
-		snapshotId: z.string(),
-		target: z.string(),
+	restoreTaskInputBaseSchema.extend({
+		restoreLocation: z.literal("original").optional(),
+		targetPath: z.undefined().optional(),
 	}),
 ]);
+
+export const taskInputSchema = z.union([backupTaskInputSchema, restoreTaskInputSchema]);
 
 export const taskProgressSchema = z.discriminatedUnion("kind", [
 	z.object({

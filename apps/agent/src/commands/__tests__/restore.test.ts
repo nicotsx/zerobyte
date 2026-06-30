@@ -18,10 +18,10 @@ const createRunPayload = (overrides: Partial<RestoreRunPayload> = {}) =>
 		organizationId: "org-1",
 		repositoryId: "repo-1",
 		snapshotId: "snapshot-1",
-		target: `${process.cwd()}/restore-target`,
+		snapshotPaths: [`${process.cwd()}/source`],
 		repositoryConfig: { backend: "local", path: "/tmp/repository" },
 		runtime: { password: "password" },
-		options: { organizationId: "org-1", basePath: "/" },
+		request: { location: { kind: "custom", targetPath: `${process.cwd()}/restore-target` } },
 		...overrides,
 	});
 

@@ -48,6 +48,28 @@ test("markAgentConnecting creates and updates connection metadata", async () => 
 	});
 });
 
+test("markAgentOnline records ready capabilities and timestamps", async () => {
+	await agentsService.markAgentConnecting({
+		agentId: "remote-agent",
+		organizationId: null,
+		agentName: "Remote Agent",
+		agentKind: "remote",
+		connectedAt: 1_000,
+	});
+	await agentsService.markAgentOnline("remote-agent", 3_000, { platform: "linux", restic: true });
+
+	const agent = await agentsService.getAgent("remote-agent");
+
+	expect(agent).toMatchObject({
+		id: "remote-agent",
+		status: "online",
+		capabilities: { platform: "linux", restic: true },
+		lastSeenAt: 3_000,
+		lastReadyAt: 3_000,
+		updatedAt: 3_000,
+	});
+});
+
 test("agent runtime status moves from connecting to online, seen, and offline", async () => {
 	await agentsService.markAgentConnecting({
 		agentId: LOCAL_AGENT_ID,

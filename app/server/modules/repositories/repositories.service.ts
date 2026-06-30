@@ -8,7 +8,9 @@ import {
 	type RepositoryConfig,
 	type ResticDumpStream,
 	type ResticStatsDto,
+	createSnapshotPathContext,
 	repositoryConfigSchema,
+	type SnapshotRestoreRequest,
 } from "@zerobyte/core/restic";
 import { isPathWithin } from "@zerobyte/core/utils";
 import { config as appConfig } from "~/server/core/config";
@@ -27,7 +29,6 @@ import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@ze
 import { restic, resticDeps } from "../../core/restic";
 import { safeSpawn } from "@zerobyte/core/node";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
-import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
 import { restoreExecutor } from "./restore-executor";
@@ -236,13 +237,58 @@ const finishRestoreExecution = async (restoreId: string, resultPromise: Promise<
 
 const assertAllowedRestoreAgent = async (agentId: string, organizationId: string) => {
 	if (agentId === LOCAL_AGENT_ID) {
-		return;
+		return null;
 	}
 
 	const agent = await agentsService.getAgent(agentId);
 	if (!agent || agent.organizationId !== organizationId) {
 		throw new NotFoundError("Restore target agent not found");
 	}
+
+	return agent;
+};
+
+const getRestoreAgentPlatform = (agentId: string, agent: Awaited<ReturnType<typeof assertAllowedRestoreAgent>>) => {
+	if (agentId === LOCAL_AGENT_ID) {
+		return process.platform;
+	}
+
+	if (!agent) {
+		throw new Error("Remote restore agent should be available after restore-agent authorization");
+	}
+
+	const platform = agent.capabilities.platform;
+	if (typeof platform !== "string") {
+		throw new BadRequestError("Restore target agent platform is unavailable");
+	}
+
+	return platform;
+};
+
+const createSnapshotRestoreRequest = ({
+	targetPath,
+	...options
+}: {
+	include?: string[];
+	selectedItemKind?: "file" | "dir";
+	exclude?: string[];
+	excludeXattr?: string[];
+	delete?: boolean;
+	targetPath?: string;
+	overwrite?: OverwriteMode;
+}): SnapshotRestoreRequest => ({
+	location: targetPath ? { kind: "custom", targetPath } : { kind: "original" },
+	...(options.include ? { include: options.include } : {}),
+	...(options.selectedItemKind ? { selectedItemKind: options.selectedItemKind } : {}),
+	...(options.exclude ? { exclude: options.exclude } : {}),
+	...(options.excludeXattr ? { excludeXattr: options.excludeXattr } : {}),
+	...(options.delete !== undefined ? { delete: options.delete } : {}),
+	...(options.overwrite ? { overwrite: options.overwrite } : {}),
+});
+
+const assertAllowedControllerLocalRestoreRequest = (snapshotPaths: string[], request: SnapshotRestoreRequest) => {
+	const plan = createSnapshotPathContext({ snapshotPaths, targetPlatform: process.platform }).restore.plan(request);
+	assertAllowedControllerLocalRestoreTarget(plan.target);
 };
 
 const findRepository = async (shortId: ShortId) => {
@@ -541,21 +587,17 @@ const restoreSnapshot = async (
 	}
 
 	const { targetAgentId, targetPath, ...restoreExecutionOptions } = options ?? {};
-	const target = targetPath || "/";
-
-	const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
-	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
-
-	if (hasNonPosixSnapshotPaths && !targetPath) {
-		throw new BadRequestError(
-			"Original location restore is unavailable for this snapshot. Restore it to a custom location instead.",
-		);
-	}
-
-	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
 	const executionAgentId = targetAgentId ?? LOCAL_AGENT_ID;
+	const targetAgent = await assertAllowedRestoreAgent(executionAgentId, organizationId);
+	const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
+	const restoreRequest = createSnapshotRestoreRequest({ targetPath, ...restoreExecutionOptions });
+	const restoreAgentPlatform = getRestoreAgentPlatform(executionAgentId, targetAgent);
+
 	const useControllerLocalRestoreFallback = executionAgentId === LOCAL_AGENT_ID && !appConfig.flags.enableLocalAgent;
-	await assertAllowedRestoreAgent(executionAgentId, organizationId);
+	let taskTargetAgentId: string | null = executionAgentId;
+	if (useControllerLocalRestoreFallback) {
+		taskTargetAgentId = null;
+	}
 
 	if (!useControllerLocalRestoreFallback && repository.type === "local" && executionAgentId !== LOCAL_AGENT_ID) {
 		throw new BadRequestError(
@@ -564,7 +606,12 @@ const restoreSnapshot = async (
 	}
 
 	if (executionAgentId === LOCAL_AGENT_ID) {
-		assertAllowedControllerLocalRestoreTarget(target);
+		assertAllowedControllerLocalRestoreRequest(snapshot.paths, restoreRequest);
+	} else {
+		createSnapshotPathContext({
+			snapshotPaths: snapshot.paths,
+			targetPlatform: restoreAgentPlatform,
+		}).restore.plan(restoreRequest);
 	}
 
 	const activeRestore = findActiveRestoreTask(organizationId, repository.shortId, snapshotId);
@@ -572,12 +619,28 @@ const restoreSnapshot = async (
 		throw new ConflictError("A restore is already running for this snapshot");
 	}
 
+	const taskInput: RestoreTaskInput =
+		restoreRequest.location.kind === "custom"
+			? {
+					kind: "restore",
+					repositoryId: repository.shortId,
+					snapshotId,
+					restoreLocation: "custom",
+					targetPath: restoreRequest.location.targetPath,
+				}
+			: {
+					kind: "restore",
+					repositoryId: repository.shortId,
+					snapshotId,
+					restoreLocation: "original",
+				};
+
 	const task = taskStore.create({
 		organizationId,
 		resourceType: RESTORE_TASK_RESOURCE_TYPE,
 		resourceId: repository.shortId,
-		targetAgentId: useControllerLocalRestoreFallback ? null : executionAgentId,
-		input: { kind: "restore", repositoryId: repository.shortId, snapshotId, target },
+		targetAgentId: taskTargetAgentId,
+		input: taskInput,
 	});
 	const restoreId = task.id;
 	try {
@@ -589,12 +652,9 @@ const restoreSnapshot = async (
 			repositoryShortId: repository.shortId,
 			repositoryConfig,
 			snapshotId,
-			target,
+			snapshotPaths: snapshot.paths,
+			restoreRequest,
 			executionAgentId,
-			options: {
-				basePath,
-				...restoreExecutionOptions,
-			},
 			onStarted: () => markRestoreStarted(restoreId),
 			onProgress: (progress) => updateRestoreProgress(restoreId, progress),
 		});
@@ -702,6 +762,17 @@ const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 	}
 
 	return snapshot;
+};
+
+const getSnapshotRestorePlan = async (shortId: ShortId, snapshotId: string, options?: { targetAgentId?: string }) => {
+	const organizationId = getOrganizationId();
+	const executionAgentId = options?.targetAgentId ?? LOCAL_AGENT_ID;
+	const targetAgent = await assertAllowedRestoreAgent(executionAgentId, organizationId);
+	const platform = getRestoreAgentPlatform(executionAgentId, targetAgent);
+
+	const snapshot = await getSnapshotDetails(shortId, snapshotId);
+
+	return createSnapshotPathContext({ snapshotPaths: snapshot.paths, targetPlatform: platform }).restore.targetPlan();
 };
 
 const checkHealth = async (shortId: ShortId) => {
@@ -1089,6 +1160,7 @@ export const repositoriesService = {
 	restoreSnapshot,
 	dumpSnapshot,
 	getSnapshotDetails,
+	getSnapshotRestorePlan,
 	checkHealth,
 	startDoctor,
 	cancelDoctor,

@@ -56,6 +56,7 @@ const ensureLocalAgent = async () => {
 
 const markAgentConnecting = async (params: AgentConnectionRegistration) => {
 	const { agentId, organizationId, agentName, agentKind, capabilities, connectedAt = Date.now() } = params;
+	const nextCapabilities = capabilities ?? LOCAL_AGENT_CAPABILITIES;
 
 	await db
 		.insert(agentsTable)
@@ -65,7 +66,7 @@ const markAgentConnecting = async (params: AgentConnectionRegistration) => {
 			name: agentName,
 			kind: agentKind,
 			status: "connecting",
-			capabilities: capabilities ?? {},
+			capabilities: nextCapabilities,
 			lastSeenAt: connectedAt,
 			updatedAt: connectedAt,
 		})
@@ -78,7 +79,7 @@ const markAgentConnecting = async (params: AgentConnectionRegistration) => {
 				status: "connecting",
 				lastSeenAt: connectedAt,
 				updatedAt: connectedAt,
-				capabilities: capabilities ?? {},
+				capabilities: nextCapabilities,
 			},
 		});
 
@@ -95,7 +96,7 @@ const updateAgentRuntime = async (agentId: string, values: Partial<Agent>) => {
 	return updatedAgent;
 };
 
-const markAgentOnline = async (agentId: string, readyAt = Date.now(), metadata?: AgentCapabilities) => {
+const markAgentOnline = async (agentId: string, readyAt = Date.now(), metadata = LOCAL_AGENT_CAPABILITIES) => {
 	return updateAgentRuntime(agentId, {
 		status: "online",
 		capabilities: metadata,

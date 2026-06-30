@@ -4,6 +4,7 @@ import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import {
 	createAgentMessage,
+	AGENT_PROTOCOL_VERSION,
 	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
 	type AgentMessage,
 } from "@zerobyte/contracts/agent-protocol";
@@ -141,7 +142,7 @@ test("invalid inbound messages are ignored", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
@@ -166,7 +167,7 @@ test("agent.ready marks the session ready and forwards the event", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
@@ -179,7 +180,7 @@ test("agent.ready marks the session ready and forwards the event", () => {
 		type: "agent.ready",
 		payload: {
 			agentId: LOCAL_AGENT_ID,
-			protocolVersion: 1,
+			protocolVersion: AGENT_PROTOCOL_VERSION,
 			hostname: "host",
 			platform: "linux",
 			capabilities: { backup: true },
@@ -214,7 +215,7 @@ test("backup agent messages are forwarded unchanged", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
