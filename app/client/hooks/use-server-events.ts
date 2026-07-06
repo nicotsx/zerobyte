@@ -1,5 +1,6 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
+import { applyServerEventEffects, getServerEventAliases } from "~/client/events/server-event-effects";
 import { logger } from "~/client/lib/logger";
 import { serverEventNames, type ServerEventPayloadMap } from "~/schemas/server-events";
 
@@ -24,18 +25,6 @@ type SharedServerEventsState = {
 	subscribers: number;
 };
 
-const invalidatingEvents = new Set<ServerEventType>([
-	"backup:started",
-	"backup:completed",
-	"volume:updated",
-	"volume:status_changed",
-	"notification:updated",
-	"mirror:completed",
-	"doctor:started",
-	"doctor:completed",
-	"doctor:cancelled",
-]);
-
 export type RestoreProgressEvent = ServerEventsPayloadMap["restore:progress"];
 export type RestoreCompletedEvent = ServerEventsPayloadMap["restore:completed"];
 
@@ -49,8 +38,6 @@ const sharedState: SharedServerEventsState = {
 const parseEventData = <T extends ServerEventType>(event: Event): ServerEventsPayloadMap[T] =>
 	JSON.parse((event as MessageEvent<string>).data) as ServerEventsPayloadMap[T];
 
-const isAbortError = (error: unknown): error is Error => error instanceof Error && error.name === "AbortError";
-
 const emit = <T extends ServerEventType>(eventName: T, data: ServerEventsPayloadMap[T]) => {
 	const handlers = sharedState.handlers[eventName] as EventHandlerSet<T> | undefined;
 	handlers?.forEach((handler) => {
@@ -58,16 +45,20 @@ const emit = <T extends ServerEventType>(eventName: T, data: ServerEventsPayload
 	});
 };
 
-const refreshQueriesForEvent = (eventName: ServerEventType) => {
-	if (!invalidatingEvents.has(eventName) || !sharedState.queryClient) {
+const emitEventAndAliases = <T extends keyof ServerEventPayloadMap>(eventName: T, data: ServerEventPayloadMap[T]) => {
+	emit(eventName, data as ServerEventsPayloadMap[T]);
+
+	for (const alias of getServerEventAliases(eventName)) {
+		emit(alias, data as ServerEventsPayloadMap[typeof alias]);
+	}
+};
+
+const applyEffectsForEvent = <T extends keyof ServerEventPayloadMap>(eventName: T, data: ServerEventPayloadMap[T]) => {
+	if (!sharedState.queryClient) {
 		return;
 	}
 
-	void sharedState.queryClient.invalidateQueries().catch((error) => {
-		if (!isAbortError(error)) {
-			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
-		}
-	});
+	applyServerEventEffects(sharedState.queryClient, eventName, data);
 };
 
 const connectEventSource = (queryClient: QueryClient) => {
@@ -94,16 +85,8 @@ const connectEventSource = (queryClient: QueryClient) => {
 			const data = parseEventData<typeof eventName>(event);
 			logger.info(`[SSE] ${eventName}:`, data);
 
-			refreshQueriesForEvent(eventName);
-
-			if (eventName === "volume:status_changed") {
-				const statusData = data as ServerEventsPayloadMap["volume:status_changed"];
-				emit("volume:status_changed", statusData);
-				emit("volume:updated", statusData);
-				return;
-			}
-
-			emit(eventName, data);
+			applyEffectsForEvent(eventName, data);
+			emitEventAndAliases(eventName, data);
 		});
 	}
 

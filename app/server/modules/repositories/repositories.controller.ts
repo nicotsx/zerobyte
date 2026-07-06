@@ -264,16 +264,16 @@ export const repositoriesController = new Hono()
 	.delete("/:shortId/snapshots/:snapshotId", deleteSnapshotDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const snapshotId = c.req.param("snapshotId");
-		await repositoriesService.deleteSnapshot(shortId, snapshotId);
+		const result = await repositoriesService.deleteSnapshot(shortId, snapshotId);
 
-		return c.json<DeleteSnapshotDto>({ message: "Snapshot deleted" }, 200);
+		return c.json<DeleteSnapshotDto>(result, 202);
 	})
 	.delete("/:shortId/snapshots", deleteSnapshotsDto, validator("json", deleteSnapshotsBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const { snapshotIds } = c.req.valid("json");
-		await repositoriesService.deleteSnapshots(shortId, snapshotIds);
+		const result = await repositoriesService.deleteSnapshots(shortId, snapshotIds);
 
-		return c.json<DeleteSnapshotsResponseDto>({ message: "Snapshots deleted" }, 200);
+		return c.json<DeleteSnapshotsResponseDto>(result, 202);
 	})
 	.post("/:shortId/snapshots/tag", tagSnapshotsDto, validator("json", tagSnapshotsBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

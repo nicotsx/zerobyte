@@ -11,7 +11,7 @@ export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
-export const taskKindSchema = z.enum(["backup", "restore"]);
+export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -25,6 +25,11 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		repositoryId: z.string(),
 		snapshotId: z.string(),
 		target: z.string(),
+	}),
+	z.object({
+		kind: z.literal("deleteSnapshots"),
+		repositoryId: z.string(),
+		snapshotIds: z.array(z.string()).min(1),
 	}),
 ]);
 
@@ -49,6 +54,10 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("restore"),
 		result: resticRestoreOutputSchema,
+	}),
+	z.object({
+		kind: z.literal("deleteSnapshots"),
+		deletedSnapshotIds: z.array(z.string()),
 	}),
 ]);
 

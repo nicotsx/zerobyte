@@ -7,7 +7,6 @@ import {
 	type OverwriteMode,
 	type RepositoryConfig,
 	type ResticDumpStream,
-	type ResticStatsDto,
 	repositoryConfigSchema,
 } from "@zerobyte/core/restic";
 import { isPathWithin } from "@zerobyte/core/utils";
@@ -19,7 +18,7 @@ import { logger } from "@zerobyte/core/node";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
-import { repositoriesTable, type Repository, type RepositoryInsert } from "../../db/schema";
+import { repositoriesTable, type RepositoryInsert } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
@@ -30,9 +29,11 @@ import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
 import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { executeDoctor } from "./helpers/doctor";
+import { emptyRepositoryStats, refreshStoredRepositoryStats } from "./helpers/repository-stats";
 import { restoreExecutor } from "./restore-executor";
 import type { ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
+import { commands } from "./commands";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
 import type { RestoreExecutionProgress, RestoreExecutionResult } from "../agents/agents-manager";
 import { agentsService } from "../agents/agents.service";
@@ -47,15 +48,6 @@ const RESTORE_TASK_RESOURCE_TYPE = "repository";
 
 type RestoreTaskInput = Extract<TaskInput, { kind: "restore" }>;
 type RestoreTask = ParsedTask & { kind: "restore"; input: RestoreTaskInput };
-
-const emptyRepositoryStats: ResticStatsDto = {
-	total_size: 0,
-	total_uncompressed_size: 0,
-	compression_ratio: 0,
-	compression_progress: 0,
-	compression_space_saving: 0,
-	snapshots_count: 0,
-};
 
 const getBlockedRestoreTargets = () => {
 	return [
@@ -333,29 +325,6 @@ const getRepository = async (shortId: ShortId) => {
 	return { repository };
 };
 
-const runAndStoreRepositoryStats = async (repository: Repository): Promise<ResticStatsDto> => {
-	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
-	try {
-		const stats = await runEffectPromise(
-			restic.stats(repository.config, { organizationId: repository.organizationId }),
-		);
-
-		await db
-			.update(repositoriesTable)
-			.set({ stats, statsUpdatedAt: Date.now() })
-			.where(
-				and(
-					eq(repositoriesTable.id, repository.id),
-					eq(repositoriesTable.organizationId, repository.organizationId),
-				),
-			);
-
-		return stats;
-	} finally {
-		releaseLock();
-	}
-};
-
 const refreshRepositoryStats = async (shortId: ShortId) => {
 	const repository = await findRepository(shortId);
 
@@ -363,7 +332,7 @@ const refreshRepositoryStats = async (shortId: ShortId) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	return runAndStoreRepositoryStats(repository);
+	return refreshStoredRepositoryStats(repository);
 };
 
 const getRepositoryStats = async (shortId: ShortId) => {
@@ -803,54 +772,22 @@ const cancelDoctor = async (shortId: ShortId) => {
 };
 
 const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
-	const organizationId = getOrganizationId();
-	const repository = await findRepository(shortId);
-
-	if (!repository) {
-		throw new NotFoundError("Repository not found");
-	}
-
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:${snapshotId}`);
-	try {
-		await runEffectPromise(restic.deleteSnapshot(repository.config, snapshotId, { organizationId }));
-		cache.delByPrefix(cacheKeys.repository.all(repository.id));
-		void runAndStoreRepositoryStats(repository).catch((error) => {
-			logger.error(
-				`Failed to refresh repository stats after snapshot deletion for ${repository.shortId}: ${toMessage(error)}`,
-			);
-		});
-	} finally {
-		releaseLock();
-	}
+	return deleteSnapshots(shortId, [snapshotId]);
 };
 
 const deleteSnapshots = async (shortId: ShortId, snapshotIds: string[]) => {
-	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	let shouldRefreshStats = false;
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `delete:bulk`);
-	try {
-		await runEffectPromise(restic.deleteSnapshots(repository.config, snapshotIds, { organizationId }));
-		cache.delByPrefix(cacheKeys.repository.all(repository.id));
-		shouldRefreshStats = true;
-	} finally {
-		releaseLock();
-	}
-
-	if (!shouldRefreshStats) {
-		return;
-	}
-
-	void runAndStoreRepositoryStats(repository).catch((error) => {
-		logger.error(
-			`Failed to refresh repository stats after snapshot deletion for ${repository.shortId}: ${toMessage(error)}`,
-		);
+	const command = commands.createDeleteSnapshots({
+		repository,
+		snapshotIds,
 	});
+
+	return command.start();
 };
 
 const tagSnapshots = async (

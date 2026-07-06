@@ -43,6 +43,25 @@ const createTestRepository = async (organizationId: string, overrides: Partial<R
 	return repository;
 };
 
+const resolveWithin = async <T>(promise: Promise<T>, timeoutMs: number) => {
+	return await new Promise<T>((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			reject(new Error(`Expected promise to resolve within ${timeoutMs}ms`));
+		}, timeoutMs);
+
+		promise.then(
+			(value) => {
+				clearTimeout(timeout);
+				resolve(value);
+			},
+			(error) => {
+				clearTimeout(timeout);
+				reject(error);
+			},
+		);
+	});
+};
+
 let session: Awaited<ReturnType<typeof createTestSession>>;
 
 beforeAll(async () => {
@@ -1023,7 +1042,7 @@ describe("repositoriesService.deleteSnapshot", () => {
 		vi.restoreAllMocks();
 	});
 
-	test("refreshes repository stats in background after successful deletion", async () => {
+	test("returns a delete task id while waiting for the repository mutex", async () => {
 		const repository = await createTestRepository(session.organizationId);
 		const expectedStats = {
 			total_size: 128,
@@ -1034,15 +1053,52 @@ describe("repositoriesService.deleteSnapshot", () => {
 			snapshots_count: 1,
 		};
 
-		vi.spyOn(restic, "deleteSnapshot").mockReturnValue(Effect.succeed({ success: true }));
+		const deleteSnapshotsSpy = vi
+			.spyOn(restic, "deleteSnapshots")
+			.mockReturnValue(Effect.succeed({ success: true }));
 		const statsSpy = vi.spyOn(restic, "stats").mockReturnValue(Effect.succeed(expectedStats));
 
-		await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
-			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
-		);
+		const releaseExclusive = await repoMutex.acquireExclusive(repository.id, "check");
+		try {
+			const deleteStart = withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
+			);
+
+			const result = await resolveWithin(deleteStart, 1000);
+
+			expect(result.status).toBe("started");
+			expect(result.taskId).toEqual(expect.any(String));
+			expect(deleteSnapshotsSpy).not.toHaveBeenCalled();
+
+			const task = taskStore.findActiveByResource({
+				organizationId: session.organizationId,
+				kind: "deleteSnapshots",
+				resourceType: "repository",
+				resourceId: repository.shortId,
+			});
+			expect(task?.id).toBe(result.taskId);
+			expect(task?.status).toBe("running");
+		} finally {
+			releaseExclusive();
+		}
 
 		await waitForExpect(() => {
+			expect(deleteSnapshotsSpy).toHaveBeenCalledTimes(1);
+			expect(deleteSnapshotsSpy).toHaveBeenCalledWith(repository.config, ["snap-1"], {
+				organizationId: session.organizationId,
+			});
 			expect(statsSpy).toHaveBeenCalledTimes(1);
+		});
+
+		await waitForExpect(() => {
+			expect(
+				taskStore.findActiveByResource({
+					organizationId: session.organizationId,
+					kind: "deleteSnapshots",
+					resourceType: "repository",
+					resourceId: repository.shortId,
+				}),
+			).toBeNull();
 		});
 
 		const updatedRepository = await db.query.repositoriesTable.findFirst({
@@ -1052,17 +1108,126 @@ describe("repositoriesService.deleteSnapshot", () => {
 		expect(typeof updatedRepository?.statsUpdatedAt).toBe("number");
 	});
 
-	test("should throw original error when restic deleteSnapshot fails", async () => {
+	test("records restic delete failures on the delete task", async () => {
 		const repository = await createTestRepository(session.organizationId);
 
-		vi.spyOn(restic, "deleteSnapshot").mockImplementation(() =>
+		vi.spyOn(restic, "deleteSnapshots").mockImplementation(() =>
 			Effect.fail(new ResticError(1, "Fatal: unexpected HTTP response (403): 403 Forbidden")),
 		);
 
-		await expect(
-			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
-				repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
-			),
-		).rejects.toThrow("Fatal: unexpected HTTP response");
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.deleteSnapshot(repository.shortId, "snap123"),
+		);
+
+		expect(result.status).toBe("started");
+
+		await waitForExpect(async () => {
+			const task = await db.query.tasksTable.findFirst({ where: { id: result.taskId } });
+			expect(task?.status).toBe("failed");
+			expect(task?.error).toContain("Fatal: unexpected HTTP response");
+		});
+	});
+
+	test("completes delete task before background repository stats refresh finishes", async () => {
+		const repository = await createTestRepository(session.organizationId);
+		const expectedStats = {
+			total_size: 128,
+			total_uncompressed_size: 256,
+			compression_ratio: 2,
+			compression_progress: 50,
+			compression_space_saving: 50,
+			snapshots_count: 1,
+		};
+		let finishStatsRefresh: () => void = () => {};
+		const statsRefresh = new Promise<void>((resolve) => {
+			finishStatsRefresh = resolve;
+		});
+
+		vi.spyOn(restic, "deleteSnapshots").mockReturnValue(Effect.succeed({ success: true }));
+		const statsSpy = vi.spyOn(restic, "stats").mockReturnValue(
+			Effect.promise(async () => {
+				await statsRefresh;
+				return expectedStats;
+			}),
+		);
+
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
+		);
+
+		await waitForExpect(() => {
+			expect(statsSpy).toHaveBeenCalledTimes(1);
+		});
+
+		await waitForExpect(() => {
+			expect(
+				taskStore.findActiveByResource({
+					organizationId: session.organizationId,
+					kind: "deleteSnapshots",
+					resourceType: "repository",
+					resourceId: repository.shortId,
+				}),
+			).toBeNull();
+		});
+
+		const task = await db.query.tasksTable.findFirst({ where: { id: result.taskId } });
+		expect(task?.status).toBe("succeeded");
+
+		finishStatsRefresh();
+
+		await waitForExpect(async () => {
+			const updatedRepository = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+			expect(updatedRepository?.stats).toEqual(expectedStats);
+		});
+	});
+
+	test("starts another snapshot deletion while one is already active", async () => {
+		const repository = await createTestRepository(session.organizationId);
+		const expectedStats = {
+			total_size: 128,
+			total_uncompressed_size: 256,
+			compression_ratio: 2,
+			compression_progress: 50,
+			compression_space_saving: 50,
+			snapshots_count: 1,
+		};
+		const deleteSnapshotsSpy = vi
+			.spyOn(restic, "deleteSnapshots")
+			.mockReturnValue(Effect.succeed({ success: true }));
+		const statsSpy = vi.spyOn(restic, "stats").mockReturnValue(Effect.succeed(expectedStats));
+
+		const releaseExclusive = await repoMutex.acquireExclusive(repository.id, "check");
+		try {
+			const firstStart = withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.deleteSnapshot(repository.shortId, "snap-1"),
+			);
+			const secondStart = withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.deleteSnapshots(repository.shortId, ["snap-2", "snap-3"]),
+			);
+
+			const firstResult = await resolveWithin(firstStart, 1000);
+			const secondResult = await resolveWithin(secondStart, 1000);
+
+			expect(firstResult.status).toBe("started");
+			expect(secondResult.status).toBe("started");
+			expect(firstResult.taskId).not.toBe(secondResult.taskId);
+			expect(deleteSnapshotsSpy).not.toHaveBeenCalled();
+		} finally {
+			releaseExclusive();
+		}
+
+		await waitForExpect(() => {
+			expect(deleteSnapshotsSpy).toHaveBeenCalledTimes(2);
+			expect(deleteSnapshotsSpy).toHaveBeenCalledWith(repository.config, ["snap-1"], {
+				organizationId: session.organizationId,
+			});
+			expect(deleteSnapshotsSpy).toHaveBeenCalledWith(repository.config, ["snap-2", "snap-3"], {
+				organizationId: session.organizationId,
+			});
+		});
+
+		await waitForExpect(() => {
+			expect(statsSpy).toHaveBeenCalledTimes(2);
+		});
 	});
 });

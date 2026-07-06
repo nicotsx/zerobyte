@@ -1,4 +1,4 @@
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, Loader2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -38,12 +38,21 @@ interface Props {
 	snapshotId?: string;
 	loading?: boolean;
 	error?: string;
+	deletingSnapshotIds?: Set<string>;
 	initialSortOrder?: SnapshotTimelineSortOrder;
 	onSnapshotSelect: (snapshotId: string) => void;
 }
 
 export const SnapshotTimeline = (props: Props) => {
-	const { snapshots, snapshotId, loading, onSnapshotSelect, error, initialSortOrder = "asc" } = props;
+	const {
+		snapshots,
+		snapshotId,
+		loading,
+		onSnapshotSelect,
+		error,
+		deletingSnapshotIds,
+		initialSortOrder = "asc",
+	} = props;
 	const selectedRef = useRef<HTMLButtonElement>(null);
 	const { formatDateWithMonth, formatShortDate, formatTime } = useTimeFormat();
 	const [sortOrder, setSortOrder] = useState<SnapshotTimelineSortOrder>(initialSortOrder);
@@ -115,12 +124,14 @@ export const SnapshotTimeline = (props: Props) => {
 							{sortedSnapshots.map((snapshot) => {
 								const date = new Date(snapshot.time);
 								const isSelected = snapshotId === snapshot.short_id;
+								const isDeleting = deletingSnapshotIds?.has(snapshot.short_id) ?? false;
 
 								return (
 									<button
 										ref={isSelected ? selectedRef : undefined}
 										type="button"
 										key={snapshot.short_id}
+										aria-busy={isDeleting}
 										onClick={() => onSnapshotSelect(snapshot.short_id)}
 										className={cn(
 											"shrink-0 flex flex-col items-center gap-2 p-3 rounded-lg transition-all w-25",
@@ -128,15 +139,34 @@ export const SnapshotTimeline = (props: Props) => {
 											{
 												"border-primary bg-primary/10 shadow-md": isSelected,
 												"border-border hover:border-accent hover:bg-accent/5": !isSelected,
+												"opacity-75": isDeleting,
 											},
 										)}
 									>
-										<div className="text-xs font-semibold text-foreground">{formatShortDate(date)}</div>
+										<div className="text-xs font-semibold text-foreground">
+											{formatShortDate(date)}
+										</div>
 										<div className="text-xs text-muted-foreground">{formatTime(date)}</div>
-										<div className="text-xs text-muted-foreground opacity-75">
+										<div
+											className={cn(
+												"flex h-4 items-center gap-1 text-xs font-medium text-primary",
+												{ hidden: !isDeleting },
+											)}
+										>
+											<Loader2 className="h-3 w-3 animate-spin" />
+											<span>Deleting</span>
+										</div>
+										<div
+											className={cn("text-xs text-muted-foreground opacity-75", {
+												hidden: isDeleting,
+											})}
+										>
 											<ByteSize bytes={snapshot.size} base={1024} />
 										</div>
-										<RetentionCategoryBadges categories={snapshot.retentionCategories} className="mt-1" />
+										<RetentionCategoryBadges
+											categories={snapshot.retentionCategories}
+											className="mt-1"
+										/>
 									</button>
 								);
 							})}

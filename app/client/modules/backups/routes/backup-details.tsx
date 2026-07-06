@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -17,11 +17,11 @@ import {
 	runBackupNowMutation,
 	deleteBackupScheduleMutation,
 	listSnapshotsOptions,
-	listSnapshotsQueryKey,
 	updateBackupScheduleMutation,
 	stopBackupMutation,
 	deleteSnapshotMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { useDeletingSnapshots } from "~/client/hooks/use-deleting-snapshots";
 import { parseError, handleRepositoryError } from "~/client/lib/errors";
 import { ScheduleSummary } from "../components/schedule-summary";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
@@ -60,7 +60,6 @@ type Props = {
 export function ScheduleDetailsPage(props: Props) {
 	const { loaderData, scheduleId, initialSnapshotId, initialSnapshotSortOrder } = props;
 
-	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const searchParams = useSearch({ from: "/(dashboard)/backups/$backupId/" });
 	const [selectedSnapshotId, setSelectedSnapshotId] = useState<string | undefined>(initialSnapshotId);
@@ -71,6 +70,7 @@ export function ScheduleDetailsPage(props: Props) {
 		...getBackupScheduleOptions({ path: { shortId: scheduleId } }),
 		refetchInterval: ({ state }) => (state.data?.lastBackupStatus === "in_progress" ? 1000 : false),
 	});
+	const { deletingSnapshotIds } = useDeletingSnapshots(schedule.repository.shortId);
 
 	const {
 		data: snapshots,
@@ -127,29 +127,11 @@ export function ScheduleDetailsPage(props: Props) {
 		},
 	});
 
-	const listSnapshotsQueryOptions = {
-		path: { shortId: schedule.repository.shortId },
-		query: { backupId: schedule.shortId },
-	};
-
 	const deleteSnapshot = useMutation({
 		...deleteSnapshotMutation(),
-		onSuccess: (_data, variables) => {
-			const snapshotId = variables.path.snapshotId;
-			const queryKey = listSnapshotsQueryKey(listSnapshotsQueryOptions);
-
-			queryClient.setQueryData<Snapshot[]>(queryKey, (old) => {
-				if (!old) return old;
-				return old.filter((snapshot) => snapshot.short_id !== snapshotId);
-			});
-
-			void queryClient.invalidateQueries({ queryKey });
+		onSuccess: () => {
 			setShowDeleteConfirm(false);
 			setSnapshotToDelete(null);
-			if (selectedSnapshotId === snapshotId) {
-				setSelectedSnapshotId(undefined);
-				void navigate({ to: ".", search: () => ({ snapshot: undefined }) });
-			}
 		},
 	});
 
@@ -187,8 +169,8 @@ export function ScheduleDetailsPage(props: Props) {
 					path: { shortId: schedule.repository.shortId, snapshotId: snapshotToDelete },
 				}),
 				{
-					loading: "Deleting snapshot...",
-					success: "Snapshot deleted successfully",
+					loading: "Starting snapshot deletion...",
+					success: "Snapshot deletion started",
 					error: (error) => parseError(error)?.message || "Failed to delete snapshot",
 				},
 			);
@@ -234,6 +216,7 @@ export function ScheduleDetailsPage(props: Props) {
 				loading={isLoading}
 				snapshots={snapshots ?? []}
 				snapshotId={selectedSnapshot?.short_id}
+				deletingSnapshotIds={deletingSnapshotIds}
 				error={failureReason?.message}
 				initialSortOrder={initialSnapshotSortOrder}
 				onSnapshotSelect={handleSnapshotSelect}
@@ -247,7 +230,7 @@ export function ScheduleDetailsPage(props: Props) {
 					backupId={schedule.shortId}
 					displayBasePath={getVolumeMountPath(schedule.volume)}
 					onDeleteSnapshot={handleDeleteSnapshot}
-					isDeletingSnapshot={deleteSnapshot.isPending}
+					isDeletingSnapshot={deleteSnapshot.isPending || deletingSnapshotIds.has(selectedSnapshot.short_id)}
 				/>
 			)}
 

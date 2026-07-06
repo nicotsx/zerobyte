@@ -26,6 +26,8 @@ const broadcastEvents = [
 	"restore:started",
 	"restore:progress",
 	"restore:completed",
+	"snapshots:delete_started",
+	"snapshots:delete_completed",
 	"dump:started",
 	"doctor:started",
 	"doctor:completed",

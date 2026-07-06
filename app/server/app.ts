@@ -17,6 +17,7 @@ import { eventsController } from "./modules/events/events.controller";
 import { notificationsController } from "./modules/notifications/notifications.controller";
 import { apiKeysController } from "./modules/api-keys/api-keys.controller";
 import { desktopController } from "./modules/desktop/desktop.controller";
+import { tasksController } from "./modules/tasks/tasks.controller";
 import { handleServiceError } from "./utils/errors";
 import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
@@ -96,6 +97,7 @@ export const createApp = () => {
 		.route("/api/v1/backups", backupScheduleController)
 		.route("/api/v1/notifications", notificationsController)
 		.route("/api/v1/system", systemController)
+		.route("/api/v1/tasks", tasksController)
 		.route("/api/v1/desktop", desktopController)
 		.route("/api/v1/events", eventsController);
 

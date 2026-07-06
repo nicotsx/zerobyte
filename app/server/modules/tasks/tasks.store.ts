@@ -31,6 +31,7 @@ type CreateTaskParams = {
 };
 
 type MarkActiveStaleParams = Partial<TaskResource> & { error?: string };
+type ListActiveTasksParams = Partial<TaskResource>;
 
 export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
 
@@ -189,6 +190,17 @@ export const taskStore = {
 	},
 
 	listActiveByResource: (params: TaskResource): ParsedTask[] => {
+		const rows = db
+			.select()
+			.from(tasksTable)
+			.where(and(...buildActiveConditions(params)))
+			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
+			.all();
+
+		return rows.map(parseTask);
+	},
+
+	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {
 		const rows = db
 			.select()
 			.from(tasksTable)

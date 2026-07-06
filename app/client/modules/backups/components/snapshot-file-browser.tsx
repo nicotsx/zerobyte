@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Button, buttonVariants } from "~/client/components/ui/button";
@@ -29,6 +30,15 @@ const treeProps = {
 export const SnapshotFileBrowser = (props: Props) => {
 	const { snapshot, repositoryId, backupId, displayBasePath, onDeleteSnapshot, isDeletingSnapshot } = props;
 	const { formatDateTime } = useTimeFormat();
+	const isRestoreDisabled = isDeletingSnapshot ?? false;
+
+	const handleRestoreClick = (event: MouseEvent<HTMLAnchorElement>) => {
+		if (!isRestoreDisabled) {
+			return;
+		}
+
+		event.preventDefault();
+	};
 
 	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
 	const queryBasePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
@@ -56,7 +66,12 @@ export const SnapshotFileBrowser = (props: Props) => {
 										? { backupId, snapshotId: snapshot.short_id }
 										: { repositoryId: repositoryId, snapshotId: snapshot.short_id }
 								}
-								className={buttonVariants({ variant: "primary", size: "sm" })}
+								aria-disabled={isRestoreDisabled}
+								className={cn(buttonVariants({ variant: "primary", size: "sm" }), {
+									"pointer-events-none opacity-50": isRestoreDisabled,
+								})}
+								onClick={handleRestoreClick}
+								tabIndex={isRestoreDisabled ? -1 : undefined}
 							>
 								<RotateCcw className="h-4 w-4" />
 								Restore

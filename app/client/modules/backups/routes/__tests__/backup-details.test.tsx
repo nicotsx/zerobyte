@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen } from "~/test/test-utils";
+import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -47,11 +47,36 @@ vi.mock("~/client/modules/backups/components/schedule-summary", () => ({
 import { ScheduleDetailsPage } from "../backup-details";
 
 class MockEventSource {
-	addEventListener() {}
-	close() {}
-	onerror: ((event: Event) => void) | null = null;
+	static instances: MockEventSource[] = [];
 
-	constructor(public url: string) {}
+	onerror: ((event: Event) => void) | null = null;
+	private listeners = new Map<string, Set<(event: Event) => void>>();
+
+	constructor(public url: string) {
+		MockEventSource.instances.push(this);
+	}
+
+	addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+		const listeners = this.listeners.get(type) ?? new Set<(event: Event) => void>();
+		const callback = typeof listener === "function" ? listener : (event: Event) => listener.handleEvent(event);
+		listeners.add(callback);
+		this.listeners.set(type, listeners);
+	}
+
+	emit(type: string, data: unknown) {
+		const event = new MessageEvent(type, {
+			data: JSON.stringify(data),
+		});
+		for (const listener of this.listeners.get(type) ?? []) {
+			listener(event);
+		}
+	}
+
+	close() {}
+
+	static reset() {
+		MockEventSource.instances = [];
+	}
 }
 
 const originalEventSource = globalThis.EventSource;
@@ -108,8 +133,35 @@ const snapshot = {
 	},
 };
 
+const deleteSnapshotsTask = {
+	id: "task-delete",
+	kind: "deleteSnapshots",
+	status: "running",
+	resourceType: "repository",
+	resourceId: "repo-1",
+	targetAgentId: null,
+	input: {
+		kind: "deleteSnapshots",
+		repositoryId: "repo-1",
+		snapshotIds: ["snap-1"],
+	},
+	progress: null,
+	result: null,
+	error: null,
+	cancellationRequested: false,
+	createdAt: 1711411200000,
+	startedAt: 1711411200000,
+	updatedAt: 1711411200000,
+	finishedAt: null,
+};
+
 const mockScheduleDetailsRequests = (
-	options: { scheduleOverride?: Record<string, unknown>; onScheduleRequest?: () => void } = {},
+	options: {
+		scheduleOverride?: Record<string, unknown>;
+		onScheduleRequest?: () => void;
+		snapshots?: () => Array<typeof snapshot>;
+		tasks?: () => Array<typeof deleteSnapshotsTask>;
+	} = {},
 ) => {
 	server.use(
 		http.get("/api/v1/backups/:shortId", () => {
@@ -117,7 +169,13 @@ const mockScheduleDetailsRequests = (
 			return HttpResponse.json({ ...schedule, ...options.scheduleOverride });
 		}),
 		http.get("/api/v1/repositories/:shortId/snapshots", () => {
-			return HttpResponse.json([snapshot]);
+			return HttpResponse.json(options.snapshots ? options.snapshots() : [snapshot]);
+		}),
+		http.delete("/api/v1/repositories/:shortId/snapshots/:snapshotId", () => {
+			return HttpResponse.json({ taskId: "task-delete", status: "started" }, { status: 202 });
+		}),
+		http.get("/api/v1/tasks", () => {
+			return HttpResponse.json(options.tasks ? options.tasks() : []);
 		}),
 		http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () => {
 			return HttpResponse.json({
@@ -143,12 +201,14 @@ const mockScheduleDetailsRequests = (
 };
 
 beforeEach(() => {
+	MockEventSource.reset();
 	globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
 });
 
 afterEach(() => {
 	globalThis.EventSource = originalEventSource;
 	cleanup();
+	MockEventSource.reset();
 });
 
 describe("ScheduleDetailsPage", () => {
@@ -242,5 +302,100 @@ describe("ScheduleDetailsPage", () => {
 		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
 		await new Promise((resolve) => setTimeout(resolve, 1200));
 		expect(runningScheduleRequests).toBeGreaterThan(1);
+	});
+
+	test("shows deleting state for a snapshot delete event", async () => {
+		let tasks: Array<typeof deleteSnapshotsTask> = [];
+		mockScheduleDetailsRequests({ tasks: () => tasks });
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotId="snap-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		const deleteButton = await screen.findByRole("button", { name: /delete snapshot/i });
+		expect((deleteButton as HTMLButtonElement).disabled).toBe(false);
+
+		tasks = [deleteSnapshotsTask];
+		MockEventSource.instances[0]?.emit("snapshots:delete_started", {
+			organizationId: "default-org",
+			taskId: "task-delete",
+			repositoryId: "repo-1",
+			snapshotIds: ["snap-1"],
+		});
+
+		expect(await screen.findByText("Deleting")).toBeTruthy();
+		await waitFor(() => {
+			expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
+		});
+	});
+
+	test("keeps selected snapshot visible after delete start and hides it after completion", async () => {
+		let snapshots = [snapshot];
+		let tasks: Array<typeof deleteSnapshotsTask> = [];
+		mockScheduleDetailsRequests({ snapshots: () => snapshots, tasks: () => tasks });
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotId="snap-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		await screen.findByText("File Browser");
+
+		await userEvent.click(screen.getByRole("button", { name: /delete snapshot/i }));
+		const confirmDeleteButton = screen.getAllByRole("button", { name: /delete snapshot/i }).at(-1);
+		expect(confirmDeleteButton).toBeTruthy();
+		await userEvent.click(confirmDeleteButton as HTMLElement);
+
+		tasks = [deleteSnapshotsTask];
+		MockEventSource.instances[0]?.emit("snapshots:delete_started", {
+			organizationId: "default-org",
+			taskId: "task-delete",
+			repositoryId: "repo-1",
+			snapshotIds: ["snap-1"],
+		});
+
+		expect(await screen.findByText("Deleting")).toBeTruthy();
+		expect(screen.getByText("File Browser")).toBeTruthy();
+
+		snapshots = [];
+		tasks = [];
+		MockEventSource.instances[0]?.emit("snapshots:delete_completed", {
+			organizationId: "default-org",
+			taskId: "task-delete",
+			repositoryId: "repo-1",
+			snapshotIds: ["snap-1"],
+			status: "success",
+		});
+
+		await waitFor(() => {
+			expect(screen.queryByText("File Browser")).toBeNull();
+		});
 	});
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, HardDrive, Tag, Trash2, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { Calendar, Clock, Database, HardDrive, Loader2, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
@@ -27,48 +27,42 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { formatDuration } from "~/utils/utils";
-import {
-	deleteSnapshotsMutation,
-	listSnapshotsQueryKey,
-	tagSnapshotsMutation,
-} from "~/client/api-client/@tanstack/react-query.gen";
+import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { useDeletingSnapshots } from "~/client/hooks/use-deleting-snapshots";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
 import { Link, useNavigate } from "@tanstack/react-router";
-import type { ListSnapshotsData } from "~/client/api-client/types.gen";
-import type { Options } from "~/client/api-client/client/types.gen";
 
 type Props = {
 	snapshots: Snapshot[];
 	backups: BackupSchedule[];
 	repositoryId: string;
-	listSnapshotsQueryOptions: Options<ListSnapshotsData>;
 };
 
-export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshotsQueryOptions }: Props) => {
-	const queryClient = useQueryClient();
+export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
+	const { deletingSnapshotIds } = useDeletingSnapshots(repositoryId);
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 	const [showReTagDialog, setShowReTagDialog] = useState(false);
 	const [targetScheduleId, setTargetScheduleId] = useState<string>("");
+	const selectableSnapshots = snapshots.filter((snapshot) => !deletingSnapshotIds.has(snapshot.short_id));
+	const selectableSnapshotIds = new Set(selectableSnapshots.map((snapshot) => snapshot.short_id));
+	const selectedSelectableIds = new Set(
+		Array.from(selectedIds).filter((snapshotId) => selectableSnapshotIds.has(snapshotId)),
+	);
+	const selectedSnapshotCount = selectedSelectableIds.size;
+	const hasSelectableSnapshots = selectableSnapshots.length > 0;
+	const areAllSelectableSnapshotsSelected =
+		selectedSnapshotCount === selectableSnapshots.length && hasSelectableSnapshots;
 
 	const deleteSnapshots = useMutation({
 		...deleteSnapshotsMutation(),
-		onSuccess: (_data, variables) => {
-			const snapshotIds = variables.body?.snapshotIds ?? [];
-			const queryKey = listSnapshotsQueryKey(listSnapshotsQueryOptions);
-
-			queryClient.setQueryData<Snapshot[]>(queryKey, (old) => {
-				if (!old) return old;
-				return old.filter((snapshot) => !snapshotIds.includes(snapshot.short_id));
-			});
-
-			void queryClient.invalidateQueries({ queryKey });
+		onSuccess: () => {
 			setShowBulkDeleteConfirm(false);
 			setSelectedIds(new Set());
 			setLastSelectedId(null);
@@ -93,30 +87,36 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	};
 
 	const toggleSelectAll = () => {
-		if (selectedIds.size === snapshots.length) {
+		if (areAllSelectableSnapshotsSelected) {
 			setSelectedIds(new Set());
 			setLastSelectedId(null);
 		} else {
-			setSelectedIds(new Set(snapshots.map((s) => s.short_id)));
-			setLastSelectedId(snapshots.length > 0 ? snapshots[snapshots.length - 1].short_id : null);
+			const lastSelectableSnapshot = selectableSnapshots[selectableSnapshots.length - 1];
+			const lastSelectableSnapshotId = lastSelectableSnapshot?.short_id ?? null;
+			setSelectedIds(new Set(selectableSnapshotIds));
+			setLastSelectedId(lastSelectableSnapshotId);
 		}
 	};
 
 	const handleSnapshotSelection = (snapshotId: string, event?: React.MouseEvent | React.KeyboardEvent) => {
+		if (deletingSnapshotIds.has(snapshotId)) {
+			return;
+		}
+
 		const isShiftClick = event && "shiftKey" in event && event.shiftKey;
 
 		// Attempt range selection first
-		if (isShiftClick && snapshots.length > 0) {
-			const currentIndex = snapshots.findIndex((s) => s.short_id === snapshotId);
+		if (isShiftClick && selectableSnapshots.length > 0) {
+			const currentIndex = selectableSnapshots.findIndex((s) => s.short_id === snapshotId);
 
 			if (currentIndex !== -1) {
 				// If lastSelectedId exists, use it; otherwise start from the first item (index 0)
 				let startIndex: number;
 				if (lastSelectedId) {
-					startIndex = snapshots.findIndex((s) => s.short_id === lastSelectedId);
+					startIndex = selectableSnapshots.findIndex((s) => s.short_id === lastSelectedId);
 					// If lastSelectedId no longer exists in snapshots (stale reference), fall back to single selection
 					if (startIndex === -1) {
-						const newSelected = new Set(selectedIds);
+						const newSelected = new Set(selectedSelectableIds);
 						if (newSelected.has(snapshotId)) {
 							newSelected.delete(snapshotId);
 						} else {
@@ -133,16 +133,16 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				// Valid range selection - replace the entire selection with the new range
 				const start = Math.min(startIndex, currentIndex);
 				const end = Math.max(startIndex, currentIndex);
-				const rangeIds = new Set(snapshots.slice(start, end + 1).map((s) => s.short_id));
+				const rangeIds = new Set(selectableSnapshots.slice(start, end + 1).map((s) => s.short_id));
 
 				setSelectedIds(rangeIds);
-				setLastSelectedId(snapshots[startIndex].short_id);
+				setLastSelectedId(selectableSnapshots[startIndex].short_id);
 				return;
 			}
 		}
 
 		// Single selection toggle (used as fallback or when shift-click not applicable)
-		const newSelected = new Set(selectedIds);
+		const newSelected = new Set(selectedSelectableIds);
 		if (newSelected.has(snapshotId)) {
 			newSelected.delete(snapshotId);
 		} else {
@@ -153,14 +153,19 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	};
 
 	const handleBulkDelete = () => {
+		const snapshotIds = Array.from(selectedSelectableIds);
+		if (snapshotIds.length === 0) {
+			return;
+		}
+
 		toast.promise(
 			deleteSnapshots.mutateAsync({
 				path: { shortId: repositoryId },
-				body: { snapshotIds: Array.from(selectedIds) },
+				body: { snapshotIds },
 			}),
 			{
-				loading: `Deleting ${selectedIds.size} snapshots...`,
-				success: "Snapshots deleted successfully",
+				loading: `Starting deletion for ${snapshotIds.length} snapshots...`,
+				success: "Snapshot deletion started",
 				error: (error) => parseError(error)?.message || "Failed to delete snapshots",
 			},
 		);
@@ -169,17 +174,19 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const handleBulkReTag = () => {
 		const schedule = backups.find((b) => b.shortId === targetScheduleId);
 		if (!schedule) return;
+		const snapshotIds = Array.from(selectedSelectableIds);
+		if (snapshotIds.length === 0) return;
 
 		toast.promise(
 			tagSnapshots.mutateAsync({
 				path: { shortId: repositoryId },
 				body: {
-					snapshotIds: Array.from(selectedIds),
+					snapshotIds,
 					set: [schedule.shortId],
 				},
 			}),
 			{
-				loading: `Re-tagging ${selectedIds.size} snapshots...`,
+				loading: `Re-tagging ${snapshotIds.length} snapshots...`,
 				success: `Snapshots re-tagged to ${schedule.name}`,
 				error: (error) => parseError(error)?.message || "Failed to re-tag snapshots",
 			},
@@ -194,7 +201,8 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 						<TableRow>
 							<TableHead className="w-10">
 								<Checkbox
-									checked={selectedIds.size === snapshots.length && snapshots.length > 0}
+									checked={areAllSelectableSnapshotsSelected}
+									disabled={!hasSelectableSnapshots}
 									onCheckedChange={toggleSelectAll}
 									aria-label="Select all"
 								/>
@@ -209,17 +217,24 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 					<TableBody>
 						{snapshots.map((snapshot) => {
 							const backup = backups.find((b) => snapshot.tags.includes(b.shortId));
-							const isSelected = selectedIds.has(snapshot.short_id);
+							const isDeleting = deletingSnapshotIds.has(snapshot.short_id);
+							const isSelected = selectedSelectableIds.has(snapshot.short_id);
 
 							return (
 								<TableRow
 									key={snapshot.short_id}
-									className={cn("hover:bg-accent/50 cursor-pointer", isSelected && "bg-accent/30")}
+									aria-busy={isDeleting}
+									className={cn(
+										"hover:bg-accent/50 cursor-pointer",
+										isSelected && "bg-accent/30",
+										isDeleting && "bg-muted/30 text-muted-foreground",
+									)}
 									onClick={() => handleRowClick(snapshot.short_id)}
 								>
 									<TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 										<Checkbox
 											checked={isSelected}
+											disabled={isDeleting}
 											onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
 												e.stopPropagation();
 												handleSnapshotSelection(snapshot.short_id, e);
@@ -229,8 +244,17 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 									</TableCell>
 									<TableCell className="font-mono text-sm">
 										<div className="flex items-center gap-2">
-											<HardDrive className="h-4 w-4 text-muted-foreground" />
+											{isDeleting ? (
+												<Loader2 className="h-4 w-4 animate-spin text-primary" />
+											) : (
+												<HardDrive className="h-4 w-4 text-muted-foreground" />
+											)}
 											<span className="text-strong-accent">{snapshot.short_id}</span>
+											{isDeleting && (
+												<span className="text-xs font-medium normal-case text-primary">
+													Deleting
+												</span>
+											)}
 										</div>
 									</TableCell>
 									<TableCell>
@@ -278,7 +302,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				</Table>
 			</div>
 
-			{selectedIds.size > 0 && (
+			{selectedSnapshotCount > 0 && (
 				<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300">
 					<div className="bg-card border shadow-2xl rounded-full px-4 py-2 flex items-center gap-4 min-w-75 justify-between">
 						<div className="flex items-center gap-3 border-r pr-4">
@@ -293,7 +317,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 							>
 								<X className="h-4 w-4" />
 							</Button>
-							<span className="text-sm font-medium">{selectedIds.size} selected</span>
+							<span className="text-sm font-medium">{selectedSnapshotCount} selected</span>
 						</div>
 						<div className="flex items-center gap-2">
 							<Button
@@ -319,35 +343,37 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 				</div>
 			)}
 
-			<AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Delete {selectedIds.size} snapshots?</AlertDialogTitle>
-						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete the selected snapshots and all
-							their data from the repository.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleBulkDelete}
-							disabled={deleteSnapshots.isPending}
-							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-						>
-							Delete {selectedIds.size} snapshots
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+			{showBulkDeleteConfirm && (
+				<AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Delete {selectedSnapshotCount} snapshots?</AlertDialogTitle>
+							<AlertDialogDescription>
+								This action cannot be undone. This will permanently delete the selected snapshots and
+								all their data from the repository.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={handleBulkDelete}
+								disabled={deleteSnapshots.isPending || selectedSnapshotCount === 0}
+								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							>
+								Delete {selectedSnapshotCount} snapshots
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			)}
 
 			<Dialog open={showReTagDialog} onOpenChange={setShowReTagDialog}>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Re-tag snapshots</DialogTitle>
 						<DialogDescription>
-							Select a backup schedule to re-tag the {selectedIds.size} selected snapshots. All&nbsp;
-							{selectedIds.size} selected snapshots will be associated with the chosen schedule.
+							Select a backup schedule to re-tag the {selectedSnapshotCount} selected snapshots. All&nbsp;
+							{selectedSnapshotCount} selected snapshots will be associated with the chosen schedule.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="py-4">
@@ -368,7 +394,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 						<Button variant="outline" onClick={() => setShowReTagDialog(false)}>
 							Cancel
 						</Button>
-						<Button onClick={handleBulkReTag} disabled={!targetScheduleId}>
+						<Button onClick={handleBulkReTag} disabled={!targetScheduleId || selectedSnapshotCount === 0}>
 							Apply tags
 						</Button>
 					</DialogFooter>

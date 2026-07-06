@@ -9,6 +9,8 @@ import type { TaskInput, TaskProgress, TaskResult } from "../tasks.schemas";
 type BackupTaskInput = Extract<TaskInput, { kind: "backup" }>;
 type BackupTaskProgress = Extract<TaskProgress, { kind: "backup" }>;
 type BackupTaskResult = Extract<TaskResult, { kind: "backup" }>;
+type DeleteSnapshotsTaskInput = Extract<TaskInput, { kind: "deleteSnapshots" }>;
+type DeleteSnapshotsTaskResult = Extract<TaskResult, { kind: "deleteSnapshots" }>;
 
 const backupInput = (scheduleId = 1): BackupTaskInput => ({
 	kind: "backup",
@@ -39,6 +41,17 @@ const backupResult = (): BackupTaskResult => ({
 	warningDetails: null,
 });
 
+const deleteSnapshotsInput = (snapshotIds = ["snapshot-1"]): DeleteSnapshotsTaskInput => ({
+	kind: "deleteSnapshots",
+	repositoryId: "repo-short",
+	snapshotIds,
+});
+
+const deleteSnapshotsResult = (deletedSnapshotIds = ["snapshot-1"]): DeleteSnapshotsTaskResult => ({
+	kind: "deleteSnapshots",
+	deletedSnapshotIds,
+});
+
 const createBackupTask = (overrides: Partial<Parameters<typeof taskStore.create>[0]> = {}) =>
 	taskStore.create({
 		organizationId: TEST_ORG_ID,
@@ -56,6 +69,15 @@ const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create
 		resourceId: "repo-short",
 		targetAgentId: "local",
 		input: { kind: "restore", repositoryId: "repo-short", snapshotId: "snapshot-1", target: "/tmp/restore" },
+		...overrides,
+	});
+
+const createDeleteSnapshotsTask = (overrides: Partial<Parameters<typeof taskStore.create>[0]> = {}) =>
+	taskStore.create({
+		organizationId: TEST_ORG_ID,
+		resourceType: "repository",
+		resourceId: "repo-short",
+		input: deleteSnapshotsInput(),
 		...overrides,
 	});
 
@@ -173,6 +195,29 @@ test("moves restore tasks through progress and success", () => {
 	expect(completed.result?.result.files_restored).toBe(4);
 });
 
+test("moves delete snapshot tasks through running and success", () => {
+	const task = createDeleteSnapshotsTask({
+		id: "delete-snapshots-task",
+		input: deleteSnapshotsInput(["snapshot-1", "snapshot-2"]),
+	});
+
+	const running = taskStore.markRunning(task.id);
+	expect(running.kind).toBe("deleteSnapshots");
+	expect(running.input).toMatchObject({
+		kind: "deleteSnapshots",
+		repositoryId: "repo-short",
+		snapshotIds: ["snapshot-1", "snapshot-2"],
+	});
+
+	const completed = taskStore.complete(task.id, deleteSnapshotsResult(["snapshot-1", "snapshot-2"]));
+	expect(completed.status).toBe("succeeded");
+	expect(completed.result?.kind).toBe("deleteSnapshots");
+	if (completed.result?.kind !== "deleteSnapshots") {
+		throw new Error("Expected deleteSnapshots result");
+	}
+	expect(completed.result.deletedSnapshotIds).toEqual(["snapshot-1", "snapshot-2"]);
+});
+
 test("finds the newest active task for a resource and marks only matching active tasks stale", async () => {
 	createBackupTask({ id: "task-a-old", resourceId: "shared" });
 	const newest = createBackupTask({ id: "task-z-new", resourceId: "shared" });
@@ -203,6 +248,19 @@ test("finds the newest active task for a resource and marks only matching active
 	const completed = await db.query.tasksTable.findFirst({ where: { id: terminal.id } });
 	expect(other?.status).toBe("queued");
 	expect(completed?.status).toBe("succeeded");
+});
+
+test("lists active tasks with optional filters", () => {
+	const backupTask = createBackupTask({ id: "task-list-backup" });
+	const deleteSnapshotsTask = createDeleteSnapshotsTask({ id: "task-list-delete-snapshots" });
+	const completedTask = createDeleteSnapshotsTask({ id: "task-list-completed-delete-snapshots" });
+	taskStore.complete(completedTask.id, deleteSnapshotsResult());
+
+	const activeTasks = taskStore.listActive({ organizationId: TEST_ORG_ID });
+	const activeDeleteTasks = taskStore.listActive({ organizationId: TEST_ORG_ID, kind: "deleteSnapshots" });
+
+	expect(activeTasks.map((task) => task.id).sort()).toEqual([backupTask.id, deleteSnapshotsTask.id].sort());
+	expect(activeDeleteTasks.map((task) => task.id)).toEqual([deleteSnapshotsTask.id]);
 });
 
 test("parses task JSON on reads and rejects invalid persisted shapes", () => {

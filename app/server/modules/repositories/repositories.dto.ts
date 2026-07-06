@@ -446,7 +446,8 @@ export const listRcloneRemotesDto = describeRoute({
 });
 
 const deleteSnapshotResponse = z.object({
-	message: z.string(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type DeleteSnapshotDto = z.infer<typeof deleteSnapshotResponse>;
@@ -456,8 +457,8 @@ export const deleteSnapshotDto = describeRoute({
 	tags: ["Repositories"],
 	operationId: "deleteSnapshot",
 	responses: {
-		200: {
-			description: "Snapshot deleted successfully",
+		202: {
+			description: "Snapshot deletion started",
 			content: {
 				"application/json": {
 					schema: resolver(deleteSnapshotResponse),
@@ -472,7 +473,8 @@ export const deleteSnapshotsBody = z.object({
 });
 
 const deleteSnapshotsResponse = z.object({
-	message: z.string(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type DeleteSnapshotsResponseDto = z.infer<typeof deleteSnapshotsResponse>;
@@ -482,8 +484,8 @@ export const deleteSnapshotsDto = describeRoute({
 	tags: ["Repositories"],
 	operationId: "deleteSnapshots",
 	responses: {
-		200: {
-			description: "Snapshots deleted successfully",
+		202: {
+			description: "Snapshot deletion started",
 			content: {
 				"application/json": {
 					schema: resolver(deleteSnapshotsResponse),
