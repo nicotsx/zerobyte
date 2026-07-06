@@ -2604,11 +2604,13 @@ export type ListBackupSchedulesResponses = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries: number;
@@ -2897,11 +2899,13 @@ export type CreateBackupScheduleData = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries?: number;
@@ -2944,11 +2948,13 @@ export type CreateBackupScheduleResponses = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries: number;
@@ -3025,11 +3031,13 @@ export type GetBackupScheduleResponses = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries: number;
@@ -3317,11 +3325,13 @@ export type UpdateBackupScheduleData = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries?: number;
@@ -3366,11 +3376,13 @@ export type UpdateBackupScheduleResponses = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries: number;
@@ -3427,11 +3439,13 @@ export type GetBackupScheduleForVolumeResponses = {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
             post: {
                 url: string;
                 headers?: Array<string>;
                 body?: string;
+                insecureTls?: boolean;
             } | null;
         } | null;
         maxRetries: number;

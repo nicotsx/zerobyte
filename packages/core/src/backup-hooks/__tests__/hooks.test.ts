@@ -3,7 +3,7 @@ import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { backupWebhookConfigSchema, runBackupLifecycle } from "../index.js";
 
-type WebhookHandler = (context: {
+export type WebhookHandler = (context: {
 	request: IncomingMessage;
 	response: ServerResponse;
 	body: string;
@@ -24,14 +24,13 @@ const sendWebhookResponse = (response: ServerResponse, status = 204, body = "") 
 	response.end(body);
 };
 
-beforeEach(async () => {
-	webhookHandlers = new Map();
-	webhookServer = nodeHttp.createServer(async (request, response) => {
+const createWebhookRequestListener =
+	(originRef: () => string) => async (request: IncomingMessage, response: ServerResponse) => {
 		const chunks: Buffer[] = [];
 		for await (const chunk of request) chunks.push(Buffer.from(chunk));
 
 		const body = Buffer.concat(chunks).toString("utf8");
-		const pathname = new URL(request.url ?? "/", webhookOrigin).pathname;
+		const pathname = new URL(request.url ?? "/", originRef()).pathname;
 		const handler = webhookHandlers.get(routeKey(request.method ?? "", pathname));
 
 		if (!handler) {
@@ -40,7 +39,11 @@ beforeEach(async () => {
 		}
 
 		await handler({ request, response, body });
-	});
+	};
+
+beforeEach(async () => {
+	webhookHandlers = new Map();
+	webhookServer = nodeHttp.createServer(createWebhookRequestListener(() => webhookOrigin));
 
 	await new Promise<void>((resolve) => {
 		webhookServer.listen(0, "127.0.0.1", resolve);

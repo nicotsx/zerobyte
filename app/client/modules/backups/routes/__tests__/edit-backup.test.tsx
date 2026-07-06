@@ -200,6 +200,7 @@ test("submits webhook headers and body as plain config values", async () => {
 
 	await userEvent.click(await screen.findByText("Advanced"));
 	await userEvent.type(screen.getByLabelText("Pre-backup webhook"), "http://localhost:8080/stop");
+	await userEvent.click(screen.getAllByLabelText("Skip TLS certificate verification")[0]);
 	fireEvent.change(screen.getByLabelText("Pre-backup webhook headers"), {
 		target: { value: "Authorization: Bearer stop-token" },
 	});
@@ -214,6 +215,7 @@ test("submits webhook headers and body as plain config values", async () => {
 				url: "http://localhost:8080/stop",
 				headers: ["Authorization: Bearer stop-token"],
 				body: '{"action":"stop"}',
+				insecureTls: true,
 			},
 			post: null,
 		},

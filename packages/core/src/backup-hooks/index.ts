@@ -33,14 +33,16 @@ export const backupWebhookConfigSchema = z.object({
 		)
 		.optional(),
 	body: z.string().optional(),
+	insecureTls: z.boolean().optional(),
 });
+
+export type BackupWebhookConfig = z.infer<typeof backupWebhookConfigSchema>;
 
 export const backupWebhooksSchema = z.object({
 	pre: backupWebhookConfigSchema.nullable(),
 	post: backupWebhookConfigSchema.nullable(),
 });
 
-export type BackupWebhookConfig = z.infer<typeof backupWebhookConfigSchema>;
 export type BackupWebhooks = z.infer<typeof backupWebhooksSchema>;
 
 type BackupWebhookPhase = "pre" | "post";
@@ -217,6 +219,11 @@ const sendWebhookRequest = (
 			);
 		}
 
+		const requestOptions: https.RequestOptions = { method: "POST", headers };
+		if (client === https && config.insecureTls) {
+			requestOptions.rejectUnauthorized = false;
+		}
+
 		let settled = false;
 
 		const settle = (callback: () => void) => {
@@ -226,7 +233,7 @@ const sendWebhookRequest = (
 			callback();
 		};
 
-		const req = client.request(url, { method: "POST", headers }, (res) => {
+		const req = client.request(url, requestOptions, (res) => {
 			res.resume();
 			res.on("error", (error) => settle(() => reject(error)));
 			res.on("end", () => {

@@ -47,28 +47,18 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				cronExpression,
 				maxRetries,
 				retryDelay,
-				preBackupWebhookUrl,
-				preBackupWebhookHeadersText,
-				preBackupWebhookBody,
-				postBackupWebhookUrl,
-				postBackupWebhookHeadersText,
-				postBackupWebhookBody,
+				preBackupWebhook,
+				postBackupWebhook,
 				...rest
 			} = parsedData;
 			const excludePatterns = parseMultilineEntries(excludePatternsText);
 			const excludeIfPresent = parseMultilineEntries(excludeIfPresentText);
 			const parsedIncludePatterns = parseMultilineEntries(includePatterns);
 			const customResticParams = parseMultilineEntries(customResticParamsText);
-			const preBackupWebhook = toWebhookConfig(
-				preBackupWebhookUrl,
-				preBackupWebhookHeadersText,
-				preBackupWebhookBody,
-			);
-			const postBackupWebhook = toWebhookConfig(
-				postBackupWebhookUrl,
-				postBackupWebhookHeadersText,
-				postBackupWebhookBody,
-			);
+			const backupWebhooks = {
+				pre: toWebhookConfig(preBackupWebhook ?? {}),
+				post: toWebhookConfig(postBackupWebhook ?? {}),
+			};
 
 			onSubmit({
 				...rest,
@@ -78,8 +68,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
-				backupWebhooks:
-					preBackupWebhook || postBackupWebhook ? { pre: preBackupWebhook, post: postBackupWebhook } : null,
+				backupWebhooks: backupWebhooks.pre || backupWebhooks.post ? backupWebhooks : null,
 				maxRetries,
 				retryDelay,
 			});

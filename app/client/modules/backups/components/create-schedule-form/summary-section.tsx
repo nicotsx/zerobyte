@@ -15,6 +15,17 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 	const { data: repositoriesData } = useQuery({
 		...listRepositoriesOptions(),
 	});
+	const retentionSummary = [
+		["last", formValues.keepLast],
+		["hourly", formValues.keepHourly],
+		["daily", formValues.keepDaily],
+		["weekly", formValues.keepWeekly],
+		["monthly", formValues.keepMonthly],
+		["yearly", formValues.keepYearly],
+	]
+		.filter(([, value]) => Boolean(value))
+		.map(([label, value]) => `${value} ${label}`)
+		.join(", ");
 
 	return (
 		<Card>
@@ -55,7 +66,9 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 								</span>
 							))}
 							{formValues.includePaths && formValues.includePaths.length > 20 && (
-								<span className="text-xs text-muted-foreground">+ {formValues.includePaths.length - 20} more</span>
+								<span className="text-xs text-muted-foreground">
+									+ {formValues.includePaths.length - 20} more
+								</span>
 							)}
 							{formValues.includePatterns
 								?.split("\n")
@@ -105,15 +118,7 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Retention</p>
-					<p className="font-medium">
-						{Object.entries(formValues)
-							.filter(([key, value]) => key.startsWith("keep") && Boolean(value))
-							.map(([key, value]) => {
-								const label = key.replace("keep", "").toLowerCase();
-								return `${value.toString()} ${label}`;
-							})
-							.join(", ") || "-"}
-					</p>
+					<p className="font-medium">{retentionSummary || "-"}</p>
 				</div>
 			</CardContent>
 		</Card>

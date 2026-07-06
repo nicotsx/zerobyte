@@ -3,37 +3,57 @@ import { Textarea } from "~/client/components/ui/textarea";
 import { type UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
 import { Input } from "~/client/components/ui/input";
+import { Checkbox } from "~/client/components/ui/checkbox";
 
 type AdvancedSectionProps = {
 	form: UseFormReturn<InternalFormValues>;
 };
 
-type WebhookFieldsProps = {
-	form: UseFormReturn<InternalFormValues>;
-	phase: "pre" | "post";
+type WebhookPhase = {
+	name: "preBackupWebhook" | "postBackupWebhook";
+	label: string;
 	urlPlaceholder: string;
 	bodyPlaceholder: string;
 	description: string;
 };
 
-const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, description }: WebhookFieldsProps) => {
-	const labelPrefix = phase === "pre" ? "Pre-backup" : "Post-backup";
-	const fieldPrefix = phase === "pre" ? "preBackupWebhook" : "postBackupWebhook";
+type WebhookFieldsProps = {
+	form: UseFormReturn<InternalFormValues>;
+	phase: WebhookPhase;
+};
 
+const WEBHOOK_PHASES: WebhookPhase[] = [
+	{
+		name: "preBackupWebhook",
+		label: "Pre-backup",
+		urlPlaceholder: "http://host.docker.internal:8080/stop",
+		bodyPlaceholder: '{"action":"stop"}',
+		description: "Called with POST before restic starts. A non-2xx response stops the backup.",
+	},
+	{
+		name: "postBackupWebhook",
+		label: "Post-backup",
+		urlPlaceholder: "http://host.docker.internal:8080/start",
+		bodyPlaceholder: '{"action":"start"}',
+		description: "Called with POST after restic finishes, including failed or cancelled runs.",
+	},
+];
+
+const WebhookFields = ({ form, phase }: WebhookFieldsProps) => {
 	return (
 		<>
 			<FormField
 				control={form.control}
-				name={`${fieldPrefix}Url`}
+				name={`${phase.name}.url`}
 				render={({ field }) => (
 					<FormItem>
-						<FormLabel>{labelPrefix} webhook</FormLabel>
+						<FormLabel>{phase.label} webhook</FormLabel>
 						<FormControl>
-							<Input {...field} type="url" placeholder={urlPlaceholder} />
+							<Input {...field} type="url" placeholder={phase.urlPlaceholder} />
 						</FormControl>
 						<FormDescription>
-							{description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are not
-							followed.
+							{phase.description} The URL origin must be listed in WEBHOOK_ALLOWED_ORIGINS; redirects are
+							not followed.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>
@@ -41,10 +61,28 @@ const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, descripti
 			/>
 			<FormField
 				control={form.control}
-				name={`${fieldPrefix}HeadersText`}
+				name={`${phase.name}.insecureTls`}
+				render={({ field }) => (
+					<FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+						<FormControl>
+							<Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
+						</FormControl>
+						<div className="space-y-1 leading-none">
+							<FormLabel>Skip TLS certificate verification</FormLabel>
+							<FormDescription>
+								Allow this {phase.label.toLowerCase()} webhook to use self-signed certificates. This is
+								insecure and should only be enabled for trusted endpoints.
+							</FormDescription>
+						</div>
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
+				name={`${phase.name}.headersText`}
 				render={({ field }) => (
 					<FormItem>
-						<FormLabel>{labelPrefix} webhook headers</FormLabel>
+						<FormLabel>{phase.label} webhook headers</FormLabel>
 						<FormControl>
 							<Textarea
 								{...field}
@@ -61,12 +99,16 @@ const WebhookFields = ({ form, phase, urlPlaceholder, bodyPlaceholder, descripti
 			/>
 			<FormField
 				control={form.control}
-				name={`${fieldPrefix}Body`}
+				name={`${phase.name}.body`}
 				render={({ field }) => (
 					<FormItem>
-						<FormLabel>{labelPrefix} webhook body</FormLabel>
+						<FormLabel>{phase.label} webhook body</FormLabel>
 						<FormControl>
-							<Textarea {...field} placeholder={bodyPlaceholder} className="font-mono text-sm min-h-24" />
+							<Textarea
+								{...field}
+								placeholder={phase.bodyPlaceholder}
+								className="font-mono text-sm min-h-24"
+							/>
 						</FormControl>
 						<FormDescription>
 							Optional raw POST body. Leave empty to send the backup context JSON.
@@ -131,20 +173,9 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 					</FormItem>
 				)}
 			/>
-			<WebhookFields
-				form={form}
-				phase="pre"
-				urlPlaceholder="http://host.docker.internal:8080/stop"
-				bodyPlaceholder='{"action":"stop"}'
-				description="Called with POST before restic starts. A non-2xx response stops the backup."
-			/>
-			<WebhookFields
-				form={form}
-				phase="post"
-				urlPlaceholder="http://host.docker.internal:8080/start"
-				bodyPlaceholder='{"action":"start"}'
-				description="Called with POST after restic finishes, including failed or cancelled runs."
-			/>
+			{WEBHOOK_PHASES.map((phase) => (
+				<WebhookFields key={phase.name} form={form} phase={phase} />
+			))}
 			<FormField
 				control={form.control}
 				name="customResticParamsText"

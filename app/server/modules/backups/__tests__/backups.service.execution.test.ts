@@ -380,11 +380,13 @@ describe("backup execution - validation failures", () => {
 				url: "http://localhost:8080/stop",
 				headers: ["authorization: Bearer stop-token"],
 				body: '{"action":"stop"}',
+				insecureTls: true,
 			},
 			post: {
 				url: "http://localhost:8080/start",
 				headers: ["authorization: Bearer start-token"],
 				body: '{"action":"start"}',
+				insecureTls: true,
 			},
 		};
 

@@ -24,6 +24,13 @@ const optionalNumberInputSchema = (numberSchema: z.ZodNumber = z.number()) =>
 
 const optionalRetentionCountSchema = optionalNumberInputSchema();
 
+const internalWebhookFormSchema = z.object({
+	url: z.union([z.url(), z.literal("")]).optional(),
+	insecureTls: z.boolean().optional(),
+	headersText: webhookHeadersSchema.optional(),
+	body: z.string().optional(),
+});
+
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
 	repositoryId: z.string(),
@@ -44,12 +51,8 @@ export const internalFormSchema = z.object({
 	keepYearly: optionalRetentionCountSchema,
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
-	preBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
-	preBackupWebhookHeadersText: webhookHeadersSchema.optional(),
-	preBackupWebhookBody: z.string().optional(),
-	postBackupWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
-	postBackupWebhookHeadersText: webhookHeadersSchema.optional(),
-	postBackupWebhookBody: z.string().optional(),
+	preBackupWebhook: internalWebhookFormSchema.optional(),
+	postBackupWebhook: internalWebhookFormSchema.optional(),
 	maxRetries: optionalNumberInputSchema(z.number().min(0).max(32)),
 	retryDelay: optionalNumberInputSchema(z.number().min(1).max(1440)),
 });
@@ -79,12 +82,8 @@ export type BackupScheduleFormValues = Omit<
 	| "keepMonthly"
 	| "keepYearly"
 	| "customResticParamsText"
-	| "preBackupWebhookUrl"
-	| "preBackupWebhookHeadersText"
-	| "preBackupWebhookBody"
-	| "postBackupWebhookUrl"
-	| "postBackupWebhookHeadersText"
-	| "postBackupWebhookBody"
+	| "preBackupWebhook"
+	| "postBackupWebhook"
 > & {
 	excludePatterns?: string[];
 	excludeIfPresent?: string[];
