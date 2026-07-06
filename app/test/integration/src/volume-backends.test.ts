@@ -21,6 +21,7 @@ import {
 	readSftpPrivateKey,
 	scanSftpKnownHosts,
 	SFTP_LEGACY_RSA_HOST,
+	SFTP_FIXTURE_ROOT,
 } from "./helpers/sftp";
 import { buildSmbVolumeConfig } from "./helpers/smb";
 import { buildWebdavVolumeConfig } from "./helpers/webdav";
@@ -207,5 +208,98 @@ volumeMountTest.concurrent.each(scenarios)("$name can backup and restore static 
 
 	if (cleanupError) {
 		throw cleanupError;
+	}
+});
+
+volumeMountTest("SFTP volume can backup absolute symlinks when unsafe targets are allowed", async () => {
+	const runId = crypto.randomUUID();
+	const workspace = path.join(INTEGRATION_RUNS_DIR, `sftp-absolute-symlink-${runId}`);
+	const mountPath = path.join(workspace, "mount");
+	const repositoryPath = path.join(workspace, "repo");
+	const backupTag = `zerobyte-integration-sftp-absolute-symlink-${runId}`;
+	const resticPassword = `zerobyte-integration-sftp-absolute-symlink-${runId}-${crypto.randomBytes(16).toString("hex")}`;
+	const repositoryConfig: RepositoryConfig = { backend: "local", path: repositoryPath };
+	const restic = createIntegrationRestic(workspace, resticPassword);
+	const fixture = {
+		sourceRoot: path.join(mountPath, "absolute-symlink-case"),
+		entries: [
+			{
+				type: "symlink" as const,
+				relativePath: "absolute-hello-link",
+				target: `${SFTP_FIXTURE_ROOT}/case-a/hello.txt`,
+			},
+		],
+	};
+
+	let backend: VolumeBackend | undefined;
+	let passed = false;
+
+	try {
+		await fs.mkdir(workspace, { recursive: true });
+
+		const initResult = await Effect.runPromise(
+			restic.init(repositoryConfig, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				timeoutMs: 120_000,
+			}),
+		);
+		expect(initResult.success).toBe(true);
+		expect(initResult.error).toBeNull();
+
+		const knownHosts = await scanSftpKnownHosts();
+		const privateKey = await readSftpPrivateKey();
+		const config = {
+			...buildSftpPrivateKeyVolumeConfig({ privateKey, knownHosts }),
+			allowUnsafeSymlinkTargets: true,
+		};
+		backend = makeSftpBackend(config, mountPath);
+
+		const mountResult = await backend.mount();
+		expect(mountResult.status).toBe("mounted");
+		await assertFixtureSourceExists(fixture);
+
+		const backupResult = await Effect.runPromise(
+			restic.backup(repositoryConfig, fixture.sourceRoot, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				tags: [backupTag],
+			}),
+		);
+
+		expect(backupResult.exitCode).toBe(0);
+		expect(backupResult.warningDetails).toBeNull();
+		expect(backupResult.result?.snapshot_id).toEqual(expect.any(String));
+
+		const snapshotId = backupResult.result?.snapshot_id;
+		if (!snapshotId) {
+			throw new Error("Restic backup completed without a snapshot id");
+		}
+
+		const lsResult = await Effect.runPromise(
+			restic.ls(repositoryConfig, snapshotId, undefined, {
+				organizationId: INTEGRATION_ORGANIZATION_ID,
+				limit: 100,
+			}),
+		);
+		assertSnapshotContainsFixture(fixture.sourceRoot, lsResult.nodes, fixture);
+
+		const unmountResult = await backend.unmount();
+		expect(unmountResult.status).toBe("unmounted");
+		backend = undefined;
+
+		passed = true;
+	} finally {
+		if (backend) {
+			const unmountResult = await backend.unmount();
+			if (unmountResult.status === "error") {
+				console.error(`Failed to unmount SFTP volume at ${mountPath}: ${unmountResult.error}`);
+			}
+		}
+
+		if (passed) {
+			await makeDirectoriesWritable(workspace);
+			await fs.rm(workspace, { recursive: true, force: true });
+		} else {
+			console.error(`Integration scenario artifacts retained in ${workspace}`);
+		}
 	}
 });

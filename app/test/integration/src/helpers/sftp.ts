@@ -55,6 +55,7 @@ export const buildSftpPrivateKeyVolumeConfig = ({
 	skipHostKeyCheck: false,
 	knownHosts,
 	allowLegacySshRsa: false,
+	allowUnsafeSymlinkTargets: false,
 });
 
 export const buildSftpPasswordVolumeConfig = ({ knownHosts }: { knownHosts: string }): BackendConfig => ({
@@ -68,6 +69,7 @@ export const buildSftpPasswordVolumeConfig = ({ knownHosts }: { knownHosts: stri
 	skipHostKeyCheck: false,
 	knownHosts,
 	allowLegacySshRsa: false,
+	allowUnsafeSymlinkTargets: false,
 });
 
 export const buildLegacyRsaSftpPasswordVolumeConfig = ({ knownHosts }: { knownHosts: string }): BackendConfig => ({
@@ -81,6 +83,7 @@ export const buildLegacyRsaSftpPasswordVolumeConfig = ({ knownHosts }: { knownHo
 	skipHostKeyCheck: false,
 	knownHosts,
 	allowLegacySshRsa: true,
+	allowUnsafeSymlinkTargets: false,
 });
 
 export const buildSftpRepositoryConfig = ({

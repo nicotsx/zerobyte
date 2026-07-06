@@ -86,6 +86,7 @@ export const sftpConfigSchema = z.object({
 	skipHostKeyCheck: z.boolean().default(false),
 	knownHosts: z.string().optional(),
 	allowLegacySshRsa: z.boolean().default(false),
+	allowUnsafeSymlinkTargets: z.boolean().default(false),
 });
 
 export const volumeConfigSchema = z.discriminatedUnion("backend", [

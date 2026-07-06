@@ -142,6 +142,10 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			`gid=${gid}`,
 		];
 
+		if (config.allowUnsafeSymlinkTargets) {
+			options.push("no_contain_symlinks");
+		}
+
 		if (config.allowLegacySshRsa) {
 			options.push("ssh_command=ssh -oHostKeyAlgorithms=+ssh-rsa -oPubkeyAcceptedAlgorithms=+ssh-rsa");
 		}

@@ -534,6 +534,7 @@ export type ListVolumesResponses = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -600,6 +601,7 @@ export type CreateVolumeData = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
     };
     path?: never;
@@ -664,6 +666,7 @@ export type CreateVolumeResponses = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -729,6 +732,7 @@ export type TestConnectionData = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
     };
     path?: never;
@@ -842,6 +846,7 @@ export type GetVolumeResponses = {
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
                 allowLegacySshRsa?: boolean;
+                allowUnsafeSymlinkTargets?: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -915,6 +920,7 @@ export type UpdateVolumeData = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
     };
     path: {
@@ -988,6 +994,7 @@ export type UpdateVolumeResponses = {
             skipHostKeyCheck?: boolean;
             knownHosts?: string;
             allowLegacySshRsa?: boolean;
+            allowUnsafeSymlinkTargets?: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -2674,6 +2681,7 @@ export type ListBackupSchedulesResponses = {
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
                 allowLegacySshRsa?: boolean;
+                allowUnsafeSymlinkTargets?: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -3101,6 +3109,7 @@ export type GetBackupScheduleResponses = {
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
                 allowLegacySshRsa?: boolean;
+                allowUnsafeSymlinkTargets?: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -3509,6 +3518,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 skipHostKeyCheck?: boolean;
                 knownHosts?: string;
                 allowLegacySshRsa?: boolean;
+                allowUnsafeSymlinkTargets?: boolean;
             };
             createdAt: number;
             updatedAt: number;

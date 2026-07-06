@@ -165,7 +165,7 @@ export const SFTPForm = ({ form }: Props) => {
 			)}
 			<Collapsible>
 				<CollapsibleTrigger>Advanced Settings</CollapsibleTrigger>
-				<CollapsibleContent className="pb-4 pt-4">
+				<CollapsibleContent className="pb-4 pt-4 space-y-4">
 					<FormField
 						control={form.control}
 						name="allowLegacySshRsa"
@@ -176,6 +176,25 @@ export const SFTPForm = ({ form }: Props) => {
 									<FormDescription>
 										Only enable this for legacy SFTP servers that offer <code>ssh-rsa</code> only.
 										It permits RSA/SHA1 signatures, which are weaker than modern SSH algorithms.
+									</FormDescription>
+								</div>
+								<FormControl>
+									<Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+								</FormControl>
+							</FormItem>
+						)}
+					/>
+					<FormField
+						control={form.control}
+						name="allowUnsafeSymlinkTargets"
+						render={({ field }) => (
+							<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+								<div className="space-y-0.5">
+									<FormLabel>Allow absolute and parent-directory symlinks</FormLabel>
+									<FormDescription>
+										Only enable this for trusted SFTP servers. It disables SSHFS symlink containment
+										so Restic can archive symlinks with absolute targets or <code>..</code> path
+										components.
 									</FormDescription>
 								</div>
 								<FormControl>
