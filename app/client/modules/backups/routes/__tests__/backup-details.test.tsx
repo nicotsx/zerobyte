@@ -181,6 +181,41 @@ describe("ScheduleDetailsPage", () => {
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 	});
 
+	test("shows snapshot loading state instead of empty state while an empty snapshot list refetches", async () => {
+		let resolveSnapshots: () => void = () => {};
+		const snapshotsResponse = new Promise<Response>((resolve) => {
+			resolveSnapshots = () => resolve(HttpResponse.json([snapshot]));
+		});
+
+		server.use(
+			http.get("/api/v1/backups/:shortId", () => HttpResponse.json(schedule)),
+			http.get("/api/v1/repositories/:shortId/snapshots", () => snapshotsResponse),
+			http.get("/api/v1/backups/:shortId/progress", () => HttpResponse.json(null)),
+		);
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		expect(await screen.findByText("Loading snapshots...")).toBeTruthy();
+		expect(screen.queryByText("No snapshots available")).toBeNull();
+		resolveSnapshots();
+		expect(await screen.findByText("Snapshots")).toBeTruthy();
+	});
+
 	test("polls the schedule only while a backup is running", async () => {
 		let idleScheduleRequests = 0;
 

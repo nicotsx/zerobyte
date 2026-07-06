@@ -74,7 +74,8 @@ export function ScheduleDetailsPage(props: Props) {
 
 	const {
 		data: snapshots,
-		isLoading,
+		isFetching,
+		isPending,
 		failureReason,
 	} = useQuery({
 		...listSnapshotsOptions({
@@ -205,6 +206,7 @@ export function ScheduleDetailsPage(props: Props) {
 	};
 
 	const selectedSnapshot = snapshots?.find((s) => s.short_id === selectedSnapshotId);
+	const isLoadingSnapshots = isPending || (isFetching && !snapshots?.length);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -231,7 +233,7 @@ export function ScheduleDetailsPage(props: Props) {
 				/>
 			</div>
 			<SnapshotTimeline
-				loading={isLoading}
+				loading={isLoadingSnapshots}
 				snapshots={snapshots ?? []}
 				snapshotId={selectedSnapshot?.short_id}
 				error={failureReason?.message}
