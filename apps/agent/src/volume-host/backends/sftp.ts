@@ -116,6 +116,14 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		return { status: "error" as const, error: "Provided config is not for SFTP backend" };
 	}
 
+	if (config.allowUnsafeSymlinkTargets && (config.skipHostKeyCheck || !config.knownHosts?.trim())) {
+		logger.error("Unsafe SFTP symlink targets require host key verification with known hosts.");
+		return {
+			status: "error" as const,
+			error: "Unsafe symlink targets require host key verification with known hosts",
+		};
+	}
+
 	if (os.platform() !== "linux") {
 		logger.error("SFTP mounting is only supported on Linux hosts.");
 		return { status: "error" as const, error: "SFTP mounting is only supported on Linux hosts." };

@@ -89,14 +89,28 @@ export const sftpConfigSchema = z.object({
 	allowUnsafeSymlinkTargets: z.boolean().default(false),
 });
 
-export const volumeConfigSchema = z.discriminatedUnion("backend", [
-	nfsConfigSchema,
-	smbConfigSchema,
-	webdavConfigSchema,
-	directoryConfigSchema,
-	rcloneConfigSchema,
-	sftpConfigSchema,
-]);
+export const volumeConfigSchema = z
+	.discriminatedUnion("backend", [
+		nfsConfigSchema,
+		smbConfigSchema,
+		webdavConfigSchema,
+		directoryConfigSchema,
+		rcloneConfigSchema,
+		sftpConfigSchema,
+	])
+	.superRefine((value, ctx) => {
+		if (
+			value.backend === "sftp" &&
+			value.allowUnsafeSymlinkTargets &&
+			(value.skipHostKeyCheck || !value.knownHosts?.trim())
+		) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Unsafe symlink targets require host key verification with known hosts",
+				path: ["allowUnsafeSymlinkTargets"],
+			});
+		}
+	});
 
 export type BackendConfig = z.infer<typeof volumeConfigSchema>;
 

@@ -49,6 +49,17 @@ export const formSchema = z
 				path: ["knownHosts"],
 			});
 		}
+		if (
+			value.backend === "sftp" &&
+			value.allowUnsafeSymlinkTargets &&
+			(value.skipHostKeyCheck || !value.knownHosts?.trim())
+		) {
+			ctx.addIssue({
+				code: "custom",
+				message: "Unsafe symlink targets require host key verification with known hosts",
+				path: ["allowUnsafeSymlinkTargets"],
+			});
+		}
 	});
 
 export type FormValues = z.input<typeof formSchema>;

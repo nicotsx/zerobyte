@@ -20,6 +20,7 @@ type Props = {
 
 export const SFTPForm = ({ form }: Props) => {
 	const skipHostKeyCheck = useWatch({ control: form.control, name: "skipHostKeyCheck" });
+	const unsafeSymlinkTargetsDisabled = Boolean(skipHostKeyCheck);
 
 	return (
 		<>
@@ -134,7 +135,18 @@ export const SFTPForm = ({ form }: Props) => {
 							</FormDescription>
 						</div>
 						<FormControl>
-							<Switch checked={field.value} onCheckedChange={field.onChange} />
+							<Switch
+								checked={field.value}
+								onCheckedChange={(checked) => {
+									field.onChange(checked);
+									if (checked) {
+										form.setValue("allowUnsafeSymlinkTargets", false, {
+											shouldDirty: true,
+											shouldValidate: true,
+										});
+									}
+								}}
+							/>
 						</FormControl>
 					</FormItem>
 				)}
@@ -192,14 +204,19 @@ export const SFTPForm = ({ form }: Props) => {
 								<div className="space-y-0.5">
 									<FormLabel>Allow absolute and parent-directory symlinks</FormLabel>
 									<FormDescription>
-										Only enable this for trusted SFTP servers. It disables SSHFS symlink containment
-										so Restic can archive symlinks with absolute targets or <code>..</code> path
-										components.
+										Only enable this for trusted SFTP servers with host key verification and known
+										hosts configured. It disables SSHFS symlink containment so Restic can archive
+										symlinks with absolute targets or <code>..</code> path components.
 									</FormDescription>
 								</div>
 								<FormControl>
-									<Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
+									<Switch
+										checked={field.value ?? false}
+										onCheckedChange={field.onChange}
+										disabled={unsafeSymlinkTargetsDisabled}
+									/>
 								</FormControl>
+								<FormMessage />
 							</FormItem>
 						)}
 					/>
