@@ -60,6 +60,18 @@ const getUpdatedTask = (row: unknown, taskId: string, operation: string) => {
 	return parseTask(row);
 };
 
+const listActiveTasks = (params: ListActiveTasksParams = {}): ParsedTask[] => {
+	const activeConditions = buildActiveConditions(params);
+	const rows = db
+		.select()
+		.from(tasksTable)
+		.where(and(...activeConditions))
+		.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
+		.all();
+
+	return rows.map(parseTask);
+};
+
 export const taskStore = {
 	create: (params: CreateTaskParams): ParsedTask => {
 		const input = taskInputSchema.parse(params.input);
@@ -190,25 +202,11 @@ export const taskStore = {
 	},
 
 	listActiveByResource: (params: TaskResource): ParsedTask[] => {
-		const rows = db
-			.select()
-			.from(tasksTable)
-			.where(and(...buildActiveConditions(params)))
-			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
-			.all();
-
-		return rows.map(parseTask);
+		return listActiveTasks(params);
 	},
 
 	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {
-		const rows = db
-			.select()
-			.from(tasksTable)
-			.where(and(...buildActiveConditions(params)))
-			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
-			.all();
-
-		return rows.map(parseTask);
+		return listActiveTasks(params);
 	},
 
 	markActiveStale: (params: MarkActiveStaleParams = {}): ParsedTask[] => {

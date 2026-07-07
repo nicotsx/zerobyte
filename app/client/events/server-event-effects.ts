@@ -92,7 +92,7 @@ const notifyForEvent = <T extends ServerEventType>(eventName: T, data: ServerEve
 	toast[notification.type](notification.message, { description: notification.description });
 };
 
-export const applyServerEventEffects = <T extends ServerEventType>(
+const applyEffectsForEvent = <T extends ServerEventType>(
 	queryClient: QueryClient,
 	eventName: T,
 	data: ServerEventPayloadMap[T],
@@ -104,4 +104,17 @@ export const applyServerEventEffects = <T extends ServerEventType>(
 
 export const getServerEventAliases = (eventName: ServerEventType) => {
 	return getServerEventEffect(eventName)?.emitAs ?? [];
+};
+
+export const applyServerEventEffects = <T extends ServerEventType>(
+	queryClient: QueryClient,
+	eventName: T,
+	data: ServerEventPayloadMap[T],
+) => {
+	applyEffectsForEvent(queryClient, eventName, data);
+
+	for (const alias of getServerEventAliases(eventName)) {
+		const aliasData = data as ServerEventPayloadMap[typeof alias];
+		applyEffectsForEvent(queryClient, alias, aliasData);
+	}
 };

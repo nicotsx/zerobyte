@@ -219,6 +219,13 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 							const backup = backups.find((b) => snapshot.tags.includes(b.shortId));
 							const isDeleting = deletingSnapshotIds.has(snapshot.short_id);
 							const isSelected = selectedSelectableIds.has(snapshot.short_id);
+							const handleSnapshotRowClick = () => {
+								if (isDeleting) {
+									return;
+								}
+
+								handleRowClick(snapshot.short_id);
+							};
 
 							return (
 								<TableRow
@@ -229,7 +236,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 										isSelected && "bg-accent/30",
 										isDeleting && "bg-muted/30 text-muted-foreground",
 									)}
-									onClick={() => handleRowClick(snapshot.short_id)}
+									onClick={handleSnapshotRowClick}
 								>
 									<TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 										<Checkbox

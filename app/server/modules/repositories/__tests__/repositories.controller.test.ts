@@ -9,11 +9,13 @@ import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { restic } from "~/server/core/restic";
+import { serverEvents } from "~/server/core/events";
 import { Effect } from "effect";
 import { systemService } from "~/server/modules/system/system.service";
 import { repositoriesService } from "../repositories.service";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
+import { ResticError } from "@zerobyte/core/restic/server";
 
 const app = createApp();
 
@@ -395,6 +397,63 @@ describe("repositories updates", () => {
 			} finally {
 				deleteSnapshotSpy.mockRestore();
 				statsSpy.mockRestore();
+			}
+		});
+
+		test("should mark the task failed and emit an error event when snapshot deletion fails", async () => {
+			const repository = await createRepositoryRecord(session.organizationId);
+			const failureMessage = "Fatal: unexpected HTTP response (403): 403 Forbidden";
+
+			const { restic } = await import("~/server/core/restic");
+
+			const deleteSnapshotSpy = vi
+				.spyOn(restic, "deleteSnapshots")
+				.mockImplementation(() => Effect.fail(new ResticError(1, failureMessage)));
+			const statsSpy = vi.spyOn(restic, "stats").mockImplementation(() =>
+				Effect.succeed({
+					total_size: 0,
+					total_uncompressed_size: 0,
+					compression_ratio: 0,
+					compression_progress: 0,
+					compression_space_saving: 0,
+					snapshots_count: 0,
+				}),
+			);
+			const emitSpy = vi.spyOn(serverEvents, "emit");
+
+			try {
+				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
+					method: "DELETE",
+					headers: session.headers,
+				});
+
+				expect(res.status).toBe(202);
+				const body = await res.json();
+				expect(body).toMatchObject({ taskId: expect.any(String), status: "started" });
+
+				await waitForExpect(async () => {
+					const task = await db.query.tasksTable.findFirst({ where: { id: body.taskId } });
+					expect(task?.status).toBe("failed");
+					expect(task?.error).toContain(failureMessage);
+					expect(emitSpy).toHaveBeenCalledWith(
+						"snapshots:delete_completed",
+						expect.objectContaining({
+							taskId: body.taskId,
+							organizationId: session.organizationId,
+							repositoryId: repository.shortId,
+							snapshotIds: ["snap123"],
+							status: "error",
+							error: expect.stringContaining(failureMessage),
+						}),
+					);
+				});
+
+				expect(deleteSnapshotSpy).toHaveBeenCalledTimes(1);
+				expect(statsSpy).not.toHaveBeenCalled();
+			} finally {
+				deleteSnapshotSpy.mockRestore();
+				statsSpy.mockRestore();
+				emitSpy.mockRestore();
 			}
 		});
 	});

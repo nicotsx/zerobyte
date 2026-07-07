@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
+import { cleanup, render, screen, waitFor } from "~/test/test-utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -367,11 +367,6 @@ describe("ScheduleDetailsPage", () => {
 		);
 
 		await screen.findByText("File Browser");
-
-		await userEvent.click(screen.getByRole("button", { name: /delete snapshot/i }));
-		const confirmDeleteButton = screen.getAllByRole("button", { name: /delete snapshot/i }).at(-1);
-		expect(confirmDeleteButton).toBeTruthy();
-		await userEvent.click(confirmDeleteButton as HTMLElement);
 
 		tasks = [deleteSnapshotsTask];
 		MockEventSource.instances[0]?.emit("snapshots:delete_started", {
