@@ -1,6 +1,6 @@
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
-import type { ParsedTask, TaskResult } from "./tasks.schemas";
+import type { ParsedTask, TaskResult } from "~/schemas/tasks";
 import { taskStore } from "./tasks.store";
 
 type TaskLifecycleOptions<TResult extends TaskResult> = {

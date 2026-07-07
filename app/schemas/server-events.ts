@@ -13,11 +13,7 @@ import type { DoctorResult } from "@zerobyte/core/restic";
 
 const payload = <T>() => undefined as unknown as T;
 
-/**
- * Single runtime registry for all broadcastable server events.
- * Used as source-of-truth for both event names and payload typing.
- */
-const serverEventPayloads = {
+export const serverEventPayloads = {
 	"backup:started": payload<ServerBackupStartedEventDto>(),
 	"backup:progress": payload<ServerBackupProgressEventDto>(),
 	"backup:completed": payload<ServerBackupCompletedEventDto>(),
@@ -70,7 +66,7 @@ const serverEventPayloads = {
 export type ServerEventPayloadMap = typeof serverEventPayloads;
 
 export type ServerEventHandlers = {
-	[K in keyof ServerEventPayloadMap]: (data: ServerEventPayloadMap[K]) => void;
+	[EventName in keyof ServerEventPayloadMap]: (data: ServerEventPayloadMap[EventName]) => void;
 };
 
 export const serverEventNames = Object.keys(serverEventPayloads) as Array<keyof ServerEventPayloadMap>;

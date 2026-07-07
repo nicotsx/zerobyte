@@ -7,7 +7,7 @@ import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { runTaskLifecycle } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
-import type { TaskResult } from "../../tasks/tasks.schemas";
+import type { TaskResult } from "~/schemas/tasks";
 import { refreshStoredRepositoryStats } from "../helpers/repository-stats";
 
 type DeleteSnapshotsTaskResult = Extract<TaskResult, { kind: "deleteSnapshots" }>;

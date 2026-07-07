@@ -1,5 +1,5 @@
 import { taskStore } from "./tasks.store";
-import type { TaskProgress } from "./tasks.schemas";
+import type { TaskProgress } from "~/schemas/tasks";
 
 type TaskProgressBufferOptions = {
 	intervalMs?: number;

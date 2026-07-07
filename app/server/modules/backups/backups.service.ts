@@ -32,7 +32,7 @@ import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
 import { createTaskProgressBuffer } from "../tasks/progress-buffer";
-import type { ParsedTask } from "../tasks/tasks.schemas";
+import type { ParsedTask } from "~/schemas/tasks";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";

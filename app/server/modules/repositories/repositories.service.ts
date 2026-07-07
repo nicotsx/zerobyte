@@ -39,7 +39,7 @@ import type { RestoreExecutionProgress, RestoreExecutionResult } from "../agents
 import { agentsService } from "../agents/agents.service";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
-import type { ParsedTask, TaskInput } from "../tasks/tasks.schemas";
+import type { ParsedTask, TaskInput } from "~/schemas/tasks";
 import { Effect } from "effect";
 
 const runningDoctors = new Map<string, AbortController>();

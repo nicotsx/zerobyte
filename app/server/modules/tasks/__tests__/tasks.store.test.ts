@@ -4,7 +4,7 @@ import { tasksTable } from "~/server/db/schema";
 import { ensureTestOrganization, TEST_ORG_ID } from "~/test/helpers/organization";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { taskStore } from "../tasks.store";
-import type { TaskInput, TaskProgress, TaskResult } from "../tasks.schemas";
+import type { TaskInput, TaskProgress, TaskResult } from "~/schemas/tasks";
 
 type BackupTaskInput = Extract<TaskInput, { kind: "backup" }>;
 type BackupTaskProgress = Extract<TaskProgress, { kind: "backup" }>;

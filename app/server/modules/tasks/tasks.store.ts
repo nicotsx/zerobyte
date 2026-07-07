@@ -12,7 +12,7 @@ import {
 	type TaskKind,
 	type TaskProgress,
 	type TaskResult,
-} from "./tasks.schemas";
+} from "~/schemas/tasks";
 
 type TaskResource = {
 	organizationId: string;
@@ -32,10 +32,50 @@ type CreateTaskParams = {
 
 type MarkActiveStaleParams = Partial<TaskResource> & { error?: string };
 type ListActiveTasksParams = Partial<TaskResource>;
+type FindTaskParams = {
+	organizationId: string;
+	taskId: string;
+};
+type TaskChangeListener = (task: ParsedTask) => void;
 
 export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
 
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
+
+const taskListeners = new Map<string, Set<TaskChangeListener>>();
+
+const emitTaskChanged = (task: ParsedTask) => {
+	const listeners = taskListeners.get(task.id);
+	if (!listeners) {
+		return;
+	}
+
+	for (const listener of listeners) {
+		listener(task);
+	}
+};
+
+const subscribeToTaskChanges = (taskId: string, listener: TaskChangeListener) => {
+	let listeners = taskListeners.get(taskId);
+	if (!listeners) {
+		listeners = new Set();
+		taskListeners.set(taskId, listeners);
+	}
+
+	listeners.add(listener);
+
+	return () => {
+		const currentListeners = taskListeners.get(taskId);
+		if (!currentListeners) {
+			return;
+		}
+
+		currentListeners.delete(listener);
+		if (currentListeners.size === 0) {
+			taskListeners.delete(taskId);
+		}
+	};
+};
 
 const activeStatusCondition = () => inArray(tasksTable.status, activeTaskStatuses);
 
@@ -97,7 +137,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return parseTask(row);
+		const task = parseTask(row);
+		emitTaskChanged(task);
+		return task;
 	},
 
 	markRunning: (taskId: string): ParsedTask => {
@@ -109,7 +151,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "marked running");
+		const task = getUpdatedTask(row, taskId, "marked running");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	updateProgress: (taskId: string, progress: TaskProgress): ParsedTask => {
@@ -121,7 +165,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "updated with progress");
+		const task = getUpdatedTask(row, taskId, "updated with progress");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	requestCancel: (taskId: string): ParsedTask => {
@@ -132,7 +178,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "marked cancelling");
+		const task = getUpdatedTask(row, taskId, "marked cancelling");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	complete: (taskId: string, result: TaskResult): ParsedTask => {
@@ -151,7 +199,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "completed");
+		const task = getUpdatedTask(row, taskId, "completed");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	fail: (taskId: string, error: string): ParsedTask => {
@@ -168,7 +218,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "failed");
+		const task = getUpdatedTask(row, taskId, "failed");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	cancel: (taskId: string, error: string | null = null): ParsedTask => {
@@ -185,7 +237,9 @@ export const taskStore = {
 			.returning()
 			.get();
 
-		return getUpdatedTask(row, taskId, "cancelled");
+		const task = getUpdatedTask(row, taskId, "cancelled");
+		emitTaskChanged(task);
+		return task;
 	},
 
 	findActiveByResource: (params: TaskResource): ParsedTask | null => {
@@ -209,6 +263,20 @@ export const taskStore = {
 		return listActiveTasks(params);
 	},
 
+	subscribeToChanges: (taskId: string, listener: TaskChangeListener) => {
+		return subscribeToTaskChanges(taskId, listener);
+	},
+
+	findById: (params: FindTaskParams): ParsedTask | null => {
+		const row = db
+			.select()
+			.from(tasksTable)
+			.where(and(byIdCondition(params.taskId), eq(tasksTable.organizationId, params.organizationId)))
+			.get();
+
+		return row ? parseTask(row) : null;
+	},
+
 	markActiveStale: (params: MarkActiveStaleParams = {}): ParsedTask[] => {
 		const now = Date.now();
 		const rows = db
@@ -223,6 +291,10 @@ export const taskStore = {
 			.returning()
 			.all();
 
-		return rows.map(parseTask);
+		const tasks = rows.map(parseTask);
+		for (const task of tasks) {
+			emitTaskChanged(task);
+		}
+		return tasks;
 	},
 };

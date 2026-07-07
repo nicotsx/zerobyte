@@ -5347,6 +5347,220 @@ export type ListTasksResponses = {
 
 export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
 
+export type StreamTaskEventsData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/api/v1/tasks/{taskId}/events';
+};
+
+export type StreamTaskEventsResponses = {
+    /**
+     * Task event stream
+     */
+    200: {
+        id: string;
+        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+        resourceType: string;
+        resourceId: string;
+        targetAgentId: string | null;
+        input: {
+            kind: 'backup';
+            scheduleId: number;
+            scheduleShortId: string;
+            manual: boolean;
+        } | {
+            kind: 'restore';
+            repositoryId: string;
+            snapshotId: string;
+            target: string;
+        } | {
+            kind: 'deleteSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+        };
+        progress: {
+            kind: 'backup';
+            progress: {
+                seconds_elapsed?: number;
+                seconds_remaining?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_done?: number;
+                total_bytes?: number;
+                bytes_done?: number;
+                current_files?: Array<string>;
+                message_type: 'status';
+            };
+        } | {
+            kind: 'restore';
+            progress: {
+                message_type: 'status' | 'summary';
+                seconds_elapsed?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_restored?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+            };
+        } | null;
+        result: {
+            kind: 'backup';
+            exitCode: number;
+            result: {
+                files_new: number;
+                files_changed: number;
+                files_unmodified: number;
+                dirs_new: number;
+                dirs_changed: number;
+                dirs_unmodified: number;
+                data_blobs: number;
+                tree_blobs: number;
+                data_added: number;
+                data_added_packed?: number;
+                total_files_processed: number;
+                total_bytes_processed: number;
+                total_duration: number;
+                snapshot_id: string;
+                message_type: 'summary';
+            } | null;
+            warningDetails: string | null;
+        } | {
+            kind: 'restore';
+            result: {
+                message_type: 'summary';
+                total_files?: number;
+                files_restored: number;
+                files_skipped?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+                bytes_skipped?: number;
+            };
+        } | {
+            kind: 'deleteSnapshots';
+            deletedSnapshotIds: Array<string>;
+        } | null;
+        error: string | null;
+        cancellationRequested: boolean;
+        createdAt: number;
+        startedAt: number | null;
+        updatedAt: number;
+        finishedAt: number | null;
+    };
+};
+
+export type StreamTaskEventsResponse = StreamTaskEventsResponses[keyof StreamTaskEventsResponses];
+
+export type GetTaskData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/api/v1/tasks/{taskId}';
+};
+
+export type GetTaskResponses = {
+    /**
+     * Task details
+     */
+    200: {
+        id: string;
+        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+        resourceType: string;
+        resourceId: string;
+        targetAgentId: string | null;
+        input: {
+            kind: 'backup';
+            scheduleId: number;
+            scheduleShortId: string;
+            manual: boolean;
+        } | {
+            kind: 'restore';
+            repositoryId: string;
+            snapshotId: string;
+            target: string;
+        } | {
+            kind: 'deleteSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+        };
+        progress: {
+            kind: 'backup';
+            progress: {
+                seconds_elapsed?: number;
+                seconds_remaining?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_done?: number;
+                total_bytes?: number;
+                bytes_done?: number;
+                current_files?: Array<string>;
+                message_type: 'status';
+            };
+        } | {
+            kind: 'restore';
+            progress: {
+                message_type: 'status' | 'summary';
+                seconds_elapsed?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_restored?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+            };
+        } | null;
+        result: {
+            kind: 'backup';
+            exitCode: number;
+            result: {
+                files_new: number;
+                files_changed: number;
+                files_unmodified: number;
+                dirs_new: number;
+                dirs_changed: number;
+                dirs_unmodified: number;
+                data_blobs: number;
+                tree_blobs: number;
+                data_added: number;
+                data_added_packed?: number;
+                total_files_processed: number;
+                total_bytes_processed: number;
+                total_duration: number;
+                snapshot_id: string;
+                message_type: 'summary';
+            } | null;
+            warningDetails: string | null;
+        } | {
+            kind: 'restore';
+            result: {
+                message_type: 'summary';
+                total_files?: number;
+                files_restored: number;
+                files_skipped?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+                bytes_skipped?: number;
+            };
+        } | {
+            kind: 'deleteSnapshots';
+            deletedSnapshotIds: Array<string>;
+        } | null;
+        error: string | null;
+        cancellationRequested: boolean;
+        createdAt: number;
+        startedAt: number | null;
+        updatedAt: number;
+        finishedAt: number | null;
+    };
+};
+
+export type GetTaskResponse = GetTaskResponses[keyof GetTaskResponses];
+
 export type CreateDesktopSessionData = {
     body: {
         dateFormat: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY/MM/DD';
