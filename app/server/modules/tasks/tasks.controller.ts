@@ -59,10 +59,6 @@ export const tasksController = new Hono()
 							const taskData = toTaskDto(changedTask);
 							void handler(taskData);
 						});
-					default: {
-						const _exhaustive: never = eventName;
-						throw new Error(`Unsupported task event: ${_exhaustive}`);
-					}
 				}
 			},
 			shouldSend: () => true,
