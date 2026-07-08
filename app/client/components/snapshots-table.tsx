@@ -29,6 +29,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { formatDuration } from "~/utils/utils";
 import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
+import { useTaggingSnapshots } from "~/client/modules/repositories/snapshots/tag-tasks";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
@@ -44,13 +45,15 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
 	const { deletingSnapshotIds } = useDeletingSnapshots(repositoryId);
+	const { taggingSnapshotIds } = useTaggingSnapshots(repositoryId, backups);
 
 	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 	const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 	const [showReTagDialog, setShowReTagDialog] = useState(false);
 	const [targetScheduleId, setTargetScheduleId] = useState<string>("");
-	const selectableSnapshots = snapshots.filter((snapshot) => !deletingSnapshotIds.has(snapshot.short_id));
+	const processingSnapshotIds = new Set([...deletingSnapshotIds, ...taggingSnapshotIds]);
+	const selectableSnapshots = snapshots.filter((snapshot) => !processingSnapshotIds.has(snapshot.short_id));
 	const selectableSnapshotIds = new Set(selectableSnapshots.map((snapshot) => snapshot.short_id));
 	const selectedSelectableIds = new Set(
 		Array.from(selectedIds).filter((snapshotId) => selectableSnapshotIds.has(snapshotId)),
@@ -186,8 +189,8 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 				},
 			}),
 			{
-				loading: `Re-tagging ${snapshotIds.length} snapshots...`,
-				success: `Snapshots re-tagged to ${schedule.name}`,
+				loading: `Starting re-tag for ${snapshotIds.length} snapshots...`,
+				success: "Snapshot re-tag started",
 				error: (error) => parseError(error)?.message || "Failed to re-tag snapshots",
 			},
 		);
@@ -217,10 +220,10 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 					<TableBody>
 						{snapshots.map((snapshot) => {
 							const backup = backups.find((b) => snapshot.tags.includes(b.shortId));
-							const isDeleting = deletingSnapshotIds.has(snapshot.short_id);
+							const isProcessing = processingSnapshotIds.has(snapshot.short_id);
 							const isSelected = selectedSelectableIds.has(snapshot.short_id);
 							const handleSnapshotRowClick = () => {
-								if (isDeleting) {
+								if (isProcessing) {
 									return;
 								}
 
@@ -230,18 +233,18 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 							return (
 								<TableRow
 									key={snapshot.short_id}
-									aria-busy={isDeleting}
+									aria-busy={isProcessing}
 									className={cn(
 										"hover:bg-accent/50 cursor-pointer",
 										isSelected && "bg-accent/30",
-										isDeleting && "bg-muted/30 text-muted-foreground",
+										isProcessing && "bg-muted/30 text-muted-foreground",
 									)}
 									onClick={handleSnapshotRowClick}
 								>
 									<TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 										<Checkbox
 											checked={isSelected}
-											disabled={isDeleting}
+											disabled={isProcessing}
 											onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
 												e.stopPropagation();
 												handleSnapshotSelection(snapshot.short_id, e);
@@ -253,11 +256,13 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 										<div className="flex items-center gap-2">
 											<Loader2
 												className={cn("h-4 w-4 animate-spin text-primary", {
-													hidden: !isDeleting,
+													hidden: !isProcessing,
 												})}
 											/>
 											<HardDrive
-												className={cn("h-4 w-4 text-muted-foreground", { hidden: isDeleting })}
+												className={cn("h-4 w-4 text-muted-foreground", {
+													hidden: isProcessing,
+												})}
 											/>
 											<span className="text-strong-accent">{snapshot.short_id}</span>
 										</div>

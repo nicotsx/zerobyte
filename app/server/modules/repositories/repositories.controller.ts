@@ -278,9 +278,9 @@ export const repositoriesController = new Hono()
 	.post("/:shortId/snapshots/tag", tagSnapshotsDto, validator("json", tagSnapshotsBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const { snapshotIds, ...tags } = c.req.valid("json");
-		await repositoriesService.tagSnapshots(shortId, snapshotIds, tags);
+		const result = await repositoriesService.tagSnapshots(shortId, snapshotIds, tags);
 
-		return c.json<TagSnapshotsResponseDto>({ message: "Snapshots tagged" }, 200);
+		return c.json<TagSnapshotsResponseDto>(result, 202);
 	})
 	.patch("/:shortId", updateRepositoryDto, validator("json", updateRepositoryBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

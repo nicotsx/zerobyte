@@ -503,7 +503,8 @@ export const tagSnapshotsBody = z.object({
 });
 
 const tagSnapshotsResponse = z.object({
-	message: z.string(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type TagSnapshotsResponseDto = z.infer<typeof tagSnapshotsResponse>;
@@ -513,8 +514,8 @@ export const tagSnapshotsDto = describeRoute({
 	tags: ["Repositories"],
 	operationId: "tagSnapshots",
 	responses: {
-		200: {
-			description: "Snapshots tagged successfully",
+		202: {
+			description: "Snapshot tagging started",
 			content: {
 				"application/json": {
 					schema: resolver(tagSnapshotsResponse),

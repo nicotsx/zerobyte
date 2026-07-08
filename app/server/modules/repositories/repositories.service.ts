@@ -795,20 +795,19 @@ const tagSnapshots = async (
 	snapshotIds: string[],
 	tags: { add?: string[]; remove?: string[]; set?: string[] },
 ) => {
-	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const releaseLock = await repoMutex.acquireExclusive(repository.id, `tag:bulk`);
-	try {
-		await runEffectPromise(restic.tagSnapshots(repository.config, snapshotIds, tags, { organizationId }));
-		cache.delByPrefix(cacheKeys.repository.all(repository.id));
-	} finally {
-		releaseLock();
-	}
+	const command = commands.createTagSnapshots({
+		repository,
+		snapshotIds,
+		tags,
+	});
+
+	return command.start();
 };
 
 const refreshSnapshots = async (shortId: ShortId) => {

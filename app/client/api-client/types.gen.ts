@@ -2537,10 +2537,11 @@ export type TagSnapshotsData = {
 
 export type TagSnapshotsResponses = {
     /**
-     * Snapshots tagged successfully
+     * Snapshot tagging started
      */
-    200: {
-        message: string;
+    202: {
+        taskId: string;
+        status: 'started';
     };
 };
 
@@ -5244,7 +5245,7 @@ export type ListTasksData = {
     body?: never;
     path?: never;
     query?: {
-        kind?: 'backup' | 'restore' | 'deleteSnapshots';
+        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
     };
@@ -5257,7 +5258,7 @@ export type ListTasksResponses = {
      */
     200: Array<{
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5276,6 +5277,13 @@ export type ListTasksResponses = {
             kind: 'deleteSnapshots';
             repositoryId: string;
             snapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+            add?: Array<string>;
+            remove?: Array<string>;
+            set?: Array<string>;
         };
         progress: {
             kind: 'backup';
@@ -5337,6 +5345,9 @@ export type ListTasksResponses = {
         } | {
             kind: 'deleteSnapshots';
             deletedSnapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            taggedSnapshotIds: Array<string>;
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5353,7 +5364,7 @@ export type StreamTasksEventsData = {
     body?: never;
     path?: never;
     query?: {
-        kind?: 'backup' | 'restore' | 'deleteSnapshots';
+        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
     };
@@ -5366,7 +5377,7 @@ export type StreamTasksEventsResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5385,6 +5396,13 @@ export type StreamTasksEventsResponses = {
             kind: 'deleteSnapshots';
             repositoryId: string;
             snapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+            add?: Array<string>;
+            remove?: Array<string>;
+            set?: Array<string>;
         };
         progress: {
             kind: 'backup';
@@ -5446,6 +5464,9 @@ export type StreamTasksEventsResponses = {
         } | {
             kind: 'deleteSnapshots';
             deletedSnapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            taggedSnapshotIds: Array<string>;
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5455,7 +5476,7 @@ export type StreamTasksEventsResponses = {
         finishedAt: number | null;
     } | Array<{
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5474,6 +5495,13 @@ export type StreamTasksEventsResponses = {
             kind: 'deleteSnapshots';
             repositoryId: string;
             snapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+            add?: Array<string>;
+            remove?: Array<string>;
+            set?: Array<string>;
         };
         progress: {
             kind: 'backup';
@@ -5535,6 +5563,9 @@ export type StreamTasksEventsResponses = {
         } | {
             kind: 'deleteSnapshots';
             deletedSnapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            taggedSnapshotIds: Array<string>;
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5562,7 +5593,7 @@ export type StreamTaskEventsResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5581,6 +5612,13 @@ export type StreamTaskEventsResponses = {
             kind: 'deleteSnapshots';
             repositoryId: string;
             snapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+            add?: Array<string>;
+            remove?: Array<string>;
+            set?: Array<string>;
         };
         progress: {
             kind: 'backup';
@@ -5642,6 +5680,9 @@ export type StreamTaskEventsResponses = {
         } | {
             kind: 'deleteSnapshots';
             deletedSnapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            taggedSnapshotIds: Array<string>;
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5669,7 +5710,7 @@ export type GetTaskResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5688,6 +5729,13 @@ export type GetTaskResponses = {
             kind: 'deleteSnapshots';
             repositoryId: string;
             snapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+            add?: Array<string>;
+            remove?: Array<string>;
+            set?: Array<string>;
         };
         progress: {
             kind: 'backup';
@@ -5749,6 +5797,9 @@ export type GetTaskResponses = {
         } | {
             kind: 'deleteSnapshots';
             deletedSnapshotIds: Array<string>;
+        } | {
+            kind: 'tagSnapshots';
+            taggedSnapshotIds: Array<string>;
         } | null;
         error: string | null;
         cancellationRequested: boolean;
