@@ -4,6 +4,8 @@ import { taskDtoSchema, taskKindSchema } from "~/schemas/tasks";
 
 export const listTasksQuery = z.object({
 	kind: taskKindSchema.optional(),
+	resourceType: z.string().optional(),
+	resourceId: z.string().optional(),
 });
 
 export const taskResponse = taskDtoSchema;

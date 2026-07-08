@@ -6,8 +6,6 @@ import type {
 	ServerRestoreCompletedEventDto,
 	ServerRestoreProgressEventDto,
 	ServerRestoreStartedEventDto,
-	ServerSnapshotDeleteCompletedEventDto,
-	ServerSnapshotDeleteStartedEventDto,
 } from "~/schemas/events-dto";
 import type { DoctorResult } from "@zerobyte/core/restic";
 
@@ -20,8 +18,6 @@ export const serverEventPayloads = {
 	"restore:started": payload<ServerRestoreStartedEventDto>(),
 	"restore:progress": payload<ServerRestoreProgressEventDto>(),
 	"restore:completed": payload<ServerRestoreCompletedEventDto>(),
-	"snapshots:delete_started": payload<ServerSnapshotDeleteStartedEventDto>(),
-	"snapshots:delete_completed": payload<ServerSnapshotDeleteCompletedEventDto>(),
 	"dump:started": payload<ServerDumpStartedEventDto>(),
 	"mirror:started": payload<{
 		organizationId: string;

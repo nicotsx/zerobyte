@@ -1,5 +1,4 @@
 import { logger } from "@zerobyte/core/node";
-import { serverEvents } from "~/server/core/events";
 import { repoMutex } from "../../../core/repository-mutex";
 import { restic } from "../../../core/restic";
 import type { Repository } from "../../../db/schema";
@@ -19,31 +18,6 @@ type DeleteSnapshotsCommandParams = {
 
 type DeleteSnapshotsTaskContext = DeleteSnapshotsCommandParams & {
 	taskId: string;
-};
-
-const emitDeleteSnapshotsStarted = (context: DeleteSnapshotsTaskContext) => {
-	serverEvents.emit("snapshots:delete_started", {
-		taskId: context.taskId,
-		organizationId: context.repository.organizationId,
-		repositoryId: context.repository.shortId,
-		snapshotIds: context.snapshotIds,
-	});
-};
-
-const emitDeleteSnapshotsCompleted = (
-	context: DeleteSnapshotsTaskContext,
-	payload: {
-		status: "success" | "error";
-		error?: string;
-	},
-) => {
-	serverEvents.emit("snapshots:delete_completed", {
-		taskId: context.taskId,
-		organizationId: context.repository.organizationId,
-		repositoryId: context.repository.shortId,
-		snapshotIds: context.snapshotIds,
-		...payload,
-	});
 };
 
 const deleteSnapshots = async (context: DeleteSnapshotsTaskContext): Promise<DeleteSnapshotsTaskResult> => {
@@ -89,17 +63,12 @@ export const createDeleteSnapshotsCommand = (params: DeleteSnapshotsCommandParam
 				taskId: task.id,
 				label: "snapshot deletion task",
 				run: () => deleteSnapshots(context),
-				onStarted: () => emitDeleteSnapshotsStarted(context),
 				onSucceeded: () => {
-					emitDeleteSnapshotsCompleted(context, { status: "success" });
 					void refreshStoredRepositoryStats(params.repository).catch((error) => {
 						logger.error(
 							`Failed to refresh repository stats after snapshot deletion for ${params.repository.shortId}: ${toMessage(error)}`,
 						);
 					});
-				},
-				onFailed: (_task, errorMessage) => {
-					emitDeleteSnapshotsCompleted(context, { status: "error", error: errorMessage });
 				},
 			});
 

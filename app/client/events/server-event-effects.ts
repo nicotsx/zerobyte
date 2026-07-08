@@ -1,7 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { logger } from "~/client/lib/logger";
-import { removeSnapshotsFromListSnapshotsCache } from "~/client/modules/repositories/snapshot-cache";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
 
 type ServerEventType = keyof ServerEventPayloadMap;
@@ -35,27 +34,6 @@ const serverEventEffects: ServerEventEffectMap = {
 	"doctor:started": { invalidateQueries: true },
 	"doctor:completed": { invalidateQueries: true },
 	"doctor:cancelled": { invalidateQueries: true },
-	"snapshots:delete_started": { invalidateQueries: true },
-	"snapshots:delete_completed": {
-		invalidateQueries: true,
-		notify: (eventData) => {
-			const isSingleSnapshot = eventData.snapshotIds.length === 1;
-			if (eventData.status === "success") {
-				const message = isSingleSnapshot ? "Snapshot deleted" : "Snapshots deleted";
-				return { type: "success", message };
-			}
-
-			const message = isSingleSnapshot ? "Failed to delete snapshot" : "Failed to delete snapshots";
-			return { type: "error", message, description: eventData.error };
-		},
-		updateQueries: (queryClient, eventData) => {
-			if (eventData.status !== "success") {
-				return;
-			}
-
-			removeSnapshotsFromListSnapshotsCache(queryClient, eventData.repositoryId, eventData.snapshotIds);
-		},
-	},
 };
 
 const getServerEventEffect = <T extends ServerEventType>(eventName: T): ServerEventEffect<T> | undefined => {

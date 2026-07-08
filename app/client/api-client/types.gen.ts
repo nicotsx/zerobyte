@@ -5245,6 +5245,8 @@ export type ListTasksData = {
     path?: never;
     query?: {
         kind?: 'backup' | 'restore' | 'deleteSnapshots';
+        resourceType?: string;
+        resourceId?: string;
     };
     url: '/api/v1/tasks';
 };

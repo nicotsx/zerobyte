@@ -20,12 +20,6 @@ const restoreEventBaseSchema = z.object({
 	snapshotId: z.string(),
 });
 
-const snapshotDeleteEventBaseSchema = z.object({
-	taskId: z.string(),
-	repositoryId: z.string(),
-	snapshotIds: z.array(z.string()).min(1),
-});
-
 const dumpStartedEventSchema = z.object({
 	repositoryId: z.string(),
 	snapshotId: z.string(),
@@ -62,13 +56,6 @@ const restoreCompletedEventSchema = restoreEventBaseSchema.extend({
 	filesSkipped: z.number().optional(),
 });
 
-const snapshotDeleteStartedEventSchema = snapshotDeleteEventBaseSchema;
-
-const snapshotDeleteCompletedEventSchema = snapshotDeleteEventBaseSchema.extend({
-	status: z.enum(["success", "error"]),
-	error: z.string().optional(),
-});
-
 const serverBackupStartedEventSchema = organizationScopedSchema.extend(backupStartedEventSchema.shape);
 
 const serverBackupProgressEventSchema = organizationScopedSchema.extend(backupProgressEventSchema.shape);
@@ -81,12 +68,6 @@ const serverRestoreProgressEventSchema = organizationScopedSchema.extend(restore
 
 const serverRestoreCompletedEventSchema = organizationScopedSchema.extend(restoreCompletedEventSchema.shape);
 
-const serverSnapshotDeleteStartedEventSchema = organizationScopedSchema.extend(snapshotDeleteStartedEventSchema.shape);
-
-const serverSnapshotDeleteCompletedEventSchema = organizationScopedSchema.extend(
-	snapshotDeleteCompletedEventSchema.shape,
-);
-
 const serverDumpStartedEventSchema = organizationScopedSchema.extend(dumpStartedEventSchema.shape);
 
 export type BackupProgressEventDto = z.infer<typeof backupProgressEventSchema>;
@@ -96,6 +77,4 @@ export type ServerBackupCompletedEventDto = z.infer<typeof serverBackupCompleted
 export type ServerRestoreStartedEventDto = z.infer<typeof serverRestoreStartedEventSchema>;
 export type ServerRestoreProgressEventDto = z.infer<typeof serverRestoreProgressEventSchema>;
 export type ServerRestoreCompletedEventDto = z.infer<typeof serverRestoreCompletedEventSchema>;
-export type ServerSnapshotDeleteStartedEventDto = z.infer<typeof serverSnapshotDeleteStartedEventSchema>;
-export type ServerSnapshotDeleteCompletedEventDto = z.infer<typeof serverSnapshotDeleteCompletedEventSchema>;
 export type ServerDumpStartedEventDto = z.infer<typeof serverDumpStartedEventSchema>;

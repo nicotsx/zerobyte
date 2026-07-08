@@ -24,8 +24,13 @@ export const tasksController = new Hono()
 	.use(requireAuth)
 	.get("/", validator("query", listTasksQuery), listTasksDto, async (c) => {
 		const organizationId = c.get("organizationId");
-		const { kind } = c.req.valid("query");
-		const tasks = taskStore.listActive({ organizationId, kind });
+		const query = c.req.valid("query");
+		const tasks = taskStore.listActive({
+			organizationId,
+			kind: query.kind,
+			resourceType: query.resourceType,
+			resourceId: query.resourceId,
+		});
 		const response = tasks.map(toTaskDto);
 
 		return c.json<ListTasksDto>(response, 200);
