@@ -9,7 +9,6 @@ import { generateShortId } from "~/server/utils/id";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { restic } from "~/server/core/restic";
-import { serverEvents } from "~/server/core/events";
 import { Effect } from "effect";
 import { systemService } from "~/server/modules/system/system.service";
 import { repositoriesService } from "../repositories.service";
@@ -419,7 +418,6 @@ describe("repositories updates", () => {
 					snapshots_count: 0,
 				}),
 			);
-			const emitSpy = vi.spyOn(serverEvents, "emit");
 
 			try {
 				const res = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/snap123`, {
@@ -435,17 +433,6 @@ describe("repositories updates", () => {
 					const task = await db.query.tasksTable.findFirst({ where: { id: body.taskId } });
 					expect(task?.status).toBe("failed");
 					expect(task?.error).toContain(failureMessage);
-					expect(emitSpy).toHaveBeenCalledWith(
-						"snapshots:delete_completed",
-						expect.objectContaining({
-							taskId: body.taskId,
-							organizationId: session.organizationId,
-							repositoryId: repository.shortId,
-							snapshotIds: ["snap123"],
-							status: "error",
-							error: expect.stringContaining(failureMessage),
-						}),
-					);
 				});
 
 				expect(deleteSnapshotSpy).toHaveBeenCalledTimes(1);
@@ -453,7 +440,6 @@ describe("repositories updates", () => {
 			} finally {
 				deleteSnapshotSpy.mockRestore();
 				statsSpy.mockRestore();
-				emitSpy.mockRestore();
 			}
 		});
 	});

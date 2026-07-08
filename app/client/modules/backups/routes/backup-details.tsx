@@ -21,7 +21,7 @@ import {
 	stopBackupMutation,
 	deleteSnapshotMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import { useDeletingSnapshots } from "~/client/hooks/use-deleting-snapshots";
+import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { parseError, handleRepositoryError } from "~/client/lib/errors";
 import { ScheduleSummary } from "../components/schedule-summary";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";

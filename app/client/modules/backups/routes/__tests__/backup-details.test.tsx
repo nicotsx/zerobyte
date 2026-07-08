@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen, waitFor } from "~/test/test-utils";
+import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
+import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -67,6 +68,7 @@ class MockEventSource {
 		const event = new MessageEvent(type, {
 			data: JSON.stringify(data),
 		});
+
 		for (const listener of this.listeners.get(type) ?? []) {
 			listener(event);
 		}
@@ -78,6 +80,11 @@ class MockEventSource {
 		MockEventSource.instances = [];
 	}
 }
+
+const getDeleteTasksEventSource = () => {
+	const expectedUrl = "/api/v1/tasks/events?kind=deleteSnapshots&resourceType=repository&resourceId=repo-1";
+	return MockEventSource.instances.find((instance) => instance.url === expectedUrl);
+};
 
 const originalEventSource = globalThis.EventSource;
 
@@ -174,7 +181,7 @@ const mockScheduleDetailsRequests = (
 		http.delete("/api/v1/repositories/:shortId/snapshots/:snapshotId", () => {
 			return HttpResponse.json({ taskId: "task-delete", status: "started" }, { status: 202 });
 		}),
-		http.get("/api/v1/tasks", () => {
+		http.get(/\/api\/v1\/tasks(?:\?.*)?$/, () => {
 			return HttpResponse.json(options.tasks ? options.tasks() : []);
 		}),
 		http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () => {
@@ -249,6 +256,7 @@ describe("ScheduleDetailsPage", () => {
 
 		server.use(
 			http.get("/api/v1/backups/:shortId", () => HttpResponse.json(schedule)),
+			http.get(/\/api\/v1\/tasks(?:\?.*)?$/, () => HttpResponse.json([])),
 			http.get("/api/v1/repositories/:shortId/snapshots", () => snapshotsResponse),
 			http.get("/api/v1/backups/:shortId/progress", () => HttpResponse.json(null)),
 		);
@@ -339,9 +347,8 @@ describe("ScheduleDetailsPage", () => {
 		expect(runningScheduleRequests).toBeGreaterThan(1);
 	});
 
-	test("shows deleting state for a snapshot delete event", async () => {
-		let tasks: Array<typeof deleteSnapshotsTask> = [];
-		mockScheduleDetailsRequests({ tasks: () => tasks });
+	test("shows deleting state for an active snapshot delete task", async () => {
+		mockScheduleDetailsRequests();
 
 		render(
 			<ScheduleDetailsPage
@@ -361,27 +368,18 @@ describe("ScheduleDetailsPage", () => {
 			{ withSuspense: true },
 		);
 
-		const deleteButton = await screen.findByRole("button", { name: /delete snapshot/i });
-		expect((deleteButton as HTMLButtonElement).disabled).toBe(false);
-
-		tasks = [deleteSnapshotsTask];
-		MockEventSource.instances[0]?.emit("snapshots:delete_started", {
-			organizationId: "default-org",
-			taskId: "task-delete",
-			repositoryId: "repo-1",
-			snapshotIds: ["snap-1"],
-		});
-
-		expect(await screen.findByText("Deleting")).toBeTruthy();
 		await waitFor(() => {
-			expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
 		});
+		getDeleteTasksEventSource()?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
+
+		const deleteButton = await screen.findByRole("button", { name: /Deleting\.\.\./ });
+		expect(await screen.findByText("Deleting")).toBeTruthy();
+		expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
 	});
 
-	test("keeps selected snapshot visible after delete start and hides it after completion", async () => {
-		let snapshots = [snapshot];
-		let tasks: Array<typeof deleteSnapshotsTask> = [];
-		mockScheduleDetailsRequests({ snapshots: () => snapshots, tasks: () => tasks });
+	test("removes deleted snapshot after the started delete task completes", async () => {
+		mockScheduleDetailsRequests();
 
 		render(
 			<ScheduleDetailsPage
@@ -403,26 +401,67 @@ describe("ScheduleDetailsPage", () => {
 
 		await screen.findByText("File Browser");
 
-		tasks = [deleteSnapshotsTask];
-		MockEventSource.instances[0]?.emit("snapshots:delete_started", {
-			organizationId: "default-org",
-			taskId: "task-delete",
-			repositoryId: "repo-1",
-			snapshotIds: ["snap-1"],
+		await userEvent.click(await screen.findByRole("button", { name: "Delete Snapshot" }));
+		await userEvent.click(await screen.findByRole("button", { name: "Delete snapshot" }));
+
+		await waitFor(() => {
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
+		});
+		const taskDeleteEventSource = getDeleteTasksEventSource();
+
+		taskDeleteEventSource?.emit(taskChangedEventName, {
+			...deleteSnapshotsTask,
+			status: "succeeded",
+			result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
+			updatedAt: 1711411201000,
+			finishedAt: 1711411201000,
 		});
 
-		expect(await screen.findByText("Deleting")).toBeTruthy();
-		expect(screen.getByText("File Browser")).toBeTruthy();
-
-		snapshots = [];
-		tasks = [];
-		MockEventSource.instances[0]?.emit("snapshots:delete_completed", {
-			organizationId: "default-org",
-			taskId: "task-delete",
-			repositoryId: "repo-1",
-			snapshotIds: ["snap-1"],
-			status: "success",
+		await waitFor(() => {
+			expect(screen.queryByText("File Browser")).toBeNull();
 		});
+	});
+
+	test("removes deleted snapshot when a reconnect snapshot omits the cached active task", async () => {
+		mockScheduleDetailsRequests();
+		server.use(
+			http.get("/api/v1/tasks/:taskId", () => {
+				return HttpResponse.json({
+					...deleteSnapshotsTask,
+					status: "succeeded",
+					result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
+					updatedAt: 1711411201000,
+					finishedAt: 1711411201000,
+				});
+			}),
+		);
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotId="snap-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		await screen.findByText("File Browser");
+
+		await waitFor(() => {
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
+		});
+		const taskDeleteEventSource = getDeleteTasksEventSource();
+		taskDeleteEventSource?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
+		taskDeleteEventSource?.emit(tasksSnapshotEventName, []);
 
 		await waitFor(() => {
 			expect(screen.queryByText("File Browser")).toBeNull();

@@ -5245,6 +5245,8 @@ export type ListTasksData = {
     path?: never;
     query?: {
         kind?: 'backup' | 'restore' | 'deleteSnapshots';
+        resourceType?: 'backup_schedule' | 'repository';
+        resourceId?: string;
     };
     url: '/api/v1/tasks';
 };
@@ -5257,7 +5259,7 @@ export type ListTasksResponses = {
         id: string;
         kind: 'backup' | 'restore' | 'deleteSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
-        resourceType: string;
+        resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
         targetAgentId: string | null;
         input: {
@@ -5347,6 +5349,204 @@ export type ListTasksResponses = {
 
 export type ListTasksResponse = ListTasksResponses[keyof ListTasksResponses];
 
+export type StreamTasksEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        kind?: 'backup' | 'restore' | 'deleteSnapshots';
+        resourceType?: 'backup_schedule' | 'repository';
+        resourceId?: string;
+    };
+    url: '/api/v1/tasks/events';
+};
+
+export type StreamTasksEventsResponses = {
+    /**
+     * Filtered task event stream
+     */
+    200: {
+        id: string;
+        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+        resourceType: 'backup_schedule' | 'repository';
+        resourceId: string;
+        targetAgentId: string | null;
+        input: {
+            kind: 'backup';
+            scheduleId: number;
+            scheduleShortId: string;
+            manual: boolean;
+        } | {
+            kind: 'restore';
+            repositoryId: string;
+            snapshotId: string;
+            target: string;
+        } | {
+            kind: 'deleteSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+        };
+        progress: {
+            kind: 'backup';
+            progress: {
+                seconds_elapsed?: number;
+                seconds_remaining?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_done?: number;
+                total_bytes?: number;
+                bytes_done?: number;
+                current_files?: Array<string>;
+                message_type: 'status';
+            };
+        } | {
+            kind: 'restore';
+            progress: {
+                message_type: 'status' | 'summary';
+                seconds_elapsed?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_restored?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+            };
+        } | null;
+        result: {
+            kind: 'backup';
+            exitCode: number;
+            result: {
+                files_new: number;
+                files_changed: number;
+                files_unmodified: number;
+                dirs_new: number;
+                dirs_changed: number;
+                dirs_unmodified: number;
+                data_blobs: number;
+                tree_blobs: number;
+                data_added: number;
+                data_added_packed?: number;
+                total_files_processed: number;
+                total_bytes_processed: number;
+                total_duration: number;
+                snapshot_id: string;
+                message_type: 'summary';
+            } | null;
+            warningDetails: string | null;
+        } | {
+            kind: 'restore';
+            result: {
+                message_type: 'summary';
+                total_files?: number;
+                files_restored: number;
+                files_skipped?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+                bytes_skipped?: number;
+            };
+        } | {
+            kind: 'deleteSnapshots';
+            deletedSnapshotIds: Array<string>;
+        } | null;
+        error: string | null;
+        cancellationRequested: boolean;
+        createdAt: number;
+        startedAt: number | null;
+        updatedAt: number;
+        finishedAt: number | null;
+    } | Array<{
+        id: string;
+        kind: 'backup' | 'restore' | 'deleteSnapshots';
+        status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+        resourceType: 'backup_schedule' | 'repository';
+        resourceId: string;
+        targetAgentId: string | null;
+        input: {
+            kind: 'backup';
+            scheduleId: number;
+            scheduleShortId: string;
+            manual: boolean;
+        } | {
+            kind: 'restore';
+            repositoryId: string;
+            snapshotId: string;
+            target: string;
+        } | {
+            kind: 'deleteSnapshots';
+            repositoryId: string;
+            snapshotIds: Array<string>;
+        };
+        progress: {
+            kind: 'backup';
+            progress: {
+                seconds_elapsed?: number;
+                seconds_remaining?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_done?: number;
+                total_bytes?: number;
+                bytes_done?: number;
+                current_files?: Array<string>;
+                message_type: 'status';
+            };
+        } | {
+            kind: 'restore';
+            progress: {
+                message_type: 'status' | 'summary';
+                seconds_elapsed?: number;
+                percent_done?: number;
+                total_files?: number;
+                files_restored?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+            };
+        } | null;
+        result: {
+            kind: 'backup';
+            exitCode: number;
+            result: {
+                files_new: number;
+                files_changed: number;
+                files_unmodified: number;
+                dirs_new: number;
+                dirs_changed: number;
+                dirs_unmodified: number;
+                data_blobs: number;
+                tree_blobs: number;
+                data_added: number;
+                data_added_packed?: number;
+                total_files_processed: number;
+                total_bytes_processed: number;
+                total_duration: number;
+                snapshot_id: string;
+                message_type: 'summary';
+            } | null;
+            warningDetails: string | null;
+        } | {
+            kind: 'restore';
+            result: {
+                message_type: 'summary';
+                total_files?: number;
+                files_restored: number;
+                files_skipped?: number;
+                total_bytes?: number;
+                bytes_restored?: number;
+                bytes_skipped?: number;
+            };
+        } | {
+            kind: 'deleteSnapshots';
+            deletedSnapshotIds: Array<string>;
+        } | null;
+        error: string | null;
+        cancellationRequested: boolean;
+        createdAt: number;
+        startedAt: number | null;
+        updatedAt: number;
+        finishedAt: number | null;
+    }>;
+};
+
+export type StreamTasksEventsResponse = StreamTasksEventsResponses[keyof StreamTasksEventsResponses];
+
 export type StreamTaskEventsData = {
     body?: never;
     path: {
@@ -5364,7 +5564,7 @@ export type StreamTaskEventsResponses = {
         id: string;
         kind: 'backup' | 'restore' | 'deleteSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
-        resourceType: string;
+        resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
         targetAgentId: string | null;
         input: {
@@ -5471,7 +5671,7 @@ export type GetTaskResponses = {
         id: string;
         kind: 'backup' | 'restore' | 'deleteSnapshots';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
-        resourceType: string;
+        resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
         targetAgentId: string | null;
         input: {

@@ -13,6 +13,7 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME } from "~/client/modules/backups/components/snapshot-timeline";
 import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-details";
+import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { prefetchOrSkip } from "~/utils/prefetch";
 
 const fetchSnapshotTimelineSortOrder = createServerFn({ method: "GET" }).handler(async () => {
@@ -27,22 +28,29 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	loader: async ({ params, context }) => {
 		const { backupId } = params;
 
-		const [schedule, notifs, repos, scheduleNotifs, mirrors, _progress, snapshotTimelineSortOrder] = await Promise.all([
-			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
-			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
-			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
-			context.queryClient.ensureQueryData({ ...getScheduleNotificationsOptions({ path: { shortId: backupId } }) }),
-			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
-			context.queryClient.ensureQueryData({ ...getBackupProgressOptions({ path: { shortId: backupId } }) }),
-			fetchSnapshotTimelineSortOrder(),
-		]);
+		const [schedule, notifs, repos, scheduleNotifs, mirrors, _progress, snapshotTimelineSortOrder] =
+			await Promise.all([
+				context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
+				context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
+				context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
+				context.queryClient.ensureQueryData({
+					...getScheduleNotificationsOptions({ path: { shortId: backupId } }),
+				}),
+				context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
+				context.queryClient.ensureQueryData({ ...getBackupProgressOptions({ path: { shortId: backupId } }) }),
+				fetchSnapshotTimelineSortOrder(),
+			]);
 
 		const snapshotOptions = listSnapshotsOptions({
 			path: { shortId: schedule.repository.shortId },
 			query: { backupId: schedule.shortId },
 		});
+		const deleteTasksOptions = deleteSnapshotTasksOptions(schedule.repository.shortId);
 
-		await prefetchOrSkip(context.queryClient, snapshotOptions);
+		await Promise.all([
+			prefetchOrSkip(context.queryClient, snapshotOptions),
+			context.queryClient.ensureQueryData(deleteTasksOptions),
+		]);
 
 		return {
 			schedule,

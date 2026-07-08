@@ -28,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { useTimeFormat } from "~/client/lib/datetime";
 import { formatDuration } from "~/utils/utils";
 import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { useDeletingSnapshots } from "~/client/hooks/use-deleting-snapshots";
+import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";
@@ -251,17 +251,15 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 									</TableCell>
 									<TableCell className="font-mono text-sm">
 										<div className="flex items-center gap-2">
-											{isDeleting ? (
-												<Loader2 className="h-4 w-4 animate-spin text-primary" />
-											) : (
-												<HardDrive className="h-4 w-4 text-muted-foreground" />
-											)}
+											<Loader2
+												className={cn("h-4 w-4 animate-spin text-primary", {
+													hidden: !isDeleting,
+												})}
+											/>
+											<HardDrive
+												className={cn("h-4 w-4 text-muted-foreground", { hidden: isDeleting })}
+											/>
 											<span className="text-strong-accent">{snapshot.short_id}</span>
-											{isDeleting && (
-												<span className="text-xs font-medium normal-case text-primary">
-													Deleting
-												</span>
-											)}
 										</div>
 									</TableCell>
 									<TableCell>
