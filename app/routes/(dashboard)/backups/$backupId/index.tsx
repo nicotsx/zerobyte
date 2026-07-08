@@ -7,13 +7,13 @@ import {
 	getBackupScheduleOptions,
 	getScheduleMirrorsOptions,
 	getScheduleNotificationsOptions,
-	listTasksOptions,
 	listNotificationDestinationsOptions,
 	listRepositoriesOptions,
 	listSnapshotsOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME } from "~/client/modules/backups/components/snapshot-timeline";
 import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-details";
+import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { prefetchOrSkip } from "~/utils/prefetch";
 
 const fetchSnapshotTimelineSortOrder = createServerFn({ method: "GET" }).handler(async () => {
@@ -45,13 +45,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 			path: { shortId: schedule.repository.shortId },
 			query: { backupId: schedule.shortId },
 		});
-		const deleteTasksOptions = listTasksOptions({
-			query: {
-				kind: "deleteSnapshots",
-				resourceType: "repository",
-				resourceId: schedule.repository.shortId,
-			},
-		});
+		const deleteTasksOptions = deleteSnapshotTasksOptions(schedule.repository.shortId);
 
 		await Promise.all([
 			prefetchOrSkip(context.queryClient, snapshotOptions),

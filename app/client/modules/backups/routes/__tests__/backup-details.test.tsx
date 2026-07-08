@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen, waitFor } from "~/test/test-utils";
-import { taskChangedEventName } from "~/schemas/task-events";
+import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
+import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -81,8 +81,9 @@ class MockEventSource {
 	}
 }
 
-const getTaskEventSource = (taskId: string) => {
-	return MockEventSource.instances.find((instance) => instance.url === `/api/v1/tasks/${taskId}/events`);
+const getDeleteTasksEventSource = () => {
+	const expectedUrl = "/api/v1/tasks/events?kind=deleteSnapshots&resourceType=repository&resourceId=repo-1";
+	return MockEventSource.instances.find((instance) => instance.url === expectedUrl);
 };
 
 const originalEventSource = globalThis.EventSource;
@@ -347,8 +348,7 @@ describe("ScheduleDetailsPage", () => {
 	});
 
 	test("shows deleting state for an active snapshot delete task", async () => {
-		const tasks: Array<typeof deleteSnapshotsTask> = [deleteSnapshotsTask];
-		mockScheduleDetailsRequests({ tasks: () => tasks });
+		mockScheduleDetailsRequests();
 
 		render(
 			<ScheduleDetailsPage
@@ -368,19 +368,18 @@ describe("ScheduleDetailsPage", () => {
 			{ withSuspense: true },
 		);
 
-		const deleteButton = await screen.findByRole("button", {
-			name: /Delete Snapshot|Deleting\.\.\./,
-		});
-		expect(await screen.findByText("Deleting")).toBeTruthy();
 		await waitFor(() => {
-			expect(getTaskEventSource("task-delete")).not.toBeUndefined();
-			expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
 		});
+		getDeleteTasksEventSource()?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
+
+		const deleteButton = await screen.findByRole("button", { name: /Deleting\.\.\./ });
+		expect(await screen.findByText("Deleting")).toBeTruthy();
+		expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
 	});
 
-	test("removes deleted snapshot after task completion event", async () => {
-		const tasks: Array<typeof deleteSnapshotsTask> = [deleteSnapshotsTask];
-		mockScheduleDetailsRequests({ tasks: () => tasks });
+	test("removes deleted snapshot after the started delete task completes", async () => {
+		mockScheduleDetailsRequests();
 
 		render(
 			<ScheduleDetailsPage
@@ -402,14 +401,13 @@ describe("ScheduleDetailsPage", () => {
 
 		await screen.findByText("File Browser");
 
-		const deletingButton = await screen.findByRole("button", { name: /Deleting\.\.\./ });
-		expect(deletingButton).toHaveProperty("disabled", true);
-		expect(screen.getByText("File Browser")).toBeTruthy();
+		await userEvent.click(await screen.findByRole("button", { name: "Delete Snapshot" }));
+		await userEvent.click(await screen.findByRole("button", { name: "Delete snapshot" }));
 
 		await waitFor(() => {
-			expect(getTaskEventSource("task-delete")).not.toBeUndefined();
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
 		});
-		const taskDeleteEventSource = getTaskEventSource("task-delete");
+		const taskDeleteEventSource = getDeleteTasksEventSource();
 
 		taskDeleteEventSource?.emit(taskChangedEventName, {
 			...deleteSnapshotsTask,

@@ -1,17 +1,33 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { taskDtoSchema, taskKindSchema } from "~/schemas/tasks";
+import { taskDtoSchema, taskKindSchema, taskResourceTypeSchema } from "~/schemas/tasks";
 
-export const listTasksQuery = z.object({
-	kind: taskKindSchema.optional(),
-	resourceType: z.string().optional(),
-	resourceId: z.string().optional(),
-});
+export const listTasksQuery = z
+	.object({
+		kind: taskKindSchema.optional(),
+		resourceType: taskResourceTypeSchema.optional(),
+		resourceId: z.string().optional(),
+	})
+	.superRefine((query, ctx) => {
+		const hasResourceType = Boolean(query.resourceType);
+		const hasResourceId = Boolean(query.resourceId);
+		if (hasResourceType === hasResourceId) {
+			return;
+		}
+
+		const issuePath = hasResourceType ? ["resourceId"] : ["resourceType"];
+		ctx.addIssue({
+			code: "custom",
+			path: issuePath,
+			message: "resourceType and resourceId must be provided together",
+		});
+	});
 
 export const taskResponse = taskDtoSchema;
 export type TaskDto = z.infer<typeof taskResponse>;
 
 const listTasksResponse = taskResponse.array();
+const taskStreamResponse = z.union([taskResponse, listTasksResponse]);
 export type ListTasksDto = z.infer<typeof listTasksResponse>;
 
 export type GetTaskDto = z.infer<typeof taskResponse>;
@@ -58,6 +74,22 @@ export const streamTaskEventsDto = describeRoute({
 			content: {
 				"text/event-stream": {
 					schema: resolver(taskResponse),
+				},
+			},
+		},
+	},
+});
+
+export const streamTasksEventsDto = describeRoute({
+	description: "Subscribe to lifecycle events for active tasks matching a filter",
+	tags: ["Tasks"],
+	operationId: "streamTasksEvents",
+	responses: {
+		200: {
+			description: "Filtered task event stream",
+			content: {
+				"text/event-stream": {
+					schema: resolver(taskStreamResponse),
 				},
 			},
 		},

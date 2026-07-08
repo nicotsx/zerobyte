@@ -28,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { useTimeFormat } from "~/client/lib/datetime";
 import { formatDuration } from "~/utils/utils";
 import { deleteSnapshotsMutation, tagSnapshotsMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { useDeletingSnapshots } from "~/client/hooks/use-deleting-snapshots";
+import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { parseError } from "~/client/lib/errors";
 import type { BackupSchedule, Snapshot } from "../lib/types";
 import { cn } from "../lib/utils";

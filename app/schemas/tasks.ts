@@ -12,6 +12,7 @@ export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
 export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots"]);
+export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -66,7 +67,7 @@ const taskShape = {
 	organizationId: z.string(),
 	kind: taskKindSchema,
 	status: taskStatusSchema,
-	resourceType: z.string(),
+	resourceType: taskResourceTypeSchema,
 	resourceId: z.string(),
 	targetAgentId: z.string().nullable(),
 	input: taskInputSchema,
@@ -112,6 +113,7 @@ export const taskDtoSchema = z.object(taskDtoShape);
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
 export type TaskKind = z.infer<typeof taskKindSchema>;
+export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;
 export type TaskInput = z.infer<typeof taskInputSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
 export type TaskResult = z.infer<typeof taskResultSchema>;

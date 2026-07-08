@@ -32,14 +32,14 @@ import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
 import { createTaskProgressBuffer } from "../tasks/progress-buffer";
-import type { ParsedTask } from "~/schemas/tasks";
+import type { ParsedTask, TaskResourceType } from "~/schemas/tasks";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
 
 const tryCancelTask = (
 	taskId: string,
-	activeTaskResource: { organizationId: string; kind: "backup"; resourceType: string; resourceId: string },
+	activeTaskResource: { organizationId: string; kind: "backup"; resourceType: TaskResourceType; resourceId: string },
 ) => {
 	try {
 		taskStore.requestCancel(taskId);

@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
-import { taskChangedEventName } from "~/schemas/task-events";
+import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
+import type { TaskResourceType } from "~/schemas/tasks";
 import { createTestSession } from "~/test/helpers/auth";
 import { taskStore } from "../tasks.store";
 
@@ -10,7 +11,7 @@ const app = createApp();
 
 const createTask = (
 	organizationId: string,
-	options: { resourceType?: string; resourceId?: string; snapshotIds?: string[] } = {},
+	options: { resourceType?: TaskResourceType; resourceId?: string; snapshotIds?: string[] } = {},
 ) => {
 	const resourceId = options.resourceId ?? "repo-short";
 	const snapshotIds = options.snapshotIds ?? ["snapshot-1"];
@@ -141,6 +142,41 @@ describe("tasksController", () => {
 
 			expect(text).toContain(`event: ${taskChangedEventName}`);
 			expect(text).toContain('"status":"running"');
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
+	});
+
+	test("streams filtered task updates", async () => {
+		const session = await createTestSession();
+		const repoTask = createTask(session.organizationId, { resourceId: "repo-short" });
+		const otherRepoTask = createTask(session.organizationId, { resourceId: "repo-other" });
+
+		const res = await app.request(
+			"/api/v1/tasks/events?kind=deleteSnapshots&resourceType=repository&resourceId=repo-short",
+			{
+				headers: session.headers,
+			},
+		);
+
+		expect(res.status).toBe(200);
+
+		const reader = res.body!.getReader();
+		const decoder = new TextDecoder();
+		let text = "";
+
+		try {
+			text = await readReaderUntil(reader, decoder, text, repoTask.id);
+
+			expect(text).toContain(`event: ${tasksSnapshotEventName}`);
+			expect(text).toContain(repoTask.id);
+			expect(text).not.toContain(otherRepoTask.id);
+
+			taskStore.complete(repoTask.id, { kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] });
+			text = await readReaderUntil(reader, decoder, text, '"status":"succeeded"');
+
+			expect(text).toContain('"status":"succeeded"');
 		} finally {
 			void reader.cancel();
 			reader.releaseLock();

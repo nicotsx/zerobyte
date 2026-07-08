@@ -5,8 +5,8 @@ import {
 	getRepositoryStatsOptions,
 	listBackupSchedulesOptions,
 	listSnapshotsOptions,
-	listTasksOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
 import RepositoryDetailsPage from "~/client/modules/repositories/routes/repository-details";
 import { prefetchOrSkip } from "~/utils/prefetch";
 
@@ -16,13 +16,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")
 	loader: async ({ params, context }) => {
 		const snapshotOptions = listSnapshotsOptions({ path: { shortId: params.repositoryId } });
 		const statsOptions = getRepositoryStatsOptions({ path: { shortId: params.repositoryId } });
-		const deleteTasksOptions = listTasksOptions({
-			query: {
-				kind: "deleteSnapshots",
-				resourceType: "repository",
-				resourceId: params.repositoryId,
-			},
-		});
+		const deleteTasksOptions = deleteSnapshotTasksOptions(params.repositoryId);
 
 		const [res, schedules] = await Promise.all([
 			context.queryClient.ensureQueryData(getRepositoryOptions({ path: { shortId: params.repositoryId } })),

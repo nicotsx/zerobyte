@@ -11,20 +11,21 @@ import {
 	type TaskInput,
 	type TaskKind,
 	type TaskProgress,
+	type TaskResourceType,
 	type TaskResult,
 } from "~/schemas/tasks";
 
 type TaskResource = {
 	organizationId: string;
 	kind: TaskKind;
-	resourceType: string;
+	resourceType: TaskResourceType;
 	resourceId: string;
 };
 
 type CreateTaskParams = {
 	id?: string;
 	organizationId: string;
-	resourceType: string;
+	resourceType: TaskResourceType;
 	resourceId: string;
 	targetAgentId?: string | null;
 	input: TaskInput;
@@ -43,16 +44,27 @@ export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task compl
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
 
 const taskListeners = new Map<string, Set<TaskChangeListener>>();
+const allTaskListeners = new Set<TaskChangeListener>();
 
 const emitTaskChanged = (task: ParsedTask) => {
 	const listeners = taskListeners.get(task.id);
-	if (!listeners) {
-		return;
+	if (listeners) {
+		for (const listener of listeners) {
+			listener(task);
+		}
 	}
 
-	for (const listener of listeners) {
+	for (const listener of allTaskListeners) {
 		listener(task);
 	}
+};
+
+const subscribeToAllTaskChanges = (listener: TaskChangeListener) => {
+	allTaskListeners.add(listener);
+
+	return () => {
+		allTaskListeners.delete(listener);
+	};
 };
 
 const subscribeToTaskChanges = (taskId: string, listener: TaskChangeListener) => {
@@ -265,6 +277,10 @@ export const taskStore = {
 
 	subscribeToChanges: (taskId: string, listener: TaskChangeListener) => {
 		return subscribeToTaskChanges(taskId, listener);
+	},
+
+	subscribeToAllChanges: (listener: TaskChangeListener) => {
+		return subscribeToAllTaskChanges(listener);
 	},
 
 	findById: (params: FindTaskParams): ParsedTask | null => {
