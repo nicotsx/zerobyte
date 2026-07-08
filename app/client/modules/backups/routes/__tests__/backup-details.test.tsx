@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
-import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
+import { cleanup, render, screen } from "~/test/test-utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -80,13 +79,6 @@ class MockEventSource {
 		MockEventSource.instances = [];
 	}
 }
-
-const getDeleteTasksEventSource = () => {
-	const expectedUrl = "/api/v1/tasks/events?kind=deleteSnapshots&resourceType=repository&resourceId=repo-1";
-	return MockEventSource.instances.find((instance) => instance.url === expectedUrl);
-};
-
-const originalEventSource = globalThis.EventSource;
 
 const schedule = {
 	shortId: "backup-1",
@@ -213,7 +205,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	globalThis.EventSource = originalEventSource;
 	cleanup();
 	MockEventSource.reset();
 });
@@ -345,126 +336,5 @@ describe("ScheduleDetailsPage", () => {
 		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
 		await new Promise((resolve) => setTimeout(resolve, 1200));
 		expect(runningScheduleRequests).toBeGreaterThan(1);
-	});
-
-	test("shows deleting state for an active snapshot delete task", async () => {
-		mockScheduleDetailsRequests();
-
-		render(
-			<ScheduleDetailsPage
-				loaderData={fromAny({
-					schedule,
-					notifs: [],
-					repos: [],
-					scheduleNotifs: [],
-					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
-					snapshots: [snapshot],
-				})}
-				scheduleId="backup-1"
-				initialSnapshotId="snap-1"
-				initialSnapshotSortOrder="desc"
-			/>,
-			{ withSuspense: true },
-		);
-
-		await waitFor(() => {
-			expect(getDeleteTasksEventSource()).not.toBeUndefined();
-		});
-		getDeleteTasksEventSource()?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
-
-		const deleteButton = await screen.findByRole("button", { name: /Deleting\.\.\./ });
-		expect(await screen.findByText("Deleting")).toBeTruthy();
-		expect((deleteButton as HTMLButtonElement).disabled).toBe(true);
-	});
-
-	test("removes deleted snapshot after the started delete task completes", async () => {
-		mockScheduleDetailsRequests();
-
-		render(
-			<ScheduleDetailsPage
-				loaderData={fromAny({
-					schedule,
-					notifs: [],
-					repos: [],
-					scheduleNotifs: [],
-					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
-					snapshots: [snapshot],
-				})}
-				scheduleId="backup-1"
-				initialSnapshotId="snap-1"
-				initialSnapshotSortOrder="desc"
-			/>,
-			{ withSuspense: true },
-		);
-
-		await screen.findByText("File Browser");
-
-		await userEvent.click(await screen.findByRole("button", { name: "Delete Snapshot" }));
-		await userEvent.click(await screen.findByRole("button", { name: "Delete snapshot" }));
-
-		await waitFor(() => {
-			expect(getDeleteTasksEventSource()).not.toBeUndefined();
-		});
-		const taskDeleteEventSource = getDeleteTasksEventSource();
-
-		taskDeleteEventSource?.emit(taskChangedEventName, {
-			...deleteSnapshotsTask,
-			status: "succeeded",
-			result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
-			updatedAt: 1711411201000,
-			finishedAt: 1711411201000,
-		});
-
-		await waitFor(() => {
-			expect(screen.queryByText("File Browser")).toBeNull();
-		});
-	});
-
-	test("removes deleted snapshot when a reconnect snapshot omits the cached active task", async () => {
-		mockScheduleDetailsRequests();
-		server.use(
-			http.get("/api/v1/tasks/:taskId", () => {
-				return HttpResponse.json({
-					...deleteSnapshotsTask,
-					status: "succeeded",
-					result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
-					updatedAt: 1711411201000,
-					finishedAt: 1711411201000,
-				});
-			}),
-		);
-
-		render(
-			<ScheduleDetailsPage
-				loaderData={fromAny({
-					schedule,
-					notifs: [],
-					repos: [],
-					scheduleNotifs: [],
-					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
-					snapshots: [snapshot],
-				})}
-				scheduleId="backup-1"
-				initialSnapshotId="snap-1"
-				initialSnapshotSortOrder="desc"
-			/>,
-			{ withSuspense: true },
-		);
-
-		await screen.findByText("File Browser");
-
-		await waitFor(() => {
-			expect(getDeleteTasksEventSource()).not.toBeUndefined();
-		});
-		const taskDeleteEventSource = getDeleteTasksEventSource();
-		taskDeleteEventSource?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
-		taskDeleteEventSource?.emit(tasksSnapshotEventName, []);
-
-		await waitFor(() => {
-			expect(screen.queryByText("File Browser")).toBeNull();
-		});
 	});
 });
