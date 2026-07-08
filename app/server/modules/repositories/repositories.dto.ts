@@ -371,15 +371,15 @@ export const restoreSnapshotDto = describeRoute({
 });
 
 const startDoctorResponse = z.object({
-	message: z.string(),
-	repositoryId: z.string(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type StartDoctorDto = z.infer<typeof startDoctorResponse>;
 
 export const startDoctorDto = describeRoute({
 	description:
-		"Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.",
+		"Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index).",
 	tags: ["Repositories"],
 	operationId: "startDoctor",
 	responses: {
@@ -397,9 +397,10 @@ export const startDoctorDto = describeRoute({
 	},
 });
 
-const cancelDoctorResponse = z.object({
-	message: z.string(),
-});
+const cancelDoctorResponse = z.discriminatedUnion("status", [
+	z.object({ status: z.literal("cancelled") }),
+	z.object({ status: z.literal("reset") }),
+]);
 
 export type CancelDoctorDto = z.infer<typeof cancelDoctorResponse>;
 

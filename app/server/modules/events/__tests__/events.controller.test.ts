@@ -36,7 +36,7 @@ describe("events security", () => {
 
 	test("should cleanup SSE listeners when client disconnects", async () => {
 		const { headers } = await createTestSession();
-		const initialCount = serverEvents.listenerCount("doctor:cancelled");
+		const initialCount = serverEvents.listenerCount("backup:completed");
 
 		const res = await app.request("/api/v1/events", {
 			headers,
@@ -44,19 +44,19 @@ describe("events security", () => {
 
 		expect(res.status).toBe(200);
 
-		for (let i = 0; i < 20 && serverEvents.listenerCount("doctor:cancelled") < initialCount + 1; i++) {
+		for (let i = 0; i < 20 && serverEvents.listenerCount("backup:completed") < initialCount + 1; i++) {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
 
-		expect(serverEvents.listenerCount("doctor:cancelled")).toBe(initialCount + 1);
+		expect(serverEvents.listenerCount("backup:completed")).toBe(initialCount + 1);
 
 		await res.body?.cancel();
 
-		for (let i = 0; i < 20 && serverEvents.listenerCount("doctor:cancelled") > initialCount; i++) {
+		for (let i = 0; i < 20 && serverEvents.listenerCount("backup:completed") > initialCount; i++) {
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
 
-		expect(serverEvents.listenerCount("doctor:cancelled")).toBe(initialCount);
+		expect(serverEvents.listenerCount("backup:completed")).toBe(initialCount);
 	});
 
 	describe("unauthenticated access", () => {

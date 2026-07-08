@@ -909,7 +909,7 @@ export const cancelDoctorMutation = (options?: Partial<Options<CancelDoctorData>
 };
 
 /**
- * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.
+ * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index).
  */
 export const startDoctorMutation = (options?: Partial<Options<StartDoctorData>>): UseMutationOptions<StartDoctorResponse, DefaultError, Options<StartDoctorData>> => {
     const mutationOptions: UseMutationOptions<StartDoctorResponse, DefaultError, Options<StartDoctorData>> = {

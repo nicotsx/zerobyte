@@ -154,6 +154,52 @@ describe("useServerEvents", () => {
 		expect(await screen.findByText("running")).toBeTruthy();
 	});
 
+	test("refreshes active queries when a task finishes", async () => {
+		const queryClient = createTestQueryClient();
+		let queryValue = "doctor";
+
+		render(
+			<>
+				<ConnectionConsumer />
+				<QueryStatusConsumer getValue={() => queryValue} />
+			</>,
+			{ queryClient },
+		);
+
+		expect(await screen.findByText("doctor")).toBeTruthy();
+		queryValue = "healthy";
+
+		MockEventSource.instances[0]?.emit("task:finished", {
+			organizationId: "default-org",
+			taskId: "doctor-task",
+			kind: "doctor",
+			resourceType: "repository",
+			resourceId: "repo-short",
+			status: "succeeded",
+		});
+
+		expect(await screen.findByText("healthy")).toBeTruthy();
+	});
+
+	test("refreshes active queries when the event stream connects", async () => {
+		const queryClient = createTestQueryClient();
+		let queryValue = "before";
+
+		render(
+			<>
+				<ConnectionConsumer />
+				<QueryStatusConsumer getValue={() => queryValue} />
+			</>,
+			{ queryClient },
+		);
+
+		expect(await screen.findByText("before")).toBeTruthy();
+		queryValue = "after";
+		MockEventSource.instances[0]?.emit("connected", { type: "connected", timestamp: 1 });
+
+		expect(await screen.findByText("after")).toBeTruthy();
+	});
+
 	test("waits to subscribe until enabled", () => {
 		const queryClient = createTestQueryClient();
 		const view = render(<ConnectionConsumer enabled={false} />, { queryClient });

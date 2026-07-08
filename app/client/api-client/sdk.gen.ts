@@ -322,7 +322,7 @@ export const restoreSnapshot = <ThrowOnError extends boolean = false>(options: O
 export const cancelDoctor = <ThrowOnError extends boolean = false>(options: Options<CancelDoctorData, ThrowOnError>): RequestResult<CancelDoctorResponses, CancelDoctorErrors, ThrowOnError> => (options.client ?? client).delete<CancelDoctorResponses, CancelDoctorErrors, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/doctor', ...options });
 
 /**
- * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index). The operation runs in the background and sends results via SSE events.
+ * Start an asynchronous doctor operation on a repository to fix common issues (unlock, check, repair index).
  */
 export const startDoctor = <ThrowOnError extends boolean = false>(options: Options<StartDoctorData, ThrowOnError>): RequestResult<StartDoctorResponses, StartDoctorErrors, ThrowOnError> => (options.client ?? client).post<StartDoctorResponses, StartDoctorErrors, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/doctor', ...options });
 

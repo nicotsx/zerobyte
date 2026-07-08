@@ -28,7 +28,6 @@ import { safeSpawn } from "@zerobyte/core/node";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
 import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
-import { executeDoctor } from "./helpers/doctor";
 import { emptyRepositoryStats, refreshStoredRepositoryStats } from "./helpers/repository-stats";
 import { restoreExecutor } from "./restore-executor";
 import type { ShortId } from "~/server/utils/branded";
@@ -42,7 +41,6 @@ import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask, TaskInput } from "~/schemas/tasks";
 import { Effect } from "effect";
 
-const runningDoctors = new Map<string, AbortController>();
 const lsLimiters = new Map<string, Effect.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
 
@@ -116,6 +114,15 @@ const findActiveRestoreTask = (
 			})
 			.find((task): task is RestoreTask => isRestoreTask(task) && task.input.snapshotId === snapshotId) ?? null
 	);
+};
+
+const findActiveDoctorTask = (organizationId: string, repositoryShortId: string) => {
+	return taskStore.findActiveByResource({
+		organizationId,
+		kind: "doctor",
+		resourceType: "repository",
+		resourceId: repositoryShortId,
+	});
 };
 
 const emitRestoreStarted = (task: RestoreTask) => {
@@ -706,69 +713,48 @@ const checkHealth = async (shortId: ShortId) => {
 };
 
 const startDoctor = async (shortId: ShortId) => {
+	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	if (runningDoctors.has(repository.id)) {
+	const activeDoctorTask = findActiveDoctorTask(organizationId, repository.shortId);
+	if (activeDoctorTask) {
 		throw new ConflictError("Doctor operation already in progress");
 	}
 
-	const abortController = new AbortController();
-
-	try {
-		await db.update(repositoriesTable).set({ status: "doctor" }).where(eq(repositoriesTable.id, repository.id));
-
-		serverEvents.emit("doctor:started", {
-			organizationId: repository.organizationId,
-			repositoryId: repository.shortId,
-			repositoryName: repository.name,
-		});
-
-		runningDoctors.set(repository.id, abortController);
-	} catch (error) {
-		runningDoctors.delete(repository.id);
-		throw error;
-	}
-
-	executeDoctor(repository.id, repository.shortId, repository.config, repository.name, abortController.signal)
-		.catch((error) => {
-			logger.error(`Doctor background task failed: ${toMessage(error)}`);
-		})
-		.finally(() => {
-			runningDoctors.delete(repository.id);
-		});
-
-	return { message: "Doctor operation started", repositoryId: repository.shortId };
+	const command = commands.createDoctor({ repository });
+	return command.start();
 };
 
 const cancelDoctor = async (shortId: ShortId) => {
+	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
 
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
 
-	const abortController = runningDoctors.get(repository.id);
-	if (!abortController) {
-		await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
+	const activeDoctorTask = findActiveDoctorTask(organizationId, repository.shortId);
+	if (!activeDoctorTask) {
+		if (repository.status === "doctor") {
+			await db
+				.update(repositoriesTable)
+				.set({ status: "unknown" })
+				.where(eq(repositoriesTable.id, repository.id));
+			return { status: "reset" as const };
+		}
+
 		throw new ConflictError("No doctor operation is currently running");
 	}
 
-	abortController.abort();
-	runningDoctors.delete(repository.id);
+	if (!commands.cancelDoctor(activeDoctorTask.id)) {
+		throw new ConflictError("No doctor operation is currently running");
+	}
 
-	await db.update(repositoriesTable).set({ status: "unknown" }).where(eq(repositoriesTable.id, repository.id));
-
-	serverEvents.emit("doctor:cancelled", {
-		organizationId: repository.organizationId,
-		repositoryId: repository.shortId,
-		repositoryName: repository.name,
-	});
-
-	return { message: "Doctor operation cancelled" };
+	return { status: "cancelled" as const };
 };
 
 const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {

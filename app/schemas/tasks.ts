@@ -1,4 +1,5 @@
 import {
+	doctorResultSchema,
 	resticBackupOutputSchema,
 	resticBackupProgressSchema,
 	resticRestoreOutputSchema,
@@ -11,7 +12,7 @@ export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
-export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots"]);
+export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor"]);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
@@ -39,6 +40,10 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		add: z.array(z.string()).optional(),
 		remove: z.array(z.string()).optional(),
 		set: z.array(z.string()).optional(),
+	}),
+	z.object({
+		kind: z.literal("doctor"),
+		repositoryId: z.string(),
 	}),
 ]);
 
@@ -71,6 +76,13 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("tagSnapshots"),
 		taggedSnapshotIds: z.array(z.string()),
+	}),
+	z.object({
+		kind: z.literal("doctor"),
+		repositoryStatus: z.enum(["healthy", "error", "cancelled"]),
+		lastChecked: z.number(),
+		lastError: z.string().nullable(),
+		doctorResult: doctorResultSchema,
 	}),
 ]);
 

@@ -7,9 +7,18 @@ import type {
 	ServerRestoreProgressEventDto,
 	ServerRestoreStartedEventDto,
 } from "~/schemas/events-dto";
-import type { DoctorResult } from "@zerobyte/core/restic";
+import type { TaskKind, TaskResourceType, TaskStatus } from "~/schemas/tasks";
 
 const payload = <T>() => undefined as unknown as T;
+
+type TaskLifecycleEvent = {
+	organizationId: string;
+	taskId: string;
+	kind: TaskKind;
+	resourceType: TaskResourceType;
+	resourceId: string;
+	status: TaskStatus;
+};
 
 export const serverEventPayloads = {
 	"backup:started": payload<ServerBackupStartedEventDto>(),
@@ -43,20 +52,8 @@ export const serverEventPayloads = {
 		notificationName: string;
 		status: "healthy" | "error" | "unknown";
 	}>(),
-	"doctor:started": payload<{ organizationId: string; repositoryId: string; repositoryName: string }>(),
-	"doctor:completed": payload<
-		{
-			organizationId: string;
-			repositoryId: string;
-			repositoryName: string;
-		} & DoctorResult
-	>(),
-	"doctor:cancelled": payload<{
-		organizationId: string;
-		repositoryId: string;
-		repositoryName: string;
-		error?: string;
-	}>(),
+	"task:started": payload<TaskLifecycleEvent>(),
+	"task:finished": payload<TaskLifecycleEvent>(),
 } as const;
 
 export type ServerEventPayloadMap = typeof serverEventPayloads;

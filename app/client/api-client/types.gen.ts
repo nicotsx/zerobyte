@@ -2466,7 +2466,9 @@ export type CancelDoctorResponses = {
      * Doctor operation cancelled
      */
     200: {
-        message: string;
+        status: 'cancelled';
+    } | {
+        status: 'reset';
     };
 };
 
@@ -2493,8 +2495,8 @@ export type StartDoctorResponses = {
      * Doctor operation started
      */
     202: {
-        message: string;
-        repositoryId: string;
+        taskId: string;
+        status: 'started';
     };
 };
 
@@ -5245,7 +5247,7 @@ export type ListTasksData = {
     body?: never;
     path?: never;
     query?: {
-        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
     };
@@ -5258,7 +5260,7 @@ export type ListTasksResponses = {
      */
     200: Array<{
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5284,6 +5286,9 @@ export type ListTasksResponses = {
             add?: Array<string>;
             remove?: Array<string>;
             set?: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryId: string;
         };
         progress: {
             kind: 'backup';
@@ -5348,6 +5353,21 @@ export type ListTasksResponses = {
         } | {
             kind: 'tagSnapshots';
             taggedSnapshotIds: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryStatus: 'healthy' | 'error' | 'cancelled';
+            lastChecked: number;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            };
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5364,7 +5384,7 @@ export type StreamTasksEventsData = {
     body?: never;
     path?: never;
     query?: {
-        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
     };
@@ -5377,7 +5397,7 @@ export type StreamTasksEventsResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5403,6 +5423,9 @@ export type StreamTasksEventsResponses = {
             add?: Array<string>;
             remove?: Array<string>;
             set?: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryId: string;
         };
         progress: {
             kind: 'backup';
@@ -5467,6 +5490,21 @@ export type StreamTasksEventsResponses = {
         } | {
             kind: 'tagSnapshots';
             taggedSnapshotIds: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryStatus: 'healthy' | 'error' | 'cancelled';
+            lastChecked: number;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            };
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5476,7 +5514,7 @@ export type StreamTasksEventsResponses = {
         finishedAt: number | null;
     } | Array<{
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5502,6 +5540,9 @@ export type StreamTasksEventsResponses = {
             add?: Array<string>;
             remove?: Array<string>;
             set?: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryId: string;
         };
         progress: {
             kind: 'backup';
@@ -5566,6 +5607,21 @@ export type StreamTasksEventsResponses = {
         } | {
             kind: 'tagSnapshots';
             taggedSnapshotIds: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryStatus: 'healthy' | 'error' | 'cancelled';
+            lastChecked: number;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            };
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5593,7 +5649,7 @@ export type StreamTaskEventsResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5619,6 +5675,9 @@ export type StreamTaskEventsResponses = {
             add?: Array<string>;
             remove?: Array<string>;
             set?: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryId: string;
         };
         progress: {
             kind: 'backup';
@@ -5683,6 +5742,21 @@ export type StreamTaskEventsResponses = {
         } | {
             kind: 'tagSnapshots';
             taggedSnapshotIds: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryStatus: 'healthy' | 'error' | 'cancelled';
+            lastChecked: number;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            };
         } | null;
         error: string | null;
         cancellationRequested: boolean;
@@ -5710,7 +5784,7 @@ export type GetTaskResponses = {
      */
     200: {
         id: string;
-        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots';
+        kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
@@ -5736,6 +5810,9 @@ export type GetTaskResponses = {
             add?: Array<string>;
             remove?: Array<string>;
             set?: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryId: string;
         };
         progress: {
             kind: 'backup';
@@ -5800,6 +5877,21 @@ export type GetTaskResponses = {
         } | {
             kind: 'tagSnapshots';
             taggedSnapshotIds: Array<string>;
+        } | {
+            kind: 'doctor';
+            repositoryStatus: 'healthy' | 'error' | 'cancelled';
+            lastChecked: number;
+            lastError: string | null;
+            doctorResult: {
+                success: boolean;
+                steps: Array<{
+                    step: string;
+                    success: boolean;
+                    output: string | null;
+                    error: string | null;
+                }>;
+                completedAt: number;
+            };
         } | null;
         error: string | null;
         cancellationRequested: boolean;

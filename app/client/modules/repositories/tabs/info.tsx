@@ -11,6 +11,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 type Props = {
 	repository: Repository;
 	initialStats?: GetRepositoryStatsResponse;
+	isDoctorRunning?: boolean;
 };
 
 const getEffectiveLocalPath = (repository: Repository): string | null => {
@@ -24,14 +25,20 @@ function ConfigRow({ icon, label, value, mono, valueClassName }: ConfigRowProps)
 		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
 			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
-			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono }, valueClassName)}>
+			<span
+				className={cn(
+					"text-sm break-all",
+					{ "font-mono bg-muted/50 px-2 py-0.5 rounded": mono },
+					valueClassName,
+				)}
+			>
 				{value}
 			</span>
 		</div>
 	);
 }
 
-export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) => {
+export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRunning = false }: Props) => {
 	const effectiveLocalPath = getEffectiveLocalPath(repository);
 	const { formatDateTime, formatTimeAgo } = useTimeFormat();
 
@@ -78,7 +85,9 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 						{hasLocalPath && (
 							<div className="flex flex-col gap-1 col-span-2">
 								<div className="text-sm font-medium text-muted-foreground">Local Path</div>
-								<p className="text-sm font-mono bg-muted/50 p-2 rounded-md break-all">{effectiveLocalPath}</p>
+								<p className="text-sm font-mono bg-muted/50 p-2 rounded-md break-all">
+									{effectiveLocalPath}
+								</p>
 							</div>
 						)}
 					</CardContent>
@@ -93,7 +102,12 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 				<div className="space-y-0 divide-y divide-border/50">
 					<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={repository.type} />
 					{hasLocalPath && (
-						<ConfigRow icon={<FolderOpen className="h-4 w-4" />} label="Local Path" value={effectiveLocalPath!} mono />
+						<ConfigRow
+							icon={<FolderOpen className="h-4 w-4" />}
+							label="Local Path"
+							value={effectiveLocalPath!}
+							mono
+						/>
 					)}
 					<ConfigRow
 						icon={<Archive className="h-4 w-4" />}
@@ -119,7 +133,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 				</div>
 			</Card>
 
-			<DoctorReport repositoryStatus={repository.status} result={repository.doctorResult} />
+			<DoctorReport isDoctorRunning={isDoctorRunning} result={repository.doctorResult} />
 		</div>
 	);
 };

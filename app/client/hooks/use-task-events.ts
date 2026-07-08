@@ -6,7 +6,7 @@ import { logger } from "~/client/lib/logger";
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import { activeTaskStatuses, type TaskDto } from "~/schemas/tasks";
 
-type TaskEventsQuery = NonNullable<ListTasksData["query"]>;
+export type TaskEventsQuery = NonNullable<ListTasksData["query"]>;
 type UseTaskEventsOptions = {
 	onTaskFinished?: (task: TaskDto) => void;
 };

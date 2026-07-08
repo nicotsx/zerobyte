@@ -35,6 +35,7 @@ import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
 import type { BackupSchedule, Snapshot } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
+import { useRepositoryDoctorTask } from "../doctor-tasks";
 import { RepositoryInfoTabContent } from "../tabs/info";
 import { RepositorySnapshotsTabContent } from "../tabs/snapshots";
 import { useTimeFormat } from "~/client/lib/datetime";
@@ -58,6 +59,7 @@ export default function RepositoryDetailsPage({
 	const { data: repository } = useSuspenseQuery({
 		...getRepositoryOptions({ path: { shortId: repositoryId } }),
 	});
+	const { isDoctorRunning: hasActiveDoctorTask } = useRepositoryDoctorTask(repositoryId);
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -76,6 +78,9 @@ export default function RepositoryDetailsPage({
 
 	const startDoctor = useMutation({
 		...startDoctorMutation(),
+		onSuccess: () => {
+			toast.info("Doctor started");
+		},
 		onError: (error) => {
 			toast.error("Failed to start doctor", {
 				description: parseError(error)?.message,
@@ -85,8 +90,10 @@ export default function RepositoryDetailsPage({
 
 	const cancelDoctor = useMutation({
 		...cancelDoctorMutation(),
-		onSuccess: () => {
-			toast.info("Doctor operation cancelled");
+		onSuccess: (result) => {
+			if (result.status === "reset") {
+				toast.info("Doctor state reset");
+			}
 		},
 		onError: (error) => {
 			toast.error("Failed to cancel doctor", {
@@ -104,7 +111,8 @@ export default function RepositoryDetailsPage({
 		deleteRepo.mutate({ path: { shortId: repository.shortId } });
 	};
 
-	const isDoctorRunning = repository.status === "doctor";
+	const isDoctorRunning = hasActiveDoctorTask || startDoctor.isPending;
+	const displayStatus = isDoctorRunning ? "doctor" : repository.status;
 
 	return (
 		<>
@@ -122,13 +130,14 @@ export default function RepositoryDetailsPage({
 									<Badge variant="outline" className="capitalize gap-1.5">
 										<span
 											className={cn("w-2 h-2 rounded-full shrink-0", {
-												"bg-success": repository.status === "healthy",
-												"bg-red-500": repository.status === "error",
-												"bg-amber-500": repository.status !== "healthy" && repository.status !== "error",
-												"animate-pulse": repository.status === "doctor",
+												"bg-success": displayStatus === "healthy",
+												"bg-red-500": displayStatus === "error",
+												"bg-amber-500":
+													displayStatus !== "healthy" && displayStatus !== "error",
+												"animate-pulse": isDoctorRunning,
 											})}
 										/>
-										{repository.status || "Unknown"}
+										{displayStatus || "Unknown"}
 									</Badge>
 									<Badge variant="secondary">{repository.type}</Badge>
 									{repository.provisioningId && <Badge variant="secondary">Managed</Badge>}
@@ -169,20 +178,25 @@ export default function RepositoryDetailsPage({
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}>
+									<DropdownMenuItem
+										onClick={() => navigate({ to: `/repositories/${repository.shortId}/edit` })}
+									>
 										<Pencil />
 										Edit
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onClick={() =>
-											toast.promise(unlockRepo.mutateAsync({ path: { shortId: repository.shortId } }), {
-												loading: "Unlocking repo",
-												success: "Repository unlocked successfully",
-												error: (e) =>
-													toast.error("Failed to unlock repository", {
-														description: parseError(e)?.message,
-													}),
-											})
+											toast.promise(
+												unlockRepo.mutateAsync({ path: { shortId: repository.shortId } }),
+												{
+													loading: "Unlocking repo",
+													success: "Repository unlocked successfully",
+													error: (e) =>
+														toast.error("Failed to unlock repository", {
+															description: parseError(e)?.message,
+														}),
+												},
+											)
 										}
 										disabled={unlockRepo.isPending}
 									>
@@ -213,13 +227,20 @@ export default function RepositoryDetailsPage({
 					</Card>
 				)}
 
-				<Tabs value={activeTab} onValueChange={(value) => navigate({ to: ".", search: () => ({ tab: value }) })}>
+				<Tabs
+					value={activeTab}
+					onValueChange={(value) => navigate({ to: ".", search: () => ({ tab: value }) })}
+				>
 					<TabsList className="mb-2">
 						<TabsTrigger value="info">Configuration</TabsTrigger>
 						<TabsTrigger value="snapshots">Snapshots</TabsTrigger>
 					</TabsList>
 					<TabsContent value="info">
-						<RepositoryInfoTabContent repository={repository} initialStats={initialStats} />
+						<RepositoryInfoTabContent
+							repository={repository}
+							initialStats={initialStats}
+							isDoctorRunning={isDoctorRunning}
+						/>
 					</TabsContent>
 					<TabsContent value="snapshots">
 						<RepositorySnapshotsTabContent
@@ -236,8 +257,9 @@ export default function RepositoryDetailsPage({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete repository?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete the repository <strong>{repository.name}</strong>? This will not remove
-							the actual data from the backend storage, only the repository configuration will be deleted.
+							Are you sure you want to delete the repository <strong>{repository.name}</strong>? This will
+							not remove the actual data from the backend storage, only the repository configuration will
+							be deleted.
 							<br />
 							<br />
 							All backup schedules associated with this repository will also be removed.

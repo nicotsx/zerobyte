@@ -72,6 +72,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 
 	eventSource.addEventListener("connected", (event) => {
 		const data = parseEventData<"connected">(event);
+		void queryClient.invalidateQueries();
 		logger.info("[SSE] Connected to server events");
 		emit("connected", data);
 	});
@@ -141,7 +142,7 @@ const addSharedEventListener = <T extends ServerEventType>(
 
 /**
  * Hook to listen to Server-Sent Events (SSE) from the backend
- * Automatically handles cache invalidation for backup and volume events
+ * Automatically applies the configured cache effects for global server events
  */
 export function useServerEvents({ enabled = true }: { enabled?: boolean } = {}) {
 	const queryClient = useQueryClient();

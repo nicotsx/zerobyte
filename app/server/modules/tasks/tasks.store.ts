@@ -235,13 +235,14 @@ export const taskStore = {
 		return task;
 	},
 
-	cancel: (taskId: string, error: string | null = null): ParsedTask => {
+	cancel: (taskId: string, error: string | null = null, result: TaskResult | null = null): ParsedTask => {
 		const now = Date.now();
 		const row = db
 			.update(tasksTable)
 			.set({
 				status: "cancelled",
 				error,
+				result: result === null ? null : taskResultSchema.parse(result),
 				updatedAt: now,
 				finishedAt: now,
 			})
