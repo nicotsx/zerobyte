@@ -421,4 +421,50 @@ describe("ScheduleDetailsPage", () => {
 			expect(screen.queryByText("File Browser")).toBeNull();
 		});
 	});
+
+	test("removes deleted snapshot when a reconnect snapshot omits the cached active task", async () => {
+		mockScheduleDetailsRequests();
+		server.use(
+			http.get("/api/v1/tasks/:taskId", () => {
+				return HttpResponse.json({
+					...deleteSnapshotsTask,
+					status: "succeeded",
+					result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
+					updatedAt: 1711411201000,
+					finishedAt: 1711411201000,
+				});
+			}),
+		);
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					notifs: [],
+					repos: [],
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshotTimelineSortOrder: "desc",
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+				initialSnapshotId="snap-1"
+				initialSnapshotSortOrder="desc"
+			/>,
+			{ withSuspense: true },
+		);
+
+		await screen.findByText("File Browser");
+
+		await waitFor(() => {
+			expect(getDeleteTasksEventSource()).not.toBeUndefined();
+		});
+		const taskDeleteEventSource = getDeleteTasksEventSource();
+		taskDeleteEventSource?.emit(tasksSnapshotEventName, [deleteSnapshotsTask]);
+		taskDeleteEventSource?.emit(tasksSnapshotEventName, []);
+
+		await waitFor(() => {
+			expect(screen.queryByText("File Browser")).toBeNull();
+		});
+	});
 });

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ListTasksData, ListTasksResponse } from "~/client/api-client";
-import { listTasksOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { getTaskOptions, listTasksOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { logger } from "~/client/lib/logger";
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import { activeTaskStatuses, type TaskDto } from "~/schemas/tasks";
@@ -15,8 +15,8 @@ const parseTaskEvent = (event: Event): TaskDto => {
 	return JSON.parse((event as MessageEvent<string>).data) as TaskDto;
 };
 
-const parseTasksSnapshotEvent = (event: Event): ListTasksResponse => {
-	return JSON.parse((event as MessageEvent<string>).data) as ListTasksResponse;
+const parseTasksSnapshotEvent = (event: Event): TaskDto[] => {
+	return JSON.parse((event as MessageEvent<string>).data) as TaskDto[];
 };
 
 const isActiveTask = (task: TaskDto) => {
@@ -51,6 +51,11 @@ const upsertTask = (tasks: ListTasksResponse, task: TaskDto) => {
 	return tasks.map((entry) => (entry.id === task.id ? task : entry));
 };
 
+const hasTaskFinished = (finishedTasks: Map<string, TaskDto>, task: TaskDto) => {
+	const finishedTask = finishedTasks.get(task.id);
+	return !!finishedTask && finishedTask.updatedAt >= task.updatedAt;
+};
+
 export const taskEventsOptions = (query: TaskEventsQuery) => {
 	return listTasksOptions({ query });
 };
@@ -58,6 +63,7 @@ export const taskEventsOptions = (query: TaskEventsQuery) => {
 export const useTaskEvents = (query: TaskEventsQuery, options: UseTaskEventsOptions = {}) => {
 	const queryClient = useQueryClient();
 	const onTaskFinishedRef = useRef(options.onTaskFinished);
+	const finishedTasksRef = useRef(new Map<string, TaskDto>());
 	const queryKind = query.kind;
 	const queryResourceType = query.resourceType;
 	const queryResourceId = query.resourceId;
@@ -79,6 +85,9 @@ export const useTaskEvents = (query: TaskEventsQuery, options: UseTaskEventsOpti
 		});
 	}, [queryKind, queryResourceId, queryResourceType]);
 
+	const taskQueryKeyRef = useRef(taskListOptions.queryKey);
+	taskQueryKeyRef.current = taskListOptions.queryKey;
+
 	const tasks = useQuery({ ...taskListOptions, enabled: false });
 
 	useEffect(() => {
@@ -86,26 +95,67 @@ export const useTaskEvents = (query: TaskEventsQuery, options: UseTaskEventsOpti
 
 		eventSource.addEventListener(tasksSnapshotEventName, (event) => {
 			const snapshot = parseTasksSnapshotEvent(event);
-			queryClient.setQueryData<ListTasksResponse>(taskListOptions.queryKey, snapshot);
+			const currentTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKeyRef.current) ?? [];
+
+			const snapshotTaskIds = new Set(snapshot.map((task) => task.id));
+			const missingTasks = currentTasks.filter((task) => !snapshotTaskIds.has(task.id));
+
+			queryClient.setQueryData<ListTasksResponse>(
+				taskQueryKeyRef.current,
+				snapshot.filter((task) => !hasTaskFinished(finishedTasksRef.current, task)),
+			);
+
+			for (const missingTask of missingTasks) {
+				void queryClient
+					.fetchQuery(getTaskOptions({ path: { taskId: missingTask.id } }))
+					.then((task) => {
+						const fetchedTask = task as TaskDto;
+						if (
+							isActiveTask(fetchedTask) ||
+							fetchedTask.updatedAt < missingTask.updatedAt ||
+							hasTaskFinished(finishedTasksRef.current, fetchedTask)
+						) {
+							return;
+						}
+
+						finishedTasksRef.current.set(fetchedTask.id, fetchedTask);
+						onTaskFinishedRef.current?.(fetchedTask);
+					})
+					.catch((error: unknown) => {
+						logger.error("[SSE] Failed to reconcile missing task:", error);
+					});
+			}
 		});
 
 		eventSource.addEventListener(taskChangedEventName, (event) => {
 			const task = parseTaskEvent(event);
-			let finishedTask: TaskDto | null = null;
+			const activeTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKeyRef.current) ?? [];
 
-			queryClient.setQueryData<ListTasksResponse>(taskListOptions.queryKey, (currentTasks) => {
-				const activeTasks = currentTasks ?? [];
-				if (isActiveTask(task)) {
-					return upsertTask(activeTasks, task);
+			if (isActiveTask(task)) {
+				if (hasTaskFinished(finishedTasksRef.current, task)) {
+					return;
 				}
 
-				finishedTask = task;
-				return activeTasks.filter((entry) => entry.id !== task.id);
-			});
-
-			if (finishedTask) {
-				onTaskFinishedRef.current?.(finishedTask);
+				queryClient.setQueryData<ListTasksResponse>(taskQueryKeyRef.current, upsertTask(activeTasks, task));
+				return;
 			}
+
+			const currentTask = activeTasks.find((entry) => entry.id === task.id);
+			if (currentTask && task.updatedAt < currentTask.updatedAt) {
+				return;
+			}
+
+			queryClient.setQueryData<ListTasksResponse>(
+				taskQueryKeyRef.current,
+				activeTasks.filter((entry) => entry.id !== task.id),
+			);
+
+			if (hasTaskFinished(finishedTasksRef.current, task)) {
+				return;
+			}
+
+			finishedTasksRef.current.set(task.id, task);
+			onTaskFinishedRef.current?.(task);
 		});
 
 		eventSource.onerror = (error) => {
@@ -115,7 +165,7 @@ export const useTaskEvents = (query: TaskEventsQuery, options: UseTaskEventsOpti
 		return () => {
 			eventSource.close();
 		};
-	}, [queryClient, taskEventsUrl, taskListOptions.queryKey]);
+	}, [queryClient, taskEventsUrl]);
 
 	return tasks;
 };
