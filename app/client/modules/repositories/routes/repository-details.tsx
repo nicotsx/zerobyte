@@ -4,7 +4,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { ChevronDown, Database, Pencil, Square, Stethoscope, Trash2, Unlock } from "lucide-react";
 import {
-	cancelDoctorMutation,
+	cancelTaskMutation,
 	deleteRepositoryMutation,
 	getRepositoryOptions,
 	startDoctorMutation,
@@ -59,7 +59,7 @@ export default function RepositoryDetailsPage({
 	const { data: repository } = useSuspenseQuery({
 		...getRepositoryOptions({ path: { shortId: repositoryId } }),
 	});
-	const { isDoctorRunning: hasActiveDoctorTask } = useRepositoryDoctorTask(repositoryId);
+	const { activeDoctorTask } = useRepositoryDoctorTask(repositoryId);
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -89,12 +89,7 @@ export default function RepositoryDetailsPage({
 	});
 
 	const cancelDoctor = useMutation({
-		...cancelDoctorMutation(),
-		onSuccess: (result) => {
-			if (result.status === "reset") {
-				toast.info("Doctor state reset");
-			}
-		},
+		...cancelTaskMutation(),
 		onError: (error) => {
 			toast.error("Failed to cancel doctor", {
 				description: parseError(error)?.message,
@@ -111,7 +106,7 @@ export default function RepositoryDetailsPage({
 		deleteRepo.mutate({ path: { shortId: repository.shortId } });
 	};
 
-	const isDoctorRunning = hasActiveDoctorTask || startDoctor.isPending;
+	const isDoctorRunning = activeDoctorTask !== null || startDoctor.isPending;
 	const displayStatus = isDoctorRunning ? "doctor" : repository.status;
 
 	return (
@@ -149,12 +144,12 @@ export default function RepositoryDetailsPage({
 							</div>
 						</div>
 						<div className="flex items-center gap-2">
-							{isDoctorRunning ? (
+							{activeDoctorTask ? (
 								<Button
 									type="button"
 									variant="destructive"
 									loading={cancelDoctor.isPending}
-									onClick={() => cancelDoctor.mutate({ path: { shortId: repository.shortId } })}
+									onClick={() => cancelDoctor.mutate({ path: { taskId: activeDoctorTask.id } })}
 								>
 									<Square className="h-4 w-4 mr-2" />
 									Cancel doctor

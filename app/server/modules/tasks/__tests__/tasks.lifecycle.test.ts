@@ -123,6 +123,7 @@ describe("runTaskLifecycle", () => {
 		const lifecycle = runTaskLifecycle({
 			taskId: task.id,
 			label: "test task",
+			cancellable: true,
 			run: (signal) =>
 				new Promise<never>((_, reject) => {
 					signal.addEventListener(

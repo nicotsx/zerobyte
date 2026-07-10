@@ -1,18 +1,21 @@
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
-import { NotFoundError } from "http-errors-enhanced";
+import { ConflictError, NotFoundError } from "http-errors-enhanced";
 import { taskChangedEventName, tasksSnapshotEventName, type TaskEventPayloadMap } from "~/schemas/task-events";
 import { streamEvents } from "../events/server-event-stream";
 import { requireAuth } from "../auth/auth.middleware";
 import {
 	getTaskDto,
+	cancelTaskDto,
 	listTasksDto,
 	listTasksQuery,
 	streamTaskEventsDto,
 	streamTasksEventsDto,
 	type GetTaskDto,
+	type CancelTaskDto,
 	type ListTasksDto,
 } from "./tasks.dto";
+import { requestTaskCancel } from "./tasks.lifecycle";
 import { toTaskDto } from "./tasks.presenter";
 import { taskStore } from "./tasks.store";
 
@@ -106,4 +109,19 @@ export const tasksController = new Hono()
 		}
 
 		return c.json<GetTaskDto>(toTaskDto(task), 200);
+	})
+	.post("/:taskId/cancel", cancelTaskDto, async (c) => {
+		const organizationId = c.get("organizationId");
+		const taskId = c.req.param("taskId");
+		const task = taskStore.findById({ organizationId, taskId });
+
+		if (!task) {
+			throw new NotFoundError("Task not found");
+		}
+
+		if (!requestTaskCancel(taskId)) {
+			throw new ConflictError("Task is not cancellable or is no longer running");
+		}
+
+		return c.json<CancelTaskDto>({ status: "cancelling" }, 202);
 	});

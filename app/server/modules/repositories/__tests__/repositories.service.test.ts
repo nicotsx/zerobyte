@@ -619,7 +619,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 			]),
 		);
 
-		const restoreMock = vi.fn(() => Promise.resolve(createPendingRestoreStart()));
+		const restoreMock = vi.fn<typeof agentManager.startRestore>(() => Promise.resolve(createPendingRestoreStart()));
 		vi.spyOn(agentManager, "startRestore").mockImplementation(restoreMock);
 
 		return {
@@ -737,7 +737,7 @@ describe("repositoriesService.restoreSnapshot", () => {
 				resourceId: repositoryShortId,
 			});
 			expect(task?.id).toBe(restoreId);
-			expect(task?.status).toBe("queued");
+			expect(task?.status).toBe("running");
 		} finally {
 			releaseExclusive();
 			await fs.rm(targetPath, { recursive: true, force: true });

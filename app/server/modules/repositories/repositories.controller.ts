@@ -11,7 +11,6 @@ import {
 	deleteSnapshotsBody,
 	deleteSnapshotsDto,
 	startDoctorDto,
-	cancelDoctorDto,
 	getRepositoryDto,
 	getRepositoryStatsDto,
 	refreshRepositoryStatsDto,
@@ -38,7 +37,6 @@ import {
 	type DeleteSnapshotDto,
 	type DeleteSnapshotsResponseDto,
 	type StartDoctorDto,
-	type CancelDoctorDto,
 	type GetRepositoryDto,
 	type GetRepositoryStatsDto,
 	type RefreshRepositoryStatsDto,
@@ -246,13 +244,6 @@ export const repositoriesController = new Hono()
 		const result = await repositoriesService.startDoctor(shortId);
 
 		return c.json<StartDoctorDto>(result, 202);
-	})
-	.delete("/:shortId/doctor", cancelDoctorDto, async (c) => {
-		const shortId = asShortId(c.req.param("shortId"));
-
-		const result = await repositoriesService.cancelDoctor(shortId);
-
-		return c.json<CancelDoctorDto>(result, 200);
 	})
 	.post("/:shortId/unlock", unlockRepositoryDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

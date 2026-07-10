@@ -7,6 +7,7 @@ import type {
 } from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
 import { config } from "../../core/config";
+import { toMessage } from "../../utils/errors";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
@@ -41,7 +42,6 @@ type AgentRunBackupRequest = {
 type AgentStartRestoreRequest = {
 	payload: RestoreRunPayload;
 	signal: AbortSignal;
-	onStarted: () => void;
 	onProgress: (progress: RestoreExecutionProgress) => void;
 };
 
@@ -226,8 +226,12 @@ const requestRestoreCancellation = async (agentId: string, restoreId: string) =>
 		return true;
 	}
 
-	if (await Effect.runPromise(runtime.cancelRestore(agentId, { restoreId }))) {
-		return true;
+	try {
+		if (await Effect.runPromise(runtime.cancelRestore(agentId, { restoreId }))) {
+			return true;
+		}
+	} catch (error) {
+		logger.warn(`Failed to send restore cancellation for ${restoreId}: ${toMessage(error)}`);
 	}
 
 	resolveActiveRestoreRun(restoreId, { status: "cancelled" });
@@ -323,12 +327,7 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 			break;
 		}
 		case "restore.started": {
-			const activeRestoreRun = getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
-			if (!activeRestoreRun) {
-				break;
-			}
-
-			activeRestoreRun.onStarted();
+			getActiveRestoreRun(event.payload.restoreId, event.type, event.agentId);
 			break;
 		}
 		case "restore.progress": {
@@ -488,7 +487,6 @@ export const agentManager = {
 			getActiveRestoresByRestoreId().set(request.payload.restoreId, {
 				agentId,
 				restoreId: request.payload.restoreId,
-				onStarted: request.onStarted,
 				onProgress: request.onProgress,
 				resolve,
 				cancellationRequested: false,
@@ -504,11 +502,20 @@ export const agentManager = {
 				};
 			}
 
+			const cancelOnAbort = () => {
+				void requestRestoreCancellation(agentId, request.payload.restoreId);
+			};
+			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
-				await requestRestoreCancellation(agentId, request.payload.restoreId);
+				cancelOnAbort();
 			}
 
-			return { status: "started", result: completion };
+			return {
+				status: "started",
+				result: completion.finally(() => {
+					request.signal.removeEventListener("abort", cancelOnAbort);
+				}),
+			};
 		} catch (error) {
 			clearActiveRestoreRun(request.payload.restoreId);
 			throw error;

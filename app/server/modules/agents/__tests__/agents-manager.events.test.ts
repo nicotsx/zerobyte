@@ -298,18 +298,40 @@ test("runBackup requests cancellation when the abort signal fires while sending"
 	await stopAgentController();
 });
 
+test("startRestore requests cancellation when the abort signal fires after dispatch", async () => {
+	resetAgentRuntime();
+	controllerMock.sendRestore.mockImplementation(() => Effect.succeed(true));
+	controllerMock.cancelRestore.mockImplementation(() => Effect.succeed(false));
+	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
+	const abortController = new AbortController();
+
+	await startAgentController();
+	const started = await agentManager.startRestore("local", {
+		payload: restorePayload,
+		signal: abortController.signal,
+		onProgress: vi.fn(),
+	});
+	if (started.status !== "started") {
+		throw new Error("Expected restore to start");
+	}
+
+	abortController.abort();
+
+	await expect(started.result).resolves.toEqual({ status: "cancelled" });
+	expect(controllerMock.cancelRestore).toHaveBeenCalledWith("local", { restoreId: "restore-1" });
+	await stopAgentController();
+});
+
 test("restore events are delivered to the running restore callbacks", async () => {
 	resetAgentRuntime();
 	controllerMock.sendRestore.mockImplementation(() => Effect.succeed(true));
 	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
-	const onStarted = vi.fn();
 	const onProgress = vi.fn();
 
 	await startAgentController();
 	const started = await agentManager.startRestore("local", {
 		payload: restorePayload,
 		signal: new AbortController().signal,
-		onStarted,
 		onProgress,
 	});
 	if (started.status !== "started") {
@@ -350,7 +372,6 @@ test("restore events are delivered to the running restore callbacks", async () =
 		status: "completed",
 		result: { message_type: "summary", files_restored: 2, files_skipped: 1 },
 	});
-	expect(onStarted).toHaveBeenCalledOnce();
 	expect(onProgress).toHaveBeenCalledWith({ percent_done: 0.5 });
 	await stopAgentController();
 });
@@ -364,13 +385,11 @@ test("agent disconnect cancels only restores owned by that agent", async () => {
 	const localStarted = await agentManager.startRestore("local", {
 		payload: restorePayload,
 		signal: new AbortController().signal,
-		onStarted: vi.fn(),
 		onProgress: vi.fn(),
 	});
 	const remoteStarted = await agentManager.startRestore("remote", {
 		payload: fromPartial<RestoreRunPayload>({ restoreId: "restore-2" }),
 		signal: new AbortController().signal,
-		onStarted: vi.fn(),
 		onProgress: vi.fn(),
 	});
 	if (localStarted.status !== "started" || remoteStarted.status !== "started") {

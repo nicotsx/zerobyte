@@ -10,7 +10,7 @@ import type { Repository } from "../../../db/schema";
 import { repositoriesTable } from "../../../db/schema";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
 import type { TaskResult } from "~/schemas/tasks";
-import { requestTaskCancel, runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
+import { runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
 
 type DoctorCommandParams = {
@@ -181,10 +181,6 @@ const executeDoctor = async (repository: Repository, signal: AbortSignal): Promi
 	}
 };
 
-export const cancelDoctorTask = (taskId: string) => {
-	return requestTaskCancel(taskId);
-};
-
 export const createDoctorCommand = (params: DoctorCommandParams) => {
 	return {
 		start: () => {
@@ -201,6 +197,7 @@ export const createDoctorCommand = (params: DoctorCommandParams) => {
 			void runTaskLifecycle({
 				taskId: task.id,
 				label: "doctor task",
+				cancellable: true,
 				onStarted: async () => {
 					await db
 						.update(repositoriesTable)

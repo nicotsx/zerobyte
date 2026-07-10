@@ -397,32 +397,6 @@ export const startDoctorDto = describeRoute({
 	},
 });
 
-const cancelDoctorResponse = z.discriminatedUnion("status", [
-	z.object({ status: z.literal("cancelled") }),
-	z.object({ status: z.literal("reset") }),
-]);
-
-export type CancelDoctorDto = z.infer<typeof cancelDoctorResponse>;
-
-export const cancelDoctorDto = describeRoute({
-	description: "Cancel a running doctor operation on a repository",
-	tags: ["Repositories"],
-	operationId: "cancelDoctor",
-	responses: {
-		200: {
-			description: "Doctor operation cancelled",
-			content: {
-				"application/json": {
-					schema: resolver(cancelDoctorResponse),
-				},
-			},
-		},
-		409: {
-			description: "No doctor operation is currently running",
-		},
-	},
-});
-
 const rcloneRemoteSchema = z.object({
 	name: z.string(),
 	type: z.string(),

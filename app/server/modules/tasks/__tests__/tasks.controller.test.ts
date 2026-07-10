@@ -6,6 +6,7 @@ import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-eve
 import type { TaskResourceType } from "~/schemas/tasks";
 import { createTestSession } from "~/test/helpers/auth";
 import { taskStore } from "../tasks.store";
+import { runTaskLifecycle } from "../tasks.lifecycle";
 
 const app = createApp();
 
@@ -84,6 +85,46 @@ beforeEach(async () => {
 });
 
 describe("tasksController", () => {
+	test("requests cancellation for a cancellable running task", async () => {
+		const session = await createTestSession();
+		const task = createRestoreTask(session.organizationId);
+		const lifecycle = runTaskLifecycle({
+			taskId: task.id,
+			label: "restore task",
+			cancellable: true,
+			run: (signal) =>
+				new Promise<never>((_, reject) => {
+					signal.addEventListener("abort", () => reject(new DOMException("Cancelled", "AbortError")), {
+						once: true,
+					});
+				}),
+		});
+
+		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
+			method: "POST",
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(202);
+		await expect(res.json()).resolves.toEqual({ status: "cancelling" });
+		await lifecycle;
+		expect(taskStore.findById({ organizationId: session.organizationId, taskId: task.id })?.status).toBe(
+			"cancelled",
+		);
+	});
+
+	test("rejects cancellation for a task without cancellation support", async () => {
+		const session = await createTestSession();
+		const task = createTask(session.organizationId);
+
+		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
+			method: "POST",
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(409);
+	});
+
 	test("returns a task by id", async () => {
 		const session = await createTestSession();
 		const task = createTask(session.organizationId);

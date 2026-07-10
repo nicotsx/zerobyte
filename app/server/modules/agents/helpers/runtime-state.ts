@@ -38,7 +38,6 @@ type ActiveBackupRun = {
 type ActiveRestoreRun = {
 	agentId: string;
 	restoreId: string;
-	onStarted: () => void;
 	onProgress: (progress: RestoreExecutionProgress) => void;
 	resolve: (result: RestoreExecutionResult) => void;
 	cancellationRequested: boolean;

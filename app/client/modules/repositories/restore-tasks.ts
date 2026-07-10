@@ -33,34 +33,45 @@ export const getActiveRestoreTask = (tasks: ListTasksResponse): RestoreTask | nu
 	return task as RestoreTask;
 };
 
+const latestTask = (tasks: Array<RestoreTask | null>) =>
+	tasks.reduce<RestoreTask | null>((latest, task) => {
+		if (!task) return latest;
+		if (!latest || task.updatedAt > latest.updatedAt) return task;
+		if (task.updatedAt === latest.updatedAt && task.id >= latest.id) return task;
+		return latest;
+	}, null);
+
 export const useRestoreTask = (
 	repositoryId: string,
 	snapshotId: string,
 	startedTaskId?: string,
 	initialActiveTask?: RestoreTask | null,
 ) => {
-	const [retainedFinishedTask, setRetainedFinishedTask] = useState<RestoreTask | null>(null);
+	const [lastFinishedTask, setLastFinishedTask] = useState<RestoreTask | null>(null);
 	const filter = restoreTasksFilter(repositoryId, snapshotId);
 	const { data: activeRestoreTasks } = useActiveTasks(filter, {
 		initialTasks: initialActiveTask ? [initialActiveTask] : undefined,
-		onTaskFinished: setRetainedFinishedTask,
+		onTaskFinished: setLastFinishedTask,
 	});
-	const { task: exactStartedTask } = useTask<RestoreTask>(startedTaskId);
-	const activeRestoreTask = activeRestoreTasks?.[0] ?? null;
-	const restoreTask = exactStartedTask ?? activeRestoreTask ?? retainedFinishedTask;
-	const taskIsActive = restoreTask ? isTaskActive(restoreTask) : false;
-	const finishedRestoreTask = restoreTask && !taskIsActive ? restoreTask : null;
+	const { task: startedTask } = useTask<RestoreTask>(startedTaskId);
+	const restoreTask = latestTask([startedTask, activeRestoreTasks?.[0] ?? null, lastFinishedTask]);
+	const activeRestoreTaskId =
+		restoreTask && isTaskActive(restoreTask)
+			? restoreTask.id
+			: restoreTask === null && startedTaskId !== undefined
+				? startedTaskId
+				: null;
+	const taskIsActive = restoreTask !== null && activeRestoreTaskId === restoreTask.id;
 
 	const clearFinishedRestoreTask = useCallback(() => {
-		setRetainedFinishedTask(null);
+		setLastFinishedTask(null);
 	}, []);
 
-	const restoreProgress = taskIsActive ? (restoreTask?.progress?.progress ?? null) : null;
-
 	return {
-		restoreProgress,
-		finishedRestoreTask,
+		restoreProgress: taskIsActive ? (restoreTask?.progress?.progress ?? null) : null,
+		finishedRestoreTask: restoreTask && !taskIsActive ? restoreTask : null,
 		clearFinishedRestoreTask,
-		isRestoreRunning: (startedTaskId !== undefined && exactStartedTask === null) || taskIsActive,
+		activeRestoreTaskId,
+		isRestoreRunning: activeRestoreTaskId !== null,
 	};
 };

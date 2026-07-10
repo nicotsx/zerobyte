@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw } from "lucide-react";
+import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw, Square } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
@@ -20,7 +20,7 @@ import {
 import { FolderSelector } from "~/client/components/folder-selector";
 import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-tree-browser";
 import { RestoreProgress } from "~/client/components/restore-progress";
-import { restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useRestoreTask, type RestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
 import { isPathWithin } from "@zerobyte/core/utils";
@@ -92,8 +92,16 @@ export function RestoreForm({
 		restoreProgress,
 		finishedRestoreTask,
 		clearFinishedRestoreTask,
+		activeRestoreTaskId,
 		isRestoreRunning: isRestoreTaskRunning,
 	} = useRestoreTask(repository.shortId, snapshotId, restoreStart?.restoreId, initialActiveTask);
+
+	const cancelRestore = useMutation({
+		...cancelTaskMutation(),
+		onError: (error) => {
+			handleRepositoryError("Failed to cancel restore", error, repository.shortId);
+		},
+	});
 
 	const handleRestore = useCallback(() => {
 		const excludeXattrValues = excludeXattr
@@ -211,10 +219,25 @@ export function RestoreForm({
 							</p>
 						</TooltipContent>
 					</Tooltip>
-					<Button variant="primary" onClick={handleRestore} disabled={isRestoreRunning || !canRestore}>
-						<RotateCcw className="h-4 w-4 mr-2" />
-						{getRestoreButtonText()}
-					</Button>
+					{activeRestoreTaskId ? (
+						<Button
+							variant="destructive"
+							loading={cancelRestore.isPending}
+							onClick={() =>
+								cancelRestore.mutate({
+									path: { taskId: activeRestoreTaskId },
+								})
+							}
+						>
+							<Square className="h-4 w-4 mr-2" />
+							Cancel restore
+						</Button>
+					) : (
+						<Button variant="primary" onClick={handleRestore} disabled={isRestoreRunning || !canRestore}>
+							<RotateCcw className="h-4 w-4 mr-2" />
+							{getRestoreButtonText()}
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -372,12 +395,18 @@ export function RestoreForm({
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>
-							{finishedRestoreTask?.status === "succeeded" ? "Restore completed" : "Restore failed"}
+							{finishedRestoreTask?.status === "succeeded"
+								? "Restore completed"
+								: finishedRestoreTask?.status === "cancelled"
+									? "Restore cancelled"
+									: "Restore failed"}
 						</AlertDialogTitle>
 						<AlertDialogDescription>
 							{finishedRestoreTask?.status === "succeeded"
 								? `Snapshot ${snapshotId} was restored successfully.`
-								: finishedRestoreTask?.error || `Snapshot ${snapshotId} could not be restored.`}
+								: finishedRestoreTask?.status === "cancelled"
+									? finishedRestoreTask.error || `Restore of snapshot ${snapshotId} was cancelled.`
+									: finishedRestoreTask?.error || `Snapshot ${snapshotId} could not be restored.`}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

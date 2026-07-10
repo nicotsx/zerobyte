@@ -2445,35 +2445,6 @@ export type RestoreSnapshotResponses = {
 
 export type RestoreSnapshotResponse = RestoreSnapshotResponses[keyof RestoreSnapshotResponses];
 
-export type CancelDoctorData = {
-    body?: never;
-    path: {
-        shortId: string;
-    };
-    query?: never;
-    url: '/api/v1/repositories/{shortId}/doctor';
-};
-
-export type CancelDoctorErrors = {
-    /**
-     * No doctor operation is currently running
-     */
-    409: unknown;
-};
-
-export type CancelDoctorResponses = {
-    /**
-     * Doctor operation cancelled
-     */
-    200: {
-        status: 'cancelled';
-    } | {
-        status: 'reset';
-    };
-};
-
-export type CancelDoctorResponse = CancelDoctorResponses[keyof CancelDoctorResponses];
-
 export type StartDoctorData = {
     body?: never;
     path: {
@@ -5910,6 +5881,33 @@ export type GetTaskResponses = {
 };
 
 export type GetTaskResponse = GetTaskResponses[keyof GetTaskResponses];
+
+export type CancelTaskData = {
+    body?: never;
+    path: {
+        taskId: string;
+    };
+    query?: never;
+    url: '/api/v1/tasks/{taskId}/cancel';
+};
+
+export type CancelTaskErrors = {
+    /**
+     * Task is not cancellable or is no longer running
+     */
+    409: unknown;
+};
+
+export type CancelTaskResponses = {
+    /**
+     * Task cancellation requested
+     */
+    202: {
+        status: 'cancelling';
+    };
+};
+
+export type CancelTaskResponse = CancelTaskResponses[keyof CancelTaskResponses];
 
 export type CreateDesktopSessionData = {
     body: {
