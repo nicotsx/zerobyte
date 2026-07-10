@@ -15,6 +15,7 @@ export function RestoreSnapshotPage(props: Props) {
 
 	return (
 		<RestoreForm
+			key={`${repository.shortId}:${snapshotId}`}
 			repository={repository}
 			snapshotId={snapshotId}
 			returnPath={returnPath}

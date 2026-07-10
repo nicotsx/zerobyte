@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ListTasksResponse } from "~/client/api-client";
 import { cleanup, createTestQueryClient, render, waitFor } from "~/test/test-utils";
-import { taskChangedEventName } from "~/schemas/task-events";
+import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import type { TaskDto } from "~/schemas/tasks";
-import { taskEventsOptions, useTaskEvents } from "../use-task-events";
+import { taskEventsOptions, useActiveTasks, type TaskOfKind } from "../use-active-tasks";
 
 class MockEventSource {
 	static instances: MockEventSource[] = [];
@@ -42,22 +42,25 @@ class MockEventSource {
 const originalEventSource = globalThis.EventSource;
 
 const filter = {
-	kind: "deleteSnapshots",
+	kind: "restore",
 	resourceType: "repository",
 	resourceId: "repo-1",
+	operationKey: "snap-1",
 } as const;
 
 const activeTask: TaskDto = {
-	id: "task-delete",
-	kind: "deleteSnapshots",
+	id: "task-restore",
+	kind: "restore",
 	status: "running",
 	resourceType: "repository",
 	resourceId: "repo-1",
+	operationKey: "snap-1",
 	targetAgentId: null,
 	input: {
-		kind: "deleteSnapshots",
+		kind: "restore",
 		repositoryId: "repo-1",
-		snapshotIds: ["snap-1"],
+		snapshotId: "snap-1",
+		target: "/restore",
 	},
 	progress: null,
 	result: null,
@@ -72,17 +75,20 @@ const activeTask: TaskDto = {
 const finishedTask: TaskDto = {
 	...activeTask,
 	status: "succeeded",
-	result: { kind: "deleteSnapshots", deletedSnapshotIds: ["snap-1"] },
+	result: {
+		kind: "restore",
+		result: { message_type: "summary", files_restored: 1, files_skipped: 0 },
+	},
 	updatedAt: 1711411201000,
 	finishedAt: 1711411201000,
 };
 
-const TaskEventsConsumer = ({ onTaskFinished }: { onTaskFinished: (task: TaskDto) => void }) => {
-	useTaskEvents(filter, { onTaskFinished });
+const ActiveTasksConsumer = ({ onTaskFinished }: { onTaskFinished: (task: TaskOfKind<"restore">) => void }) => {
+	useActiveTasks(filter, { onTaskFinished });
 	return null;
 };
 
-describe("useTaskEvents", () => {
+describe("useActiveTasks", () => {
 	beforeEach(() => {
 		MockEventSource.reset();
 		globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
@@ -94,20 +100,31 @@ describe("useTaskEvents", () => {
 		MockEventSource.reset();
 	});
 
-	test("ignores stale active events after a task has finished", async () => {
+	test("uses the exact operation URL and cache while reporting the finished restore once", async () => {
 		const queryClient = createTestQueryClient();
 		const onTaskFinished = vi.fn();
 
-		render(<TaskEventsConsumer onTaskFinished={onTaskFinished} />, { queryClient });
+		render(<ActiveTasksConsumer onTaskFinished={onTaskFinished} />, { queryClient });
 
 		await waitFor(() => {
 			expect(MockEventSource.instances).toHaveLength(1);
+		});
+		expect(MockEventSource.instances[0]?.url).toBe(
+			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1",
+		);
+
+		MockEventSource.instances[0]?.emit(tasksSnapshotEventName, [activeTask]);
+		await waitFor(() => {
+			expect(queryClient.getQueryData<ListTasksResponse>(taskEventsOptions(filter).queryKey)).toEqual([
+				activeTask,
+			]);
 		});
 
 		MockEventSource.instances[0]?.emit(taskChangedEventName, finishedTask);
 		await waitFor(() => {
 			expect(onTaskFinished).toHaveBeenCalledTimes(1);
 		});
+		expect(onTaskFinished.mock.calls[0]?.[0].input.snapshotId).toBe("snap-1");
 
 		MockEventSource.instances[0]?.emit(taskChangedEventName, activeTask);
 

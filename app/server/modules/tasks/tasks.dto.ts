@@ -7,6 +7,7 @@ export const listTasksQuery = z
 		kind: taskKindSchema.optional(),
 		resourceType: taskResourceTypeSchema.optional(),
 		resourceId: z.string().optional(),
+		operationKey: z.string().optional(),
 	})
 	.superRefine((query, ctx) => {
 		const hasResourceType = Boolean(query.resourceType);

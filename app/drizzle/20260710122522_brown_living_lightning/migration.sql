@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `operation_key` text;

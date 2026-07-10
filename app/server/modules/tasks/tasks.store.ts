@@ -20,6 +20,7 @@ type TaskResource = {
 	kind: TaskKind;
 	resourceType: TaskResourceType;
 	resourceId: string;
+	operationKey?: string;
 };
 
 type CreateTaskParams = {
@@ -27,6 +28,7 @@ type CreateTaskParams = {
 	organizationId: string;
 	resourceType: TaskResourceType;
 	resourceId: string;
+	operationKey?: string | null;
 	targetAgentId?: string | null;
 	input: TaskInput;
 };
@@ -89,6 +91,16 @@ const subscribeToTaskChanges = (taskId: string, listener: TaskChangeListener) =>
 	};
 };
 
+const taskMatchesFilter = (task: ParsedTask, filter: Partial<TaskResource>) => {
+	if (filter.organizationId && task.organizationId !== filter.organizationId) return false;
+	if (filter.kind && task.kind !== filter.kind) return false;
+	if (filter.resourceType && task.resourceType !== filter.resourceType) return false;
+	if (filter.resourceId && task.resourceId !== filter.resourceId) return false;
+	if (filter.operationKey && task.operationKey !== filter.operationKey) return false;
+
+	return true;
+};
+
 const activeStatusCondition = () => inArray(tasksTable.status, activeTaskStatuses);
 
 const byIdCondition = (id: string) => eq(tasksTable.id, id);
@@ -100,6 +112,7 @@ const buildActiveConditions = (params: Partial<TaskResource> = {}) => {
 	if (params.kind) conditions.push(eq(tasksTable.kind, params.kind));
 	if (params.resourceType) conditions.push(eq(tasksTable.resourceType, params.resourceType));
 	if (params.resourceId) conditions.push(eq(tasksTable.resourceId, params.resourceId));
+	if (params.operationKey) conditions.push(eq(tasksTable.operationKey, params.operationKey));
 
 	return conditions;
 };
@@ -137,6 +150,7 @@ export const taskStore = {
 				status: "queued",
 				resourceType: params.resourceType,
 				resourceId: params.resourceId,
+				operationKey: params.operationKey ?? null,
 				targetAgentId: params.targetAgentId ?? null,
 				input,
 				progress: null,
@@ -268,10 +282,6 @@ export const taskStore = {
 		return row ? parseTask(row) : null;
 	},
 
-	listActiveByResource: (params: TaskResource): ParsedTask[] => {
-		return listActiveTasks(params);
-	},
-
 	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {
 		return listActiveTasks(params);
 	},
@@ -280,8 +290,12 @@ export const taskStore = {
 		return subscribeToTaskChanges(taskId, listener);
 	},
 
-	subscribeToAllChanges: (listener: TaskChangeListener) => {
-		return subscribeToAllTaskChanges(listener);
+	subscribeToAllChanges: (filter: ListActiveTasksParams, listener: TaskChangeListener) => {
+		return subscribeToAllTaskChanges((task) => {
+			if (taskMatchesFilter(task, filter)) {
+				listener(task);
+			}
+		});
 	},
 
 	findById: (params: FindTaskParams): ParsedTask | null => {

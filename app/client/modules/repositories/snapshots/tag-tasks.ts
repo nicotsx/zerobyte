@@ -2,28 +2,26 @@ import { useMemo } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { ListSnapshotsResponse, ListTasksData } from "~/client/api-client";
+import type { ListSnapshotsResponse } from "~/client/api-client";
 import { listSnapshotsQueryKey } from "~/client/api-client/@tanstack/react-query.gen";
-import { taskEventsOptions, useTaskEvents } from "~/client/hooks/use-task-events";
+import {
+	taskEventsOptions,
+	useActiveTasks,
+	type TaskEventsQuery,
+	type TaskOfKind,
+} from "~/client/hooks/use-active-tasks";
 import type { BackupSchedule } from "~/client/lib/types";
-import type { TaskDto } from "~/schemas/tasks";
 
-type TagSnapshotsTaskInput = Extract<TaskDto["input"], { kind: "tagSnapshots" }>;
-type TagSnapshotsTaskResult = Extract<NonNullable<TaskDto["result"]>, { kind: "tagSnapshots" }>;
-type TagSnapshotsTask = TaskDto & {
-	input: TagSnapshotsTaskInput;
-	result: TagSnapshotsTaskResult | null;
-};
-type TagSnapshotTasksFilter = NonNullable<ListTasksData["query"]>;
+type TagSnapshotsTask = TaskOfKind<"tagSnapshots">;
 
 const emptyTaggingSnapshotIds = new Set<string>();
 
-const tagSnapshotTasksFilter = (repositoryId: string): TagSnapshotTasksFilter => {
+const tagSnapshotTasksFilter = (repositoryId: string) => {
 	return {
 		kind: "tagSnapshots",
 		resourceType: "repository",
 		resourceId: repositoryId,
-	};
+	} satisfies TaskEventsQuery;
 };
 
 const applyTaskTagsToSnapshot = (snapshot: ListSnapshotsResponse[number], task: TagSnapshotsTask) => {
@@ -131,8 +129,8 @@ export const tagSnapshotTasksOptions = (repositoryId: string) => {
 export const useTaggingSnapshots = (repositoryId: string, backups: BackupSchedule[]) => {
 	const queryClient = useQueryClient();
 	const filter = tagSnapshotTasksFilter(repositoryId);
-	const tagTasks = useTaskEvents(filter, {
-		onTaskFinished: (task) => applyTagSnapshotsTaskFinished(queryClient, task as TagSnapshotsTask, backups),
+	const tagTasks = useActiveTasks(filter, {
+		onTaskFinished: (task) => applyTagSnapshotsTaskFinished(queryClient, task, backups),
 	});
 
 	const taggingSnapshotIds = useMemo(() => {
@@ -141,9 +139,7 @@ export const useTaggingSnapshots = (repositoryId: string, backups: BackupSchedul
 		}
 
 		const snapshotIds = new Set<string>();
-		const tagSnapshotTasks = tagTasks.data as TagSnapshotsTask[];
-
-		for (const task of tagSnapshotTasks) {
+		for (const task of tagTasks.data) {
 			for (const snapshotId of task.input.snapshotIds) {
 				snapshotIds.add(snapshotId);
 			}

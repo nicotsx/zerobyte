@@ -368,6 +368,7 @@ export const tasksTable = sqliteTable(
 		status: text("status").notNull(),
 		resourceType: text("resource_type").notNull(),
 		resourceId: text("resource_id").notNull(),
+		operationKey: text("operation_key"),
 		targetAgentId: text("target_agent_id"),
 		input: text("input", { mode: "json" }).$type<TaskJson>().notNull(),
 		progress: text("progress", { mode: "json" }).$type<TaskJson | null>(),

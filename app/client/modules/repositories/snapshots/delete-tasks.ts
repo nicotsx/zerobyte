@@ -2,27 +2,25 @@ import { useMemo } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { ListSnapshotsResponse, ListTasksData } from "~/client/api-client";
+import type { ListSnapshotsResponse } from "~/client/api-client";
 import { listSnapshotsQueryKey } from "~/client/api-client/@tanstack/react-query.gen";
-import { taskEventsOptions, useTaskEvents } from "~/client/hooks/use-task-events";
-import type { TaskDto } from "~/schemas/tasks";
+import {
+	taskEventsOptions,
+	useActiveTasks,
+	type TaskEventsQuery,
+	type TaskOfKind,
+} from "~/client/hooks/use-active-tasks";
 
-type DeleteSnapshotsTaskInput = Extract<TaskDto["input"], { kind: "deleteSnapshots" }>;
-type DeleteSnapshotsTaskResult = Extract<NonNullable<TaskDto["result"]>, { kind: "deleteSnapshots" }>;
-type DeleteSnapshotsTask = TaskDto & {
-	input: DeleteSnapshotsTaskInput;
-	result: DeleteSnapshotsTaskResult | null;
-};
-type DeleteSnapshotTasksFilter = NonNullable<ListTasksData["query"]>;
+type DeleteSnapshotsTask = TaskOfKind<"deleteSnapshots">;
 
 const emptyDeletingSnapshotIds = new Set<string>();
 
-const deleteSnapshotTasksFilter = (repositoryId: string): DeleteSnapshotTasksFilter => {
+const deleteSnapshotTasksFilter = (repositoryId: string) => {
 	return {
 		kind: "deleteSnapshots",
 		resourceType: "repository",
 		resourceId: repositoryId,
-	};
+	} satisfies TaskEventsQuery;
 };
 
 const removeSnapshotsFromCache = (queryClient: QueryClient, repositoryId: string, snapshotIds: string[]) => {
@@ -62,8 +60,8 @@ export const deleteSnapshotTasksOptions = (repositoryId: string) => {
 export const useDeletingSnapshots = (repositoryId: string) => {
 	const queryClient = useQueryClient();
 	const filter = deleteSnapshotTasksFilter(repositoryId);
-	const deleteTasks = useTaskEvents(filter, {
-		onTaskFinished: (task) => applyDeleteSnapshotsTaskFinished(queryClient, task as DeleteSnapshotsTask),
+	const deleteTasks = useActiveTasks(filter, {
+		onTaskFinished: (task) => applyDeleteSnapshotsTaskFinished(queryClient, task),
 	});
 
 	const deletingSnapshotIds = useMemo(() => {
@@ -72,9 +70,7 @@ export const useDeletingSnapshots = (repositoryId: string) => {
 		}
 
 		const snapshotIds = new Set<string>();
-		const deleteSnapshotTasks = deleteTasks.data as DeleteSnapshotsTask[];
-
-		for (const task of deleteSnapshotTasks) {
+		for (const task of deleteTasks.data) {
 			for (const snapshotId of task.input.snapshotIds) {
 				snapshotIds.add(snapshotId);
 			}

@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import type { ListTasksResponse } from "~/client/api-client";
 import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, createTestQueryClient, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 import { taskChangedEventName } from "~/schemas/task-events";
+import type { TaskOfKind } from "~/client/hooks/use-active-tasks";
+import type { Repository } from "~/client/lib/types";
 import { fromAny } from "@total-typescript/shoehorn";
+import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -54,9 +56,9 @@ class MockEventSource {
 const originalEventSource = globalThis.EventSource;
 const repositoryId = "repo-1";
 const snapshotId = "snap-1";
-type TaskResponse = ListTasksResponse[number];
-type RestoreProgress = Extract<NonNullable<TaskResponse["progress"]>, { kind: "restore" }>["progress"];
-type RestoreResult = Extract<NonNullable<TaskResponse["result"]>, { kind: "restore" }>;
+type TaskResponse = TaskOfKind<"restore">;
+type RestoreProgress = NonNullable<TaskResponse["progress"]>["progress"];
+type RestoreResult = NonNullable<TaskResponse["result"]>;
 
 const createRestoreTask = (
 	options: {
@@ -79,6 +81,7 @@ const createRestoreTask = (
 		status,
 		resourceType: "repository",
 		resourceId: repositoryId,
+		operationKey: options.snapshotId ?? snapshotId,
 		targetAgentId: null,
 		input: {
 			kind: "restore",
@@ -119,13 +122,13 @@ const renderRestoreForm = (queryClient = createTestQueryClient()) => {
 	);
 };
 
-const renderRestoreFormWithPrefetchedTasks = async (tasks: ListTasksResponse) => {
+const renderRestoreFormWithPrefetchedTask = async (task: TaskResponse) => {
 	server.use(
-		http.get("/api/v1/tasks", () => HttpResponse.json(tasks)),
+		http.get("/api/v1/tasks", () => HttpResponse.json([task])),
 		snapshotFilesHandler,
 	);
 	const queryClient = createTestQueryClient();
-	await queryClient.ensureQueryData(restoreTasksOptions(repositoryId));
+	await queryClient.ensureQueryData(restoreTasksOptions(repositoryId, snapshotId));
 	renderRestoreForm(queryClient);
 
 	await waitFor(() => {
@@ -147,30 +150,23 @@ afterEach(() => {
 });
 
 describe("RestoreForm", () => {
-	test("recovers the matching active restore from the prefetched task snapshot", async () => {
-		const matchingRestore = createRestoreTask({ updatedAt: 1711411200000 });
-		const newerRestoreForAnotherSnapshot = createRestoreTask({
-			id: "task-other-snapshot",
-			snapshotId: "snap-2",
-			updatedAt: 1711411201000,
-		});
-
-		const eventSource = await renderRestoreFormWithPrefetchedTasks([
-			newerRestoreForAnotherSnapshot,
-			matchingRestore,
-		]);
+	test("recovers the active restore from the prefetched exact filtered collection", async () => {
+		const taskStream = await renderRestoreFormWithPrefetchedTask(createRestoreTask());
 
 		const restoreButton = await screen.findByRole("button", { name: "Restoring..." });
 		expect(restoreButton.hasAttribute("disabled")).toBe(true);
 		expect(screen.getByText("Restore in progress")).toBeTruthy();
-		expect(eventSource?.url).toBe("/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1");
+		expect(taskStream?.url).toBe(
+			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1",
+		);
+		expect(MockEventSource.instances).toHaveLength(1);
 	});
 
-	test("renders canonical task progress without creating another event stream", async () => {
+	test("renders canonical task progress from the exact filtered stream", async () => {
 		const activeRestore = createRestoreTask();
-		const eventSource = await renderRestoreFormWithPrefetchedTasks([activeRestore]);
+		const taskStream = await renderRestoreFormWithPrefetchedTask(activeRestore);
 
-		eventSource?.emit(
+		taskStream?.emit(
 			taskChangedEventName,
 			createRestoreTask({
 				progress: {
@@ -218,7 +214,16 @@ describe("RestoreForm", () => {
 		expect(screen.getByRole("button", { name: "Restoring..." }).hasAttribute("disabled")).toBe(true);
 		expect(screen.queryByRole("button", { name: "Restore All" })).toBeNull();
 
-		MockEventSource.instances[0]?.emit(taskChangedEventName, createRestoreTask());
+		await waitFor(() => {
+			expect(
+				MockEventSource.instances.some(
+					(eventSource) => eventSource.url === "/api/v1/tasks/task-restore/events",
+				),
+			).toBe(true);
+		});
+		MockEventSource.instances
+			.find((eventSource) => eventSource.url === "/api/v1/tasks/task-restore/events")
+			?.emit(taskChangedEventName, createRestoreTask());
 
 		expect(await screen.findByRole("button", { name: "Restoring..." })).toBeTruthy();
 	});
@@ -263,9 +268,9 @@ describe("RestoreForm", () => {
 		"clears restoring state and shows $status terminal feedback",
 		async ({ status, result, error, title, description }) => {
 			const activeRestore = createRestoreTask();
-			const eventSource = await renderRestoreFormWithPrefetchedTasks([activeRestore]);
+			const taskStream = await renderRestoreFormWithPrefetchedTask(activeRestore);
 
-			eventSource?.emit(
+			taskStream?.emit(
 				taskChangedEventName,
 				createRestoreTask({
 					status,
@@ -284,6 +289,38 @@ describe("RestoreForm", () => {
 			expect(restoreButton.hasAttribute("disabled")).toBe(false);
 		},
 	);
+
+	test("resets restore lifecycle state when the repository snapshot scope changes", async () => {
+		server.use(snapshotFilesHandler);
+		const repository: Repository = fromAny({ shortId: repositoryId, name: "Repo 1" });
+		const { rerender } = render(
+			<RestoreSnapshotPage repository={repository} snapshotId="snap-1" returnPath="/repositories/repo-1" />,
+		);
+		const firstStreamUrl =
+			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1";
+
+		await waitFor(() => {
+			expect(MockEventSource.instances.some(({ url }) => url === firstStreamUrl)).toBe(true);
+		});
+		const firstStream = MockEventSource.instances.find(({ url }) => url === firstStreamUrl);
+		firstStream?.emit(taskChangedEventName, createRestoreTask());
+		firstStream?.emit(taskChangedEventName, createRestoreTask({ status: "succeeded", updatedAt: 1711411200001 }));
+
+		expect(await screen.findByText("Restore completed")).toBeTruthy();
+
+		rerender(<RestoreSnapshotPage repository={repository} snapshotId="snap-2" returnPath="/repositories/repo-1" />);
+
+		expect(screen.queryByText("Restore completed")).toBeNull();
+		await waitFor(() => {
+			expect(
+				MockEventSource.instances.some(
+					({ url }) =>
+						url ===
+						"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-2",
+				),
+			).toBe(true);
+		});
+	});
 
 	test("restores the selected ancestor folder path from a broader display root", async () => {
 		let restoreRequestBody: unknown;

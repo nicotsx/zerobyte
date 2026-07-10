@@ -16,39 +16,19 @@ import {
 import { toTaskDto } from "./tasks.presenter";
 import { taskStore } from "./tasks.store";
 
-type TaskFilter = NonNullable<Parameters<typeof taskStore.listActive>[0]>;
-
-const taskMatchesFilter = (task: ReturnType<typeof taskStore.listActive>[number], filter: TaskFilter) => {
-	if (filter.organizationId && task.organizationId !== filter.organizationId) {
-		return false;
-	}
-
-	if (filter.kind && task.kind !== filter.kind) {
-		return false;
-	}
-
-	if (filter.resourceType && task.resourceType !== filter.resourceType) {
-		return false;
-	}
-
-	if (filter.resourceId && task.resourceId !== filter.resourceId) {
-		return false;
-	}
-
-	return true;
-};
-
 export const tasksController = new Hono()
 	.use(requireAuth)
 	.get("/", validator("query", listTasksQuery), listTasksDto, async (c) => {
 		const organizationId = c.get("organizationId");
 		const query = c.req.valid("query");
-		const tasks = taskStore.listActive({
+		const filter = {
 			organizationId,
 			kind: query.kind,
 			resourceType: query.resourceType,
 			resourceId: query.resourceId,
-		});
+			operationKey: query.operationKey,
+		};
+		const tasks = taskStore.listActive(filter);
 		const response = tasks.map(toTaskDto);
 
 		return c.json<ListTasksDto>(response, 200);
@@ -61,6 +41,7 @@ export const tasksController = new Hono()
 			kind: query.kind,
 			resourceType: query.resourceType,
 			resourceId: query.resourceId,
+			operationKey: query.operationKey,
 		};
 
 		return streamEvents<TaskEventPayloadMap, typeof taskChangedEventName>(c, {
@@ -76,11 +57,7 @@ export const tasksController = new Hono()
 				});
 			},
 			subscribe: (_eventName, handler) => {
-				return taskStore.subscribeToAllChanges((changedTask) => {
-					if (!taskMatchesFilter(changedTask, filter)) {
-						return;
-					}
-
+				return taskStore.subscribeToAllChanges(filter, (changedTask) => {
 					const taskData = toTaskDto(changedTask);
 					void handler(taskData);
 				});

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		const restoreTaskOptions = restoreTasksOptions(params.repositoryId);
+		const restoreTaskOptions = restoreTasksOptions(params.repositoryId, params.snapshotId);
 		const [snapshot, repository] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({ path: { shortId: params.repositoryId, snapshotId: params.snapshotId } }),

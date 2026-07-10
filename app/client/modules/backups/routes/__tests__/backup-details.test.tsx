@@ -138,6 +138,7 @@ const deleteSnapshotsTask = {
 	status: "running",
 	resourceType: "repository",
 	resourceId: "repo-1",
+	operationKey: null,
 	targetAgentId: null,
 	input: {
 		kind: "deleteSnapshots",

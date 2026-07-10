@@ -5250,6 +5250,7 @@ export type ListTasksData = {
         kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
+        operationKey?: string;
     };
     url: '/api/v1/tasks';
 };
@@ -5264,6 +5265,7 @@ export type ListTasksResponses = {
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
+        operationKey: string | null;
         targetAgentId: string | null;
         input: {
             kind: 'backup';
@@ -5387,6 +5389,7 @@ export type StreamTasksEventsData = {
         kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor';
         resourceType?: 'backup_schedule' | 'repository';
         resourceId?: string;
+        operationKey?: string;
     };
     url: '/api/v1/tasks/events';
 };
@@ -5401,6 +5404,7 @@ export type StreamTasksEventsResponses = {
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
+        operationKey: string | null;
         targetAgentId: string | null;
         input: {
             kind: 'backup';
@@ -5518,6 +5522,7 @@ export type StreamTasksEventsResponses = {
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
+        operationKey: string | null;
         targetAgentId: string | null;
         input: {
             kind: 'backup';
@@ -5653,6 +5658,7 @@ export type StreamTaskEventsResponses = {
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
+        operationKey: string | null;
         targetAgentId: string | null;
         input: {
             kind: 'backup';
@@ -5788,6 +5794,7 @@ export type GetTaskResponses = {
         status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
         resourceType: 'backup_schedule' | 'repository';
         resourceId: string;
+        operationKey: string | null;
         targetAgentId: string | null;
         input: {
             kind: 'backup';

@@ -1,71 +1,50 @@
-import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import type { ListTasksResponse } from "~/client/api-client";
-import { getTaskOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import { taskEventsOptions, useTaskEvents, type TaskEventsQuery } from "~/client/hooks/use-task-events";
-import { activeTaskStatuses } from "~/schemas/tasks";
+import { useCallback, useState } from "react";
+import {
+	isTaskActive,
+	taskEventsOptions,
+	useActiveTasks,
+	type TaskEventsQuery,
+	type TaskOfKind,
+} from "~/client/hooks/use-active-tasks";
+import { useTask } from "~/client/hooks/use-task";
 
-type TaskResponse = ListTasksResponse[number];
+type RestoreTask = TaskOfKind<"restore">;
 
-const restoreTasksFilter = (repositoryId: string): TaskEventsQuery => ({
-	kind: "restore",
-	resourceType: "repository",
-	resourceId: repositoryId,
-});
-
-const matchesRestore = (task: TaskResponse, snapshotId: string) => {
-	return task.kind === "restore" && task.input.kind === "restore" && task.input.snapshotId === snapshotId;
+const restoreTasksFilter = (repositoryId: string, snapshotId: string) => {
+	return {
+		kind: "restore",
+		resourceType: "repository",
+		resourceId: repositoryId,
+		operationKey: snapshotId,
+	} satisfies TaskEventsQuery;
 };
 
-const isActive = (task: TaskResponse) => {
-	return activeTaskStatuses.some((status) => status === task.status);
-};
-
-export const restoreTasksOptions = (repositoryId: string) => {
-	return taskEventsOptions(restoreTasksFilter(repositoryId));
+export const restoreTasksOptions = (repositoryId: string, snapshotId: string) => {
+	return taskEventsOptions(restoreTasksFilter(repositoryId, snapshotId));
 };
 
 export const useRestoreTask = (repositoryId: string, snapshotId: string, startedTaskId?: string) => {
-	const [streamedFinishedTask, setStreamedFinishedTask] = useState<TaskResponse | null>(null);
-	const { data: streamedTasks } = useTaskEvents(restoreTasksFilter(repositoryId), {
-		onTaskFinished: (task) => {
-			if (matchesRestore(task, snapshotId)) {
-				setStreamedFinishedTask(task);
-			}
-		},
+	const [retainedFinishedTask, setRetainedFinishedTask] = useState<RestoreTask | null>(null);
+	const filter = restoreTasksFilter(repositoryId, snapshotId);
+	const { data: activeRestoreTasks } = useActiveTasks(filter, {
+		onTaskFinished: setRetainedFinishedTask,
 	});
-
-	const streamedActiveTask = streamedTasks?.find((task) => matchesRestore(task, snapshotId)) ?? null;
-	const taskFromStream = streamedActiveTask ?? streamedFinishedTask;
-	const needsFallback = startedTaskId !== undefined && taskFromStream?.id !== startedTaskId;
-
-	const { data: fallbackTask } = useQuery({
-		...getTaskOptions({ path: { taskId: startedTaskId ?? "" } }),
-		enabled: needsFallback,
-		refetchInterval: ({ state }) => (state.data && !isActive(state.data) ? false : 1000),
-	});
-
-	const matchingFallbackTask = fallbackTask && matchesRestore(fallbackTask, snapshotId) ? fallbackTask : null;
-	const restoreTask = needsFallback ? matchingFallbackTask : taskFromStream;
-	const restoreIsActive = restoreTask ? isActive(restoreTask) : false;
-
-	useEffect(() => {
-		if (streamedActiveTask) {
-			setStreamedFinishedTask(null);
-		}
-	}, [streamedActiveTask]);
+	const { task: exactStartedTask } = useTask<RestoreTask>(startedTaskId);
+	const activeRestoreTask = activeRestoreTasks?.[0] ?? null;
+	const restoreTask = exactStartedTask ?? activeRestoreTask ?? retainedFinishedTask;
+	const taskIsActive = restoreTask ? isTaskActive(restoreTask) : false;
+	const finishedRestoreTask = restoreTask && !taskIsActive ? restoreTask : null;
 
 	const clearFinishedRestoreTask = useCallback(() => {
-		setStreamedFinishedTask(null);
+		setRetainedFinishedTask(null);
 	}, []);
 
-	const restoreProgress =
-		restoreIsActive && restoreTask?.progress?.kind === "restore" ? restoreTask.progress.progress : null;
+	const restoreProgress = taskIsActive ? (restoreTask?.progress?.progress ?? null) : null;
 
 	return {
 		restoreProgress,
-		finishedRestoreTask: restoreIsActive ? null : restoreTask,
+		finishedRestoreTask,
 		clearFinishedRestoreTask,
-		isRestoreRunning: restoreTask ? restoreIsActive : startedTaskId !== undefined,
+		isRestoreRunning: (startedTaskId !== undefined && exactStartedTask === null) || taskIsActive,
 	};
 };

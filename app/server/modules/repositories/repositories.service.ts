@@ -38,14 +38,10 @@ import type { RestoreExecutionProgress, RestoreExecutionResult } from "../agents
 import { agentsService } from "../agents/agents.service";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
-import type { ParsedTask, TaskInput } from "~/schemas/tasks";
 import { Effect } from "effect";
 
 const lsLimiters = new Map<string, Effect.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
-
-type RestoreTaskInput = Extract<TaskInput, { kind: "restore" }>;
-type RestoreTask = ParsedTask & { kind: "restore"; input: RestoreTaskInput };
 
 const getBlockedRestoreTargets = () => {
 	return [
@@ -69,9 +65,6 @@ const assertAllowedControllerLocalRestoreTarget = (target: string) => {
 	}
 };
 
-const isRestoreTask = (task: ParsedTask): task is RestoreTask =>
-	task.kind === "restore" && task.input.kind === "restore";
-
 const updateActiveRestoreTask = (restoreId: string, eventName: string, update: () => void) => {
 	try {
 		update();
@@ -89,21 +82,14 @@ const getLsLimiter = (repositoryId: string) => {
 	return limiter;
 };
 
-const findActiveRestoreTask = (
-	organizationId: string,
-	repositoryShortId: string,
-	snapshotId: string,
-): RestoreTask | null => {
-	return (
-		taskStore
-			.listActiveByResource({
-				organizationId,
-				kind: "restore",
-				resourceType: RESTORE_TASK_RESOURCE_TYPE,
-				resourceId: repositoryShortId,
-			})
-			.find((task): task is RestoreTask => isRestoreTask(task) && task.input.snapshotId === snapshotId) ?? null
-	);
+const findActiveRestoreTask = (organizationId: string, repositoryShortId: string, snapshotId: string) => {
+	return taskStore.findActiveByResource({
+		organizationId,
+		kind: "restore",
+		resourceType: RESTORE_TASK_RESOURCE_TYPE,
+		resourceId: repositoryShortId,
+		operationKey: snapshotId,
+	});
 };
 
 const findActiveDoctorTask = (organizationId: string, repositoryShortId: string) => {
@@ -484,6 +470,7 @@ const restoreSnapshot = async (
 		organizationId,
 		resourceType: RESTORE_TASK_RESOURCE_TYPE,
 		resourceId: repository.shortId,
+		operationKey: snapshotId,
 		targetAgentId: useControllerLocalRestoreFallback ? null : executionAgentId,
 		input: { kind: "restore", repositoryId: repository.shortId, snapshotId, target },
 	});

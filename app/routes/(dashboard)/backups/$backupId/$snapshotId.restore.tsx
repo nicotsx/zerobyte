@@ -16,7 +16,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			throw new Response("Not Found", { status: 404 });
 		}
 
-		const restoreTaskOptions = restoreTasksOptions(schedule.data.repository.shortId);
+		const restoreTaskOptions = restoreTasksOptions(schedule.data.repository.shortId, params.snapshotId);
 		const [snapshot, repository] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({

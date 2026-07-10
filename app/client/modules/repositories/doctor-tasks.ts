@@ -1,6 +1,12 @@
 import { toast } from "sonner";
-import { taskEventsOptions, useTaskEvents, type TaskEventsQuery } from "~/client/hooks/use-task-events";
-import type { TaskDto } from "~/schemas/tasks";
+import {
+	taskEventsOptions,
+	useActiveTasks,
+	type TaskEventsQuery,
+	type TaskOfKind,
+} from "~/client/hooks/use-active-tasks";
+
+type DoctorTask = TaskOfKind<"doctor">;
 
 const doctorTasksFilter = (repositoryId: string) => {
 	return {
@@ -10,7 +16,7 @@ const doctorTasksFilter = (repositoryId: string) => {
 	} satisfies TaskEventsQuery;
 };
 
-const applyDoctorTaskFinished = (task: TaskDto) => {
+const applyDoctorTaskFinished = (task: DoctorTask) => {
 	if (task.status === "cancelled") {
 		toast.info("Doctor cancelled");
 		return;
@@ -23,7 +29,7 @@ const applyDoctorTaskFinished = (task: TaskDto) => {
 		return;
 	}
 
-	const result = task.result?.kind === "doctor" ? task.result : null;
+	const result = task.result;
 	if (result?.repositoryStatus === "healthy") {
 		toast.success("Doctor completed");
 		return;
@@ -39,7 +45,7 @@ export const doctorTasksOptions = (repositoryId: string) => {
 };
 
 export const useRepositoryDoctorTask = (repositoryId: string) => {
-	const doctorTasks = useTaskEvents(doctorTasksFilter(repositoryId), {
+	const doctorTasks = useActiveTasks(doctorTasksFilter(repositoryId), {
 		onTaskFinished: applyDoctorTaskFinished,
 	});
 	const activeDoctorTask = doctorTasks.data?.[0] ?? null;

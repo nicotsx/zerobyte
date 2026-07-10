@@ -28,15 +28,16 @@ const createTask = (
 	});
 };
 
-const createRestoreTask = (organizationId: string, repositoryId = "repo-short") => {
+const createRestoreTask = (organizationId: string, repositoryId = "repo-short", snapshotId = "snapshot-1") => {
 	return taskStore.create({
 		organizationId,
 		resourceType: "repository",
 		resourceId: repositoryId,
+		operationKey: snapshotId,
 		input: {
 			kind: "restore",
 			repositoryId,
-			snapshotId: "snapshot-1",
+			snapshotId,
 			target: "/tmp/restore",
 		},
 	});
@@ -230,5 +231,56 @@ describe("tasksController", () => {
 		expect(byKindAndResource.status).toBe(200);
 		const byKindAndResourceBody = await byKindAndResource.json();
 		expect(byKindAndResourceBody.map((task: { id: string }) => task.id).sort()).toEqual([repoTask.id]);
+	});
+
+	test("lists only the task for the exact operation key", async () => {
+		const session = await createTestSession();
+		const matchingTask = createRestoreTask(session.organizationId, "repo-short", "snapshot-1");
+		createRestoreTask(session.organizationId, "repo-short", "snapshot-2");
+
+		const res = await app.request(
+			"/api/v1/tasks?kind=restore&resourceType=repository&resourceId=repo-short&operationKey=snapshot-1",
+			{ headers: session.headers },
+		);
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.map((task: { id: string }) => task.id)).toEqual([matchingTask.id]);
+	});
+
+	test("streams task snapshots and updates only for the exact operation key", async () => {
+		const session = await createTestSession();
+		const matchingTask = createRestoreTask(session.organizationId, "repo-short", "snapshot-1");
+		const otherSnapshotTask = createRestoreTask(session.organizationId, "repo-short", "snapshot-2");
+
+		const res = await app.request(
+			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-short&operationKey=snapshot-1",
+			{ headers: session.headers },
+		);
+
+		expect(res.status).toBe(200);
+
+		const reader = res.body!.getReader();
+		const decoder = new TextDecoder();
+		let text = "";
+
+		try {
+			text = await readReaderUntil(reader, decoder, text, matchingTask.id);
+
+			expect(text).toContain(`event: ${tasksSnapshotEventName}`);
+			expect(text).toContain(matchingTask.id);
+			expect(text).not.toContain(otherSnapshotTask.id);
+
+			taskStore.fail(otherSnapshotTask.id, "other snapshot failed");
+			taskStore.fail(matchingTask.id, "matching snapshot failed");
+			text = await readReaderUntil(reader, decoder, text, "matching snapshot failed");
+
+			expect(text).toContain(`event: ${taskChangedEventName}`);
+			expect(text).toContain("matching snapshot failed");
+			expect(text).not.toContain("other snapshot failed");
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
 	});
 });

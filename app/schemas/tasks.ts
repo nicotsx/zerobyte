@@ -93,6 +93,7 @@ const taskShape = {
 	status: taskStatusSchema,
 	resourceType: taskResourceTypeSchema,
 	resourceId: z.string(),
+	operationKey: z.string().nullable(),
 	targetAgentId: z.string().nullable(),
 	input: taskInputSchema,
 	progress: taskProgressSchema.nullable(),
