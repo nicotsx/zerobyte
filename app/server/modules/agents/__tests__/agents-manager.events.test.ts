@@ -298,7 +298,7 @@ test("runBackup requests cancellation when the abort signal fires while sending"
 	await stopAgentController();
 });
 
-test("startRestore requests cancellation when the abort signal fires after dispatch", async () => {
+test("startRestore waits for agent confirmation when restore cancellation cannot be dispatched", async () => {
 	resetAgentRuntime();
 	controllerMock.sendRestore.mockImplementation(() => Effect.succeed(true));
 	controllerMock.cancelRestore.mockImplementation(() => Effect.succeed(false));
@@ -315,10 +315,34 @@ test("startRestore requests cancellation when the abort signal fires after dispa
 		throw new Error("Expected restore to start");
 	}
 
+	let settled = false;
+	void started.result.finally(() => {
+		settled = true;
+	});
 	abortController.abort();
 
+	await vi.waitFor(() => {
+		expect(controllerMock.cancelRestore).toHaveBeenCalledWith("local", { restoreId: "restore-1" });
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	await Promise.resolve();
+	expect(settled).toBe(false);
+
+	controllerMock.onEvent?.({
+		type: "restore.cancelled",
+		agentId: "local",
+		agentName: "Local Agent",
+		payload: {
+			restoreId: "restore-1",
+			organizationId: "org-1",
+			repositoryId: "repo-1",
+			snapshotId: "snapshot-1",
+			message: "Restore was cancelled",
+		},
+	});
+
 	await expect(started.result).resolves.toEqual({ status: "cancelled" });
-	expect(controllerMock.cancelRestore).toHaveBeenCalledWith("local", { restoreId: "restore-1" });
 	await stopAgentController();
 });
 

@@ -230,12 +230,15 @@ const requestRestoreCancellation = async (agentId: string, restoreId: string) =>
 		if (await Effect.runPromise(runtime.cancelRestore(agentId, { restoreId }))) {
 			return true;
 		}
+
+		logger.warn(
+			`Failed to send restore cancellation for ${restoreId}; waiting for the agent to report its outcome`,
+		);
 	} catch (error) {
 		logger.warn(`Failed to send restore cancellation for ${restoreId}: ${toMessage(error)}`);
 	}
 
-	resolveActiveRestoreRun(restoreId, { status: "cancelled" });
-	return true;
+	return false;
 };
 
 const handleAgentManagerEvent = (event: AgentManagerEvent) => {
