@@ -21,7 +21,7 @@ export function SortableCard({ isDragging, uniqueId, children }: PropsWithChildr
 	};
 
 	return (
-		<div ref={setNodeRef} style={style} className="relative group">
+		<div ref={setNodeRef} style={style} className="relative group min-w-0">
 			<ClientOnly>
 				<div
 					{...attributes}

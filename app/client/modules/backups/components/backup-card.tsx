@@ -10,8 +10,13 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 	const { formatShortDateTime } = useTimeFormat();
 
 	return (
-		<Link key={schedule.shortId} to="/backups/$backupId" params={{ backupId: schedule.shortId }}>
-			<Card interactive key={schedule.shortId} className="flex flex-col h-full">
+		<Link
+			key={schedule.shortId}
+			to="/backups/$backupId"
+			params={{ backupId: schedule.shortId }}
+			className="block min-w-0 h-full"
+		>
+			<Card interactive key={schedule.shortId} className="flex flex-col h-full min-w-0 overflow-hidden">
 				<CardHeader className="pb-3 overflow-hidden">
 					<div className="flex items-center justify-between gap-2 w-full">
 						<div className="flex items-center gap-2 flex-1 min-w-0 w-0">
@@ -33,19 +38,25 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 						<span className="truncate text-strong-accent font-mono">{schedule.repository.name}</span>
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="flex-1 space-y-4">
+				<CardContent className="flex-1 min-w-0 space-y-4">
 					<div className="space-y-3">
-						<div className="flex items-center text-sm gap-2">
+						<div className="flex min-w-0 items-center text-sm gap-2">
 							<span className="text-muted-foreground shrink-0">Schedule</span>
-							<div className="flex-1 border-b border-dashed border-border/80 dark:border-border/50" />
-							<code className="text-xs text-foreground font-mono bg-muted px-2 py-1 rounded shrink-0">
+							<div className="min-w-0 flex-1 border-b border-dashed border-border/80 dark:border-border/50" />
+							<code
+								className="max-w-[60%] truncate text-xs text-foreground font-mono bg-muted px-2 py-1 rounded"
+								title={schedule.cronExpression || undefined}
+							>
 								{schedule.cronExpression || "Manual only"}
 							</code>
 						</div>
 						<div className="flex items-center text-sm gap-2">
 							<span className="text-muted-foreground shrink-0">Last backup</span>
 							<div className="flex-1 border-b border-dashed border-border/80 dark:border-border/50" />
-							<TimeAgo date={schedule.lastBackupAt} className="text-foreground font-mono text-sm shrink-0" />
+							<TimeAgo
+								date={schedule.lastBackupAt}
+								className="text-foreground font-mono text-sm shrink-0"
+							/>
 						</div>
 						<div className="flex items-center text-sm gap-2">
 							<span className="text-muted-foreground shrink-0">Next backup</span>
