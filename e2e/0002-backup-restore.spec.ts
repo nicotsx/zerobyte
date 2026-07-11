@@ -510,7 +510,7 @@ test("can delete a snapshot from the repository snapshots tab", async ({ page },
 	await expect(page.getByText("Delete 1 snapshots?")).toBeVisible();
 	await page.getByRole("button", { name: "Delete 1 snapshots" }).click();
 
-	await expect(page.getByText("Snapshots deleted successfully")).toBeVisible({ timeout: 30000 });
+	await expect(page.getByText("Snapshot deleted")).toBeVisible({ timeout: 30000 });
 	await expect(page.getByRole("checkbox", { name: /Select snapshot/ })).toHaveCount(0);
 	await expect(page.getByRole("link", { name: names.backupName, exact: true })).toHaveCount(0);
 });

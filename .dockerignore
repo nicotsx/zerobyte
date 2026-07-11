@@ -25,3 +25,4 @@ node_modules/**
 dist/**
 .output/**
 app/test/integration/artifacts/**
+**/node_modules/**
