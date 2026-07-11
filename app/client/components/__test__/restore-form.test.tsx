@@ -153,13 +153,30 @@ describe("RestoreForm", () => {
 	test("recovers the active restore from the prefetched exact filtered collection", async () => {
 		const taskStream = await renderRestoreFormWithPrefetchedTask(createRestoreTask());
 
-		const restoreButton = await screen.findByRole("button", { name: "Restoring..." });
-		expect(restoreButton.hasAttribute("disabled")).toBe(true);
+		const restoreButton = await screen.findByRole("button", { name: "Cancel restore" });
+		expect(restoreButton.hasAttribute("disabled")).toBe(false);
 		expect(screen.getByText("Restore in progress")).toBeTruthy();
 		expect(taskStream?.url).toBe(
 			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1",
 		);
 		expect(MockEventSource.instances).toHaveLength(1);
+	});
+
+	test("cancels the exact active restore task", async () => {
+		let cancelledRestoreId: string | undefined;
+		server.use(
+			http.post("/api/v1/tasks/:taskId/cancel", ({ params }) => {
+				cancelledRestoreId = String(params.taskId);
+				return HttpResponse.json({ status: "cancelling" }, { status: 202 });
+			}),
+		);
+		await renderRestoreFormWithPrefetchedTask(createRestoreTask({ id: "restore-task-123" }));
+
+		await userEvent.click(screen.getByRole("button", { name: "Cancel restore" }));
+
+		await waitFor(() => {
+			expect(cancelledRestoreId).toBe("restore-task-123");
+		});
 	});
 
 	test("renders canonical task progress from the exact filtered stream", async () => {
@@ -211,7 +228,7 @@ describe("RestoreForm", () => {
 			expect(queryClient.getMutationCache().getAll()[0]?.state.status).toBe("success");
 		});
 
-		expect(screen.getByRole("button", { name: "Restoring..." }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Cancel restore" }).hasAttribute("disabled")).toBe(false);
 		expect(screen.queryByRole("button", { name: "Restore All" })).toBeNull();
 
 		await waitFor(() => {
@@ -225,7 +242,37 @@ describe("RestoreForm", () => {
 			.find((eventSource) => eventSource.url === "/api/v1/tasks/task-restore/events")
 			?.emit(taskChangedEventName, createRestoreTask());
 
-		expect(await screen.findByRole("button", { name: "Restoring..." })).toBeTruthy();
+		expect(await screen.findByRole("button", { name: "Cancel restore" })).toBeTruthy();
+	});
+
+	test("uses the newest task update across the exact and filtered streams", async () => {
+		server.use(
+			snapshotFilesHandler,
+			http.post("/api/v1/repositories/:shortId/restore", () =>
+				HttpResponse.json({ restoreId: "task-restore", status: "started" }, { status: 202 }),
+			),
+		);
+		renderRestoreForm();
+
+		await userEvent.click(screen.getByRole("button", { name: "Restore All" }));
+		await waitFor(() => {
+			expect(MockEventSource.instances).toHaveLength(2);
+		});
+
+		const exactStream = MockEventSource.instances.find(
+			(eventSource) => eventSource.url === "/api/v1/tasks/task-restore/events",
+		);
+		const filteredStream = MockEventSource.instances.find((eventSource) =>
+			eventSource.url.includes("/tasks/events?"),
+		);
+		exactStream?.emit(taskChangedEventName, createRestoreTask({ updatedAt: 1711411200001 }));
+		filteredStream?.emit(
+			taskChangedEventName,
+			createRestoreTask({ status: "succeeded", updatedAt: 1711411200002 }),
+		);
+
+		expect(await screen.findByText("Restore completed")).toBeTruthy();
+		expect(screen.queryByRole("button", { name: "Cancel restore" })).toBeNull();
 	});
 
 	test.each([
@@ -254,8 +301,8 @@ describe("RestoreForm", () => {
 			status: "cancelled" as const,
 			result: null,
 			error: null,
-			title: "Restore failed",
-			description: "Snapshot snap-1 could not be restored.",
+			title: "Restore cancelled",
+			description: "Restore of snapshot snap-1 was cancelled.",
 		},
 		{
 			status: "stale" as const,

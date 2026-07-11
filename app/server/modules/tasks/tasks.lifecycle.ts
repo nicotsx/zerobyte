@@ -17,6 +17,7 @@ export class TaskCancelledError<TResult extends TaskResult = TaskResult> extends
 type TaskLifecycleOptions<TResult extends TaskResult> = {
 	taskId: string;
 	label: string;
+	cancellable?: boolean;
 	run: (signal: AbortSignal) => Promise<TResult>;
 	onStarted?: (task: ParsedTask) => void | Promise<void>;
 	onSucceeded?: (task: ParsedTask, result: TResult) => void;
@@ -97,7 +98,9 @@ export const requestTaskCancel = (taskId: string) => {
 
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
-	abortControllers.set(options.taskId, abortController);
+	if (options.cancellable) {
+		abortControllers.set(options.taskId, abortController);
+	}
 
 	try {
 		const startedTask = taskStore.markRunning(options.taskId);
@@ -133,6 +136,8 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 			emitTaskLifecycleEvent("task:finished", failedTask);
 		}
 	} finally {
-		abortControllers.delete(options.taskId);
+		if (options.cancellable) {
+			abortControllers.delete(options.taskId);
+		}
 	}
 };

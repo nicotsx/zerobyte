@@ -29,12 +29,10 @@ import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
 import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { emptyRepositoryStats, refreshStoredRepositoryStats } from "./helpers/repository-stats";
-import { restoreExecutor } from "./restore-executor";
 import type { ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
 import { commands } from "./commands";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
-import type { RestoreExecutionProgress, RestoreExecutionResult } from "../agents/agents-manager";
 import { agentsService } from "../agents/agents.service";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
@@ -65,14 +63,6 @@ const assertAllowedControllerLocalRestoreTarget = (target: string) => {
 	}
 };
 
-const updateActiveRestoreTask = (restoreId: string, eventName: string, update: () => void) => {
-	try {
-		update();
-	} catch (error) {
-		logger.warn(`Received ${eventName} for inactive restore ${restoreId}: ${toMessage(error)}`);
-	}
-};
-
 const getLsLimiter = (repositoryId: string) => {
 	let limiter = lsLimiters.get(repositoryId);
 	if (!limiter) {
@@ -99,56 +89,6 @@ const findActiveDoctorTask = (organizationId: string, repositoryShortId: string)
 		resourceType: "repository",
 		resourceId: repositoryShortId,
 	});
-};
-
-const markRestoreStarted = (restoreId: string) => {
-	updateActiveRestoreTask(restoreId, "restore.started", () => taskStore.markRunning(restoreId));
-};
-
-const updateRestoreProgress = (restoreId: string, progress: RestoreExecutionProgress) => {
-	updateActiveRestoreTask(restoreId, "restore.progress", () =>
-		taskStore.updateProgress(restoreId, { kind: "restore", progress }),
-	);
-};
-
-const completeRestoreTask = (
-	restoreId: string,
-	result: Extract<RestoreExecutionResult, { status: "completed" }>["result"],
-) => {
-	updateActiveRestoreTask(restoreId, "restore.completed", () =>
-		taskStore.complete(restoreId, { kind: "restore", result }),
-	);
-};
-
-const failRestoreTask = (restoreId: string, error: string) => {
-	updateActiveRestoreTask(restoreId, "restore.failed", () => taskStore.fail(restoreId, error));
-};
-
-const cancelRestoreTask = (restoreId: string, message?: string) => {
-	updateActiveRestoreTask(restoreId, "restore.cancelled", () => taskStore.cancel(restoreId, message ?? null));
-};
-
-const finishRestoreExecution = async (restoreId: string, resultPromise: Promise<RestoreExecutionResult>) => {
-	try {
-		const result = await resultPromise;
-
-		switch (result.status) {
-			case "completed":
-				completeRestoreTask(restoreId, result.result);
-				return;
-			case "failed":
-				failRestoreTask(restoreId, result.error);
-				return;
-			case "cancelled":
-				cancelRestoreTask(restoreId, result.message);
-				return;
-			case "unavailable":
-				failRestoreTask(restoreId, result.error.message);
-				return;
-		}
-	} catch (error) {
-		failRestoreTask(restoreId, toMessage(error));
-	}
 };
 
 const assertAllowedRestoreAgent = async (agentId: string, organizationId: string) => {
@@ -466,43 +406,25 @@ const restoreSnapshot = async (
 		throw new ConflictError("A restore is already running for this snapshot");
 	}
 
-	const task = taskStore.create({
+	const repositoryConfig = await decryptRepositoryConfig(repository.config);
+	const command = commands.createRestore({
 		organizationId,
-		resourceType: RESTORE_TASK_RESOURCE_TYPE,
-		resourceId: repository.shortId,
-		operationKey: snapshotId,
-		targetAgentId: useControllerLocalRestoreFallback ? null : executionAgentId,
-		input: { kind: "restore", repositoryId: repository.shortId, snapshotId, target },
+		repositoryId: repository.id,
+		repositoryShortId: repository.shortId,
+		repositoryConfig,
+		snapshotId,
+		target,
+		executionTarget: useControllerLocalRestoreFallback
+			? { kind: "controller" }
+			: { kind: "agent", agentId: executionAgentId },
+		options: {
+			basePath,
+			...restoreExecutionOptions,
+		},
 	});
-	const restoreId = task.id;
-	try {
-		const repositoryConfig = await decryptRepositoryConfig(repository.config);
-		const execution = restoreExecutor.start({
-			restoreId,
-			organizationId,
-			repositoryId: repository.id,
-			repositoryShortId: repository.shortId,
-			repositoryConfig,
-			snapshotId,
-			target,
-			executionAgentId,
-			options: {
-				basePath,
-				...restoreExecutionOptions,
-			},
-			onStarted: () => markRestoreStarted(restoreId),
-			onProgress: (progress) => updateRestoreProgress(restoreId, progress),
-		});
 
-		void finishRestoreExecution(restoreId, execution.result);
-
-		return { restoreId, status: "started" as const };
-	} catch (error) {
-		failRestoreTask(restoreId, toMessage(error));
-		throw error;
-	}
+	return command.start();
 };
-
 const dumpSnapshot = async (shortId: ShortId, snapshotId: string, path?: string, kind?: DumpPathKind) => {
 	const organizationId = getOrganizationId();
 	const repository = await findRepository(shortId);
@@ -646,34 +568,6 @@ const startDoctor = async (shortId: ShortId) => {
 
 	const command = commands.createDoctor({ repository });
 	return command.start();
-};
-
-const cancelDoctor = async (shortId: ShortId) => {
-	const organizationId = getOrganizationId();
-	const repository = await findRepository(shortId);
-
-	if (!repository) {
-		throw new NotFoundError("Repository not found");
-	}
-
-	const activeDoctorTask = findActiveDoctorTask(organizationId, repository.shortId);
-	if (!activeDoctorTask) {
-		if (repository.status === "doctor") {
-			await db
-				.update(repositoriesTable)
-				.set({ status: "unknown" })
-				.where(eq(repositoriesTable.id, repository.id));
-			return { status: "reset" as const };
-		}
-
-		throw new ConflictError("No doctor operation is currently running");
-	}
-
-	if (!commands.cancelDoctor(activeDoctorTask.id)) {
-		throw new ConflictError("No doctor operation is currently running");
-	}
-
-	return { status: "cancelled" as const };
 };
 
 const deleteSnapshot = async (shortId: ShortId, snapshotId: string) => {
@@ -932,7 +826,6 @@ export const repositoriesService = {
 	getSnapshotDetails,
 	checkHealth,
 	startDoctor,
-	cancelDoctor,
 	deleteSnapshot,
 	deleteSnapshots,
 	tagSnapshots,

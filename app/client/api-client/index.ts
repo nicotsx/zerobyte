@@ -3,7 +3,7 @@
 
 export {
 	browseFilesystem,
-	cancelDoctor,
+	cancelTask,
 	createApiKey,
 	createBackupSchedule,
 	createDesktopSession,
@@ -94,10 +94,10 @@ export type {
 	BrowseFilesystemData,
 	BrowseFilesystemResponse,
 	BrowseFilesystemResponses,
-	CancelDoctorData,
-	CancelDoctorErrors,
-	CancelDoctorResponse,
-	CancelDoctorResponses,
+	CancelTaskData,
+	CancelTaskErrors,
+	CancelTaskResponse,
+	CancelTaskResponses,
 	ClientOptions,
 	CreateApiKeyData,
 	CreateApiKeyErrors,

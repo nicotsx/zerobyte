@@ -33,6 +33,12 @@ export type ListTasksDto = z.infer<typeof listTasksResponse>;
 
 export type GetTaskDto = z.infer<typeof taskResponse>;
 
+const cancelTaskResponse = z.object({
+	status: z.literal("cancelling"),
+});
+
+export type CancelTaskDto = z.infer<typeof cancelTaskResponse>;
+
 export const listTasksDto = describeRoute({
 	description: "List active tasks",
 	tags: ["Tasks"],
@@ -61,6 +67,25 @@ export const getTaskDto = describeRoute({
 					schema: resolver(taskResponse),
 				},
 			},
+		},
+	},
+});
+
+export const cancelTaskDto = describeRoute({
+	description: "Request cancellation of a running task",
+	tags: ["Tasks"],
+	operationId: "cancelTask",
+	responses: {
+		202: {
+			description: "Task cancellation requested",
+			content: {
+				"application/json": {
+					schema: resolver(cancelTaskResponse),
+				},
+			},
+		},
+		409: {
+			description: "Task is not cancellable or is no longer running",
 		},
 	},
 });
