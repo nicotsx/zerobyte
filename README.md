@@ -50,7 +50,7 @@ In order to run Zerobyte, you need to have Docker and Docker Compose installed o
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.40
+    image: ghcr.io/nicotsx/zerobyte:v0.41
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -176,7 +176,7 @@ If you only need to back up locally-mounted folders and don't require remote sha
 ```yaml
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.40
+    image: ghcr.io/nicotsx/zerobyte:v0.41
     container_name: zerobyte
     restart: unless-stopped
     ports:
@@ -215,7 +215,7 @@ If you want to backup a local directory on the same host where Zerobyte is runni
 ```diff
 services:
   zerobyte:
-    image: ghcr.io/nicotsx/zerobyte:v0.40
+    image: ghcr.io/nicotsx/zerobyte:v0.41
     container_name: zerobyte
     restart: unless-stopped
     cap_add:
@@ -290,7 +290,7 @@ Zerobyte can use [rclone](https://rclone.org/) to support 40+ cloud storage prov
    ```diff
    services:
      zerobyte:
-       image: ghcr.io/nicotsx/zerobyte:v0.40
+       image: ghcr.io/nicotsx/zerobyte:v0.41
        container_name: zerobyte
        restart: unless-stopped
        cap_add:
