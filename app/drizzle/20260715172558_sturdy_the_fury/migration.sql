@@ -1,0 +1,1 @@
+CREATE INDEX `tasks_resource_operation_finished_idx` ON `tasks` (`organization_id`,`kind`,`resource_type`,`resource_id`,`operation_key`,`finished_at`);

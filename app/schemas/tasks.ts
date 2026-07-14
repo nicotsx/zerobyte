@@ -9,10 +9,11 @@ import { z } from "zod";
 
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
 export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
+export const finishedTaskStatuses = ["cancelled", "succeeded", "failed", "stale"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
-export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor"]);
+export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"]);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
@@ -44,6 +45,13 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("doctor"),
 		repositoryId: z.string(),
+	}),
+	z.object({
+		kind: z.literal("mirrorSync"),
+		scheduleId: z.number(),
+		scheduleShortId: z.string(),
+		mirrorRepositoryId: z.string(),
+		snapshotIds: z.array(z.string()).optional(),
 	}),
 ]);
 
@@ -83,6 +91,9 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 		lastChecked: z.number(),
 		lastError: z.string().nullable(),
 		doctorResult: doctorResultSchema,
+	}),
+	z.object({
+		kind: z.literal("mirrorSync"),
 	}),
 ]);
 

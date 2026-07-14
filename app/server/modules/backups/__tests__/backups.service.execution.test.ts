@@ -23,9 +23,12 @@ import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 import { volumeService } from "~/server/modules/volumes/volume.service";
 import { db } from "~/server/db/db";
+import { backupSchedulesTable } from "~/server/db/schema";
 import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { eq } from "drizzle-orm";
+import { commands } from "../commands";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -1169,7 +1172,10 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalled();
+		});
 
 		// assert
 		expect(resticCopyMock).toHaveBeenCalledWith(
@@ -1197,7 +1203,10 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalled();
+		});
 
 		// assert
 		expect(resticCopyMock).toHaveBeenCalledWith(
@@ -1213,7 +1222,7 @@ describe("mirror operations", () => {
 
 	test("should skip disabled mirrors", async () => {
 		// arrange
-		const { resticCopyMock } = setup();
+		const { resticCopyMock, refreshStatsMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -1225,7 +1234,10 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id, { enabled: false });
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(refreshStatsMock).toHaveBeenCalled();
+		});
 
 		// assert
 		expect(resticCopyMock).not.toHaveBeenCalled();
@@ -1245,14 +1257,16 @@ describe("mirror operations", () => {
 		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const mirrors = await backupsService.getMirrors(schedule.id);
-		const updatedMirror = mirrors.find((m) => m.id === mirror.id);
-		expect(updatedMirror?.lastCopyStatus).toBe("success");
-		expect(updatedMirror?.lastCopyError).toBeNull();
-		expect(updatedMirror?.lastCopyAt).not.toBeNull();
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.id);
+			const updatedMirror = mirrors.find((m) => m.id === mirror.id);
+			expect(updatedMirror?.lastCopyStatus).toBe("success");
+			expect(updatedMirror?.lastCopyError).toBeNull();
+			expect(updatedMirror?.lastCopyAt).not.toBeNull();
+		});
 	});
 
 	test("should finalize mirror status when mirror settings are updated during copy", async () => {
@@ -1278,15 +1292,17 @@ describe("mirror operations", () => {
 		);
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const mirrors = await backupsService.getMirrors(schedule.id);
-		expect(mirrors).toHaveLength(1);
-		expect(mirrors[0]?.id).not.toBe(originalMirror.id);
-		expect(mirrors[0]?.lastCopyStatus).toBe("success");
-		expect(mirrors[0]?.lastCopyError).toBeNull();
-		expect(mirrors[0]?.lastCopyAt).not.toBeNull();
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.id);
+			expect(mirrors).toHaveLength(1);
+			expect(mirrors[0]?.id).not.toBe(originalMirror.id);
+			expect(mirrors[0]?.lastCopyStatus).toBe("success");
+			expect(mirrors[0]?.lastCopyError).toBeNull();
+			expect(mirrors[0]?.lastCopyAt).not.toBeNull();
+		});
 	});
 
 	test("should update mirror status on failure", async () => {
@@ -1309,14 +1325,16 @@ describe("mirror operations", () => {
 		);
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, null);
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const mirrors = await backupsService.getMirrors(schedule.id);
-		const updatedMirror = mirrors.find((m) => m.id === mirror.id);
-		expect(updatedMirror?.lastCopyStatus).toBe("error");
-		expect(updatedMirror?.lastCopyError).toBe("Copy failed");
-		expect(updatedMirror?.lastCopyAt).not.toBeNull();
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.id);
+			const updatedMirror = mirrors.find((m) => m.id === mirror.id);
+			expect(updatedMirror?.lastCopyStatus).toBe("error");
+			expect(updatedMirror?.lastCopyError).toBe("Copy failed");
+			expect(updatedMirror?.lastCopyAt).not.toBeNull();
+		});
 	});
 
 	test("should run forget on mirror after successful copy when retention policy exists", async () => {
@@ -1337,23 +1355,22 @@ describe("mirror operations", () => {
 		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
-
-		await waitForExpect(() => {
-			expect(resticCopyMock).toHaveBeenCalled();
-		});
+		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		expect(resticForgetMock).toHaveBeenCalledWith(
-			mirrorRepository.config,
-			expect.objectContaining({ keepHourly: 24, keepDaily: 7 }),
-			expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
-		);
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalled();
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				mirrorRepository.config,
+				expect.objectContaining({ keepHourly: 24, keepDaily: 7 }),
+				expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+			);
+		});
 	});
 
 	test("should not run forget on mirror when no retention policy", async () => {
 		// arrange
-		const { resticCopyMock, resticForgetMock } = setup();
+		const { resticForgetMock, refreshStatsMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -1368,14 +1385,175 @@ describe("mirror operations", () => {
 		resticForgetMock.mockClear();
 
 		// act
-		await backupsService.copyToMirrors(schedule.id, sourceRepository, schedule.retentionPolicy);
+		await backupsService.executeBackup(schedule.id);
 
 		await waitForExpect(() => {
-			expect(resticCopyMock).toHaveBeenCalled();
+			expect(refreshStatsMock).toHaveBeenCalled();
 		});
 
 		// assert
 		expect(resticForgetMock).not.toHaveBeenCalled();
+	});
+
+	test("uses the current retention policy when a backup finishes", async () => {
+		const { resticBackupMock, resticCopyMock, resticForgetMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+			retentionPolicy: { keepHourly: 24 },
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		resticBackupMock.mockImplementationOnce(async () => {
+			await db
+				.update(backupSchedulesTable)
+				.set({ retentionPolicy: null })
+				.where(eq(backupSchedulesTable.id, schedule.id));
+			return { exitCode: 0, summary: generateBackupOutput(), error: "" };
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.id);
+			expect(resticCopyMock).toHaveBeenCalled();
+			expect(resticForgetMock).not.toHaveBeenCalled();
+			expect(mirrors[0]?.lastCopyStatus).toBe("success");
+		});
+	});
+
+	test("keeps a completed backup successful when mirror synchronization cannot be started", async () => {
+		const { resticBackupMock, resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		resticBackupMock.mockResolvedValueOnce({ exitCode: 0, summary: "not-json", error: "" });
+
+		await backupsService.executeBackup(schedule.id, true);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(task?.status).toBe("succeeded");
+		expect(task?.error).toBeNull();
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		expect(resticCopyMock).not.toHaveBeenCalled();
+	});
+
+	test("continues enqueueing mirrors when one mirror task cannot be created", async () => {
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const failingMirrorRepository = await createTestRepository();
+		const successfulMirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, failingMirrorRepository.id);
+		await createTestBackupScheduleMirror(schedule.id, successfulMirrorRepository.id);
+		const createMirrorSync = commands.createMirrorSync;
+		vi.spyOn(commands, "createMirrorSync").mockImplementation((plan) => {
+			if (plan.mirrorRepository.id === failingMirrorRepository.id) {
+				return {
+					start: () => {
+						throw new Error("Task persistence failed");
+					},
+				};
+			}
+			return createMirrorSync(plan);
+		});
+
+		await backupsService.executeBackup(schedule.id, true);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(task?.status).toBe("succeeded");
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalledWith(
+				sourceRepository.config,
+				successfulMirrorRepository.config,
+				expect.any(Object),
+			);
+		});
+		expect(resticCopyMock).not.toHaveBeenCalledWith(
+			sourceRepository.config,
+			failingMirrorRepository.config,
+			expect.any(Object),
+		);
+	});
+
+	test("mirrors from the repository used by the completed backup", async () => {
+		const { resticBackupMock, resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const replacementRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		resticBackupMock.mockImplementationOnce(async () => {
+			await db
+				.update(backupSchedulesTable)
+				.set({ repositoryId: replacementRepository.id })
+				.where(eq(backupSchedulesTable.id, schedule.id));
+			return { exitCode: 0, summary: generateBackupOutput(), error: "" };
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalledWith(
+				sourceRepository.config,
+				mirrorRepository.config,
+				expect.any(Object),
+			);
+		});
+	});
+
+	test("keeps the mirror execution plan stable after the task starts", async () => {
+		const { resticCopyMock, resticForgetMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const retentionPolicy = { keepHourly: 24 };
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+			retentionPolicy,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		resticCopyMock.mockImplementationOnce(() =>
+			Effect.promise(async () => {
+				await db
+					.update(backupSchedulesTable)
+					.set({ retentionPolicy: null })
+					.where(eq(backupSchedulesTable.id, schedule.id));
+				return { success: true, output: "" };
+			}),
+		);
+
+		await backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				mirrorRepository.config,
+				retentionPolicy,
+				expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+			);
+		});
 	});
 
 	test("should serialize mirror copies for schedules that share the same mirror repository", async () => {
@@ -1413,26 +1591,93 @@ describe("mirror operations", () => {
 		);
 		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
 
-		const firstCopyPromise = backupsService.copyToMirrors(firstSchedule.id, sourceRepository, null);
+		await backupsService.executeBackup(firstSchedule.id);
 		await firstCopyStarted;
 
-		const secondCopyPromise = backupsService.copyToMirrors(secondSchedule.id, sourceRepository, null);
+		await backupsService.executeBackup(secondSchedule.id);
 
 		try {
-			const secondCopyState = await Promise.race<"resolved" | "timeout">([
-				secondCopyPromise.then(() => "resolved"),
-				new Promise((resolve) => {
-					setTimeout(() => resolve("timeout"), 50);
-				}),
-			]);
-
-			expect(secondCopyState).toBe("timeout");
+			await new Promise((resolve) => setTimeout(resolve, 50));
 			expect(resticCopyMock).toHaveBeenCalledTimes(1);
 		} finally {
 			releaseFirstCopy();
-			await Promise.all([firstCopyPromise, secondCopyPromise]);
 		}
 
-		expect(resticCopyMock).toHaveBeenCalledTimes(2);
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalledTimes(2);
+		});
+	});
+
+	test("queues each completed snapshot while a manual sync is active", async () => {
+		const { resticBackupMock, resticCopyMock, refreshStatsMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		resticBackupMock
+			.mockResolvedValueOnce({
+				exitCode: 0,
+				summary: generateBackupOutput().replace("abcd1234", "snapshot-from-first-backup"),
+				error: "",
+			})
+			.mockResolvedValueOnce({
+				exitCode: 0,
+				summary: generateBackupOutput().replace("abcd1234", "snapshot-from-second-backup"),
+				error: "",
+			});
+
+		let releaseManualCopy = () => {};
+		const manualCopyStarted = new Promise<void>((resolve) => {
+			resticCopyMock.mockImplementationOnce(() =>
+				Effect.promise(
+					() =>
+						new Promise((copyResolve) => {
+							resolve();
+							releaseManualCopy = () => copyResolve({ success: true, output: "" });
+						}),
+				),
+			);
+		});
+
+		await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId, ["snapshot-1"]);
+		await manualCopyStarted;
+		await backupsService.executeBackup(schedule.id);
+		await backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(refreshStatsMock).toHaveBeenCalled();
+		});
+		const activeTaskResource = {
+			organizationId: TEST_ORG_ID,
+			kind: "mirrorSync" as const,
+			resourceType: "backup_schedule" as const,
+			resourceId: schedule.shortId,
+			operationKey: mirrorRepository.shortId,
+		};
+
+		try {
+			expect(taskStore.listActive(activeTaskResource)).toHaveLength(3);
+			expect(resticCopyMock).toHaveBeenCalledTimes(1);
+		} finally {
+			releaseManualCopy();
+		}
+
+		await waitForExpect(() => {
+			expect(taskStore.listActive(activeTaskResource)).toHaveLength(0);
+		});
+		expect(resticCopyMock).toHaveBeenCalledTimes(3);
+		expect(resticCopyMock).toHaveBeenCalledWith(
+			sourceRepository.config,
+			mirrorRepository.config,
+			expect.objectContaining({ snapshotIds: ["snapshot-from-first-backup"] }),
+		);
+		expect(resticCopyMock).toHaveBeenCalledWith(
+			sourceRepository.config,
+			mirrorRepository.config,
+			expect.objectContaining({ snapshotIds: ["snapshot-from-second-backup"] }),
+		);
 	});
 });

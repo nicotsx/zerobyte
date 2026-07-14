@@ -9,13 +9,14 @@ import { notificationsService } from "../../notifications/notifications.service"
 import { getOrganizationId } from "~/server/core/request-context";
 import type { BackupProgressEventDto } from "~/schemas/events-dto";
 import { calculateNextRun } from "../backup.helpers";
-import { scheduleQueries } from "../backups.queries";
+import { mirrorQueries, scheduleQueries } from "../backups.queries";
 import type { BackupExecutionProgress } from "../../agents/agents-manager";
 import { repositoriesService } from "../../repositories/repositories.service";
 import { volumeService } from "../../volumes/volume.service";
 import { config } from "../../../core/config";
 import { LOCAL_AGENT_ID } from "../../agents/constants";
-import { copyToMirrors, runForget } from "./backup-maintenance";
+import { commands } from "../commands";
+import { runForget } from "./backup-maintenance";
 
 interface BackupContext {
 	schedule: BackupSchedule;
@@ -158,16 +159,55 @@ export function updateBackupProgress(ctx: BackupContext, progress: BackupExecuti
 	});
 }
 
+export async function startPostBackupMirrorSyncs(
+	ctx: BackupContext,
+	scheduleId: number,
+	result: ResticBackupOutputDto | null,
+) {
+	const [schedule, mirrors] = await Promise.all([
+		scheduleQueries.findById(scheduleId, ctx.organizationId),
+		mirrorQueries.findEnabledBySchedule(scheduleId),
+	]);
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+	if (mirrors.length === 0) {
+		return;
+	}
+	if (!result?.snapshot_id) {
+		throw new Error("Completed backup did not return a snapshot ID for mirror synchronization");
+	}
+
+	const snapshotIds = [result.snapshot_id];
+
+	for (const mirror of mirrors) {
+		try {
+			commands
+				.createMirrorSync({
+					organizationId: ctx.organizationId,
+					scheduleId: schedule.id,
+					scheduleShortId: schedule.shortId,
+					sourceRepository: ctx.repository,
+					mirrorRepository: mirror.repository,
+					retentionPolicy: schedule.retentionPolicy,
+					customResticParams: schedule.customResticParams ?? [],
+					snapshotIds,
+				})
+				.start();
+		} catch (error) {
+			logger.error(
+				`Failed to start mirror sync for schedule ${scheduleId} and repository ${mirror.repository.shortId}: ${toMessage(error)}`,
+			);
+		}
+	}
+}
+
 async function runPostBackupMaintenance(ctx: BackupContext, scheduleId: number) {
 	if (ctx.schedule.retentionPolicy) {
 		await runForget(scheduleId, undefined, ctx.organizationId).catch((error) => {
 			logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
 		});
 	}
-
-	await copyToMirrors(scheduleId, ctx.repository, ctx.schedule.retentionPolicy, ctx.organizationId).catch((error) => {
-		logger.error(`Background mirror copy failed for schedule ${scheduleId}: ${toMessage(error)}`);
-	});
 
 	await repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
 		logger.error(

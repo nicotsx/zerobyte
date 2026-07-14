@@ -22,20 +22,6 @@ export const serverEventPayloads = {
 	"backup:progress": payload<ServerBackupProgressEventDto>(),
 	"backup:completed": payload<ServerBackupCompletedEventDto>(),
 	"dump:started": payload<ServerDumpStartedEventDto>(),
-	"mirror:started": payload<{
-		organizationId: string;
-		scheduleId: string;
-		repositoryId: string;
-		repositoryName: string;
-	}>(),
-	"mirror:completed": payload<{
-		organizationId: string;
-		scheduleId: string;
-		repositoryId: string;
-		repositoryName: string;
-		status: "success" | "error";
-		error?: string;
-	}>(),
 	"volume:mounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:unmounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:updated": payload<{ organizationId: string; volumeName: string }>(),

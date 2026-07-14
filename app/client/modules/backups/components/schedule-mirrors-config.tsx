@@ -19,9 +19,19 @@ import {
 	DialogTitle,
 } from "~/client/components/ui/dialog";
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "~/client/components/ui/alert-dialog";
+import {
 	getScheduleMirrorsOptions,
 	getMirrorCompatibilityOptions,
 	getMirrorSyncStatusOptions,
+	cancelTaskMutation,
 	updateScheduleMirrorsMutation,
 	syncMirrorMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
@@ -30,11 +40,11 @@ import type { Repository } from "~/client/lib/types";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { StatusDot } from "~/client/components/status-dot";
 import { ByteSize } from "~/client/components/bytes-size";
-import { useServerEvents } from "~/client/hooks/use-server-events";
 import { cn } from "~/client/lib/utils";
 import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { Link } from "@tanstack/react-router";
 import { useTimeFormat } from "~/client/lib/datetime";
+import { useActiveTasks } from "~/client/hooks/use-active-tasks";
 
 type Props = {
 	scheduleShortId: string;
@@ -47,11 +57,14 @@ type MirrorAssignment = {
 	repositoryId: string;
 	enabled: boolean;
 	lastCopyAt: number | null;
-	lastCopyStatus: "success" | "error" | "in_progress" | null;
+	lastCopyStatus: "success" | "error" | null;
 	lastCopyError: string | null;
 };
 
-const isSyncing = (assignment: MirrorAssignment) => assignment.lastCopyStatus === "in_progress";
+type CancelConfirmation = {
+	taskId: string;
+	repositoryName: string;
+};
 
 const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 	new Map<string, MirrorAssignment>(
@@ -75,7 +88,13 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const [syncDialogMirrorId, setSyncDialogMirrorId] = useState<string | null>(null);
 	const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<Set<string>>(new Set());
 	const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-	const { addEventListener } = useServerEvents();
+	const [cancellingTaskIds, setCancellingTaskIds] = useState<Set<string>>(new Set());
+	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
+	const { data: activeMirrorSyncs } = useActiveTasks({
+		kind: "mirrorSync",
+		resourceType: "backup_schedule",
+		resourceId: scheduleShortId,
+	});
 
 	const closeSyncDialog = () => {
 		setSyncDialogOpen(false);
@@ -149,7 +168,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const triggerSync = useMutation({
 		...syncMirrorMutation(),
 		onSuccess: () => {
-			toast.success("Full sync started");
+			toast.success("Mirror sync started");
 			closeSyncDialog();
 		},
 		onError: (error) => {
@@ -158,6 +177,34 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 			});
 		},
 	});
+	const cancelSync = useMutation({
+		...cancelTaskMutation(),
+		onError: (error) => {
+			toast.error("Failed to cancel mirror sync", {
+				description: parseError(error)?.message,
+			});
+		},
+		onSettled: (_data, _error, variables) => {
+			setCancellingTaskIds((current) => {
+				const next = new Set(current);
+				next.delete(variables.path.taskId);
+				return next;
+			});
+		},
+	});
+
+	const cancelTask = (taskId: string) => {
+		setCancellingTaskIds((current) => new Set(current).add(taskId));
+		cancelSync.mutate({ path: { taskId } });
+	};
+
+	const confirmCancellation = () => {
+		const taskId = cancelConfirmation?.taskId;
+		if (!taskId) return;
+
+		setCancelConfirmation(null);
+		cancelTask(taskId);
+	};
 
 	const compatibilityMap = useMemo(() => {
 		const map = new Map<string, { compatible: boolean; reason: string | null }>();
@@ -168,47 +215,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		}
 		return map;
 	}, [compatibility]);
-
-	useEffect(() => {
-		const abortController = new AbortController();
-
-		addEventListener(
-			"mirror:started",
-			(event) => {
-				if (event.scheduleId !== scheduleShortId) return;
-				setAssignments((prev) => {
-					const next = new Map(prev);
-					const existing = next.get(event.repositoryId);
-					if (!existing) return prev;
-					next.set(event.repositoryId, { ...existing, lastCopyStatus: "in_progress", lastCopyError: null });
-					return next;
-				});
-			},
-			{ signal: abortController.signal },
-		);
-
-		addEventListener(
-			"mirror:completed",
-			(event) => {
-				if (event.scheduleId !== scheduleShortId) return;
-				setAssignments((prev) => {
-					const next = new Map(prev);
-					const existing = next.get(event.repositoryId);
-					if (!existing) return prev;
-					next.set(event.repositoryId, {
-						...existing,
-						lastCopyStatus: event.status ?? existing.lastCopyStatus,
-						lastCopyError: event.error ?? null,
-						lastCopyAt: Date.now(),
-					});
-					return next;
-				});
-			},
-			{ signal: abortController.signal },
-		);
-
-		return () => abortController.abort();
-	}, [addEventListener, scheduleShortId]);
 
 	const addRepository = (repositoryId: string) => {
 		const newAssignments = new Map(assignments);
@@ -280,15 +286,15 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		.map((id) => repositories?.find((r) => r.shortId === id))
 		.filter((r) => r !== undefined);
 
-	const getStatusVariant = (status: string | null) => {
+	const getStatusVariant = (status: MirrorAssignment["lastCopyStatus"] | "in_progress") => {
 		if (status === "success") return "success";
 		if (status === "error") return "error";
 		if (status === "in_progress") return "info";
 		return "neutral";
 	};
 
-	const getLabel = (assignment: MirrorAssignment) => {
-		if (isSyncing(assignment)) {
+	const getLabel = (assignment: MirrorAssignment, syncing: boolean) => {
+		if (syncing) {
 			return "Syncing...";
 		}
 		if (assignment.lastCopyAt) {
@@ -297,8 +303,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		return "Never";
 	};
 
-	const getStatusLabel = (assignment: MirrorAssignment) => {
-		if (isSyncing(assignment)) {
+	const getStatusLabel = (assignment: MirrorAssignment, syncing: boolean) => {
+		if (syncing) {
 			return "Mirror sync in progress";
 		}
 		if (assignment.lastCopyStatus === "error" && assignment.lastCopyError) {
@@ -322,7 +328,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 							Mirror Repositories
 						</CardTitle>
 						<CardDescription className="hidden @md:block mt-1">
-							Configure secondary repositories where snapshots will be automatically copied after each backup
+							Configure secondary repositories where snapshots will be automatically copied after each
+							backup
 						</CardDescription>
 					</div>
 					{!isAddingNew && selectableRepositories.length > 0 && (
@@ -348,19 +355,34 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 										<Tooltip key={repository.shortId}>
 											<TooltipTrigger asChild>
 												<div>
-													<SelectItem value={repository.shortId} disabled={!compat?.compatible}>
+													<SelectItem
+														value={repository.shortId}
+														disabled={!compat?.compatible}
+													>
 														<div className="flex items-center gap-2">
-															<RepositoryIcon backend={repository.type} className="h-4 w-4" />
+															<RepositoryIcon
+																backend={repository.type}
+																className="h-4 w-4"
+															/>
 															<span>{repository.name}</span>
-															<span className="text-xs uppercase text-muted-foreground">({repository.type})</span>
+															<span className="text-xs uppercase text-muted-foreground">
+																({repository.type})
+															</span>
 														</div>
 													</SelectItem>
 												</div>
 											</TooltipTrigger>
-											<TooltipContent side="right" className={cn("max-w-xs", { hidden: compat?.compatible })}>
-												<p>{compat?.reason || "This repository is not compatible for mirroring."}</p>
+											<TooltipContent
+												side="right"
+												className={cn("max-w-xs", { hidden: compat?.compatible })}
+											>
+												<p>
+													{compat?.reason ||
+														"This repository is not compatible for mirroring."}
+												</p>
 												<p className="mt-1 text-xs text-muted-foreground">
-													Consider creating a new backup scheduler with the desired destination instead.
+													Consider creating a new backup scheduler with the desired
+													destination instead.
 												</p>
 											</TooltipContent>
 										</Tooltip>
@@ -371,7 +393,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 										All available repositories have conflicting backends.
 										<br />
 										<span className="text-xs">
-											Consider creating a new backup scheduler with the desired destination instead.
+											Consider creating a new backup scheduler with the desired destination
+											instead.
 										</span>
 									</div>
 								)}
@@ -387,7 +410,9 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 					<div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
 						<Copy className="h-8 w-8 mb-2 opacity-20" />
 						<p className="text-sm">No mirror repositories configured for this schedule.</p>
-						<p className="text-xs mt-1">Click "Add mirror" to replicate backups to additional repositories.</p>
+						<p className="text-xs mt-1">
+							Click "Add mirror" to replicate backups to additional repositories.
+						</p>
 					</div>
 				) : (
 					<div className="rounded-md border">
@@ -404,6 +429,15 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 								{assignedRepositories.map((repository) => {
 									const assignment = assignments.get(repository.shortId);
 									if (!assignment) return null;
+									const activeSync = activeMirrorSyncs?.find(
+										(task) => task.input.mirrorRepositoryId === repository.shortId,
+									);
+									const syncing = activeSync !== undefined;
+									const cancellationPending = activeSync
+										? cancellingTaskIds.has(activeSync.id)
+										: false;
+									const cancelling = activeSync?.status === "cancelling" || cancellationPending;
+									const buttonTooltip = syncing ? "Cancel sync" : "Sync more snapshots";
 
 									return (
 										<TableRow key={repository.shortId}>
@@ -433,12 +467,16 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 												<div className="flex items-center gap-2">
 													<div className="w-3 shrink-0 mr-1">
 														<StatusDot
-															variant={getStatusVariant(assignment.lastCopyStatus)}
-															label={getStatusLabel(assignment)}
-															animated={isSyncing(assignment)}
+															variant={getStatusVariant(
+																syncing ? "in_progress" : assignment.lastCopyStatus,
+															)}
+															label={getStatusLabel(assignment, syncing)}
+															animated={syncing}
 														/>
 													</div>
-													<span className="text-sm text-muted-foreground">{getLabel(assignment)}</span>
+													<span className="text-sm text-muted-foreground">
+														{getLabel(assignment, syncing)}
+													</span>
 												</div>
 											</TableCell>
 											<TableCell>
@@ -448,14 +486,30 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 															<Button
 																variant="ghost"
 																size="icon"
-																onClick={() => openSyncDialog(repository.shortId)}
-																disabled={isSyncing(assignment) || hasChanges}
-																className="h-8 w-8 text-muted-foreground hover:text-foreground"
+																onClick={() => {
+																	if (activeSync) {
+																		setCancelConfirmation({
+																			taskId: activeSync.id,
+																			repositoryName: repository.name,
+																		});
+																		return;
+																	}
+																	openSyncDialog(repository.shortId);
+																}}
+																disabled={activeSync ? cancelling : hasChanges}
+																className={cn("h-8 w-8 text-muted-foreground", {
+																	"hover:text-destructive": syncing,
+																	"hover:text-foreground": !syncing,
+																})}
 															>
-																<RefreshCw className={cn("h-4 w-4", isSyncing(assignment) && "animate-spin")} />
+																<RefreshCw
+																	className={cn("h-4 w-4", {
+																		"animate-spin": syncing,
+																	})}
+																/>
 															</Button>
 														</TooltipTrigger>
-														<TooltipContent>Sync more snapshots</TooltipContent>
+														<TooltipContent>{buttonTooltip}</TooltipContent>
 													</Tooltip>
 													<Button
 														variant="ghost"
@@ -496,7 +550,9 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 						</DialogHeader>
 
 						{isSyncStatusLoading && !syncStatus ? (
-							<div className="py-6 text-center text-muted-foreground text-sm">Loading snapshot status...</div>
+							<div className="py-6 text-center text-muted-foreground text-sm">
+								Loading snapshot status...
+							</div>
 						) : syncStatus && syncStatus.missingSnapshots.length === 0 ? (
 							<div className="py-6 text-center text-muted-foreground text-sm">
 								All {syncStatus.sourceCount} snapshots are already synced to this mirror.
@@ -504,7 +560,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 						) : syncStatus ? (
 							<div className="space-y-3">
 								<p className="text-sm text-muted-foreground">
-									{syncStatus.missingSnapshots.length} of {syncStatus.sourceCount} snapshots are missing in this mirror.
+									{syncStatus.missingSnapshots.length} of {syncStatus.sourceCount} snapshots are
+									missing in this mirror.
 								</p>
 								<div className="rounded-md border max-h-64 overflow-y-auto">
 									<Table>
@@ -512,7 +569,10 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 											<TableRow>
 												<TableHead className="w-10">
 													<Checkbox
-														checked={selectedSnapshotIds.size === syncStatus.missingSnapshots.length}
+														checked={
+															selectedSnapshotIds.size ===
+															syncStatus.missingSnapshots.length
+														}
 														onCheckedChange={toggleAllSnapshots}
 													/>
 												</TableHead>
@@ -531,11 +591,17 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 													<TableCell onClick={(e) => e.stopPropagation()}>
 														<Checkbox
 															checked={selectedSnapshotIds.has(snapshot.short_id)}
-															onCheckedChange={() => toggleSnapshotSelection(snapshot.short_id)}
+															onCheckedChange={() =>
+																toggleSnapshotSelection(snapshot.short_id)
+															}
 														/>
 													</TableCell>
-													<TableCell className="font-mono text-xs">{snapshot.short_id}</TableCell>
-													<TableCell className="text-sm">{formatDateTime(new Date(snapshot.time))}</TableCell>
+													<TableCell className="font-mono text-xs">
+														{snapshot.short_id}
+													</TableCell>
+													<TableCell className="text-sm">
+														{formatDateTime(new Date(snapshot.time))}
+													</TableCell>
 													<TableCell className="text-right text-sm">
 														<ByteSize bytes={snapshot.size} base={1024} />
 													</TableCell>
@@ -568,6 +634,32 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 						</DialogFooter>
 					</DialogContent>
 				</Dialog>
+
+				<AlertDialog
+					open={cancelConfirmation !== null}
+					onOpenChange={(open) => !open && setCancelConfirmation(null)}
+				>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Cancel mirror sync?</AlertDialogTitle>
+							<AlertDialogDescription>
+								Are you sure you want to cancel the sync to{" "}
+								<strong>{cancelConfirmation?.repositoryName}</strong>? Snapshots that have already been
+								copied will remain available.
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<div className="flex gap-3 justify-end">
+							<AlertDialogCancel disabled={cancelSync.isPending}>Keep syncing</AlertDialogCancel>
+							<AlertDialogAction
+								onClick={confirmCancellation}
+								disabled={cancelSync.isPending}
+								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							>
+								Cancel sync
+							</AlertDialogAction>
+						</div>
+					</AlertDialogContent>
+				</AlertDialog>
 			</CardContent>
 		</Card>
 	);

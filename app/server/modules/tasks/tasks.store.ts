@@ -1,8 +1,9 @@
-import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import {
 	activeTaskStatuses,
+	finishedTaskStatuses,
 	taskInputSchema,
 	taskProgressSchema,
 	taskResultSchema,
@@ -102,12 +103,12 @@ const taskMatchesFilter = (task: ParsedTask, filter: Partial<TaskResource>) => {
 };
 
 const activeStatusCondition = () => inArray(tasksTable.status, activeTaskStatuses);
+const finishedStatusCondition = () => inArray(tasksTable.status, finishedTaskStatuses);
 
 const byIdCondition = (id: string) => eq(tasksTable.id, id);
 
-const buildActiveConditions = (params: Partial<TaskResource> = {}) => {
-	const conditions: SQL[] = [activeStatusCondition()];
-
+const buildResourceConditions = (params: Partial<TaskResource> = {}) => {
+	const conditions: SQL[] = [];
 	if (params.organizationId) conditions.push(eq(tasksTable.organizationId, params.organizationId));
 	if (params.kind) conditions.push(eq(tasksTable.kind, params.kind));
 	if (params.resourceType) conditions.push(eq(tasksTable.resourceType, params.resourceType));
@@ -116,6 +117,11 @@ const buildActiveConditions = (params: Partial<TaskResource> = {}) => {
 
 	return conditions;
 };
+
+const buildActiveConditions = (params: Partial<TaskResource> = {}) => [
+	activeStatusCondition(),
+	...buildResourceConditions(params),
+];
 
 const getUpdatedTask = (row: unknown, taskId: string, operation: string) => {
 	if (!row) {
@@ -280,6 +286,37 @@ export const taskStore = {
 
 		const [row] = rows;
 		return row ? parseTask(row) : null;
+	},
+
+	findLatestFinishedByResources: (
+		params: Omit<TaskResource, "operationKey">,
+		operationKeys: string[],
+	): ParsedTask[] => {
+		if (operationKeys.length === 0) {
+			return [];
+		}
+
+		const resourceConditions = buildResourceConditions(params);
+		const rankedTaskIds = db
+			.select({
+				id: tasksTable.id,
+				rank: sql<number>`row_number() over (
+					partition by ${tasksTable.operationKey}
+					order by ${tasksTable.finishedAt} desc, ${tasksTable.createdAt} desc, ${tasksTable.id} desc
+				)`.as("task_rank"),
+			})
+			.from(tasksTable)
+			.where(
+				and(finishedStatusCondition(), ...resourceConditions, inArray(tasksTable.operationKey, operationKeys)),
+			)
+			.as("ranked_task_ids");
+		const rows = db
+			.select({ task: tasksTable })
+			.from(tasksTable)
+			.innerJoin(rankedTaskIds, and(eq(tasksTable.id, rankedTaskIds.id), eq(rankedTaskIds.rank, 1)))
+			.all();
+
+		return rows.map((row) => parseTask(row.task));
 	},
 
 	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {

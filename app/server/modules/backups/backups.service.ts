@@ -12,7 +12,7 @@ import { cache, cacheKeys } from "../../utils/cache";
 import { repoMutex } from "../../core/repository-mutex";
 import { backupExecutor } from "./backup-executor";
 import { calculateNextRun, isValidCron } from "./backup.helpers";
-import { scheduleQueries } from "./backups.queries";
+import { mirrorQueries, scheduleQueries } from "./backups.queries";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
 import {
 	emitBackupStarted,
@@ -21,13 +21,14 @@ import {
 	handleBackupCancellation,
 	handleBackupFailure,
 	handleValidationResult,
+	startPostBackupMirrorSyncs,
 	updateBackupProgress,
 	validateBackupExecution,
 } from "./helpers/backup-lifecycle";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
-import { copyToMirrors, runForget, syncSnapshotsToMirror } from "./helpers/backup-maintenance";
+import { runForget } from "./helpers/backup-maintenance";
+import { commands } from "./commands";
 import { restic } from "../../core/restic";
-import { mirrorQueries } from "./backups.queries";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
@@ -280,18 +281,37 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 		},
 		with: { repository: true },
 	});
+	const mirrorRepositoryIds = mirrors.map((mirror) => mirror.repository.shortId);
+	const latestTasks = taskStore.findLatestFinishedByResources(
+		{
+			organizationId: schedule.organizationId,
+			kind: "mirrorSync",
+			resourceType: "backup_schedule",
+			resourceId: schedule.shortId,
+		},
+		mirrorRepositoryIds,
+	);
+	const latestTasksByRepository = new Map(latestTasks.map((task) => [task.operationKey, task]));
 
-	return mirrors.map((mirror) => ({
-		id: mirror.id,
-		scheduleId: schedule.shortId,
-		repositoryId: mirror.repository.shortId,
-		enabled: mirror.enabled,
-		lastCopyAt: mirror.lastCopyAt,
-		lastCopyStatus: mirror.lastCopyStatus,
-		lastCopyError: mirror.lastCopyError,
-		createdAt: mirror.createdAt,
-		repository: mirror.repository,
-	}));
+	return mirrors.map((mirror) => {
+		const latestTask = latestTasksByRepository.get(mirror.repository.shortId);
+		let lastCopyStatus: "success" | "error" | null = null;
+		if (latestTask) {
+			lastCopyStatus = latestTask.status === "succeeded" ? "success" : "error";
+		}
+
+		return {
+			id: mirror.id,
+			scheduleId: schedule.shortId,
+			repositoryId: mirror.repository.shortId,
+			enabled: mirror.enabled,
+			lastCopyAt: latestTask?.finishedAt ?? null,
+			lastCopyStatus,
+			lastCopyError: latestTask?.error ?? null,
+			createdAt: mirror.createdAt,
+			repository: mirror.repository,
+		};
+	});
 };
 
 const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateScheduleMirrorsBody) => {
@@ -329,32 +349,15 @@ const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateS
 		}),
 	);
 
-	const existingMirrors = await db.query.backupScheduleMirrorsTable.findMany({
-		where: { scheduleId: schedule.id },
-	});
-
-	const existingMirrorsMap = new Map(
-		existingMirrors.map((m) => [
-			m.repositoryId,
-			{ lastCopyAt: m.lastCopyAt, lastCopyStatus: m.lastCopyStatus, lastCopyError: m.lastCopyError },
-		]),
-	);
-
 	await db.delete(backupScheduleMirrorsTable).where(eq(backupScheduleMirrorsTable.scheduleId, schedule.id));
 
 	if (normalizedMirrors.length > 0) {
 		await db.insert(backupScheduleMirrorsTable).values(
-			normalizedMirrors.map((mirror) => {
-				const existing = existingMirrorsMap.get(mirror.repositoryId);
-				return {
-					scheduleId: schedule.id,
-					repositoryId: mirror.repositoryId,
-					enabled: mirror.enabled,
-					lastCopyAt: existing?.lastCopyAt ?? null,
-					lastCopyStatus: existing?.lastCopyStatus ?? null,
-					lastCopyError: existing?.lastCopyError ?? null,
-				};
-			}),
+			normalizedMirrors.map((mirror) => ({
+				scheduleId: schedule.id,
+				repositoryId: mirror.repositoryId,
+				enabled: mirror.enabled,
+			})),
 		);
 	}
 
@@ -521,6 +524,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 						exitCode: executionResult.exitCode,
 						result: executionResult.result,
 						warningDetails: executionResult.warningDetails,
+					});
+					await startPostBackupMirrorSyncs(ctx, scheduleId, executionResult.result).catch((error) => {
+						logger.error(
+							`Post-backup mirror synchronization failed for schedule ${scheduleId}: ${toMessage(error)}`,
+						);
 					});
 					return;
 				case "failed": {
@@ -725,7 +733,11 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 	};
 };
 
-const syncMirror = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId, snapshotIds?: string[]) => {
+const startMirrorSync = async (
+	scheduleIdOrShortId: number | string,
+	mirrorShortId: ShortId,
+	snapshotIds?: string[],
+) => {
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
 
@@ -745,15 +757,21 @@ const syncMirror = async (scheduleIdOrShortId: number | string, mirrorShortId: S
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
-	if (mirror.lastCopyStatus === "in_progress") {
+	const plan = {
+		organizationId,
+		scheduleId: schedule.id,
+		scheduleShortId: schedule.shortId,
+		sourceRepository: schedule.repository,
+		mirrorRepository: mirrorRepo,
+		retentionPolicy: schedule.retentionPolicy,
+		customResticParams: schedule.customResticParams ?? [],
+		snapshotIds,
+	};
+	if (commands.hasActiveMirrorSync(plan)) {
 		throw new ConflictError("Mirror is already syncing");
 	}
 
-	syncSnapshotsToMirror(schedule.id, mirrorRepo.id, organizationId, snapshotIds).catch((error) => {
-		logger.error(`Error syncing all snapshots to mirror ${mirrorRepo.name}: ${toMessage(error)}`);
-	});
-
-	return { success: true };
+	return commands.createMirrorSync(plan).start();
 };
 
 export const backupsService = {
@@ -774,7 +792,6 @@ export const backupsService = {
 	recoverInterruptedBackups,
 	stopBackup,
 	runForget,
-	copyToMirrors,
 	getMirrorSyncStatus,
-	syncMirror,
+	startMirrorSync,
 };
