@@ -99,10 +99,11 @@ function formatConfiguredDateWithMonth(date: Date, options: DateFormatOptions) {
 	return `${month} ${day}, ${year}`;
 }
 
-function formatConfiguredTime(date: Date, options: DateFormatOptions) {
+function formatConfiguredTime(date: Date, options: DateFormatOptions, includeSeconds = false) {
 	return getDateTimeFormat(options.locale, options.timeZone, {
 		hour: "numeric",
 		minute: "numeric",
+		...(includeSeconds ? { second: "numeric" as const } : {}),
 		hour12: (options.timeFormat ?? DEFAULT_TIME_FORMAT) === "12h",
 	}).format(date);
 }
@@ -115,6 +116,15 @@ function formatDateTime(date: DateInput, options: DateFormatOptions = {}): strin
 	return formatValidDate(
 		date,
 		(validDate) => `${formatConfiguredDate(validDate, options, true)}, ${formatConfiguredTime(validDate, options)}`,
+	);
+}
+
+// 01/10/2026, 2:30:45 PM
+function formatDateTimeWithSeconds(date: DateInput, options: DateFormatOptions = {}): string {
+	return formatValidDate(
+		date,
+		(validDate) =>
+			`${formatConfiguredDate(validDate, options, true)}, ${formatConfiguredTime(validDate, options, true)}`,
 	);
 }
 
@@ -165,6 +175,7 @@ function formatTimeAgo(date: DateInput, now = Date.now()): string {
 
 export const rawFormatters = {
 	formatDateTime,
+	formatDateTimeWithSeconds,
 	formatDateWithMonth,
 	formatDate,
 	formatShortDate,

@@ -24,6 +24,8 @@ export function useTimeFormat() {
 		() => ({
 			formatDateTime: (date: DateInput) =>
 				rawFormatters.formatDateTime(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatDateTimeWithSeconds: (date: DateInput) =>
+				rawFormatters.formatDateTimeWithSeconds(date, { locale, timeZone, dateFormat, timeFormat }),
 			formatDateWithMonth: (date: DateInput) =>
 				rawFormatters.formatDateWithMonth(date, {
 					locale,

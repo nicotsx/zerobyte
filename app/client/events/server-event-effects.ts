@@ -22,6 +22,8 @@ type ServerEventEffectMap = {
 	[K in ServerEventType]?: ServerEventEffect<K>;
 };
 
+export const skipServerEventInvalidationMeta = { skipServerEventInvalidation: true } as const;
+
 const isAbortError = (error: unknown): error is Error => error instanceof Error && error.name === "AbortError";
 
 const serverEventEffects: ServerEventEffectMap = {
@@ -39,17 +41,25 @@ const getServerEventEffect = <T extends ServerEventType>(eventName: T): ServerEv
 	return serverEventEffects[eventName] as ServerEventEffect<T> | undefined;
 };
 
+export const invalidateServerEventQueries = (queryClient: QueryClient, eventName: ServerEventType | "connected") => {
+	void queryClient
+		.invalidateQueries({
+			predicate: (query) => query.meta?.skipServerEventInvalidation !== true,
+		})
+		.catch((error) => {
+			if (!isAbortError(error)) {
+				logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
+			}
+		});
+};
+
 const invalidateQueriesForEvent = (queryClient: QueryClient, eventName: ServerEventType) => {
 	const eventEffect = getServerEventEffect(eventName);
 	if (!eventEffect?.invalidateQueries) {
 		return;
 	}
 
-	void queryClient.invalidateQueries().catch((error) => {
-		if (!isAbortError(error)) {
-			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
-		}
-	});
+	invalidateServerEventQueries(queryClient, eventName);
 };
 
 const updateQueriesForEvent = <T extends ServerEventType>(

@@ -8,6 +8,7 @@ afterEach(() => {
 const {
 	formatDate,
 	formatDateTime,
+	formatDateTimeWithSeconds,
 	formatDateWithMonth,
 	formatShortDate,
 	formatShortDateTime,
@@ -20,6 +21,7 @@ const sampleDate = new Date("2026-01-10T14:30:00.000Z");
 describe("datetime formatters", () => {
 	test.each([
 		formatDateTime,
+		formatDateTimeWithSeconds,
 		formatDateWithMonth,
 		formatDate,
 		formatShortDate,
@@ -32,6 +34,7 @@ describe("datetime formatters", () => {
 
 	test.each([
 		formatDateTime,
+		formatDateTimeWithSeconds,
 		formatDateWithMonth,
 		formatDate,
 		formatShortDate,
@@ -48,6 +51,7 @@ describe("datetime formatters", () => {
 
 		expect(formatDateTime(isoDate)).toBe(formatDateTime(sampleDate));
 		expect(formatDateTime(timestamp)).toBe(formatDateTime(sampleDate));
+		expect(formatDateTimeWithSeconds(isoDate)).toBe(formatDateTimeWithSeconds(sampleDate));
 		expect(formatDateWithMonth(isoDate)).toBe(formatDateWithMonth(sampleDate));
 		expect(formatDate(timestamp)).toBe(formatDate(sampleDate));
 		expect(formatShortDate(isoDate)).toBe(formatShortDate(sampleDate));
@@ -107,5 +111,13 @@ describe("datetime formatters", () => {
 				timeFormat: "24h",
 			}),
 		).toBe("10/01/2026, 14:30");
+		expect(
+			formatDateTimeWithSeconds(sampleDate, {
+				locale: "en-US",
+				timeZone: "UTC",
+				dateFormat: "DD/MM/YYYY",
+				timeFormat: "24h",
+			}),
+		).toBe("10/01/2026, 14:30:00");
 	});
 });

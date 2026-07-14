@@ -18,7 +18,9 @@ type TaskForQuery<Q extends TaskEventsQuery> = Q extends { kind: infer K extends
 
 type UseActiveTasksOptions<Q extends TaskEventsQuery> = {
 	initialTasks?: TaskForQuery<Q>[];
+	onTaskActivity?: (task: TaskForQuery<Q>) => void;
 	onTaskFinished?: (task: TaskForQuery<Q>) => void;
+	onTasksSnapshot?: (tasks: TaskForQuery<Q>[]) => void;
 };
 
 const parseTaskEvent = (event: Event): TaskDto => {
@@ -73,13 +75,17 @@ export const taskEventsOptions = (query: TaskEventsQuery) => {
 
 export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, options: UseActiveTasksOptions<Q> = {}) => {
 	const queryClient = useQueryClient();
+	const onTaskActivityRef = useRef(options.onTaskActivity);
 	const onTaskFinishedRef = useRef(options.onTaskFinished);
+	const onTasksSnapshotRef = useRef(options.onTasksSnapshot);
 	const finishedTasksRef = useRef(new Map<string, TaskDto>());
 	const queryKind = query.kind;
 	const queryResourceType = query.resourceType;
 	const queryResourceId = query.resourceId;
 	const queryOperationKey = query.operationKey;
+	onTaskActivityRef.current = options.onTaskActivity;
 	onTaskFinishedRef.current = options.onTaskFinished;
+	onTasksSnapshotRef.current = options.onTasksSnapshot;
 
 	const taskListOptions = useMemo(() => {
 		return taskEventsOptions({
@@ -112,6 +118,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 		const finishTask = (task: TaskDto) => {
 			finishedTasksRef.current.set(task.id, task);
 			onTaskFinishedRef.current?.(task as TaskForQuery<Q>);
+			onTaskActivityRef.current?.(task as TaskForQuery<Q>);
 		};
 
 		const reconcileMissingTask = async (missingTask: Pick<TaskDto, "id" | "updatedAt">) => {
@@ -137,6 +144,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 				taskQueryKeyRef.current,
 				snapshot.filter((task) => !hasTaskFinished(finishedTasksRef.current, task)),
 			);
+			onTasksSnapshotRef.current?.(snapshot as TaskForQuery<Q>[]);
 
 			for (const missingTask of missingTasks) {
 				void reconcileMissingTask(missingTask).catch((error: unknown) => {
@@ -155,6 +163,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 				}
 
 				queryClient.setQueryData<ListTasksResponse>(taskQueryKeyRef.current, upsertTask(activeTasks, task));
+				onTaskActivityRef.current?.(task as TaskForQuery<Q>);
 				return;
 			}
 
