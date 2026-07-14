@@ -9,11 +9,12 @@ import { z } from "zod";
 
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
 export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
+export const taskKinds = ["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor"] as const;
 export const taskOutcomes = ["running", "success", "warning", "error", "cancelled", "stale"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
-export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor"]);
+export const taskKindSchema = z.enum(taskKinds);
 export const taskOutcomeSchema = z.enum(taskOutcomes);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
@@ -110,7 +111,10 @@ const taskShape = {
 	finishedAt: z.number().nullable(),
 };
 
-export const taskSchema = z.object(taskShape).superRefine((task, ctx) => {
+const validateTaskPayloadKinds = (
+	task: Pick<z.infer<z.ZodObject<typeof taskShape>>, "kind" | "input" | "progress" | "result">,
+	ctx: z.RefinementCtx,
+) => {
 	if (task.kind !== task.input.kind) {
 		ctx.addIssue({
 			code: "custom",
@@ -134,8 +138,15 @@ export const taskSchema = z.object(taskShape).superRefine((task, ctx) => {
 			message: "Task result kind must match task kind",
 		});
 	}
-});
+};
 
+export const taskSchema = z.object(taskShape).superRefine(validateTaskPayloadKinds);
+export const persistedTaskSchema = z
+	.object({
+		...taskShape,
+		resourceType: z.string().min(1),
+	})
+	.superRefine(validateTaskPayloadKinds);
 const {
 	organizationId: _organizationId,
 	outcome: _outcome,
@@ -154,4 +165,5 @@ export type TaskInput = z.infer<typeof taskInputSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
 export type TaskResult = z.infer<typeof taskResultSchema>;
 export type ParsedTask = z.infer<typeof taskSchema>;
+export type PersistedTask = z.infer<typeof persistedTaskSchema>;
 export type TaskDto = z.infer<typeof taskDtoSchema>;

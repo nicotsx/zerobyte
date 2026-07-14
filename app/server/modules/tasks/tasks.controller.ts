@@ -18,6 +18,8 @@ import {
 import { requestTaskCancel } from "./tasks.lifecycle";
 import { toTaskDto } from "./tasks.presenter";
 import { taskStore } from "./tasks.store";
+import { listTaskHistoryDto, listTaskHistoryQuery, type TaskHistoryResponse } from "./task-history.dto";
+import { listTaskHistory } from "./task-history.query";
 
 export const tasksController = new Hono()
 	.use(requireAuth)
@@ -67,6 +69,13 @@ export const tasksController = new Hono()
 			},
 			shouldSend: () => true,
 		});
+	})
+	.get("/history", validator("query", listTaskHistoryQuery), listTaskHistoryDto, async (c) => {
+		const organizationId = c.get("organizationId");
+		const query = c.req.valid("query");
+		const response = listTaskHistory({ organizationId, ...query });
+
+		return c.json<TaskHistoryResponse>(response, 200);
 	})
 	.get("/:taskId/events", streamTaskEventsDto, async (c) => {
 		const organizationId = c.get("organizationId");
