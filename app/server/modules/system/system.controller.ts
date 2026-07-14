@@ -27,6 +27,28 @@ import { userHasPassword, verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { getOrganizationId } from "~/server/core/request-context";
 
+const verifyRecoveryKeyPassword = async (userId: string, password: string, authSource: string) => {
+	if (authSource === "desktop-session") {
+		return null;
+	}
+
+	const hasPassword = await userHasPassword(userId);
+	if (!hasPassword) {
+		return { message: "A local password is required to download the recovery key", status: 403 as const };
+	}
+
+	const isPasswordValid = await verifyUserPassword({ password, userId });
+	if (!isPasswordValid) {
+		return { message: "Invalid password", status: 401 as const };
+	}
+
+	return null;
+};
+
+const markRecoveryKeyAsDownloaded = async (userId: string) => {
+	await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
+};
+
 export const systemController = new Hono()
 	.use(requireAuth)
 	.get("/info", systemInfoDto, async (c) => {
@@ -67,19 +89,9 @@ export const systemController = new Hono()
 			const user = c.get("user");
 			const organizationId = getOrganizationId();
 			const body = c.req.valid("json");
-			if (c.get("authSource") !== "desktop-session") {
-				const hasPassword = await userHasPassword(user.id);
-				if (!hasPassword) {
-					return c.json({ message: "A local password is required to download the recovery key" }, 403);
-				}
-
-				const isPasswordValid = await verifyUserPassword({
-					password: body.password,
-					userId: user.id,
-				});
-				if (!isPasswordValid) {
-					return c.json({ message: "Invalid password" }, 401);
-				}
+			const passwordError = await verifyRecoveryKeyPassword(user.id, body.password, c.get("authSource"));
+			if (passwordError) {
+				return c.json({ message: passwordError.message }, passwordError.status);
 			}
 
 			try {
@@ -93,10 +105,7 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
-				await db
-					.update(usersTable)
-					.set({ hasDownloadedResticPassword: true })
-					.where(eq(usersTable.id, user.id));
+				await markRecoveryKeyAsDownloaded(user.id);
 
 				c.header("Content-Type", "text/plain");
 				c.header("Content-Disposition", 'attachment; filename="restic.pass"');
