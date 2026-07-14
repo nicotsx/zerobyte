@@ -522,9 +522,6 @@ export const backupScheduleMirrorsTable = sqliteTable(
 			.notNull()
 			.references(() => repositoriesTable.id, { onDelete: "cascade" }),
 		enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
-		lastCopyAt: int("last_copy_at", { mode: "number" }),
-		lastCopyStatus: text("last_copy_status").$type<"success" | "error" | "in_progress">(),
-		lastCopyError: text("last_copy_error"),
 		createdAt: int("created_at", { mode: "number" })
 			.notNull()
 			.default(sql`(unixepoch() * 1000)`),
