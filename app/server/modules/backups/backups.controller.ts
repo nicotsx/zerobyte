@@ -174,9 +174,9 @@ export const backupScheduleController = new Hono()
 		const shortId = asShortId(c.req.param("shortId"));
 		const mirrorShortId = asShortId(c.req.param("mirrorShortId"));
 		const body = c.req.valid("json");
-		const result = await backupsService.syncMirror(shortId, mirrorShortId, body.snapshotIds);
+		const result = await backupsService.startMirrorSync(shortId, mirrorShortId, body.snapshotIds);
 
-		return c.json<SyncMirrorDto>(result, 200);
+		return c.json<SyncMirrorDto>(result, 202);
 	})
 	.get("/:shortId/mirrors/compatibility", getMirrorCompatibilityDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

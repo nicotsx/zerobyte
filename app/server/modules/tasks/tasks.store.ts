@@ -3,6 +3,7 @@ import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import {
 	activeTaskStatuses,
+	finishedTaskStatuses,
 	taskInputSchema,
 	taskProgressSchema,
 	taskResultSchema,
@@ -102,12 +103,12 @@ const taskMatchesFilter = (task: ParsedTask, filter: Partial<TaskResource>) => {
 };
 
 const activeStatusCondition = () => inArray(tasksTable.status, activeTaskStatuses);
+const finishedStatusCondition = () => inArray(tasksTable.status, finishedTaskStatuses);
 
 const byIdCondition = (id: string) => eq(tasksTable.id, id);
 
-const buildActiveConditions = (params: Partial<TaskResource> = {}) => {
-	const conditions: SQL[] = [activeStatusCondition()];
-
+const buildResourceConditions = (params: Partial<TaskResource> = {}) => {
+	const conditions: SQL[] = [];
 	if (params.organizationId) conditions.push(eq(tasksTable.organizationId, params.organizationId));
 	if (params.kind) conditions.push(eq(tasksTable.kind, params.kind));
 	if (params.resourceType) conditions.push(eq(tasksTable.resourceType, params.resourceType));
@@ -116,6 +117,11 @@ const buildActiveConditions = (params: Partial<TaskResource> = {}) => {
 
 	return conditions;
 };
+
+const buildActiveConditions = (params: Partial<TaskResource> = {}) => [
+	activeStatusCondition(),
+	...buildResourceConditions(params),
+];
 
 const getUpdatedTask = (row: unknown, taskId: string, operation: string) => {
 	if (!row) {
@@ -279,6 +285,19 @@ export const taskStore = {
 			.all();
 
 		const [row] = rows;
+		return row ? parseTask(row) : null;
+	},
+
+	findLatestFinishedByResource: (params: TaskResource): ParsedTask | null => {
+		const resourceConditions = buildResourceConditions(params);
+		const row = db
+			.select()
+			.from(tasksTable)
+			.where(and(finishedStatusCondition(), ...resourceConditions))
+			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
+			.limit(1)
+			.get();
+
 		return row ? parseTask(row) : null;
 	},
 

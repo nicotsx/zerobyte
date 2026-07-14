@@ -11,6 +11,8 @@ import * as resticModule from "~/server/core/restic";
 import * as spawnModule from "@zerobyte/core/node";
 import type { ShortId } from "~/server/utils/branded";
 import { Effect } from "effect";
+import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
 
 const setup = () => {
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
@@ -151,7 +153,7 @@ describe("getMirrorSyncStatus", () => {
 });
 
 describe("syncMirror", () => {
-	test("should trigger sync and return success", async () => {
+	test("should start a mirror sync task", async () => {
 		const { mockCopy } = setup();
 		mockCopy();
 		const volume = await createTestVolume();
@@ -163,12 +165,30 @@ describe("syncMirror", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		const result = await backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, [
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
 			"snap2",
 		]);
 
-		expect(result.success).toBe(true);
+		expect(result).toEqual({ taskId: expect.any(String), status: "started" });
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task).toMatchObject({
+				kind: "mirrorSync",
+				status: "succeeded",
+				resourceType: "backup_schedule",
+				resourceId: schedule.shortId,
+				operationKey: mirrorRepository.shortId,
+				input: {
+					kind: "mirrorSync",
+					scheduleId: schedule.id,
+					scheduleShortId: schedule.shortId,
+					mirrorRepositoryId: mirrorRepository.shortId,
+					snapshotIds: ["snap1", "snap2"],
+				},
+				result: { kind: "mirrorSync" },
+			});
+		});
 	});
 
 	test("should pass custom restic params to manual mirror sync", async () => {
@@ -184,11 +204,11 @@ describe("syncMirror", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		const result = await backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, [
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
 		]);
 
-		expect(result.success).toBe(true);
+		expect(result.status).toBe("started");
 		await waitForExpect(() => {
 			expect(copyMock).toHaveBeenCalledWith(
 				repository.config,
@@ -203,8 +223,9 @@ describe("syncMirror", () => {
 		});
 	});
 
-	test("should reject if mirror is already syncing", async () => {
-		setup();
+	test("should derive the mirror summary from the latest finished task", async () => {
+		const { mockCopy } = setup();
+		mockCopy();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
@@ -212,25 +233,49 @@ describe("syncMirror", () => {
 			volumeId: volume.id,
 			repositoryId: repository.id,
 		});
-		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id, {
-			lastCopyStatus: "in_progress",
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const previousTask = taskStore.create({
+			organizationId: TEST_ORG_ID,
+			resourceType: "backup_schedule",
+			resourceId: schedule.shortId,
+			operationKey: mirrorRepository.shortId,
+			input: {
+				kind: "mirrorSync",
+				scheduleId: schedule.id,
+				scheduleShortId: schedule.shortId,
+				mirrorRepositoryId: mirrorRepository.shortId,
+			},
 		});
+		taskStore.fail(previousTask.id, "Previous copy failed");
 
-		await expect(
-			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
-		).rejects.toThrow("Mirror is already syncing");
+		const mirrors = await backupsService.getMirrors(schedule.shortId);
+		expect(mirrors[0]?.lastCopyStatus).toBe("error");
+		expect(mirrors[0]?.lastCopyError).toBe("Previous copy failed");
+
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		expect(result.status).toBe("started");
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task?.status).toBe("succeeded");
+		});
 	});
 
-	test("should reject concurrent sync requests once a sync has started", async () => {
+	test("should reject a concurrent task and finalize the mirror summary when cancellation is requested", async () => {
 		const { mockCopy } = setup();
 		const copyMock = mockCopy();
-		let releaseCopy: (() => void) | undefined;
 		const copyStarted = new Promise<void>((resolve) => {
-			copyMock.mockImplementation(() =>
+			copyMock.mockImplementation((_source, _destination, options) =>
 				Effect.promise(
 					() =>
-						new Promise((copyResolve) => {
-							releaseCopy = () => copyResolve({ success: true, output: "" });
+						new Promise((_, reject) => {
+							options.signal?.addEventListener(
+								"abort",
+								() => reject(new DOMException("Mirror sync was cancelled", "AbortError")),
+								{ once: true },
+							);
 							resolve();
 						}),
 				),
@@ -246,26 +291,70 @@ describe("syncMirror", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		const firstSync = backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]);
+		const firstSync = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
 
 		await copyStarted;
 
-		await waitForExpect(async () => {
-			const mirrors = await backupsService.getMirrors(schedule.shortId);
-			expect(mirrors[0]?.lastCopyStatus).toBe("in_progress");
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
+			expect(task?.status).toBe("running");
 		});
 
 		await expect(
-			backupsService.syncMirror(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
+			backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
 		).rejects.toThrow("Mirror is already syncing");
 
-		releaseCopy?.();
-
-		await expect(firstSync).resolves.toEqual({ success: true });
+		expect(requestTaskCancel(firstSync.taskId)).toBe(true);
 
 		await waitForExpect(async () => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
 			const mirrors = await backupsService.getMirrors(schedule.shortId);
-			expect(mirrors[0]?.lastCopyStatus).toBe("success");
+			expect(task?.status).toBe("cancelled");
+			expect(mirrors[0]?.lastCopyStatus).toBe("error");
+			expect(mirrors[0]?.lastCopyError).toBe("Mirror sync was cancelled");
+		});
+	});
+
+	test("should cancel while applying mirror retention", async () => {
+		const { mockCopy } = setup();
+		mockCopy();
+		const forgetStarted = new Promise<void>((resolve) => {
+			vi.spyOn(resticModule.restic, "forget").mockImplementation((_config, _policy, options) =>
+				Effect.promise(
+					() =>
+						new Promise((_, reject) => {
+							options.signal?.addEventListener(
+								"abort",
+								() => reject(new DOMException("Mirror sync was cancelled", "AbortError")),
+								{ once: true },
+							);
+							resolve();
+						}),
+				),
+			);
+		});
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepHourly: 1 },
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		await forgetStarted;
+		expect(requestTaskCancel(result.taskId)).toBe(true);
+
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task?.status).toBe("cancelled");
 		});
 	});
 
@@ -280,7 +369,7 @@ describe("syncMirror", () => {
 		});
 
 		await expect(
-			backupsService.syncMirror(schedule.shortId, unrelatedRepository.shortId as ShortId, ["snap1"]),
+			backupsService.startMirrorSync(schedule.shortId, unrelatedRepository.shortId as ShortId, ["snap1"]),
 		).rejects.toThrow("Mirror not found for this schedule");
 	});
 });

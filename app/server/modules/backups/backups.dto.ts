@@ -48,7 +48,7 @@ const scheduleMirrorSchema = z.object({
 	repositoryId: z.string(),
 	enabled: z.boolean(),
 	lastCopyAt: z.number().nullable(),
-	lastCopyStatus: z.enum(["success", "error", "in_progress"]).nullable(),
+	lastCopyStatus: z.enum(["success", "error"]).nullable(),
 	lastCopyError: z.string().nullable(),
 	createdAt: z.number(),
 	repository: repositorySchema,
@@ -357,7 +357,8 @@ const getMirrorCompatibilityResponse = mirrorCompatibilitySchema.array();
 export type GetMirrorCompatibilityDto = z.infer<typeof getMirrorCompatibilityResponse>;
 
 export const getMirrorCompatibilityDto = describeRoute({
-	description: "Get mirror compatibility info for all repositories relative to a backup schedule's primary repository",
+	description:
+		"Get mirror compatibility info for all repositories relative to a backup schedule's primary repository",
 	operationId: "getMirrorCompatibility",
 	tags: ["Backups"],
 	responses: {
@@ -432,7 +433,8 @@ export const syncMirrorBody = z.object({
 });
 
 const syncMirrorResponse = z.object({
-	success: z.boolean(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 export type SyncMirrorDto = z.infer<typeof syncMirrorResponse>;
 
@@ -441,7 +443,7 @@ export const syncMirrorDto = describeRoute({
 	operationId: "syncMirror",
 	tags: ["Backups"],
 	responses: {
-		200: {
+		202: {
 			description: "Mirror sync started successfully",
 			content: {
 				"application/json": {

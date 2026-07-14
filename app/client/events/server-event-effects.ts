@@ -30,7 +30,6 @@ const serverEventEffects: ServerEventEffectMap = {
 	"volume:updated": { invalidateQueries: true },
 	"volume:status_changed": { invalidateQueries: true, emitAs: ["volume:updated"] },
 	"notification:updated": { invalidateQueries: true },
-	"mirror:completed": { invalidateQueries: true },
 	"task:started": { invalidateQueries: true },
 	"task:finished": { invalidateQueries: true },
 };
