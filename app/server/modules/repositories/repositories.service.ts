@@ -411,6 +411,7 @@ const restoreSnapshot = async (
 		organizationId,
 		repositoryId: repository.id,
 		repositoryShortId: repository.shortId,
+		repositoryName: repository.name,
 		repositoryConfig,
 		snapshotId,
 		target,

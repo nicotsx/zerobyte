@@ -39,6 +39,7 @@ export const createTagSnapshotsCommand = (params: TagSnapshotsCommandParams) => 
 				organizationId: params.repository.organizationId,
 				resourceType: "repository",
 				resourceId: params.repository.shortId,
+				targetDisplayName: params.repository.name,
 				input: {
 					kind: "tagSnapshots",
 					repositoryId: params.repository.shortId,

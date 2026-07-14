@@ -46,6 +46,7 @@ export const createDeleteSnapshotsCommand = (params: DeleteSnapshotsCommandParam
 				organizationId: params.repository.organizationId,
 				resourceType: "repository",
 				resourceId: params.repository.shortId,
+				targetDisplayName: params.repository.name,
 				input: {
 					kind: "deleteSnapshots",
 					repositoryId: params.repository.shortId,

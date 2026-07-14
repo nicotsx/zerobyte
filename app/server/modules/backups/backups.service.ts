@@ -462,6 +462,7 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 		organizationId: ctx.organizationId,
 		resourceType: BACKUP_TASK_RESOURCE_TYPE,
 		resourceId: String(scheduleId),
+		targetDisplayName: ctx.schedule.name,
 		targetAgentId: ctx.volume.agentId,
 		input: { kind: "backup", scheduleId, scheduleShortId: ctx.schedule.shortId, manual },
 	});

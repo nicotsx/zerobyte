@@ -21,6 +21,7 @@ const createTask = (
 		organizationId,
 		resourceType: options.resourceType ?? "repository",
 		resourceId,
+		targetDisplayName: `Target ${resourceId}`,
 		input: {
 			kind: "deleteSnapshots",
 			repositoryId: resourceId,
@@ -35,6 +36,7 @@ const createRestoreTask = (organizationId: string, repositoryId = "repo-short", 
 		resourceType: "repository",
 		resourceId: repositoryId,
 		operationKey: snapshotId,
+		targetDisplayName: `Repository ${repositoryId}`,
 		input: {
 			kind: "restore",
 			repositoryId,

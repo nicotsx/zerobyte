@@ -59,6 +59,7 @@ test("marks active scheduled backup tasks stale and makes them executable again"
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -103,6 +104,7 @@ test("marks active manual backup tasks stale without making the schedule executa
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -138,6 +140,7 @@ test("does not immediately retry cancellation-requested scheduled backups", asyn
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -195,6 +198,7 @@ test("ignores previously stale scheduled tasks when the current interrupted task
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -215,6 +219,7 @@ test("ignores previously stale scheduled tasks when the current interrupted task
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -251,6 +256,7 @@ test("does not use previously stale scheduled tasks to retry immediately", async
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: String(schedule.id),
+		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
 			kind: "backup",

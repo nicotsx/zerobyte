@@ -9,10 +9,12 @@ import { z } from "zod";
 
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
 export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
+export const taskOutcomes = ["running", "success", "warning", "error", "cancelled", "stale"] as const;
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
 export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor"]);
+export const taskOutcomeSchema = z.enum(taskOutcomes);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
@@ -91,9 +93,11 @@ const taskShape = {
 	organizationId: z.string(),
 	kind: taskKindSchema,
 	status: taskStatusSchema,
+	outcome: taskOutcomeSchema.nullable(),
 	resourceType: taskResourceTypeSchema,
 	resourceId: z.string(),
 	operationKey: z.string().nullable(),
+	targetDisplayName: z.string().nullable(),
 	targetAgentId: z.string().nullable(),
 	input: taskInputSchema,
 	progress: taskProgressSchema.nullable(),
@@ -131,13 +135,20 @@ export const taskSchema = z.object(taskShape).superRefine((task, ctx) => {
 		});
 	}
 });
-const { organizationId: _organizationId, ...taskDtoShape } = taskShape;
+
+const {
+	organizationId: _organizationId,
+	outcome: _outcome,
+	targetDisplayName: _targetDisplayName,
+	...taskDtoShape
+} = taskShape;
 
 export const taskDtoSchema = z.object(taskDtoShape);
 
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
 export type TaskKind = z.infer<typeof taskKindSchema>;
+export type TaskOutcome = z.infer<typeof taskOutcomeSchema>;
 export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;
 export type TaskInput = z.infer<typeof taskInputSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
