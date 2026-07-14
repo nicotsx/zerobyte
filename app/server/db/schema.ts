@@ -12,6 +12,7 @@ import type {
 import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 import type { BackendConfig, BackendStatus, BackendType } from "@zerobyte/contracts/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
+import type { TaskOutcome } from "~/schemas/tasks";
 import type { ShortId } from "~/server/utils/branded";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
@@ -366,9 +367,11 @@ export const tasksTable = sqliteTable(
 			.references(() => organization.id, { onDelete: "cascade" }),
 		kind: text("kind").notNull(),
 		status: text("status").notNull(),
+		outcome: text("outcome").$type<TaskOutcome>(),
 		resourceType: text("resource_type").notNull(),
 		resourceId: text("resource_id").notNull(),
 		operationKey: text("operation_key"),
+		targetDisplayName: text("target_display_name"),
 		targetAgentId: text("target_agent_id"),
 		input: text("input", { mode: "json" }).$type<TaskJson>().notNull(),
 		progress: text("progress", { mode: "json" }).$type<TaskJson | null>(),
@@ -401,6 +404,7 @@ export const tasksTable = sqliteTable(
 			table.finishedAt,
 		),
 		index("tasks_org_status_updated_at_idx").on(table.organizationId, table.status, table.updatedAt),
+		index("tasks_org_created_at_id_idx").on(table.organizationId, table.createdAt, table.id),
 	],
 );
 export type Task = typeof tasksTable.$inferSelect;

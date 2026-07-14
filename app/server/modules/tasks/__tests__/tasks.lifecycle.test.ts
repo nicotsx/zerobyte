@@ -15,6 +15,7 @@ const createTask = (id: string) => {
 		organizationId: TEST_ORG_ID,
 		resourceType: "repository",
 		resourceId: "repo-short",
+		targetDisplayName: "Test repository",
 		input: {
 			kind: "deleteSnapshots",
 			repositoryId: "repo-short",

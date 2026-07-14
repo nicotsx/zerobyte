@@ -16,6 +16,7 @@ type RestoreCommandParams = {
 	organizationId: string;
 	repositoryId: string;
 	repositoryShortId: string;
+	repositoryName: string;
 	repositoryConfig: RepositoryConfig;
 	snapshotId: string;
 	target: string;
@@ -127,6 +128,7 @@ export const createRestoreCommand = (params: RestoreCommandParams) => {
 				resourceType: "repository",
 				resourceId: params.repositoryShortId,
 				operationKey: params.snapshotId,
+				targetDisplayName: params.repositoryName,
 				targetAgentId: params.executionTarget.kind === "agent" ? params.executionTarget.agentId : null,
 				input: {
 					kind: "restore",

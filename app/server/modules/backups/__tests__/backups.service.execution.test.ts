@@ -845,6 +845,7 @@ describe("stop backup", () => {
 			organizationId: TEST_ORG_ID,
 			resourceType: "backup_schedule",
 			resourceId: String(schedule.id),
+			targetDisplayName: schedule.name,
 			targetAgentId: "local",
 			input: {
 				kind: "backup",
@@ -1049,6 +1050,7 @@ describe("stop backup", () => {
 			organizationId: TEST_ORG_ID,
 			resourceType: "backup_schedule",
 			resourceId: String(schedule.id),
+			targetDisplayName: schedule.name,
 			targetAgentId: "local",
 			input: {
 				kind: "backup",

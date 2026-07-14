@@ -188,6 +188,7 @@ export const createDoctorCommand = (params: DoctorCommandParams) => {
 				organizationId: params.repository.organizationId,
 				resourceType: "repository",
 				resourceId: params.repository.shortId,
+				targetDisplayName: params.repository.name,
 				input: {
 					kind: "doctor",
 					repositoryId: params.repository.shortId,

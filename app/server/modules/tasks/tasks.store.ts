@@ -17,6 +17,7 @@ import {
 	type TaskResourceType,
 	type TaskResult,
 } from "~/schemas/tasks";
+import { getCompletedTaskOutcome } from "./task-outcome";
 
 type TaskResource = {
 	organizationId: string;
@@ -31,6 +32,7 @@ type CreateTaskParams = {
 	organizationId: string;
 	resourceType: TaskResourceType;
 	resourceId: string;
+	targetDisplayName: string;
 	operationKey?: string | null;
 	targetAgentId?: string | null;
 	input: TaskInput;
@@ -171,9 +173,11 @@ export const taskStore = {
 				organizationId: params.organizationId,
 				kind: input.kind,
 				status: "queued",
+				outcome: "running",
 				resourceType: params.resourceType,
 				resourceId: params.resourceId,
 				operationKey: params.operationKey ?? null,
+				targetDisplayName: params.targetDisplayName,
 				targetAgentId: params.targetAgentId ?? null,
 				input,
 				progress: null,
@@ -195,7 +199,7 @@ export const taskStore = {
 		const now = Date.now();
 		const row = db
 			.update(tasksTable)
-			.set({ status: "running", startedAt: now, updatedAt: now })
+			.set({ status: "running", outcome: "running", startedAt: now, updatedAt: now })
 			.where(and(byIdCondition(taskId), activeStatusCondition()))
 			.returning()
 			.get();
@@ -222,7 +226,12 @@ export const taskStore = {
 	requestCancel: (taskId: string): ParsedTask => {
 		const row = db
 			.update(tasksTable)
-			.set({ status: "cancelling", cancellationRequested: true, updatedAt: Date.now() })
+			.set({
+				status: "cancelling",
+				outcome: "running",
+				cancellationRequested: true,
+				updatedAt: Date.now(),
+			})
 			.where(and(byIdCondition(taskId), activeStatusCondition()))
 			.returning()
 			.get();
@@ -239,6 +248,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "succeeded",
+				outcome: getCompletedTaskOutcome(parsedResult),
 				result: parsedResult,
 				error: null,
 				updatedAt: now,
@@ -259,6 +269,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "failed",
+				outcome: "error",
 				error,
 				updatedAt: now,
 				finishedAt: now,
@@ -278,6 +289,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "cancelled",
+				outcome: "cancelled",
 				error,
 				result: result === null ? null : taskResultSchema.parse(result),
 				updatedAt: now,
@@ -399,6 +411,7 @@ export const taskStore = {
 			.update(tasksTable)
 			.set({
 				status: "stale",
+				outcome: "stale",
 				error: params.error ?? "Task was interrupted before it completed",
 				updatedAt: now,
 				finishedAt: now,

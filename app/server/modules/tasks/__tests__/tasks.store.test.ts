@@ -58,6 +58,7 @@ const createBackupTask = (overrides: Partial<Parameters<typeof taskStore.create>
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: "1",
+		targetDisplayName: "Test backup",
 		targetAgentId: "local",
 		input: backupInput(),
 		...overrides,
@@ -68,6 +69,7 @@ const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create
 		organizationId: TEST_ORG_ID,
 		resourceType: "repository",
 		resourceId: "repo-short",
+		targetDisplayName: "Test repository",
 		targetAgentId: "local",
 		input: {
 			kind: "restore",
@@ -83,6 +85,7 @@ const createDeleteSnapshotsTask = (overrides: Partial<Parameters<typeof taskStor
 		organizationId: TEST_ORG_ID,
 		resourceType: "repository",
 		resourceId: "repo-short",
+		targetDisplayName: "Test repository",
 		input: deleteSnapshotsInput(),
 		...overrides,
 	});
@@ -104,8 +107,10 @@ test("creates queued backup tasks with parsed input and durable metadata only", 
 		organizationId: TEST_ORG_ID,
 		kind: "backup",
 		status: "queued",
+		outcome: "running",
 		resourceType: "backup_schedule",
 		resourceId: "12",
+		targetDisplayName: "Test backup",
 		targetAgentId: "local",
 		input: {
 			kind: "backup",
@@ -128,6 +133,7 @@ test("moves an active task through running, progress, cancellation request, and 
 
 	const running = taskStore.markRunning(task.id);
 	expect(running.status).toBe("running");
+	expect(running.outcome).toBe("running");
 	expect(running.startedAt).toEqual(expect.any(Number));
 
 	const progressed = taskStore.updateProgress(task.id, backupProgress(0.7));
@@ -142,6 +148,7 @@ test("moves an active task through running, progress, cancellation request, and 
 
 	const completed = taskStore.complete(task.id, backupResult());
 	expect(completed.status).toBe("succeeded");
+	expect(completed.outcome).toBe("success");
 	expect(completed.result?.kind).toBe("backup");
 	if (completed.result?.kind !== "backup") {
 		throw new Error("Expected backup result");
@@ -155,6 +162,7 @@ test("records failed and cancelled terminal task states", () => {
 	const failedTask = createBackupTask({ id: "task-failed", resourceId: "failed" });
 	const failed = taskStore.fail(failedTask.id, "restic failed");
 	expect(failed.status).toBe("failed");
+	expect(failed.outcome).toBe("error");
 	expect(failed.error).toBe("restic failed");
 	expect(failed.finishedAt).toEqual(expect.any(Number));
 
@@ -162,6 +170,7 @@ test("records failed and cancelled terminal task states", () => {
 	taskStore.requestCancel(cancelledTask.id);
 	const cancelled = taskStore.cancel(cancelledTask.id, "Backup was stopped by the user");
 	expect(cancelled.status).toBe("cancelled");
+	expect(cancelled.outcome).toBe("cancelled");
 	expect(cancelled.error).toBe("Backup was stopped by the user");
 	expect(cancelled.cancellationRequested).toBe(true);
 });
@@ -255,6 +264,7 @@ test("finds the newest active task for a resource and marks only matching active
 		error: "process restarted",
 	});
 	expect(staleTasks.map((task) => task.id).sort()).toEqual(["task-a-old", "task-z-new"]);
+	expect(staleTasks.every((task) => task.outcome === "stale")).toBe(true);
 
 	const other = await db.query.tasksTable.findFirst({ where: { id: otherResource.id } });
 	const completed = await db.query.tasksTable.findFirst({ where: { id: terminal.id } });

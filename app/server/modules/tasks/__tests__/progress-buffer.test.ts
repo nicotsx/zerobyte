@@ -37,6 +37,7 @@ const createBackupTask = (id: string) =>
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
 		resourceId: "1",
+		targetDisplayName: "Test backup",
 		targetAgentId: "local",
 		input: backupInput(),
 	});
