@@ -5179,6 +5179,25 @@ export type SetPasswordLoginStatusResponses = {
 
 export type SetPasswordLoginStatusResponse = SetPasswordLoginStatusResponses[keyof SetPasswordLoginStatusResponses];
 
+export type ExportConfigData = {
+    body: {
+        password: string;
+        exportPassphrase: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/config-export';
+};
+
+export type ExportConfigResponses = {
+    /**
+     * Encrypted configuration export
+     */
+    200: string;
+};
+
+export type ExportConfigResponse = ExportConfigResponses[keyof ExportConfigResponses];
+
 export type GetDevPanelData = {
     body?: never;
     path?: never;

@@ -3,6 +3,8 @@ import { validator } from "hono-openapi";
 import {
 	downloadResticPasswordBodySchema,
 	downloadResticPasswordDto,
+	exportConfigBodySchema,
+	exportConfigDto,
 	getUpdatesDto,
 	systemInfoDto,
 	type SystemInfoDto,
@@ -23,9 +25,14 @@ import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
+import { InternalServerError } from "http-errors-enhanced";
 import { userHasPassword, verifyUserPassword } from "../auth/helpers";
 import { cryptoUtils } from "../../utils/crypto";
 import { getOrganizationId } from "~/server/core/request-context";
+import {
+	createPassphraseProtectedOrganizationConfigExport,
+	OrganizationResticPasswordNotFoundError,
+} from "./config-transfer";
 
 const verifyRecoveryKeyPassword = async (userId: string, password: string, authSource: string) => {
 	if (authSource === "desktop-session") {
@@ -132,6 +139,42 @@ export const systemController = new Hono()
 			await systemService.setPasswordLoginDisabled(body.disabled);
 
 			return c.json<PasswordLoginStatusDto>({ disabled: body.disabled }, 200);
+		},
+	)
+	.post(
+		"/config-export",
+		requirePermission("recoveryKey.download"),
+		exportConfigDto,
+		validator("json", exportConfigBodySchema),
+		async (c) => {
+			const user = c.get("user");
+			const organizationId = getOrganizationId();
+			const body = c.req.valid("json");
+			const passwordError = await verifyRecoveryKeyPassword(user.id, body.password, c.get("authSource"));
+			if (passwordError) {
+				return c.json({ message: passwordError.message }, passwordError.status);
+			}
+
+			let content: string;
+			try {
+				content = await createPassphraseProtectedOrganizationConfigExport(
+					organizationId,
+					body.exportPassphrase,
+				);
+			} catch (cause) {
+				if (cause instanceof OrganizationResticPasswordNotFoundError) {
+					return c.json({ message: cause.message }, 404);
+				}
+
+				throw new InternalServerError("Failed to export configuration", { cause });
+			}
+
+			await markRecoveryKeyAsDownloaded(user.id);
+
+			c.header("Content-Type", "text/plain");
+			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');
+
+			return c.text(content);
 		},
 	)
 	.get("/dev-panel", getDevPanelDto, async (c) => {
