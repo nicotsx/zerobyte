@@ -19,6 +19,7 @@ import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
 import { serverEvents } from "~/server/core/events";
 import { assertNotificationTargetAllowed } from "./utils/notification-target-policy";
+import { normalizeRequiredName } from "~/server/utils/names";
 
 const MAX_DELIVERY_ERROR_LENGTH = 2048;
 
@@ -50,9 +51,9 @@ const getDestination = async (id: number) => {
 
 const createDestination = async (name: string, config: NotificationConfig) => {
 	const organizationId = getOrganizationId();
-	const trimmedName = name.trim();
+	const normalizedName = normalizeRequiredName(name);
 
-	if (trimmedName.length === 0) {
+	if (normalizedName === null) {
 		throw new BadRequestError("Name cannot be empty");
 	}
 
@@ -63,7 +64,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 	const [created] = await db
 		.insert(notificationDestinationsTable)
 		.values({
-			name: trimmedName,
+			name: normalizedName,
 			type: config.type,
 			config: encryptedConfig,
 			organizationId,
@@ -93,11 +94,11 @@ const updateDestination = async (
 	};
 
 	if (updates.name !== undefined) {
-		const trimmedName = updates.name.trim();
-		if (trimmedName.length === 0) {
+		const normalizedName = normalizeRequiredName(updates.name);
+		if (normalizedName === null) {
 			throw new BadRequestError("Name cannot be empty");
 		}
-		updateData.name = trimmedName;
+		updateData.name = normalizedName;
 	}
 
 	if (updates.enabled !== undefined) {

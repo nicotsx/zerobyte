@@ -5198,6 +5198,36 @@ export type ExportConfigResponses = {
 
 export type ExportConfigResponse = ExportConfigResponses[keyof ExportConfigResponses];
 
+export type ImportConfigData = {
+    body: {
+        encryptedConfig: string;
+        exportPassphrase: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/config-import';
+};
+
+export type ImportConfigResponses = {
+    /**
+     * Configuration imported successfully
+     */
+    200: {
+        message: string;
+        imported: {
+            repositories: number;
+            volumes: number;
+            backupSchedules: number;
+            notificationDestinations: number;
+            backupScheduleMirrors: number;
+            backupScheduleNotifications: number;
+        };
+        warnings: Array<string>;
+    };
+};
+
+export type ImportConfigResponse = ImportConfigResponses[keyof ImportConfigResponses];
+
 export type GetDevPanelData = {
     body?: never;
     path?: never;

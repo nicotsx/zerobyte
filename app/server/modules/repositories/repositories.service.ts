@@ -37,6 +37,7 @@ import { agentsService } from "../agents/agents.service";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
 import { Effect } from "effect";
+import { normalizeRequiredName } from "~/server/utils/names";
 
 const lsLimiters = new Map<string, Effect.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
@@ -145,6 +146,12 @@ const createRepository = async (
 	autoCheckEnabled?: boolean,
 ) => {
 	const organizationId = getOrganizationId();
+	const normalizedName = normalizeRequiredName(name);
+
+	if (normalizedName === null) {
+		throw new BadRequestError("Repository name cannot be empty");
+	}
+
 	const id = Bun.randomUUIDv7();
 	const shortId = generateShortId();
 	const resolvedCompressionMode = compressionMode ?? "auto";
@@ -160,7 +167,7 @@ const createRepository = async (
 		.values({
 			id,
 			shortId,
-			name: name.trim(),
+			name: normalizedName,
 			type: config.backend,
 			config: encryptedConfig,
 			compressionMode: resolvedCompressionMode,
@@ -683,11 +690,14 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const existingConfig = existingConfigResult.data;
 
 	let newName = existing.name;
-	if (updates.name) {
-		newName = updates.name.trim();
-		if (newName.length === 0) {
+	if (updates.name !== undefined) {
+		const normalizedName = normalizeRequiredName(updates.name);
+
+		if (normalizedName === null) {
 			throw new BadRequestError("Repository name cannot be empty");
 		}
+
+		newName = normalizedName;
 	}
 
 	let parsedConfig = existingConfig;

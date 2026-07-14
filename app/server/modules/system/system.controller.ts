@@ -9,6 +9,9 @@ import {
 	systemInfoDto,
 	type SystemInfoDto,
 	type UpdateInfoDto,
+	importConfigBodySchema,
+	importConfigDto,
+	type ImportConfigResponseDto,
 	setRegistrationStatusDto,
 	getRegistrationStatusDto,
 	registrationStatusBody,
@@ -21,7 +24,7 @@ import {
 	type DevPanelDto,
 } from "./system.dto";
 import { systemService } from "./system.service";
-import { requireAuth, requirePermission } from "../auth/auth.middleware";
+import { requireAuth, requireOrgAdmin, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
 import { usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -32,6 +35,7 @@ import { getOrganizationId } from "~/server/core/request-context";
 import {
 	createPassphraseProtectedOrganizationConfigExport,
 	OrganizationResticPasswordNotFoundError,
+	importPassphraseProtectedOrganizationConfig,
 } from "./config-transfer";
 
 const verifyRecoveryKeyPassword = async (userId: string, password: string, authSource: string) => {
@@ -177,6 +181,29 @@ export const systemController = new Hono()
 			return c.text(content);
 		},
 	)
+	.post("/config-import", requireOrgAdmin, importConfigDto, validator("json", importConfigBodySchema), async (c) => {
+		const user = c.get("user");
+		const organizationId = getOrganizationId();
+		const body = c.req.valid("json");
+
+		const result = await importPassphraseProtectedOrganizationConfig(
+			organizationId,
+			user.id,
+			body.encryptedConfig,
+			body.exportPassphrase,
+		);
+		const message =
+			result.warnings.length > 0 ? "Configuration imported with warnings" : "Configuration imported successfully";
+
+		return c.json<ImportConfigResponseDto>(
+			{
+				message,
+				imported: result.imported,
+				warnings: result.warnings,
+			},
+			200,
+		);
+	})
 	.get("/dev-panel", getDevPanelDto, async (c) => {
 		const enabled = systemService.isDevPanelEnabled();
 

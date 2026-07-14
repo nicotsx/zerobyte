@@ -78,7 +78,7 @@
 			"includePatterns": ["**/*.md"],
 			"oneFileSystem": true,
 			"customResticParams": ["--pack-size 64"],
-			"compressionMode": null,
+			"compressionMode": "off",
 			"backupWebhooks": null,
 			"maxRetries": 4,
 			"retryDelay": 120000,

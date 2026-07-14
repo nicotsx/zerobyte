@@ -124,6 +124,22 @@ describe("repositoriesService.createRepository", () => {
 		expect(created?.autoCheckEnabled).toBe(false);
 	});
 
+	test("normalizes repository names and rejects empty names", async () => {
+		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
+
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.createRepository("  normalized repository  ", config),
+		);
+
+		expect(result.repository.name).toBe("normalized repository");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.createRepository(" \t\n ", { backend: "local", path: REPOSITORY_BASE }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
+	});
+
 	test("creates a shortId-scoped repository path when using a custom directory", async () => {
 		// arrange
 		const explicitPath = `${REPOSITORY_BASE}/custom-${randomUUID()}`;
@@ -183,6 +199,30 @@ describe("repositoriesService.createRepository", () => {
 		const savedConfig = created.config as Extract<RepositoryConfig, { backend: "local" }>;
 		expect(savedConfig.path).toBe(explicitPath);
 		expect(created.status).toBe("healthy");
+	});
+});
+
+describe("repositoriesService.updateRepository", () => {
+	test("normalizes repository names and rejects explicit empty updates", async () => {
+		const repository = await createTestRepository(session.organizationId);
+
+		const updated = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.updateRepository(repository.shortId, { name: "  updated repository  " }),
+		);
+
+		expect(updated.repository.name).toBe("updated repository");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, { name: "" }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, { name: " \t\n " }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
 	});
 });
 
