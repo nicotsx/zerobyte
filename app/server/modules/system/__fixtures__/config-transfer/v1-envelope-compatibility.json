@@ -1,0 +1,6 @@
+{
+	"description": "Synthetic v1 configuration-transfer envelope compatibility fixture. The passphrase and plaintext are fixed test data, not real secrets.",
+	"passphrase": "v1-compatibility-fixture-passphrase",
+	"plaintext": "v1 envelope compatibility fixture: no real secrets",
+	"encryptedConfig": "zbcfg:v1:{\"envelopeVersion\":1,\"kdf\":{\"name\":\"scrypt\",\"salt\":\"KWdBkSK5ht5sa671eY4u7Q\",\"cost\":65536,\"blockSize\":8,\"parallelization\":2,\"keyBytes\":32},\"cipher\":{\"name\":\"aes-256-gcm\",\"nonce\":\"xDXTisC97kpdhAce\",\"authTag\":\"kCjJp1sxZ-SpspkN_wvUww\"},\"ciphertext\":\"RDI11U6IWN_6AbCgXz1HAx-Xx3-ciC_GrgsR0GS5H8ueTlL43NSMyRncvLYWl9C2ygw\"}"
+}
