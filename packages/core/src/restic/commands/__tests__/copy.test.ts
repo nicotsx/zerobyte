@@ -31,7 +31,7 @@ const destConfig = {
 const setup = () => {
 	let capturedArgs: string[] = [];
 
-	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	const cleanupMock = vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 	vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
 		capturedArgs = args ?? [];
 		return { exitCode: 0, stdout: "copied", stderr: "", timedOut: false };
@@ -39,6 +39,7 @@ const setup = () => {
 
 	return {
 		getArgs: () => capturedArgs,
+		cleanupMock,
 	};
 };
 
@@ -123,5 +124,21 @@ describe("copy command", () => {
 		const separatorIndex = getArgs().indexOf("--");
 		expect(separatorIndex).toBeGreaterThan(-1);
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
+	});
+
+	test("cleans up both repository environments when restic fails", async () => {
+		const { cleanupMock } = setup();
+		vi.mocked(nodeModule.safeExec).mockResolvedValueOnce({
+			exitCode: 1,
+			stdout: "",
+			stderr: "copy failed",
+			timedOut: false,
+		});
+
+		await expect(
+			Effect.runPromise(copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps)),
+		).rejects.toThrow("copy failed");
+
+		expect(cleanupMock).toHaveBeenCalledTimes(2);
 	});
 });

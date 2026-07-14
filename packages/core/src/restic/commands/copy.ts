@@ -5,7 +5,7 @@ import { buildRepoUrl } from "../helpers/build-repo-url";
 import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { getCopyCompatibleCustomResticParams } from "../helpers/validate-custom-params";
 import type { RepositoryConfig } from "../schemas";
-import { createResticError, isResticError } from "../error";
+import { createResticError, isResticError, type AnyResticError } from "../error";
 import { logger, safeExec } from "../../node";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
@@ -24,23 +24,28 @@ export const copy = (
 		tag?: string;
 		snapshotIds?: string[];
 		customResticParams?: string[];
+		signal?: AbortSignal;
 	},
 	deps: ResticDeps,
 ) => {
-	return Effect.tryPromise({
-		try: async () => {
-			const sourceRepoUrl = buildRepoUrl(sourceConfig);
-			const destRepoUrl = buildRepoUrl(destConfig);
-
-			const sourceEnv = await buildEnv(sourceConfig, options.organizationId, deps);
-			const destEnv = await buildEnv(destConfig, options.organizationId, deps);
+	return Effect.scoped(
+		Effect.gen(function* () {
+			const sourceRepoUrl = yield* Effect.try(() => buildRepoUrl(sourceConfig));
+			const destRepoUrl = yield* Effect.try(() => buildRepoUrl(destConfig));
+			const sourceEnv = yield* Effect.acquireRelease(
+				Effect.tryPromise(() => buildEnv(sourceConfig, options.organizationId, deps)),
+				(env) => Effect.promise(() => cleanupTemporaryKeys(env, deps)),
+			);
+			const destEnv = yield* Effect.acquireRelease(
+				Effect.tryPromise(() => buildEnv(destConfig, options.organizationId, deps)),
+				(env) => Effect.promise(() => cleanupTemporaryKeys(env, deps)),
+			);
 
 			const env: Record<string, string> = {
 				...sourceEnv,
 				...destEnv,
 				RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE!,
 			};
-
 			const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
 
 			if (options.tag) {
@@ -49,7 +54,6 @@ export const copy = (
 
 			if (options.customResticParams?.length) {
 				const customResticParams = getCopyCompatibleCustomResticParams(options.customResticParams);
-
 				for (const param of customResticParams) {
 					const tokens = param.trim().split(/\s+/).filter(Boolean);
 					args.push(...tokens);
@@ -57,19 +61,16 @@ export const copy = (
 			}
 
 			addCommonArgs(args, env, destConfig, { skipBandwidth: true });
-
 			const sourceDownloadLimit = formatBandwidthLimit(sourceConfig.downloadLimit);
 			const destUploadLimit = formatBandwidthLimit(destConfig.uploadLimit);
 
 			if (sourceDownloadLimit) {
 				args.push("--limit-download", sourceDownloadLimit);
 			}
-
 			if (destUploadLimit) {
 				args.push("--limit-upload", destUploadLimit);
 			}
-
-			if (options.snapshotIds && options.snapshotIds.length > 0) {
+			if (options.snapshotIds?.length) {
 				args.push("--", ...options.snapshotIds);
 			} else {
 				args.push("--", "latest");
@@ -77,34 +78,35 @@ export const copy = (
 
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
-
-			const res = await safeExec({ command: deps.resticCommand ?? "restic", args, env });
-
-			await cleanupTemporaryKeys(sourceEnv, deps);
-			await cleanupTemporaryKeys(destEnv, deps);
-
-			const { stdout, stderr } = res;
+			const res = yield* Effect.tryPromise(() =>
+				safeExec({
+					command: deps.resticCommand ?? "restic",
+					args,
+					env,
+					signal: options.signal,
+				}),
+			);
 
 			if (res.exitCode !== 0) {
-				logger.error(`Restic copy failed: ${stderr}`);
-				throw createResticError(res.exitCode, stderr);
+				logger.error(`Restic copy failed: ${res.stderr}`);
+				return yield* Effect.fail(createResticError(res.exitCode, res.stderr));
 			}
 
 			logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
-			return {
-				success: true,
-				output: stdout,
-			};
-		},
-		catch: (error) => {
-			if (isResticError(error)) {
-				return error;
-			}
+			return { success: true, output: res.stdout };
+		}).pipe(
+			Effect.catchAll((error): Effect.Effect<never, AnyResticError | ResticCopyCommandError> => {
+				if (isResticError(error)) {
+					return Effect.fail(error);
+				}
 
-			return new ResticCopyCommandError({
-				cause: error,
-				message: toMessage(error),
-			});
-		},
-	});
+				return Effect.fail(
+					new ResticCopyCommandError({
+						cause: error,
+						message: toMessage(error),
+					}),
+				);
+			}),
+		),
+	);
 };
