@@ -125,6 +125,7 @@ describe("restic command lock recovery", () => {
 
 	test("runs stale-only unlock for both repositories before retrying copy", async () => {
 		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+		const abortController = new AbortController();
 		let copyCalls = 0;
 		const safeExecMock = vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
 			if (args?.includes("copy")) {
@@ -156,6 +157,7 @@ describe("restic command lock recovery", () => {
 		await Effect.runPromise(
 			restic.copy(sourceRepositoryConfig, destinationRepositoryConfig, {
 				organizationId: "org-1",
+				signal: abortController.signal,
 			}),
 		);
 
@@ -164,6 +166,7 @@ describe("restic command lock recovery", () => {
 		expect(unlockCalls).toHaveLength(2);
 		for (const [params] of unlockCalls) {
 			expect(params.args).not.toContain("--remove-all");
+			expect(params.signal).toBe(abortController.signal);
 		}
 	});
 });

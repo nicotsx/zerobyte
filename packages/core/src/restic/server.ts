@@ -29,9 +29,10 @@ export { isResticError, ResticError, ResticLockError } from "./error";
 type LockRecoveryContext = {
 	repositoryConfigs: RepositoryConfig[];
 	organizationId: string;
+	signal?: AbortSignal;
 };
 
-type ResticCommandOptions = { organizationId: string };
+type ResticCommandOptions = { organizationId: string; signal?: AbortSignal };
 type ResticCommandFailure<Failure> = Failure | ResticLockError;
 type RunResticCommand<Success, Failure, Requirements> = () => Effect.Effect<
 	Success,
@@ -47,19 +48,21 @@ const getLockRecoveryContext = (operation: string, args: unknown[]): LockRecover
 		return {
 			repositoryConfigs: [args[1] as RepositoryConfig, firstRepositoryConfig],
 			organizationId: options.organizationId,
+			signal: options.signal,
 		};
 	}
 
 	return {
 		repositoryConfigs: [firstRepositoryConfig],
 		organizationId: options.organizationId,
+		signal: options.signal,
 	};
 };
 
 const unlockStaleLocks = (context: LockRecoveryContext, deps: ResticDeps) =>
 	Effect.gen(function* () {
 		for (const repositoryConfig of context.repositoryConfigs) {
-			yield* unlock(repositoryConfig, { organizationId: context.organizationId }, deps);
+			yield* unlock(repositoryConfig, { organizationId: context.organizationId, signal: context.signal }, deps);
 		}
 	}).pipe(Effect.catchAll(() => Effect.void));
 
