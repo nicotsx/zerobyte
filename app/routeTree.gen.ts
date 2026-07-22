@@ -9,64 +9,54 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
-import { Route as authRouteRouteImport } from './routes/(auth)/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as DesktopTrayRouteImport } from './routes/desktop/tray'
-import { Route as ApiSplatRouteImport } from './routes/api.$'
-import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
-import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as authRouteRouteImport } from './routes/(auth)/route'
+import { Route as dashboardRouteRouteImport } from './routes/(dashboard)/route'
 import { Route as authDownloadRecoveryKeyRouteImport } from './routes/(auth)/download-recovery-key'
-import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
-import { Route as dashboardSettingsIndexRouteImport } from './routes/(dashboard)/settings/index'
-import { Route as dashboardRepositoriesIndexRouteImport } from './routes/(dashboard)/repositories/index'
-import { Route as dashboardNotificationsIndexRouteImport } from './routes/(dashboard)/notifications/index'
-import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
-import { Route as dashboardAdminIndexRouteImport } from './routes/(dashboard)/admin/index'
-import { Route as dashboardVolumesCreateRouteImport } from './routes/(dashboard)/volumes/create'
-import { Route as dashboardRepositoriesCreateRouteImport } from './routes/(dashboard)/repositories/create'
-import { Route as dashboardNotificationsCreateRouteImport } from './routes/(dashboard)/notifications/create'
-import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
+import { Route as authLoginRouteImport } from './routes/(auth)/login'
+import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
+import { Route as ApiSplatRouteImport } from './routes/api.$'
+import { Route as DesktopTrayRouteImport } from './routes/desktop/tray'
 import { Route as authLoginErrorRouteImport } from './routes/(auth)/login.error'
-import { Route as dashboardVolumesVolumeIdIndexRouteImport } from './routes/(dashboard)/volumes/$volumeId/index'
-import { Route as dashboardRepositoriesRepositoryIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/index'
-import { Route as dashboardNotificationsNotificationIdIndexRouteImport } from './routes/(dashboard)/notifications/$notificationId/index'
+import { Route as dashboardAdminIndexRouteImport } from './routes/(dashboard)/admin/index'
+import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
+import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
+import { Route as dashboardNotificationsIndexRouteImport } from './routes/(dashboard)/notifications/index'
+import { Route as dashboardNotificationsCreateRouteImport } from './routes/(dashboard)/notifications/create'
+import { Route as dashboardRepositoriesIndexRouteImport } from './routes/(dashboard)/repositories/index'
+import { Route as dashboardRepositoriesCreateRouteImport } from './routes/(dashboard)/repositories/create'
+import { Route as dashboardSettingsIndexRouteImport } from './routes/(dashboard)/settings/index'
+import { Route as dashboardVolumesIndexRouteImport } from './routes/(dashboard)/volumes/index'
+import { Route as dashboardVolumesCreateRouteImport } from './routes/(dashboard)/volumes/create'
 import { Route as dashboardBackupsBackupIdIndexRouteImport } from './routes/(dashboard)/backups/$backupId/index'
-import { Route as dashboardVolumesVolumeIdEditRouteImport } from './routes/(dashboard)/volumes/$volumeId/edit'
-import { Route as dashboardSettingsSsoNewRouteImport } from './routes/(dashboard)/settings/sso/new'
-import { Route as dashboardRepositoriesRepositoryIdEditRouteImport } from './routes/(dashboard)/repositories/$repositoryId/edit'
-import { Route as dashboardNotificationsNotificationIdEditRouteImport } from './routes/(dashboard)/notifications/$notificationId/edit'
 import { Route as dashboardBackupsBackupIdEditRouteImport } from './routes/(dashboard)/backups/$backupId/edit'
+import { Route as dashboardNotificationsNotificationIdIndexRouteImport } from './routes/(dashboard)/notifications/$notificationId/index'
+import { Route as dashboardNotificationsNotificationIdEditRouteImport } from './routes/(dashboard)/notifications/$notificationId/edit'
+import { Route as dashboardRepositoriesRepositoryIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/index'
+import { Route as dashboardRepositoriesRepositoryIdEditRouteImport } from './routes/(dashboard)/repositories/$repositoryId/edit'
+import { Route as dashboardSettingsSsoNewRouteImport } from './routes/(dashboard)/settings/sso/new'
+import { Route as dashboardVolumesVolumeIdIndexRouteImport } from './routes/(dashboard)/volumes/$volumeId/index'
+import { Route as dashboardVolumesVolumeIdEditRouteImport } from './routes/(dashboard)/volumes/$volumeId/edit'
+import { Route as dashboardBackupsBackupIdSnapshotIdRestoreRouteImport } from './routes/(dashboard)/backups/$backupId/$snapshotId.restore'
 import { Route as dashboardRepositoriesRepositoryIdSnapshotIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/$snapshotId/index'
 import { Route as dashboardRepositoriesRepositoryIdSnapshotIdRestoreRouteImport } from './routes/(dashboard)/repositories/$repositoryId/$snapshotId/restore'
-import { Route as dashboardBackupsBackupIdSnapshotIdRestoreRouteImport } from './routes/(dashboard)/backups/$backupId/$snapshotId.restore'
 
-const dashboardRouteRoute = dashboardRouteRouteImport.update({
-  id: '/(dashboard)',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const authRouteRoute = authRouteRouteImport.update({
   id: '/(auth)',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const dashboardRouteRoute = dashboardRouteRouteImport.update({
+  id: '/(dashboard)',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DesktopTrayRoute = DesktopTrayRouteImport.update({
-  id: '/desktop/tray',
-  path: '/desktop/tray',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiSplatRoute = ApiSplatRouteImport.update({
-  id: '/api/$',
-  path: '/api/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const authOnboardingRoute = authOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const authDownloadRecoveryKeyRoute = authDownloadRecoveryKeyRouteImport.update({
+  id: '/download-recovery-key',
+  path: '/download-recovery-key',
   getParentRoute: () => authRouteRoute,
 } as any)
 const authLoginRoute = authLoginRouteImport.update({
@@ -74,52 +64,45 @@ const authLoginRoute = authLoginRouteImport.update({
   path: '/login',
   getParentRoute: () => authRouteRoute,
 } as any)
-const authDownloadRecoveryKeyRoute = authDownloadRecoveryKeyRouteImport.update({
-  id: '/download-recovery-key',
-  path: '/download-recovery-key',
+const authOnboardingRoute = authOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => authRouteRoute,
 } as any)
-const dashboardVolumesIndexRoute = dashboardVolumesIndexRouteImport.update({
-  id: '/volumes/',
-  path: '/volumes/',
-  getParentRoute: () => dashboardRouteRoute,
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const dashboardSettingsIndexRoute = dashboardSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => dashboardRouteRoute,
+const DesktopTrayRoute = DesktopTrayRouteImport.update({
+  id: '/desktop/tray',
+  path: '/desktop/tray',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const dashboardRepositoriesIndexRoute =
-  dashboardRepositoriesIndexRouteImport.update({
-    id: '/repositories/',
-    path: '/repositories/',
-    getParentRoute: () => dashboardRouteRoute,
-  } as any)
-const dashboardNotificationsIndexRoute =
-  dashboardNotificationsIndexRouteImport.update({
-    id: '/notifications/',
-    path: '/notifications/',
-    getParentRoute: () => dashboardRouteRoute,
-  } as any)
-const dashboardBackupsIndexRoute = dashboardBackupsIndexRouteImport.update({
-  id: '/backups/',
-  path: '/backups/',
-  getParentRoute: () => dashboardRouteRoute,
+const authLoginErrorRoute = authLoginErrorRouteImport.update({
+  id: '/error',
+  path: '/error',
+  getParentRoute: () => authLoginRoute,
 } as any)
 const dashboardAdminIndexRoute = dashboardAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => dashboardRouteRoute,
 } as any)
-const dashboardVolumesCreateRoute = dashboardVolumesCreateRouteImport.update({
-  id: '/volumes/create',
-  path: '/volumes/create',
+const dashboardBackupsIndexRoute = dashboardBackupsIndexRouteImport.update({
+  id: '/backups/',
+  path: '/backups/',
   getParentRoute: () => dashboardRouteRoute,
 } as any)
-const dashboardRepositoriesCreateRoute =
-  dashboardRepositoriesCreateRouteImport.update({
-    id: '/repositories/create',
-    path: '/repositories/create',
+const dashboardBackupsCreateRoute = dashboardBackupsCreateRouteImport.update({
+  id: '/backups/create',
+  path: '/backups/create',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardNotificationsIndexRoute =
+  dashboardNotificationsIndexRouteImport.update({
+    id: '/notifications/',
+    path: '/notifications/',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardNotificationsCreateRoute =
@@ -128,26 +111,43 @@ const dashboardNotificationsCreateRoute =
     path: '/notifications/create',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
-const dashboardBackupsCreateRoute = dashboardBackupsCreateRouteImport.update({
-  id: '/backups/create',
-  path: '/backups/create',
-  getParentRoute: () => dashboardRouteRoute,
-} as any)
-const authLoginErrorRoute = authLoginErrorRouteImport.update({
-  id: '/error',
-  path: '/error',
-  getParentRoute: () => authLoginRoute,
-} as any)
-const dashboardVolumesVolumeIdIndexRoute =
-  dashboardVolumesVolumeIdIndexRouteImport.update({
-    id: '/volumes/$volumeId/',
-    path: '/volumes/$volumeId/',
+const dashboardRepositoriesIndexRoute =
+  dashboardRepositoriesIndexRouteImport.update({
+    id: '/repositories/',
+    path: '/repositories/',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
-const dashboardRepositoriesRepositoryIdIndexRoute =
-  dashboardRepositoriesRepositoryIdIndexRouteImport.update({
-    id: '/repositories/$repositoryId/',
-    path: '/repositories/$repositoryId/',
+const dashboardRepositoriesCreateRoute =
+  dashboardRepositoriesCreateRouteImport.update({
+    id: '/repositories/create',
+    path: '/repositories/create',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardSettingsIndexRoute = dashboardSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardVolumesIndexRoute = dashboardVolumesIndexRouteImport.update({
+  id: '/volumes/',
+  path: '/volumes/',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardVolumesCreateRoute = dashboardVolumesCreateRouteImport.update({
+  id: '/volumes/create',
+  path: '/volumes/create',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardBackupsBackupIdIndexRoute =
+  dashboardBackupsBackupIdIndexRouteImport.update({
+    id: '/backups/$backupId/',
+    path: '/backups/$backupId/',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardBackupsBackupIdEditRoute =
+  dashboardBackupsBackupIdEditRouteImport.update({
+    id: '/backups/$backupId/edit',
+    path: '/backups/$backupId/edit',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardNotificationsNotificationIdIndexRoute =
@@ -156,10 +156,33 @@ const dashboardNotificationsNotificationIdIndexRoute =
     path: '/notifications/$notificationId/',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
-const dashboardBackupsBackupIdIndexRoute =
-  dashboardBackupsBackupIdIndexRouteImport.update({
-    id: '/backups/$backupId/',
-    path: '/backups/$backupId/',
+const dashboardNotificationsNotificationIdEditRoute =
+  dashboardNotificationsNotificationIdEditRouteImport.update({
+    id: '/notifications/$notificationId/edit',
+    path: '/notifications/$notificationId/edit',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardRepositoriesRepositoryIdIndexRoute =
+  dashboardRepositoriesRepositoryIdIndexRouteImport.update({
+    id: '/repositories/$repositoryId/',
+    path: '/repositories/$repositoryId/',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardRepositoriesRepositoryIdEditRoute =
+  dashboardRepositoriesRepositoryIdEditRouteImport.update({
+    id: '/repositories/$repositoryId/edit',
+    path: '/repositories/$repositoryId/edit',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
+const dashboardSettingsSsoNewRoute = dashboardSettingsSsoNewRouteImport.update({
+  id: '/settings/sso/new',
+  path: '/settings/sso/new',
+  getParentRoute: () => dashboardRouteRoute,
+} as any)
+const dashboardVolumesVolumeIdIndexRoute =
+  dashboardVolumesVolumeIdIndexRouteImport.update({
+    id: '/volumes/$volumeId/',
+    path: '/volumes/$volumeId/',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardVolumesVolumeIdEditRoute =
@@ -168,27 +191,10 @@ const dashboardVolumesVolumeIdEditRoute =
     path: '/volumes/$volumeId/edit',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
-const dashboardSettingsSsoNewRoute = dashboardSettingsSsoNewRouteImport.update({
-  id: '/settings/sso/new',
-  path: '/settings/sso/new',
-  getParentRoute: () => dashboardRouteRoute,
-} as any)
-const dashboardRepositoriesRepositoryIdEditRoute =
-  dashboardRepositoriesRepositoryIdEditRouteImport.update({
-    id: '/repositories/$repositoryId/edit',
-    path: '/repositories/$repositoryId/edit',
-    getParentRoute: () => dashboardRouteRoute,
-  } as any)
-const dashboardNotificationsNotificationIdEditRoute =
-  dashboardNotificationsNotificationIdEditRouteImport.update({
-    id: '/notifications/$notificationId/edit',
-    path: '/notifications/$notificationId/edit',
-    getParentRoute: () => dashboardRouteRoute,
-  } as any)
-const dashboardBackupsBackupIdEditRoute =
-  dashboardBackupsBackupIdEditRouteImport.update({
-    id: '/backups/$backupId/edit',
-    path: '/backups/$backupId/edit',
+const dashboardBackupsBackupIdSnapshotIdRestoreRoute =
+  dashboardBackupsBackupIdSnapshotIdRestoreRouteImport.update({
+    id: '/backups/$backupId/$snapshotId/restore',
+    path: '/backups/$backupId/$snapshotId/restore',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 const dashboardRepositoriesRepositoryIdSnapshotIdIndexRoute =
@@ -201,12 +207,6 @@ const dashboardRepositoriesRepositoryIdSnapshotIdRestoreRoute =
   dashboardRepositoriesRepositoryIdSnapshotIdRestoreRouteImport.update({
     id: '/repositories/$repositoryId/$snapshotId/restore',
     path: '/repositories/$repositoryId/$snapshotId/restore',
-    getParentRoute: () => dashboardRouteRoute,
-  } as any)
-const dashboardBackupsBackupIdSnapshotIdRestoreRoute =
-  dashboardBackupsBackupIdSnapshotIdRestoreRouteImport.update({
-    id: '/backups/$backupId/$snapshotId/restore',
-    path: '/backups/$backupId/$snapshotId/restore',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
 
@@ -414,11 +414,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/(dashboard)': {
-      id: '/(dashboard)'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof dashboardRouteRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/(auth)': {
@@ -428,32 +428,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/(dashboard)': {
+      id: '/(dashboard)'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof dashboardRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/desktop/tray': {
-      id: '/desktop/tray'
-      path: '/desktop/tray'
-      fullPath: '/desktop/tray'
-      preLoaderRoute: typeof DesktopTrayRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/$': {
-      id: '/api/$'
-      path: '/api/$'
-      fullPath: '/api/$'
-      preLoaderRoute: typeof ApiSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/(auth)/onboarding': {
-      id: '/(auth)/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof authOnboardingRouteImport
+    '/(auth)/download-recovery-key': {
+      id: '/(auth)/download-recovery-key'
+      path: '/download-recovery-key'
+      fullPath: '/download-recovery-key'
+      preLoaderRoute: typeof authDownloadRecoveryKeyRouteImport
       parentRoute: typeof authRouteRoute
     }
     '/(auth)/login': {
@@ -463,39 +449,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authLoginRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/(auth)/download-recovery-key': {
-      id: '/(auth)/download-recovery-key'
-      path: '/download-recovery-key'
-      fullPath: '/download-recovery-key'
-      preLoaderRoute: typeof authDownloadRecoveryKeyRouteImport
+    '/(auth)/onboarding': {
+      id: '/(auth)/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof authOnboardingRouteImport
       parentRoute: typeof authRouteRoute
     }
-    '/(dashboard)/volumes/': {
-      id: '/(dashboard)/volumes/'
-      path: '/volumes'
-      fullPath: '/volumes/'
-      preLoaderRoute: typeof dashboardVolumesIndexRouteImport
-      parentRoute: typeof dashboardRouteRoute
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/(dashboard)/settings/': {
-      id: '/(dashboard)/settings/'
-      path: '/settings'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof dashboardSettingsIndexRouteImport
-      parentRoute: typeof dashboardRouteRoute
+    '/desktop/tray': {
+      id: '/desktop/tray'
+      path: '/desktop/tray'
+      fullPath: '/desktop/tray'
+      preLoaderRoute: typeof DesktopTrayRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/(dashboard)/repositories/': {
-      id: '/(dashboard)/repositories/'
-      path: '/repositories'
-      fullPath: '/repositories/'
-      preLoaderRoute: typeof dashboardRepositoriesIndexRouteImport
-      parentRoute: typeof dashboardRouteRoute
+    '/(auth)/login/error': {
+      id: '/(auth)/login/error'
+      path: '/error'
+      fullPath: '/login/error'
+      preLoaderRoute: typeof authLoginErrorRouteImport
+      parentRoute: typeof authLoginRoute
     }
-    '/(dashboard)/notifications/': {
-      id: '/(dashboard)/notifications/'
-      path: '/notifications'
-      fullPath: '/notifications/'
-      preLoaderRoute: typeof dashboardNotificationsIndexRouteImport
+    '/(dashboard)/admin/': {
+      id: '/(dashboard)/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof dashboardAdminIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/backups/': {
@@ -505,25 +491,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardBackupsIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/admin/': {
-      id: '/(dashboard)/admin/'
-      path: '/admin'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof dashboardAdminIndexRouteImport
+    '/(dashboard)/backups/create': {
+      id: '/(dashboard)/backups/create'
+      path: '/backups/create'
+      fullPath: '/backups/create'
+      preLoaderRoute: typeof dashboardBackupsCreateRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/volumes/create': {
-      id: '/(dashboard)/volumes/create'
-      path: '/volumes/create'
-      fullPath: '/volumes/create'
-      preLoaderRoute: typeof dashboardVolumesCreateRouteImport
-      parentRoute: typeof dashboardRouteRoute
-    }
-    '/(dashboard)/repositories/create': {
-      id: '/(dashboard)/repositories/create'
-      path: '/repositories/create'
-      fullPath: '/repositories/create'
-      preLoaderRoute: typeof dashboardRepositoriesCreateRouteImport
+    '/(dashboard)/notifications/': {
+      id: '/(dashboard)/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof dashboardNotificationsIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/notifications/create': {
@@ -533,39 +512,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardNotificationsCreateRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/backups/create': {
-      id: '/(dashboard)/backups/create'
-      path: '/backups/create'
-      fullPath: '/backups/create'
-      preLoaderRoute: typeof dashboardBackupsCreateRouteImport
+    '/(dashboard)/repositories/': {
+      id: '/(dashboard)/repositories/'
+      path: '/repositories'
+      fullPath: '/repositories/'
+      preLoaderRoute: typeof dashboardRepositoriesIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(auth)/login/error': {
-      id: '/(auth)/login/error'
-      path: '/error'
-      fullPath: '/login/error'
-      preLoaderRoute: typeof authLoginErrorRouteImport
-      parentRoute: typeof authLoginRoute
-    }
-    '/(dashboard)/volumes/$volumeId/': {
-      id: '/(dashboard)/volumes/$volumeId/'
-      path: '/volumes/$volumeId'
-      fullPath: '/volumes/$volumeId/'
-      preLoaderRoute: typeof dashboardVolumesVolumeIdIndexRouteImport
+    '/(dashboard)/repositories/create': {
+      id: '/(dashboard)/repositories/create'
+      path: '/repositories/create'
+      fullPath: '/repositories/create'
+      preLoaderRoute: typeof dashboardRepositoriesCreateRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/repositories/$repositoryId/': {
-      id: '/(dashboard)/repositories/$repositoryId/'
-      path: '/repositories/$repositoryId'
-      fullPath: '/repositories/$repositoryId/'
-      preLoaderRoute: typeof dashboardRepositoriesRepositoryIdIndexRouteImport
+    '/(dashboard)/settings/': {
+      id: '/(dashboard)/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof dashboardSettingsIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/notifications/$notificationId/': {
-      id: '/(dashboard)/notifications/$notificationId/'
-      path: '/notifications/$notificationId'
-      fullPath: '/notifications/$notificationId/'
-      preLoaderRoute: typeof dashboardNotificationsNotificationIdIndexRouteImport
+    '/(dashboard)/volumes/': {
+      id: '/(dashboard)/volumes/'
+      path: '/volumes'
+      fullPath: '/volumes/'
+      preLoaderRoute: typeof dashboardVolumesIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/volumes/create': {
+      id: '/(dashboard)/volumes/create'
+      path: '/volumes/create'
+      fullPath: '/volumes/create'
+      preLoaderRoute: typeof dashboardVolumesCreateRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/backups/$backupId/': {
@@ -575,25 +554,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardBackupsBackupIdIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/volumes/$volumeId/edit': {
-      id: '/(dashboard)/volumes/$volumeId/edit'
-      path: '/volumes/$volumeId/edit'
-      fullPath: '/volumes/$volumeId/edit'
-      preLoaderRoute: typeof dashboardVolumesVolumeIdEditRouteImport
+    '/(dashboard)/backups/$backupId/edit': {
+      id: '/(dashboard)/backups/$backupId/edit'
+      path: '/backups/$backupId/edit'
+      fullPath: '/backups/$backupId/edit'
+      preLoaderRoute: typeof dashboardBackupsBackupIdEditRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/settings/sso/new': {
-      id: '/(dashboard)/settings/sso/new'
-      path: '/settings/sso/new'
-      fullPath: '/settings/sso/new'
-      preLoaderRoute: typeof dashboardSettingsSsoNewRouteImport
-      parentRoute: typeof dashboardRouteRoute
-    }
-    '/(dashboard)/repositories/$repositoryId/edit': {
-      id: '/(dashboard)/repositories/$repositoryId/edit'
-      path: '/repositories/$repositoryId/edit'
-      fullPath: '/repositories/$repositoryId/edit'
-      preLoaderRoute: typeof dashboardRepositoriesRepositoryIdEditRouteImport
+    '/(dashboard)/notifications/$notificationId/': {
+      id: '/(dashboard)/notifications/$notificationId/'
+      path: '/notifications/$notificationId'
+      fullPath: '/notifications/$notificationId/'
+      preLoaderRoute: typeof dashboardNotificationsNotificationIdIndexRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/notifications/$notificationId/edit': {
@@ -603,11 +575,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardNotificationsNotificationIdEditRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
-    '/(dashboard)/backups/$backupId/edit': {
-      id: '/(dashboard)/backups/$backupId/edit'
-      path: '/backups/$backupId/edit'
-      fullPath: '/backups/$backupId/edit'
-      preLoaderRoute: typeof dashboardBackupsBackupIdEditRouteImport
+    '/(dashboard)/repositories/$repositoryId/': {
+      id: '/(dashboard)/repositories/$repositoryId/'
+      path: '/repositories/$repositoryId'
+      fullPath: '/repositories/$repositoryId/'
+      preLoaderRoute: typeof dashboardRepositoriesRepositoryIdIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/repositories/$repositoryId/edit': {
+      id: '/(dashboard)/repositories/$repositoryId/edit'
+      path: '/repositories/$repositoryId/edit'
+      fullPath: '/repositories/$repositoryId/edit'
+      preLoaderRoute: typeof dashboardRepositoriesRepositoryIdEditRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/settings/sso/new': {
+      id: '/(dashboard)/settings/sso/new'
+      path: '/settings/sso/new'
+      fullPath: '/settings/sso/new'
+      preLoaderRoute: typeof dashboardSettingsSsoNewRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/volumes/$volumeId/': {
+      id: '/(dashboard)/volumes/$volumeId/'
+      path: '/volumes/$volumeId'
+      fullPath: '/volumes/$volumeId/'
+      preLoaderRoute: typeof dashboardVolumesVolumeIdIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/volumes/$volumeId/edit': {
+      id: '/(dashboard)/volumes/$volumeId/edit'
+      path: '/volumes/$volumeId/edit'
+      fullPath: '/volumes/$volumeId/edit'
+      preLoaderRoute: typeof dashboardVolumesVolumeIdEditRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
+    '/(dashboard)/backups/$backupId/$snapshotId/restore': {
+      id: '/(dashboard)/backups/$backupId/$snapshotId/restore'
+      path: '/backups/$backupId/$snapshotId/restore'
+      fullPath: '/backups/$backupId/$snapshotId/restore'
+      preLoaderRoute: typeof dashboardBackupsBackupIdSnapshotIdRestoreRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/repositories/$repositoryId/$snapshotId/': {
@@ -622,13 +629,6 @@ declare module '@tanstack/react-router' {
       path: '/repositories/$repositoryId/$snapshotId/restore'
       fullPath: '/repositories/$repositoryId/$snapshotId/restore'
       preLoaderRoute: typeof dashboardRepositoriesRepositoryIdSnapshotIdRestoreRouteImport
-      parentRoute: typeof dashboardRouteRoute
-    }
-    '/(dashboard)/backups/$backupId/$snapshotId/restore': {
-      id: '/(dashboard)/backups/$backupId/$snapshotId/restore'
-      path: '/backups/$backupId/$snapshotId/restore'
-      fullPath: '/backups/$backupId/$snapshotId/restore'
-      preLoaderRoute: typeof dashboardBackupsBackupIdSnapshotIdRestoreRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
   }
