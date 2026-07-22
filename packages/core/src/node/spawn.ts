@@ -23,15 +23,17 @@ export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecPr
 			encoding: "utf8",
 		});
 
-		return { exitCode: 0, stdout, stderr, timedOut: false };
+		return { exitCode: 0, stdout: stdout.toString(), stderr: stderr.toString(), timedOut: false };
 	} catch (error) {
 		const execError = error as ExecException & { killed?: boolean };
 		const timedOut = execError.killed === true && execError.code === null;
 
 		return {
 			exitCode: typeof execError.code === "number" ? execError.code : 1,
-			stdout: execError.stdout || "",
-			stderr: timedOut ? "Command timed out before completing" : execError.stderr || execError.message || "",
+			stdout: execError.stdout?.toString() ?? "",
+			stderr: timedOut
+				? "Command timed out before completing"
+				: execError.stderr?.toString() || execError.message || "",
 			timedOut,
 		};
 	}
