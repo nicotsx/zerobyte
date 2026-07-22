@@ -80,7 +80,7 @@
 		"date-fns": "^4.4.0",
 		"dither-plugin": "^1.1.1",
 		"dotenv": "^17.4.2",
-		"drizzle-orm": "^1.0.0-rc.4-de6c356",
+		"drizzle-orm": "1.0.0-rc.4-5d5b77c",
 		"effect": "^3.22.0",
 		"es-toolkit": "^1.49.0",
 		"hono": "^4.12.31",
