@@ -97,6 +97,31 @@ describe("copy command", () => {
 		expect(getArgs()).not.toContain("--ignore-inode");
 	});
 
+	test("passes storage class option for S3 repositories", async () => {
+		const { getArgs } = setup();
+
+		await Effect.runPromise(
+			copy(
+				sourceConfig,
+				{
+					backend: "s3",
+					endpoint: "https://s3.example.com",
+					bucket: "backups",
+					accessKeyId: "ak",
+					secretAccessKey: "sk",
+					storageClass: "STANDARD_IA",
+					isExistingRepository: true,
+					customPassword: "dest-password",
+				},
+				{ organizationId: "org-1", tag: "daily" },
+				mockDeps,
+			),
+		);
+
+		expect(getArgs()).toContain("-o");
+		expect(getArgs()).toContain("s3.storage-class=STANDARD_IA");
+	});
+
 	test("passes multiple snapshot IDs after separator", async () => {
 		const { getArgs } = setup();
 
