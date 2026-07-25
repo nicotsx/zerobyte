@@ -22,7 +22,7 @@ RUN apk add --no-cache \
 	openssh-client-default=10.0_p1-r10 \
 	sshfs=3.7.6-r0 \
 	tini=0.19.0-r3 \
-	tzdata=2026c-r0
+	tzdata
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
@@ -39,7 +39,7 @@ ENV TARGETARCH=${TARGETARCH}
 
 RUN apk add --no-cache \
 	bzip2=1.0.8-r6 \
-	curl=8.14.1-r2 \
+	curl \
 	tar=1.35-r3 \
 	unzip=6.0-r15
 
