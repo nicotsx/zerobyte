@@ -22,7 +22,7 @@ RUN apk add --no-cache \
 	openssh-client-default=10.0_p1-r10 \
 	sshfs=3.7.6-r0 \
 	tini=0.19.0-r3 \
-	tzdata=2026b-r0
+	tzdata=2026c-r0
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
