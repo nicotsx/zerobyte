@@ -149,4 +149,4 @@ COPY ./LICENSE ./LICENSE.md
 
 EXPOSE 4096
 
-CMD ["bun", ".output/server/index.mjs"]
+CMD ["/usr/local/bin/bun", ".output/server/index.mjs"]
