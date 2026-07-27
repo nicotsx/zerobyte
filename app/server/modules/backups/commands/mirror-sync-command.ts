@@ -68,8 +68,8 @@ const executeMirrorSync = async (
 					signal,
 				}),
 			);
-			cache.delByPrefix(cacheKeys.repository.all(plan.mirrorRepository.id));
 		} finally {
+			cache.delByPrefix(cacheKeys.repository.all(plan.mirrorRepository.id));
 			releaseLocks();
 		}
 
@@ -115,6 +115,9 @@ const mergeIntoQueuedTask = (plan: PostBackupMirrorSyncPlan) => {
 	if (!queuedTask || queuedTask.input.kind !== "mirrorSync") {
 		return null;
 	}
+	if (queuedTask.input.sourceRepositoryId !== plan.sourceRepository.id) {
+		return null;
+	}
 
 	const existingSnapshotIds = queuedTask.input.snapshotIds ?? [];
 	const incomingSnapshotIds = plan.snapshotIds;
@@ -153,6 +156,7 @@ export function createMirrorSyncCommand(plan: MirrorSyncExecutionPlan) {
 					kind: "mirrorSync",
 					scheduleId: plan.scheduleId,
 					scheduleShortId: plan.scheduleShortId,
+					sourceRepositoryId: plan.sourceRepository.id,
 					mirrorRepositoryId: plan.mirrorRepository.shortId,
 					snapshotIds: plan.snapshotIds,
 				},

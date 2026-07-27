@@ -51,6 +51,7 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("mirrorSync"),
 		scheduleId: z.number(),
 		scheduleShortId: z.string(),
+		sourceRepositoryId: z.string().optional(),
 		mirrorRepositoryId: z.string(),
 		snapshotIds: z.array(z.string()).optional(),
 	}),

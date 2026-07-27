@@ -610,4 +610,74 @@ describe("mirror operations", () => {
 			}),
 		);
 	});
+
+	test("does not merge queued syncs from different source repositories", async () => {
+		const { resticCopyMock, refreshStatsMock } = setup();
+		const volume = await createTestVolume();
+		const firstSourceRepository = await createTestRepository();
+		const secondSourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: firstSourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		let releaseManualCopy = () => {};
+		const manualCopyStarted = new Promise<void>((resolve) => {
+			resticCopyMock.mockImplementationOnce(() =>
+				Effect.promise(
+					() =>
+						new Promise((copyResolve) => {
+							resolve();
+							releaseManualCopy = () => copyResolve({ success: true, output: "" });
+						}),
+				),
+			);
+		});
+
+		await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId, ["manual-snapshot"]);
+		await manualCopyStarted;
+		await backupsService.executeBackup(schedule.id);
+		await db
+			.update(backupSchedulesTable)
+			.set({ repositoryId: secondSourceRepository.id })
+			.where(eq(backupSchedulesTable.id, schedule.id));
+		await backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(refreshStatsMock).toHaveBeenCalledTimes(2);
+		});
+
+		const activeTaskResource = {
+			organizationId: TEST_ORG_ID,
+			kind: "mirrorSync" as const,
+			resourceType: "backup_schedule" as const,
+			resourceId: schedule.shortId,
+			operationKey: mirrorRepository.shortId,
+		};
+
+		try {
+			const activeTasks = taskStore.listActive(activeTaskResource);
+			const sourceRepositoryIds: string[] = [];
+			for (const task of activeTasks) {
+				if (task.input.kind === "mirrorSync" && task.input.sourceRepositoryId) {
+					sourceRepositoryIds.push(task.input.sourceRepositoryId);
+				}
+			}
+			expect(activeTasks).toHaveLength(3);
+			expect(sourceRepositoryIds).toEqual(
+				expect.arrayContaining([firstSourceRepository.id, secondSourceRepository.id]),
+			);
+		} finally {
+			releaseManualCopy();
+		}
+
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalledWith(
+				secondSourceRepository.config,
+				mirrorRepository.config,
+				expect.any(Object),
+			);
+		});
+	});
 });

@@ -13,6 +13,7 @@ import type { ShortId } from "~/server/utils/branded";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
+import { cache, cacheKeys } from "~/server/utils/cache";
 
 const setup = () => {
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
@@ -269,6 +270,7 @@ describe("syncMirror", () => {
 	test("should reject a concurrent task and finalize the mirror summary when cancellation is requested", async () => {
 		const { mockCopy } = setup();
 		const copyMock = mockCopy();
+		const clearRepositoryCache = vi.spyOn(cache, "delByPrefix");
 		const copyStarted = new Promise<void>((resolve) => {
 			copyMock.mockImplementation((_source, _destination, options) =>
 				Effect.promise(
@@ -315,6 +317,7 @@ describe("syncMirror", () => {
 			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
 			const mirrors = await backupsService.getMirrors(schedule.shortId);
 			expect(task?.status).toBe("cancelled");
+			expect(clearRepositoryCache).toHaveBeenCalledWith(cacheKeys.repository.all(mirrorRepository.id));
 			expect(mirrors[0]?.lastSyncTask).toMatchObject({
 				id: firstSync.taskId,
 				status: "cancelled",
