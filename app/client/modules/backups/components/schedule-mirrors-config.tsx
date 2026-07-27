@@ -44,7 +44,7 @@ import { cn } from "~/client/lib/utils";
 import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { Link } from "@tanstack/react-router";
 import { useTimeFormat } from "~/client/lib/datetime";
-import { isTaskActive, useActiveTasks } from "~/client/hooks/use-active-tasks";
+import { isTaskActive, type TaskOfKind, useActiveTasks } from "~/client/hooks/use-active-tasks";
 
 type Props = {
 	scheduleShortId: string;
@@ -56,13 +56,15 @@ type Props = {
 type MirrorAssignment = {
 	repositoryId: string;
 	enabled: boolean;
-	lastSyncTask: GetScheduleMirrorsResponse[number]["lastSyncTask"];
 };
 
 type CancelConfirmation = {
-	taskId: string;
+	taskIds: string[];
 	repositoryName: string;
 };
+
+type FinishedMirrorSyncTask = NonNullable<GetScheduleMirrorsResponse[number]["lastSyncTask"]>;
+type MirrorSyncDisplayTask = FinishedMirrorSyncTask | TaskOfKind<"mirrorSync">;
 
 const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 	new Map<string, MirrorAssignment>(
@@ -71,7 +73,6 @@ const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 			{
 				repositoryId: mirror.repositoryId,
 				enabled: mirror.enabled,
-				lastSyncTask: mirror.lastSyncTask,
 			},
 		]),
 	);
@@ -84,7 +85,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const [syncDialogMirrorId, setSyncDialogMirrorId] = useState<string | null>(null);
 	const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<Set<string>>(new Set());
 	const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-	const [cancellingTaskIds, setCancellingTaskIds] = useState<Set<string>>(new Set());
 	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
 	const { data: activeMirrorSyncs } = useActiveTasks({
 		kind: "mirrorSync",
@@ -180,26 +180,16 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 				description: parseError(error)?.message,
 			});
 		},
-		onSettled: (_data, _error, variables) => {
-			setCancellingTaskIds((current) => {
-				const next = new Set(current);
-				next.delete(variables.path.taskId);
-				return next;
-			});
-		},
 	});
 
-	const cancelTask = (taskId: string) => {
-		setCancellingTaskIds((current) => new Set(current).add(taskId));
-		cancelSync.mutate({ path: { taskId } });
-	};
-
 	const confirmCancellation = () => {
-		const taskId = cancelConfirmation?.taskId;
-		if (!taskId) return;
+		if (!cancelConfirmation) return;
 
+		const taskIds = cancelConfirmation.taskIds;
 		setCancelConfirmation(null);
-		cancelTask(taskId);
+		for (const taskId of taskIds) {
+			cancelSync.mutate({ path: { taskId } });
+		}
 	};
 
 	const compatibilityMap = useMemo(() => {
@@ -217,7 +207,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		newAssignments.set(repositoryId, {
 			repositoryId,
 			enabled: true,
-			lastSyncTask: null,
 		});
 
 		setAssignments(newAssignments);
@@ -280,14 +269,14 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		.map((id) => repositories?.find((r) => r.shortId === id))
 		.filter((r) => r !== undefined);
 
-	const getStatusVariant = (task: MirrorAssignment["lastSyncTask"]) => {
+	const getStatusVariant = (task: MirrorSyncDisplayTask | null) => {
 		if (!task) return "neutral";
 		if (task.status === "succeeded") return "success";
 		if (isTaskActive(task)) return "info";
 		return "error";
 	};
 
-	const getLabel = (task: MirrorAssignment["lastSyncTask"]) => {
+	const getLabel = (task: MirrorSyncDisplayTask | null) => {
 		if (!task) return "Never";
 		if (isTaskActive(task)) {
 			return "Syncing...";
@@ -299,7 +288,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		return "Never";
 	};
 
-	const getStatusLabel = (task: MirrorAssignment["lastSyncTask"]) => {
+	const getStatusLabel = (task: MirrorSyncDisplayTask | null) => {
 		if (!task) return "Never synced";
 		if (isTaskActive(task)) {
 			return "Mirror sync in progress";
@@ -309,6 +298,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	};
 
 	const selectedMirrorRepo = repositories.find((r) => r.shortId === syncDialogMirrorId);
+	const currentMirrorsByRepository = new Map(currentMirrors.map((mirror) => [mirror.repositoryId, mirror]));
 
 	return (
 		<Card>
@@ -421,19 +411,25 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 								{assignedRepositories.map((repository) => {
 									const assignment = assignments.get(repository.shortId);
 									if (!assignment) return null;
-									const activeSync = activeMirrorSyncs?.find(
-										(task) => task.input.mirrorRepositoryId === repository.shortId,
-									);
+									const mirrorSyncs =
+										activeMirrorSyncs?.filter((task) => task.operationKey === repository.shortId) ??
+										[];
+									const activeSync = mirrorSyncs[0];
 									const syncing = activeSync !== undefined;
-									const syncTask = activeSync ?? assignment.lastSyncTask;
-									const cancellationPending = activeSync
-										? cancellingTaskIds.has(activeSync.id)
-										: false;
-									const cancelling = activeSync?.status === "cancelling" || cancellationPending;
+									const lastSyncTask =
+										currentMirrorsByRepository.get(repository.shortId)?.lastSyncTask ?? null;
+									const syncTask = activeSync ?? lastSyncTask;
+									const cancellationRequested = mirrorSyncs.some(
+										(task) => task.status === "cancelling",
+									);
+									const cancelling = cancellationRequested || cancelSync.isPending;
 									const statusVariant = getStatusVariant(syncTask);
 									const statusLabel = getStatusLabel(syncTask);
 									const statusText = getLabel(syncTask);
-									const buttonTooltip = syncing ? "Cancel sync" : "Sync more snapshots";
+									let buttonTooltip = "Sync more snapshots";
+									if (syncing) {
+										buttonTooltip = "Cancel sync";
+									}
 
 									return (
 										<TableRow key={repository.shortId}>
@@ -481,14 +477,14 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 																onClick={() => {
 																	if (activeSync) {
 																		setCancelConfirmation({
-																			taskId: activeSync.id,
+																			taskIds: mirrorSyncs.map((task) => task.id),
 																			repositoryName: repository.name,
 																		});
 																		return;
 																	}
 																	openSyncDialog(repository.shortId);
 																}}
-																disabled={activeSync ? cancelling : hasChanges}
+																disabled={syncing ? cancelling : hasChanges}
 																className={cn("h-8 w-8 text-muted-foreground", {
 																	"hover:text-destructive": syncing,
 																	"hover:text-foreground": !syncing,
@@ -635,7 +631,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 						<AlertDialogHeader>
 							<AlertDialogTitle>Cancel mirror sync?</AlertDialogTitle>
 							<AlertDialogDescription>
-								Are you sure you want to cancel the sync to{" "}
+								Are you sure you want to cancel synchronization to&nbsp;
 								<strong>{cancelConfirmation?.repositoryName}</strong>? Snapshots that have already been
 								copied will remain available.
 							</AlertDialogDescription>

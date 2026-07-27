@@ -4,11 +4,13 @@ import { tasksTable } from "~/server/db/schema";
 import {
 	activeTaskStatuses,
 	finishedTaskStatuses,
+	finishedTaskStatusSchema,
 	taskInputSchema,
 	taskProgressSchema,
 	taskResultSchema,
 	taskSchema,
 	type ParsedTask,
+	type FinishedTaskStatus,
 	type TaskInput,
 	type TaskKind,
 	type TaskProgress,
@@ -45,6 +47,21 @@ type TaskChangeListener = (task: ParsedTask) => void;
 export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
 
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
+
+type FinishedTask = Omit<ParsedTask, "status" | "finishedAt"> & {
+	status: FinishedTaskStatus;
+	finishedAt: number;
+};
+
+const parseFinishedTask = (row: unknown): FinishedTask => {
+	const task = parseTask(row);
+	const status = finishedTaskStatusSchema.parse(task.status);
+	if (task.finishedAt === null) {
+		throw new Error(`Finished task ${task.id} has no completion time`);
+	}
+
+	return { ...task, status, finishedAt: task.finishedAt };
+};
 
 const taskListeners = new Map<string, Set<TaskChangeListener>>();
 const allTaskListeners = new Set<TaskChangeListener>();
@@ -288,10 +305,41 @@ export const taskStore = {
 		return row ? parseTask(row) : null;
 	},
 
+	findQueuedByResource: (params: TaskResource): ParsedTask | null => {
+		const resourceConditions = buildResourceConditions(params);
+		const row = db
+			.select()
+			.from(tasksTable)
+			.where(and(eq(tasksTable.status, "queued"), ...resourceConditions))
+			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
+			.limit(1)
+			.get();
+
+		return row ? parseTask(row) : null;
+	},
+
+	updateQueuedInput: (taskId: string, input: TaskInput): ParsedTask | null => {
+		const parsedInput = taskInputSchema.parse(input);
+		const row = db
+			.update(tasksTable)
+			.set({ input: parsedInput, updatedAt: Date.now() })
+			.where(and(byIdCondition(taskId), eq(tasksTable.status, "queued")))
+			.returning()
+			.get();
+
+		if (!row) {
+			return null;
+		}
+
+		const task = parseTask(row);
+		emitTaskChanged(task);
+		return task;
+	},
+
 	findLatestFinishedByResources: (
 		params: Omit<TaskResource, "operationKey">,
 		operationKeys: string[],
-	): ParsedTask[] => {
+	): FinishedTask[] => {
 		if (operationKeys.length === 0) {
 			return [];
 		}
@@ -316,7 +364,7 @@ export const taskStore = {
 			.innerJoin(rankedTaskIds, and(eq(tasksTable.id, rankedTaskIds.id), eq(rankedTaskIds.rank, 1)))
 			.all();
 
-		return rows.map((row) => parseTask(row.task));
+		return rows.map((row) => parseFinishedTask(row.task));
 	},
 
 	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {

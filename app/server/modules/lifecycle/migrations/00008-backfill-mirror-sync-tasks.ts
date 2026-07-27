@@ -27,7 +27,6 @@ const execute = async () => {
 		const legacyMirrors = await db
 			.select({
 				id: backupScheduleMirrorsTable.id,
-				createdAt: backupScheduleMirrorsTable.createdAt,
 				lastCopyAt: backupScheduleMirrorsTable.lastCopyAt,
 				lastCopyStatus: backupScheduleMirrorsTable.lastCopyStatus,
 				lastCopyError: backupScheduleMirrorsTable.lastCopyError,
@@ -43,43 +42,53 @@ const execute = async () => {
 
 		const now = Date.now();
 
-		const tasks: TaskInsert[] = legacyMirrors.map((mirror) => {
+		const tasks: TaskInsert[] = legacyMirrors.flatMap((mirror) => {
 			if (!mirror.lastCopyStatus) {
 				throw new Error(`Legacy mirror ${mirror.id} has no copy status`);
 			}
 
 			const status = getTaskStatus(mirror.lastCopyStatus);
-			const finishedAt = mirror.lastCopyAt ?? now;
+			if (status !== "stale" && mirror.lastCopyAt === null) {
+				return [];
+			}
+
+			const finishedAt = status === "stale" ? now : mirror.lastCopyAt;
+			if (finishedAt === null) {
+				return [];
+			}
+
 			const result = status === "succeeded" ? { kind: "mirrorSync" } : null;
 			let error = mirror.lastCopyError;
 			if (status === "stale" && !error) {
 				error = "Mirror synchronization was interrupted before task tracking was introduced";
 			}
 
-			return {
-				id: `legacy-mirror-sync:${mirror.id}`,
-				organizationId: mirror.organizationId,
-				kind: "mirrorSync",
-				status,
-				resourceType: "backup_schedule",
-				resourceId: mirror.scheduleShortId,
-				operationKey: mirror.mirrorRepositoryShortId,
-				targetAgentId: null,
-				input: {
+			return [
+				{
+					id: `legacy-mirror-sync:${mirror.id}`,
+					organizationId: mirror.organizationId,
 					kind: "mirrorSync",
-					scheduleId: mirror.scheduleId,
-					scheduleShortId: mirror.scheduleShortId,
-					mirrorRepositoryId: mirror.mirrorRepositoryShortId,
+					status,
+					resourceType: "backup_schedule",
+					resourceId: mirror.scheduleShortId,
+					operationKey: mirror.mirrorRepositoryShortId,
+					targetAgentId: null,
+					input: {
+						kind: "mirrorSync",
+						scheduleId: mirror.scheduleId,
+						scheduleShortId: mirror.scheduleShortId,
+						mirrorRepositoryId: mirror.mirrorRepositoryShortId,
+					},
+					progress: null,
+					result,
+					error,
+					cancellationRequested: false,
+					createdAt: finishedAt,
+					startedAt: null,
+					updatedAt: finishedAt,
+					finishedAt,
 				},
-				progress: null,
-				result,
-				error,
-				cancellationRequested: false,
-				createdAt: Math.min(mirror.createdAt, finishedAt),
-				startedAt: null,
-				updatedAt: finishedAt,
-				finishedAt,
-			};
+			];
 		});
 
 		if (tasks.length > 0) {
@@ -100,5 +109,5 @@ const execute = async () => {
 export const v00008 = {
 	execute,
 	id: "00008-backfill-mirror-sync-tasks",
-	type: "maintenance" as const,
+	type: "critical" as const,
 };

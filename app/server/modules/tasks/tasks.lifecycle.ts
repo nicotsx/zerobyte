@@ -18,6 +18,7 @@ type TaskLifecycleOptions<TResult extends TaskResult> = {
 	taskId: string;
 	label: string;
 	cancellable?: boolean;
+	prepare?: (signal: AbortSignal) => Promise<() => void>;
 	run: (signal: AbortSignal) => Promise<TResult>;
 	onStarted?: (task: ParsedTask) => void | Promise<void>;
 	onSucceeded?: (task: ParsedTask, result: TResult) => void;
@@ -98,11 +99,15 @@ export const requestTaskCancel = (taskId: string) => {
 
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
+	let cleanup: (() => void) | undefined;
 	if (options.cancellable) {
 		abortControllers.set(options.taskId, abortController);
 	}
 
 	try {
+		cleanup = await options.prepare?.(abortController.signal);
+		abortController.signal.throwIfAborted();
+
 		const startedTask = taskStore.markRunning(options.taskId);
 		await options.onStarted?.(startedTask);
 		emitTaskLifecycleEvent("task:started", startedTask);
@@ -136,6 +141,7 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 			emitTaskLifecycleEvent("task:finished", failedTask);
 		}
 	} finally {
+		cleanup?.();
 		if (options.cancellable) {
 			abortControllers.delete(options.taskId);
 		}

@@ -13,6 +13,7 @@ export const finishedTaskStatuses = ["cancelled", "succeeded", "failed", "stale"
 
 export const taskStatusSchema = z.enum(taskStatuses);
 export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
+export const finishedTaskStatusSchema = z.enum(finishedTaskStatuses);
 export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"]);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 
@@ -148,6 +149,7 @@ export const taskDtoSchema = z.object(taskDtoShape);
 
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
+export type FinishedTaskStatus = z.infer<typeof finishedTaskStatusSchema>;
 export type TaskKind = z.infer<typeof taskKindSchema>;
 export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;
 export type TaskInput = z.infer<typeof taskInputSchema>;

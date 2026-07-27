@@ -71,7 +71,11 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 	}
 
 	if (!volume) {
-		return { type: "failure", error: new NotFoundError("Volume not found"), partialContext: { schedule } };
+		return {
+			type: "failure",
+			error: new NotFoundError("Volume not found"),
+			partialContext: { schedule },
+		};
 	}
 
 	if (!repository) {
@@ -177,8 +181,7 @@ export async function startPostBackupMirrorSyncs(
 	if (!result?.snapshot_id) {
 		throw new Error("Completed backup did not return a snapshot ID for mirror synchronization");
 	}
-
-	const snapshotIds = [result.snapshot_id];
+	const snapshotIds: [string] = [result.snapshot_id];
 
 	for (const mirror of mirrors) {
 		try {
@@ -191,6 +194,7 @@ export async function startPostBackupMirrorSyncs(
 					mirrorRepository: mirror.repository,
 					retentionPolicy: schedule.retentionPolicy,
 					customResticParams: schedule.customResticParams ?? [],
+					trigger: "postBackup",
 					snapshotIds,
 				})
 				.start();

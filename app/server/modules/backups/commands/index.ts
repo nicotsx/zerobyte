@@ -1,6 +1,5 @@
-import { createMirrorSyncCommand, hasActiveMirrorSync } from "./mirror-sync-command";
+import { createMirrorSyncCommand } from "./mirror-sync-command";
 
 export const commands = {
 	createMirrorSync: createMirrorSyncCommand,
-	hasActiveMirrorSync,
 };

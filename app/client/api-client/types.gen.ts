@@ -3977,10 +3977,10 @@ export type GetScheduleMirrorsResponses = {
         repositoryId: string;
         enabled: boolean;
         lastSyncTask: {
-          id: string;
-          status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
-          error: string | null;
-          finishedAt: number | null;
+            id: string;
+            status: 'cancelled' | 'succeeded' | 'failed' | 'stale';
+            error: string | null;
+            finishedAt: number;
         } | null;
         createdAt: number;
         repository: {
@@ -4193,10 +4193,10 @@ export type UpdateScheduleMirrorsResponses = {
         repositoryId: string;
         enabled: boolean;
         lastSyncTask: {
-          id: string;
-          status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
-          error: string | null;
-          finishedAt: number | null;
+            id: string;
+            status: 'cancelled' | 'succeeded' | 'failed' | 'stale';
+            error: string | null;
+            finishedAt: number;
         } | null;
         createdAt: number;
         repository: {

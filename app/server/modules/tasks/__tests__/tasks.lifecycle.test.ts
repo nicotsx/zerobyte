@@ -144,4 +144,34 @@ describe("runTaskLifecycle", () => {
 
 		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "cancelled" })]);
 	});
+
+	test("keeps cancellable tasks queued while they prepare", async () => {
+		const task = createTask("task-lifecycle-queued");
+		const events = observeLifecycleEvents();
+		let executionStarted = false;
+
+		const lifecycle = runTaskLifecycle({
+			taskId: task.id,
+			label: "test task",
+			cancellable: true,
+			prepare: (signal) =>
+				new Promise<never>((_, reject) => {
+					signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+				}),
+			run: async () => {
+				executionStarted = true;
+				return { kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] };
+			},
+		});
+
+		await Promise.resolve();
+		const queuedTask = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: task.id });
+		expect(queuedTask?.status).toBe("queued");
+		expect(requestTaskCancel(task.id)).toBe(true);
+		await lifecycle;
+
+		expect(executionStarted).toBe(false);
+		expect(events.started).toEqual([]);
+		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "cancelled" })]);
+	});
 });

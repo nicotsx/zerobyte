@@ -364,6 +364,36 @@ describe("syncMirror", () => {
 		});
 	});
 
+	test("keeps the mirror sync successful when retention maintenance fails", async () => {
+		const { mockCopy } = setup();
+		mockCopy();
+		vi.spyOn(resticModule.restic, "forget").mockImplementation(() =>
+			Effect.sync(() => {
+				throw new Error("Retention maintenance failed");
+			}),
+		);
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepHourly: 1 },
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		await waitForExpect(async () => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			const mirrors = await backupsService.getMirrors(schedule.shortId);
+			expect(task).toMatchObject({ status: "succeeded", error: null });
+			expect(mirrors[0]?.lastSyncTask).toMatchObject({ status: "succeeded", error: null });
+		});
+	});
+
 	test("should throw if mirror is not configured for the schedule", async () => {
 		setup();
 		const volume = await createTestVolume();

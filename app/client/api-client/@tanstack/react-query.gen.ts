@@ -544,27 +544,30 @@ export const listFilesInfiniteQueryKey = (options: Options<ListFilesData>): Quer
 /**
  * List files in a volume directory
  */
-export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-// @ts-ignore
-{
-    queryFn: async ({ pageParam, queryKey, signal }) => {
-        // @ts-ignore
-        const page: Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-            query: {
-                offset: pageParam
-            }
-        };
-        const params = createInfiniteParams(queryKey, page);
-        const { data } = await listFiles({
-            ...options,
-            ...params,
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listFilesInfiniteQueryKey(options)
-});
+export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => {
+    const opts = infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listFiles({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listFilesInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const browseFilesystemQueryKey = (options?: Options<BrowseFilesystemData>) => createQueryKey('browseFilesystem', options);
 
@@ -834,27 +837,30 @@ export const listSnapshotFilesInfiniteQueryKey = (options: Options<ListSnapshotF
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-// @ts-ignore
-{
-    queryFn: async ({ pageParam, queryKey, signal }) => {
-        // @ts-ignore
-        const page: Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-            query: {
-                offset: pageParam
-            }
-        };
-        const params = createInfiniteParams(queryKey, page);
-        const { data } = await listSnapshotFiles({
-            ...options,
-            ...params,
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listSnapshotFilesInfiniteQueryKey(options)
-});
+export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => {
+    const opts = infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listSnapshotFiles({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listSnapshotFilesInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const dumpSnapshotQueryKey = (options: Options<DumpSnapshotData>) => createQueryKey('dumpSnapshot', options);
 

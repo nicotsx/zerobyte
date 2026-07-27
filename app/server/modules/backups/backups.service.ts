@@ -40,7 +40,12 @@ const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled b
 
 const tryCancelTask = (
 	taskId: string,
-	activeTaskResource: { organizationId: string; kind: "backup"; resourceType: TaskResourceType; resourceId: string },
+	activeTaskResource: {
+		organizationId: string;
+		kind: "backup";
+		resourceType: TaskResourceType;
+		resourceId: string;
+	},
 ) => {
 	try {
 		taskStore.requestCancel(taskId);
@@ -87,7 +92,9 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const volume = await db.query.volumesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(data.volumeId) }, { shortId: { eq: asShortId(String(data.volumeId)) } }] },
+				{
+					OR: [{ id: Number(data.volumeId) }, { shortId: { eq: asShortId(String(data.volumeId)) } }],
+				},
 				{ organizationId },
 			],
 		},
@@ -100,7 +107,9 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{
+					OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }],
+				},
 				{ organizationId },
 			],
 		},
@@ -179,7 +188,9 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	const repository = await db.query.repositoriesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }] },
+				{
+					OR: [{ id: data.repositoryId }, { shortId: { eq: asShortId(data.repositoryId) } }],
+				},
 				{ organizationId },
 			],
 		},
@@ -247,7 +258,9 @@ const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 	const volume = await db.query.volumesTable.findFirst({
 		where: {
 			AND: [
-				{ OR: [{ id: Number(volumeIdOrShortId) }, { shortId: { eq: asShortId(String(volumeIdOrShortId)) } }] },
+				{
+					OR: [{ id: Number(volumeIdOrShortId) }, { shortId: { eq: asShortId(String(volumeIdOrShortId)) } }],
+				},
 				{ organizationId },
 			],
 		},
@@ -325,7 +338,9 @@ const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateS
 			const repo = await db.query.repositoriesTable.findFirst({
 				where: {
 					AND: [
-						{ OR: [{ id: mirror.repositoryId }, { shortId: { eq: asShortId(mirror.repositoryId) } }] },
+						{
+							OR: [{ id: mirror.repositoryId }, { shortId: { eq: asShortId(mirror.repositoryId) } }],
+						},
 						{ organizationId },
 					],
 				},
@@ -370,7 +385,9 @@ const getMirrorCompatibility = async (scheduleIdOrShortId: number | string) => {
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
 
-	const allRepositories = await db.query.repositoriesTable.findMany({ where: { organizationId } });
+	const allRepositories = await db.query.repositoriesTable.findMany({
+		where: { organizationId },
+	});
 	const repos = allRepositories.filter((repo) => repo.id !== schedule.repositoryId);
 
 	const compatibility = await Promise.all(
@@ -711,7 +728,10 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 	const [sourceSnapshots, mirrorSnapshots] = await runEffectPromise(
 		Effect.all(
 			[
-				restic.snapshots(schedule.repository.config, { tags: [schedule.shortId], organizationId }),
+				restic.snapshots(schedule.repository.config, {
+					tags: [schedule.shortId],
+					organizationId,
+				}),
 				restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
 			],
 			{ concurrency: "unbounded" },
@@ -735,11 +755,7 @@ const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorS
 	};
 };
 
-const startMirrorSync = async (
-	scheduleIdOrShortId: number | string,
-	mirrorShortId: ShortId,
-	snapshotIds?: string[],
-) => {
+const getMirrorSyncContext = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
 
@@ -759,19 +775,30 @@ const startMirrorSync = async (
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
+	return { organizationId, schedule, mirrorRepository: mirrorRepo };
+};
+
+const startMirrorSync = async (
+	scheduleIdOrShortId: number | string,
+	mirrorShortId: ShortId,
+	snapshotIds?: string[],
+) => {
+	const { organizationId, schedule, mirrorRepository } = await getMirrorSyncContext(
+		scheduleIdOrShortId,
+		mirrorShortId,
+	);
+
 	const plan = {
 		organizationId,
 		scheduleId: schedule.id,
 		scheduleShortId: schedule.shortId,
 		sourceRepository: schedule.repository,
-		mirrorRepository: mirrorRepo,
+		mirrorRepository,
 		retentionPolicy: schedule.retentionPolicy,
 		customResticParams: schedule.customResticParams ?? [],
+		trigger: "manual" as const,
 		snapshotIds,
 	};
-	if (commands.hasActiveMirrorSync(plan)) {
-		throw new ConflictError("Mirror is already syncing");
-	}
 
 	return commands.createMirrorSync(plan).start();
 };
