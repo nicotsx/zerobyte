@@ -159,7 +159,7 @@ export function updateBackupProgress(ctx: BackupContext, progress: BackupExecuti
 	});
 }
 
-async function startPostBackupMirrorSyncs(
+export async function startPostBackupMirrorSyncs(
 	ctx: BackupContext,
 	scheduleId: number,
 	result: ResticBackupOutputDto | null,
@@ -181,18 +181,24 @@ async function startPostBackupMirrorSyncs(
 	const snapshotIds = [result.snapshot_id];
 
 	for (const mirror of mirrors) {
-		commands
-			.createMirrorSync({
-				organizationId: ctx.organizationId,
-				scheduleId: schedule.id,
-				scheduleShortId: schedule.shortId,
-				sourceRepository: ctx.repository,
-				mirrorRepository: mirror.repository,
-				retentionPolicy: schedule.retentionPolicy,
-				customResticParams: schedule.customResticParams ?? [],
-				snapshotIds,
-			})
-			.start();
+		try {
+			commands
+				.createMirrorSync({
+					organizationId: ctx.organizationId,
+					scheduleId: schedule.id,
+					scheduleShortId: schedule.shortId,
+					sourceRepository: ctx.repository,
+					mirrorRepository: mirror.repository,
+					retentionPolicy: schedule.retentionPolicy,
+					customResticParams: schedule.customResticParams ?? [],
+					snapshotIds,
+				})
+				.start();
+		} catch (error) {
+			logger.error(
+				`Failed to start mirror sync for schedule ${scheduleId} and repository ${mirror.repository.shortId}: ${toMessage(error)}`,
+			);
+		}
 	}
 }
 
@@ -220,7 +226,6 @@ export async function finalizeSuccessfulBackup(
 	const finalStatus = exitCode === 0 && !warningDetails ? "success" : "warning";
 
 	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
-	await startPostBackupMirrorSyncs(ctx, scheduleId, result);
 	void runPostBackupMaintenance(ctx, scheduleId).catch((error) => {
 		logger.error(`Post-backup maintenance failed for schedule ${scheduleId}: ${toMessage(error)}`);
 	});

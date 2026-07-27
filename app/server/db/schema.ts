@@ -392,6 +392,14 @@ export const tasksTable = sqliteTable(
 			table.resourceId,
 			table.status,
 		),
+		index("tasks_resource_operation_finished_idx").on(
+			table.organizationId,
+			table.kind,
+			table.resourceType,
+			table.resourceId,
+			table.operationKey,
+			table.finishedAt,
+		),
 		index("tasks_org_status_updated_at_idx").on(table.organizationId, table.status, table.updatedAt),
 	],
 );

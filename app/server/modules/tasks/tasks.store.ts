@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import {
@@ -288,17 +288,35 @@ export const taskStore = {
 		return row ? parseTask(row) : null;
 	},
 
-	findLatestFinishedByResource: (params: TaskResource): ParsedTask | null => {
-		const resourceConditions = buildResourceConditions(params);
-		const row = db
-			.select()
-			.from(tasksTable)
-			.where(and(finishedStatusCondition(), ...resourceConditions))
-			.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
-			.limit(1)
-			.get();
+	findLatestFinishedByResources: (
+		params: Omit<TaskResource, "operationKey">,
+		operationKeys: string[],
+	): ParsedTask[] => {
+		if (operationKeys.length === 0) {
+			return [];
+		}
 
-		return row ? parseTask(row) : null;
+		const resourceConditions = buildResourceConditions(params);
+		const rankedTaskIds = db
+			.select({
+				id: tasksTable.id,
+				rank: sql<number>`row_number() over (
+					partition by ${tasksTable.operationKey}
+					order by ${tasksTable.finishedAt} desc, ${tasksTable.createdAt} desc, ${tasksTable.id} desc
+				)`.as("task_rank"),
+			})
+			.from(tasksTable)
+			.where(
+				and(finishedStatusCondition(), ...resourceConditions, inArray(tasksTable.operationKey, operationKeys)),
+			)
+			.as("ranked_task_ids");
+		const rows = db
+			.select({ task: tasksTable })
+			.from(tasksTable)
+			.innerJoin(rankedTaskIds, and(eq(tasksTable.id, rankedTaskIds.id), eq(rankedTaskIds.rank, 1)))
+			.all();
+
+		return rows.map((row) => parseTask(row.task));
 	},
 
 	listActive: (params: ListActiveTasksParams = {}): ParsedTask[] => {

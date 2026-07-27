@@ -28,6 +28,7 @@ import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { eq } from "drizzle-orm";
+import { commands } from "../commands";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -1424,7 +1425,7 @@ describe("mirror operations", () => {
 		});
 	});
 
-	test("fails a mirrorable backup when restic returns no snapshot ID", async () => {
+	test("keeps a completed backup successful when mirror synchronization cannot be started", async () => {
 		const { resticBackupMock, resticCopyMock } = setup();
 		const volume = await createTestVolume();
 		const sourceRepository = await createTestRepository();
@@ -1439,9 +1440,55 @@ describe("mirror operations", () => {
 		await backupsService.executeBackup(schedule.id, true);
 
 		const task = await getBackupTaskForSchedule(schedule.id);
-		expect(task?.status).toBe("failed");
-		expect(task?.error).toBe("Completed backup did not return a snapshot ID for mirror synchronization");
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(task?.status).toBe("succeeded");
+		expect(task?.error).toBeNull();
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
 		expect(resticCopyMock).not.toHaveBeenCalled();
+	});
+
+	test("continues enqueueing mirrors when one mirror task cannot be created", async () => {
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const failingMirrorRepository = await createTestRepository();
+		const successfulMirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, failingMirrorRepository.id);
+		await createTestBackupScheduleMirror(schedule.id, successfulMirrorRepository.id);
+		const createMirrorSync = commands.createMirrorSync;
+		vi.spyOn(commands, "createMirrorSync").mockImplementation((plan) => {
+			if (plan.mirrorRepository.id === failingMirrorRepository.id) {
+				return {
+					start: () => {
+						throw new Error("Task persistence failed");
+					},
+				};
+			}
+			return createMirrorSync(plan);
+		});
+
+		await backupsService.executeBackup(schedule.id, true);
+
+		const task = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(task?.status).toBe("succeeded");
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
+		await waitForExpect(() => {
+			expect(resticCopyMock).toHaveBeenCalledWith(
+				sourceRepository.config,
+				successfulMirrorRepository.config,
+				expect.any(Object),
+			);
+		});
+		expect(resticCopyMock).not.toHaveBeenCalledWith(
+			sourceRepository.config,
+			failingMirrorRepository.config,
+			expect.any(Object),
+		);
 	});
 
 	test("mirrors from the repository used by the completed backup", async () => {

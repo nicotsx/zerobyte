@@ -21,6 +21,7 @@ import {
 	handleBackupCancellation,
 	handleBackupFailure,
 	handleValidationResult,
+	startPostBackupMirrorSyncs,
 	updateBackupProgress,
 	validateBackupExecution,
 } from "./helpers/backup-lifecycle";
@@ -280,15 +281,20 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 		},
 		with: { repository: true },
 	});
-
-	return mirrors.map((mirror) => {
-		const latestTask = taskStore.findLatestFinishedByResource({
+	const mirrorRepositoryIds = mirrors.map((mirror) => mirror.repository.shortId);
+	const latestTasks = taskStore.findLatestFinishedByResources(
+		{
 			organizationId: schedule.organizationId,
 			kind: "mirrorSync",
 			resourceType: "backup_schedule",
 			resourceId: schedule.shortId,
-			operationKey: mirror.repository.shortId,
-		});
+		},
+		mirrorRepositoryIds,
+	);
+	const latestTasksByRepository = new Map(latestTasks.map((task) => [task.operationKey, task]));
+
+	return mirrors.map((mirror) => {
+		const latestTask = latestTasksByRepository.get(mirror.repository.shortId);
 		let lastCopyStatus: "success" | "error" | null = null;
 		if (latestTask) {
 			lastCopyStatus = latestTask.status === "succeeded" ? "success" : "error";
@@ -518,6 +524,11 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 						exitCode: executionResult.exitCode,
 						result: executionResult.result,
 						warningDetails: executionResult.warningDetails,
+					});
+					await startPostBackupMirrorSyncs(ctx, scheduleId, executionResult.result).catch((error) => {
+						logger.error(
+							`Post-backup mirror synchronization failed for schedule ${scheduleId}: ${toMessage(error)}`,
+						);
 					});
 					return;
 				case "failed": {

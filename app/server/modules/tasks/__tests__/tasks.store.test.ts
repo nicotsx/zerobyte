@@ -1,4 +1,5 @@
 import { beforeEach, expect, test } from "vitest";
+import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import { ensureTestOrganization, TEST_ORG_ID } from "~/test/helpers/organization";
@@ -261,6 +262,50 @@ test("lists active tasks with optional filters", () => {
 
 	expect(activeTasks.map((task) => task.id).sort()).toEqual([backupTask.id, deleteSnapshotsTask.id].sort());
 	expect(activeDeleteTasks.map((task) => task.id)).toEqual([deleteSnapshotsTask.id]);
+});
+
+test("finds the latest finished task per operation by completion time", async () => {
+	const resource = {
+		organizationId: TEST_ORG_ID,
+		kind: "mirrorSync" as const,
+		resourceType: "backup_schedule" as const,
+		resourceId: "schedule-short",
+	};
+	const createMirrorTask = (id: string, operationKey: string) =>
+		taskStore.create({
+			id,
+			...resource,
+			operationKey,
+			input: {
+				kind: "mirrorSync",
+				scheduleId: 1,
+				scheduleShortId: resource.resourceId,
+				mirrorRepositoryId: operationKey,
+			},
+		});
+
+	const olderRequest = createMirrorTask("mirror-a-older-request", "mirror-a");
+	taskStore.complete(olderRequest.id, { kind: "mirrorSync" });
+	await db
+		.update(tasksTable)
+		.set({ createdAt: 100, updatedAt: 300, finishedAt: 300 })
+		.where(eq(tasksTable.id, olderRequest.id));
+
+	const newerRequest = createMirrorTask("mirror-a-newer-request", "mirror-a");
+	taskStore.fail(newerRequest.id, "Newer request finished first");
+	await db
+		.update(tasksTable)
+		.set({ createdAt: 200, updatedAt: 250, finishedAt: 250 })
+		.where(eq(tasksTable.id, newerRequest.id));
+
+	const otherMirror = createMirrorTask("mirror-b-task", "mirror-b");
+	taskStore.complete(otherMirror.id, { kind: "mirrorSync" });
+
+	const latestTasks = taskStore.findLatestFinishedByResources(resource, ["mirror-a", "mirror-b"]);
+	const latestByOperation = new Map(latestTasks.map((task) => [task.operationKey, task]));
+
+	expect(latestByOperation.get("mirror-a")?.id).toBe(olderRequest.id);
+	expect(latestByOperation.get("mirror-b")?.id).toBe(otherMirror.id);
 });
 
 test("parses task JSON on reads and rejects invalid persisted shapes", () => {
