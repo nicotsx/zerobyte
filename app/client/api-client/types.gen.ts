@@ -3976,9 +3976,12 @@ export type GetScheduleMirrorsResponses = {
         scheduleId: string;
         repositoryId: string;
         enabled: boolean;
-        lastCopyAt: number | null;
-        lastCopyStatus: 'success' | 'error' | null;
-        lastCopyError: string | null;
+        lastSyncTask: {
+          id: string;
+          status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+          error: string | null;
+          finishedAt: number | null;
+        } | null;
         createdAt: number;
         repository: {
             id: string;
@@ -4189,9 +4192,12 @@ export type UpdateScheduleMirrorsResponses = {
         scheduleId: string;
         repositoryId: string;
         enabled: boolean;
-        lastCopyAt: number | null;
-        lastCopyStatus: 'success' | 'error' | null;
-        lastCopyError: string | null;
+        lastSyncTask: {
+          id: string;
+          status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+          error: string | null;
+          finishedAt: number | null;
+        } | null;
         createdAt: number;
         repository: {
             id: string;

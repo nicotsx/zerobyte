@@ -249,8 +249,11 @@ describe("syncMirror", () => {
 		taskStore.fail(previousTask.id, "Previous copy failed");
 
 		const mirrors = await backupsService.getMirrors(schedule.shortId);
-		expect(mirrors[0]?.lastCopyStatus).toBe("error");
-		expect(mirrors[0]?.lastCopyError).toBe("Previous copy failed");
+		expect(mirrors[0]?.lastSyncTask).toMatchObject({
+			id: previousTask.id,
+			status: "failed",
+			error: "Previous copy failed",
+		});
 
 		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
@@ -312,8 +315,11 @@ describe("syncMirror", () => {
 			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
 			const mirrors = await backupsService.getMirrors(schedule.shortId);
 			expect(task?.status).toBe("cancelled");
-			expect(mirrors[0]?.lastCopyStatus).toBe("error");
-			expect(mirrors[0]?.lastCopyError).toBe("Mirror sync was cancelled");
+			expect(mirrors[0]?.lastSyncTask).toMatchObject({
+				id: firstSync.taskId,
+				status: "cancelled",
+				error: "Mirror sync was cancelled",
+			});
 		});
 	});
 

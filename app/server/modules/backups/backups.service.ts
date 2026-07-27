@@ -295,19 +295,21 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 
 	return mirrors.map((mirror) => {
 		const latestTask = latestTasksByRepository.get(mirror.repository.shortId);
-		let lastCopyStatus: "success" | "error" | null = null;
-		if (latestTask) {
-			lastCopyStatus = latestTask.status === "succeeded" ? "success" : "error";
-		}
+		const lastSyncTask = latestTask
+			? {
+					id: latestTask.id,
+					status: latestTask.status,
+					error: latestTask.error,
+					finishedAt: latestTask.finishedAt,
+				}
+			: null;
 
 		return {
 			id: mirror.id,
 			scheduleId: schedule.shortId,
 			repositoryId: mirror.repository.shortId,
 			enabled: mirror.enabled,
-			lastCopyAt: latestTask?.finishedAt ?? null,
-			lastCopyStatus,
-			lastCopyError: latestTask?.error ?? null,
+			lastSyncTask,
 			createdAt: mirror.createdAt,
 			repository: mirror.repository,
 		};

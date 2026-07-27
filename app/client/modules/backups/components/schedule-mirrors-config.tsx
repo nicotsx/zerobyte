@@ -44,7 +44,7 @@ import { cn } from "~/client/lib/utils";
 import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { Link } from "@tanstack/react-router";
 import { useTimeFormat } from "~/client/lib/datetime";
-import { useActiveTasks } from "~/client/hooks/use-active-tasks";
+import { isTaskActive, useActiveTasks } from "~/client/hooks/use-active-tasks";
 
 type Props = {
 	scheduleShortId: string;
@@ -56,9 +56,7 @@ type Props = {
 type MirrorAssignment = {
 	repositoryId: string;
 	enabled: boolean;
-	lastCopyAt: number | null;
-	lastCopyStatus: "success" | "error" | null;
-	lastCopyError: string | null;
+	lastSyncTask: GetScheduleMirrorsResponse[number]["lastSyncTask"];
 };
 
 type CancelConfirmation = {
@@ -73,9 +71,7 @@ const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 			{
 				repositoryId: mirror.repositoryId,
 				enabled: mirror.enabled,
-				lastCopyAt: mirror.lastCopyAt,
-				lastCopyStatus: mirror.lastCopyStatus,
-				lastCopyError: mirror.lastCopyError,
+				lastSyncTask: mirror.lastSyncTask,
 			},
 		]),
 	);
@@ -221,9 +217,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		newAssignments.set(repositoryId, {
 			repositoryId,
 			enabled: true,
-			lastCopyAt: null,
-			lastCopyStatus: null,
-			lastCopyError: null,
+			lastSyncTask: null,
 		});
 
 		setAssignments(newAssignments);
@@ -286,34 +280,32 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		.map((id) => repositories?.find((r) => r.shortId === id))
 		.filter((r) => r !== undefined);
 
-	const getStatusVariant = (status: MirrorAssignment["lastCopyStatus"] | "in_progress") => {
-		if (status === "success") return "success";
-		if (status === "error") return "error";
-		if (status === "in_progress") return "info";
-		return "neutral";
+	const getStatusVariant = (task: MirrorAssignment["lastSyncTask"]) => {
+		if (!task) return "neutral";
+		if (task.status === "succeeded") return "success";
+		if (isTaskActive(task)) return "info";
+		return "error";
 	};
 
-	const getLabel = (assignment: MirrorAssignment, syncing: boolean) => {
-		if (syncing) {
+	const getLabel = (task: MirrorAssignment["lastSyncTask"]) => {
+		if (!task) return "Never";
+		if (isTaskActive(task)) {
 			return "Syncing...";
 		}
-		if (assignment.lastCopyAt) {
-			return formatTimeAgo(assignment.lastCopyAt);
+		const finishedAt = task.finishedAt;
+		if (finishedAt) {
+			return formatTimeAgo(finishedAt);
 		}
 		return "Never";
 	};
 
-	const getStatusLabel = (assignment: MirrorAssignment, syncing: boolean) => {
-		if (syncing) {
+	const getStatusLabel = (task: MirrorAssignment["lastSyncTask"]) => {
+		if (!task) return "Never synced";
+		if (isTaskActive(task)) {
 			return "Mirror sync in progress";
 		}
-		if (assignment.lastCopyStatus === "error" && assignment.lastCopyError) {
-			return assignment.lastCopyError;
-		}
-		if (assignment.lastCopyStatus === "success") {
-			return "Last copy successful";
-		}
-		return "Never copied";
+		if (task.status === "succeeded") return "Last sync successful";
+		return task.error ?? "Last sync did not complete";
 	};
 
 	const selectedMirrorRepo = repositories.find((r) => r.shortId === syncDialogMirrorId);
@@ -421,7 +413,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 								<TableRow>
 									<TableHead>Repository</TableHead>
 									<TableHead className="text-center w-25">Enabled</TableHead>
-									<TableHead className="w-45">Last Copy</TableHead>
+									<TableHead className="w-45">Last Sync</TableHead>
 									<TableHead className="w-12.5"></TableHead>
 								</TableRow>
 							</TableHeader>
@@ -433,10 +425,14 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 										(task) => task.input.mirrorRepositoryId === repository.shortId,
 									);
 									const syncing = activeSync !== undefined;
+									const syncTask = activeSync ?? assignment.lastSyncTask;
 									const cancellationPending = activeSync
 										? cancellingTaskIds.has(activeSync.id)
 										: false;
 									const cancelling = activeSync?.status === "cancelling" || cancellationPending;
+									const statusVariant = getStatusVariant(syncTask);
+									const statusLabel = getStatusLabel(syncTask);
+									const statusText = getLabel(syncTask);
 									const buttonTooltip = syncing ? "Cancel sync" : "Sync more snapshots";
 
 									return (
@@ -467,16 +463,12 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 												<div className="flex items-center gap-2">
 													<div className="w-3 shrink-0 mr-1">
 														<StatusDot
-															variant={getStatusVariant(
-																syncing ? "in_progress" : assignment.lastCopyStatus,
-															)}
-															label={getStatusLabel(assignment, syncing)}
+															variant={statusVariant}
+															label={statusLabel}
 															animated={syncing}
 														/>
 													</div>
-													<span className="text-sm text-muted-foreground">
-														{getLabel(assignment, syncing)}
-													</span>
+													<span className="text-sm text-muted-foreground">{statusText}</span>
 												</div>
 											</TableCell>
 											<TableCell>

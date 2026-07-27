@@ -2,6 +2,7 @@ import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
 import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
+import { taskStatusSchema } from "~/schemas/tasks";
 import { repositorySchema } from "../repositories/repositories.dto";
 import { backupProgressEventSchema } from "~/schemas/events-dto";
 
@@ -43,13 +44,18 @@ const backupScheduleSchema = z.object({
 	repository: repositorySchema,
 });
 
+const mirrorSyncTaskSummarySchema = z.object({
+	id: z.string(),
+	status: taskStatusSchema,
+	error: z.string().nullable(),
+	finishedAt: z.number().nullable(),
+});
+
 const scheduleMirrorSchema = z.object({
 	scheduleId: z.string(),
 	repositoryId: z.string(),
 	enabled: z.boolean(),
-	lastCopyAt: z.number().nullable(),
-	lastCopyStatus: z.enum(["success", "error"]).nullable(),
-	lastCopyError: z.string().nullable(),
+	lastSyncTask: mirrorSyncTaskSummarySchema.nullable(),
 	createdAt: z.number(),
 	repository: repositorySchema,
 });

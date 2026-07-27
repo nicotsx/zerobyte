@@ -1263,9 +1263,9 @@ describe("mirror operations", () => {
 		await waitForExpect(async () => {
 			const mirrors = await backupsService.getMirrors(schedule.id);
 			const updatedMirror = mirrors.find((m) => m.id === mirror.id);
-			expect(updatedMirror?.lastCopyStatus).toBe("success");
-			expect(updatedMirror?.lastCopyError).toBeNull();
-			expect(updatedMirror?.lastCopyAt).not.toBeNull();
+			expect(updatedMirror?.lastSyncTask?.status).toBe("succeeded");
+			expect(updatedMirror?.lastSyncTask?.error).toBeNull();
+			expect(updatedMirror?.lastSyncTask?.finishedAt).not.toBeNull();
 		});
 	});
 
@@ -1299,9 +1299,9 @@ describe("mirror operations", () => {
 			const mirrors = await backupsService.getMirrors(schedule.id);
 			expect(mirrors).toHaveLength(1);
 			expect(mirrors[0]?.id).not.toBe(originalMirror.id);
-			expect(mirrors[0]?.lastCopyStatus).toBe("success");
-			expect(mirrors[0]?.lastCopyError).toBeNull();
-			expect(mirrors[0]?.lastCopyAt).not.toBeNull();
+			expect(mirrors[0]?.lastSyncTask?.status).toBe("succeeded");
+			expect(mirrors[0]?.lastSyncTask?.error).toBeNull();
+			expect(mirrors[0]?.lastSyncTask?.finishedAt).not.toBeNull();
 		});
 	});
 
@@ -1331,9 +1331,9 @@ describe("mirror operations", () => {
 		await waitForExpect(async () => {
 			const mirrors = await backupsService.getMirrors(schedule.id);
 			const updatedMirror = mirrors.find((m) => m.id === mirror.id);
-			expect(updatedMirror?.lastCopyStatus).toBe("error");
-			expect(updatedMirror?.lastCopyError).toBe("Copy failed");
-			expect(updatedMirror?.lastCopyAt).not.toBeNull();
+			expect(updatedMirror?.lastSyncTask?.status).toBe("failed");
+			expect(updatedMirror?.lastSyncTask?.error).toBe("Copy failed");
+			expect(updatedMirror?.lastSyncTask?.finishedAt).not.toBeNull();
 		});
 	});
 
@@ -1421,7 +1421,7 @@ describe("mirror operations", () => {
 			const mirrors = await backupsService.getMirrors(schedule.id);
 			expect(resticCopyMock).toHaveBeenCalled();
 			expect(resticForgetMock).not.toHaveBeenCalled();
-			expect(mirrors[0]?.lastCopyStatus).toBe("success");
+			expect(mirrors[0]?.lastSyncTask?.status).toBe("succeeded");
 		});
 	});
 
