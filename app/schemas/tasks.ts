@@ -16,6 +16,7 @@ export const activeTaskStatusSchema = z.enum(activeTaskStatuses);
 export const finishedTaskStatusSchema = z.enum(finishedTaskStatuses);
 export const taskKindSchema = z.enum(["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"]);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
+export const mirrorSyncPhaseSchema = z.enum(["preparing", "copying", "retention"]);
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -65,6 +66,11 @@ export const taskProgressSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("restore"),
 		progress: restoreProgressSchema,
+	}),
+	z.object({
+		kind: z.literal("mirrorSync"),
+		phase: mirrorSyncPhaseSchema,
+		message: z.string().nullable(),
 	}),
 ]);
 
@@ -153,6 +159,7 @@ export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
 export type FinishedTaskStatus = z.infer<typeof finishedTaskStatusSchema>;
 export type TaskKind = z.infer<typeof taskKindSchema>;
 export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;
+export type MirrorSyncPhase = z.infer<typeof mirrorSyncPhaseSchema>;
 export type TaskInput = z.infer<typeof taskInputSchema>;
 export type TaskProgress = z.infer<typeof taskProgressSchema>;
 export type TaskResult = z.infer<typeof taskResultSchema>;

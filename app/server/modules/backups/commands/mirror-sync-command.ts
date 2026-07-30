@@ -8,6 +8,7 @@ import { restic } from "../../../core/restic";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
+import { createTaskProgressBuffer } from "../../tasks/progress-buffer";
 import { taskStore } from "../../tasks/tasks.store";
 import { executeForget } from "../helpers/backup-maintenance";
 
@@ -55,8 +56,15 @@ const executeMirrorSync = async (
 	releaseLocks: () => void,
 ): Promise<MirrorSyncTaskResult> => {
 	logger.info(`Syncing snapshots to mirror repository: ${plan.mirrorRepository.name}`);
+	const progressBuffer = createTaskProgressBuffer(taskId, {
+		intervalMs: 500,
+		onError: (error) => {
+			logger.error(`Failed to persist mirror sync progress for ${taskId}: ${toMessage(error)}`);
+		},
+	});
 
 	try {
+		progressBuffer.update({ kind: "mirrorSync", phase: "preparing", message: null });
 		try {
 			const snapshotIds = getTaskSnapshotIds(plan.organizationId, taskId);
 			await runEffectPromise(
@@ -66,9 +74,15 @@ const executeMirrorSync = async (
 					snapshotIds,
 					customResticParams: plan.customResticParams,
 					signal,
+					onMessage: (message) => {
+						if (message.trim().length > 0) {
+							progressBuffer.update({ kind: "mirrorSync", phase: "copying", message });
+						}
+					},
 				}),
 			);
 		} finally {
+			progressBuffer.flush();
 			cache.delByPrefix(cacheKeys.repository.all(plan.mirrorRepository.id));
 			releaseLocks();
 		}
@@ -76,6 +90,8 @@ const executeMirrorSync = async (
 		signal.throwIfAborted();
 
 		if (plan.retentionPolicy) {
+			progressBuffer.update({ kind: "mirrorSync", phase: "retention", message: null });
+			progressBuffer.flush();
 			try {
 				await executeForget({
 					repository: plan.mirrorRepository,
@@ -106,6 +122,9 @@ const executeMirrorSync = async (
 		}
 
 		throw error;
+	} finally {
+		progressBuffer.flush();
+		progressBuffer.dispose();
 	}
 };
 

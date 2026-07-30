@@ -6,7 +6,7 @@ import { cleanupTemporaryKeys } from "../helpers/cleanup-temporary-keys";
 import { getCopyCompatibleCustomResticParams } from "../helpers/validate-custom-params";
 import type { RepositoryConfig } from "../schemas";
 import { createResticError, isResticError, type AnyResticError } from "../error";
-import { logger, safeExec } from "../../node";
+import { logger, safeSpawn } from "../../node";
 import type { ResticDeps } from "../types";
 import { Data, Effect } from "effect";
 import { toMessage } from "../../utils";
@@ -25,6 +25,7 @@ export const copy = (
 		snapshotIds?: string[];
 		customResticParams?: string[];
 		signal?: AbortSignal;
+		onMessage?: (message: string) => void;
 	},
 	deps: ResticDeps,
 ) => {
@@ -46,7 +47,7 @@ export const copy = (
 				...destEnv,
 				RESTIC_FROM_PASSWORD_FILE: sourceEnv.RESTIC_PASSWORD_FILE!,
 			};
-			const args: string[] = ["--repo", destRepoUrl, "copy", "--from-repo", sourceRepoUrl];
+			const args: string[] = ["--repo", destRepoUrl, "--verbose", "copy", "--from-repo", sourceRepoUrl];
 
 			if (options.tag) {
 				args.push("--tag", options.tag);
@@ -60,7 +61,7 @@ export const copy = (
 				}
 			}
 
-			addCommonArgs(args, env, destConfig, { skipBandwidth: true });
+			addCommonArgs(args, env, destConfig, { skipBandwidth: true, includeJson: false });
 			const sourceDownloadLimit = formatBandwidthLimit(sourceConfig.downloadLimit);
 			const destUploadLimit = formatBandwidthLimit(destConfig.uploadLimit);
 
@@ -78,22 +79,26 @@ export const copy = (
 
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
+			const resticProgressFps = process.env.RESTIC_PROGRESS_FPS ?? "1";
+			const progressEnv = { ...env, RESTIC_PROGRESS_FPS: resticProgressFps };
 			const res = yield* Effect.tryPromise(() =>
-				safeExec({
+				safeSpawn({
 					command: deps.resticCommand ?? "restic",
 					args,
-					env,
+					env: progressEnv,
 					signal: options.signal,
+					onStdout: options.onMessage,
 				}),
 			);
 
 			if (res.exitCode !== 0) {
-				logger.error(`Restic copy failed: ${res.stderr}`);
-				return yield* Effect.fail(createResticError(res.exitCode, res.stderr));
+				const errorOutput = res.stderr || res.error;
+				logger.error(`Restic copy failed: ${errorOutput}`);
+				return yield* Effect.fail(createResticError(res.exitCode, errorOutput));
 			}
 
 			logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
-			return { success: true, output: res.stdout };
+			return { success: true };
 		}).pipe(
 			Effect.catchAll((error): Effect.Effect<never, AnyResticError | ResticCopyCommandError> => {
 				if (isResticError(error)) {

@@ -29,7 +29,7 @@ const setup = () => {
 		Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 	);
 	const resticForgetMock = vi.fn(() => Effect.succeed({ success: true, data: null }));
-	const resticCopyMock = vi.fn(() => Effect.succeed({ success: true, output: "" }));
+	const resticCopyMock = vi.fn(() => Effect.succeed({ success: true }));
 	const { runBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
@@ -220,7 +220,7 @@ describe("mirror operations", () => {
 				await backupsService.updateMirrors(schedule.id, {
 					mirrors: [{ repositoryId: mirrorRepository.id, enabled: true }],
 				});
-				return { success: true, output: "" };
+				return { success: true };
 			}),
 		);
 
@@ -285,7 +285,7 @@ describe("mirror operations", () => {
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
 		resticCopyMock.mockClear();
-		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
+		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true }));
 
 		// act
 		await backupsService.executeBackup(schedule.id);
@@ -474,7 +474,7 @@ describe("mirror operations", () => {
 					.update(backupSchedulesTable)
 					.set({ retentionPolicy: null })
 					.where(eq(backupSchedulesTable.id, schedule.id));
-				return { success: true, output: "" };
+				return { success: true };
 			}),
 		);
 
@@ -518,11 +518,11 @@ describe("mirror operations", () => {
 				() =>
 					new Promise((resolve) => {
 						resolveFirstCopyStarted();
-						releaseFirstCopy = () => resolve({ success: true, output: "" });
+						releaseFirstCopy = () => resolve({ success: true });
 					}),
 			),
 		);
-		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
+		resticCopyMock.mockImplementation(() => Effect.succeed({ success: true }));
 
 		await backupsService.executeBackup(firstSchedule.id);
 		await firstCopyStarted;
@@ -570,7 +570,7 @@ describe("mirror operations", () => {
 					() =>
 						new Promise((copyResolve) => {
 							resolve();
-							releaseManualCopy = () => copyResolve({ success: true, output: "" });
+							releaseManualCopy = () => copyResolve({ success: true });
 						}),
 				),
 			);
@@ -630,7 +630,7 @@ describe("mirror operations", () => {
 					() =>
 						new Promise((copyResolve) => {
 							resolve();
-							releaseManualCopy = () => copyResolve({ success: true, output: "" });
+							releaseManualCopy = () => copyResolve({ success: true });
 						}),
 				),
 			);

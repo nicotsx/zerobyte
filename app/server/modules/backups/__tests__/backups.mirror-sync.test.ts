@@ -33,7 +33,7 @@ const setup = () => {
 		mockCopy: () => {
 			const copyMock = vi
 				.spyOn(resticModule.restic, "copy")
-				.mockImplementation(() => Effect.succeed({ success: true, output: "" }));
+				.mockImplementation(() => Effect.succeed({ success: true }));
 			return copyMock;
 		},
 	};
@@ -224,6 +224,41 @@ describe("syncMirror", () => {
 		});
 	});
 
+	test("should persist the latest restic copy message on the mirror task", async () => {
+		setup();
+		const message = "[1:02] 60.71%  34 / 56 packs copied";
+		vi.spyOn(resticModule.restic, "copy").mockImplementation((_source, _destination, options) =>
+			Effect.sync(() => {
+				options.onMessage?.(message);
+				return { success: true };
+			}),
+		);
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task).toMatchObject({
+				status: "succeeded",
+				progress: {
+					kind: "mirrorSync",
+					phase: "copying",
+					message,
+				},
+			});
+		});
+	});
+
 	test("should derive the mirror summary from the latest finished task", async () => {
 		const { mockCopy } = setup();
 		mockCopy();
@@ -303,7 +338,10 @@ describe("syncMirror", () => {
 		await copyStarted;
 
 		await waitForExpect(() => {
-			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
+			const task = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: firstSync.taskId,
+			});
 			expect(task?.status).toBe("running");
 		});
 
@@ -314,7 +352,10 @@ describe("syncMirror", () => {
 		expect(requestTaskCancel(firstSync.taskId)).toBe(true);
 
 		await waitForExpect(async () => {
-			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: firstSync.taskId });
+			const task = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: firstSync.taskId,
+			});
 			const mirrors = await backupsService.getMirrors(schedule.shortId);
 			expect(task?.status).toBe("cancelled");
 			expect(clearRepositoryCache).toHaveBeenCalledWith(cacheKeys.repository.all(mirrorRepository.id));
@@ -359,6 +400,14 @@ describe("syncMirror", () => {
 		]);
 
 		await forgetStarted;
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task?.progress).toEqual({
+				kind: "mirrorSync",
+				phase: "retention",
+				message: null,
+			});
+		});
 		expect(requestTaskCancel(result.taskId)).toBe(true);
 
 		await waitForExpect(() => {
