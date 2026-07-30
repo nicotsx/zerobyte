@@ -5,7 +5,7 @@ ARG RESTIC_VERSION="0.19.1"
 # renovate: datasource=github-releases depName=rclone/rclone versioning=semver extractVersion=^v?(?<version>.+)$
 ARG RCLONE_VERSION="1.74.4"
 # renovate: datasource=github-releases depName=nicholas-fedor/shoutrrr versioning=semver extractVersion=^v?(?<version>.+)$
-ARG SHOUTRRR_VERSION="0.16.1"
+ARG SHOUTRRR_VERSION="0.16.2"
 
 ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
     VITE_RCLONE_VERSION=${RCLONE_VERSION} \
