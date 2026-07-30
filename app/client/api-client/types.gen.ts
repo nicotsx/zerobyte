@@ -3708,43 +3708,24 @@ export type RunBackupNowData = {
     url: '/api/v1/backups/{shortId}/run';
 };
 
-export type RunBackupNowResponses = {
+export type RunBackupNowErrors = {
     /**
-     * Backup started successfully
-     */
-    200: {
-        success: boolean;
-    };
-};
-
-export type RunBackupNowResponse = RunBackupNowResponses[keyof RunBackupNowResponses];
-
-export type StopBackupData = {
-    body?: never;
-    path: {
-        shortId: string;
-    };
-    query?: never;
-    url: '/api/v1/backups/{shortId}/stop';
-};
-
-export type StopBackupErrors = {
-    /**
-     * No backup is currently running for this schedule
+     * Backup is already running for this schedule
      */
     409: unknown;
 };
 
-export type StopBackupResponses = {
+export type RunBackupNowResponses = {
     /**
-     * Backup stopped successfully
+     * Backup started successfully
      */
-    200: {
-        success: boolean;
+    202: {
+        taskId: string;
+        status: 'started';
     };
 };
 
-export type StopBackupResponse = StopBackupResponses[keyof StopBackupResponses];
+export type RunBackupNowResponse = RunBackupNowResponses[keyof RunBackupNowResponses];
 
 export type RunForgetData = {
     body?: never;
@@ -4492,36 +4473,6 @@ export type ReorderBackupSchedulesResponses = {
 };
 
 export type ReorderBackupSchedulesResponse = ReorderBackupSchedulesResponses[keyof ReorderBackupSchedulesResponses];
-
-export type GetBackupProgressData = {
-    body?: never;
-    path: {
-        shortId: string;
-    };
-    query?: never;
-    url: '/api/v1/backups/{shortId}/progress';
-};
-
-export type GetBackupProgressResponses = {
-    /**
-     * Current backup progress or null if not yet available
-     */
-    200: {
-        scheduleId: string;
-        volumeName: string;
-        repositoryName: string;
-        seconds_elapsed?: number;
-        seconds_remaining?: number;
-        percent_done?: number;
-        total_files?: number;
-        files_done?: number;
-        total_bytes?: number;
-        bytes_done?: number;
-        current_files?: Array<string>;
-    } | null;
-};
-
-export type GetBackupProgressResponse = GetBackupProgressResponses[keyof GetBackupProgressResponses];
 
 export type ListNotificationDestinationsData = {
     body?: never;

@@ -21,35 +21,43 @@ import {
 } from "~/client/components/ui/dropdown-menu";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupProgressCard } from "./backup-progress-card";
-import { getBackupProgressOptions, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { cancelTaskMutation, runForgetMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { handleRepositoryError } from "~/client/lib/errors";
+import { handleRepositoryError, parseError } from "~/client/lib/errors";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "~/client/components/ui/collapsible";
 import { TimeAgo } from "~/client/components/time-ago";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
+import { useBackupTask } from "../backup-tasks";
 
 type Props = {
 	schedule: BackupSchedule;
 	handleToggleEnabled: (enabled: boolean) => void;
 	handleRunBackupNow: () => void;
-	handleStopBackup: () => void;
 	handleDeleteSchedule: () => void;
 };
 
 export const ScheduleSummary = (props: Props) => {
-	const { schedule, handleToggleEnabled, handleRunBackupNow, handleStopBackup, handleDeleteSchedule } = props;
+	const { schedule, handleToggleEnabled, handleRunBackupNow, handleDeleteSchedule } = props;
 	const { formatShortDateTime } = useTimeFormat();
 	const navigate = useNavigate();
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
+	const { activeBackupTask, backupProgress, isBackupRunning } = useBackupTask(schedule.shortId);
 
-	const { data: initialProgress } = useSuspenseQuery({
-		...getBackupProgressOptions({ path: { shortId: schedule.shortId } }),
+	const cancelBackup = useMutation({
+		...cancelTaskMutation(),
+		onError: (error) => {
+			toast.error("Failed to stop backup", { description: parseError(error)?.message });
+		},
 	});
+
+	const isBackupCancelling = activeBackupTask?.status === "cancelling";
+	const isStoppingBackup = cancelBackup.isPending || isBackupCancelling;
+	const stopBackupLabel = isBackupCancelling ? "Cancelling backup..." : "Stop backup";
 
 	const runForget = useMutation({
 		...runForgetMutation(),
@@ -95,8 +103,10 @@ export const ScheduleSummary = (props: Props) => {
 
 	const handleConfirmStop = () => {
 		setShowStopConfirm(false);
-		if (schedule.lastBackupStatus !== "in_progress") return;
-		handleStopBackup();
+		if (!activeBackupTask || isStoppingBackup) return;
+
+		const taskId = activeBackupTask.id;
+		cancelBackup.mutate({ path: { taskId } });
 	};
 
 	return (
@@ -140,10 +150,16 @@ export const ScheduleSummary = (props: Props) => {
 						</div>
 					</div>
 					<div className="flex items-center gap-2">
-						{schedule.lastBackupStatus === "in_progress" ? (
-							<Button variant="destructive" size="sm" onClick={() => setShowStopConfirm(true)}>
+						{isBackupRunning ? (
+							<Button
+								variant="destructive"
+								size="sm"
+								loading={cancelBackup.isPending}
+								disabled={isBackupCancelling}
+								onClick={() => setShowStopConfirm(true)}
+							>
 								<Square className="h-4 w-4 mr-2" />
-								<span>Stop backup</span>
+								<span>{stopBackupLabel}</span>
 							</Button>
 						) : (
 							<Button variant="default" size="sm" onClick={handleRunBackupNow}>
@@ -211,59 +227,61 @@ export const ScheduleSummary = (props: Props) => {
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Status</p>
 						<p className="font-medium">
-							{schedule.lastBackupStatus === "success" && "✓ Success"}
-							{schedule.lastBackupStatus === "error" && "✗ Error"}
-							{schedule.lastBackupStatus === "in_progress" && "⟳  in progress..."}
-							{schedule.lastBackupStatus === "warning" && "! Warning"}
-							{!schedule.lastBackupStatus && "—"}
+							{!isBackupRunning && schedule.lastBackupStatus === "success" && "✓ Success"}
+							{!isBackupRunning && schedule.lastBackupStatus === "error" && "✗ Error"}
+							{isBackupRunning && (isBackupCancelling ? "⟳  Cancelling backup..." : "⟳  in progress...")}
+							{!isBackupRunning && schedule.lastBackupStatus === "warning" && "! Warning"}
+							{!isBackupRunning && !schedule.lastBackupStatus && "—"}
 						</p>
 					</div>
 
-					{(schedule.lastBackupStatus === "warning" || schedule.lastBackupStatus === "error") && (
-						<div className="@medium:col-span-2 @wide:col-span-4">
-							<Collapsible
-								className={cn("border border-border/50 rounded-lg overflow-hidden", {
-									"border-yellow-500/20 bg-yellow-500/5": schedule.lastBackupStatus === "warning",
-									"border-red-500/20 bg-red-500/5": schedule.lastBackupStatus === "error",
-								})}
-							>
-								<CollapsibleTrigger
-									className={cn("w-full justify-start p-3 hover:bg-muted/50 transition-colors", {
-										"hover:bg-yellow-500/10": schedule.lastBackupStatus === "warning",
-										"hover:bg-red-500/10": schedule.lastBackupStatus === "error",
+					{!isBackupRunning &&
+						(schedule.lastBackupStatus === "warning" || schedule.lastBackupStatus === "error") && (
+							<div className="@medium:col-span-2 @wide:col-span-4">
+								<Collapsible
+									className={cn("border border-border/50 rounded-lg overflow-hidden", {
+										"border-yellow-500/20 bg-yellow-500/5": schedule.lastBackupStatus === "warning",
+										"border-red-500/20 bg-red-500/5": schedule.lastBackupStatus === "error",
 									})}
 								>
-									<span>
-										{schedule.lastBackupStatus === "warning" ? "Warning details" : "Error details"}
-									</span>
-								</CollapsibleTrigger>
-								<CollapsibleContent
-									className={cn("border-t border-border/50 bg-muted/30", {
-										"border-yellow-500/20 bg-yellow-500/8": schedule.lastBackupStatus === "warning",
-										"border-red-500/20 bg-red-500/8": schedule.lastBackupStatus === "error",
-									})}
-								>
-									<div className="p-3">
-										<p
-											className={cn("font-mono text-sm whitespace-pre-wrap wrap-break-word", {
-												"text-yellow-600": schedule.lastBackupStatus === "warning",
-												"text-red-600": schedule.lastBackupStatus === "error",
-											})}
-										>
-											{schedule.lastBackupError ??
-												"No additional details available. check your container logs for more information."}
-										</p>
-									</div>
-								</CollapsibleContent>
-							</Collapsible>
-						</div>
-					)}
+									<CollapsibleTrigger
+										className={cn("w-full justify-start p-3 hover:bg-muted/50 transition-colors", {
+											"hover:bg-yellow-500/10": schedule.lastBackupStatus === "warning",
+											"hover:bg-red-500/10": schedule.lastBackupStatus === "error",
+										})}
+									>
+										<span>
+											{schedule.lastBackupStatus === "warning"
+												? "Warning details"
+												: "Error details"}
+										</span>
+									</CollapsibleTrigger>
+									<CollapsibleContent
+										className={cn("border-t border-border/50 bg-muted/30", {
+											"border-yellow-500/20 bg-yellow-500/8":
+												schedule.lastBackupStatus === "warning",
+											"border-red-500/20 bg-red-500/8": schedule.lastBackupStatus === "error",
+										})}
+									>
+										<div className="p-3">
+											<p
+												className={cn("font-mono text-sm whitespace-pre-wrap wrap-break-word", {
+													"text-yellow-600": schedule.lastBackupStatus === "warning",
+													"text-red-600": schedule.lastBackupStatus === "error",
+												})}
+											>
+												{schedule.lastBackupError ??
+													"No additional details available. check your container logs for more information."}
+											</p>
+										</div>
+									</CollapsibleContent>
+								</Collapsible>
+							</div>
+						)}
 				</CardContent>
 			</Card>
 
-			{schedule.lastBackupStatus === "in_progress" && (
-				<BackupProgressCard scheduleShortId={schedule.shortId} initialProgress={initialProgress} />
-			)}
+			{isBackupRunning && <BackupProgressCard progress={backupProgress} />}
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
@@ -321,6 +339,7 @@ export const ScheduleSummary = (props: Props) => {
 						<AlertDialogCancel>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleConfirmStop}
+							disabled={isStoppingBackup}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
 							Stop backup

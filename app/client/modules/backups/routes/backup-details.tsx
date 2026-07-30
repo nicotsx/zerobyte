@@ -18,7 +18,6 @@ import {
 	deleteBackupScheduleMutation,
 	listSnapshotsOptions,
 	updateBackupScheduleMutation,
-	stopBackupMutation,
 	deleteSnapshotMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
@@ -68,7 +67,6 @@ export function ScheduleDetailsPage(props: Props) {
 
 	const { data: schedule } = useSuspenseQuery({
 		...getBackupScheduleOptions({ path: { shortId: scheduleId } }),
-		refetchInterval: ({ state }) => (state.data?.lastBackupStatus === "in_progress" ? 1000 : false),
 	});
 	const { deletingSnapshotIds } = useDeletingSnapshots(schedule.repository.shortId);
 
@@ -104,16 +102,6 @@ export function ScheduleDetailsPage(props: Props) {
 		},
 		onError: (error) => {
 			handleRepositoryError("Failed to start backup", error, schedule.repository.shortId);
-		},
-	});
-
-	const stopBackup = useMutation({
-		...stopBackupMutation(),
-		onSuccess: () => {
-			toast.success("Backup stopped successfully");
-		},
-		onError: (error) => {
-			toast.error("Failed to stop backup", { description: parseError(error)?.message });
 		},
 	});
 
@@ -195,7 +183,6 @@ export function ScheduleDetailsPage(props: Props) {
 			<ScheduleSummary
 				handleToggleEnabled={handleToggleEnabled}
 				handleRunBackupNow={() => runBackupNow.mutate({ path: { shortId: schedule.shortId } })}
-				handleStopBackup={() => stopBackup.mutate({ path: { shortId: schedule.shortId } })}
 				handleDeleteSchedule={() => deleteSchedule.mutate({ path: { shortId: schedule.shortId } })}
 				schedule={schedule}
 			/>

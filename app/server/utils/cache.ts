@@ -106,9 +106,6 @@ const createCache = (options: CacheOptions = {}) => {
 };
 
 export const cacheKeys = {
-	backup: {
-		progress: (scheduleId: number) => `backup:${scheduleId}:progress`,
-	},
 	repository: {
 		all: (repositoryId: string) => `repo:${repositoryId}:`,
 		snapshots: (repositoryId: string, backupId = "all") => `repo:${repositoryId}:snapshots:${backupId}`,

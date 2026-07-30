@@ -1,26 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
 import { ByteSize } from "~/client/components/bytes-size";
 import { useFormatBytes } from "~/client/hooks/use-format-bytes";
 import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { getBackupProgressOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import type { GetBackupProgressResponse } from "~/client/api-client/types.gen";
+import type { BackupTask } from "../backup-tasks";
 import { formatDuration } from "~/client/lib/datetime";
 
 type Props = {
-	scheduleShortId: string;
-	initialProgress: GetBackupProgressResponse;
+	progress: NonNullable<BackupTask["progress"]>["progress"] | null;
 };
 
-export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) => {
+export const BackupProgressCard = ({ progress }: Props) => {
 	const formatBytes = useFormatBytes();
 	const { locale } = useRootLoaderData();
-	const { data: progress } = useQuery({
-		...getBackupProgressOptions({ path: { shortId: scheduleShortId } }),
-		initialData: initialProgress,
-		refetchInterval: 1000,
-	});
 
 	const {
 		percent_done = 0,

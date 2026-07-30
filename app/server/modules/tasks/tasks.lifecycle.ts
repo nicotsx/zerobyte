@@ -13,6 +13,10 @@ export class TaskCancelledError<TResult extends TaskResult = TaskResult> extends
 	}
 }
 
+export class TaskFailedError extends Error {
+	readonly name = "TaskFailedError";
+}
+
 type TaskLifecycleOptions<TResult extends TaskResult> = {
 	taskId: string;
 	label: string;
@@ -20,10 +24,12 @@ type TaskLifecycleOptions<TResult extends TaskResult> = {
 	prepare?: (signal: AbortSignal) => Promise<() => void>;
 	run: (signal: AbortSignal) => Promise<TResult>;
 	onStarted?: (task: ParsedTask) => void | Promise<void>;
-	onSucceeded?: (task: ParsedTask, result: TResult) => void;
-	onFailed?: (task: ParsedTask, errorMessage: string) => void;
-	onCancelled?: (task: ParsedTask, errorMessage: string, result: TResult | null) => void;
+	onSucceeded?: (task: ParsedTask, result: TResult) => void | Promise<void>;
+	beforeFail?: (errorMessage: string) => void | Promise<void>;
+	beforeCancel?: (errorMessage: string, result: TResult | null) => void | Promise<void>;
 };
+
+const TASK_CANCELLED_ERROR = "Task was cancelled by the user";
 
 type TaskExecution = {
 	cancel: () => void;
@@ -43,26 +49,34 @@ export const registerTaskExecution = (taskId: string, cancel: () => void, cancel
 	};
 };
 
-const failTask = <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
+const failTask = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
 	try {
-		const failedTask = taskStore.fail(options.taskId, errorMessage);
-		options.onFailed?.(failedTask, errorMessage);
-		return failedTask;
+		await options.beforeFail?.(errorMessage);
+	} catch (error) {
+		logger.warn(`Failed to prepare failed ${options.label} ${options.taskId}: ${toMessage(error)}`);
+	}
+
+	try {
+		return taskStore.fail(options.taskId, errorMessage);
 	} catch (error) {
 		logger.warn(`Failed to fail ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		return null;
 	}
 };
 
-const cancelTask = <TResult extends TaskResult>(
+const cancelTask = async <TResult extends TaskResult>(
 	options: TaskLifecycleOptions<TResult>,
 	errorMessage: string,
 	result: TResult | null,
 ) => {
 	try {
-		const cancelledTask = taskStore.cancel(options.taskId, errorMessage, result);
-		options.onCancelled?.(cancelledTask, errorMessage, result);
-		return cancelledTask;
+		await options.beforeCancel?.(errorMessage, result);
+	} catch (error) {
+		logger.warn(`Failed to prepare cancelled ${options.label} ${options.taskId}: ${toMessage(error)}`);
+	}
+
+	try {
+		return taskStore.cancel(options.taskId, errorMessage, result);
 	} catch (error) {
 		logger.warn(`Failed to cancel ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		return null;
@@ -71,6 +85,10 @@ const cancelTask = <TResult extends TaskResult>(
 
 const isTaskCancelledError = (error: unknown): error is TaskCancelledError => {
 	return error instanceof TaskCancelledError;
+};
+
+const isTaskFailedError = (error: unknown): error is TaskFailedError => {
+	return error instanceof TaskFailedError;
 };
 
 const isAbortError = (error: unknown) => {
@@ -94,7 +112,7 @@ export const requestTaskCancel = (taskId: string) => {
 	try {
 		taskStore.requestCancel(taskId);
 		if (!execution) {
-			taskStore.cancel(taskId, "Task was cancelled by the user");
+			taskStore.cancel(taskId, TASK_CANCELLED_ERROR);
 			return true;
 		}
 	} catch {
@@ -108,7 +126,7 @@ export const requestTaskCancel = (taskId: string) => {
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
 	const cancellable = options.cancellable === true;
-	const cancelExecution = () => abortController.abort();
+	const cancelExecution = () => abortController.abort(new TaskCancelledError(TASK_CANCELLED_ERROR));
 	const unregisterExecution = registerTaskExecution(options.taskId, cancelExecution, cancellable);
 	let cleanup: (() => void) | undefined;
 
@@ -120,26 +138,31 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		await options.onStarted?.(startedTask);
 
 		if (startedTask.cancellationRequested) {
-			abortController.abort();
+			cancelExecution();
 		}
 
 		const result = await options.run(abortController.signal);
 		const completedTask = taskStore.complete(options.taskId, result);
 		try {
-			options.onSucceeded?.(completedTask, result);
+			await options.onSucceeded?.(completedTask, result);
 		} catch (error) {
 			logger.warn(`Failed to handle successful ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		}
 	} catch (error) {
+		if (isTaskFailedError(error)) {
+			await failTask(options, toMessage(error));
+			return;
+		}
+
 		if (abortController.signal.aborted || isAbortError(error)) {
 			const cancelledError = isTaskCancelledError(error) ? error : null;
 			const errorMessage = cancelledError?.message || toMessage(error) || "Task was cancelled";
 			const result = (cancelledError?.result as TResult | null) ?? null;
-			cancelTask(options, errorMessage, result);
+			await cancelTask(options, errorMessage, result);
 			return;
 		}
 
-		failTask(options, toMessage(error));
+		await failTask(options, toMessage(error));
 	} finally {
 		cleanup?.();
 		unregisterExecution();

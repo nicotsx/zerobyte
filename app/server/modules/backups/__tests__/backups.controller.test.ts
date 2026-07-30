@@ -4,6 +4,7 @@ import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
+import { taskStore } from "~/server/modules/tasks/tasks.store";
 
 const app = createApp();
 
@@ -47,7 +48,6 @@ describe("backups security", () => {
 			{ method: "PATCH", path: "/api/v1/backups/1" },
 			{ method: "DELETE", path: "/api/v1/backups/1" },
 			{ method: "POST", path: "/api/v1/backups/1/run" },
-			{ method: "POST", path: "/api/v1/backups/1/stop" },
 			{ method: "POST", path: "/api/v1/backups/1/forget" },
 			{ method: "GET", path: "/api/v1/backups/1/notifications" },
 			{ method: "PUT", path: "/api/v1/backups/1/notifications" },
@@ -57,7 +57,6 @@ describe("backups security", () => {
 			{ method: "GET", path: "/api/v1/backups/1/mirrors/abc/status" },
 			{ method: "POST", path: "/api/v1/backups/1/mirrors/abc/sync" },
 			{ method: "POST", path: "/api/v1/backups/reorder" },
-			{ method: "GET", path: "/api/v1/backups/1/progress" },
 		];
 
 		for (const { method, path } of endpoints) {
@@ -87,6 +86,38 @@ describe("backups security", () => {
 	});
 
 	describe("input validation", () => {
+		test("should return 409 when a backup is already running for the schedule", async () => {
+			const volume = await createTestVolume({ organizationId: session.organizationId });
+			const repository = await createTestRepository({ organizationId: session.organizationId });
+			const schedule = await createTestBackupSchedule({
+				organizationId: session.organizationId,
+				volumeId: volume.id,
+				repositoryId: repository.id,
+			});
+			taskStore.create({
+				organizationId: session.organizationId,
+				resourceType: "backup_schedule",
+				resourceId: schedule.shortId,
+				targetDisplayName: schedule.name,
+				targetAgentId: volume.agentId,
+				input: {
+					kind: "backup",
+					scheduleId: schedule.id,
+					scheduleShortId: schedule.shortId,
+					manual: true,
+				},
+			});
+
+			const res = await app.request(`/api/v1/backups/${schedule.shortId}/run`, {
+				method: "POST",
+				headers: session.headers,
+			});
+
+			expect(res.status).toBe(409);
+			const body = await res.json();
+			expect(body.message).toBe("Backup is already running for this schedule");
+		});
+
 		test("should return a schedule when queried by short id", async () => {
 			const volume = await createTestVolume({ organizationId: session.organizationId });
 			const repository = await createTestRepository({ organizationId: session.organizationId });

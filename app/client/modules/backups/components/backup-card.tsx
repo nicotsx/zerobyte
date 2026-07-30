@@ -6,7 +6,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupStatusDot } from "./backup-status-dot";
 
-export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
+export const BackupCard = ({ schedule, isRunning }: { schedule: BackupSchedule; isRunning: boolean }) => {
 	const { formatShortDateTime } = useTimeFormat();
 
 	return (
@@ -27,7 +27,7 @@ export const BackupCard = ({ schedule }: { schedule: BackupSchedule }) => {
 							enabled={schedule.enabled}
 							hasError={schedule.lastBackupStatus === "error"}
 							hasWarning={schedule.lastBackupStatus === "warning"}
-							isInProgress={schedule.lastBackupStatus === "in_progress"}
+							isInProgress={isRunning}
 						/>
 					</div>
 					<CardDescription className="ml-0.5 flex items-center gap-2 text-xs min-w-0">

@@ -20,11 +20,14 @@ import {
 import { SortableCard } from "~/client/components/sortable-card";
 import { BackupCard } from "../components/backup-card";
 import { Link } from "@tanstack/react-router";
+import { useActiveBackupTasks } from "../backup-tasks";
 
 export function BackupsPage() {
 	const { data: schedules } = useSuspenseQuery({
 		...listBackupSchedulesOptions(),
 	});
+	const { data: activeBackupTasks = [] } = useActiveBackupTasks();
+	const activeScheduleShortIds = new Set(activeBackupTasks.map((task) => task.resourceId));
 
 	const [localItems, setLocalItems] = useState<string[] | null>(null);
 	const items = localItems ?? schedules?.map((s) => s.shortId) ?? [];
@@ -105,7 +108,10 @@ export function BackupsPage() {
 							if (!schedule) return null;
 							return (
 								<SortableCard uniqueId={id} key={schedule.id}>
-									<BackupCard schedule={schedule} />
+									<BackupCard
+										schedule={schedule}
+										isRunning={activeScheduleShortIds.has(schedule.shortId)}
+									/>
 								</SortableCard>
 							);
 						})}

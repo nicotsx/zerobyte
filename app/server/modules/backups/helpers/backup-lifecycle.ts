@@ -2,15 +2,12 @@ import { BadRequestError, NotFoundError } from "http-errors-enhanced";
 import { logger } from "@zerobyte/core/node";
 import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type { BackupSchedule, Repository, Volume } from "../../../db/schema";
-import { serverEvents } from "../../../core/events";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { toErrorDetails, toMessage } from "../../../utils/errors";
 import { notificationsService } from "../../notifications/notifications.service";
 import { getOrganizationId } from "~/server/core/request-context";
-import type { BackupProgressEventDto } from "~/schemas/events-dto";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
-import type { BackupExecutionProgress } from "../../agents/agents-manager";
 import { repositoriesService } from "../../repositories/repositories.service";
 import { volumeService } from "../../volumes/volume.service";
 import { config } from "../../../core/config";
@@ -18,7 +15,7 @@ import { LOCAL_AGENT_ID } from "../../agents/constants";
 import { commands } from "../commands";
 import { runForget } from "./backup-maintenance";
 
-interface BackupContext {
+export interface BackupContext {
 	schedule: BackupSchedule;
 	volume: Volume;
 	repository: Repository;
@@ -46,10 +43,6 @@ type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkippe
 const requiresControllerLocalVolumeReadiness = (volume: Volume) =>
 	volume.agentId === LOCAL_AGENT_ID && !config.flags.enableLocalAgent;
 
-export function getBackupProgress(scheduleId: number): BackupProgressEventDto | undefined {
-	return cache.get<BackupProgressEventDto>(cacheKeys.backup.progress(scheduleId));
-}
-
 export async function validateBackupExecution(scheduleId: number, manual = false): Promise<ValidationResult> {
 	const organizationId = getOrganizationId();
 	const result = await scheduleQueries.findById(scheduleId, organizationId);
@@ -63,11 +56,6 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 	if (!schedule.enabled && !manual) {
 		logger.info(`Backup schedule ${scheduleId} is disabled. Skipping execution.`);
 		return { type: "skipped", reason: "Backup schedule is disabled" };
-	}
-
-	if (schedule.lastBackupStatus === "in_progress") {
-		logger.info(`Backup schedule ${scheduleId} is already in progress. Skipping execution.`);
-		return { type: "skipped", reason: "Backup is already in progress" };
 	}
 
 	if (!volume) {
@@ -129,13 +117,6 @@ export function emitBackupStarted(ctx: BackupContext, scheduleId: number) {
 		`Starting backup ${ctx.schedule.name} for volume ${ctx.volume.name} to repository ${ctx.repository.name}`,
 	);
 
-	serverEvents.emit("backup:started", {
-		organizationId: ctx.organizationId,
-		scheduleId: ctx.schedule.shortId,
-		volumeName: ctx.volume.name,
-		repositoryName: ctx.repository.name,
-	});
-
 	notificationsService
 		.sendBackupNotification(scheduleId, "start", {
 			volumeName: ctx.volume.name,
@@ -145,22 +126,6 @@ export function emitBackupStarted(ctx: BackupContext, scheduleId: number) {
 		.catch((error) => {
 			logger.error(`Failed to send backup start notification: ${toMessage(error)}`);
 		});
-}
-
-export function updateBackupProgress(ctx: BackupContext, progress: BackupExecutionProgress) {
-	const progressEvent = {
-		scheduleId: ctx.schedule.shortId,
-		volumeName: ctx.volume.name,
-		repositoryName: ctx.repository.name,
-		...progress,
-	};
-
-	cache.set(cacheKeys.backup.progress(ctx.schedule.id), progressEvent, 60 * 60);
-
-	serverEvents.emit("backup:progress", {
-		organizationId: ctx.organizationId,
-		...progressEvent,
-	});
 }
 
 export async function startPostBackupMirrorSyncs(
@@ -253,15 +218,6 @@ export async function finalizeSuccessfulBackup(
 		);
 	}
 
-	serverEvents.emit("backup:completed", {
-		organizationId: ctx.organizationId,
-		scheduleId: ctx.schedule.shortId,
-		volumeName: ctx.volume.name,
-		repositoryName: ctx.repository.name,
-		status: finalStatus,
-		summary: result ?? undefined,
-	});
-
 	notificationsService
 		.sendBackupNotification(scheduleId, finalStatus, {
 			volumeName: ctx.volume.name,
@@ -316,14 +272,6 @@ export async function handleBackupFailure(
 		);
 
 		if (partialContext?.volume && partialContext?.repository) {
-			serverEvents.emit("backup:completed", {
-				organizationId,
-				scheduleId: schedule.shortId,
-				volumeName: partialContext.volume.name,
-				repositoryName: partialContext.repository.name,
-				status: "error",
-			});
-
 			notificationsService
 				.sendBackupNotification(scheduleId, "failure", {
 					volumeName: partialContext.volume.name,
@@ -354,14 +302,6 @@ export async function handleBackupFailure(
 			`Backup ${schedule.name} failed after ${maxRetries} retries for volume ${volume.name} to repository ${repository.name}: ${errorMessage}`,
 		);
 	}
-
-	serverEvents.emit("backup:completed", {
-		organizationId,
-		scheduleId: schedule.shortId,
-		volumeName: volume.name,
-		repositoryName: repository.name,
-		status: "error",
-	});
 
 	let errorNotificationMessage = `${errorDetails}`;
 	if (!manual && currentRetryCount > 0) {

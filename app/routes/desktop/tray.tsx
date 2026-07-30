@@ -12,10 +12,9 @@ import {
 	Square,
 } from "lucide-react";
 import {
-	getBackupProgressOptions,
+	cancelTaskMutation,
 	listBackupSchedulesOptions,
 	runBackupNowMutation,
-	stopBackupMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { ListBackupSchedulesResponse } from "~/client/api-client/types.gen";
 import { TimeAgo } from "~/client/components/time-ago";
@@ -27,6 +26,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { formatDuration } from "~/client/lib/datetime";
 import { BackupStatusDot } from "~/client/modules/backups/components/backup-status-dot";
+import { useActiveBackupTasks, type BackupTask } from "~/client/modules/backups/backup-tasks";
 
 type TraySchedule = ListBackupSchedulesResponse[number];
 
@@ -37,8 +37,13 @@ export const Route = createFileRoute("/desktop/tray")({
 	}),
 });
 
-function DesktopTrayPage() {
+export function DesktopTrayPage() {
 	const { data: schedules = [], isLoading, error } = useQuery(listBackupSchedulesOptions());
+	const { data: activeBackupTasks } = useActiveBackupTasks();
+
+	const activeBackupTasksByScheduleShortId = new Map(
+		(activeBackupTasks ?? []).map((task) => [task.resourceId, task]),
+	);
 
 	return (
 		<main className="dark h-dvh max-h-dvh overflow-hidden bg-background text-foreground">
@@ -58,9 +63,18 @@ function DesktopTrayPage() {
 							hidden: isLoading || error || schedules.length === 0,
 						})}
 					>
-						{schedules.map((schedule) => (
-							<TrayScheduleRow key={schedule.shortId} schedule={schedule} />
-						))}
+						{schedules.map((schedule) => {
+							const activeBackupTask = activeBackupTasksByScheduleShortId.get(schedule.shortId);
+
+							return (
+								<TrayScheduleRow
+									key={schedule.shortId}
+									schedule={schedule}
+									activeBackupTask={activeBackupTask}
+									taskSnapshotLoaded={activeBackupTasks !== undefined}
+								/>
+							);
+						})}
 					</div>
 				</section>
 				<TrayFooter />
@@ -69,16 +83,32 @@ function DesktopTrayPage() {
 	);
 }
 
-function TrayScheduleRow({ schedule }: { schedule: TraySchedule }) {
+function TrayScheduleRow({
+	schedule,
+	activeBackupTask,
+	taskSnapshotLoaded,
+}: {
+	schedule: TraySchedule;
+	activeBackupTask?: BackupTask;
+	taskSnapshotLoaded: boolean;
+}) {
 	const { formatShortDateTime } = useTimeFormat();
 	const runBackup = useMutation(runBackupNowMutation());
-	const stopBackup = useMutation(stopBackupMutation());
+	const cancelBackup = useMutation(cancelTaskMutation());
 	let nextBackup = "Paused";
 	if (schedule.enabled) {
 		nextBackup = schedule.cronExpression ? formatShortDateTime(schedule.nextBackupAt) : "Manual";
 	}
-	const isRunning = schedule.lastBackupStatus === "in_progress";
-	const isPending = runBackup.isPending || stopBackup.isPending;
+	const isRunning = taskSnapshotLoaded ? activeBackupTask !== undefined : schedule.lastBackupStatus === "in_progress";
+	const isBackupCancelling = activeBackupTask?.status === "cancelling";
+	const isPending = runBackup.isPending || cancelBackup.isPending;
+	const isActionDisabled = isPending || isBackupCancelling;
+	const actionLabel = isRunning ? (isBackupCancelling ? "Cancelling..." : "Stop") : "Run";
+	const actionAriaLabel = isRunning
+		? isBackupCancelling
+			? `Cancelling ${schedule.name}`
+			: `Stop ${schedule.name}`
+		: `Run ${schedule.name}`;
 
 	const openSchedule = () => {
 		openMainWindow(`/backups/${schedule.shortId}`);
@@ -98,7 +128,10 @@ function TrayScheduleRow({ schedule }: { schedule: TraySchedule }) {
 	const handleActionClick = (event: React.MouseEvent<HTMLButtonElement>) => {
 		event.stopPropagation();
 		if (isRunning) {
-			stopBackup.mutate({ path: { shortId: schedule.shortId } });
+			if (!activeBackupTask || isBackupCancelling || cancelBackup.isPending) return;
+
+			const taskId = activeBackupTask.id;
+			cancelBackup.mutate({ path: { taskId } });
 			return;
 		}
 
@@ -124,7 +157,7 @@ function TrayScheduleRow({ schedule }: { schedule: TraySchedule }) {
 						enabled={schedule.enabled}
 						hasError={schedule.lastBackupStatus === "error"}
 						hasWarning={schedule.lastBackupStatus === "warning"}
-						isInProgress={schedule.lastBackupStatus === "in_progress"}
+						isInProgress={isRunning}
 					/>
 				</span>
 				<h2 className="truncate text-sm font-semibold leading-5">{schedule.name}</h2>
@@ -145,28 +178,30 @@ function TrayScheduleRow({ schedule }: { schedule: TraySchedule }) {
 				<span className="min-w-0 truncate">Next: {nextBackup}</span>
 				<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
 			</div>
-			<TrayProgressLine scheduleShortId={schedule.shortId} isRunning={isRunning} />
+			<TrayProgressLine progress={activeBackupTask?.progress?.progress ?? null} isRunning={isRunning} />
 			<Button
 				size="sm"
 				loading={isPending}
-				aria-label={isRunning ? `Stop ${schedule.name}` : `Run ${schedule.name}`}
+				disabled={isActionDisabled}
+				aria-label={actionAriaLabel}
 				className="w-18 text-[11px] mt-2"
 				onClick={handleActionClick}
 			>
 				{isRunning ? <Square size={12} className="mr-2" /> : <Play size={12} className="mr-2" />}
-				<span>{isRunning ? "Stop" : "Run"}</span>
+				<span>{actionLabel}</span>
 			</Button>
 		</div>
 	);
 }
 
-function TrayProgressLine({ scheduleShortId, isRunning }: { scheduleShortId: string; isRunning: boolean }) {
+function TrayProgressLine({
+	progress,
+	isRunning,
+}: {
+	progress: NonNullable<BackupTask["progress"]>["progress"] | null;
+	isRunning: boolean;
+}) {
 	const formatBytes = useFormatBytes();
-	const { data: progress } = useQuery({
-		...getBackupProgressOptions({ path: { shortId: scheduleShortId } }),
-		enabled: isRunning,
-		refetchInterval: isRunning ? 1000 : false,
-	});
 
 	if (!isRunning || !progress) {
 		return null;

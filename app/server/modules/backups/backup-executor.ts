@@ -27,8 +27,6 @@ type BackupExecutionRequest = {
 
 export type { BackupExecutionResult } from "../agents/agents-manager";
 
-const activeControllersByScheduleId = new Map<number, { abortController: AbortController; agentId: string | null }>();
-
 const getBackupExecutionAgentId = (volume: Volume, repository: Repository) => {
 	if (repository.type === "local" && volume.agentId !== LOCAL_AGENT_ID) {
 		throw new BadRequestError(`Local repository "${repository.name}" can only be used with the local agent`);
@@ -110,22 +108,7 @@ const executeBackupWithoutAgent = async (
 };
 
 export const backupExecutor = {
-	track: (scheduleId: number) => {
-		const abortController = new AbortController();
-		activeControllersByScheduleId.set(scheduleId, { abortController, agentId: null });
-		return abortController;
-	},
-	untrack: (scheduleId: number, abortController: AbortController) => {
-		if (activeControllersByScheduleId.get(scheduleId)?.abortController === abortController) {
-			activeControllersByScheduleId.delete(scheduleId);
-		}
-	},
 	execute: async (request: BackupExecutionRequest) => {
-		const trackedExecution = activeControllersByScheduleId.get(request.scheduleId);
-		if (!trackedExecution || trackedExecution.abortController.signal !== request.signal) {
-			throw new Error(`Backup execution for schedule ${request.scheduleId} was not tracked`);
-		}
-
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
@@ -137,7 +120,6 @@ export const backupExecutor = {
 		}
 
 		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
-		trackedExecution.agentId = executionAgentId;
 
 		const executionResult = await agentManager.runBackup(executionAgentId, {
 			scheduleId: request.scheduleId,
@@ -155,19 +137,5 @@ export const backupExecutor = {
 		}
 
 		return executionResult;
-	},
-	cancel: async (scheduleId: number) => {
-		const trackedExecution = activeControllersByScheduleId.get(scheduleId);
-		if (!trackedExecution) {
-			return false;
-		}
-
-		trackedExecution.abortController.abort();
-		if (!trackedExecution.agentId) {
-			return true;
-		}
-
-		await agentManager.cancelBackup(trackedExecution.agentId, scheduleId);
-		return true;
 	},
 };

@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Scheduler } from "~/server/core/scheduler";
-import { serverEvents } from "~/server/core/events";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { backupsService } from "~/server/modules/backups/backups.service";
@@ -43,7 +42,6 @@ afterEach(() => {
 });
 
 test("marks active scheduled backup tasks stale and makes them executable again", async () => {
-	const emitSpy = vi.spyOn(serverEvents, "emit");
 	const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();
 	const volume = await createTestVolume();
 	const repository = await createTestRepository();
@@ -58,7 +56,7 @@ test("marks active scheduled backup tasks stale and makes them executable again"
 		id: "task-startup-active",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -85,7 +83,6 @@ test("marks active scheduled backup tasks stale and makes them executable again"
 	await withContext({ organizationId: TEST_ORG_ID }, async () => {
 		expect(await backupsService.getSchedulesToExecute()).toContain(schedule.id);
 	});
-	expect(emitSpy).not.toHaveBeenCalledWith("backup:completed", expect.anything());
 	expect(notificationSpy).not.toHaveBeenCalled();
 });
 
@@ -103,7 +100,7 @@ test("marks active manual backup tasks stale without making the schedule executa
 		id: "task-startup-manual",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -139,7 +136,7 @@ test("does not immediately retry cancellation-requested scheduled backups", asyn
 		id: "task-startup-cancelling",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -197,7 +194,7 @@ test("ignores previously stale scheduled tasks when the current interrupted task
 		id: "task-a-old-scheduled",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -211,14 +208,14 @@ test("ignores previously stale scheduled tasks when the current interrupted task
 		organizationId: TEST_ORG_ID,
 		kind: "backup",
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		error: RESTART_TASK_ERROR,
 	});
 	const latestTask = taskStore.create({
 		id: "task-z-new-manual",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -255,7 +252,7 @@ test("does not use previously stale scheduled tasks to retry immediately", async
 		id: "task-existing-restart-warning",
 		organizationId: TEST_ORG_ID,
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		targetDisplayName: schedule.name,
 		targetAgentId: "local",
 		input: {
@@ -269,7 +266,7 @@ test("does not use previously stale scheduled tasks to retry immediately", async
 		organizationId: TEST_ORG_ID,
 		kind: "backup",
 		resourceType: "backup_schedule",
-		resourceId: String(schedule.id),
+		resourceId: schedule.shortId,
 		error: RESTART_TASK_ERROR,
 	});
 

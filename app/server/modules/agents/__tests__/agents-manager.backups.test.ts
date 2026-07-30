@@ -20,12 +20,12 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-test("cancelBackup resolves a running backup when the cancel command cannot be delivered", async () => {
+test("cancelBackup retains a running backup when the cancel command cannot be delivered", async () => {
 	const sendBackup = vi.fn(() => Effect.succeed(true));
 	const cancelBackup = vi.fn(() => Effect.succeed(false));
 	setAgentRuntime({ sendBackup, cancelBackup });
 
-	const resultPromise = agentManager.runBackup("local", {
+	void agentManager.runBackup("local", {
 		scheduleId: 42,
 		payload: fromPartial<BackupRunPayload>({
 			jobId: "job-1",
@@ -39,8 +39,7 @@ test("cancelBackup resolves a running backup when the cancel command cannot be d
 		expect(sendBackup).toHaveBeenCalledTimes(1);
 	});
 
-	await expect(agentManager.cancelBackup("local", 42)).resolves.toBe(true);
-	await expect(resultPromise).resolves.toEqual({ status: "cancelled" });
+	await expect(agentManager.cancelBackup("local", 42)).resolves.toBe(false);
 	expect(cancelBackup).toHaveBeenCalledWith("local", {
 		jobId: "job-1",
 		scheduleId: "schedule-1",

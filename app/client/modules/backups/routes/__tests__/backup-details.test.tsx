@@ -185,9 +185,6 @@ const mockScheduleDetailsRequests = (
 				],
 			});
 		}),
-		http.get("/api/v1/backups/:shortId/progress", () => {
-			return HttpResponse.json(null);
-		}),
 		http.get("/api/v1/backups/:shortId/notifications", () => {
 			return HttpResponse.json([]);
 		}),
@@ -250,7 +247,6 @@ describe("ScheduleDetailsPage", () => {
 			http.get("/api/v1/backups/:shortId", () => HttpResponse.json(schedule)),
 			http.get(/\/api\/v1\/tasks(?:\?.*)?$/, () => HttpResponse.json([])),
 			http.get("/api/v1/repositories/:shortId/snapshots", () => snapshotsResponse),
-			http.get("/api/v1/backups/:shortId/progress", () => HttpResponse.json(null)),
 		);
 
 		render(
@@ -276,38 +272,7 @@ describe("ScheduleDetailsPage", () => {
 		expect(await screen.findByText("Snapshots")).toBeTruthy();
 	});
 
-	test("polls the schedule only while a backup is running", async () => {
-		let idleScheduleRequests = 0;
-
-		mockScheduleDetailsRequests({
-			onScheduleRequest: () => {
-				idleScheduleRequests += 1;
-			},
-		});
-
-		render(
-			<ScheduleDetailsPage
-				loaderData={fromAny({
-					schedule,
-					notifs: [],
-					repos: [],
-					scheduleNotifs: [],
-					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
-					snapshots: [snapshot],
-				})}
-				scheduleId="backup-1"
-				initialSnapshotSortOrder="desc"
-			/>,
-			{ withSuspense: true },
-		);
-
-		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
-		await new Promise((resolve) => setTimeout(resolve, 1200));
-		expect(idleScheduleRequests).toBe(1);
-
-		cleanup();
-
+	test("does not poll the schedule while a backup is running", async () => {
 		let runningScheduleRequests = 0;
 
 		mockScheduleDetailsRequests({
@@ -336,6 +301,6 @@ describe("ScheduleDetailsPage", () => {
 
 		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
 		await new Promise((resolve) => setTimeout(resolve, 1200));
-		expect(runningScheduleRequests).toBeGreaterThan(1);
+		expect(runningScheduleRequests).toBe(1);
 	});
 });

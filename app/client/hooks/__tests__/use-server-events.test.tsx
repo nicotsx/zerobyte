@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
@@ -46,29 +45,6 @@ const ConnectionConsumer = ({ enabled = true }: { enabled?: boolean }) => {
 	return null;
 };
 
-const BackupCompletedListener = ({ scheduleId }: { scheduleId: string }) => {
-	const { addEventListener } = useServerEvents();
-	const [status, setStatus] = useState("pending");
-
-	useEffect(() => {
-		const abortController = new AbortController();
-
-		addEventListener(
-			"backup:completed",
-			(event) => {
-				if (event.scheduleId === scheduleId) {
-					setStatus(event.status);
-				}
-			},
-			{ signal: abortController.signal },
-		);
-
-		return () => abortController.abort();
-	}, [addEventListener, scheduleId]);
-
-	return <div>{status}</div>;
-};
-
 const QueryStatusConsumer = ({ getValue }: { getValue: () => string }) => {
 	const { data } = useQuery({
 		queryKey: ["backup-status"],
@@ -94,65 +70,22 @@ describe("useServerEvents", () => {
 		MockEventSource.reset();
 	});
 
-	test("shares one EventSource across consumers and refreshes active queries on backup completion", async () => {
+	test("shares one EventSource across consumers", () => {
 		const queryClient = createTestQueryClient();
-		let queryValue = "before";
 
 		const view = render(
 			<>
 				<ConnectionConsumer />
-				<BackupCompletedListener scheduleId="0b9c940b" />
-				<QueryStatusConsumer getValue={() => queryValue} />
+				<ConnectionConsumer />
 			</>,
 			{ queryClient },
 		);
 
 		expect(MockEventSource.instances).toHaveLength(1);
-		expect(await screen.findByText("before")).toBeTruthy();
-
-		queryValue = "after";
-
-		MockEventSource.instances[0]?.emit("backup:completed", {
-			organizationId: "default-org",
-			scheduleId: "0b9c940b",
-			volumeName: "synology",
-			repositoryName: "swiss-backup",
-			status: "success",
-		});
-
-		expect(await screen.findByText("success")).toBeTruthy();
-		expect(await screen.findByText("after")).toBeTruthy();
 
 		view.unmount();
 
 		expect(MockEventSource.instances[0]?.close).toHaveBeenCalledTimes(1);
-	});
-
-	test("refreshes active queries when a backup starts", async () => {
-		const queryClient = createTestQueryClient();
-		let queryValue = "idle";
-
-		render(
-			<>
-				<ConnectionConsumer />
-				<QueryStatusConsumer getValue={() => queryValue} />
-			</>,
-			{ queryClient },
-		);
-
-		expect(MockEventSource.instances).toHaveLength(1);
-		expect(await screen.findByText("idle")).toBeTruthy();
-
-		queryValue = "running";
-
-		MockEventSource.instances[0]?.emit("backup:started", {
-			organizationId: "default-org",
-			scheduleId: "0b9c940b",
-			volumeName: "synology",
-			repositoryName: "swiss-backup",
-		});
-
-		expect(await screen.findByText("running")).toBeTruthy();
 	});
 
 	test("refreshes active queries when task history changes", async () => {

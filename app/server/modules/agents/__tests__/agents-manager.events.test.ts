@@ -270,7 +270,7 @@ test("runBackup rejects before sending when the abort signal is already aborted"
 	await stopAgentController();
 });
 
-test("runBackup requests cancellation when the abort signal fires while sending", async () => {
+test("runBackup waits for a terminal event when cancellation cannot be sent after abort", async () => {
 	resetAgentRuntime();
 	const abortController = new AbortController();
 	controllerMock.sendBackup.mockImplementation(() =>
@@ -283,17 +283,84 @@ test("runBackup requests cancellation when the abort signal fires while sending"
 	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
 
 	await startAgentController();
-	const result = await agentManager.runBackup("local", {
+	const resultPromise = agentManager.runBackup("local", {
 		scheduleId: 42,
 		payload: backupPayload,
 		signal: abortController.signal,
 		onProgress: vi.fn(),
 	});
 
-	expect(result).toEqual({ status: "cancelled" });
-	expect(controllerMock.cancelBackup).toHaveBeenCalledWith("local", {
-		jobId: "job-1",
-		scheduleId: "schedule-1",
+	await vi.waitFor(() => {
+		expect(controllerMock.cancelBackup).toHaveBeenCalledWith("local", {
+			jobId: "job-1",
+			scheduleId: "schedule-1",
+		});
+	});
+
+	let settled = false;
+	void resultPromise.finally(() => {
+		settled = true;
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	await Promise.resolve();
+	expect(settled).toBe(false);
+
+	controllerMock.onEvent?.({
+		type: "backup.cancelled",
+		agentId: "local",
+		agentName: "Local Agent",
+		payload: { jobId: "job-1", scheduleId: "schedule-1", message: "cancelled remotely" },
+	});
+
+	await expect(resultPromise).resolves.toEqual({ status: "cancelled" });
+	await stopAgentController();
+});
+
+test("runBackup waits for a terminal event when cancellation transport rejects after abort", async () => {
+	resetAgentRuntime();
+	const abortController = new AbortController();
+	controllerMock.sendBackup.mockImplementation(() => Effect.succeed(true));
+	controllerMock.cancelBackup.mockImplementation(() => Effect.fail(new Error("transport failed")));
+	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
+
+	await startAgentController();
+	const resultPromise = agentManager.runBackup("remote", {
+		scheduleId: 42,
+		payload: backupPayload,
+		signal: abortController.signal,
+		onProgress: vi.fn(),
+	});
+	abortController.abort();
+
+	await vi.waitFor(() => {
+		expect(controllerMock.cancelBackup).toHaveBeenCalledWith("remote", {
+			jobId: "job-1",
+			scheduleId: "schedule-1",
+		});
+	});
+
+	let settled = false;
+	void resultPromise.finally(() => {
+		settled = true;
+	});
+	await Promise.resolve();
+	await Promise.resolve();
+	await Promise.resolve();
+	expect(settled).toBe(false);
+
+	controllerMock.onEvent?.({
+		type: "backup.completed",
+		agentId: "remote",
+		agentName: "Remote Agent",
+		payload: { jobId: "job-1", scheduleId: "schedule-1", exitCode: 0, result: null },
+	});
+
+	await expect(resultPromise).resolves.toEqual({
+		status: "completed",
+		exitCode: 0,
+		result: null,
+		warningDetails: null,
 	});
 	await stopAgentController();
 });

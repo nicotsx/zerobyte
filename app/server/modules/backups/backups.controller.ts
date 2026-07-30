@@ -13,7 +13,6 @@ import {
 	listBackupSchedulesResponse,
 	runBackupNowDto,
 	runForgetDto,
-	stopBackupDto,
 	updateBackupScheduleDto,
 	updateBackupScheduleBody,
 	updateBackupScheduleResponse,
@@ -24,7 +23,6 @@ import {
 	getMirrorSyncStatusDto,
 	reorderBackupSchedulesDto,
 	reorderBackupSchedulesBody,
-	getBackupProgressDto,
 	syncMirrorBody,
 	syncMirrorDto,
 	type CreateBackupScheduleDto,
@@ -34,13 +32,11 @@ import {
 	type ListBackupSchedulesResponseDto,
 	type RunBackupNowDto,
 	type RunForgetDto,
-	type StopBackupDto,
 	type UpdateBackupScheduleDto,
 	type GetScheduleMirrorsDto,
 	type UpdateScheduleMirrorsDto,
 	type GetMirrorCompatibilityDto,
 	type ReorderBackupSchedulesDto,
-	type GetBackupProgressDto,
 	type GetMirrorSyncStatusDto,
 	type SyncMirrorDto,
 } from "./backups.dto";
@@ -54,9 +50,7 @@ import {
 } from "../notifications/notifications.dto";
 import { notificationsService } from "../notifications/notifications.service";
 import { requireAuth } from "../auth/auth.middleware";
-import { logger } from "@zerobyte/core/node";
 import { asShortId } from "~/server/utils/branded";
-import { cache, cacheKeys } from "~/server/utils/cache";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 
 export const backupScheduleController = new Hono()
@@ -100,28 +94,12 @@ export const backupScheduleController = new Hono()
 	.post("/:shortId/run", runBackupNowDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const schedule = await getScheduleByIdOrShortId(shortId);
-		const result = await backupsService.validateBackupExecution(schedule.id, true);
-
-		if (result.type === "failure") {
-			throw result.error;
+		const backupStart = await backupsService.executeBackup(schedule.id, true);
+		if (!backupStart) {
+			throw new Error("Manual backup start was skipped");
 		}
 
-		if (result.type === "skipped") {
-			return c.json<RunBackupNowDto>({ success: true }, 200);
-		}
-
-		backupsService.executeBackup(schedule.id, true).catch((err) => {
-			logger.error(`Error executing manual backup for schedule ${shortId}:`, err);
-		});
-
-		return c.json<RunBackupNowDto>({ success: true }, 200);
-	})
-	.post("/:shortId/stop", stopBackupDto, async (c) => {
-		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await getScheduleByIdOrShortId(shortId);
-		await backupsService.stopBackup(schedule.id);
-
-		return c.json<StopBackupDto>({ success: true }, 200);
+		return c.json<RunBackupNowDto>(backupStart, 202);
 	})
 	.post("/:shortId/forget", runForgetDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
@@ -189,15 +167,4 @@ export const backupScheduleController = new Hono()
 		await backupsService.reorderSchedules(body.scheduleShortIds.map(asShortId));
 
 		return c.json<ReorderBackupSchedulesDto>({ success: true }, 200);
-	})
-	.get("/:shortId/progress", getBackupProgressDto, async (c) => {
-		const shortId = asShortId(c.req.param("shortId"));
-		const schedule = await getScheduleByIdOrShortId(shortId);
-		if (schedule.lastBackupStatus !== "in_progress") {
-			cache.del(cacheKeys.backup.progress(schedule.id));
-			return c.json<GetBackupProgressDto>(null, 200);
-		}
-		const progress = backupsService.getBackupProgress(schedule.id);
-
-		return c.json<GetBackupProgressDto>(progress ?? null, 200);
 	});

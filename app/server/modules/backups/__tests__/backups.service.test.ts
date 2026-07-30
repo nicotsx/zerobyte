@@ -97,6 +97,10 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
+		await waitForExpect(async () => {
+			const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+			expect(updatedSchedule.nextBackupAt).not.toBeNull();
+		});
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.nextBackupAt).not.toBeNull();
 
@@ -144,10 +148,12 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id, true);
 
 		// assert
-		expect(resticBackupMock).toHaveBeenCalled();
-		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
-		expect(updatedSchedule.lastBackupStatus).toBe("success");
-		expect(updatedSchedule.lastBackupAt).not.toBeNull();
+		await waitForExpect(async () => {
+			expect(resticBackupMock).toHaveBeenCalled();
+			const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+			expect(updatedSchedule.lastBackupStatus).toBe("success");
+			expect(updatedSchedule.lastBackupAt).not.toBeNull();
+		});
 	});
 
 	test("should keep next backup time empty for manual-only schedules after a manual run", async () => {
@@ -174,7 +180,7 @@ describe("execute backup", () => {
 		expect(updatedSchedule.nextBackupAt).toBeNull();
 	});
 
-	test("should skip the backup if the previous one is still running", async () => {
+	test("should reject the backup if the previous one is still running", async () => {
 		// arrange
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume();
@@ -196,7 +202,9 @@ describe("execute backup", () => {
 			expect(resticBackupMock).toHaveBeenCalledTimes(1);
 		});
 
-		await backupsService.executeBackup(schedule.id);
+		await expect(backupsService.executeBackup(schedule.id)).rejects.toThrow(
+			"Backup is already running for this schedule",
+		);
 
 		// assert
 		expect(resticBackupMock).toHaveBeenCalledTimes(1);
@@ -220,8 +228,10 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
-		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		await waitForExpect(async () => {
+			const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+			expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		});
 	});
 
 	test("should set the backup status to failed if restic returns a non zero exit code", async () => {
@@ -242,8 +252,10 @@ describe("execute backup", () => {
 		await backupsService.executeBackup(schedule.id);
 
 		// assert
-		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
-		expect(updatedSchedule.lastBackupStatus).toBe("error");
+		await waitForExpect(async () => {
+			const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+			expect(updatedSchedule.lastBackupStatus).toBe("error");
+		});
 	});
 });
 

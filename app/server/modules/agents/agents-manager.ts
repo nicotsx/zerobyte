@@ -193,19 +193,20 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 		return true;
 	}
 
-	if (
-		await Effect.runPromise(
-			runtime.cancelBackup(agentId, {
-				jobId: activeBackupRun.jobId,
-				scheduleId: activeBackupRun.scheduleShortId,
-			}),
-		)
-	) {
-		return true;
-	}
+	const cancelResult = await Effect.runPromise(
+		runtime.cancelBackup(agentId, {
+			jobId: activeBackupRun.jobId,
+			scheduleId: activeBackupRun.scheduleShortId,
+		}),
+	);
 
-	resolveActiveBackupRun(scheduleId, { status: "cancelled" });
-	return true;
+	if (cancelResult) return true;
+
+	logger.warn(
+		`Failed to send backup cancellation for ${activeBackupRun.jobId}; waiting for the agent to report its outcome`,
+	);
+
+	return false;
 };
 
 const requestRestoreCancellation = async (agentId: string, restoreId: string) => {
@@ -443,11 +444,21 @@ export const agentManager = {
 				} satisfies BackupExecutionResult;
 			}
 
+			const cancelOnAbort = () => {
+				const cancellation = requestBackupCancellation(agentId, request.scheduleId);
+				void cancellation.catch((error) => {
+					const message = toMessage(error);
+					logger.warn(`Failed to request backup cancellation for ${request.payload.jobId}: ${message}`);
+				});
+			};
+			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
-				await requestBackupCancellation(agentId, request.scheduleId);
+				cancelOnAbort();
 			}
 
-			return completion;
+			return completion.finally(() => {
+				request.signal.removeEventListener("abort", cancelOnAbort);
+			});
 		} catch (error) {
 			clearActiveBackupRun(request.scheduleId);
 			throw error;

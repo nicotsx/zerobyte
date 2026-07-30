@@ -1,6 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
-import { logger } from "@zerobyte/core/node";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
 import { generateShortId } from "~/server/utils/id";
 import { getOrganizationId } from "~/server/core/request-context";
@@ -8,58 +7,22 @@ import { asShortId, type ShortId } from "~/server/utils/branded";
 import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { db } from "../../db/db";
 import { backupScheduleMirrorsTable, backupScheduleNotificationsTable, backupSchedulesTable } from "../../db/schema";
-import { cache, cacheKeys } from "../../utils/cache";
-import { repoMutex } from "../../core/repository-mutex";
-import { backupExecutor } from "./backup-executor";
 import { calculateNextRun, isValidCron } from "./backup.helpers";
 import { mirrorQueries, scheduleQueries } from "./backups.queries";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
-import {
-	emitBackupStarted,
-	finalizeSuccessfulBackup,
-	getBackupProgress,
-	handleBackupCancellation,
-	handleBackupFailure,
-	handleValidationResult,
-	startPostBackupMirrorSyncs,
-	updateBackupProgress,
-	validateBackupExecution,
-} from "./helpers/backup-lifecycle";
+import { handleValidationResult, validateBackupExecution } from "./helpers/backup-lifecycle";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 import { runForget } from "./helpers/backup-maintenance";
 import { commands } from "./commands";
+import { createBackupCommand } from "./commands/backup-command";
 import { restic } from "../../core/restic";
-import { runEffectPromise, toMessage } from "../../utils/errors";
+import { runEffectPromise } from "../../utils/errors";
 import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
-import { registerTaskExecution } from "../tasks/tasks.lifecycle";
-import { createTaskProgressBuffer } from "../tasks/progress-buffer";
-import type { ParsedTask, TaskResourceType } from "~/schemas/tasks";
+import type { ParsedTask } from "~/schemas/tasks";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
-
-const tryCancelTask = (
-	taskId: string,
-	activeTaskResource: {
-		organizationId: string;
-		kind: "backup";
-		resourceType: TaskResourceType;
-		resourceId: string;
-	},
-) => {
-	try {
-		taskStore.requestCancel(taskId);
-		return true;
-	} catch (error) {
-		const currentTask = taskStore.findActiveByResource(activeTaskResource);
-		if (!currentTask || currentTask.id !== taskId) {
-			return false;
-		}
-
-		throw error;
-	}
-};
 
 const listSchedules = async () => {
 	const organizationId = getOrganizationId();
@@ -470,133 +433,15 @@ const executeBackup = async (scheduleId: number, manual = false) => {
 	const result = await validateBackupExecution(scheduleId, manual);
 
 	if (result.type !== "success") {
+		if (result.type === "failure" && manual) {
+			throw result.error;
+		}
+
 		return handleValidationResult(scheduleId, result, manual);
 	}
 
 	const { context: ctx } = result;
-	cache.del(cacheKeys.backup.progress(scheduleId));
-
-	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
-		lastBackupStatus: "in_progress",
-		lastBackupError: null,
-		...(ctx.schedule.cronExpression ? { nextBackupAt: calculateNextRun(ctx.schedule.cronExpression) } : {}),
-	});
-
-	const task = taskStore.create({
-		organizationId: ctx.organizationId,
-		resourceType: BACKUP_TASK_RESOURCE_TYPE,
-		resourceId: String(scheduleId),
-		targetDisplayName: ctx.schedule.name,
-		targetAgentId: ctx.volume.agentId,
-		input: { kind: "backup", scheduleId, scheduleShortId: ctx.schedule.shortId, manual },
-	});
-
-	const abortController = backupExecutor.track(scheduleId);
-	const cancelBackupExecution = () => {
-		void backupExecutor.cancel(scheduleId).catch((error) => {
-			logger.error(`Failed to cancel backup task ${task.id}: ${toMessage(error)}`);
-		});
-	};
-	const unregisterTaskExecution = registerTaskExecution(task.id, cancelBackupExecution, true);
-	emitBackupStarted(ctx, scheduleId);
-	const progressBuffer = createTaskProgressBuffer(task.id, {
-		onError: (error) => {
-			logger.error(`Failed to persist backup task progress for ${task.id}: ${toMessage(error)}`);
-		},
-	});
-	let domainHandlerCompleted = false;
-
-	try {
-		const releaseLock = await repoMutex.acquireShared(
-			ctx.repository.id,
-			`backup:${ctx.volume.name}`,
-			abortController.signal,
-		);
-
-		try {
-			taskStore.markRunning(task.id);
-
-			const executionResult = await backupExecutor.execute({
-				jobId: task.id,
-				scheduleId,
-				schedule: ctx.schedule,
-				volume: ctx.volume,
-				repository: ctx.repository,
-				organizationId: ctx.organizationId,
-				signal: abortController.signal,
-				onProgress: (progress) => {
-					updateBackupProgress(ctx, progress);
-					progressBuffer.update({ kind: "backup", progress });
-				},
-			});
-
-			switch (executionResult.status) {
-				case "unavailable": {
-					progressBuffer.flush();
-					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
-					domainHandlerCompleted = true;
-					taskStore.fail(task.id, toMessage(executionResult.error));
-					return;
-				}
-				case "completed":
-					progressBuffer.flush();
-					await finalizeSuccessfulBackup(
-						ctx,
-						executionResult.exitCode,
-						executionResult.result,
-						executionResult.warningDetails,
-					);
-					domainHandlerCompleted = true;
-					taskStore.complete(task.id, {
-						kind: "backup",
-						exitCode: executionResult.exitCode,
-						result: executionResult.result,
-						warningDetails: executionResult.warningDetails,
-					});
-					await startPostBackupMirrorSyncs(ctx, scheduleId, executionResult.result).catch((error) => {
-						logger.error(
-							`Post-backup mirror synchronization failed for schedule ${scheduleId}: ${toMessage(error)}`,
-						);
-					});
-					return;
-				case "failed": {
-					progressBuffer.flush();
-					await handleBackupFailure(scheduleId, ctx.organizationId, executionResult.error, manual, ctx);
-					domainHandlerCompleted = true;
-					taskStore.fail(task.id, toMessage(executionResult.error));
-					return;
-				}
-				case "cancelled":
-					progressBuffer.flush();
-					await handleBackupCancellation(scheduleId, ctx.organizationId, executionResult.message);
-					domainHandlerCompleted = true;
-					taskStore.cancel(task.id, executionResult.message ?? "Backup was stopped by the user");
-					return;
-			}
-		} finally {
-			releaseLock();
-		}
-	} catch (error) {
-		if (abortController.signal.aborted) {
-			progressBuffer.flush();
-			await handleBackupCancellation(scheduleId, ctx.organizationId);
-			taskStore.cancel(task.id, "Backup was stopped by the user");
-			return;
-		}
-
-		if (domainHandlerCompleted) {
-			throw error;
-		}
-
-		progressBuffer.flush();
-		await handleBackupFailure(scheduleId, ctx.organizationId, error, manual, ctx);
-		taskStore.fail(task.id, toMessage(error));
-	} finally {
-		progressBuffer.dispose();
-		unregisterTaskExecution();
-		backupExecutor.untrack(scheduleId, abortController);
-		cache.del(cacheKeys.backup.progress(scheduleId));
-	}
+	return createBackupCommand({ context: ctx, manual }).start();
 };
 
 const getSchedulesToExecute = async () => {
@@ -613,13 +458,14 @@ const getInterruptedBackupScheduleIds = (staleTasks: ParsedTask[]) => {
 			continue;
 		}
 
-		const scheduleId = Number(task.resourceId);
-		if (!Number.isInteger(scheduleId)) {
+		if (task.input.kind !== "backup") {
 			continue;
 		}
 
+		const scheduleId = task.input.scheduleId;
+
 		backupTaskScheduleIds.add(scheduleId);
-		if (task.input.kind === "backup" && !task.input.manual && !task.cancellationRequested) {
+		if (!task.input.manual && !task.cancellationRequested) {
 			retryableScheduledTaskScheduleIds.add(scheduleId);
 		}
 	}
@@ -677,43 +523,6 @@ const recoverInterruptedBackups = async (staleTasks: ParsedTask[]) => {
 				.run();
 		}
 	});
-};
-
-const stopBackup = async (scheduleId: number) => {
-	const organizationId = getOrganizationId();
-	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
-
-	if (!schedule) {
-		throw new NotFoundError("Backup schedule not found");
-	}
-
-	const activeTaskResource = {
-		organizationId,
-		kind: "backup",
-		resourceType: BACKUP_TASK_RESOURCE_TYPE,
-		resourceId: String(scheduleId),
-	} as const;
-	const activeTask = taskStore.findActiveByResource(activeTaskResource);
-	let shouldMarkActiveTaskStale = false;
-	if (activeTask) {
-		shouldMarkActiveTaskStale = tryCancelTask(activeTask.id, activeTaskResource);
-	}
-
-	try {
-		if (!(await backupExecutor.cancel(scheduleId))) {
-			if (shouldMarkActiveTaskStale) {
-				taskStore.markActiveStale({
-					...activeTaskResource,
-					error: "No live backup execution was found for this schedule",
-				});
-			}
-			throw new ConflictError("No backup is currently running for this schedule");
-		}
-
-		logger.info(`Stopping backup for schedule ${scheduleId}`);
-	} finally {
-		await handleBackupCancellation(scheduleId, organizationId, undefined, false);
-	}
 };
 
 const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
@@ -826,12 +635,10 @@ export const backupsService = {
 	getMirrorCompatibility,
 	reorderSchedules,
 	cleanupOrphanedSchedules,
-	getBackupProgress,
 	validateBackupExecution,
 	executeBackup,
 	getSchedulesToExecute,
 	recoverInterruptedBackups,
-	stopBackup,
 	runForget,
 	getMirrorSyncStatus,
 	startMirrorSync,

@@ -5,7 +5,6 @@ import { COMPRESSION_MODES } from "@zerobyte/core/restic";
 import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
 import { finishedTaskStatusSchema } from "~/schemas/tasks";
 import { repositorySchema } from "../repositories/repositories.dto";
-import { backupProgressEventSchema } from "~/schemas/events-dto";
 
 const retentionPolicySchema = z.object({
 	keepLast: z.number().optional(),
@@ -240,7 +239,8 @@ export const deleteBackupScheduleDto = describeRoute({
 });
 
 const runBackupNowResponse = z.object({
-	success: z.boolean(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type RunBackupNowDto = z.infer<typeof runBackupNowResponse>;
@@ -250,7 +250,7 @@ export const runBackupNowDto = describeRoute({
 	operationId: "runBackupNow",
 	tags: ["Backups"],
 	responses: {
-		200: {
+		202: {
 			description: "Backup started successfully",
 			content: {
 				"application/json": {
@@ -258,30 +258,8 @@ export const runBackupNowDto = describeRoute({
 				},
 			},
 		},
-	},
-});
-
-const stopBackupResponse = z.object({
-	success: z.boolean(),
-});
-
-export type StopBackupDto = z.infer<typeof stopBackupResponse>;
-
-export const stopBackupDto = describeRoute({
-	description: "Stop a backup that is currently in progress",
-	operationId: "stopBackup",
-	tags: ["Backups"],
-	responses: {
-		200: {
-			description: "Backup stopped successfully",
-			content: {
-				"application/json": {
-					schema: resolver(stopBackupResponse),
-				},
-			},
-		},
 		409: {
-			description: "No backup is currently running for this schedule",
+			description: "Backup is already running for this schedule",
 		},
 	},
 });
@@ -463,26 +441,6 @@ export const syncMirrorDto = describeRoute({
 		},
 		409: {
 			description: "Mirror is already syncing",
-		},
-	},
-});
-
-const getBackupProgressResponse = backupProgressEventSchema.nullable();
-export type GetBackupProgressDto = z.infer<typeof getBackupProgressResponse>;
-
-export const getBackupProgressDto = describeRoute({
-	description:
-		"Get the last known progress for a currently running backup. Returns null if no progress has been reported yet.",
-	tags: ["Backup Schedules"],
-	operationId: "getBackupProgress",
-	responses: {
-		200: {
-			description: "Current backup progress or null if not yet available",
-			content: {
-				"application/json": {
-					schema: resolver(getBackupProgressResponse),
-				},
-			},
 		},
 	},
 });

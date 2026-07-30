@@ -25,8 +25,6 @@ type ServerEventEffectMap = {
 const isAbortError = (error: unknown): error is Error => error instanceof Error && error.name === "AbortError";
 
 const serverEventEffects: ServerEventEffectMap = {
-	"backup:started": { invalidateQueries: true },
-	"backup:completed": { invalidateQueries: true },
 	"task:history-changed": { invalidateQueries: true },
 	"volume:updated": { invalidateQueries: true },
 	"volume:status_changed": { invalidateQueries: true, emitAs: ["volume:updated"] },

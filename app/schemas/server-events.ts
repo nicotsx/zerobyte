@@ -1,9 +1,4 @@
-import type {
-	ServerBackupCompletedEventDto,
-	ServerBackupProgressEventDto,
-	ServerBackupStartedEventDto,
-	ServerDumpStartedEventDto,
-} from "~/schemas/events-dto";
+import type { ServerDumpStartedEventDto } from "~/schemas/events-dto";
 import type { TaskHistoryLifecycleItem, TaskHistoryOutcome } from "~/schemas/task-history";
 
 const payload = <T>() => undefined as unknown as T;
@@ -15,9 +10,6 @@ type TaskHistoryChangedEvent = {
 };
 
 export const serverEventPayloads = {
-	"backup:started": payload<ServerBackupStartedEventDto>(),
-	"backup:progress": payload<ServerBackupProgressEventDto>(),
-	"backup:completed": payload<ServerBackupCompletedEventDto>(),
 	"dump:started": payload<ServerDumpStartedEventDto>(),
 	"volume:mounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:unmounted": payload<{ organizationId: string; volumeName: string }>(),

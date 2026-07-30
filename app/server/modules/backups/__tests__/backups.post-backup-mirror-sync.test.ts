@@ -74,17 +74,19 @@ const setup = () => {
 	};
 };
 
-const getBackupTaskForSchedule = (scheduleId: number) =>
-	db.query.tasksTable.findFirst({
+const getBackupTaskForSchedule = async (scheduleId: number) => {
+	const schedule = await getScheduleByIdOrShortId(scheduleId);
+	return db.query.tasksTable.findFirst({
 		where: {
 			AND: [
 				{ organizationId: TEST_ORG_ID },
 				{ kind: "backup" },
 				{ resourceType: "backup_schedule" },
-				{ resourceId: String(scheduleId) },
+				{ resourceId: schedule.shortId },
 			],
 		},
 	});
+};
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -371,6 +373,10 @@ describe("mirror operations", () => {
 		resticBackupMock.mockResolvedValueOnce({ exitCode: 0, summary: "not-json", error: "" });
 
 		await backupsService.executeBackup(schedule.id, true);
+		await waitForExpect(async () => {
+			const task = await getBackupTaskForSchedule(schedule.id);
+			expect(task?.status).toBe("succeeded");
+		});
 
 		const task = await getBackupTaskForSchedule(schedule.id);
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
@@ -405,6 +411,10 @@ describe("mirror operations", () => {
 		});
 
 		await backupsService.executeBackup(schedule.id, true);
+		await waitForExpect(async () => {
+			const task = await getBackupTaskForSchedule(schedule.id);
+			expect(task?.status).toBe("succeeded");
+		});
 
 		const task = await getBackupTaskForSchedule(schedule.id);
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
@@ -578,8 +588,28 @@ describe("mirror operations", () => {
 
 		await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId, ["snapshot-1"]);
 		await manualCopyStarted;
-		await backupsService.executeBackup(schedule.id);
-		await backupsService.executeBackup(schedule.id);
+		const firstBackupStart = await backupsService.executeBackup(schedule.id);
+		if (!firstBackupStart) {
+			throw new Error("Expected the first backup to start");
+		}
+		await waitForExpect(() => {
+			const firstBackupTask = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: firstBackupStart.taskId,
+			});
+			expect(firstBackupTask?.status).toBe("succeeded");
+		});
+		const secondBackupStart = await backupsService.executeBackup(schedule.id);
+		if (!secondBackupStart) {
+			throw new Error("Expected the second backup to start");
+		}
+		await waitForExpect(() => {
+			const secondBackupTask = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: secondBackupStart.taskId,
+			});
+			expect(secondBackupTask?.status).toBe("succeeded");
+		});
 		await waitForExpect(() => {
 			expect(refreshStatsMock).toHaveBeenCalled();
 		});
@@ -638,12 +668,32 @@ describe("mirror operations", () => {
 
 		await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId, ["manual-snapshot"]);
 		await manualCopyStarted;
-		await backupsService.executeBackup(schedule.id);
+		const firstBackupStart = await backupsService.executeBackup(schedule.id);
+		if (!firstBackupStart) {
+			throw new Error("Expected the first backup to start");
+		}
+		await waitForExpect(() => {
+			const firstBackupTask = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: firstBackupStart.taskId,
+			});
+			expect(firstBackupTask?.status).toBe("succeeded");
+		});
 		await db
 			.update(backupSchedulesTable)
 			.set({ repositoryId: secondSourceRepository.id })
 			.where(eq(backupSchedulesTable.id, schedule.id));
-		await backupsService.executeBackup(schedule.id);
+		const secondBackupStart = await backupsService.executeBackup(schedule.id);
+		if (!secondBackupStart) {
+			throw new Error("Expected the second backup to start");
+		}
+		await waitForExpect(() => {
+			const secondBackupTask = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: secondBackupStart.taskId,
+			});
+			expect(secondBackupTask?.status).toBe("succeeded");
+		});
 		await waitForExpect(() => {
 			expect(refreshStatsMock).toHaveBeenCalledTimes(2);
 		});

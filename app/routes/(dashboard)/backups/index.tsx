@@ -1,14 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { listBackupSchedulesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { backupTasksOptions } from "~/client/modules/backups/backup-tasks";
 import { BackupsPage } from "~/client/modules/backups/routes/backups";
 
 export const Route = createFileRoute("/(dashboard)/backups/")({
 	component: RouteComponent,
 	errorComponent: () => <div>Failed to load backups</div>,
 	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData({
-			...listBackupSchedulesOptions(),
-		});
+		await Promise.all([
+			context.queryClient.ensureQueryData({
+				...listBackupSchedulesOptions(),
+			}),
+			context.queryClient.ensureQueryData(backupTasksOptions()),
+		]);
 	},
 	staticData: {
 		breadcrumb: () => [{ label: "Backup Jobs" }],
