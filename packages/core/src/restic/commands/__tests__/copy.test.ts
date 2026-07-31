@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
+import type { SafeSpawnParams } from "../../../node/spawn";
 import { copy } from "../copy";
 import type { ResticDeps } from "../../types";
 import { Effect } from "effect";
@@ -30,15 +31,18 @@ const destConfig = {
 
 const setup = () => {
 	let capturedArgs: string[] = [];
+	let capturedParams: SafeSpawnParams | null = null;
 
 	const cleanupMock = vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
-		capturedArgs = args ?? [];
-		return { exitCode: 0, stdout: "copied", stderr: "", timedOut: false };
+	vi.spyOn(nodeModule, "safeSpawn").mockImplementation(async (params) => {
+		capturedArgs = params.args;
+		capturedParams = params;
+		return { exitCode: 0, summary: "copied", error: "", stderr: "" };
 	});
 
 	return {
 		getArgs: () => capturedArgs,
+		getParams: () => capturedParams,
 		cleanupMock,
 	};
 };
@@ -75,6 +79,21 @@ describe("copy command", () => {
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
 	});
 
+	test("uses verbose text output and streams restic messages unchanged", async () => {
+		const { getArgs, getParams } = setup();
+		const onMessage = vi.fn();
+
+		await Effect.runPromise(
+			copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily", onMessage }, mockDeps),
+		);
+
+		expect(getArgs()).toContain("--verbose");
+		expect(getArgs()).not.toContain("--json");
+		const resticMessage = "[0:01] 50.00%  1 / 2 packs copied";
+		getParams()?.onStdout?.(resticMessage);
+		expect(onMessage).toHaveBeenCalledWith(resticMessage);
+	});
+
 	test("passes only copy-compatible custom restic params", async () => {
 		const { getArgs } = setup();
 
@@ -104,7 +123,11 @@ describe("copy command", () => {
 			copy(
 				sourceConfig,
 				destConfig,
-				{ organizationId: "org-1", snapshotIds: ["abc123", "def456", "ghi789"], tag: "daily" },
+				{
+					organizationId: "org-1",
+					snapshotIds: ["abc123", "def456", "ghi789"],
+					tag: "daily",
+				},
 				mockDeps,
 			),
 		);
@@ -128,11 +151,11 @@ describe("copy command", () => {
 
 	test("cleans up both repository environments when restic fails", async () => {
 		const { cleanupMock } = setup();
-		vi.mocked(nodeModule.safeExec).mockResolvedValueOnce({
+		vi.mocked(nodeModule.safeSpawn).mockResolvedValueOnce({
 			exitCode: 1,
-			stdout: "",
+			summary: "",
+			error: "copy failed",
 			stderr: "copy failed",
-			timedOut: false,
 		});
 
 		await expect(

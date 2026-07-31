@@ -12,14 +12,6 @@
 				"#\\s*renovate:\\s*datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+ARG [A-Z0-9_]+_VERSION=\"(?<currentValue>[^\"]+)\""
 			],
 			"versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
-		},
-		{
-			"customType": "regex",
-			"managerFilePatterns": ["/^Dockerfile$/"],
-			"matchStrings": ["\\s(?<depName>[a-z0-9][a-z0-9+_.-]*)=(?<currentValue>[0-9][^\\s\\\\]+)"],
-			"datasourceTemplate": "repology",
-			"packageNameTemplate": "alpine_3_22/{{{depName}}}",
-			"versioningTemplate": "loose"
 		}
 	],
 	"packageRules": [
@@ -32,10 +24,6 @@
 			"matchManagers": ["bun"],
 			"matchUpdateTypes": ["minor", "patch"],
 			"groupName": "bun minor and patch dependencies"
-		},
-		{
-			"matchDatasources": ["repology"],
-			"groupName": "alpine apk package pins"
 		},
 		{
 			"matchDatasources": ["github-releases"],

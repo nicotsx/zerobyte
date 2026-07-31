@@ -5,24 +5,24 @@ ARG RESTIC_VERSION="0.19.1"
 # renovate: datasource=github-releases depName=rclone/rclone versioning=semver extractVersion=^v?(?<version>.+)$
 ARG RCLONE_VERSION="1.74.4"
 # renovate: datasource=github-releases depName=nicholas-fedor/shoutrrr versioning=semver extractVersion=^v?(?<version>.+)$
-ARG SHOUTRRR_VERSION="0.16.1"
+ARG SHOUTRRR_VERSION="0.16.2"
 
 ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
     VITE_RCLONE_VERSION=${RCLONE_VERSION} \
     VITE_SHOUTRRR_VERSION=${SHOUTRRR_VERSION}
 
 RUN apk add --no-cache \
-	acl=2.3.2-r1 \
-	attr=2.5.2-r2 \
-	cifs-utils=7.3-r0 \
-	davfs2=1.6.1-r2 \
-	fuse3=3.16.2-r1 \
-	libcrypto3=3.5.7-r0 \
-	libssl3=3.5.7-r0 \
-	openssh-client-default=10.0_p1-r10 \
-	sshfs=3.7.6-r0 \
-	tini=0.19.0-r3 \
-	tzdata=2026b-r0
+	acl \
+	attr \
+	cifs-utils \
+	davfs2 \
+	fuse3 \
+	libcrypto3 \
+	libssl3 \
+	openssh-client-default \
+	sshfs \
+	tini \
+	tzdata
 
 ENTRYPOINT ["/sbin/tini", "-s", "--"]
 
@@ -38,10 +38,10 @@ ARG TARGETARCH
 ENV TARGETARCH=${TARGETARCH}
 
 RUN apk add --no-cache \
-	bzip2=1.0.8-r6 \
-	curl=8.14.1-r2 \
-	tar=1.35-r3 \
-	unzip=6.0-r15
+	bzip2 \
+	curl \
+	tar \
+	unzip
 
 RUN echo "Building for ${TARGETARCH}"
 RUN if [ "${TARGETARCH}" = "arm64" ]; then \

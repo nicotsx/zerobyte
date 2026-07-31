@@ -127,29 +127,30 @@ describe("restic command lock recovery", () => {
 		vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
 		const abortController = new AbortController();
 		let copyCalls = 0;
-		const safeExecMock = vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
-			if (args?.includes("copy")) {
-				copyCalls += 1;
-				return copyCalls === 1
-					? {
-							exitCode: 11,
-							stdout: "",
-							stderr: "unable to create lock in backend: repository is already locked",
-							timedOut: false,
-						}
-					: {
-							exitCode: 0,
-							stdout: "copied",
-							stderr: "",
-							timedOut: false,
-						};
+		const safeExecMock = vi.spyOn(nodeModule, "safeExec").mockResolvedValue({
+			exitCode: 0,
+			stdout: "",
+			stderr: "",
+			timedOut: false,
+		});
+		vi.spyOn(nodeModule, "safeSpawn").mockImplementation(async ({ onStderr }) => {
+			copyCalls += 1;
+			if (copyCalls === 1) {
+				const lockError = "unable to create lock in backend: repository is already locked";
+				onStderr?.(lockError);
+				return {
+					exitCode: 11,
+					summary: "",
+					error: lockError,
+					stderr: lockError,
+				};
 			}
 
 			return {
 				exitCode: 0,
-				stdout: "",
+				summary: "copied",
+				error: "",
 				stderr: "",
-				timedOut: false,
 			};
 		});
 

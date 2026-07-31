@@ -5273,6 +5273,7 @@ export type ListTasksResponses = {
             kind: 'mirrorSync';
             scheduleId: number;
             scheduleShortId: string;
+            sourceRepositoryId?: string;
             mirrorRepositoryId: string;
             snapshotIds?: Array<string>;
         };
@@ -5300,6 +5301,10 @@ export type ListTasksResponses = {
                 total_bytes?: number;
                 bytes_restored?: number;
             };
+        } | {
+            kind: 'mirrorSync';
+            phase: 'preparing' | 'copying' | 'retention';
+            message: string | null;
         } | null;
         result: {
             kind: 'backup';
@@ -5420,6 +5425,7 @@ export type StreamTasksEventsResponses = {
             kind: 'mirrorSync';
             scheduleId: number;
             scheduleShortId: string;
+            sourceRepositoryId?: string;
             mirrorRepositoryId: string;
             snapshotIds?: Array<string>;
         };
@@ -5447,6 +5453,10 @@ export type StreamTasksEventsResponses = {
                 total_bytes?: number;
                 bytes_restored?: number;
             };
+        } | {
+            kind: 'mirrorSync';
+            phase: 'preparing' | 'copying' | 'retention';
+            message: string | null;
         } | null;
         result: {
             kind: 'backup';
@@ -5546,6 +5556,7 @@ export type StreamTasksEventsResponses = {
             kind: 'mirrorSync';
             scheduleId: number;
             scheduleShortId: string;
+            sourceRepositoryId?: string;
             mirrorRepositoryId: string;
             snapshotIds?: Array<string>;
         };
@@ -5573,6 +5584,10 @@ export type StreamTasksEventsResponses = {
                 total_bytes?: number;
                 bytes_restored?: number;
             };
+        } | {
+            kind: 'mirrorSync';
+            phase: 'preparing' | 'copying' | 'retention';
+            message: string | null;
         } | null;
         result: {
             kind: 'backup';
@@ -5690,6 +5705,7 @@ export type StreamTaskEventsResponses = {
             kind: 'mirrorSync';
             scheduleId: number;
             scheduleShortId: string;
+            sourceRepositoryId?: string;
             mirrorRepositoryId: string;
             snapshotIds?: Array<string>;
         };
@@ -5717,6 +5733,10 @@ export type StreamTaskEventsResponses = {
                 total_bytes?: number;
                 bytes_restored?: number;
             };
+        } | {
+            kind: 'mirrorSync';
+            phase: 'preparing' | 'copying' | 'retention';
+            message: string | null;
         } | null;
         result: {
             kind: 'backup';
@@ -5834,6 +5854,7 @@ export type GetTaskResponses = {
             kind: 'mirrorSync';
             scheduleId: number;
             scheduleShortId: string;
+            sourceRepositoryId?: string;
             mirrorRepositoryId: string;
             snapshotIds?: Array<string>;
         };
@@ -5861,6 +5882,10 @@ export type GetTaskResponses = {
                 total_bytes?: number;
                 bytes_restored?: number;
             };
+        } | {
+            kind: 'mirrorSync';
+            phase: 'preparing' | 'copying' | 'retention';
+            message: string | null;
         } | null;
         result: {
             kind: 'backup';

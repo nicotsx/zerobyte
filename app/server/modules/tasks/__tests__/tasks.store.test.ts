@@ -69,7 +69,12 @@ const createRestoreTask = (overrides: Partial<Parameters<typeof taskStore.create
 		resourceType: "repository",
 		resourceId: "repo-short",
 		targetAgentId: "local",
-		input: { kind: "restore", repositoryId: "repo-short", snapshotId: "snapshot-1", target: "/tmp/restore" },
+		input: {
+			kind: "restore",
+			repositoryId: "repo-short",
+			snapshotId: "snapshot-1",
+			target: "/tmp/restore",
+		},
 		...overrides,
 	});
 
@@ -126,7 +131,10 @@ test("moves an active task through running, progress, cancellation request, and 
 	expect(running.startedAt).toEqual(expect.any(Number));
 
 	const progressed = taskStore.updateProgress(task.id, backupProgress(0.7));
-	expect(progressed.progress?.progress.percent_done).toBe(0.7);
+	if (progressed.progress?.kind !== "backup") {
+		throw new Error("Expected backup progress");
+	}
+	expect(progressed.progress.progress.percent_done).toBe(0.7);
 
 	const cancelling = taskStore.requestCancel(task.id);
 	expect(cancelling.status).toBe("cancelling");
@@ -177,7 +185,10 @@ test("moves restore tasks through progress and success", () => {
 			bytes_restored: 100,
 		},
 	});
-	expect(progressed.progress?.progress.percent_done).toBe(0.25);
+	if (progressed.progress?.kind !== "restore") {
+		throw new Error("Expected restore progress");
+	}
+	expect(progressed.progress.progress.percent_done).toBe(0.25);
 
 	const completed = taskStore.complete(task.id, {
 		kind: "restore",
@@ -258,7 +269,10 @@ test("lists active tasks with optional filters", () => {
 	taskStore.complete(completedTask.id, deleteSnapshotsResult());
 
 	const activeTasks = taskStore.listActive({ organizationId: TEST_ORG_ID });
-	const activeDeleteTasks = taskStore.listActive({ organizationId: TEST_ORG_ID, kind: "deleteSnapshots" });
+	const activeDeleteTasks = taskStore.listActive({
+		organizationId: TEST_ORG_ID,
+		kind: "deleteSnapshots",
+	});
 
 	expect(activeTasks.map((task) => task.id).sort()).toEqual([backupTask.id, deleteSnapshotsTask.id].sort());
 	expect(activeDeleteTasks.map((task) => task.id)).toEqual([deleteSnapshotsTask.id]);

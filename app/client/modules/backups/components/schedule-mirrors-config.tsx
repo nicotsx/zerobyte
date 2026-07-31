@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -45,6 +45,7 @@ import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { Link } from "@tanstack/react-router";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { isTaskActive, type TaskOfKind, useActiveTasks } from "~/client/hooks/use-active-tasks";
+import { MirrorSyncProgressRow } from "./mirror-sync-progress-row";
 
 type Props = {
 	scheduleShortId: string;
@@ -276,10 +277,10 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		return "error";
 	};
 
-	const getLabel = (task: MirrorSyncDisplayTask | null) => {
+	const getLabel = (task: MirrorSyncDisplayTask | null, activeTaskCount: number) => {
 		if (!task) return "Never";
 		if (isTaskActive(task)) {
-			return "Syncing...";
+			return activeTaskCount > 1 ? `Syncing · ${activeTaskCount} tasks` : "Syncing...";
 		}
 		const finishedAt = task.finishedAt;
 		if (finishedAt) {
@@ -356,7 +357,9 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 											</TooltipTrigger>
 											<TooltipContent
 												side="right"
-												className={cn("max-w-xs", { hidden: compat?.compatible })}
+												className={cn("max-w-xs", {
+													hidden: compat?.compatible,
+												})}
 											>
 												<p>
 													{compat?.reason ||
@@ -414,7 +417,8 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 									const mirrorSyncs =
 										activeMirrorSyncs?.filter((task) => task.operationKey === repository.shortId) ??
 										[];
-									const activeSync = mirrorSyncs[0];
+									const runningSync = mirrorSyncs.find((task) => task.status === "running");
+									const activeSync = runningSync ?? mirrorSyncs[0];
 									const syncing = activeSync !== undefined;
 									const lastSyncTask =
 										currentMirrorsByRepository.get(repository.shortId)?.lastSyncTask ?? null;
@@ -425,91 +429,103 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 									const cancelling = cancellationRequested || cancelSync.isPending;
 									const statusVariant = getStatusVariant(syncTask);
 									const statusLabel = getStatusLabel(syncTask);
-									const statusText = getLabel(syncTask);
+									const statusText = getLabel(syncTask, mirrorSyncs.length);
 									let buttonTooltip = "Sync more snapshots";
 									if (syncing) {
 										buttonTooltip = "Cancel sync";
 									}
 
 									return (
-										<TableRow key={repository.shortId}>
-											<TableCell>
-												<div className="flex items-center gap-2">
-													<Link
-														to="/repositories/$repositoryId"
-														params={{ repositoryId: repository.shortId }}
-														className="hover:underline flex items-center gap-2"
-													>
-														<RepositoryIcon backend={repository.type} className="h-4 w-4" />
-														<span className="font-medium">{repository.name}</span>
-													</Link>
-													<Badge variant="outline" className="text-[10px] align-middle">
-														{repository.type}
-													</Badge>
-												</div>
-											</TableCell>
-											<TableCell className="text-center">
-												<Switch
-													className="align-middle"
-													checked={assignment.enabled}
-													onCheckedChange={() => toggleEnabled(repository.shortId)}
-												/>
-											</TableCell>
-											<TableCell>
-												<div className="flex items-center gap-2">
-													<div className="w-3 shrink-0 mr-1">
-														<StatusDot
-															variant={statusVariant}
-															label={statusLabel}
-															animated={syncing}
-														/>
+										<Fragment key={repository.shortId}>
+											<TableRow>
+												<TableCell>
+													<div className="flex items-center gap-2">
+														<Link
+															to="/repositories/$repositoryId"
+															params={{
+																repositoryId: repository.shortId,
+															}}
+															className="hover:underline flex items-center gap-2"
+														>
+															<RepositoryIcon
+																backend={repository.type}
+																className="h-4 w-4"
+															/>
+															<span className="font-medium">{repository.name}</span>
+														</Link>
+														<Badge variant="outline" className="text-[10px] align-middle">
+															{repository.type}
+														</Badge>
 													</div>
-													<span className="text-sm text-muted-foreground">{statusText}</span>
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="flex items-center gap-1">
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<Button
-																variant="ghost"
-																size="icon"
-																onClick={() => {
-																	if (activeSync) {
-																		setCancelConfirmation({
-																			taskIds: mirrorSyncs.map((task) => task.id),
-																			repositoryName: repository.name,
-																		});
-																		return;
-																	}
-																	openSyncDialog(repository.shortId);
-																}}
-																disabled={syncing ? cancelling : hasChanges}
-																className={cn("h-8 w-8 text-muted-foreground", {
-																	"hover:text-destructive": syncing,
-																	"hover:text-foreground": !syncing,
-																})}
-															>
-																<RefreshCw
-																	className={cn("h-4 w-4", {
-																		"animate-spin": syncing,
+												</TableCell>
+												<TableCell className="text-center">
+													<Switch
+														className="align-middle"
+														checked={assignment.enabled}
+														onCheckedChange={() => toggleEnabled(repository.shortId)}
+													/>
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center gap-2">
+														<div className="w-3 shrink-0 mr-1">
+															<StatusDot
+																variant={statusVariant}
+																label={statusLabel}
+																animated={syncing}
+															/>
+														</div>
+														<span className="text-sm text-muted-foreground">
+															{statusText}
+														</span>
+													</div>
+												</TableCell>
+												<TableCell>
+													<div className="flex items-center gap-1">
+														<Tooltip>
+															<TooltipTrigger asChild>
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	onClick={() => {
+																		if (activeSync) {
+																			setCancelConfirmation({
+																				taskIds: mirrorSyncs.map(
+																					(task) => task.id,
+																				),
+																				repositoryName: repository.name,
+																			});
+																			return;
+																		}
+																		openSyncDialog(repository.shortId);
+																	}}
+																	disabled={syncing ? cancelling : hasChanges}
+																	className={cn("h-8 w-8 text-muted-foreground", {
+																		"hover:text-destructive": syncing,
+																		"hover:text-foreground": !syncing,
 																	})}
-																/>
-															</Button>
-														</TooltipTrigger>
-														<TooltipContent>{buttonTooltip}</TooltipContent>
-													</Tooltip>
-													<Button
-														variant="ghost"
-														size="icon"
-														onClick={() => removeRepository(repository.shortId)}
-														className="h-8 w-8 text-muted-foreground hover:text-destructive align-baseline"
-													>
-														<Trash2 className="h-4 w-4" />
-													</Button>
-												</div>
-											</TableCell>
-										</TableRow>
+																>
+																	<RefreshCw
+																		className={cn("h-4 w-4", {
+																			"animate-spin": syncing,
+																		})}
+																	/>
+																</Button>
+															</TooltipTrigger>
+															<TooltipContent>{buttonTooltip}</TooltipContent>
+														</Tooltip>
+														<Button
+															variant="ghost"
+															size="icon"
+															onClick={() => removeRepository(repository.shortId)}
+															className="h-8 w-8 text-muted-foreground hover:text-destructive align-baseline"
+														>
+															<Trash2 className="h-4 w-4" />
+														</Button>
+													</div>
+												</TableCell>
+											</TableRow>
+											{syncing && <MirrorSyncProgressRow tasks={mirrorSyncs} />}
+										</Fragment>
 									);
 								})}
 							</TableBody>
@@ -609,7 +625,10 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 								onClick={() => {
 									if (syncDialogMirrorId) {
 										triggerSync.mutate({
-											path: { shortId: scheduleShortId, mirrorShortId: syncDialogMirrorId },
+											path: {
+												shortId: scheduleShortId,
+												mirrorShortId: syncDialogMirrorId,
+											},
 											body: { snapshotIds: Array.from(selectedSnapshotIds) },
 										});
 									}
