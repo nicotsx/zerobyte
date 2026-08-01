@@ -5656,6 +5656,57 @@ export type StreamTasksEventsResponses = {
 
 export type StreamTasksEventsResponse = StreamTasksEventsResponses[keyof StreamTasksEventsResponses];
 
+export type ListTaskHistoryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        kind?: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor' | 'mirrorSync';
+        outcome?: 'running' | 'success' | 'warning' | 'error' | 'cancelled' | 'stale';
+        page?: number;
+    };
+    url: '/api/v1/tasks/history';
+};
+
+export type ListTaskHistoryResponses = {
+    /**
+     * A page of task history
+     */
+    200: {
+        items: Array<{
+            id: string;
+            kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor' | 'mirrorSync';
+            outcome: 'running' | 'success' | 'warning' | 'error' | 'cancelled' | 'stale' | null;
+            target: {
+                kind: 'backupSchedule';
+                label: string;
+                secondary: null;
+                scheduleShortId: string;
+            } | {
+                kind: 'repository';
+                label: string;
+                secondary: string | null;
+                repositoryShortId: string;
+                snapshotId: string | null;
+            } | {
+                kind: 'unavailable';
+                label: string;
+                secondary: string | null;
+            };
+            status: 'queued' | 'running' | 'cancelling' | 'cancelled' | 'succeeded' | 'failed' | 'stale';
+            createdAt: number;
+            startedAt: number | null;
+            finishedAt: number | null;
+            message: string | null;
+        }>;
+        page: number;
+        pageSize: number;
+        totalItems: number;
+        totalPages: number;
+    };
+};
+
+export type ListTaskHistoryResponse = ListTaskHistoryResponses[keyof ListTaskHistoryResponses];
+
 export type StreamTaskEventsData = {
     body?: never;
     path: {
