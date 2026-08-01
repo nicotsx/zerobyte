@@ -26,7 +26,12 @@ type TaskLifecycleOptions<TResult extends TaskResult> = {
 	onCancelled?: (task: ParsedTask, errorMessage: string, result: TResult | null) => void;
 };
 
-const abortControllers = new Map<string, AbortController>();
+type TaskExecution = {
+	abortController: AbortController;
+	cancellable: boolean;
+};
+
+const taskExecutions = new Map<string, TaskExecution>();
 
 const emitTaskLifecycleEvent = (eventName: "task:started" | "task:finished", task: ParsedTask) => {
 	serverEvents.emit(eventName, {
@@ -82,27 +87,30 @@ const isAbortError = (error: unknown) => {
 };
 
 export const requestTaskCancel = (taskId: string) => {
-	const abortController = abortControllers.get(taskId);
-	if (!abortController) {
+	const execution = taskExecutions.get(taskId);
+	if (execution && !execution.cancellable) {
 		return false;
 	}
 
 	try {
 		taskStore.requestCancel(taskId);
+		if (!execution) {
+			taskStore.cancel(taskId, "Task was cancelled by the user");
+			return true;
+		}
 	} catch {
 		return false;
 	}
 
-	abortController.abort();
+	execution.abortController.abort();
 	return true;
 };
 
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
+	const execution = { abortController, cancellable: options.cancellable === true };
 	let cleanup: (() => void) | undefined;
-	if (options.cancellable) {
-		abortControllers.set(options.taskId, abortController);
-	}
+	taskExecutions.set(options.taskId, execution);
 
 	try {
 		cleanup = await options.prepare?.(abortController.signal);
@@ -142,8 +150,8 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		}
 	} finally {
 		cleanup?.();
-		if (options.cancellable) {
-			abortControllers.delete(options.taskId);
+		if (taskExecutions.get(options.taskId) === execution) {
+			taskExecutions.delete(options.taskId);
 		}
 	}
 };
