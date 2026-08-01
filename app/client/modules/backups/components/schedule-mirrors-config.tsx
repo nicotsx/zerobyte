@@ -1,51 +1,22 @@
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { Copy, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Copy, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import type { GetScheduleMirrorsResponse } from "~/client/api-client";
+import {
+	getMirrorCompatibilityOptions,
+	getScheduleMirrorsOptions,
+	updateScheduleMirrorsMutation,
+} from "~/client/api-client/@tanstack/react-query.gen";
+import { RepositoryIcon } from "~/client/components/repository-icon";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
-import { Switch } from "~/client/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import { Badge } from "~/client/components/ui/badge";
-import { Checkbox } from "~/client/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "~/client/components/ui/dialog";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogHeader,
-	AlertDialogTitle,
-} from "~/client/components/ui/alert-dialog";
-import {
-	getScheduleMirrorsOptions,
-	getMirrorCompatibilityOptions,
-	getMirrorSyncStatusOptions,
-	cancelTaskMutation,
-	updateScheduleMirrorsMutation,
-	syncMirrorMutation,
-} from "~/client/api-client/@tanstack/react-query.gen";
 import { parseError } from "~/client/lib/errors";
 import type { Repository } from "~/client/lib/types";
-import { RepositoryIcon } from "~/client/components/repository-icon";
-import { StatusDot } from "~/client/components/status-dot";
-import { ByteSize } from "~/client/components/bytes-size";
 import { cn } from "~/client/lib/utils";
-import type { GetScheduleMirrorsResponse } from "~/client/api-client";
-import { Link } from "@tanstack/react-router";
-import { useTimeFormat } from "~/client/lib/datetime";
-import { isTaskActive, type TaskOfKind, useActiveTasks } from "~/client/hooks/use-active-tasks";
-import { MirrorSyncProgressRow } from "./mirror-sync-progress-row";
+import { MirrorRepositoriesTable } from "./mirror-repositories-table";
 
 type Props = {
 	scheduleShortId: string;
@@ -59,14 +30,6 @@ type MirrorAssignment = {
 	enabled: boolean;
 };
 
-type CancelConfirmation = {
-	taskIds: string[];
-	repositoryName: string;
-};
-
-type FinishedMirrorSyncTask = NonNullable<GetScheduleMirrorsResponse[number]["lastSyncTask"]>;
-type MirrorSyncDisplayTask = FinishedMirrorSyncTask | TaskOfKind<"mirrorSync">;
-
 const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 	new Map<string, MirrorAssignment>(
 		mirrors.map((mirror) => [
@@ -79,34 +42,9 @@ const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 	);
 
 export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, repositories, initialData }: Props) => {
-	const { formatDateTime, formatTimeAgo } = useTimeFormat();
 	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(() => buildAssignments(initialData));
 	const [hasChanges, setHasChanges] = useState(false);
 	const [isAddingNew, setIsAddingNew] = useState(false);
-	const [syncDialogMirrorId, setSyncDialogMirrorId] = useState<string | null>(null);
-	const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<Set<string>>(new Set());
-	const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-	const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
-	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
-	const { data: activeMirrorSyncs } = useActiveTasks({
-		kind: "mirrorSync",
-		resourceType: "backup_schedule",
-		resourceId: scheduleShortId,
-	});
-
-	const closeSyncDialog = () => {
-		setSyncDialogOpen(false);
-		setTimeout(() => {
-			setSyncDialogMirrorId(null);
-			setSelectedSnapshotIds(new Set());
-		}, 300);
-	};
-
-	const openSyncDialog = (mirrorShortId: string) => {
-		setSyncDialogOpen(true);
-		setSelectedSnapshotIds(new Set());
-		setSyncDialogMirrorId(mirrorShortId);
-	};
 
 	const { data: currentMirrors } = useSuspenseQuery({
 		...getScheduleMirrorsOptions({ path: { shortId: scheduleShortId } }),
@@ -134,73 +72,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 			});
 		},
 	});
-
-	const { data: syncStatus, isLoading: isSyncStatusLoading } = useQuery({
-		...getMirrorSyncStatusOptions({
-			path: { shortId: scheduleShortId, mirrorShortId: syncDialogMirrorId ?? "" },
-		}),
-		enabled: syncDialogMirrorId !== null,
-	});
-
-	const toggleSnapshotSelection = (shortId: string) => {
-		setSelectedSnapshotIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(shortId)) {
-				next.delete(shortId);
-			} else {
-				next.add(shortId);
-			}
-			return next;
-		});
-	};
-
-	const toggleAllSnapshots = () => {
-		if (!syncStatus) return;
-		if (selectedSnapshotIds.size === syncStatus.missingSnapshots.length) {
-			setSelectedSnapshotIds(new Set());
-		} else {
-			setSelectedSnapshotIds(new Set(syncStatus.missingSnapshots.map((s) => s.short_id)));
-		}
-	};
-
-	const triggerSync = useMutation({
-		...syncMirrorMutation(),
-		onSuccess: () => {
-			toast.success("Mirror sync started");
-			closeSyncDialog();
-		},
-		onError: (error) => {
-			toast.error("Failed to start sync", {
-				description: parseError(error)?.message,
-			});
-		},
-	});
-	const cancelSync = useMutation({
-		...cancelTaskMutation(),
-		onError: (error) => {
-			toast.error("Failed to cancel mirror sync", {
-				description: parseError(error)?.message,
-			});
-		},
-	});
-
-	const confirmCancellation = () => {
-		if (!cancelConfirmation) return;
-
-		const confirmedCancellation = cancelConfirmation;
-		const taskIds = confirmedCancellation.taskIds;
-
-		setTimeout(() => {
-			setCancelConfirmation((currentConfirmation) =>
-				currentConfirmation === confirmedCancellation ? null : currentConfirmation,
-			);
-		}, 1000);
-		setCancelConfirmationOpen(false);
-
-		for (const taskId of taskIds) {
-			cancelSync.mutate({ path: { taskId } });
-		}
-	};
 
 	const compatibilityMap = useMemo(() => {
 		const map = new Map<string, { compatible: boolean; reason: string | null }>();
@@ -246,15 +117,13 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	};
 
 	const handleSave = () => {
-		const mirrorsList = Array.from(assignments.values()).map((a) => ({
-			repositoryId: a.repositoryId,
-			enabled: a.enabled,
+		const mirrors = Array.from(assignments.values()).map((assignment) => ({
+			repositoryId: assignment.repositoryId,
+			enabled: assignment.enabled,
 		}));
 		updateMirrors.mutate({
 			path: { shortId: scheduleShortId },
-			body: {
-				mirrors: mirrorsList,
-			},
+			body: { mirrors },
 		});
 	};
 
@@ -263,52 +132,16 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		setHasChanges(false);
 	};
 
-	const selectableRepositories =
-		repositories?.filter((r) => {
-			if (r.shortId === primaryRepositoryId) return false;
-			if (assignments.has(r.shortId)) return false;
-			return true;
-		}) || [];
-
-	const hasAvailableRepositories = selectableRepositories.some((r) => {
-		const compat = compatibilityMap.get(r.shortId);
-		return compat?.compatible !== false;
+	const selectableRepositories = repositories.filter((repository) => {
+		if (repository.shortId === primaryRepositoryId) return false;
+		if (assignments.has(repository.shortId)) return false;
+		return true;
 	});
-
-	const assignedRepositories = Array.from(assignments.keys())
-		.map((id) => repositories?.find((r) => r.shortId === id))
-		.filter((r) => r !== undefined);
-
-	const getStatusVariant = (task: MirrorSyncDisplayTask | null) => {
-		if (!task) return "neutral";
-		if (task.status === "succeeded") return "success";
-		if (isTaskActive(task)) return "info";
-		return "error";
-	};
-
-	const getLabel = (task: MirrorSyncDisplayTask | null, activeTaskCount: number) => {
-		if (!task) return "Never";
-		if (isTaskActive(task)) {
-			return activeTaskCount > 1 ? `Syncing · ${activeTaskCount} tasks` : "Syncing...";
-		}
-		const finishedAt = task.finishedAt;
-		if (finishedAt) {
-			return formatTimeAgo(finishedAt);
-		}
-		return "Never";
-	};
-
-	const getStatusLabel = (task: MirrorSyncDisplayTask | null) => {
-		if (!task) return "Never synced";
-		if (isTaskActive(task)) {
-			return "Mirror sync in progress";
-		}
-		if (task.status === "succeeded") return "Last sync successful";
-		return task.error ?? "Last sync did not complete";
-	};
-
-	const selectedMirrorRepo = repositories.find((r) => r.shortId === syncDialogMirrorId);
-	const currentMirrorsByRepository = new Map(currentMirrors.map((mirror) => [mirror.repositoryId, mirror]));
+	const hasAvailableRepositories = selectableRepositories.some((repository) => {
+		const repositoryCompatibility = compatibilityMap.get(repository.shortId);
+		return repositoryCompatibility?.compatible !== false;
+	});
+	const showAddMirrorButton = !isAddingNew && selectableRepositories.length > 0;
 
 	return (
 		<Card>
@@ -324,7 +157,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 							backup
 						</CardDescription>
 					</div>
-					{!isAddingNew && selectableRepositories.length > 0 && (
+					{showAddMirrorButton && (
 						<Button variant="outline" size="sm" onClick={() => setIsAddingNew(true)}>
 							<Plus className="h-4 w-4 mr-2" />
 							Add mirror
@@ -341,7 +174,11 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 							</SelectTrigger>
 							<SelectContent>
 								{selectableRepositories.map((repository) => {
-									const compat = compatibilityMap.get(repository.shortId);
+									const repositoryCompatibility = compatibilityMap.get(repository.shortId);
+									const repositoryCompatible = repositoryCompatibility?.compatible ?? false;
+									const compatibilityReason =
+										repositoryCompatibility?.reason ??
+										"This repository is not compatible for mirroring.";
 
 									return (
 										<Tooltip key={repository.shortId}>
@@ -349,7 +186,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 												<div>
 													<SelectItem
 														value={repository.shortId}
-														disabled={!compat?.compatible}
+														disabled={!repositoryCompatible}
 													>
 														<div className="flex items-center gap-2">
 															<RepositoryIcon
@@ -367,13 +204,10 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 											<TooltipContent
 												side="right"
 												className={cn("max-w-xs", {
-													hidden: compat?.compatible,
+													hidden: repositoryCompatible,
 												})}
 											>
-												<p>
-													{compat?.reason ||
-														"This repository is not compatible for mirroring."}
-												</p>
+												<p>{compatibilityReason}</p>
 												<p className="mt-1 text-xs text-muted-foreground">
 													Consider creating a new backup scheduler with the desired
 													destination instead.
@@ -400,148 +234,15 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 					</div>
 				)}
 
-				{assignedRepositories.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-						<Copy className="h-8 w-8 mb-2 opacity-20" />
-						<p className="text-sm">No mirror repositories configured for this schedule.</p>
-						<p className="text-xs mt-1">
-							Click "Add mirror" to replicate backups to additional repositories.
-						</p>
-					</div>
-				) : (
-					<div className="rounded-md border">
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Repository</TableHead>
-									<TableHead className="text-center w-25">Enabled</TableHead>
-									<TableHead className="w-45">Last Sync</TableHead>
-									<TableHead className="w-12.5"></TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{assignedRepositories.map((repository) => {
-									const assignment = assignments.get(repository.shortId);
-									if (!assignment) return null;
-									const mirrorSyncs =
-										activeMirrorSyncs?.filter((task) => task.operationKey === repository.shortId) ??
-										[];
-									const runningSync = mirrorSyncs.find((task) => task.status === "running");
-									const activeSync = runningSync ?? mirrorSyncs[0];
-									const syncing = activeSync !== undefined;
-									const lastSyncTask =
-										currentMirrorsByRepository.get(repository.shortId)?.lastSyncTask ?? null;
-									const syncTask = activeSync ?? lastSyncTask;
-									const cancellationRequested = mirrorSyncs.some(
-										(task) => task.status === "cancelling",
-									);
-									const cancelling = cancellationRequested || cancelSync.isPending;
-									const statusVariant = getStatusVariant(syncTask);
-									const statusLabel = getStatusLabel(syncTask);
-									const statusText = getLabel(syncTask, mirrorSyncs.length);
-									let buttonTooltip = "Sync more snapshots";
-									if (syncing) {
-										buttonTooltip = "Cancel sync";
-									}
-
-									return (
-										<Fragment key={repository.shortId}>
-											<TableRow>
-												<TableCell>
-													<div className="flex items-center gap-2">
-														<Link
-															to="/repositories/$repositoryId"
-															params={{
-																repositoryId: repository.shortId,
-															}}
-															className="hover:underline flex items-center gap-2"
-														>
-															<RepositoryIcon
-																backend={repository.type}
-																className="h-4 w-4"
-															/>
-															<span className="font-medium">{repository.name}</span>
-														</Link>
-														<Badge variant="outline" className="text-[10px] align-middle">
-															{repository.type}
-														</Badge>
-													</div>
-												</TableCell>
-												<TableCell className="text-center">
-													<Switch
-														className="align-middle"
-														checked={assignment.enabled}
-														onCheckedChange={() => toggleEnabled(repository.shortId)}
-													/>
-												</TableCell>
-												<TableCell>
-													<div className="flex items-center gap-2">
-														<div className="w-3 shrink-0 mr-1">
-															<StatusDot
-																variant={statusVariant}
-																label={statusLabel}
-																animated={syncing}
-															/>
-														</div>
-														<span className="text-sm text-muted-foreground">
-															{statusText}
-														</span>
-													</div>
-												</TableCell>
-												<TableCell>
-													<div className="flex items-center gap-1">
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<Button
-																	variant="ghost"
-																	size="icon"
-																	onClick={() => {
-																		if (activeSync) {
-																			setCancelConfirmation({
-																				taskIds: mirrorSyncs.map(
-																					(task) => task.id,
-																				),
-																				repositoryName: repository.name,
-																			});
-																			setCancelConfirmationOpen(true);
-																			return;
-																		}
-																		openSyncDialog(repository.shortId);
-																	}}
-																	disabled={syncing ? cancelling : hasChanges}
-																	className={cn("h-8 w-8 text-muted-foreground", {
-																		"hover:text-destructive": syncing,
-																		"hover:text-foreground": !syncing,
-																	})}
-																>
-																	<RefreshCw
-																		className={cn("h-4 w-4", {
-																			"animate-spin": syncing,
-																		})}
-																	/>
-																</Button>
-															</TooltipTrigger>
-															<TooltipContent>{buttonTooltip}</TooltipContent>
-														</Tooltip>
-														<Button
-															variant="ghost"
-															size="icon"
-															onClick={() => removeRepository(repository.shortId)}
-															className="h-8 w-8 text-muted-foreground hover:text-destructive align-baseline"
-														>
-															<Trash2 className="h-4 w-4" />
-														</Button>
-													</div>
-												</TableCell>
-											</TableRow>
-											{syncing && <MirrorSyncProgressRow tasks={mirrorSyncs} />}
-										</Fragment>
-									);
-								})}
-							</TableBody>
-						</Table>
-					</div>
-				)}
+				<MirrorRepositoriesTable
+					scheduleShortId={scheduleShortId}
+					repositories={repositories}
+					currentMirrors={currentMirrors}
+					assignments={assignments}
+					hasChanges={hasChanges}
+					onToggleEnabled={toggleEnabled}
+					onRemove={removeRepository}
+				/>
 
 				{hasChanges && (
 					<div className="flex gap-2 justify-end mt-4 pt-4">
@@ -553,130 +254,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 						</Button>
 					</div>
 				)}
-
-				<Dialog open={syncDialogOpen} onOpenChange={(open) => !open && closeSyncDialog()}>
-					<DialogContent>
-						<DialogHeader>
-							<DialogTitle>Sync snapshots</DialogTitle>
-							<DialogDescription>
-								{`Sync missing snapshots to ${selectedMirrorRepo?.name || "mirror repository"}.`}
-							</DialogDescription>
-						</DialogHeader>
-
-						{isSyncStatusLoading && !syncStatus ? (
-							<div className="py-6 text-center text-muted-foreground text-sm">
-								Loading snapshot status...
-							</div>
-						) : syncStatus && syncStatus.missingSnapshots.length === 0 ? (
-							<div className="py-6 text-center text-muted-foreground text-sm">
-								All {syncStatus.sourceCount} snapshots are already synced to this mirror.
-							</div>
-						) : syncStatus ? (
-							<div className="space-y-3">
-								<p className="text-sm text-muted-foreground">
-									{syncStatus.missingSnapshots.length} of {syncStatus.sourceCount} snapshots are
-									missing in this mirror.
-								</p>
-								<div className="rounded-md border max-h-64 overflow-y-auto">
-									<Table>
-										<TableHeader>
-											<TableRow>
-												<TableHead className="w-10">
-													<Checkbox
-														checked={
-															selectedSnapshotIds.size ===
-															syncStatus.missingSnapshots.length
-														}
-														onCheckedChange={toggleAllSnapshots}
-													/>
-												</TableHead>
-												<TableHead>ID</TableHead>
-												<TableHead>Date</TableHead>
-												<TableHead className="text-right">Size</TableHead>
-											</TableRow>
-										</TableHeader>
-										<TableBody>
-											{syncStatus.missingSnapshots.map((snapshot) => (
-												<TableRow
-													key={snapshot.short_id}
-													className="cursor-pointer"
-													onClick={() => toggleSnapshotSelection(snapshot.short_id)}
-												>
-													<TableCell onClick={(e) => e.stopPropagation()}>
-														<Checkbox
-															checked={selectedSnapshotIds.has(snapshot.short_id)}
-															onCheckedChange={() =>
-																toggleSnapshotSelection(snapshot.short_id)
-															}
-														/>
-													</TableCell>
-													<TableCell className="font-mono text-xs">
-														{snapshot.short_id}
-													</TableCell>
-													<TableCell className="text-sm">
-														{formatDateTime(new Date(snapshot.time))}
-													</TableCell>
-													<TableCell className="text-right text-sm">
-														<ByteSize bytes={snapshot.size} base={1024} />
-													</TableCell>
-												</TableRow>
-											))}
-										</TableBody>
-									</Table>
-								</div>
-							</div>
-						) : null}
-
-						<DialogFooter>
-							<Button variant="outline" onClick={closeSyncDialog}>
-								Cancel
-							</Button>
-							<Button
-								onClick={() => {
-									if (syncDialogMirrorId) {
-										triggerSync.mutate({
-											path: {
-												shortId: scheduleShortId,
-												mirrorShortId: syncDialogMirrorId,
-											},
-											body: { snapshotIds: Array.from(selectedSnapshotIds) },
-										});
-									}
-								}}
-								loading={triggerSync.isPending}
-								disabled={selectedSnapshotIds.size === 0}
-							>
-								Sync {selectedSnapshotIds.size} snapshots
-							</Button>
-						</DialogFooter>
-					</DialogContent>
-				</Dialog>
-
-				<AlertDialog
-					open={cancelConfirmationOpen}
-					onOpenChange={(open) => !open && setCancelConfirmationOpen(false)}
-				>
-					<AlertDialogContent>
-						<AlertDialogHeader>
-							<AlertDialogTitle>Cancel mirror sync?</AlertDialogTitle>
-							<AlertDialogDescription>
-								Are you sure you want to cancel synchronization to&nbsp;
-								<strong>{cancelConfirmation?.repositoryName}</strong>? Snapshots that have already been
-								copied will remain available.
-							</AlertDialogDescription>
-						</AlertDialogHeader>
-						<div className="flex gap-3 justify-end">
-							<AlertDialogCancel disabled={cancelSync.isPending}>Keep syncing</AlertDialogCancel>
-							<AlertDialogAction
-								onClick={confirmCancellation}
-								disabled={cancelSync.isPending}
-								className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-							>
-								Cancel sync
-							</AlertDialogAction>
-						</div>
-					</AlertDialogContent>
-				</AlertDialog>
 			</CardContent>
 		</Card>
 	);
