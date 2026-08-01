@@ -29,7 +29,7 @@ jobs:
 
       - name: Run lint
         shell: bash
-        run: vp lint --type-aware --deny-warnings
+        run: bun run lint:ci
 
   typecheck:
     timeout-minutes: 10

@@ -70,7 +70,7 @@ bun run gen:api-client
 
 ```bash
 # Format
-vp fmt <path> --write
+bun run fmt -- <path>
 
 # Lint
 bun run lint

@@ -1,0 +1,31 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["eslint", "unicorn", "typescript", "oxc", "import", "react", "react-perf", "node", "jsx-a11y"],
+	"categories": {
+		"correctness": "warn"
+	},
+	"rules": {
+		"no-unused-vars": [
+			"warn",
+			{
+				"varsIgnorePattern": "^_",
+				"caughtErrorsIgnorePattern": "^_",
+				"argsIgnorePattern": "^_"
+			}
+		],
+		"import/no-cycle": "error",
+		"no-console": ["warn", { "allow": ["warn", "error", "info"] }]
+	},
+	"env": {
+		"builtin": true
+	},
+	"ignorePatterns": ["**/api-client/**", "apps/docs/**"],
+	"overrides": [
+		{
+			"files": ["**/*.test.ts", "**/*.test.tsx"],
+			"rules": {
+				"typescript/await-thenable": "off"
+			}
+		}
+	]
+}

@@ -33,49 +33,6 @@ export default defineConfig({
 		port: 3000,
 		allowedHosts: [".ts.net"],
 	},
-	fmt: {
-		printWidth: 120,
-		useTabs: true,
-		endOfLine: "lf",
-		ignorePatterns: ["*.gen.ts", "**/.source"],
-	},
-	lint: {
-		plugins: ["eslint", "unicorn", "typescript", "oxc", "import", "react", "react-perf", "node", "jsx-a11y"],
-		categories: {
-			correctness: "warn",
-		},
-		options: {
-			typeAware: true,
-			typeCheck: true,
-		},
-		rules: {
-			"no-unused-vars": [
-				"warn",
-				{
-					varsIgnorePattern: "^_",
-					caughtErrorsIgnorePattern: "^_",
-					argsIgnorePattern: "^_",
-				},
-			],
-			"import/no-cycle": "error",
-			"no-console": ["warn", { allow: ["warn", "error", "info"] }],
-		},
-		env: {
-			builtin: true,
-		},
-		ignorePatterns: ["**/api-client/**", "apps/docs/**"],
-		overrides: [
-			{
-				files: ["**/*.test.ts", "**/*.test.tsx"],
-				rules: {
-					"typescript/await-thenable": "off",
-				},
-			},
-		],
-	},
-	staged: {
-		"*.{js,jsx,ts,tsx,json,jsonc}": "vp check --fix",
-	},
 	run: {
 		cache: {
 			scripts: true,
