@@ -25,7 +25,7 @@ import { Progress } from "~/client/components/ui/progress";
 import { useFormatBytes } from "~/client/hooks/use-format-bytes";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
-import { formatDuration } from "~/utils/utils";
+import { formatDuration } from "~/client/lib/datetime";
 import { BackupStatusDot } from "~/client/modules/backups/components/backup-status-dot";
 
 type TraySchedule = ListBackupSchedulesResponse[number];

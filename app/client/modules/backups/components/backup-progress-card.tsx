@@ -6,7 +6,7 @@ import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
 import { getBackupProgressOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetBackupProgressResponse } from "~/client/api-client/types.gen";
-import { formatDuration } from "~/utils/utils";
+import { formatDuration } from "~/client/lib/datetime";
 
 type Props = {
 	scheduleShortId: string;

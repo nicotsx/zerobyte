@@ -5,6 +5,7 @@ import { rawFormatters, type DateInput } from "~/lib/datetime";
 export {
 	DATE_FORMATS,
 	DEFAULT_TIME_FORMAT,
+	formatDuration,
 	inferDateTimePreferences,
 	rawFormatters,
 	TIME_FORMATS,
@@ -24,6 +25,8 @@ export function useTimeFormat() {
 		() => ({
 			formatDateTime: (date: DateInput) =>
 				rawFormatters.formatDateTime(date, { locale, timeZone, dateFormat, timeFormat }),
+			formatDateTimeWithSeconds: (date: DateInput) =>
+				rawFormatters.formatDateTimeWithSeconds(date, { locale, timeZone, dateFormat, timeFormat }),
 			formatDateWithMonth: (date: DateInput) =>
 				rawFormatters.formatDateWithMonth(date, {
 					locale,

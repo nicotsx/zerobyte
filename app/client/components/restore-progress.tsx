@@ -4,7 +4,7 @@ import { useFormatBytes } from "~/client/hooks/use-format-bytes";
 import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
-import { formatDuration } from "~/utils/utils";
+import { formatDuration } from "~/client/lib/datetime";
 
 type RestoreTaskProgress = Extract<NonNullable<ListTasksResponse[number]["progress"]>, { kind: "restore" }>["progress"];
 

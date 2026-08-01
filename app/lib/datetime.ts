@@ -4,7 +4,7 @@ import {
 	type DateFormatPreference,
 	type TimeFormatPreference,
 } from "@zerobyte/core/utils";
-import { formatDistanceToNow, isValid } from "date-fns";
+import { formatDistanceToNow, intervalToDuration, isValid } from "date-fns";
 
 export type DateInput = Date | string | number | null | undefined;
 
@@ -99,10 +99,11 @@ function formatConfiguredDateWithMonth(date: Date, options: DateFormatOptions) {
 	return `${month} ${day}, ${year}`;
 }
 
-function formatConfiguredTime(date: Date, options: DateFormatOptions) {
+function formatConfiguredTime(date: Date, options: DateFormatOptions, includeSeconds = false) {
 	return getDateTimeFormat(options.locale, options.timeZone, {
 		hour: "numeric",
 		minute: "numeric",
+		...(includeSeconds ? { second: "numeric" as const } : {}),
 		hour12: (options.timeFormat ?? DEFAULT_TIME_FORMAT) === "12h",
 	}).format(date);
 }
@@ -115,6 +116,15 @@ function formatDateTime(date: DateInput, options: DateFormatOptions = {}): strin
 	return formatValidDate(
 		date,
 		(validDate) => `${formatConfiguredDate(validDate, options, true)}, ${formatConfiguredTime(validDate, options)}`,
+	);
+}
+
+// 01/10/2026, 2:30:45 PM
+function formatDateTimeWithSeconds(date: DateInput, options: DateFormatOptions = {}): string {
+	return formatValidDate(
+		date,
+		(validDate) =>
+			`${formatConfiguredDate(validDate, options, true)}, ${formatConfiguredTime(validDate, options, true)}`,
 	);
 }
 
@@ -163,8 +173,21 @@ function formatTimeAgo(date: DateInput, now = Date.now()): string {
 	});
 }
 
+export function formatDuration(seconds: number) {
+	const duration = intervalToDuration({ start: 0, end: seconds * 1000 });
+	const parts: string[] = [];
+
+	if (duration.days) parts.push(`${duration.days}d`);
+	if (duration.hours) parts.push(`${duration.hours}h`);
+	if (duration.minutes) parts.push(`${duration.minutes}m`);
+	if (duration.seconds || parts.length === 0) parts.push(`${duration.seconds || 0}s`);
+
+	return parts.join(" ");
+}
+
 export const rawFormatters = {
 	formatDateTime,
+	formatDateTimeWithSeconds,
 	formatDateWithMonth,
 	formatDate,
 	formatShortDate,
