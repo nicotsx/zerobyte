@@ -26,11 +26,22 @@ type TaskLifecycleOptions<TResult extends TaskResult> = {
 };
 
 type TaskExecution = {
-	abortController: AbortController;
+	cancel: () => void;
 	cancellable: boolean;
 };
 
 const taskExecutions = new Map<string, TaskExecution>();
+
+export const registerTaskExecution = (taskId: string, cancel: () => void, cancellable: boolean) => {
+	const execution = { cancel, cancellable };
+	taskExecutions.set(taskId, execution);
+
+	return () => {
+		if (taskExecutions.get(taskId) === execution) {
+			taskExecutions.delete(taskId);
+		}
+	};
+};
 
 const failTask = <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
 	try {
@@ -90,15 +101,16 @@ export const requestTaskCancel = (taskId: string) => {
 		return false;
 	}
 
-	execution.abortController.abort();
+	execution.cancel();
 	return true;
 };
 
 export const runTaskLifecycle = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>) => {
 	const abortController = new AbortController();
-	const execution = { abortController, cancellable: options.cancellable === true };
+	const cancellable = options.cancellable === true;
+	const cancelExecution = () => abortController.abort();
+	const unregisterExecution = registerTaskExecution(options.taskId, cancelExecution, cancellable);
 	let cleanup: (() => void) | undefined;
-	taskExecutions.set(options.taskId, execution);
 
 	try {
 		cleanup = await options.prepare?.(abortController.signal);
@@ -130,8 +142,6 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		failTask(options, toMessage(error));
 	} finally {
 		cleanup?.();
-		if (taskExecutions.get(options.taskId) === execution) {
-			taskExecutions.delete(options.taskId);
-		}
+		unregisterExecution();
 	}
 };

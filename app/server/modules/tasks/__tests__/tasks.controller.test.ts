@@ -46,6 +46,21 @@ const createRestoreTask = (organizationId: string, repositoryId = "repo-short", 
 	});
 };
 
+const createBackupTask = (organizationId: string) => {
+	return taskStore.create({
+		organizationId,
+		resourceType: "backup_schedule",
+		resourceId: "schedule-short",
+		targetDisplayName: "Backup schedule",
+		input: {
+			kind: "backup",
+			scheduleId: 1,
+			scheduleShortId: "schedule-short",
+			manual: true,
+		},
+	});
+};
+
 const readStreamUntil = async (body: ReadableStream<Uint8Array>, matcher: string) => {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
@@ -132,6 +147,22 @@ describe("tasksController", () => {
 		expect(cancelledTask?.cancellationRequested).toBe(true);
 	});
 
+	test("cancels an orphaned running backup task", async () => {
+		const session = await createTestSession();
+		const task = createBackupTask(session.organizationId);
+		taskStore.markRunning(task.id);
+
+		const res = await app.request(`/api/v1/tasks/${task.id}/cancel`, {
+			method: "POST",
+			headers: session.headers,
+		});
+
+		expect(res.status).toBe(202);
+		const cancelledTask = taskStore.findById({ organizationId: session.organizationId, taskId: task.id });
+		expect(cancelledTask?.status).toBe("cancelled");
+		expect(cancelledTask?.cancellationRequested).toBe(true);
+	});
+
 	test("rejects cancellation for a task without cancellation support", async () => {
 		const session = await createTestSession();
 		const task = createTask(session.organizationId);
@@ -179,6 +210,8 @@ describe("tasksController", () => {
 			input: { kind: "deleteSnapshots", repositoryId: "repo-short", snapshotIds: ["snapshot-1"] },
 		});
 		expect(body.organizationId).toBeUndefined();
+		expect(body.outcome).toBeUndefined();
+		expect(body.targetDisplayName).toBeUndefined();
 	});
 
 	test("streams the requested task state", async () => {

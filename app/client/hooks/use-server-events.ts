@@ -1,6 +1,10 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
-import { applyServerEventEffects, getServerEventAliases } from "~/client/events/server-event-effects";
+import {
+	applyServerEventEffects,
+	getServerEventAliases,
+	invalidateServerEventQueries,
+} from "~/client/events/server-event-effects";
 import { logger } from "~/client/lib/logger";
 import { serverEventNames, type ServerEventPayloadMap } from "~/schemas/server-events";
 
@@ -69,7 +73,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 
 	eventSource.addEventListener("connected", (event) => {
 		const data = parseEventData<"connected">(event);
-		void queryClient.invalidateQueries();
+		invalidateServerEventQueries(queryClient, "connected");
 		logger.info("[SSE] Connected to server events");
 		emit("connected", data);
 	});

@@ -27,15 +27,22 @@ const isAbortError = (error: unknown): error is Error => error instanceof Error 
 const serverEventEffects: ServerEventEffectMap = {
 	"backup:started": { invalidateQueries: true },
 	"backup:completed": { invalidateQueries: true },
+	"task:history-changed": { invalidateQueries: true },
 	"volume:updated": { invalidateQueries: true },
 	"volume:status_changed": { invalidateQueries: true, emitAs: ["volume:updated"] },
 	"notification:updated": { invalidateQueries: true },
-	"task:started": { invalidateQueries: true },
-	"task:finished": { invalidateQueries: true },
 };
 
 const getServerEventEffect = <T extends ServerEventType>(eventName: T): ServerEventEffect<T> | undefined => {
 	return serverEventEffects[eventName] as ServerEventEffect<T> | undefined;
+};
+
+export const invalidateServerEventQueries = (queryClient: QueryClient, eventName: ServerEventType | "connected") => {
+	void queryClient.invalidateQueries().catch((error) => {
+		if (!isAbortError(error)) {
+			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
+		}
+	});
 };
 
 const invalidateQueriesForEvent = (queryClient: QueryClient, eventName: ServerEventType) => {
@@ -44,11 +51,7 @@ const invalidateQueriesForEvent = (queryClient: QueryClient, eventName: ServerEv
 		return;
 	}
 
-	void queryClient.invalidateQueries().catch((error) => {
-		if (!isAbortError(error)) {
-			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
-		}
-	});
+	invalidateServerEventQueries(queryClient, eventName);
 };
 
 const updateQueriesForEvent = <T extends ServerEventType>(

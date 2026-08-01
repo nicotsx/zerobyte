@@ -25,6 +25,7 @@ import { db } from "~/server/db/db";
 import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -608,6 +609,50 @@ describe("backup execution - routing", () => {
 });
 
 describe("stop backup", () => {
+	test("cancels a running backup through the task execution registry", async () => {
+		const { resticBackupMock, runBackupMock, cancelBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+
+		resticBackupMock.mockImplementation(
+			({ signal }: SafeSpawnParams) =>
+				new Promise((resolve) => {
+					signal?.addEventListener("abort", () => resolve({ exitCode: 1, summary: "", error: "" }), {
+						once: true,
+					});
+				}),
+		);
+
+		const executePromise = backupsService.executeBackup(schedule.id);
+		let runningTaskId: string | undefined;
+		await waitForExpect(async () => {
+			const runningTask = await getBackupTaskForSchedule(schedule.id);
+			expect(runningTask?.status).toBe("running");
+			expect(runBackupMock).toHaveBeenCalledTimes(1);
+			runningTaskId = runningTask?.id;
+		});
+
+		expect(runningTaskId).toBeDefined();
+		if (!runningTaskId) {
+			throw new Error("Expected a running backup task");
+		}
+
+		expect(requestTaskCancel(runningTaskId)).toBe(true);
+		await executePromise;
+
+		const cancelledTask = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(cancelledTask?.status).toBe("cancelled");
+		expect(cancelledTask?.cancellationRequested).toBe(true);
+		expect(cancelBackupMock).toHaveBeenCalledTimes(1);
+		expect(updatedSchedule.lastBackupStatus).toBe("warning");
+		expect(updatedSchedule.lastBackupError).toBe("Backup was stopped by the user");
+	});
+
 	test("should keep restic warning details when backup completes with read errors", async () => {
 		const { resticBackupMock } = setup();
 		const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();

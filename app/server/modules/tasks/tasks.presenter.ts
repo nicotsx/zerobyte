@@ -1,6 +1,5 @@
-import type { ParsedTask, TaskDto } from "~/schemas/tasks";
+import { taskDtoSchema, type ParsedTask, type TaskDto } from "~/schemas/tasks";
 
 export const toTaskDto = (task: ParsedTask): TaskDto => {
-	const { organizationId: _organizationId, ...taskDto } = task;
-	return taskDto;
+	return taskDtoSchema.parse(task);
 };

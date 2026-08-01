@@ -154,7 +154,7 @@ describe("useServerEvents", () => {
 		expect(await screen.findByText("running")).toBeTruthy();
 	});
 
-	test("refreshes active queries when a task finishes", async () => {
+	test("refreshes active queries when task history changes", async () => {
 		const queryClient = createTestQueryClient();
 		let queryValue = "doctor";
 
@@ -169,13 +169,12 @@ describe("useServerEvents", () => {
 		expect(await screen.findByText("doctor")).toBeTruthy();
 		queryValue = "healthy";
 
-		MockEventSource.instances[0]?.emit("task:finished", {
+		MockEventSource.instances[0]?.emit("task:history-changed", {
 			organizationId: "default-org",
 			taskId: "doctor-task",
 			kind: "doctor",
-			resourceType: "repository",
-			resourceId: "repo-short",
-			status: "succeeded",
+			previousOutcome: "running",
+			outcome: "success",
 		});
 
 		expect(await screen.findByText("healthy")).toBeTruthy();

@@ -175,6 +175,20 @@ test("records failed and cancelled terminal task states", () => {
 	expect(cancelled.cancellationRequested).toBe(true);
 });
 
+test("records a backup warning when restic exits nonzero without warning details", () => {
+	const task = createBackupTask({ id: "task-warning" });
+	const result: BackupTaskResult = {
+		...backupResult(),
+		exitCode: 3,
+		warningDetails: null,
+	};
+
+	const completed = taskStore.complete(task.id, result);
+
+	expect(completed.status).toBe("succeeded");
+	expect(completed.outcome).toBe("warning");
+});
+
 test("moves restore tasks through progress and success", () => {
 	const task = createRestoreTask({ id: "restore-task" });
 

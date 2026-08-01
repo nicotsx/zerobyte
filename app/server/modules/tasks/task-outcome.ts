@@ -1,7 +1,7 @@
 import type { TaskOutcome, TaskResult } from "~/schemas/tasks";
 
 export const getCompletedTaskOutcome = (result: TaskResult): TaskOutcome => {
-	if (result.kind === "backup" && result.warningDetails !== null) {
+	if (result.kind === "backup" && (result.exitCode !== 0 || result.warningDetails !== null)) {
 		return "warning";
 	}
 
