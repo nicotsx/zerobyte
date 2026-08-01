@@ -793,6 +793,7 @@ const startMirrorSync = async (
 		organizationId,
 		scheduleId: schedule.id,
 		scheduleShortId: schedule.shortId,
+		targetDisplayName: schedule.name,
 		sourceRepository: schedule.repository,
 		mirrorRepository,
 		retentionPolicy: schedule.retentionPolicy,

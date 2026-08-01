@@ -1,5 +1,4 @@
 import { logger } from "@zerobyte/core/node";
-import { serverEvents } from "~/server/core/events";
 import { toMessage } from "~/server/utils/errors";
 import type { ParsedTask, TaskResult } from "~/schemas/tasks";
 import { taskStore } from "./tasks.store";
@@ -32,17 +31,6 @@ type TaskExecution = {
 };
 
 const taskExecutions = new Map<string, TaskExecution>();
-
-const emitTaskLifecycleEvent = (eventName: "task:started" | "task:finished", task: ParsedTask) => {
-	serverEvents.emit(eventName, {
-		organizationId: task.organizationId,
-		taskId: task.id,
-		kind: task.kind,
-		resourceType: task.resourceType,
-		resourceId: task.resourceId,
-		status: task.status,
-	});
-};
 
 const failTask = <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
 	try {
@@ -118,7 +106,6 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 
 		const startedTask = taskStore.markRunning(options.taskId);
 		await options.onStarted?.(startedTask);
-		emitTaskLifecycleEvent("task:started", startedTask);
 
 		if (startedTask.cancellationRequested) {
 			abortController.abort();
@@ -131,23 +118,16 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		} catch (error) {
 			logger.warn(`Failed to handle successful ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		}
-		emitTaskLifecycleEvent("task:finished", completedTask);
 	} catch (error) {
 		if (abortController.signal.aborted || isAbortError(error)) {
 			const cancelledError = isTaskCancelledError(error) ? error : null;
 			const errorMessage = cancelledError?.message || toMessage(error) || "Task was cancelled";
 			const result = (cancelledError?.result as TResult | null) ?? null;
-			const cancelledTask = cancelTask(options, errorMessage, result);
-			if (cancelledTask) {
-				emitTaskLifecycleEvent("task:finished", cancelledTask);
-			}
+			cancelTask(options, errorMessage, result);
 			return;
 		}
 
-		const failedTask = failTask(options, toMessage(error));
-		if (failedTask) {
-			emitTaskLifecycleEvent("task:finished", failedTask);
-		}
+		failTask(options, toMessage(error));
 	} finally {
 		cleanup?.();
 		if (taskExecutions.get(options.taskId) === execution) {

@@ -4,17 +4,17 @@ import type {
 	ServerBackupStartedEventDto,
 	ServerDumpStartedEventDto,
 } from "~/schemas/events-dto";
-import type { TaskKind, TaskResourceType, TaskStatus } from "~/schemas/tasks";
+import type { TaskHistoryOutcome } from "~/schemas/task-history";
+import type { TaskKind } from "~/schemas/tasks";
 
 const payload = <T>() => undefined as unknown as T;
 
-type TaskLifecycleEvent = {
+type TaskHistoryChangedEvent = {
 	organizationId: string;
 	taskId: string;
 	kind: TaskKind;
-	resourceType: TaskResourceType;
-	resourceId: string;
-	status: TaskStatus;
+	previousOutcome: TaskHistoryOutcome | null;
+	outcome: TaskHistoryOutcome | null;
 };
 
 export const serverEventPayloads = {
@@ -25,15 +25,18 @@ export const serverEventPayloads = {
 	"volume:mounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:unmounted": payload<{ organizationId: string; volumeName: string }>(),
 	"volume:updated": payload<{ organizationId: string; volumeName: string }>(),
-	"volume:status_changed": payload<{ organizationId: string; volumeName: string; status: string }>(),
+	"volume:status_changed": payload<{
+		organizationId: string;
+		volumeName: string;
+		status: string;
+	}>(),
 	"notification:updated": payload<{
 		organizationId: string;
 		notificationId: number;
 		notificationName: string;
 		status: "healthy" | "error" | "unknown";
 	}>(),
-	"task:started": payload<TaskLifecycleEvent>(),
-	"task:finished": payload<TaskLifecycleEvent>(),
+	"task:history-changed": payload<TaskHistoryChangedEvent>(),
 } as const;
 
 export type ServerEventPayloadMap = typeof serverEventPayloads;

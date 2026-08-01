@@ -16,6 +16,7 @@ type MirrorSyncPlan = {
 	organizationId: string;
 	scheduleId: number;
 	scheduleShortId: string;
+	targetDisplayName: string;
 	sourceRepository: Repository;
 	mirrorRepository: Repository;
 	retentionPolicy: RetentionPolicy | null;
@@ -170,6 +171,7 @@ export function createMirrorSyncCommand(plan: MirrorSyncExecutionPlan) {
 				organizationId: plan.organizationId,
 				resourceType: taskResource.resourceType,
 				resourceId: taskResource.resourceId,
+				targetDisplayName: plan.targetDisplayName,
 				operationKey: taskResource.operationKey,
 				input: {
 					kind: "mirrorSync",

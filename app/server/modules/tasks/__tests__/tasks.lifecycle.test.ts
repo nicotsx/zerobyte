@@ -24,18 +24,14 @@ const createTask = (id: string) => {
 	});
 };
 
-const observeLifecycleEvents = () => {
-	const started: ServerEventPayloadMap["task:started"][] = [];
-	const finished: ServerEventPayloadMap["task:finished"][] = [];
-	const onStarted = (event: ServerEventPayloadMap["task:started"]) => started.push(event);
-	const onFinished = (event: ServerEventPayloadMap["task:finished"]) => finished.push(event);
+const observeTaskHistoryChanges = () => {
+	const changes: ServerEventPayloadMap["task:history-changed"][] = [];
+	const recordChange = (event: ServerEventPayloadMap["task:history-changed"]) => changes.push(event);
 
-	serverEvents.on("task:started", onStarted);
-	serverEvents.on("task:finished", onFinished);
-	listenerCleanups.push(() => serverEvents.off("task:started", onStarted));
-	listenerCleanups.push(() => serverEvents.off("task:finished", onFinished));
+	serverEvents.on("task:history-changed", recordChange);
+	listenerCleanups.push(() => serverEvents.off("task:history-changed", recordChange));
 
-	return { started, finished };
+	return changes;
 };
 
 beforeEach(async () => {
@@ -50,51 +46,34 @@ afterEach(() => {
 });
 
 describe("runTaskLifecycle", () => {
-	test("emits lifecycle events after start and execution work complete", async () => {
+	test("emits history changes for lifecycle transitions", async () => {
 		const task = createTask("task-lifecycle-success");
-		const events = observeLifecycleEvents();
-		let startWorkCompleted = false;
-		let executionCompleted = false;
-		const observedWorkState: Array<{ startWorkCompleted: boolean; executionCompleted: boolean }> = [];
-		const recordWorkState = () => observedWorkState.push({ startWorkCompleted, executionCompleted });
-
-		serverEvents.on("task:started", recordWorkState);
-		serverEvents.on("task:finished", recordWorkState);
-		listenerCleanups.push(() => serverEvents.off("task:started", recordWorkState));
-		listenerCleanups.push(() => serverEvents.off("task:finished", recordWorkState));
+		const changes = observeTaskHistoryChanges();
 
 		await runTaskLifecycle({
 			taskId: task.id,
 			label: "test task",
-			onStarted: async () => {
-				await Promise.resolve();
-				startWorkCompleted = true;
-			},
-			run: async () => {
-				executionCompleted = true;
-				return { kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] };
-			},
+			run: async () => ({ kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] }),
 		});
 
-		expect(events.started).toEqual([
+		expect(changes).toEqual([
 			expect.objectContaining({
 				taskId: task.id,
 				kind: "deleteSnapshots",
-				resourceType: "repository",
-				resourceId: "repo-short",
-				status: "running",
+				previousOutcome: "running",
+				outcome: "running",
 			}),
-		]);
-		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "succeeded" })]);
-		expect(observedWorkState).toEqual([
-			{ startWorkCompleted: true, executionCompleted: false },
-			{ startWorkCompleted: true, executionCompleted: true },
+			expect.objectContaining({
+				taskId: task.id,
+				previousOutcome: "running",
+				outcome: "success",
+			}),
 		]);
 	});
 
-	test("emits only a finished event when start work fails", async () => {
+	test("emits the terminal error outcome when start work fails", async () => {
 		const task = createTask("task-lifecycle-start-failure");
-		const events = observeLifecycleEvents();
+		const changes = observeTaskHistoryChanges();
 
 		await runTaskLifecycle({
 			taskId: task.id,
@@ -105,28 +84,32 @@ describe("runTaskLifecycle", () => {
 			run: async () => ({ kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] }),
 		});
 
-		expect(events.started).toEqual([]);
-		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "failed" })]);
+		expect(changes).toEqual([
+			expect.objectContaining({ taskId: task.id, outcome: "running" }),
+			expect.objectContaining({
+				taskId: task.id,
+				previousOutcome: "running",
+				outcome: "error",
+			}),
+		]);
 	});
 
-	test("emits a finished event when cancellation completes", async () => {
+	test("emits the terminal cancellation outcome", async () => {
 		const task = createTask("task-lifecycle-cancelled");
-		const events = observeLifecycleEvents();
-		let resolveStarted: (() => void) | undefined;
-		const started = new Promise<void>((resolve) => {
-			resolveStarted = resolve;
+		const changes = observeTaskHistoryChanges();
+		let resolveRunStarted: (() => void) | undefined;
+		const runStarted = new Promise<void>((resolve) => {
+			resolveRunStarted = resolve;
 		});
-		const onStarted = () => resolveStarted?.();
-
-		serverEvents.on("task:started", onStarted);
-		listenerCleanups.push(() => serverEvents.off("task:started", onStarted));
 
 		const lifecycle = runTaskLifecycle({
 			taskId: task.id,
 			label: "test task",
 			cancellable: true,
-			run: (signal) =>
-				new Promise<never>((_, reject) => {
+			run: (signal) => {
+				resolveRunStarted?.();
+
+				return new Promise<never>((_, reject) => {
 					signal.addEventListener(
 						"abort",
 						() => {
@@ -136,19 +119,20 @@ describe("runTaskLifecycle", () => {
 						},
 						{ once: true },
 					);
-				}),
+				});
+			},
 		});
 
-		await started;
+		await runStarted;
 		expect(requestTaskCancel(task.id)).toBe(true);
 		await lifecycle;
 
-		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "cancelled" })]);
+		expect(changes.at(-1)).toEqual(expect.objectContaining({ taskId: task.id, outcome: "cancelled" }));
 	});
 
 	test("keeps cancellable tasks queued while they prepare", async () => {
 		const task = createTask("task-lifecycle-queued");
-		const events = observeLifecycleEvents();
+		const changes = observeTaskHistoryChanges();
 		let executionStarted = false;
 
 		const lifecycle = runTaskLifecycle({
@@ -172,7 +156,9 @@ describe("runTaskLifecycle", () => {
 		await lifecycle;
 
 		expect(executionStarted).toBe(false);
-		expect(events.started).toEqual([]);
-		expect(events.finished).toEqual([expect.objectContaining({ taskId: task.id, status: "cancelled" })]);
+		expect(changes).toEqual([
+			expect.objectContaining({ taskId: task.id, outcome: "running" }),
+			expect.objectContaining({ taskId: task.id, outcome: "cancelled" }),
+		]);
 	});
 });

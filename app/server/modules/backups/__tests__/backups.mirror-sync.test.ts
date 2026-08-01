@@ -274,6 +274,7 @@ describe("syncMirror", () => {
 			organizationId: TEST_ORG_ID,
 			resourceType: "backup_schedule",
 			resourceId: schedule.shortId,
+			targetDisplayName: schedule.name,
 			operationKey: mirrorRepository.shortId,
 			input: {
 				kind: "mirrorSync",

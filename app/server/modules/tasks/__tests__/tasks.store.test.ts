@@ -107,7 +107,7 @@ test("creates queued backup tasks with parsed input and durable metadata only", 
 		organizationId: TEST_ORG_ID,
 		kind: "backup",
 		status: "queued",
-		outcome: "running",
+		outcome: null,
 		resourceType: "backup_schedule",
 		resourceId: "12",
 		targetDisplayName: "Test backup",
@@ -133,7 +133,7 @@ test("moves an active task through running, progress, cancellation request, and 
 
 	const running = taskStore.markRunning(task.id);
 	expect(running.status).toBe("running");
-	expect(running.outcome).toBe("running");
+	expect(running.outcome).toBeNull();
 	expect(running.startedAt).toEqual(expect.any(Number));
 
 	const progressed = taskStore.updateProgress(task.id, backupProgress(0.7));
@@ -289,6 +289,7 @@ test("lists active tasks with optional filters", () => {
 });
 
 test("finds the latest finished task per operation by completion time", async () => {
+	const targetDisplayName = "Mirror schedule";
 	const resource = {
 		organizationId: TEST_ORG_ID,
 		kind: "mirrorSync" as const,
@@ -299,6 +300,7 @@ test("finds the latest finished task per operation by completion time", async ()
 		taskStore.create({
 			id,
 			...resource,
+			targetDisplayName,
 			operationKey,
 			input: {
 				kind: "mirrorSync",

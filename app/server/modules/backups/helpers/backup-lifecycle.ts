@@ -190,6 +190,7 @@ export async function startPostBackupMirrorSyncs(
 					organizationId: ctx.organizationId,
 					scheduleId: schedule.id,
 					scheduleShortId: schedule.shortId,
+					targetDisplayName: schedule.name,
 					sourceRepository: ctx.repository,
 					mirrorRepository: mirror.repository,
 					retentionPolicy: schedule.retentionPolicy,

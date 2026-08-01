@@ -1,8 +1,8 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "9efb5b6f-419b-45fb-9c04-b52eca15b7af",
-	"prevIds": ["c0244cec-3d8d-4726-9983-6fc37dccf16e"],
+	"id": "7fc643fc-9581-4551-afbf-80732b7840b9",
+	"prevIds": ["d916bdec-db96-41fd-8b85-72a4b986f135"],
 	"ddl": [
 		{
 			"name": "account",
@@ -2083,6 +2083,16 @@
 			"table": "tasks"
 		},
 		{
+			"type": "integer",
+			"notNull": false,
+			"autoincrement": false,
+			"default": null,
+			"generated": null,
+			"name": "persistence_format_version",
+			"entityType": "columns",
+			"table": "tasks"
+		},
+		{
 			"type": "text",
 			"notNull": false,
 			"autoincrement": false,
@@ -3402,6 +3412,40 @@
 					"isExpression": false
 				},
 				{
+					"value": "kind",
+					"isExpression": false
+				},
+				{
+					"value": "resource_type",
+					"isExpression": false
+				},
+				{
+					"value": "resource_id",
+					"isExpression": false
+				},
+				{
+					"value": "operation_key",
+					"isExpression": false
+				},
+				{
+					"value": "finished_at",
+					"isExpression": false
+				}
+			],
+			"isUnique": false,
+			"where": null,
+			"origin": "manual",
+			"name": "tasks_resource_operation_finished_idx",
+			"entityType": "indexes",
+			"table": "tasks"
+		},
+		{
+			"columns": [
+				{
+					"value": "organization_id",
+					"isExpression": false
+				},
+				{
 					"value": "status",
 					"isExpression": false
 				},
@@ -3424,6 +3468,10 @@
 					"isExpression": false
 				},
 				{
+					"value": "persistence_format_version",
+					"isExpression": false
+				},
+				{
 					"value": "created_at",
 					"isExpression": false
 				},
@@ -3435,7 +3483,7 @@
 			"isUnique": false,
 			"where": null,
 			"origin": "manual",
-			"name": "tasks_org_created_at_id_idx",
+			"name": "tasks_org_format_created_at_id_idx",
 			"entityType": "indexes",
 			"table": "tasks"
 		},
