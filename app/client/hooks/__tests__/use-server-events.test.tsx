@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
+import type { ServerEventPayloadMap } from "~/schemas/server-events";
 import { useServerEvents } from "../use-server-events";
 
 class MockEventSource {
@@ -169,13 +170,20 @@ describe("useServerEvents", () => {
 		expect(await screen.findByText("doctor")).toBeTruthy();
 		queryValue = "healthy";
 
-		MockEventSource.instances[0]?.emit("task:history-changed", {
+		const taskHistoryChangedEvent: ServerEventPayloadMap["task:history-changed"] = {
 			organizationId: "default-org",
-			taskId: "doctor-task",
-			kind: "doctor",
 			previousOutcome: "running",
-			outcome: "success",
-		});
+			item: {
+				id: "doctor-task",
+				kind: "doctor",
+				status: "succeeded",
+				outcome: "success",
+				startedAt: 1,
+				finishedAt: 2,
+				message: null,
+			},
+		};
+		MockEventSource.instances[0]?.emit("task:history-changed", taskHistoryChangedEvent);
 
 		expect(await screen.findByText("healthy")).toBeTruthy();
 	});

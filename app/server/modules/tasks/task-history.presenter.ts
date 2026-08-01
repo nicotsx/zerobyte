@@ -1,5 +1,5 @@
-import { getTaskHistoryOutcome, type TaskHistoryOutcome } from "~/schemas/task-history";
-import type { PersistedTask } from "~/schemas/tasks";
+import { getTaskHistoryOutcome, type TaskHistoryLifecycleItem, type TaskHistoryOutcome } from "~/schemas/task-history";
+import type { ParsedTask, PersistedTask } from "~/schemas/tasks";
 import type { TaskHistoryItem, TaskHistoryTarget } from "./task-history.dto";
 
 const getTaskHistoryTarget = (task: PersistedTask): TaskHistoryTarget => {
@@ -35,14 +35,14 @@ const getTaskHistoryTarget = (task: PersistedTask): TaskHistoryTarget => {
 	return { kind: "unavailable", label: task.targetDisplayName, secondary: null };
 };
 
-const getDoctorIssueMessage = (task: PersistedTask) => {
+const getDoctorIssueMessage = (task: ParsedTask) => {
 	if (task.result?.kind !== "doctor") return null;
 	if (task.result.lastError) return task.result.lastError;
 
 	return task.result.doctorResult.steps.find((step) => !step.success && step.error)?.error ?? null;
 };
 
-const getTaskHistoryMessage = (task: PersistedTask, outcome: TaskHistoryOutcome | null) => {
+const getTaskHistoryMessage = (task: ParsedTask, outcome: TaskHistoryOutcome | null) => {
 	if (task.error) {
 		return task.error;
 	}
@@ -62,18 +62,26 @@ const getTaskHistoryMessage = (task: PersistedTask, outcome: TaskHistoryOutcome 
 	return null;
 };
 
-export const toTaskHistoryItem = (task: PersistedTask): TaskHistoryItem => {
+export const toTaskHistoryLifecycleItem = (task: ParsedTask): TaskHistoryLifecycleItem => {
 	const outcome = getTaskHistoryOutcome(task.status, task.outcome);
 
 	return {
 		id: task.id,
 		kind: task.kind,
-		outcome,
-		target: getTaskHistoryTarget(task),
 		status: task.status,
-		createdAt: task.createdAt,
+		outcome,
 		startedAt: task.startedAt,
 		finishedAt: task.finishedAt,
 		message: getTaskHistoryMessage(task, outcome),
+	};
+};
+
+export const toTaskHistoryItem = (task: PersistedTask): TaskHistoryItem => {
+	const lifecycleItem = toTaskHistoryLifecycleItem(task);
+
+	return {
+		...lifecycleItem,
+		target: getTaskHistoryTarget(task),
+		createdAt: task.createdAt,
 	};
 };

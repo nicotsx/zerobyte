@@ -4,17 +4,14 @@ import type {
 	ServerBackupStartedEventDto,
 	ServerDumpStartedEventDto,
 } from "~/schemas/events-dto";
-import type { TaskHistoryOutcome } from "~/schemas/task-history";
-import type { TaskKind } from "~/schemas/tasks";
+import type { TaskHistoryLifecycleItem, TaskHistoryOutcome } from "~/schemas/task-history";
 
 const payload = <T>() => undefined as unknown as T;
 
 type TaskHistoryChangedEvent = {
 	organizationId: string;
-	taskId: string;
-	kind: TaskKind;
 	previousOutcome: TaskHistoryOutcome | null;
-	outcome: TaskHistoryOutcome | null;
+	item: TaskHistoryLifecycleItem;
 };
 
 export const serverEventPayloads = {

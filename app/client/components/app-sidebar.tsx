@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, Database, HardDrive, Settings, ShieldCheck } from "lucide-react";
+import { Bell, CalendarClock, Database, HardDrive, ListChecks, Settings, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import {
 	Sidebar,
@@ -50,6 +50,11 @@ const items = [
 		title: "Settings",
 		url: "/settings",
 		icon: Settings,
+	},
+	{
+		title: "Activity",
+		url: "/activity",
+		icon: ListChecks,
 	},
 ];
 

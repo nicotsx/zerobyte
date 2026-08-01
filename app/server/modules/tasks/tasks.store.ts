@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
-import { getTaskHistoryOutcome, type TaskHistoryOutcome } from "~/schemas/task-history";
+import type { TaskHistoryOutcome } from "~/schemas/task-history";
 import {
 	activeTaskStatuses,
 	finishedTaskStatuses,
@@ -20,6 +20,7 @@ import {
 	type TaskResult,
 } from "~/schemas/tasks";
 import { serverEvents } from "~/server/core/events";
+import { toTaskHistoryLifecycleItem } from "./task-history.presenter";
 import { getCompletedTaskOutcome } from "./task-outcome";
 
 type TaskResource = {
@@ -86,14 +87,12 @@ const emitTaskChanged = (task: ParsedTask) => {
 
 const emitTaskHistoryChanged = (task: ParsedTask, previousOutcome: TaskHistoryOutcome | null = null) => {
 	emitTaskChanged(task);
-	const outcome = getTaskHistoryOutcome(task.status, task.outcome);
+	const item = toTaskHistoryLifecycleItem(task);
 
 	serverEvents.emit("task:history-changed", {
 		organizationId: task.organizationId,
-		taskId: task.id,
-		kind: task.kind,
 		previousOutcome,
-		outcome,
+		item,
 	});
 };
 

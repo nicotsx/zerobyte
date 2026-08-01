@@ -18,6 +18,7 @@ import { Route as authOnboardingRouteImport } from './routes/(auth)/onboarding'
 import { Route as ApiSplatRouteImport } from './routes/api.$'
 import { Route as DesktopTrayRouteImport } from './routes/desktop/tray'
 import { Route as authLoginErrorRouteImport } from './routes/(auth)/login.error'
+import { Route as dashboardActivityIndexRouteImport } from './routes/(dashboard)/activity/index'
 import { Route as dashboardAdminIndexRouteImport } from './routes/(dashboard)/admin/index'
 import { Route as dashboardBackupsIndexRouteImport } from './routes/(dashboard)/backups/index'
 import { Route as dashboardBackupsCreateRouteImport } from './routes/(dashboard)/backups/create'
@@ -83,6 +84,11 @@ const authLoginErrorRoute = authLoginErrorRouteImport.update({
   id: '/error',
   path: '/error',
   getParentRoute: () => authLoginRoute,
+} as any)
+const dashboardActivityIndexRoute = dashboardActivityIndexRouteImport.update({
+  id: '/activity/',
+  path: '/activity/',
+  getParentRoute: () => dashboardRouteRoute,
 } as any)
 const dashboardAdminIndexRoute = dashboardAdminIndexRouteImport.update({
   id: '/admin/',
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/notifications/create': typeof dashboardNotificationsCreateRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/create': typeof dashboardVolumesCreateRoute
+  '/activity/': typeof dashboardActivityIndexRoute
   '/admin/': typeof dashboardAdminIndexRoute
   '/backups/': typeof dashboardBackupsIndexRoute
   '/notifications/': typeof dashboardNotificationsIndexRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/notifications/create': typeof dashboardNotificationsCreateRoute
   '/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/volumes/create': typeof dashboardVolumesCreateRoute
+  '/activity': typeof dashboardActivityIndexRoute
   '/admin': typeof dashboardAdminIndexRoute
   '/backups': typeof dashboardBackupsIndexRoute
   '/notifications': typeof dashboardNotificationsIndexRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/(dashboard)/notifications/create': typeof dashboardNotificationsCreateRoute
   '/(dashboard)/repositories/create': typeof dashboardRepositoriesCreateRoute
   '/(dashboard)/volumes/create': typeof dashboardVolumesCreateRoute
+  '/(dashboard)/activity/': typeof dashboardActivityIndexRoute
   '/(dashboard)/admin/': typeof dashboardAdminIndexRoute
   '/(dashboard)/backups/': typeof dashboardBackupsIndexRoute
   '/(dashboard)/notifications/': typeof dashboardNotificationsIndexRoute
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/notifications/create'
     | '/repositories/create'
     | '/volumes/create'
+    | '/activity/'
     | '/admin/'
     | '/backups/'
     | '/notifications/'
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/notifications/create'
     | '/repositories/create'
     | '/volumes/create'
+    | '/activity'
     | '/admin'
     | '/backups'
     | '/notifications'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/(dashboard)/notifications/create'
     | '/(dashboard)/repositories/create'
     | '/(dashboard)/volumes/create'
+    | '/(dashboard)/activity/'
     | '/(dashboard)/admin/'
     | '/(dashboard)/backups/'
     | '/(dashboard)/notifications/'
@@ -476,6 +488,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/login/error'
       preLoaderRoute: typeof authLoginErrorRouteImport
       parentRoute: typeof authLoginRoute
+    }
+    '/(dashboard)/activity/': {
+      id: '/(dashboard)/activity/'
+      path: '/activity'
+      fullPath: '/activity/'
+      preLoaderRoute: typeof dashboardActivityIndexRouteImport
+      parentRoute: typeof dashboardRouteRoute
     }
     '/(dashboard)/admin/': {
       id: '/(dashboard)/admin/'
@@ -667,6 +686,7 @@ interface dashboardRouteRouteChildren {
   dashboardNotificationsCreateRoute: typeof dashboardNotificationsCreateRoute
   dashboardRepositoriesCreateRoute: typeof dashboardRepositoriesCreateRoute
   dashboardVolumesCreateRoute: typeof dashboardVolumesCreateRoute
+  dashboardActivityIndexRoute: typeof dashboardActivityIndexRoute
   dashboardAdminIndexRoute: typeof dashboardAdminIndexRoute
   dashboardBackupsIndexRoute: typeof dashboardBackupsIndexRoute
   dashboardNotificationsIndexRoute: typeof dashboardNotificationsIndexRoute
@@ -692,6 +712,7 @@ const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
   dashboardNotificationsCreateRoute: dashboardNotificationsCreateRoute,
   dashboardRepositoriesCreateRoute: dashboardRepositoriesCreateRoute,
   dashboardVolumesCreateRoute: dashboardVolumesCreateRoute,
+  dashboardActivityIndexRoute: dashboardActivityIndexRoute,
   dashboardAdminIndexRoute: dashboardAdminIndexRoute,
   dashboardBackupsIndexRoute: dashboardBackupsIndexRoute,
   dashboardNotificationsIndexRoute: dashboardNotificationsIndexRoute,

@@ -187,10 +187,13 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	const confirmCancellation = () => {
 		if (!cancelConfirmation) return;
 
-		const taskIds = cancelConfirmation.taskIds;
+		const confirmedCancellation = cancelConfirmation;
+		const taskIds = confirmedCancellation.taskIds;
 
 		setTimeout(() => {
-			setCancelConfirmation(null);
+			setCancelConfirmation((currentConfirmation) =>
+				currentConfirmation === confirmedCancellation ? null : currentConfirmation,
+			);
 		}, 1000);
 		setCancelConfirmationOpen(false);
 

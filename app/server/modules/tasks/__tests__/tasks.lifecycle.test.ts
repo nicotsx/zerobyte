@@ -58,15 +58,17 @@ describe("runTaskLifecycle", () => {
 
 		expect(changes).toEqual([
 			expect.objectContaining({
-				taskId: task.id,
-				kind: "deleteSnapshots",
 				previousOutcome: "running",
-				outcome: "running",
+				item: expect.objectContaining({
+					id: task.id,
+					kind: "deleteSnapshots",
+					status: "running",
+					outcome: "running",
+				}),
 			}),
 			expect.objectContaining({
-				taskId: task.id,
 				previousOutcome: "running",
-				outcome: "success",
+				item: expect.objectContaining({ id: task.id, status: "succeeded", outcome: "success" }),
 			}),
 		]);
 	});
@@ -85,11 +87,10 @@ describe("runTaskLifecycle", () => {
 		});
 
 		expect(changes).toEqual([
-			expect.objectContaining({ taskId: task.id, outcome: "running" }),
+			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "running" }) }),
 			expect.objectContaining({
-				taskId: task.id,
 				previousOutcome: "running",
-				outcome: "error",
+				item: expect.objectContaining({ id: task.id, outcome: "error", message: "start failed" }),
 			}),
 		]);
 	});
@@ -127,7 +128,9 @@ describe("runTaskLifecycle", () => {
 		expect(requestTaskCancel(task.id)).toBe(true);
 		await lifecycle;
 
-		expect(changes.at(-1)).toEqual(expect.objectContaining({ taskId: task.id, outcome: "cancelled" }));
+		expect(changes.at(-1)).toEqual(
+			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "cancelled" }) }),
+		);
 	});
 
 	test("keeps cancellable tasks queued while they prepare", async () => {
@@ -157,8 +160,8 @@ describe("runTaskLifecycle", () => {
 
 		expect(executionStarted).toBe(false);
 		expect(changes).toEqual([
-			expect.objectContaining({ taskId: task.id, outcome: "running" }),
-			expect.objectContaining({ taskId: task.id, outcome: "cancelled" }),
+			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "running" }) }),
+			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "cancelled" }) }),
 		]);
 	});
 });
