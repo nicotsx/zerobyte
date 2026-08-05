@@ -423,6 +423,76 @@ describe("schedule retention policy", () => {
 	});
 });
 
+describe("schedule compression mode", () => {
+	test("stores the compression mode when creating a schedule", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+
+		const schedule = await backupsService.createSchedule({
+			name: "with-compression",
+			volumeId: volume.shortId,
+			repositoryId: repository.shortId,
+			enabled: false,
+			cronExpression: "",
+			compressionMode: "off",
+			retryDelay: 0,
+			maxRetries: 0,
+		});
+
+		expect(schedule.compressionMode).toBe("off");
+	});
+
+	test("defaults to inherit (null) when creating a schedule without a compression mode", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+
+		const schedule = await backupsService.createSchedule({
+			name: "inherit-compression",
+			volumeId: volume.shortId,
+			repositoryId: repository.shortId,
+			enabled: false,
+			cronExpression: "",
+			retryDelay: 0,
+			maxRetries: 0,
+		});
+
+		expect(schedule.compressionMode).toBeNull();
+	});
+
+	test("toggles the compression override on and off via update", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			enabled: false,
+			cronExpression: "",
+		});
+		expect(schedule.compressionMode).toBeNull();
+
+		const withOverride = await backupsService.updateSchedule(schedule.id, {
+			repositoryId: repository.shortId,
+			cronExpression: "",
+			compressionMode: "max",
+			retryDelay: 0,
+			maxRetries: 0,
+		});
+		expect(withOverride.compressionMode).toBe("max");
+
+		const cleared = await backupsService.updateSchedule(schedule.id, {
+			repositoryId: repository.shortId,
+			cronExpression: "",
+			compressionMode: null,
+			retryDelay: 0,
+			maxRetries: 0,
+		});
+		expect(cleared.compressionMode).toBeNull();
+	});
+});
+
 describe("schedule webhooks", () => {
 	test("stores pre and post backup webhooks when creating a schedule", async () => {
 		setup();

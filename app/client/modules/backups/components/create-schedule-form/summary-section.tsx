@@ -117,6 +117,14 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 					<p className="font-medium">{formValues.oneFileSystem ? "Enabled" : "Disabled"}</p>
 				</div>
 				<div>
+					<p className="text-xs uppercase text-muted-foreground">Compression</p>
+					<p className="font-medium">
+						{formValues.compressionMode === undefined || formValues.compressionMode === "inherit"
+							? "Inherit (repository default)"
+							: formValues.compressionMode}
+					</p>
+				</div>
+				<div>
 					<p className="text-xs uppercase text-muted-foreground">Retention</p>
 					<p className="font-medium">{retentionSummary || "-"}</p>
 				</div>

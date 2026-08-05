@@ -495,6 +495,103 @@ describe("backup execution - validation failures", () => {
 		);
 	});
 
+	test("uses the job compression mode override over the repository default", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository({ compressionMode: "max" });
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			compressionMode: "off",
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						compressionMode: "off",
+					}),
+				}),
+			}),
+		);
+	});
+
+	test("inherits the repository compression mode when the job has no override", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository({ compressionMode: "max" });
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			compressionMode: null,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						compressionMode: "max",
+					}),
+				}),
+			}),
+		);
+	});
+
+	test("falls back to auto when neither the job nor the repository define a compression mode", async () => {
+		const { runBackupMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			compressionMode: null,
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runBackupMock).toHaveBeenCalledWith(
+			"local",
+			expect.objectContaining({
+				payload: expect.objectContaining({
+					options: expect.objectContaining({
+						compressionMode: "auto",
+					}),
+				}),
+			}),
+		);
+	});
+
+	test("passes the job compression override to the restic command on the local no-agent path", async () => {
+		const { resticBackupMock, runBackupMock } = setup();
+		config.flags.enableLocalAgent = false;
+		const volume = await createTestVolume();
+		const repository = await createTestRepository({ compressionMode: "max" });
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			compressionMode: "off",
+		});
+
+		runBackupMock.mockResolvedValueOnce({
+			status: "unavailable",
+			error: new Error("Local backup agent is not connected"),
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(resticBackupMock).toHaveBeenCalled();
+		const args = resticBackupMock.mock.calls[0][0].args;
+		const compressionIdx = args.indexOf("--compression");
+		expect(compressionIdx).toBeGreaterThan(-1);
+		expect(args[compressionIdx + 1]).toBe("off");
+	});
+
 	test("should fail backup when the local agent is unavailable", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();

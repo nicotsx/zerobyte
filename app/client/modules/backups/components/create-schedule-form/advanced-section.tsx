@@ -4,6 +4,7 @@ import { type UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
 import { Input } from "~/client/components/ui/input";
 import { Checkbox } from "~/client/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 
 type AdvancedSectionProps = {
 	form: UseFormReturn<InternalFormValues>;
@@ -176,6 +177,33 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 			{WEBHOOK_PHASES.map((phase) => (
 				<WebhookFields key={phase.name} form={form} phase={phase} />
 			))}
+			<FormField
+				control={form.control}
+				name="compressionMode"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Compression mode</FormLabel>
+						<Select onValueChange={field.onChange} value={field.value ?? "inherit"}>
+							<FormControl>
+								<SelectTrigger>
+									<SelectValue placeholder="Select compression mode" />
+								</SelectTrigger>
+							</FormControl>
+							<SelectContent>
+								<SelectItem value="inherit">Inherit from repository</SelectItem>
+								<SelectItem value="off">Off</SelectItem>
+								<SelectItem value="auto">Auto (fast)</SelectItem>
+								<SelectItem value="max">Max (slower, better compression)</SelectItem>
+							</SelectContent>
+						</Select>
+						<FormDescription>
+							Override the repository compression mode for this job. Choosing "Inherit from repository"
+							uses the repository default.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
 			<FormField
 				control={form.control}
 				name="customResticParamsText"
