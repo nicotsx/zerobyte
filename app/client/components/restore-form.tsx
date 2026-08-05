@@ -38,6 +38,7 @@ interface RestoreFormProps {
 	queryBasePath?: string;
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
+	volumeReadOnly?: boolean;
 	initialActiveTask?: RestoreTask | null;
 }
 
@@ -48,13 +49,15 @@ export function RestoreForm({
 	queryBasePath,
 	displayBasePath,
 	hasNonPosixSnapshotPaths = false,
+	volumeReadOnly = false,
 	initialActiveTask,
 }: RestoreFormProps) {
 	const navigate = useNavigate();
 
 	const snapshotBasePath = queryBasePath ?? "/";
 	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
-	const restoreRequiresCustomTarget = hasNonPosixSnapshotPaths || hasMismatchedDisplayBasePath;
+	const hasSourcePathMismatch = hasNonPosixSnapshotPaths || !!hasMismatchedDisplayBasePath;
+	const restoreRequiresCustomTarget = hasSourcePathMismatch || volumeReadOnly;
 
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>(
 		restoreRequiresCustomTarget ? "custom" : "original",
@@ -248,12 +251,25 @@ export function RestoreForm({
 					{restoreRequiresCustomTarget && (
 						<Alert variant="warning">
 							<AlertTriangle className="size-4" />
-							<AlertTitle>Source paths do not match</AlertTitle>
-							<AlertDescription>
-								This snapshot was created from source paths that do not match this Zerobyte server or
-								the current linked volume. Restoring to the original location is unavailable. Restore it
-								to a custom location, or download it instead.
-							</AlertDescription>
+							{volumeReadOnly && !hasSourcePathMismatch ? (
+								<>
+									<AlertTitle>Volume is read-only</AlertTitle>
+									<AlertDescription>
+										The volume backing this backup is mounted read-only. Restoring to the original
+										location is unavailable. Restore it to a custom location, or download it
+										instead.
+									</AlertDescription>
+								</>
+							) : (
+								<>
+									<AlertTitle>Source paths do not match</AlertTitle>
+									<AlertDescription>
+										This snapshot was created from source paths that do not match this Zerobyte
+										server or the current linked volume. Restoring to the original location is
+										unavailable. Restore it to a custom location, or download it instead.
+									</AlertDescription>
+								</>
+							)}
 						</Alert>
 					)}
 
