@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
-		"effect": "^3.22.0"
+		"effect": "^3.22.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
