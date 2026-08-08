@@ -41,6 +41,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
 			displayBasePath: getVolumeMountPath(schedule.data.volume),
 			hasNonPosixSnapshotPaths,
+			volumeReadOnly: schedule.data.volume.config.readOnly ?? false,
 			initialActiveTask: getActiveRestoreTask(activeRestoreTasks),
 		};
 	},
@@ -68,7 +69,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, initialActiveTask } =
+	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly, initialActiveTask } =
 		Route.useLoaderData();
 
 	return (
@@ -79,6 +80,7 @@ function RouteComponent() {
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
+			volumeReadOnly={volumeReadOnly}
 			initialActiveTask={initialActiveTask}
 		/>
 	);

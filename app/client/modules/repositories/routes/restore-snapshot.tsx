@@ -9,6 +9,7 @@ type Props = {
 	queryBasePath?: string;
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
+	volumeReadOnly?: boolean;
 	initialActiveTask?: RestoreTask | null;
 };
 
@@ -20,6 +21,7 @@ export function RestoreSnapshotPage(props: Props) {
 		queryBasePath,
 		displayBasePath,
 		hasNonPosixSnapshotPaths,
+		volumeReadOnly,
 		initialActiveTask,
 	} = props;
 
@@ -32,6 +34,7 @@ export function RestoreSnapshotPage(props: Props) {
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
+			volumeReadOnly={volumeReadOnly}
 			initialActiveTask={initialActiveTask}
 		/>
 	);

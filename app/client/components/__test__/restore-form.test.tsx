@@ -487,4 +487,70 @@ describe("RestoreForm", () => {
 			});
 		});
 	});
+
+	test("restores to a custom location only when the volume is mounted read-only", async () => {
+		let restoreRequestBody: unknown;
+
+		server.use(
+			snapshotFilesHandler,
+			http.post("/api/v1/repositories/:shortId/restore", async ({ request }) => {
+				restoreRequestBody = await request.json();
+				return HttpResponse.json({
+					success: true,
+					message: "Snapshot restored successfully",
+					filesRestored: 1,
+					filesSkipped: 0,
+				});
+			}),
+			http.get("/api/v1/volumes/filesystem/browse", () => {
+				return HttpResponse.json({
+					path: "/",
+					directories: [{ name: "restore-target", path: "/restore-target", type: "dir" }],
+				});
+			}),
+		);
+
+		render(
+			<RestoreForm
+				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
+				snapshotId="snap-1"
+				returnPath="/repositories/repo-1/snap-1"
+				queryBasePath="/mnt/project"
+				displayBasePath="/mnt"
+				volumeReadOnly
+			/>,
+		);
+
+		expect(
+			screen.getByText(
+				"The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
+			),
+		).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
+
+		await userEvent.click(screen.getByRole("button", { name: "Change" }));
+		await userEvent.click(await screen.findByRole("button", { name: "restore-target" }));
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(false);
+		});
+
+		const row = await screen.findByRole("button", { name: "project" });
+		await userEvent.click(within(row).getByRole("checkbox"));
+		await waitFor(() => {
+			expect(screen.getByRole("button", { name: "Restore 1 item" }).hasAttribute("disabled")).toBe(false);
+		});
+
+		await userEvent.click(screen.getByRole("button", { name: "Restore 1 item" }));
+
+		await waitFor(() => {
+			expect(restoreRequestBody).toEqual({
+				snapshotId: "snap-1",
+				include: ["/mnt/project"],
+				selectedItemKind: "dir",
+				targetPath: "/restore-target",
+				overwrite: "always",
+			});
+		});
+	});
 });
