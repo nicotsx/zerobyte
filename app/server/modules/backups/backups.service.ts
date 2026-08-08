@@ -142,6 +142,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 			includePatterns: data.includePatterns ?? [],
 			oneFileSystem: data.oneFileSystem,
 			customResticParams: data.customResticParams ?? [],
+			compressionMode: data.compressionMode ?? null,
 			backupWebhooks: data.backupWebhooks ?? null,
 			nextBackupAt: nextBackupAt,
 			shortId: generateShortId(),
@@ -226,6 +227,10 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 
 	if (data.backupWebhooks === undefined) {
 		updateValues.backupWebhooks = schedule.backupWebhooks;
+	}
+
+	if (data.compressionMode !== undefined) {
+		updateValues.compressionMode = data.compressionMode;
 	}
 
 	if (retentionPolicy !== undefined) {

@@ -43,6 +43,7 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludeIfPresentText,
 				includePatterns,
 				customResticParamsText,
+				compressionMode,
 				includePaths,
 				cronExpression,
 				maxRetries,
@@ -68,6 +69,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
+				compressionMode:
+					compressionMode === "inherit" || compressionMode === undefined ? null : compressionMode,
 				backupWebhooks: backupWebhooks.pre || backupWebhooks.post ? backupWebhooks : null,
 				maxRetries,
 				retryDelay,

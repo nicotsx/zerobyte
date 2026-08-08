@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
+import { COMPRESSION_MODES } from "@zerobyte/core/restic";
 import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
 import { finishedTaskStatusSchema } from "~/schemas/tasks";
 import { repositorySchema } from "../repositories/repositories.dto";
@@ -31,6 +32,7 @@ const backupScheduleSchema = z.object({
 	includePatterns: z.array(z.string()).nullable(),
 	oneFileSystem: z.boolean(),
 	customResticParams: z.array(z.string()).nullable(),
+	compressionMode: z.enum(COMPRESSION_MODES).nullable(),
 	backupWebhooks: backupWebhooksSchema.nullable(),
 	maxRetries: z.number(),
 	retryDelay: z.number().transform((ms) => Math.round(ms / 60000)),
@@ -134,6 +136,7 @@ export const createBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	compressionMode: z.enum(COMPRESSION_MODES).nullable().optional(),
 	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z
@@ -180,6 +183,7 @@ export const updateBackupScheduleBody = z.object({
 	oneFileSystem: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	customResticParams: z.array(z.string()).optional(),
+	compressionMode: z.enum(COMPRESSION_MODES).nullable().optional(),
 	backupWebhooks: backupWebhooksSchema.nullable().optional(),
 	maxRetries: z.number().min(0).max(32).optional().default(2),
 	retryDelay: z

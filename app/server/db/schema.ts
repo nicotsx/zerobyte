@@ -450,6 +450,7 @@ export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
 	nextBackupAt: int("next_backup_at", { mode: "number" }),
 	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
 	customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
+	compressionMode: text("compression_mode").$type<CompressionMode | null>(),
 	backupWebhooks: text("backup_webhooks", { mode: "json" }).$type<BackupWebhooks | null>(),
 	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
 	failureRetryCount: int("failure_retry_count").notNull().default(0),

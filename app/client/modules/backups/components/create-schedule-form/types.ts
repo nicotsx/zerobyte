@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
+import type { CompressionMode } from "@zerobyte/core/restic";
 
 const webhookHeadersSchema = z.string().refine(
 	(value) =>
@@ -51,6 +52,7 @@ export const internalFormSchema = z.object({
 	keepYearly: optionalRetentionCountSchema,
 	oneFileSystem: z.boolean().optional(),
 	customResticParamsText: z.string().optional(),
+	compressionMode: z.enum(["inherit", "off", "auto", "max"]).optional(),
 	preBackupWebhook: internalWebhookFormSchema.optional(),
 	postBackupWebhook: internalWebhookFormSchema.optional(),
 	maxRetries: optionalNumberInputSchema(z.number().min(0).max(32)),
@@ -82,6 +84,7 @@ export type BackupScheduleFormValues = Omit<
 	| "keepMonthly"
 	| "keepYearly"
 	| "customResticParamsText"
+	| "compressionMode"
 	| "preBackupWebhook"
 	| "postBackupWebhook"
 > & {
@@ -89,6 +92,7 @@ export type BackupScheduleFormValues = Omit<
 	excludeIfPresent?: string[];
 	includePatterns?: string[];
 	customResticParams?: string[];
+	compressionMode?: CompressionMode | null;
 	backupWebhooks?: BackupWebhooks | null;
 	keepLast?: number;
 	keepHourly?: number;

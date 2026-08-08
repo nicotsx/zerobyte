@@ -58,6 +58,7 @@ export const backupScheduleToFormValues = (schedule?: BackupSchedule): InternalF
 		excludeIfPresentText: schedule.excludeIfPresent?.join("\n") || undefined,
 		oneFileSystem: schedule.oneFileSystem ?? false,
 		customResticParamsText: schedule.customResticParams?.join("\n") ?? "",
+		compressionMode: schedule.compressionMode ?? "inherit",
 		preBackupWebhook: scheduleWebhookToFormValues(schedule.backupWebhooks?.pre),
 		postBackupWebhook: scheduleWebhookToFormValues(schedule.backupWebhooks?.post),
 		maxRetries: schedule.maxRetries?.toString(),

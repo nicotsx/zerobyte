@@ -67,7 +67,7 @@ const createBackupRunPayload = async ({
 				FUSE_VOLUME_BACKENDS.has(volume.type) && !customResticParams.includes(IGNORE_INODE_FLAG)
 					? [...customResticParams, IGNORE_INODE_FLAG]
 					: customResticParams,
-			compressionMode: repository.compressionMode ?? "auto",
+			compressionMode: schedule.compressionMode ?? repository.compressionMode ?? "auto",
 		},
 		runtime: {
 			password: resticPassword,

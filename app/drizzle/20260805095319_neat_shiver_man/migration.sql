@@ -1,0 +1,1 @@
+ALTER TABLE `backup_schedules_table` ADD `compression_mode` text;

@@ -2582,6 +2582,7 @@ export type ListBackupSchedulesResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        compressionMode: 'off' | 'auto' | 'max' | null;
         backupWebhooks: {
             pre: {
                 url: string;
@@ -2878,6 +2879,7 @@ export type CreateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        compressionMode?: 'off' | 'auto' | 'max' | null;
         backupWebhooks?: {
             pre: {
                 url: string;
@@ -2927,6 +2929,7 @@ export type CreateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        compressionMode: 'off' | 'auto' | 'max' | null;
         backupWebhooks: {
             pre: {
                 url: string;
@@ -3010,6 +3013,7 @@ export type GetBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        compressionMode: 'off' | 'auto' | 'max' | null;
         backupWebhooks: {
             pre: {
                 url: string;
@@ -3305,6 +3309,7 @@ export type UpdateBackupScheduleData = {
         oneFileSystem?: boolean;
         tags?: Array<string>;
         customResticParams?: Array<string>;
+        compressionMode?: 'off' | 'auto' | 'max' | null;
         backupWebhooks?: {
             pre: {
                 url: string;
@@ -3356,6 +3361,7 @@ export type UpdateBackupScheduleResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        compressionMode: 'off' | 'auto' | 'max' | null;
         backupWebhooks: {
             pre: {
                 url: string;
@@ -3419,6 +3425,7 @@ export type GetBackupScheduleForVolumeResponses = {
         includePatterns: Array<string> | null;
         oneFileSystem: boolean;
         customResticParams: Array<string> | null;
+        compressionMode: 'off' | 'auto' | 'max' | null;
         backupWebhooks: {
             pre: {
                 url: string;

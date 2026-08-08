@@ -73,7 +73,7 @@ Use these starting points:
 
 ## Choose compression mode
 
-Repository compression mode is configured on the repository form. Zerobyte passes it to Restic backups as `--compression`.
+Repository compression mode is configured on the repository form. Zerobyte passes it to Restic backups as `--compression`. Each backup job can override the repository mode individually — when sources differ in compressibility, use `off` for already-compressed data and `max` for text-heavy data even within the same repository.
 
 | Mode   | When to use it                                                                | Trade-off                                   |
 | ------ | ----------------------------------------------------------------------------- | ------------------------------------------- |
