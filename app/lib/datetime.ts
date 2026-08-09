@@ -4,7 +4,7 @@ import {
 	type DateFormatPreference,
 	type TimeFormatPreference,
 } from "@zerobyte/core/utils";
-import { formatDistanceToNow, intervalToDuration, isValid } from "date-fns";
+import { formatDistanceToNow, isValid } from "date-fns";
 
 export type DateInput = Date | string | number | null | undefined;
 
@@ -174,13 +174,17 @@ function formatTimeAgo(date: DateInput, now = Date.now()): string {
 }
 
 export function formatDuration(seconds: number) {
-	const duration = intervalToDuration({ start: 0, end: seconds * 1000 });
+	const wholeSeconds = Math.max(0, Math.floor(seconds));
+	const days = Math.floor(wholeSeconds / 86_400);
+	const hours = Math.floor((wholeSeconds % 86_400) / 3_600);
+	const minutes = Math.floor((wholeSeconds % 3_600) / 60);
+	const remainingSeconds = wholeSeconds % 60;
 	const parts: string[] = [];
 
-	if (duration.days) parts.push(`${duration.days}d`);
-	if (duration.hours) parts.push(`${duration.hours}h`);
-	if (duration.minutes) parts.push(`${duration.minutes}m`);
-	if (duration.seconds || parts.length === 0) parts.push(`${duration.seconds || 0}s`);
+	if (days) parts.push(`${days}d`);
+	if (hours) parts.push(`${hours}h`);
+	if (minutes) parts.push(`${minutes}m`);
+	if (remainingSeconds || parts.length === 0) parts.push(`${remainingSeconds}s`);
 
 	return parts.join(" ");
 }

@@ -106,6 +106,7 @@ const historyPage = (
 	items: TaskLogItem[],
 	overrides: Partial<Omit<ListTaskHistoryResponse, "items">> = {},
 ): ListTaskHistoryResponse => ({
+	organizationId: "default-org",
 	items,
 	page: 1,
 	pageSize: 25,
@@ -116,7 +117,14 @@ const historyPage = (
 
 const renderPage = (overrides: Partial<React.ComponentProps<typeof TaskLogPage>> = {}) => {
 	return render(
-		<TaskLogPage page={1} onKindChange={vi.fn()} onOutcomeChange={vi.fn()} onPageChange={vi.fn()} {...overrides} />,
+		<TaskLogPage
+			organizationId="default-org"
+			page={1}
+			onKindChange={vi.fn()}
+			onOutcomeChange={vi.fn()}
+			onPageChange={vi.fn()}
+			{...overrides}
+		/>,
 	);
 };
 
@@ -221,6 +229,51 @@ describe("TaskLogPage", () => {
 		}
 	});
 
+	test("preserves durations longer than a calendar month", async () => {
+		const thirtyOneDaysInSeconds = 31 * 24 * 60 * 60;
+		const finishedAt = createdAt + thirtyOneDaysInSeconds * 1000;
+		const item = createItem({ startedAt: createdAt, finishedAt });
+		server.use(http.get("/api/v1/tasks/history", () => HttpResponse.json(historyPage([item]))));
+
+		renderPage();
+
+		expect(await screen.findByText("31d")).toBeTruthy();
+	});
+
+	test("fetches activity for a newly active organization without reusing previous loader data", async () => {
+		let requestCount = 0;
+		server.use(
+			http.get("/api/v1/tasks/history", () => {
+				requestCount += 1;
+				const organizationLabel = requestCount === 1 ? "First organization" : "Second organization";
+				const organizationId = requestCount === 1 ? "org-one" : "org-two";
+				const target = { kind: "unavailable" as const, label: organizationLabel, secondary: null };
+
+				return HttpResponse.json(historyPage([createItem({ target })], { organizationId }));
+			}),
+		);
+		const initialTarget = { kind: "unavailable" as const, label: "Loader organization", secondary: null };
+		const initialData = historyPage([createItem({ target: initialTarget })], { organizationId: "org-one" });
+		const callbacks = {
+			onKindChange: vi.fn(),
+			onOutcomeChange: vi.fn(),
+			onPageChange: vi.fn(),
+		};
+		const { rerender } = renderPage({
+			initialData,
+			organizationId: "org-one",
+			...callbacks,
+		});
+
+		expect(screen.getByText("Loader organization")).toBeTruthy();
+		expect(await screen.findByText("First organization")).toBeTruthy();
+		rerender(<TaskLogPage initialData={initialData} organizationId="org-two" page={1} {...callbacks} />);
+
+		expect(await screen.findByText("Second organization")).toBeTruthy();
+		expect(screen.queryByText("Loader organization")).toBeNull();
+		expect(requestCount).toBe(2);
+	});
+
 	test("renders compact numbered pagination with URL-backed filter links", async () => {
 		server.use(
 			http.get("/api/v1/tasks/history", ({ request }) => {
@@ -268,7 +321,15 @@ describe("TaskLogPage", () => {
 		expect(await screen.findByText("Repository doctor")).toBeTruthy();
 		expect(screen.getByRole("button", { name: "View latest activity" })).toBeTruthy();
 		expect(screen.getByText("Repository doctor")).toBeTruthy();
-		rerender(<TaskLogPage page={3} onKindChange={vi.fn()} onOutcomeChange={vi.fn()} onPageChange={onPageChange} />);
+		rerender(
+			<TaskLogPage
+				organizationId="default-org"
+				page={3}
+				onKindChange={vi.fn()}
+				onOutcomeChange={vi.fn()}
+				onPageChange={onPageChange}
+			/>,
+		);
 		expect(screen.getByRole("button", { name: "View latest activity" })).toBeTruthy();
 
 		await userEvent.click(screen.getByRole("button", { name: "View latest activity" }));
@@ -314,7 +375,13 @@ describe("TaskLogPage", () => {
 		render(
 			<>
 				<GlobalServerEvents />
-				<TaskLogPage page={2} onKindChange={vi.fn()} onOutcomeChange={vi.fn()} onPageChange={vi.fn()} />
+				<TaskLogPage
+					organizationId="default-org"
+					page={2}
+					onKindChange={vi.fn()}
+					onOutcomeChange={vi.fn()}
+					onPageChange={vi.fn()}
+				/>
 			</>,
 		);
 		expect(await screen.findByText("Repository doctor")).toBeTruthy();
@@ -411,9 +478,9 @@ describe("TaskLogPage", () => {
 		const { rerender } = renderPage({ page: 2, ...callbacks });
 		expect(await screen.findByText("Page 2 visit 1")).toBeTruthy();
 
-		rerender(<TaskLogPage page={3} {...callbacks} />);
+		rerender(<TaskLogPage organizationId="default-org" page={3} {...callbacks} />);
 		expect(await screen.findByText("Page 3 visit 1")).toBeTruthy();
-		rerender(<TaskLogPage page={2} {...callbacks} />);
+		rerender(<TaskLogPage organizationId="default-org" page={2} {...callbacks} />);
 
 		expect(await screen.findByText("Page 2 visit 2")).toBeTruthy();
 	});

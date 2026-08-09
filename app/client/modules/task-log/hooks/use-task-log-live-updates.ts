@@ -5,6 +5,7 @@ import type { TaskHistoryLifecycleItem } from "~/schemas/task-history";
 import type { TaskLogKind, TaskLogOutcome } from "../components/task-log-shared";
 
 type UseTaskLogLiveUpdatesParams = {
+	organizationId: string;
 	kind?: TaskLogKind;
 	outcome?: TaskLogOutcome;
 	page: number;
@@ -14,9 +15,14 @@ type UseTaskLogLiveUpdatesParams = {
 
 const matchesTaskLogFilter = (
 	event: ServerEventPayloadMap["task:history-changed"],
+	organizationId: string,
 	kind: TaskLogKind | undefined,
 	outcome: TaskLogOutcome | undefined,
 ) => {
+	if (event.organizationId !== organizationId) {
+		return false;
+	}
+
 	if (kind && event.item.kind !== kind) {
 		return false;
 	}
@@ -28,12 +34,19 @@ const matchesTaskLogFilter = (
 	return event.previousOutcome === outcome || event.item.outcome === outcome;
 };
 
-export const useTaskLogLiveUpdates = ({ kind, outcome, page, refresh, updateTask }: UseTaskLogLiveUpdatesParams) => {
+export const useTaskLogLiveUpdates = ({
+	organizationId,
+	kind,
+	outcome,
+	page,
+	refresh,
+	updateTask,
+}: UseTaskLogLiveUpdatesParams) => {
 	const { addEventListener } = useServerEvents();
 
 	const handleTaskHistoryChange = useCallback(
 		(event: ServerEventPayloadMap["task:history-changed"]) => {
-			const matchesFilter = matchesTaskLogFilter(event, kind, outcome);
+			const matchesFilter = matchesTaskLogFilter(event, organizationId, kind, outcome);
 			if (!matchesFilter) {
 				return;
 			}
@@ -45,7 +58,7 @@ export const useTaskLogLiveUpdates = ({ kind, outcome, page, refresh, updateTask
 
 			updateTask(event.item);
 		},
-		[kind, outcome, page, refresh, updateTask],
+		[kind, organizationId, outcome, page, refresh, updateTask],
 	);
 	const handleConnected = useCallback(() => {
 		if (page === 1) {

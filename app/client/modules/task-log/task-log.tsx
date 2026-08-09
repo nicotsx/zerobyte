@@ -3,7 +3,6 @@ import { CircleAlert, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { ListTaskHistoryResponse } from "~/client/api-client";
-import { listTaskHistoryOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card } from "~/client/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
@@ -24,12 +23,14 @@ import {
 } from "./components/task-log-shared";
 import { useLiveClock } from "./hooks/use-live-clock";
 import { useTaskLogLiveUpdates } from "./hooks/use-task-log-live-updates";
+import { taskHistoryQueryOptions } from "./task-history-query";
 
 export { getTaskLogPagination };
 export type { TaskLogKind, TaskLogOutcome };
 
 type Props = {
 	initialData?: ListTaskHistoryResponse;
+	organizationId: string;
 	kind?: TaskLogKind;
 	outcome?: TaskLogOutcome;
 	page: number;
@@ -49,24 +50,35 @@ const outcomeOptions = taskHistoryOutcomes.map((value) => ({
 }));
 
 export function TaskLogPage(props: Props) {
-	const filterKey = `${props.kind ?? "all"}:${props.outcome ?? "all"}`;
+	const componentKey = `${props.organizationId}:${props.kind ?? "all"}:${props.outcome ?? "all"}`;
 
-	return <TaskLogPageContent key={filterKey} {...props} />;
+	return <TaskLogPageContent key={componentKey} {...props} />;
 }
 
-function TaskLogPageContent({ initialData, kind, outcome, page, onKindChange, onOutcomeChange, onPageChange }: Props) {
+function TaskLogPageContent({
+	initialData,
+	organizationId,
+	kind,
+	outcome,
+	page,
+	onKindChange,
+	onOutcomeChange,
+	onPageChange,
+}: Props) {
 	const { formatDateTimeWithSeconds } = useTimeFormat();
 	const queryClient = useQueryClient();
 	const [selection, setSelection] = useState<string | null>(null);
 
 	const historyQuery = useMemo(
-		() => listTaskHistoryOptions({ query: { kind, outcome, page } }),
-		[kind, outcome, page],
+		() => taskHistoryQueryOptions({ organizationId, kind, outcome, page }),
+		[kind, organizationId, outcome, page],
 	);
+	const initialDataMatchesOrganization = initialData?.organizationId === organizationId;
+	const queryInitialData = initialDataMatchesOrganization ? initialData : undefined;
 	const history = useQuery({
 		...historyQuery,
 		gcTime: 0,
-		initialData,
+		initialData: queryInitialData,
 		staleTime: "static",
 	});
 
@@ -95,6 +107,7 @@ function TaskLogPageContent({ initialData, kind, outcome, page, onKindChange, on
 	);
 
 	useTaskLogLiveUpdates({
+		organizationId,
 		kind,
 		outcome,
 		page,
