@@ -43,6 +43,7 @@ export const taskHistoryItemSchema = z.object({
 });
 
 export const taskHistoryResponseSchema = z.object({
+	organizationId: z.string(),
 	items: taskHistoryItemSchema.array(),
 	page: z.number().int().positive(),
 	pageSize: z.number().int().positive(),

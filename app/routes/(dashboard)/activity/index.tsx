@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { listTaskHistory } from "~/client/api-client/sdk.gen";
+import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { TaskLogPage, type TaskLogKind, type TaskLogOutcome } from "~/client/modules/task-log/task-log";
 import { taskHistoryOutcomeSchema } from "~/schemas/task-history";
 import { taskKindSchema } from "~/schemas/tasks";
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/(dashboard)/activity/")({
 	},
 	loader: async ({ deps }) => {
 		const query = { kind: deps.kind, outcome: deps.outcome, page: deps.page };
-		const response = await listTaskHistory({ query, throwOnError: true });
+		const response = await listTaskHistory({ query });
 
 		return response.data;
 	},
@@ -43,6 +44,7 @@ function ActivityRoute() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const initialData = Route.useLoaderData();
+	const { activeOrganization } = useOrganizationContext();
 
 	const updateKind = (kind: TaskLogKind | undefined) => {
 		void navigate({
@@ -67,6 +69,7 @@ function ActivityRoute() {
 	return (
 		<TaskLogPage
 			initialData={initialData}
+			organizationId={activeOrganization.id}
 			kind={search.kind}
 			outcome={search.outcome}
 			page={search.page ?? 1}

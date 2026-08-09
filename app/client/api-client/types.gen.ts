@@ -5672,6 +5672,7 @@ export type ListTaskHistoryResponses = {
      * A page of task history
      */
     200: {
+        organizationId: string;
         items: Array<{
             id: string;
             kind: 'backup' | 'restore' | 'deleteSnapshots' | 'tagSnapshots' | 'doctor' | 'mirrorSync';

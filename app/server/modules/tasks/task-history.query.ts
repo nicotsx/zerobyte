@@ -52,6 +52,7 @@ export const listTaskHistory = (params: ListTaskHistoryParams): TaskHistoryRespo
 	const totalPages = Math.ceil(totalItems / TASK_HISTORY_PAGE_SIZE);
 
 	return {
+		organizationId: params.organizationId,
 		items: tasks.map(toTaskHistoryItem),
 		page: params.page,
 		pageSize: TASK_HISTORY_PAGE_SIZE,

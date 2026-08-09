@@ -99,7 +99,9 @@ describe("task history", () => {
 		const activeResponse = await app.request("/api/v1/tasks", { headers: session.headers });
 
 		expect(historyResponse.status).toBe(200);
-		expect((await historyResponse.json()).items.map((item: { id: string }) => item.id)).toEqual([visible.id]);
+		const history = await historyResponse.json();
+		expect(history.organizationId).toBe(session.organizationId);
+		expect(history.items.map((item: { id: string }) => item.id)).toEqual([visible.id]);
 		const persistedVisible = await db.query.tasksTable.findFirst({ where: { id: visible.id } });
 		expect(persistedVisible?.persistenceFormatVersion).toBe(TASK_PERSISTENCE_FORMAT_VERSION);
 		expect(activeResponse.status).toBe(200);

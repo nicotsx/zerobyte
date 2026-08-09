@@ -1548,27 +1548,30 @@ export const listTaskHistoryInfiniteQueryKey = (options?: Options<ListTaskHistor
 /**
  * List persisted task history for the current organization
  */
-export const listTaskHistoryInfiniteOptions = (options?: Options<ListTaskHistoryData>) => infiniteQueryOptions<ListTaskHistoryResponse, DefaultError, InfiniteData<ListTaskHistoryResponse>, QueryKey<Options<ListTaskHistoryData>>, number | Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
-// @ts-ignore
-{
-    queryFn: async ({ pageParam, queryKey, signal }) => {
-        // @ts-ignore
-        const page: Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
-            query: {
-                page: pageParam
-            }
-        };
-        const params = createInfiniteParams(queryKey, page);
-        const { data } = await listTaskHistory({
-            ...options,
-            ...params,
-            signal,
-            throwOnError: true
-        });
-        return data;
-    },
-    queryKey: listTaskHistoryInfiniteQueryKey(options)
-});
+export const listTaskHistoryInfiniteOptions = (options?: Options<ListTaskHistoryData>) => {
+    const opts = infiniteQueryOptions<ListTaskHistoryResponse, DefaultError, InfiniteData<ListTaskHistoryResponse>, QueryKey<Options<ListTaskHistoryData>>, number | Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    page: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await listTaskHistory({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: listTaskHistoryInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const getTaskQueryKey = (options: Options<GetTaskData>) => createQueryKey('getTask', options);
 
