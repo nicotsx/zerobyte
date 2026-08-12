@@ -183,7 +183,10 @@ export const AdvancedSection = ({ form }: AdvancedSectionProps) => {
 				render={({ field }) => (
 					<FormItem>
 						<FormLabel>Compression mode</FormLabel>
-						<Select onValueChange={field.onChange} value={field.value ?? "inherit"}>
+						<Select
+							onValueChange={(value) => field.onChange(value === "inherit" ? null : value)}
+							value={field.value ?? "inherit"}
+						>
 							<FormControl>
 								<SelectTrigger>
 									<SelectValue placeholder="Select compression mode" />

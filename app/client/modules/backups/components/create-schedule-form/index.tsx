@@ -28,9 +28,11 @@ type Props = {
 };
 
 export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: Props) => {
+	const initialFormValues = backupScheduleToFormValues(initialValues);
+	const defaultValues = initialFormValues ?? { compressionMode: null };
 	const form = useForm<InternalFormValues>({
 		resolver: zodResolver(internalFormSchema, undefined, { raw: true }),
-		defaultValues: backupScheduleToFormValues(initialValues),
+		defaultValues,
 	});
 
 	const scrollToFirstError = useScrollToFormError();
@@ -43,7 +45,6 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludeIfPresentText,
 				includePatterns,
 				customResticParamsText,
-				compressionMode,
 				includePaths,
 				cronExpression,
 				maxRetries,
@@ -69,8 +70,6 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 				excludePatterns,
 				excludeIfPresent,
 				customResticParams,
-				compressionMode:
-					compressionMode === "inherit" || compressionMode === undefined ? null : compressionMode,
 				backupWebhooks: backupWebhooks.pre || backupWebhooks.post ? backupWebhooks : null,
 				maxRetries,
 				retryDelay,

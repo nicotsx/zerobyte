@@ -229,10 +229,6 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 		updateValues.backupWebhooks = schedule.backupWebhooks;
 	}
 
-	if (data.compressionMode !== undefined) {
-		updateValues.compressionMode = data.compressionMode;
-	}
-
 	if (retentionPolicy !== undefined) {
 		Object.assign(updateValues, { retentionPolicy });
 	}

@@ -118,11 +118,7 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Compression</p>
-					<p className="font-medium">
-						{formValues.compressionMode === undefined || formValues.compressionMode === "inherit"
-							? "Inherit (repository default)"
-							: formValues.compressionMode}
-					</p>
+					<p className="font-medium">{formValues.compressionMode ?? "Inherit (repository default)"}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Retention</p>

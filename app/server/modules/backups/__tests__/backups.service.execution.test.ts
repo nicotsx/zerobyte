@@ -546,7 +546,7 @@ describe("backup execution - validation failures", () => {
 	test("falls back to auto when neither the job nor the repository define a compression mode", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
-		const repository = await createTestRepository();
+		const repository = await createTestRepository({ compressionMode: null });
 		const schedule = await createTestBackupSchedule({
 			volumeId: volume.id,
 			repositoryId: repository.id,

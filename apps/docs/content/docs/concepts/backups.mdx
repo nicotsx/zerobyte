@@ -97,7 +97,7 @@ Exclude files or directories that do not need to be backed up. Common patterns:
 
 ## Compression
 
-Backups inherit the compression mode from the repository they write to. Each backup job can optionally override it, so jobs writing to the same repository can use different compression modes. On the backup job form, choose **Inherit from repository** (default) to follow the repository setting, or pick **off**, **auto**, or **max** to override it for that job only.
+Backups inherit the compression mode from the repository they write to. Compression is configured per repository and applies to all backup jobs targeting that repository.
 
 Available modes are **auto** (default), **off**, and **max**. See [Repositories](/docs/concepts/repositories) for details on each mode.
 

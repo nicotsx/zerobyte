@@ -61,6 +61,7 @@ const renderEditBackupPage = ({
 					excludeIfPresent: [],
 					oneFileSystem: false,
 					customResticParams: [],
+					compressionMode: null,
 					backupWebhooks: null,
 					maxRetries,
 					retryDelay,
@@ -105,6 +106,7 @@ test("submits the computed cron expression when saving a daily schedule", async 
 		frequency: "daily",
 		enabled: true,
 		cronExpression: "00 02 * * *",
+		compressionMode: null,
 	});
 });
 
