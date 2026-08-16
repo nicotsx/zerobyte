@@ -1,13 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
+	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getSortedRowModel,
-	type ColumnDef,
 	type ColumnFiltersState,
 	type SortingState,
-	useReactTable,
+	useTable,
 } from "@tanstack/react-table";
 import { Bell, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
@@ -21,6 +18,7 @@ import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useNavigate } from "@tanstack/react-router";
+import { dataTableFeatures } from "~/client/lib/data-table";
 import { cn } from "~/client/lib/utils";
 import { useCookieState } from "~/client/hooks/use-cookie-state";
 
@@ -40,24 +38,22 @@ const getNotificationStatusVariant = (row: NotificationRow) => {
 	return "warning";
 };
 
-const notificationColumns: ColumnDef<NotificationRow>[] = [
-	{
-		accessorKey: "name",
+const notificationColumnHelper = createColumnHelper<typeof dataTableFeatures, NotificationRow>();
+const notificationColumns = notificationColumnHelper.columns([
+	notificationColumnHelper.accessor("name", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
 		),
 		cell: ({ row }) => row.original.name,
-	},
-	{
-		accessorKey: "type",
+	}),
+	notificationColumnHelper.accessor("type", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Type" sortDirection={column.getIsSorted()} />
 		),
 		cell: ({ row }) => row.original.type,
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-	{
-		accessorFn: getNotificationStatus,
+	}),
+	notificationColumnHelper.accessor(getNotificationStatus, {
 		id: "status",
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
@@ -69,8 +65,8 @@ const notificationColumns: ColumnDef<NotificationRow>[] = [
 			/>
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-];
+	}),
+]);
 
 export function NotificationsPage() {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -82,15 +78,13 @@ export function NotificationsPage() {
 		...listNotificationDestinationsOptions(),
 	});
 
-	const table = useReactTable({
+	const table = useTable({
+		features: dataTableFeatures,
 		data,
 		columns: notificationColumns,
 		state: { columnFilters, sorting },
 		onColumnFiltersChange: setColumnFilters,
 		onSortingChange: setSorting,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 	});
 
 	const rows = table.getRowModel().rows;

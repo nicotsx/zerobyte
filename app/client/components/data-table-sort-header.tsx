@@ -1,15 +1,16 @@
-import type { Column } from "@tanstack/react-table";
+import type { Column, RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
+import { dataTableFeatures } from "~/client/lib/data-table";
 import { cn } from "~/client/lib/utils";
 
-export function DataTableSortHeader<TData, TValue>({
+export function DataTableSortHeader<TData extends RowData, TValue>({
 	column,
 	title,
 	sortDirection,
 	center = false,
 }: {
-	column: Column<TData, TValue>;
+	column: Column<typeof dataTableFeatures, TData, TValue>;
 	title: string;
 	sortDirection: false | "asc" | "desc";
 	center?: boolean;
@@ -34,7 +35,9 @@ export function DataTableSortHeader<TData, TValue>({
 			>
 				<span className="relative flex w-full items-center justify-center">
 					{title}
-					<span className={cn("lg:absolute lg:-right-6 lg:top-1/2 lg:-translate-y-1/2", iconVisibility)}>{icon}</span>
+					<span className={cn("lg:absolute lg:-right-6 lg:top-1/2 lg:-translate-y-1/2", iconVisibility)}>
+						{icon}
+					</span>
 				</span>
 			</Button>
 		);

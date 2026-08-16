@@ -1,13 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
+	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getSortedRowModel,
-	type ColumnDef,
 	type ColumnFiltersState,
 	type SortingState,
-	useReactTable,
+	useTable,
 } from "@tanstack/react-table";
 import { Database, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
@@ -25,6 +22,7 @@ import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
 import type { RepositoryBackend } from "@zerobyte/core/restic";
 import { useCookieState } from "~/client/hooks/use-cookie-state";
+import { dataTableFeatures } from "~/client/lib/data-table";
 
 type RepositoryRow = {
 	id: string;
@@ -35,9 +33,9 @@ type RepositoryRow = {
 	compressionMode?: string | null;
 };
 
-const repositoryColumns: ColumnDef<RepositoryRow>[] = [
-	{
-		accessorKey: "name",
+const repositoryColumnHelper = createColumnHelper<typeof dataTableFeatures, RepositoryRow>();
+const repositoryColumns = repositoryColumnHelper.columns([
+	repositoryColumnHelper.accessor("name", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
 		),
@@ -46,9 +44,8 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 				<span>{row.original.name}</span>
 			</div>
 		),
-	},
-	{
-		accessorKey: "type",
+	}),
+	repositoryColumnHelper.accessor("type", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Backend" sortDirection={column.getIsSorted()} />
 		),
@@ -59,9 +56,8 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 			</span>
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-	{
-		accessorFn: (row) => row.compressionMode || "off",
+	}),
+	repositoryColumnHelper.accessor((row) => row.compressionMode || "off", {
 		id: "compressionMode",
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Compression" sortDirection={column.getIsSorted()} />
@@ -71,10 +67,9 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 				{row.original.compressionMode || "off"}
 			</span>
 		),
-		sortingFn: "alphanumeric",
-	},
-	{
-		accessorFn: (row) => row.status || "unknown",
+		sortFn: "alphanumeric",
+	}),
+	repositoryColumnHelper.accessor((row) => row.status || "unknown", {
 		id: "status",
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
@@ -91,10 +86,10 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 				label={row.original.status || "unknown"}
 			/>
 		),
-		sortingFn: "alphanumeric",
+		sortFn: "alphanumeric",
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-];
+	}),
+]);
 
 const defaultRepositorySorting: SortingState = [{ id: "name", desc: false }];
 
@@ -108,15 +103,13 @@ export function RepositoriesPage() {
 		...listRepositoriesOptions(),
 	});
 
-	const table = useReactTable({
+	const table = useTable({
+		features: dataTableFeatures,
 		data,
 		columns: repositoryColumns,
 		state: { columnFilters, sorting },
 		onColumnFiltersChange: setColumnFilters,
 		onSortingChange: setSorting,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 	});
 	const rows = table.getRowModel().rows;
 	const hasFilters = columnFilters.length > 0;

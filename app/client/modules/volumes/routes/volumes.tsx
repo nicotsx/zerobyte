@@ -1,13 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
+	createColumnHelper,
 	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getSortedRowModel,
-	type ColumnDef,
 	type ColumnFiltersState,
 	type SortingState,
-	useReactTable,
+	useTable,
 } from "@tanstack/react-table";
 import { HardDrive, Plus, RotateCcw } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { VolumeIcon } from "~/client/components/volume-icon";
 import type { VolumeStatus } from "~/client/lib/types";
 import { useNavigate } from "@tanstack/react-router";
+import { dataTableFeatures } from "~/client/lib/data-table";
 import { cn } from "~/client/lib/utils";
 import { useCookieState } from "~/client/hooks/use-cookie-state";
 
@@ -43,9 +41,9 @@ type VolumeRow = {
 	status: VolumeStatus;
 };
 
-const volumeColumns: ColumnDef<VolumeRow>[] = [
-	{
-		accessorKey: "name",
+const volumeColumnHelper = createColumnHelper<typeof dataTableFeatures, VolumeRow>();
+const volumeColumns = volumeColumnHelper.columns([
+	volumeColumnHelper.accessor("name", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
 		),
@@ -54,17 +52,15 @@ const volumeColumns: ColumnDef<VolumeRow>[] = [
 				<span>{row.original.name}</span>
 			</div>
 		),
-	},
-	{
-		accessorKey: "type",
+	}),
+	volumeColumnHelper.accessor("type", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Backend" sortDirection={column.getIsSorted()} />
 		),
 		cell: ({ row }) => <VolumeIcon backend={row.original.type} />,
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-	{
-		accessorKey: "status",
+	}),
+	volumeColumnHelper.accessor("status", {
 		header: ({ column }) => (
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
 		),
@@ -72,8 +68,8 @@ const volumeColumns: ColumnDef<VolumeRow>[] = [
 			<StatusDot variant={getVolumeStatusVariant(row.original.status)} label={row.original.status} />
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,
-	},
-];
+	}),
+]);
 
 export function VolumesPage() {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -82,15 +78,13 @@ export function VolumesPage() {
 	const navigate = useNavigate();
 	const { data } = useSuspenseQuery({ ...listVolumesOptions() });
 
-	const table = useReactTable({
+	const table = useTable({
+		features: dataTableFeatures,
 		data,
 		columns: volumeColumns,
 		state: { columnFilters, sorting },
 		onColumnFiltersChange: setColumnFilters,
 		onSortingChange: setSorting,
-		getCoreRowModel: getCoreRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 	});
 
 	const rows = table.getRowModel().rows;
