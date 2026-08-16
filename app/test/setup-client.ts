@@ -5,7 +5,6 @@ import { server } from "~/test/msw/server";
 
 vi.mock(import("~/client/hooks/use-root-loader-data"), () => ({
 	useRootLoaderData: () => ({
-		theme: "dark",
 		locale: "en-US",
 		timeZone: "UTC",
 		dateFormat: "MM/DD/YYYY",

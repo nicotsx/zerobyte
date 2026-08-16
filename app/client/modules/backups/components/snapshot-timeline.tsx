@@ -1,5 +1,5 @@
 import { ArrowRightLeft, Loader2 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef } from "react";
 import type { ListSnapshotsResponse } from "~/client/api-client";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardContent } from "~/client/components/ui/card";
@@ -7,11 +7,11 @@ import { Button } from "~/client/components/ui/button";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { RetentionCategoryBadges } from "~/client/components/retention-category-badges";
+import { useCookieState } from "~/client/hooks/use-cookie-state";
 
 export type SnapshotTimelineSortOrder = "asc" | "desc";
 
-export const SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME = "snapshot_timeline_sort_order";
-const SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+const SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME = "snapshot_timeline_sort_order";
 
 const getSortedSnapshots = (snapshots: ListSnapshotsResponse, sortOrder: SnapshotTimelineSortOrder) => {
 	return [...snapshots].sort((snapshotA, snapshotB) => {
@@ -39,34 +39,24 @@ interface Props {
 	loading?: boolean;
 	error?: string;
 	deletingSnapshotIds?: Set<string>;
-	initialSortOrder?: SnapshotTimelineSortOrder;
 	onSnapshotSelect: (snapshotId: string) => void;
 }
 
 export const SnapshotTimeline = (props: Props) => {
-	const {
-		snapshots,
-		snapshotId,
-		loading,
-		onSnapshotSelect,
-		error,
-		deletingSnapshotIds,
-		initialSortOrder = "asc",
-	} = props;
+	const { snapshots, snapshotId, loading, onSnapshotSelect, error, deletingSnapshotIds } = props;
 	const selectedRef = useRef<HTMLButtonElement>(null);
 	const { formatDateWithMonth, formatShortDate, formatTime } = useTimeFormat();
-	const [sortOrder, setSortOrder] = useState<SnapshotTimelineSortOrder>(initialSortOrder);
+	const [sortOrder, setSortOrder] = useCookieState<SnapshotTimelineSortOrder>(
+		SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME,
+		"asc",
+	);
 	const sortedSnapshots = useMemo(() => getSortedSnapshots(snapshots, sortOrder), [snapshots, sortOrder]);
 	const snapshotRange = useMemo(() => getSnapshotRange(snapshots), [snapshots]);
 
 	const sortOrderButtonLabel = "Toggle snapshot sort order";
 
 	const handleToggleSortOrder = () => {
-		setSortOrder((currentSortOrder) => {
-			const nextSortOrder = currentSortOrder === "asc" ? "desc" : "asc";
-			document.cookie = `${SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME}=${nextSortOrder}; path=/; max-age=${SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_MAX_AGE}`;
-			return nextSortOrder;
-		});
+		setSortOrder((currentSortOrder) => (currentSortOrder === "asc" ? "desc" : "asc"));
 	};
 
 	if (error) {

@@ -34,7 +34,7 @@ export function Layout({ loaderData }: Props) {
 	};
 
 	return (
-		<SidebarProvider defaultOpen={loaderData.sidebarOpen}>
+		<SidebarProvider>
 			<PermissionsProvider>
 				<AppSidebar />
 				<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">

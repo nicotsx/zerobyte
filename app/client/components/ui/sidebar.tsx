@@ -7,6 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 
 import { useIsMobile } from "~/client/hooks/use-mobile";
+import { useCookieState } from "~/client/hooks/use-cookie-state";
 import { cn } from "~/client/lib/utils";
 import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
@@ -61,21 +62,15 @@ function SidebarProvider({
 
 	// This is the internal state of the sidebar.
 	// We use openProp and setOpenProp for control from outside the component.
-	const [_open, _setOpen] = React.useState(defaultOpen);
+	const [_open, _setOpen] = useCookieState(SIDEBAR_COOKIE_NAME, defaultOpen, SIDEBAR_COOKIE_MAX_AGE);
 	const open = openProp ?? _open;
 	const setOpen = React.useCallback(
 		(value: boolean | ((value: boolean) => boolean)) => {
 			const openState = typeof value === "function" ? value(open) : value;
-			if (setOpenProp) {
-				setOpenProp(openState);
-			} else {
-				_setOpen(openState);
-			}
-
-			// This sets the cookie to keep the sidebar state.
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			_setOpen(openState);
+			setOpenProp?.(openState);
 		},
-		[setOpenProp, open],
+		[_setOpen, setOpenProp, open],
 	);
 
 	// Helper to toggle the sidebar.

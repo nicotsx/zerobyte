@@ -1,6 +1,6 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect } from "react";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "dark";
 
 type ThemeContextValue = {
 	theme: Theme;
@@ -10,22 +10,12 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export const THEME_COOKIE_NAME = "theme";
-const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
-const DEFAULT_THEME: Theme = "dark";
+export const DEFAULT_THEME: Theme = "dark";
 
-export function ThemeProvider({ children, initialTheme }: { children: React.ReactNode; initialTheme?: Theme }) {
-	const [theme, setThemeState] = useState<Theme>(initialTheme ?? DEFAULT_THEME);
-
+export function ThemeProvider({ children, theme, setTheme }: ThemeContextValue & { children: React.ReactNode }) {
 	useEffect(() => {
 		window.zerobyteDesktop?.setTheme(theme);
 	}, [theme]);
-
-	const setTheme = useCallback((newTheme: Theme) => {
-		setThemeState(newTheme);
-		document.cookie = `${THEME_COOKIE_NAME}=${newTheme}; path=/; max-age=${THEME_COOKIE_MAX_AGE}`;
-		document.documentElement.classList.toggle("dark", newTheme === "dark");
-		document.documentElement.style.colorScheme = newTheme;
-	}, []);
 
 	return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>;
 }

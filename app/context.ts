@@ -15,6 +15,5 @@ export type AppContext = {
 	user: User | null;
 	passwordAuthSupported: boolean;
 	hasUsers: boolean;
-	sidebarOpen: boolean;
 	hasSkippedRecoveryKeyDownload: boolean;
 };

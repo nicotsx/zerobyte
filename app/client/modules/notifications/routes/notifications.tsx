@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "~/client/lib/utils";
+import { useCookieState } from "~/client/hooks/use-cookie-state";
 
 type NotificationRow = {
 	id: number;
@@ -42,12 +43,16 @@ const getNotificationStatusVariant = (row: NotificationRow) => {
 const notificationColumns: ColumnDef<NotificationRow>[] = [
 	{
 		accessorKey: "name",
-		header: ({ column }) => <DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />,
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
+		),
 		cell: ({ row }) => row.original.name,
 	},
 	{
 		accessorKey: "type",
-		header: ({ column }) => <DataTableSortHeader column={column} title="Type" sortDirection={column.getIsSorted()} />,
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Type" sortDirection={column.getIsSorted()} />
+		),
 		cell: ({ row }) => row.original.type,
 		filterFn: (row, id, value) => row.getValue(id) === value,
 	},
@@ -58,7 +63,10 @@ const notificationColumns: ColumnDef<NotificationRow>[] = [
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
 		),
 		cell: ({ row }) => (
-			<StatusDot variant={getNotificationStatusVariant(row.original)} label={getNotificationStatus(row.original)} />
+			<StatusDot
+				variant={getNotificationStatusVariant(row.original)}
+				label={getNotificationStatus(row.original)}
+			/>
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,
 	},
@@ -66,7 +74,7 @@ const notificationColumns: ColumnDef<NotificationRow>[] = [
 
 export function NotificationsPage() {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	const [sorting, setSorting] = useState<SortingState>([]);
+	const [sorting, setSorting] = useCookieState<SortingState>("sorting_notifications", []);
 
 	const navigate = useNavigate();
 
@@ -176,7 +184,9 @@ export function NotificationsPage() {
 											"text-center": header.column.id === "status",
 										})}
 									>
-										{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+										{header.isPlaceholder
+											? null
+											: flexRender(header.column.columnDef.header, header.getContext())}
 									</TableHead>
 								))}
 							</TableRow>

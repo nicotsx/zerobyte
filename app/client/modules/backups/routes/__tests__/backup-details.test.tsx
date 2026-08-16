@@ -219,12 +219,10 @@ describe("ScheduleDetailsPage", () => {
 					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
 					snapshots: [snapshot],
 				})}
 				scheduleId="backup-1"
 				initialSnapshotId="snap-1"
-				initialSnapshotSortOrder="desc"
 			/>,
 			{ withSuspense: true },
 		);
@@ -257,11 +255,9 @@ describe("ScheduleDetailsPage", () => {
 					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
 					snapshots: [],
 				})}
 				scheduleId="backup-1"
-				initialSnapshotSortOrder="desc"
 			/>,
 			{ withSuspense: true },
 		);
@@ -290,11 +286,9 @@ describe("ScheduleDetailsPage", () => {
 					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
-					snapshotTimelineSortOrder: "desc",
 					snapshots: [snapshot],
 				})}
 				scheduleId="backup-1"
-				initialSnapshotSortOrder="desc"
 			/>,
 			{ withSuspense: true },
 		);

@@ -6,9 +6,10 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
-import { ThemeProvider } from "~/client/components/theme-provider";
+import { DEFAULT_THEME, THEME_COOKIE_NAME, ThemeProvider, type Theme } from "~/client/components/theme-provider";
 import { isAuthRoute } from "~/lib/auth-routes";
 import { getRootLoaderData } from "~/server/lib/functions/root-loader-data";
+import { useCookieState } from "~/client/hooks/use-cookie-state";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
@@ -39,7 +40,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootLayout() {
-	const { theme } = Route.useLoaderData();
+	const [theme, setTheme] = useCookieState<Theme>(THEME_COOKIE_NAME, DEFAULT_THEME);
 	const pathname = useRouterState({ select: (state) => state.location.pathname });
 	const isDesktopTrayRoute = pathname === "/desktop/tray";
 	useServerEvents({ enabled: !isAuthRoute(pathname) });
@@ -71,7 +72,7 @@ function RootLayout() {
 				<HeadContent />
 			</head>
 			<body>
-				<ThemeProvider initialTheme={theme}>
+				<ThemeProvider theme={theme} setTheme={setTheme}>
 					<Outlet />
 					{!isDesktopTrayRoute && <Toaster />}
 					{!isDesktopTrayRoute && <ReactQueryDevtools buttonPosition="bottom-right" />}

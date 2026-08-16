@@ -1,6 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
 import { z } from "zod";
 import {
 	getBackupScheduleOptions,
@@ -10,16 +8,10 @@ import {
 	listRepositoriesOptions,
 	listSnapshotsOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import { SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME } from "~/client/modules/backups/components/snapshot-timeline";
 import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-details";
 import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { backupTasksOptions } from "~/client/modules/backups/backup-tasks";
 import { prefetchOrSkip } from "~/utils/prefetch";
-
-const fetchSnapshotTimelineSortOrder = createServerFn({ method: "GET" }).handler(async () => {
-	const order = getCookie(SNAPSHOT_TIMELINE_SORT_ORDER_COOKIE_NAME);
-	return order === "desc" ? "desc" : "asc";
-});
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	component: RouteComponent,
@@ -28,7 +20,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	loader: async ({ params, context }) => {
 		const { backupId } = params;
 
-		const [schedule, notifs, repos, scheduleNotifs, mirrors, snapshotTimelineSortOrder] = await Promise.all([
+		const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
 			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
 			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
 			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
@@ -36,7 +28,6 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 				...getScheduleNotificationsOptions({ path: { shortId: backupId } }),
 			}),
 			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
-			fetchSnapshotTimelineSortOrder(),
 		]);
 
 		const snapshotOptions = listSnapshotsOptions({
@@ -57,7 +48,6 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 			repos,
 			scheduleNotifs,
 			mirrors,
-			snapshotTimelineSortOrder,
 			snapshots: context.queryClient.getQueryData(snapshotOptions.queryKey),
 		};
 	},
@@ -83,12 +73,5 @@ function RouteComponent() {
 	const { backupId } = Route.useParams();
 	const search = Route.useSearch();
 
-	return (
-		<ScheduleDetailsPage
-			loaderData={loaderData}
-			scheduleId={backupId}
-			initialSnapshotId={search.snapshot}
-			initialSnapshotSortOrder={loaderData.snapshotTimelineSortOrder}
-		/>
-	);
+	return <ScheduleDetailsPage loaderData={loaderData} scheduleId={backupId} initialSnapshotId={search.snapshot} />;
 }

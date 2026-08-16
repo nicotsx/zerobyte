@@ -24,6 +24,7 @@ import { StatusDot } from "~/client/components/status-dot";
 import { EmptyState } from "~/client/components/empty-state";
 import { useNavigate } from "@tanstack/react-router";
 import type { RepositoryBackend } from "@zerobyte/core/restic";
+import { useCookieState } from "~/client/hooks/use-cookie-state";
 
 type RepositoryRow = {
 	id: string;
@@ -37,7 +38,9 @@ type RepositoryRow = {
 const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 	{
 		accessorKey: "name",
-		header: ({ column }) => <DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />,
+		header: ({ column }) => (
+			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
+		),
 		cell: ({ row }) => (
 			<div className="flex items-center gap-2">
 				<span>{row.original.name}</span>
@@ -78,7 +81,13 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 		),
 		cell: ({ row }) => (
 			<StatusDot
-				variant={row.original.status === "healthy" ? "success" : row.original.status === "error" ? "error" : "warning"}
+				variant={
+					row.original.status === "healthy"
+						? "success"
+						: row.original.status === "error"
+							? "error"
+							: "warning"
+				}
 				label={row.original.status || "unknown"}
 			/>
 		),
@@ -87,9 +96,11 @@ const repositoryColumns: ColumnDef<RepositoryRow>[] = [
 	},
 ];
 
+const defaultRepositorySorting: SortingState = [{ id: "name", desc: false }];
+
 export function RepositoriesPage() {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-	const [sorting, setSorting] = useState<SortingState>([{ id: "name", desc: false }]);
+	const [sorting, setSorting] = useCookieState("sorting_repositories", defaultRepositorySorting);
 
 	const navigate = useNavigate();
 
@@ -193,7 +204,9 @@ export function RepositoriesPage() {
 											"text-center": header.column.id === "status",
 										})}
 									>
-										{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+										{header.isPlaceholder
+											? null
+											: flexRender(header.column.columnDef.header, header.getContext())}
 									</TableHead>
 								))}
 							</TableRow>
