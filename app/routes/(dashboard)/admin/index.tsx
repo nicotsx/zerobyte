@@ -1,34 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
-import { fetchUser } from "../route";
-import type { AppContext } from "~/context";
-import { AdminPage } from "~/client/modules/admin/routes/admin-page";
-import { getAdminUsersOptions, getRegistrationStatusOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export const Route = createFileRoute("/(dashboard)/admin/")({
-	validateSearch: z.object({ tab: z.string().optional() }),
-	component: RouteComponent,
-	errorComponent: () => <div>Failed to load admin</div>,
-	loader: async ({ context }) => {
-		const authContext = await fetchUser();
-
-		if (!context.permissions["instanceAdministration.view"]) {
-			throw redirect({ to: "/settings" });
-		}
-
-		await Promise.all([
-			context.queryClient.ensureQueryData({ ...getAdminUsersOptions() }),
-			context.queryClient.ensureQueryData({ ...getRegistrationStatusOptions() }),
-		]);
-
-		return authContext as AppContext;
-	},
-	staticData: {
-		breadcrumb: () => [{ label: "Administration" }],
+	validateSearch: z.object({ tab: z.enum(["users", "system"]).optional() }),
+	loader: () => {
+		throw redirect({ to: "/settings", search: { scope: "instance" } });
 	},
 });
-
-function RouteComponent() {
-	const appContext = Route.useLoaderData();
-	return <AdminPage appContext={appContext} />;
-}

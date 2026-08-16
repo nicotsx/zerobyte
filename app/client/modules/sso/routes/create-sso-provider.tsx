@@ -88,7 +88,7 @@ export function CreateSsoProviderPage() {
 		},
 		onSuccess: () => {
 			toast.success("SSO provider registered successfully");
-			void navigate({ to: "/settings", search: { tab: "organization" } });
+			void navigate({ to: "/settings", search: { scope: "organization" } });
 		},
 		onError: (error) => {
 			toast.error("Failed to register provider", { description: error.message });
@@ -121,7 +121,11 @@ export function CreateSsoProviderPage() {
 										<FormItem>
 											<FormLabel>Provider ID</FormLabel>
 											<FormControl>
-												<Input {...field} placeholder="acme-oidc" disabled={registerProvider.isPending} />
+												<Input
+													{...field}
+													placeholder="acme-oidc"
+													disabled={registerProvider.isPending}
+												/>
 											</FormControl>
 											<FormDescription>Unique identifier used in callback URLs.</FormDescription>
 											<FormMessage />
@@ -136,7 +140,11 @@ export function CreateSsoProviderPage() {
 										<FormItem>
 											<FormLabel>Organization Domain</FormLabel>
 											<FormControl>
-												<Input {...field} placeholder="example.com" disabled={registerProvider.isPending} />
+												<Input
+													{...field}
+													placeholder="example.com"
+													disabled={registerProvider.isPending}
+												/>
 											</FormControl>
 											<FormDescription>Used to discover providers during login.</FormDescription>
 											<FormMessage />
@@ -151,7 +159,11 @@ export function CreateSsoProviderPage() {
 										<FormItem>
 											<FormLabel>Issuer URL</FormLabel>
 											<FormControl>
-												<Input {...field} placeholder="https://idp.example.com" disabled={registerProvider.isPending} />
+												<Input
+													{...field}
+													placeholder="https://idp.example.com"
+													disabled={registerProvider.isPending}
+												/>
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -183,7 +195,11 @@ export function CreateSsoProviderPage() {
 										<FormItem>
 											<FormLabel>Client ID</FormLabel>
 											<FormControl>
-												<Input {...field} placeholder="oidc-client-id" disabled={registerProvider.isPending} />
+												<Input
+													{...field}
+													placeholder="oidc-client-id"
+													disabled={registerProvider.isPending}
+												/>
 											</FormControl>
 											<FormMessage />
 										</FormItem>
@@ -219,8 +235,8 @@ export function CreateSsoProviderPage() {
 											<div className="space-y-1">
 												<FormLabel>Link matching emails to existing accounts</FormLabel>
 												<FormDescription>
-													If enabled, users who sign in with this provider will automatically access their existing
-													account when the email address matches.
+													If enabled, users who sign in with this provider will automatically
+													access their existing account when the email address matches.
 												</FormDescription>
 											</div>
 											<FormControl>
@@ -242,7 +258,7 @@ export function CreateSsoProviderPage() {
 						<Button
 							type="button"
 							variant="secondary"
-							onClick={() => void navigate({ to: "/settings", search: { tab: "organization" } })}
+							onClick={() => void navigate({ to: "/settings", search: { scope: "organization" } })}
 						>
 							Cancel
 						</Button>
