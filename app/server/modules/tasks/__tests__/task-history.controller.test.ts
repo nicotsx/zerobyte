@@ -88,6 +88,97 @@ beforeEach(async () => {
 });
 
 describe("task history", () => {
+	test("presents retention tasks against their backup schedule", async () => {
+		const task = taskStore.create({
+			id: "retention-task",
+			organizationId: session.organizationId,
+			resourceType: "backup_schedule",
+			resourceId: "daily-backup",
+			targetDisplayName: "Daily backup",
+			operationKey: "archive-repository",
+			input: {
+				kind: "forget",
+				scheduleId: 42,
+				scheduleShortId: "daily-backup",
+				repositoryId: "archive-repository",
+				retentionPolicy: { keepDaily: 7 },
+				trigger: "postBackup",
+			},
+		});
+		taskStore.markRunning(task.id);
+		taskStore.complete(task.id, { kind: "forget" });
+
+		const response = await app.request("/api/v1/tasks/history?kind=forget", {
+			headers: session.headers,
+		});
+
+		expect(response.status).toBe(200);
+		const history = await response.json();
+		expect(history.items).toEqual([
+			expect.objectContaining({
+				id: task.id,
+				kind: "forget",
+				outcome: "success",
+				target: {
+					kind: "backupSchedule",
+					label: "Daily backup",
+					secondary: null,
+					scheduleShortId: "daily-backup",
+				},
+			}),
+		]);
+	});
+
+	test("presents retention tasks persisted before policies were stored in task input", async () => {
+		const task = taskStore.create({
+			id: "legacy-retention-task",
+			organizationId: session.organizationId,
+			resourceType: "backup_schedule",
+			resourceId: "daily-backup",
+			targetDisplayName: "Daily backup",
+			operationKey: "archive-repository",
+			input: {
+				kind: "forget",
+				scheduleId: 42,
+				scheduleShortId: "daily-backup",
+				repositoryId: "archive-repository",
+				retentionPolicy: { keepDaily: 7 },
+				trigger: "postBackup",
+			},
+		});
+		taskStore.markRunning(task.id);
+		taskStore.complete(task.id, { kind: "forget" });
+		db.update(tasksTable)
+			.set({
+				input: {
+					kind: "forget",
+					scheduleId: 42,
+					scheduleShortId: "daily-backup",
+					repositoryId: "archive-repository",
+					trigger: "postBackup",
+				},
+			})
+			.where(eq(tasksTable.id, task.id))
+			.run();
+
+		const response = await app.request("/api/v1/tasks/history?kind=forget", {
+			headers: session.headers,
+		});
+
+		expect(response.status).toBe(200);
+		const history = await response.json();
+		expect(history.items).toEqual([
+			expect.objectContaining({
+				id: task.id,
+				kind: "forget",
+				target: expect.objectContaining({
+					kind: "backupSchedule",
+					scheduleShortId: "daily-backup",
+				}),
+			}),
+		]);
+	});
+
 	test("isolates history by organization without changing the active task endpoint", async () => {
 		const otherSession = await createTestSession();
 		const visible = createRepositoryTask(session.organizationId, "visible-task");

@@ -291,6 +291,7 @@ export type {
 	RunBackupNowResponse,
 	RunBackupNowResponses,
 	RunForgetData,
+	RunForgetErrors,
 	RunForgetResponse,
 	RunForgetResponses,
 	SetPasswordLoginStatusData,

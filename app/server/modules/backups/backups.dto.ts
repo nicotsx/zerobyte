@@ -4,17 +4,8 @@ import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
 import { COMPRESSION_MODES } from "@zerobyte/core/restic";
 import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
 import { finishedTaskStatusSchema } from "~/schemas/tasks";
+import { retentionPolicySchema } from "~/schemas/retention";
 import { repositorySchema } from "../repositories/repositories.dto";
-
-const retentionPolicySchema = z.object({
-	keepLast: z.number().optional(),
-	keepHourly: z.number().optional(),
-	keepDaily: z.number().optional(),
-	keepWeekly: z.number().optional(),
-	keepMonthly: z.number().optional(),
-	keepYearly: z.number().optional(),
-	keepWithinDuration: z.string().optional(),
-});
 
 const backupScheduleSchema = z.object({
 	id: z.number(),
@@ -265,7 +256,8 @@ export const runBackupNowDto = describeRoute({
 });
 
 const runForgetResponse = z.object({
-	success: z.boolean(),
+	taskId: z.string(),
+	status: z.literal("started"),
 });
 
 export type RunForgetDto = z.infer<typeof runForgetResponse>;
@@ -275,13 +267,16 @@ export const runForgetDto = describeRoute({
 	operationId: "runForget",
 	tags: ["Backups"],
 	responses: {
-		200: {
-			description: "Retention policy applied successfully",
+		202: {
+			description: "Retention task started successfully",
 			content: {
 				"application/json": {
 					schema: resolver(runForgetResponse),
 				},
 			},
+		},
+		409: {
+			description: "Retention policy is already being applied",
 		},
 	},
 });

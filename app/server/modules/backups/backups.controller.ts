@@ -104,9 +104,9 @@ export const backupScheduleController = new Hono()
 	.post("/:shortId/forget", runForgetDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const schedule = await getScheduleByIdOrShortId(shortId);
-		await backupsService.runForget(schedule.id);
+		const result = await backupsService.runForget(schedule.id);
 
-		return c.json<RunForgetDto>({ success: true }, 200);
+		return c.json<RunForgetDto>(result, 202);
 	})
 	.get("/:shortId/notifications", getScheduleNotificationsDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

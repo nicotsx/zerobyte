@@ -96,8 +96,8 @@ export const ScheduleSummary = (props: Props) => {
 	const handleConfirmForget = () => {
 		setShowForgetConfirm(false);
 		toast.promise(runForget.mutateAsync({ path: { shortId: schedule.shortId } }), {
-			loading: "Running cleanup...",
-			success: "Retention policy applied successfully",
+			loading: "Starting cleanup...",
+			success: "Retention cleanup started",
 		});
 	};
 

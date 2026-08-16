@@ -6,11 +6,20 @@ import {
 	restoreProgressSchema,
 } from "@zerobyte/core/restic";
 import { z } from "zod";
+import { retentionPolicySchema } from "./retention";
 
 export const taskStatuses = ["queued", "running", "cancelling", "cancelled", "succeeded", "failed", "stale"] as const;
 export const activeTaskStatuses = ["queued", "running", "cancelling"] as const;
 export const finishedTaskStatuses = ["cancelled", "succeeded", "failed", "stale"] as const;
-export const taskKinds = ["backup", "restore", "deleteSnapshots", "tagSnapshots", "doctor", "mirrorSync"] as const;
+export const taskKinds = [
+	"backup",
+	"restore",
+	"deleteSnapshots",
+	"tagSnapshots",
+	"doctor",
+	"mirrorSync",
+	"forget",
+] as const;
 export const taskOutcomes = ["success", "warning", "error", "cancelled", "stale"] as const;
 export const TASK_PERSISTENCE_FORMAT_VERSION = 1 as const;
 
@@ -21,6 +30,15 @@ export const taskKindSchema = z.enum(taskKinds);
 export const taskOutcomeSchema = z.enum(taskOutcomes);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 export const mirrorSyncPhaseSchema = z.enum(["preparing", "copying", "retention"]);
+
+const forgetTaskInputSchema = z.object({
+	kind: z.literal("forget"),
+	scheduleId: z.number(),
+	scheduleShortId: z.string(),
+	repositoryId: z.string(),
+	retentionPolicy: retentionPolicySchema,
+	trigger: z.enum(["manual", "postBackup"]),
+});
 
 export const taskInputSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -60,7 +78,11 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		mirrorRepositoryId: z.string(),
 		snapshotIds: z.array(z.string()).optional(),
 	}),
+	forgetTaskInputSchema,
 ]);
+
+const legacyForgetTaskInputSchema = forgetTaskInputSchema.omit({ retentionPolicy: true });
+const persistedTaskInputSchema = z.union([taskInputSchema, legacyForgetTaskInputSchema]);
 
 export const taskProgressSchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -107,6 +129,9 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 	z.object({
 		kind: z.literal("mirrorSync"),
 	}),
+	z.object({
+		kind: z.literal("forget"),
+	}),
 ]);
 
 const taskShape = {
@@ -132,7 +157,12 @@ const taskShape = {
 };
 
 const validateTaskPayloadKinds = (
-	task: Pick<z.infer<z.ZodObject<typeof taskShape>>, "kind" | "input" | "progress" | "result">,
+	task: {
+		kind: string;
+		input: { kind: string };
+		progress: { kind: string } | null;
+		result: { kind: string } | null;
+	},
 	ctx: z.RefinementCtx,
 ) => {
 	if (task.kind !== task.input.kind) {
@@ -161,13 +191,13 @@ const validateTaskPayloadKinds = (
 };
 
 export const taskSchema = z.object(taskShape).superRefine(validateTaskPayloadKinds);
-export const persistedTaskSchema = z
-	.object({
-		...taskShape,
-		persistenceFormatVersion: z.literal(TASK_PERSISTENCE_FORMAT_VERSION),
-		targetDisplayName: z.string(),
-	})
-	.superRefine(validateTaskPayloadKinds);
+const persistedTaskShape = {
+	...taskShape,
+	input: persistedTaskInputSchema,
+	persistenceFormatVersion: z.literal(TASK_PERSISTENCE_FORMAT_VERSION),
+	targetDisplayName: z.string(),
+};
+export const persistedTaskSchema = z.object(persistedTaskShape).superRefine(validateTaskPayloadKinds);
 
 const {
 	organizationId: _organizationId,

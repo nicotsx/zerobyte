@@ -7,6 +7,7 @@ import { toMessage } from "../../../utils/errors";
 import { createTaskProgressBuffer } from "../../tasks/progress-buffer";
 import { runTaskLifecycle, TaskCancelledError, TaskFailedError } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
+import { repositoriesService } from "../../repositories/repositories.service";
 import { backupExecutor } from "../backup-executor";
 import { calculateNextRun } from "../backup.helpers";
 import { scheduleQueries } from "../backups.queries";
@@ -18,6 +19,7 @@ import {
 	handleBackupFailure,
 	startPostBackupMirrorSyncs,
 } from "../helpers/backup-lifecycle";
+import { createForgetCommand } from "./forget-command";
 
 type BackupCommandParams = {
 	context: BackupContext;
@@ -25,6 +27,44 @@ type BackupCommandParams = {
 };
 
 type BackupTaskResult = Extract<TaskResult, { kind: "backup" }>;
+
+const runPostBackupMaintenance = async (ctx: BackupContext) => {
+	const scheduleId = ctx.schedule.id;
+	const retentionTask = await scheduleQueries
+		.findById(scheduleId, ctx.organizationId)
+		.then((schedule) => {
+			if (!schedule) {
+				throw new Error(`Backup schedule ${scheduleId} was not found after backup completion`);
+			}
+
+			const plan = {
+				organizationId: ctx.organizationId,
+				scheduleId: schedule.id,
+				scheduleShortId: schedule.shortId,
+				targetDisplayName: schedule.name,
+				repository: ctx.repository,
+				retentionPolicy: schedule.retentionPolicy,
+				trigger: "postBackup" as const,
+			};
+			return createForgetCommand(plan).start();
+		})
+		.catch((error) => {
+			logger.error(`Failed to start retention task for schedule ${scheduleId}: ${toMessage(error)}`);
+			return null;
+		});
+
+	if (retentionTask) {
+		return;
+	}
+
+	void repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
+		const repositoryShortId = ctx.repository.shortId;
+		const errorMessage = toMessage(error);
+		logger.error(
+			`Background repository stats refresh failed for schedule ${scheduleId} (${repositoryShortId}): ${errorMessage}`,
+		);
+	});
+};
 
 const executeBackup = async (
 	params: BackupCommandParams,
@@ -66,6 +106,7 @@ const executeBackup = async (
 				executionResult.result,
 				executionResult.warningDetails,
 			);
+			await runPostBackupMaintenance(ctx);
 			await startPostBackupMirrorSyncs(ctx, ctx.schedule.id, executionResult.result).catch((error) => {
 				logger.error(
 					`Post-backup mirror synchronization failed for schedule ${ctx.schedule.id}: ${toMessage(error)}`,

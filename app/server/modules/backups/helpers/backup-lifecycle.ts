@@ -8,12 +8,10 @@ import { notificationsService } from "../../notifications/notifications.service"
 import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
-import { repositoriesService } from "../../repositories/repositories.service";
 import { volumeService } from "../../volumes/volume.service";
 import { config } from "../../../core/config";
 import { LOCAL_AGENT_ID } from "../../agents/constants";
 import { commands } from "../commands";
-import { runForget } from "./backup-maintenance";
 
 export interface BackupContext {
 	schedule: BackupSchedule;
@@ -172,20 +170,6 @@ export async function startPostBackupMirrorSyncs(
 	}
 }
 
-async function runPostBackupMaintenance(ctx: BackupContext, scheduleId: number) {
-	if (ctx.schedule.retentionPolicy) {
-		await runForget(scheduleId, undefined, ctx.organizationId).catch((error) => {
-			logger.error(`Failed to run retention policy for schedule ${scheduleId}: ${toMessage(error)}`);
-		});
-	}
-
-	await repositoriesService.refreshRepositoryStats(ctx.repository.shortId).catch((error) => {
-		logger.error(
-			`Background repository stats refresh failed for schedule ${scheduleId} (${ctx.repository.shortId}): ${toMessage(error)}`,
-		);
-	});
-}
-
 export async function finalizeSuccessfulBackup(
 	ctx: BackupContext,
 	exitCode: number,
@@ -196,9 +180,6 @@ export async function finalizeSuccessfulBackup(
 	const finalStatus = exitCode === 0 && !warningDetails ? "success" : "warning";
 
 	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
-	void runPostBackupMaintenance(ctx, scheduleId).catch((error) => {
-		logger.error(`Post-backup maintenance failed for schedule ${scheduleId}: ${toMessage(error)}`);
-	});
 
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupAt: Date.now(),

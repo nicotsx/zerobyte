@@ -8,11 +8,10 @@ import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { db } from "../../db/db";
 import { backupScheduleMirrorsTable, backupScheduleNotificationsTable, backupSchedulesTable } from "../../db/schema";
 import { calculateNextRun, isValidCron } from "./backup.helpers";
-import { mirrorQueries, scheduleQueries } from "./backups.queries";
+import { mirrorQueries, repositoryQueries, scheduleQueries } from "./backups.queries";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
 import { handleValidationResult, validateBackupExecution } from "./helpers/backup-lifecycle";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
-import { runForget } from "./helpers/backup-maintenance";
 import { commands } from "./commands";
 import { createBackupCommand } from "./commands/backup-command";
 import { restic } from "../../core/restic";
@@ -622,6 +621,36 @@ const startMirrorSync = async (
 	};
 
 	return commands.createMirrorSync(plan).start();
+};
+
+const runForget = async (scheduleId: number, repositoryId?: string) => {
+	const organizationId = getOrganizationId();
+	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
+	if (!schedule) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	const retentionPolicy = schedule.retentionPolicy;
+	if (!retentionPolicy) {
+		throw new BadRequestError("No retention policy configured for this schedule");
+	}
+
+	const targetRepositoryId = repositoryId ?? schedule.repositoryId;
+	const repository = await repositoryQueries.findById(targetRepositoryId, organizationId);
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const plan = {
+		organizationId,
+		scheduleId: schedule.id,
+		scheduleShortId: schedule.shortId,
+		targetDisplayName: schedule.name,
+		repository,
+		retentionPolicy,
+		trigger: "manual" as const,
+	};
+	return commands.createForget(plan).start();
 };
 
 export const backupsService = {

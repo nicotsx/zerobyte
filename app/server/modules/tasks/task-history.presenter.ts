@@ -3,7 +3,10 @@ import type { ParsedTask, PersistedTask } from "~/schemas/tasks";
 import type { TaskHistoryItem, TaskHistoryTarget } from "./task-history.dto";
 
 const getTaskHistoryTarget = (task: PersistedTask): TaskHistoryTarget => {
-	if (task.resourceType === "backup_schedule" && (task.input.kind === "backup" || task.input.kind === "mirrorSync")) {
+	if (
+		task.resourceType === "backup_schedule" &&
+		(task.input.kind === "backup" || task.input.kind === "mirrorSync" || task.input.kind === "forget")
+	) {
 		return {
 			kind: "backupSchedule",
 			label: task.targetDisplayName,
@@ -35,14 +38,22 @@ const getTaskHistoryTarget = (task: PersistedTask): TaskHistoryTarget => {
 	return { kind: "unavailable", label: task.targetDisplayName, secondary: null };
 };
 
-const getDoctorIssueMessage = (task: ParsedTask) => {
+type TaskHistoryLifecycleSource = Pick<
+	ParsedTask,
+	"id" | "kind" | "status" | "outcome" | "result" | "error" | "startedAt" | "finishedAt"
+>;
+
+const getDoctorIssueMessage = (task: Pick<TaskHistoryLifecycleSource, "result">) => {
 	if (task.result?.kind !== "doctor") return null;
 	if (task.result.lastError) return task.result.lastError;
 
 	return task.result.doctorResult.steps.find((step) => !step.success && step.error)?.error ?? null;
 };
 
-const getTaskHistoryMessage = (task: ParsedTask, outcome: TaskHistoryOutcome | null) => {
+const getTaskHistoryMessage = (
+	task: Pick<TaskHistoryLifecycleSource, "error" | "result">,
+	outcome: TaskHistoryOutcome | null,
+) => {
 	if (task.error) {
 		return task.error;
 	}
@@ -62,7 +73,7 @@ const getTaskHistoryMessage = (task: ParsedTask, outcome: TaskHistoryOutcome | n
 	return null;
 };
 
-export const toTaskHistoryLifecycleItem = (task: ParsedTask): TaskHistoryLifecycleItem => {
+export const toTaskHistoryLifecycleItem = (task: TaskHistoryLifecycleSource): TaskHistoryLifecycleItem => {
 	const outcome = getTaskHistoryOutcome(task.status, task.outcome);
 
 	return {

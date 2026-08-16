@@ -4,7 +4,10 @@ import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
+import { repoMutex } from "~/server/core/repository-mutex";
+import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import waitForExpect from "wait-for-expect";
 
 const app = createApp();
 
@@ -168,6 +171,49 @@ describe("backups security", () => {
 			});
 
 			expect(res.status).toBe(400);
+		});
+	});
+
+	describe("retention policy", () => {
+		test("starts a retention task and rejects a duplicate active request", async () => {
+			const volume = await createTestVolume({ organizationId: session.organizationId });
+			const repository = await createTestRepository({ organizationId: session.organizationId });
+			const schedule = await createTestBackupSchedule({
+				organizationId: session.organizationId,
+				volumeId: volume.id,
+				repositoryId: repository.id,
+				retentionPolicy: { keepDaily: 7 },
+			});
+			const forgetPath = `/api/v1/backups/${schedule.shortId}/forget`;
+			const releaseLock = await repoMutex.acquireExclusive(repository.id, "controller-retention-task");
+
+			try {
+				const firstResponse = await app.request(forgetPath, {
+					method: "POST",
+					headers: session.headers,
+				});
+				expect(firstResponse.status).toBe(202);
+				const firstBody = await firstResponse.json();
+				expect(firstBody).toEqual({ taskId: expect.any(String), status: "started" });
+
+				await waitForExpect(() => {
+					const task = taskStore.findById({
+						organizationId: session.organizationId,
+						taskId: firstBody.taskId,
+					});
+					expect(task?.status).toBe("queued");
+				});
+
+				const duplicateResponse = await app.request(forgetPath, {
+					method: "POST",
+					headers: session.headers,
+				});
+				expect(duplicateResponse.status).toBe(409);
+
+				expect(requestTaskCancel(firstBody.taskId)).toBe(true);
+			} finally {
+				releaseLock();
+			}
 		});
 	});
 });

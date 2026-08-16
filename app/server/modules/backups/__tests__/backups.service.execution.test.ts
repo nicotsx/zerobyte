@@ -30,6 +30,7 @@ import { serverEvents } from "~/server/core/events";
 import { backupSchedulesTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
+import { createForgetCommand } from "../commands/forget-command";
 
 const eventListenerCleanups: Array<() => void> = [];
 
@@ -38,6 +39,16 @@ const setup = () => {
 		Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 	);
 	const resticForgetMock = vi.fn(() => Effect.succeed({ success: true, data: null }));
+	const resticStatsMock = vi.fn(() =>
+		Effect.succeed({
+			total_size: 0,
+			total_uncompressed_size: 0,
+			compression_ratio: 0,
+			compression_progress: 0,
+			compression_space_saving: 0,
+			snapshots_count: 0,
+		}),
+	);
 	const { runBackupMock, cancelBackupMock } = createAgentBackupMocks(resticBackupMock);
 	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
@@ -52,6 +63,7 @@ const setup = () => {
 
 	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
 	vi.spyOn(restic, "forget").mockImplementation(resticForgetMock);
+	vi.spyOn(restic, "stats").mockImplementation(resticStatsMock);
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
 	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(agentManager, "cancelBackup").mockImplementation(cancelBackupMock);
@@ -90,6 +102,7 @@ const setup = () => {
 		runBackupMock,
 		cancelBackupMock,
 		refreshStatsMock,
+		resticStatsMock,
 		ensureHealthyVolumeMock,
 	};
 };
@@ -1029,28 +1042,29 @@ describe("backup cancellation", () => {
 			expect(runBackupMock).toHaveBeenCalledTimes(1);
 		});
 
-		let forgetFinished = false;
-		const forgetPromise = backupsService.runForget(schedule.id).finally(() => {
-			forgetFinished = true;
-		});
+		const forgetStart = await backupsService.runForget(schedule.id);
+		expect(forgetStart).toMatchObject({ taskId: expect.any(String), status: "started" });
 
 		await new Promise((resolve) => setTimeout(resolve, 50));
 
 		expect(resticForgetMock).not.toHaveBeenCalled();
-		expect(forgetFinished).toBe(false);
+		const queuedForgetTask = taskStore.findById({
+			organizationId: TEST_ORG_ID,
+			taskId: forgetStart.taskId,
+		});
+		expect(queuedForgetTask?.status).toBe("queued");
 
 		expect(completeBackup).toBeDefined();
 		completeBackup?.();
 
 		await backupPromise;
-		await forgetPromise;
-
-		expect(resticForgetMock).toHaveBeenCalled();
-		expect(resticForgetMock).toHaveBeenCalledWith(
-			repository.config,
-			expect.objectContaining({ keepHourly: 24 }),
-			expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
-		);
+		await waitForExpect(() => {
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				repository.config,
+				expect.objectContaining({ keepHourly: 24 }),
+				expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+			);
+		});
 	});
 
 	test("supports cancellation through the generic task lifecycle", async () => {
@@ -1327,20 +1341,22 @@ describe("retention policy - runForget", () => {
 		await backupsService.runForget(schedule.id);
 
 		// assert
-		expect(resticForgetMock).toHaveBeenCalledWith(
-			repository.config,
-			expect.objectContaining({
-				keepHourly: 24,
-				keepDaily: 7,
-				keepWeekly: 4,
-				keepMonthly: 12,
-				keepYearly: 3,
-			}),
-			expect.objectContaining({
-				tag: schedule.shortId,
-				organizationId: TEST_ORG_ID,
-			}),
-		);
+		await waitForExpect(() => {
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				repository.config,
+				expect.objectContaining({
+					keepHourly: 24,
+					keepDaily: 7,
+					keepWeekly: 4,
+					keepMonthly: 12,
+					keepYearly: 3,
+				}),
+				expect.objectContaining({
+					tag: schedule.shortId,
+					organizationId: TEST_ORG_ID,
+				}),
+			);
+		});
 	});
 
 	test("should throw BadRequestError if no retention policy configured", async () => {
@@ -1377,5 +1393,171 @@ describe("retention policy - runForget", () => {
 		await expect(backupsService.runForget(schedule.id, "non-existent-repo")).rejects.toThrow(
 			"Repository not found",
 		);
+	});
+});
+
+describe("retention tasks after backup execution", () => {
+	test("should create a separate retention task after a successful backup", async () => {
+		const { resticForgetMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		let retentionTaskId: string | undefined;
+		await waitForExpect(async () => {
+			const retentionTask = await db.query.tasksTable.findFirst({
+				where: {
+					AND: [{ kind: "forget" }, { resourceId: schedule.shortId }],
+				},
+			});
+			retentionTaskId = retentionTask?.id;
+			expect(retentionTask).toMatchObject({
+				kind: "forget",
+				status: "succeeded",
+				resourceType: "backup_schedule",
+				resourceId: schedule.shortId,
+				input: expect.objectContaining({ trigger: "postBackup" }),
+			});
+		});
+
+		expect(retentionTaskId).toBeDefined();
+		expect(resticForgetMock).toHaveBeenCalledWith(
+			repository.config,
+			{ keepDaily: 7 },
+			expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+		);
+		const backupTask = await getBackupTaskForSchedule(schedule.id);
+		expect(backupTask?.id).not.toBe(retentionTaskId);
+		expect(backupTask?.status).toBe("succeeded");
+	});
+
+	test("should use the latest retention policy when a backup finishes", async () => {
+		const { resticBackupMock, resticForgetMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+		const latestRetentionPolicy = { keepLast: 3 };
+
+		resticBackupMock.mockImplementationOnce(async () => {
+			await db
+				.update(backupSchedulesTable)
+				.set({ retentionPolicy: latestRetentionPolicy })
+				.where(eq(backupSchedulesTable.id, schedule.id));
+			return { exitCode: 0, summary: generateBackupOutput(), error: "" };
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				repository.config,
+				latestRetentionPolicy,
+				expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+			);
+		});
+		expect(resticForgetMock).toHaveBeenCalledTimes(1);
+	});
+
+	test("applies the latest retention policy to the repository used by the completed backup", async () => {
+		const { resticBackupMock, resticForgetMock } = setup();
+		const volume = await createTestVolume();
+		const backupRepository = await createTestRepository();
+		const replacementRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: backupRepository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+		const latestRetentionPolicy = { keepLast: 3 };
+
+		resticBackupMock.mockImplementationOnce(async () => {
+			await db
+				.update(backupSchedulesTable)
+				.set({ repositoryId: replacementRepository.id, retentionPolicy: latestRetentionPolicy })
+				.where(eq(backupSchedulesTable.id, schedule.id));
+			return { exitCode: 0, summary: generateBackupOutput(), error: "" };
+		});
+
+		await backupsService.executeBackup(schedule.id);
+
+		await waitForExpect(() => {
+			expect(resticForgetMock).toHaveBeenCalledWith(
+				backupRepository.config,
+				latestRetentionPolicy,
+				expect.objectContaining({ tag: schedule.shortId, organizationId: TEST_ORG_ID }),
+			);
+		});
+		expect(resticForgetMock).toHaveBeenCalledTimes(1);
+	});
+
+	test("refreshes repository stats once when the latest policy cancels a queued retention task", async () => {
+		const { resticBackupMock, resticForgetMock, resticStatsMock, refreshStatsMock } = setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+		let completeBackup: (() => void) | undefined;
+		const backupCompletion = new Promise<void>((resolve) => {
+			completeBackup = resolve;
+		});
+
+		resticBackupMock.mockImplementationOnce(async () => {
+			await backupCompletion;
+			await db
+				.update(backupSchedulesTable)
+				.set({ retentionPolicy: null })
+				.where(eq(backupSchedulesTable.id, schedule.id));
+			return { exitCode: 0, summary: generateBackupOutput(), error: "" };
+		});
+
+		const backupExecution = backupsService.executeBackup(schedule.id);
+		await waitForExpect(() => {
+			expect(resticBackupMock).toHaveBeenCalledTimes(1);
+		});
+
+		const manualRetentionTask = createForgetCommand({
+			organizationId: TEST_ORG_ID,
+			scheduleId: schedule.id,
+			scheduleShortId: schedule.shortId,
+			targetDisplayName: schedule.name,
+			repository,
+			retentionPolicy: { keepDaily: 7 },
+			trigger: "manual",
+		}).start();
+		await waitForExpect(() => {
+			const task = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: manualRetentionTask.taskId,
+			});
+			expect(task?.status).toBe("queued");
+		});
+
+		expect(completeBackup).toBeDefined();
+		completeBackup?.();
+		await backupExecution;
+
+		await waitForExpect(() => {
+			const task = taskStore.findById({
+				organizationId: TEST_ORG_ID,
+				taskId: manualRetentionTask.taskId,
+			});
+			expect(task?.status).toBe("cancelled");
+			expect(resticStatsMock).toHaveBeenCalledTimes(1);
+		});
+		expect(resticForgetMock).not.toHaveBeenCalled();
+		expect(refreshStatsMock).not.toHaveBeenCalled();
 	});
 });
