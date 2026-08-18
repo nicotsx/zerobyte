@@ -13,8 +13,6 @@ import {
 
 type DeleteSnapshotsTask = TaskOfKind<"deleteSnapshots">;
 
-const emptyDeletingSnapshotIds = new Set<string>();
-
 const deleteSnapshotTasksFilter = (repositoryId: string) => {
 	return {
 		kind: "deleteSnapshots",
@@ -53,8 +51,7 @@ const applyDeleteSnapshotsTaskFinished = (queryClient: QueryClient, task: Delete
 };
 
 export const deleteSnapshotTasksOptions = (repositoryId: string) => {
-	const filter = deleteSnapshotTasksFilter(repositoryId);
-	return taskEventsOptions(filter);
+	return taskEventsOptions(deleteSnapshotTasksFilter(repositoryId));
 };
 
 export const useDeletingSnapshots = (repositoryId: string) => {
@@ -65,10 +62,6 @@ export const useDeletingSnapshots = (repositoryId: string) => {
 	});
 
 	const deletingSnapshotIds = useMemo(() => {
-		if (!deleteTasks.data) {
-			return emptyDeletingSnapshotIds;
-		}
-
 		const snapshotIds = new Set<string>();
 		for (const task of deleteTasks.data) {
 			for (const snapshotId of task.input.snapshotIds) {

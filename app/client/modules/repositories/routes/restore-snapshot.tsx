@@ -1,6 +1,5 @@
 import { RestoreForm } from "~/client/components/restore-form";
 import type { Repository } from "~/client/lib/types";
-import type { RestoreTask } from "~/client/modules/repositories/restore-tasks";
 
 type Props = {
 	repository: Repository;
@@ -10,7 +9,6 @@ type Props = {
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
-	initialActiveTask?: RestoreTask | null;
 };
 
 export function RestoreSnapshotPage(props: Props) {
@@ -22,7 +20,6 @@ export function RestoreSnapshotPage(props: Props) {
 		displayBasePath,
 		hasNonPosixSnapshotPaths,
 		volumeReadOnly,
-		initialActiveTask,
 	} = props;
 
 	return (
@@ -35,7 +32,6 @@ export function RestoreSnapshotPage(props: Props) {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
-			initialActiveTask={initialActiveTask}
 		/>
 	);
 }

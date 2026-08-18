@@ -45,7 +45,7 @@ export const streamEvents = <
 			if (cleanedUp) return;
 			cleanedUp = true;
 
-			c.req.raw.signal.removeEventListener("abort", onRequestAbort);
+			c.req.raw.signal.removeEventListener("abort", handleDisconnect);
 			for (const unsubscribe of unsubscribers) {
 				unsubscribe();
 			}
@@ -58,13 +58,8 @@ export const streamEvents = <
 			cleanup();
 		}
 
-		function onRequestAbort() {
-			handleDisconnect();
-			stream.abort();
-		}
-
 		stream.onAbort(handleDisconnect);
-		c.req.raw.signal.addEventListener("abort", onRequestAbort, { once: true });
+		c.req.raw.signal.addEventListener("abort", handleDisconnect, { once: true });
 
 		try {
 			await stream.writeSSE({

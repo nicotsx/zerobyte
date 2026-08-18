@@ -154,6 +154,22 @@ export function AppSidebar() {
 	const mainPanelInert = isSettingsMode;
 	const settingsPanelInert = !isSettingsMode;
 	const settingsPanelPosition = isSettingsMode ? "translate-x-0" : "translate-x-full";
+	const versionButton = (
+		<button
+			type="button"
+			onClick={handleVersionCheck}
+			className={cn(footerActionClassName, {
+				"text-destructive hover:text-destructive": hasUpdate,
+			})}
+			disabled={isFetching}
+			aria-label={versionCheckLabel}
+		>
+			<RefreshCw className={cn("size-4", { "animate-spin": isFetching })} />
+			{hasUpdate && (
+				<span aria-hidden="true" className="absolute top-2 right-2 size-1.5 rounded-full bg-destructive" />
+			)}
+		</button>
+	);
 
 	return (
 		<Sidebar variant="inset" collapsible="icon" className="p-0">
@@ -209,59 +225,45 @@ export function AppSidebar() {
 								</TooltipTrigger>
 								<TooltipContent side={footerOverlaySide}>Settings</TooltipContent>
 							</Tooltip>
-							<HoverCard openDelay={200}>
-								<HoverCardTrigger asChild>
-									<button
-										type="button"
-										onClick={handleVersionCheck}
-										className={cn(footerActionClassName, {
-											"text-destructive hover:text-destructive": hasUpdate,
-										})}
-										disabled={isFetching}
-										aria-label={versionCheckLabel}
-									>
-										<RefreshCw className={cn("size-4", { "animate-spin": isFetching })} />
-										{hasUpdate && (
-											<span
-												aria-hidden="true"
-												className="absolute top-2 right-2 size-1.5 rounded-full bg-destructive"
-											/>
-										)}
-									</button>
-								</HoverCardTrigger>
-								<HoverCardContent side={footerOverlaySide} align="end" className="w-fit p-3">
-									<div className="flex flex-col gap-2">
-										<div className="flex items-center justify-between gap-6 text-xs">
-											<a
-												href={releaseUrl}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="font-medium hover:underline"
-											>
-												Zerobyte {displayVersion}
-											</a>
-											<span
-												className={cn("text-muted-foreground", {
-													"text-destructive": hasUpdate,
-												})}
-											>
-												{versionCheckStatus}
+							{isMobile ? (
+								versionButton
+							) : (
+								<HoverCard openDelay={200}>
+									<HoverCardTrigger asChild>{versionButton}</HoverCardTrigger>
+									<HoverCardContent side={footerOverlaySide} align="end" className="w-fit p-3">
+										<div className="flex flex-col gap-2">
+											<div className="flex items-center justify-between gap-6 text-xs">
+												<a
+													href={releaseUrl}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="font-medium hover:underline"
+												>
+													Zerobyte {displayVersion}
+												</a>
+												<span
+													className={cn("text-muted-foreground", {
+														"text-destructive": hasUpdate,
+													})}
+												>
+													{versionCheckStatus}
+												</span>
+											</div>
+											<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-2 text-[11px]">
+												<span className="text-muted-foreground">Restic:</span>
+												<span className="font-mono">{RESTIC_VERSION}</span>
+												<span className="text-muted-foreground">Rclone:</span>
+												<span className="font-mono">{RCLONE_VERSION}</span>
+												<span className="text-muted-foreground">Shoutrrr:</span>
+												<span className="font-mono">{SHOUTRRR_VERSION}</span>
+											</div>
+											<span className="text-[10px] text-muted-foreground">
+												{hasUpdate ? "Open release notes" : "Click to check for updates"}
 											</span>
 										</div>
-										<div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-t pt-2 text-[11px]">
-											<span className="text-muted-foreground">Restic:</span>
-											<span className="font-mono">{RESTIC_VERSION}</span>
-											<span className="text-muted-foreground">Rclone:</span>
-											<span className="font-mono">{RCLONE_VERSION}</span>
-											<span className="text-muted-foreground">Shoutrrr:</span>
-											<span className="font-mono">{SHOUTRRR_VERSION}</span>
-										</div>
-										<span className="text-[10px] text-muted-foreground">
-											{hasUpdate ? "Open release notes" : "Click to check for updates"}
-										</span>
-									</div>
-								</HoverCardContent>
-							</HoverCard>
+									</HoverCardContent>
+								</HoverCard>
+							)}
 						</div>
 					</SidebarFooter>
 				</div>

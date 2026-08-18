@@ -1,6 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { logger } from "~/client/lib/logger";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
 
 type ServerEventType = keyof ServerEventPayloadMap;
@@ -22,8 +21,6 @@ type ServerEventEffectMap = {
 	[K in ServerEventType]?: ServerEventEffect<K>;
 };
 
-const isAbortError = (error: unknown): error is Error => error instanceof Error && error.name === "AbortError";
-
 const serverEventEffects: ServerEventEffectMap = {
 	"task:history-changed": { invalidateQueries: true },
 	"volume:updated": { invalidateQueries: true },
@@ -35,12 +32,8 @@ const getServerEventEffect = <T extends ServerEventType>(eventName: T): ServerEv
 	return serverEventEffects[eventName] as ServerEventEffect<T> | undefined;
 };
 
-export const invalidateServerEventQueries = (queryClient: QueryClient, eventName: ServerEventType | "connected") => {
-	void queryClient.invalidateQueries().catch((error) => {
-		if (!isAbortError(error)) {
-			logger.error(`[SSE] Failed to refresh queries after ${eventName}:`, error);
-		}
-	});
+export const invalidateServerEventQueries = (queryClient: QueryClient) => {
+	void queryClient.invalidateQueries(undefined, { cancelRefetch: false });
 };
 
 const invalidateQueriesForEvent = (queryClient: QueryClient, eventName: ServerEventType) => {
@@ -49,7 +42,7 @@ const invalidateQueriesForEvent = (queryClient: QueryClient, eventName: ServerEv
 		return;
 	}
 
-	invalidateServerEventQueries(queryClient, eventName);
+	invalidateServerEventQueries(queryClient);
 };
 
 const updateQueriesForEvent = <T extends ServerEventType>(

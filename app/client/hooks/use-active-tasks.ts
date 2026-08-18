@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import type { ListTasksData, ListTasksResponse } from "~/client/api-client";
-import { getTaskOptions, listTasksOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { queryOptions, useQueryClient, useSuspenseQuery, type UseSuspenseQueryResult } from "@tanstack/react-query";
+import { listTasks, type ListTasksData, type ListTasksResponse } from "~/client/api-client";
+import { getTaskOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { logger } from "~/client/lib/logger";
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import { activeTaskStatuses, type TaskDto, type TaskKind } from "~/schemas/tasks";
@@ -17,7 +17,6 @@ export type TaskOfKind<K extends TaskKind> = TaskDto & {
 type TaskForQuery<Q extends TaskEventsQuery> = Q extends { kind: infer K extends TaskKind } ? TaskOfKind<K> : TaskDto;
 
 type UseActiveTasksOptions<Q extends TaskEventsQuery> = {
-	initialTasks?: TaskForQuery<Q>[];
 	onTaskActivity?: (task: TaskForQuery<Q>) => void;
 	onTaskFinished?: (task: TaskForQuery<Q>) => void;
 	onTasksSnapshot?: (tasks: TaskForQuery<Q>[]) => void;
@@ -70,7 +69,26 @@ const hasTaskFinished = (finishedTasks: Map<string, TaskDto>, task: TaskDto) => 
 };
 
 export const taskEventsOptions = (query: TaskEventsQuery) => {
-	return listTasksOptions({ query });
+	const kind = query.kind ?? null;
+	const resourceType = query.resourceType ?? null;
+	const resourceId = query.resourceId ?? null;
+	const operationKey = query.operationKey ?? null;
+	const queryKeyFilter = { kind, resourceType, resourceId, operationKey };
+	const requestQuery = {
+		kind: query.kind,
+		resourceType: query.resourceType,
+		resourceId: query.resourceId,
+		operationKey: query.operationKey,
+	} satisfies TaskEventsQuery;
+
+	return queryOptions({
+		queryKey: ["active-tasks", queryKeyFilter] as const,
+		queryFn: async ({ signal }) => {
+			const response = await listTasks({ query: requestQuery, signal, throwOnError: true });
+			return response.data;
+		},
+		staleTime: "static",
+	});
 };
 
 export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, options: UseActiveTasksOptions<Q> = {}) => {
@@ -108,11 +126,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 	const taskQueryKeyRef = useRef(taskListOptions.queryKey);
 	taskQueryKeyRef.current = taskListOptions.queryKey;
 
-	const tasks = useQuery({
-		...taskListOptions,
-		enabled: false,
-		initialData: options.initialTasks,
-	});
+	const tasks = useSuspenseQuery(taskListOptions);
 
 	useEffect(() => {
 		const finishTask = (task: TaskDto) => {
@@ -197,5 +211,5 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 		};
 	}, [queryClient, taskEventsUrl]);
 
-	return tasks as UseQueryResult<TaskForQuery<Q>[]>;
+	return tasks as UseSuspenseQueryResult<TaskForQuery<Q>[]>;
 };

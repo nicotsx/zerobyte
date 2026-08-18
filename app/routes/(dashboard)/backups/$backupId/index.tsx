@@ -8,9 +8,10 @@ import {
 	listRepositoriesOptions,
 	listSnapshotsOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { backupTasksOptions } from "~/client/modules/backups/backup-tasks";
+import { mirrorSyncTasksOptions } from "~/client/modules/backups/mirror-tasks";
 import { ScheduleDetailsPage } from "~/client/modules/backups/routes/backup-details";
 import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
-import { backupTasksOptions } from "~/client/modules/backups/backup-tasks";
 import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
@@ -19,6 +20,8 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 	validateSearch: z.object({ snapshot: z.string().optional() }),
 	loader: async ({ params, context }) => {
 		const { backupId } = params;
+		const activeBackupTasksOptions = backupTasksOptions(backupId);
+		const activeMirrorSyncTasksOptions = mirrorSyncTasksOptions(backupId);
 
 		const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
 			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
@@ -28,6 +31,8 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 				...getScheduleNotificationsOptions({ path: { shortId: backupId } }),
 			}),
 			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
+			context.queryClient.ensureQueryData(activeBackupTasksOptions),
+			context.queryClient.ensureQueryData(activeMirrorSyncTasksOptions),
 		]);
 
 		const snapshotOptions = listSnapshotsOptions({
@@ -35,11 +40,9 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 			query: { backupId: schedule.shortId },
 		});
 		const deleteTasksOptions = deleteSnapshotTasksOptions(schedule.repository.shortId);
-
 		await Promise.all([
 			prefetchOrSkip(context.queryClient, snapshotOptions),
 			context.queryClient.ensureQueryData(deleteTasksOptions),
-			context.queryClient.ensureQueryData(backupTasksOptions(schedule.shortId)),
 		]);
 
 		return {

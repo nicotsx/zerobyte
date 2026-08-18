@@ -48,7 +48,7 @@ export const useRepositoryDoctorTask = (repositoryId: string) => {
 	const doctorTasks = useActiveTasks(doctorTasksFilter(repositoryId), {
 		onTaskFinished: applyDoctorTaskFinished,
 	});
-	const activeDoctorTask = doctorTasks.data?.[0] ?? null;
+	const activeDoctorTask = doctorTasks.data[0] ?? null;
 
 	return {
 		activeDoctorTask,
