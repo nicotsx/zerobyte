@@ -7,9 +7,9 @@ import {
 	listSnapshotsOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { doctorTasksOptions } from "~/client/modules/repositories/doctor-tasks";
+import RepositoryDetailsPage from "~/client/modules/repositories/routes/repository-details";
 import { deleteSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { tagSnapshotTasksOptions } from "~/client/modules/repositories/snapshots/tag-tasks";
-import RepositoryDetailsPage from "~/client/modules/repositories/routes/repository-details";
 import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")({

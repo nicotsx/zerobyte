@@ -19,12 +19,11 @@ export function getRouter() {
 			},
 		},
 		mutationCache: new MutationCache({
-			onSuccess: () => {
-				void queryClient.invalidateQueries();
-			},
 			onError: (error) => {
 				logger.error("Mutation error:", error);
-				void queryClient.invalidateQueries();
+			},
+			onSettled: (_data, _error, _variables, _onMutateResult, _mutation, context) => {
+				void context.client.invalidateQueries(undefined, { cancelRefetch: false });
 			},
 		}),
 	});

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import { getActiveRestoreTask, restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
+import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
 import { findCommonAncestor } from "@zerobyte/core/utils";
@@ -10,8 +10,8 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 	component: RouteComponent,
 	errorComponent: (e) => <div>{e.error.message}</div>,
 	loader: async ({ params, context }) => {
-		const restoreTaskOptions = restoreTasksOptions(params.repositoryId, params.snapshotId);
-		const [snapshot, repository, activeRestoreTasks] = await Promise.all([
+		const activeRestoreTasksOptions = restoreTasksOptions(params.repositoryId, params.snapshotId);
+		const [snapshot, repository] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({
 					path: { shortId: params.repositoryId, snapshotId: params.snapshotId },
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			context.queryClient.ensureQueryData({
 				...getRepositoryOptions({ path: { shortId: params.repositoryId } }),
 			}),
-			context.queryClient.ensureQueryData(restoreTaskOptions),
+			context.queryClient.ensureQueryData(activeRestoreTasksOptions),
 		]);
 
 		let displayBasePath: string | undefined;
@@ -43,7 +43,6 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			displayBasePath,
 			hasNonPosixSnapshotPaths,
 			volumeReadOnly,
-			initialActiveTask: getActiveRestoreTask(activeRestoreTasks),
 		};
 	},
 	staticData: {
@@ -73,7 +72,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly, initialActiveTask } =
+	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
 		Route.useLoaderData();
 
 	return (
@@ -85,7 +84,6 @@ function RouteComponent() {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
-			initialActiveTask={initialActiveTask}
 		/>
 	);
 }

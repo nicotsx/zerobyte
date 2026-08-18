@@ -310,6 +310,13 @@ async function openRepositorySnapshots(page: Page, repositoryName: string) {
 	await expect(page.getByText("Backup snapshots stored in this repository.")).toBeVisible();
 }
 
+async function openFirstBackupSnapshot(page: Page) {
+	await page
+		.getByRole("button", { name: /^Select snapshot / })
+		.first()
+		.click();
+}
+
 for (const importMode of importModes) {
 	test(importMode.testName, async ({ page }, testInfo) => {
 		const runId = getRunId(testInfo);
@@ -377,10 +384,7 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
-	await page
-		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
-		.first()
-		.click();
+	await openFirstBackupSnapshot(page);
 	await page.getByRole("link", { name: "Restore" }).click();
 	await expect(page).toHaveURL(/\/restore/);
 	await page.getByRole("button", { name: "Restore All" }).click();
@@ -412,10 +416,7 @@ test("can restore a single selected file to a custom location", async ({ page },
 
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
-	await page
-		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
-		.first()
-		.click();
+	await openFirstBackupSnapshot(page);
 	await page.getByRole("link", { name: "Restore" }).click();
 	await expect(page).toHaveURL(/\/restore/);
 
@@ -536,10 +537,7 @@ test("can download a selected snapshot directory as a tar archive", async ({ pag
 
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
-	await page
-		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
-		.first()
-		.click();
+	await openFirstBackupSnapshot(page);
 	await page.getByRole("link", { name: "Restore" }).click();
 	await expect(page).toHaveURL(/\/restore/);
 
@@ -582,12 +580,12 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 
 	const deleteVolumeMenuItem = page.getByRole("menuitem", { name: "Delete", exact: true });
 	await expect(async () => {
-		if (!(await deleteVolumeMenuItem.isVisible())) {
+		const isDeleteVolumeMenuItemVisible = await deleteVolumeMenuItem.isVisible();
+		if (!isDeleteVolumeMenuItemVisible) {
 			await actionsButton.click();
 		}
-		await expect(deleteVolumeMenuItem).toBeVisible();
+		await deleteVolumeMenuItem.click({ timeout: 2000 });
 	}).toPass({ timeout: 10000 });
-	await deleteVolumeMenuItem.click();
 	await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible({ timeout: 10000 });
 	await expect(
 		page.getByText("All backup schedules associated with this volume will also be removed."),
@@ -684,10 +682,7 @@ test("backup applies excludes inside included directories but keeps exact includ
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
 	await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
 
-	await page
-		.getByRole("button", { name: /\d+ B$/ })
-		.first()
-		.click();
+	await openFirstBackupSnapshot(page);
 	await expect(page.getByText("File Browser")).toBeVisible();
 
 	for (const folder of [keptDir, secondKeptDir, globOnlyDir, dataDir, configDir, blockedDir]) {
@@ -752,10 +747,7 @@ test("backup can include a selected folder whose name contains brackets", async 
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
 	await expect(page.getByText("✓ Success")).toBeVisible({ timeout: 30000 });
 
-	await page
-		.getByRole("button", { name: /\d+ B$/ })
-		.first()
-		.click();
+	await openFirstBackupSnapshot(page);
 	const bracketFolderRow = page.getByRole("button", {
 		name: new RegExp(bracketDir.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
 	});

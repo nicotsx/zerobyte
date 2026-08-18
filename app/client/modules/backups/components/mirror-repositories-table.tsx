@@ -21,11 +21,12 @@ import { Button } from "~/client/components/ui/button";
 import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
-import { isTaskActive, type TaskOfKind, useActiveTasks } from "~/client/hooks/use-active-tasks";
+import { isTaskActive, type TaskOfKind } from "~/client/hooks/use-active-tasks";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import type { Repository } from "~/client/lib/types";
 import { cn } from "~/client/lib/utils";
+import { useActiveMirrorSyncTasks } from "../mirror-tasks";
 import { MirrorSyncDialog } from "./mirror-sync-dialog";
 import { MirrorSyncProgressRow } from "./mirror-sync-progress-row";
 
@@ -79,11 +80,7 @@ export const MirrorRepositoriesTable = ({
 	const [syncDialogMirror, setSyncDialogMirror] = useState<Repository | null>(null);
 	const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
 	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
-	const { data: activeMirrorSyncs } = useActiveTasks({
-		kind: "mirrorSync",
-		resourceType: "backup_schedule",
-		resourceId: scheduleShortId,
-	});
+	const { data: activeMirrorSyncs } = useActiveMirrorSyncTasks(scheduleShortId);
 
 	const cancelSync = useMutation({
 		...cancelTaskMutation(),

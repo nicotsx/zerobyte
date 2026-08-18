@@ -59,6 +59,37 @@ describe("events security", () => {
 		expect(serverEvents.listenerCount("task:history-changed")).toBe(initialCount);
 	});
 
+	test("should cleanup SSE listeners when the request is aborted", async () => {
+		const { headers } = await createTestSession();
+		const abortController = new AbortController();
+		const initialCount = serverEvents.listenerCount("task:history-changed");
+
+		const res = await app.request("/api/v1/events", {
+			headers,
+			signal: abortController.signal,
+		});
+
+		try {
+			expect(res.status).toBe(200);
+
+			for (let i = 0; i < 20 && serverEvents.listenerCount("task:history-changed") < initialCount + 1; i++) {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+
+			expect(serverEvents.listenerCount("task:history-changed")).toBe(initialCount + 1);
+
+			abortController.abort();
+
+			for (let i = 0; i < 20 && serverEvents.listenerCount("task:history-changed") > initialCount; i++) {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+
+			expect(serverEvents.listenerCount("task:history-changed")).toBe(initialCount);
+		} finally {
+			await res.body?.cancel();
+		}
+	});
+
 	describe("unauthenticated access", () => {
 		const endpoints: { method: string; path: string }[] = [{ method: "GET", path: "/api/v1/events" }];
 

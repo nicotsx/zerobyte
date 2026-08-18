@@ -29,7 +29,7 @@ export const useActiveBackupTasks = () => {
 
 export const useBackupTask = (scheduleShortId: string) => {
 	const backupTasks = useActiveTasks(backupTasksFilter(scheduleShortId));
-	const activeBackupTask = backupTasks.data?.[0] ?? null;
+	const activeBackupTask = backupTasks.data[0] ?? null;
 
 	return {
 		activeBackupTask,
