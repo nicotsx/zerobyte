@@ -26,7 +26,7 @@ export function BackupsPage() {
 	const { data: schedules } = useSuspenseQuery({
 		...listBackupSchedulesOptions(),
 	});
-	const { data: activeBackupTasks = [] } = useActiveBackupTasks();
+	const { data: activeBackupTasks } = useActiveBackupTasks();
 	const activeScheduleShortIds = new Set(activeBackupTasks.map((task) => task.resourceId));
 
 	const [localItems, setLocalItems] = useState<string[] | null>(null);

@@ -21,7 +21,7 @@ import { FolderSelector } from "~/client/components/folder-selector";
 import { SnapshotTreeBrowser } from "~/client/components/file-browsers/snapshot-tree-browser";
 import { RestoreProgress } from "~/client/components/restore-progress";
 import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
-import { useRestoreTask, type RestoreTask } from "~/client/modules/repositories/restore-tasks";
+import { useRestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
 import { isPathWithin } from "@zerobyte/core/utils";
 import type { Repository } from "~/client/lib/types";
@@ -39,7 +39,6 @@ interface RestoreFormProps {
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
-	initialActiveTask?: RestoreTask | null;
 }
 
 export function RestoreForm({
@@ -50,7 +49,6 @@ export function RestoreForm({
 	displayBasePath,
 	hasNonPosixSnapshotPaths = false,
 	volumeReadOnly = false,
-	initialActiveTask,
 }: RestoreFormProps) {
 	const navigate = useNavigate();
 
@@ -97,7 +95,7 @@ export function RestoreForm({
 		clearFinishedRestoreTask,
 		activeRestoreTaskId,
 		isRestoreRunning: isRestoreTaskRunning,
-	} = useRestoreTask(repository.shortId, snapshotId, restoreStart?.restoreId, initialActiveTask);
+	} = useRestoreTask(repository.shortId, snapshotId, restoreStart?.restoreId);
 
 	const cancelRestore = useMutation({
 		...cancelTaskMutation(),

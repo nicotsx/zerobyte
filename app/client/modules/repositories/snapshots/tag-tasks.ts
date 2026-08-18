@@ -14,8 +14,6 @@ import type { BackupSchedule } from "~/client/lib/types";
 
 type TagSnapshotsTask = TaskOfKind<"tagSnapshots">;
 
-const emptyTaggingSnapshotIds = new Set<string>();
-
 const tagSnapshotTasksFilter = (repositoryId: string) => {
 	return {
 		kind: "tagSnapshots",
@@ -122,8 +120,7 @@ const applyTagSnapshotsTaskFinished = (queryClient: QueryClient, task: TagSnapsh
 };
 
 export const tagSnapshotTasksOptions = (repositoryId: string) => {
-	const filter = tagSnapshotTasksFilter(repositoryId);
-	return taskEventsOptions(filter);
+	return taskEventsOptions(tagSnapshotTasksFilter(repositoryId));
 };
 
 export const useTaggingSnapshots = (repositoryId: string, backups: BackupSchedule[]) => {
@@ -134,10 +131,6 @@ export const useTaggingSnapshots = (repositoryId: string, backups: BackupSchedul
 	});
 
 	const taggingSnapshotIds = useMemo(() => {
-		if (!tagTasks.data) {
-			return emptyTaggingSnapshotIds;
-		}
-
 		const snapshotIds = new Set<string>();
 		for (const task of tagTasks.data) {
 			for (const snapshotId of task.input.snapshotIds) {

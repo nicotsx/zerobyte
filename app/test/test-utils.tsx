@@ -13,9 +13,7 @@ type TestProviderOptions = {
 type TestRenderOptions = Omit<RenderOptions, "wrapper"> & TestProviderOptions;
 
 export const createTestQueryClient = () => {
-	let queryClient: QueryClient;
-
-	queryClient = new QueryClient({
+	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
 				retry: false,
@@ -26,12 +24,11 @@ export const createTestQueryClient = () => {
 			},
 		},
 		mutationCache: new MutationCache({
-			onSuccess: () => {
-				void queryClient.invalidateQueries();
-			},
 			onError: (error) => {
 				logger.error("Mutation error:", error);
-				void queryClient.invalidateQueries();
+			},
+			onSettled: (_data, _error, _variables, _onMutateResult, _mutation, context) => {
+				void context.client.invalidateQueries(undefined, { cancelRefetch: false });
 			},
 		}),
 	});

@@ -110,6 +110,12 @@ const snapshotFilesHandler = http.get("/api/v1/repositories/:shortId/snapshots/:
 });
 
 const renderRestoreForm = (queryClient = createTestQueryClient()) => {
+	const taskOptions = restoreTasksOptions(repositoryId, snapshotId);
+	const cachedTasks = queryClient.getQueryData(taskOptions.queryKey);
+	if (cachedTasks === undefined) {
+		queryClient.setQueryData(taskOptions.queryKey, []);
+	}
+
 	return render(
 		<RestoreForm
 			repository={fromAny({ shortId: repositoryId, name: "Repo 1" })}
@@ -141,6 +147,7 @@ const renderRestoreFormWithPrefetchedTask = async (task: TaskResponse) => {
 beforeEach(() => {
 	MockEventSource.reset();
 	globalThis.EventSource = MockEventSource as unknown as typeof EventSource;
+	server.use(http.get("/api/v1/tasks", () => HttpResponse.json([])));
 });
 
 afterEach(() => {
@@ -150,7 +157,7 @@ afterEach(() => {
 });
 
 describe("RestoreForm", () => {
-	test("recovers the active restore from the prefetched exact filtered collection", async () => {
+	test("recovers the active restore from the cached exact filtered collection", async () => {
 		const taskStream = await renderRestoreFormWithPrefetchedTask(createRestoreTask());
 
 		const restoreButton = await screen.findByRole("button", { name: "Cancel restore" });
@@ -342,6 +349,7 @@ describe("RestoreForm", () => {
 		const repository: Repository = fromAny({ shortId: repositoryId, name: "Repo 1" });
 		const { rerender } = render(
 			<RestoreSnapshotPage repository={repository} snapshotId="snap-1" returnPath="/repositories/repo-1" />,
+			{ withSuspense: true },
 		);
 		const firstStreamUrl =
 			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1";
@@ -357,7 +365,6 @@ describe("RestoreForm", () => {
 
 		rerender(<RestoreSnapshotPage repository={repository} snapshotId="snap-2" returnPath="/repositories/repo-1" />);
 
-		expect(screen.queryByText("Restore completed")).toBeNull();
 		await waitFor(() => {
 			expect(
 				MockEventSource.instances.some(
@@ -367,6 +374,7 @@ describe("RestoreForm", () => {
 				),
 			).toBe(true);
 		});
+		expect(screen.queryByText("Restore completed")).toBeNull();
 	});
 
 	test("restores the selected ancestor folder path from a broader display root", async () => {
@@ -400,6 +408,7 @@ describe("RestoreForm", () => {
 				queryBasePath="/mnt/project/subdir"
 				displayBasePath="/mnt"
 			/>,
+			{ withSuspense: true },
 		);
 
 		const row = await screen.findByRole("button", { name: "project" });
@@ -453,10 +462,11 @@ describe("RestoreForm", () => {
 				queryBasePath="/mnt/project"
 				displayBasePath="/other/root"
 			/>,
+			{ withSuspense: true },
 		);
 
 		expect(
-			screen.getByText(
+			await screen.findByText(
 				"This snapshot was created from source paths that do not match this Zerobyte server or the current linked volume. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
 			),
 		).toBeTruthy();
@@ -519,10 +529,11 @@ describe("RestoreForm", () => {
 				displayBasePath="/mnt"
 				volumeReadOnly
 			/>,
+			{ withSuspense: true },
 		);
 
 		expect(
-			screen.getByText(
+			await screen.findByText(
 				"The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
 			),
 		).toBeTruthy();

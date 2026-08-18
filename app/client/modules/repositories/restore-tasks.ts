@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import type { ListTasksResponse } from "~/client/api-client";
 import {
 	isTaskActive,
 	taskEventsOptions,
@@ -24,15 +23,6 @@ export const restoreTasksOptions = (repositoryId: string, snapshotId: string) =>
 	return taskEventsOptions(restoreTasksFilter(repositoryId, snapshotId));
 };
 
-export const getActiveRestoreTask = (tasks: ListTasksResponse): RestoreTask | null => {
-	const task = tasks[0];
-	if (!task || task.kind !== "restore" || task.input.kind !== "restore") {
-		return null;
-	}
-
-	return task as RestoreTask;
-};
-
 const latestTask = (tasks: Array<RestoreTask | null>) =>
 	tasks.reduce<RestoreTask | null>((latest, task) => {
 		if (!task) return latest;
@@ -41,20 +31,14 @@ const latestTask = (tasks: Array<RestoreTask | null>) =>
 		return latest;
 	}, null);
 
-export const useRestoreTask = (
-	repositoryId: string,
-	snapshotId: string,
-	startedTaskId?: string,
-	initialActiveTask?: RestoreTask | null,
-) => {
+export const useRestoreTask = (repositoryId: string, snapshotId: string, startedTaskId?: string) => {
 	const [lastFinishedTask, setLastFinishedTask] = useState<RestoreTask | null>(null);
 	const filter = restoreTasksFilter(repositoryId, snapshotId);
 	const { data: activeRestoreTasks } = useActiveTasks(filter, {
-		initialTasks: initialActiveTask ? [initialActiveTask] : undefined,
 		onTaskFinished: setLastFinishedTask,
 	});
 	const { task: startedTask } = useTask<RestoreTask>(startedTaskId);
-	const restoreTask = latestTask([startedTask, activeRestoreTasks?.[0] ?? null, lastFinishedTask]);
+	const restoreTask = latestTask([startedTask, activeRestoreTasks[0] ?? null, lastFinishedTask]);
 	const activeRestoreTaskId =
 		restoreTask && isTaskActive(restoreTask)
 			? restoreTask.id

@@ -3,6 +3,7 @@ import type { ListTasksResponse } from "~/client/api-client";
 import { cleanup, createTestQueryClient, render, waitFor } from "~/test/test-utils";
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import type { TaskDto } from "~/schemas/tasks";
+import { HttpResponse, http, server } from "~/test/msw/server";
 import { taskEventsOptions, useActiveTasks, type TaskOfKind } from "../use-active-tasks";
 
 class MockEventSource {
@@ -100,15 +101,42 @@ describe("useActiveTasks", () => {
 		MockEventSource.reset();
 	});
 
-	test("uses the exact operation URL and cache while reporting the finished restore once", async () => {
+	test("uses an origin-independent query key for SSR hydration", () => {
+		const taskOptions = taskEventsOptions(filter);
+
+		expect(taskOptions.staleTime).toBe("static");
+		expect(taskOptions.queryKey).toEqual([
+			"active-tasks",
+			{
+				kind: "restore",
+				resourceType: "repository",
+				resourceId: "repo-1",
+				operationKey: "snap-1",
+			},
+		]);
+	});
+
+	test("fetches the initial snapshot and uses the exact event stream while reporting a finished restore once", async () => {
 		const queryClient = createTestQueryClient();
 		const onTaskFinished = vi.fn();
+		let initialSnapshotUrl: URL | undefined;
+		server.use(
+			http.get("/api/v1/tasks", ({ request }) => {
+				initialSnapshotUrl = new URL(request.url);
+				return HttpResponse.json([activeTask]);
+			}),
+		);
 
-		render(<ActiveTasksConsumer onTaskFinished={onTaskFinished} />, { queryClient });
+		render(<ActiveTasksConsumer onTaskFinished={onTaskFinished} />, { queryClient, withSuspense: true });
 
 		await waitFor(() => {
 			expect(MockEventSource.instances).toHaveLength(1);
 		});
+		expect(initialSnapshotUrl?.searchParams.get("kind")).toBe("restore");
+		expect(initialSnapshotUrl?.searchParams.get("resourceType")).toBe("repository");
+		expect(initialSnapshotUrl?.searchParams.get("resourceId")).toBe("repo-1");
+		expect(initialSnapshotUrl?.searchParams.get("operationKey")).toBe("snap-1");
+		expect(queryClient.getQueryData<ListTasksResponse>(taskEventsOptions(filter).queryKey)).toEqual([activeTask]);
 		expect(MockEventSource.instances[0]?.url).toBe(
 			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1",
 		);

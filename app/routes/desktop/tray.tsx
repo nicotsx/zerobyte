@@ -26,12 +26,18 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { formatDuration } from "~/client/lib/datetime";
 import { BackupStatusDot } from "~/client/modules/backups/components/backup-status-dot";
-import { useActiveBackupTasks, type BackupTask } from "~/client/modules/backups/backup-tasks";
+import { backupTasksOptions, useActiveBackupTasks, type BackupTask } from "~/client/modules/backups/backup-tasks";
 
 type TraySchedule = ListBackupSchedulesResponse[number];
 
 export const Route = createFileRoute("/desktop/tray")({
 	component: DesktopTrayPage,
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(listBackupSchedulesOptions()),
+			context.queryClient.ensureQueryData(backupTasksOptions()),
+		]);
+	},
 	head: () => ({
 		meta: [{ title: "Zerobyte Tray" }],
 	}),
@@ -41,9 +47,7 @@ export function DesktopTrayPage() {
 	const { data: schedules = [], isLoading, error } = useQuery(listBackupSchedulesOptions());
 	const { data: activeBackupTasks } = useActiveBackupTasks();
 
-	const activeBackupTasksByScheduleShortId = new Map(
-		(activeBackupTasks ?? []).map((task) => [task.resourceId, task]),
-	);
+	const activeBackupTasksByScheduleShortId = new Map(activeBackupTasks.map((task) => [task.resourceId, task]));
 
 	return (
 		<main className="dark h-dvh max-h-dvh overflow-hidden bg-background text-foreground">
@@ -71,7 +75,6 @@ export function DesktopTrayPage() {
 									key={schedule.shortId}
 									schedule={schedule}
 									activeBackupTask={activeBackupTask}
-									taskSnapshotLoaded={activeBackupTasks !== undefined}
 								/>
 							);
 						})}
@@ -83,15 +86,7 @@ export function DesktopTrayPage() {
 	);
 }
 
-function TrayScheduleRow({
-	schedule,
-	activeBackupTask,
-	taskSnapshotLoaded,
-}: {
-	schedule: TraySchedule;
-	activeBackupTask?: BackupTask;
-	taskSnapshotLoaded: boolean;
-}) {
+function TrayScheduleRow({ schedule, activeBackupTask }: { schedule: TraySchedule; activeBackupTask?: BackupTask }) {
 	const { formatShortDateTime } = useTimeFormat();
 	const runBackup = useMutation(runBackupNowMutation());
 	const cancelBackup = useMutation(cancelTaskMutation());
@@ -99,7 +94,7 @@ function TrayScheduleRow({
 	if (schedule.enabled) {
 		nextBackup = schedule.cronExpression ? formatShortDateTime(schedule.nextBackupAt) : "Manual";
 	}
-	const isRunning = taskSnapshotLoaded ? activeBackupTask !== undefined : schedule.lastBackupStatus === "in_progress";
+	const isRunning = activeBackupTask !== undefined;
 	const isBackupCancelling = activeBackupTask?.status === "cancelling";
 	const isPending = runBackup.isPending || cancelBackup.isPending;
 	const isActionDisabled = isPending || isBackupCancelling;

@@ -73,7 +73,7 @@ const connectEventSource = (queryClient: QueryClient) => {
 
 	eventSource.addEventListener("connected", (event) => {
 		const data = parseEventData<"connected">(event);
-		invalidateServerEventQueries(queryClient, "connected");
+		invalidateServerEventQueries(queryClient);
 		logger.info("[SSE] Connected to server events");
 		emit("connected", data);
 	});
