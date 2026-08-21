@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lt } from "drizzle-orm";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
 import { generateShortId } from "~/server/utils/id";
@@ -478,9 +478,13 @@ const getInterruptedBackupScheduleIds = (staleTasks: ParsedTask[]) => {
 	return { backupTaskScheduleIds, retryableScheduledTaskScheduleIds };
 };
 
-const recoverInterruptedBackups = async (staleTasks: ParsedTask[]) => {
+const recoverInterruptedBackups = async (staleTasks: ParsedTask[], bootstrapStartedAt?: number) => {
 	const { backupTaskScheduleIds, retryableScheduledTaskScheduleIds } = getInterruptedBackupScheduleIds(staleTasks);
 	const now = Date.now();
+	const recoveryConditions = [eq(backupSchedulesTable.lastBackupStatus, "in_progress")];
+	if (bootstrapStartedAt !== undefined) {
+		recoveryConditions.push(lt(backupSchedulesTable.updatedAt, bootstrapStartedAt));
+	}
 
 	db.transaction((tx) => {
 		const recoveredSchedules = tx
@@ -490,7 +494,7 @@ const recoverInterruptedBackups = async (staleTasks: ParsedTask[]) => {
 				lastBackupError: RESTART_BACKUP_ERROR,
 				updatedAt: now,
 			})
-			.where(eq(backupSchedulesTable.lastBackupStatus, "in_progress"))
+			.where(and(...recoveryConditions))
 			.returning()
 			.all();
 

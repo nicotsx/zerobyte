@@ -50,8 +50,25 @@ const ensureLatestConfigurationSchema = async () => {
 	}
 };
 
-export const startup = async () => {
+export const startup = async (bootstrapStartedAt?: number) => {
 	cache.clear();
+
+	let staleTasks: ReturnType<typeof taskStore.markActiveStale> = [];
+	try {
+		staleTasks = taskStore.markActiveStale({
+			error: RESTART_TASK_ERROR,
+			createdBefore: bootstrapStartedAt,
+		});
+		if (staleTasks.length > 0) {
+			logger.warn(`Marked ${staleTasks.length} active task(s) stale during startup`);
+		}
+	} catch (err) {
+		logger.error(`Failed to mark stale tasks on startup: ${toMessage(err)}`);
+	}
+
+	await backupsService.recoverInterruptedBackups(staleTasks, bootstrapStartedAt).catch((err) => {
+		logger.error(`Failed to recover interrupted backup schedules on startup: ${err.message}`);
+	});
 
 	await Scheduler.start();
 	await Scheduler.clear();
@@ -96,20 +113,6 @@ export const startup = async () => {
 			});
 		}
 	}
-
-	let staleTasks: ReturnType<typeof taskStore.markActiveStale> = [];
-	try {
-		staleTasks = taskStore.markActiveStale({ error: RESTART_TASK_ERROR });
-		if (staleTasks.length > 0) {
-			logger.warn(`Marked ${staleTasks.length} active task(s) stale during startup`);
-		}
-	} catch (err) {
-		logger.error(`Failed to mark stale tasks on startup: ${toMessage(err)}`);
-	}
-
-	await backupsService.recoverInterruptedBackups(staleTasks).catch((err) => {
-		logger.error(`Failed to recover interrupted backup schedules on startup: ${err.message}`);
-	});
 
 	if (!config.flags.enableLocalAgent) {
 		Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");

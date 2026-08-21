@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { serverEvents } from "~/server/core/events";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import type { ServerEventPayloadMap } from "~/schemas/server-events";
 import { ensureTestOrganization, TEST_ORG_ID } from "~/test/helpers/organization";
-import { requestTaskCancel, runTaskLifecycle } from "../tasks.lifecycle";
+import { TaskCancelledError, requestTaskCancel, runTaskLifecycle } from "../tasks.lifecycle";
 import { taskStore } from "../tasks.store";
 
 const listenerCleanups: Array<() => void> = [];
@@ -163,5 +163,56 @@ describe("runTaskLifecycle", () => {
 			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "running" }) }),
 			expect.objectContaining({ item: expect.objectContaining({ id: task.id, outcome: "cancelled" }) }),
 		]);
+	});
+
+	test("does not run success or failure callbacks after startup already marked the task stale", async () => {
+		const task = createTask("task-lifecycle-stale-success");
+		const onSucceeded = vi.fn();
+		const beforeFail = vi.fn();
+
+		await runTaskLifecycle({
+			taskId: task.id,
+			label: "test task",
+			run: async () => {
+				taskStore.markActiveStale({ error: "Zerobyte restarted" });
+				return { kind: "deleteSnapshots", deletedSnapshotIds: ["snapshot-1"] };
+			},
+			onSucceeded,
+			beforeFail,
+		});
+
+		const staleTask = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: task.id });
+		expect(staleTask).toMatchObject({ status: "stale", error: "Zerobyte restarted" });
+		expect(onSucceeded).not.toHaveBeenCalled();
+		expect(beforeFail).not.toHaveBeenCalled();
+	});
+
+	test("does not run failure or cancellation callbacks after the task is stale", async () => {
+		const failedTask = createTask("task-lifecycle-stale-failure");
+		const beforeFail = vi.fn();
+		await runTaskLifecycle({
+			taskId: failedTask.id,
+			label: "test task",
+			run: async () => {
+				taskStore.markActiveStale({ error: "Zerobyte restarted" });
+				throw new Error("late failure");
+			},
+			beforeFail,
+		});
+
+		const cancelledTask = createTask("task-lifecycle-stale-cancel");
+		const beforeCancel = vi.fn();
+		await runTaskLifecycle({
+			taskId: cancelledTask.id,
+			label: "test task",
+			run: async () => {
+				taskStore.markActiveStale({ error: "Zerobyte restarted" });
+				throw new TaskCancelledError("late cancellation");
+			},
+			beforeCancel,
+		});
+
+		expect(beforeFail).not.toHaveBeenCalled();
+		expect(beforeCancel).not.toHaveBeenCalled();
 	});
 });

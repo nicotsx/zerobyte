@@ -13,6 +13,8 @@ import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestVolume } from "~/test/helpers/volume";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
+import { backupSchedulesTable } from "~/server/db/schema";
+import { eq } from "drizzle-orm";
 
 const loadStartupModule = async () => {
 	const moduleUrl = new URL("../startup.ts", import.meta.url);
@@ -37,6 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	vi.useRealTimers();
 	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	vi.restoreAllMocks();
 });
@@ -276,4 +279,71 @@ test("does not use previously stale scheduled tasks to retry immediately", async
 
 	const updatedSchedule = await db.query.backupSchedulesTable.findFirst({ where: { id: schedule.id } });
 	expect(updatedSchedule?.nextBackupAt).toBe(nextBackupAt);
+});
+
+test("does not stale tasks or schedules created after bootstrap begins", async () => {
+	const bootstrapStartedAt = 1_700_000_000_000;
+	vi.useFakeTimers({ now: bootstrapStartedAt - 1 });
+	const volume = await createTestVolume();
+	const repository = await createTestRepository();
+	const oldSchedule = await createTestBackupSchedule({
+		volumeId: volume.id,
+		repositoryId: repository.id,
+		lastBackupStatus: "in_progress",
+	});
+	db.update(backupSchedulesTable)
+		.set({ updatedAt: bootstrapStartedAt - 1 })
+		.where(eq(backupSchedulesTable.id, oldSchedule.id))
+		.run();
+	const oldTask = taskStore.create({
+		id: "task-before-bootstrap",
+		organizationId: TEST_ORG_ID,
+		resourceType: "backup_schedule",
+		resourceId: oldSchedule.shortId,
+		targetDisplayName: oldSchedule.name,
+		input: {
+			kind: "backup",
+			scheduleId: oldSchedule.id,
+			scheduleShortId: oldSchedule.shortId,
+			manual: true,
+		},
+	});
+	taskStore.markRunning(oldTask.id);
+
+	vi.setSystemTime(bootstrapStartedAt);
+	const currentSchedule = await createTestBackupSchedule({
+		volumeId: volume.id,
+		repositoryId: repository.id,
+		lastBackupStatus: "in_progress",
+	});
+	db.update(backupSchedulesTable)
+		.set({ updatedAt: bootstrapStartedAt })
+		.where(eq(backupSchedulesTable.id, currentSchedule.id))
+		.run();
+	const currentTask = taskStore.create({
+		id: "task-during-bootstrap",
+		organizationId: TEST_ORG_ID,
+		resourceType: "backup_schedule",
+		resourceId: currentSchedule.shortId,
+		targetDisplayName: currentSchedule.name,
+		input: {
+			kind: "backup",
+			scheduleId: currentSchedule.id,
+			scheduleShortId: currentSchedule.shortId,
+			manual: true,
+		},
+	});
+	taskStore.markRunning(currentTask.id);
+
+	const { startup } = await loadStartupModule();
+	await startup(bootstrapStartedAt);
+
+	const staleTask = await db.query.tasksTable.findFirst({ where: { id: oldTask.id } });
+	const preservedTask = await db.query.tasksTable.findFirst({ where: { id: currentTask.id } });
+	const staleSchedule = await db.query.backupSchedulesTable.findFirst({ where: { id: oldSchedule.id } });
+	const preservedSchedule = await db.query.backupSchedulesTable.findFirst({ where: { id: currentSchedule.id } });
+	expect(staleTask?.status).toBe("stale");
+	expect(staleSchedule?.lastBackupStatus).toBe("warning");
+	expect(preservedTask?.status).toBe("running");
+	expect(preservedSchedule?.lastBackupStatus).toBe("in_progress");
 });

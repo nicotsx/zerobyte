@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import type { TaskHistoryOutcome } from "~/schemas/task-history";
@@ -42,7 +42,8 @@ type CreateTaskParams = {
 	input: TaskInput;
 };
 
-type MarkActiveStaleParams = Partial<TaskResource> & { error?: string };
+type MarkActiveStaleParams = Partial<TaskResource> & { error?: string; createdBefore?: number };
+type TerminalTaskOptions = { emitHistoryChanged?: boolean };
 type ListActiveTasksParams = Partial<TaskResource>;
 type FindTaskParams = {
 	organizationId: string;
@@ -51,6 +52,17 @@ type FindTaskParams = {
 type TaskChangeListener = (task: ParsedTask) => void;
 
 export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
+
+export class TaskTransitionConflictError extends Error {
+	readonly currentTask: ParsedTask | null;
+
+	constructor(taskId: string, operation: string, currentTask: ParsedTask | null) {
+		const currentStatus = currentTask?.status ?? "missing";
+		super(`Task ${taskId} was not ${operation}; current status is ${currentStatus}`);
+		this.name = "TaskTransitionConflictError";
+		this.currentTask = currentTask;
+	}
+}
 
 const parseTask = (row: unknown): ParsedTask => taskSchema.parse(row);
 
@@ -157,9 +169,24 @@ const buildActiveConditions = (params: Partial<TaskResource> = {}) => [
 	...buildResourceConditions(params),
 ];
 
+const buildStaleTaskConditions = (params: MarkActiveStaleParams) => {
+	const conditions = buildActiveConditions(params);
+	if (params.createdBefore !== undefined) {
+		conditions.push(lt(tasksTable.createdAt, params.createdBefore));
+	}
+
+	return conditions;
+};
+
+const findTaskById = (taskId: string): ParsedTask | null => {
+	const row = db.select().from(tasksTable).where(byIdCondition(taskId)).get();
+	return row ? parseTask(row) : null;
+};
+
 const getUpdatedTask = (row: unknown, taskId: string, operation: string) => {
 	if (!row) {
-		throw new Error(`Task ${taskId} was not ${operation}`);
+		const currentTask = findTaskById(taskId);
+		throw new TaskTransitionConflictError(taskId, operation, currentTask);
 	}
 
 	return parseTask(row);
@@ -252,8 +279,9 @@ export const taskStore = {
 		return task;
 	},
 
-	complete: (taskId: string, result: TaskResult): ParsedTask => {
+	complete: (taskId: string, result: TaskResult, options: TerminalTaskOptions = {}): ParsedTask => {
 		const parsedResult = taskResultSchema.parse(result);
+		const shouldEmitHistoryChanged = options.emitHistoryChanged ?? true;
 		const now = Date.now();
 		const row = db
 			.update(tasksTable)
@@ -270,11 +298,14 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "completed");
-		emitTaskHistoryChanged(task, "running");
+		if (shouldEmitHistoryChanged) {
+			emitTaskHistoryChanged(task, "running");
+		}
 		return task;
 	},
 
-	fail: (taskId: string, error: string): ParsedTask => {
+	fail: (taskId: string, error: string, options: TerminalTaskOptions = {}): ParsedTask => {
+		const shouldEmitHistoryChanged = options.emitHistoryChanged ?? true;
 		const now = Date.now();
 		const row = db
 			.update(tasksTable)
@@ -290,11 +321,19 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "failed");
-		emitTaskHistoryChanged(task, "running");
+		if (shouldEmitHistoryChanged) {
+			emitTaskHistoryChanged(task, "running");
+		}
 		return task;
 	},
 
-	cancel: (taskId: string, error: string | null = null, result: TaskResult | null = null): ParsedTask => {
+	cancel: (
+		taskId: string,
+		error: string | null = null,
+		result: TaskResult | null = null,
+		options: TerminalTaskOptions = {},
+	): ParsedTask => {
+		const shouldEmitHistoryChanged = options.emitHistoryChanged ?? true;
 		const now = Date.now();
 		const row = db
 			.update(tasksTable)
@@ -311,8 +350,14 @@ export const taskStore = {
 			.get();
 
 		const task = getUpdatedTask(row, taskId, "cancelled");
-		emitTaskHistoryChanged(task, "running");
+		if (shouldEmitHistoryChanged) {
+			emitTaskHistoryChanged(task, "running");
+		}
 		return task;
+	},
+
+	publishHistoryChanged: (task: ParsedTask) => {
+		emitTaskHistoryChanged(task, "running");
 	},
 
 	findActiveByResource: (params: TaskResource): ParsedTask | null => {
@@ -427,7 +472,7 @@ export const taskStore = {
 				updatedAt: now,
 				finishedAt: now,
 			})
-			.where(and(...buildActiveConditions(params)))
+			.where(and(...buildStaleTaskConditions(params)))
 			.returning()
 			.all();
 
