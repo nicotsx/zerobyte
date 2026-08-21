@@ -8,6 +8,7 @@ import { startup } from "./startup";
 let bootstrapPromise: Promise<void> | undefined;
 
 const runBootstrap = async () => {
+	const bootstrapStartedAt = Date.now();
 	await runDbMigrations();
 	await runMigrations();
 	await agentsService.ensureLocalAgent();
@@ -19,7 +20,7 @@ const runBootstrap = async () => {
 			await startLocalAgent();
 		}
 
-		await startup();
+		await startup(bootstrapStartedAt);
 	} catch (error) {
 		await stopLocalAgent();
 		await stopAgentController();

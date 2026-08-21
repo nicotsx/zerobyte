@@ -100,19 +100,6 @@ const executeBackup = async (
 			throw new TaskCancelledError(executionResult.message ?? "Backup was stopped by the user");
 		}
 		case "completed": {
-			await finalizeSuccessfulBackup(
-				ctx,
-				executionResult.exitCode,
-				executionResult.result,
-				executionResult.warningDetails,
-			);
-			await runPostBackupMaintenance(ctx);
-			await startPostBackupMirrorSyncs(ctx, ctx.schedule.id, executionResult.result).catch((error) => {
-				logger.error(
-					`Post-backup mirror synchronization failed for schedule ${ctx.schedule.id}: ${toMessage(error)}`,
-				);
-			});
-
 			return {
 				kind: "backup",
 				exitCode: executionResult.exitCode,
@@ -199,6 +186,15 @@ export const createBackupCommand = (params: BackupCommandParams) => {
 				},
 				beforeCancel: async (errorMessage) => {
 					await handleBackupCancellation(scheduleId, ctx.organizationId, errorMessage);
+				},
+				onSucceeded: async (_task, result) => {
+					await finalizeSuccessfulBackup(ctx, result.exitCode, result.result, result.warningDetails);
+					await runPostBackupMaintenance(ctx);
+					await startPostBackupMirrorSyncs(ctx, scheduleId, result.result).catch((error) => {
+						logger.error(
+							`Post-backup mirror synchronization failed for schedule ${scheduleId}: ${toMessage(error)}`,
+						);
+					});
 				},
 			}).finally(() => {
 				progressBuffer.dispose();

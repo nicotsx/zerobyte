@@ -27,19 +27,9 @@ export const streamEvents = <
 	logger.info(`Client connected to ${options.connectionLabel} SSE endpoint`);
 
 	return streamSSE(c, async (stream) => {
-		const unsubscribers = options.events.map((eventName) => {
-			return options.subscribe(eventName, async (data) => {
-				if (!options.shouldSend(eventName, data)) return;
-				const payload = options.toPayload?.(eventName, data) ?? data;
-				await stream.writeSSE({
-					data: JSON.stringify(payload),
-					event: eventName,
-				});
-			});
-		});
-
 		let keepAlive = true;
 		let cleanedUp = false;
+		const unsubscribers: Array<() => void> = [];
 
 		function cleanup() {
 			if (cleanedUp) return;
@@ -58,20 +48,89 @@ export const streamEvents = <
 			cleanup();
 		}
 
+		function isExpectedDisconnectError(error: unknown) {
+			const isAbortError = error instanceof Error && error.name === "AbortError";
+			return c.req.raw.signal.aborted || stream.aborted || isAbortError;
+		}
+
+		function handleStreamError(error: unknown) {
+			if (isExpectedDisconnectError(error)) {
+				handleDisconnect();
+				return;
+			}
+
+			logger.error(`Failed to write to ${options.connectionLabel} SSE stream:`, error);
+			keepAlive = false;
+			cleanup();
+		}
+
+		async function writeEvent(event: string, payload: unknown) {
+			if (!keepAlive || c.req.raw.signal.aborted || stream.aborted) {
+				handleDisconnect();
+				return false;
+			}
+
+			try {
+				await stream.writeSSE({
+					data: JSON.stringify(payload),
+					event,
+				});
+				return true;
+			} catch (error) {
+				handleStreamError(error);
+				return false;
+			}
+		}
+
+		for (const eventName of options.events) {
+			const unsubscribe = options.subscribe(eventName, async (data) => {
+				try {
+					if (!options.shouldSend(eventName, data)) return;
+
+					const payload = options.toPayload?.(eventName, data) ?? data;
+					await writeEvent(eventName, payload);
+				} catch (error) {
+					handleStreamError(error);
+				}
+			});
+
+			if (cleanedUp) {
+				unsubscribe();
+				continue;
+			}
+
+			unsubscribers.push(unsubscribe);
+		}
+
 		stream.onAbort(handleDisconnect);
 		c.req.raw.signal.addEventListener("abort", handleDisconnect, { once: true });
 
 		try {
-			await stream.writeSSE({
-				data: JSON.stringify({ type: "connected", timestamp: Date.now() }),
-				event: "connected",
-			});
+			const didWriteConnectionEvent = await writeEvent("connected", { type: "connected", timestamp: Date.now() });
+			if (!didWriteConnectionEvent) return;
 
-			await options.onConnected?.(stream);
+			try {
+				await options.onConnected?.(stream);
+			} catch (error) {
+				handleStreamError(error);
+				return;
+			}
 
 			while (keepAlive && !c.req.raw.signal.aborted && !stream.aborted) {
-				await stream.writeSSE({ data: JSON.stringify({ timestamp: Date.now() }), event: "heartbeat" });
-				await stream.sleep(5000);
+				const didWriteHeartbeat = await writeEvent("heartbeat", { timestamp: Date.now() });
+				if (!didWriteHeartbeat) return;
+
+				if (!keepAlive || c.req.raw.signal.aborted || stream.aborted) {
+					handleDisconnect();
+					return;
+				}
+
+				try {
+					await stream.sleep(5000);
+				} catch (error) {
+					handleStreamError(error);
+					return;
+				}
 			}
 		} finally {
 			cleanup();

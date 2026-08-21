@@ -1,4 +1,4 @@
-import { taskStore } from "./tasks.store";
+import { TaskTransitionConflictError, taskStore } from "./tasks.store";
 import type { TaskProgress } from "~/schemas/tasks";
 
 type TaskProgressBufferOptions = {
@@ -31,6 +31,11 @@ export const createTaskProgressBuffer = (taskId: string, options: TaskProgressBu
 			hasPersistedProgress = true;
 		} catch (error) {
 			options.onError?.(error);
+			if (error instanceof TaskTransitionConflictError) {
+				dirty = false;
+				disposed = true;
+				clearTimer();
+			}
 		}
 	};
 
