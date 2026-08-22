@@ -1,7 +1,7 @@
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "~/server/utils/errors";
 import type { ParsedTask, TaskResult } from "~/schemas/tasks";
-import { taskStore } from "./tasks.store";
+import { TaskTransitionConflictError, taskStore } from "./tasks.store";
 
 export class TaskCancelledError<TResult extends TaskResult = TaskResult> extends Error {
 	readonly name = "TaskCancelledError";
@@ -37,6 +37,12 @@ type TaskExecution = {
 };
 
 const taskExecutions = new Map<string, TaskExecution>();
+const deferredTerminalEvent = { emitHistoryChanged: false };
+
+const logTransitionConflict = (label: string, taskId: string, error: TaskTransitionConflictError) => {
+	const currentStatus = error.currentTask?.status ?? "missing";
+	logger.info(`Stopped ${label} ${taskId}; task is already ${currentStatus}`);
+};
 
 export const registerTaskExecution = (taskId: string, cancel: () => void, cancellable: boolean) => {
 	const execution = { cancel, cancellable };
@@ -50,18 +56,27 @@ export const registerTaskExecution = (taskId: string, cancel: () => void, cancel
 };
 
 const failTask = async <TResult extends TaskResult>(options: TaskLifecycleOptions<TResult>, errorMessage: string) => {
+	let failedTask: ParsedTask;
 	try {
-		await options.beforeFail?.(errorMessage);
+		failedTask = taskStore.fail(options.taskId, errorMessage, deferredTerminalEvent);
 	} catch (error) {
-		logger.warn(`Failed to prepare failed ${options.label} ${options.taskId}: ${toMessage(error)}`);
-	}
+		if (error instanceof TaskTransitionConflictError) {
+			logTransitionConflict(options.label, options.taskId, error);
+			return null;
+		}
 
-	try {
-		return taskStore.fail(options.taskId, errorMessage);
-	} catch (error) {
 		logger.warn(`Failed to fail ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		return null;
 	}
+
+	try {
+		await options.beforeFail?.(errorMessage);
+	} catch (error) {
+		logger.warn(`Failed to handle failed ${options.label} ${options.taskId}: ${toMessage(error)}`);
+	}
+
+	taskStore.publishHistoryChanged(failedTask);
+	return failedTask;
 };
 
 const cancelTask = async <TResult extends TaskResult>(
@@ -69,18 +84,27 @@ const cancelTask = async <TResult extends TaskResult>(
 	errorMessage: string,
 	result: TResult | null,
 ) => {
+	let cancelledTask: ParsedTask;
 	try {
-		await options.beforeCancel?.(errorMessage, result);
+		cancelledTask = taskStore.cancel(options.taskId, errorMessage, result, deferredTerminalEvent);
 	} catch (error) {
-		logger.warn(`Failed to prepare cancelled ${options.label} ${options.taskId}: ${toMessage(error)}`);
-	}
+		if (error instanceof TaskTransitionConflictError) {
+			logTransitionConflict(options.label, options.taskId, error);
+			return null;
+		}
 
-	try {
-		return taskStore.cancel(options.taskId, errorMessage, result);
-	} catch (error) {
 		logger.warn(`Failed to cancel ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		return null;
 	}
+
+	try {
+		await options.beforeCancel?.(errorMessage, result);
+	} catch (error) {
+		logger.warn(`Failed to handle cancelled ${options.label} ${options.taskId}: ${toMessage(error)}`);
+	}
+
+	taskStore.publishHistoryChanged(cancelledTask);
+	return cancelledTask;
 };
 
 const isTaskCancelledError = (error: unknown): error is TaskCancelledError => {
@@ -142,13 +166,19 @@ export const runTaskLifecycle = async <TResult extends TaskResult>(options: Task
 		}
 
 		const result = await options.run(abortController.signal);
-		const completedTask = taskStore.complete(options.taskId, result);
+		const completedTask = taskStore.complete(options.taskId, result, deferredTerminalEvent);
 		try {
 			await options.onSucceeded?.(completedTask, result);
 		} catch (error) {
 			logger.warn(`Failed to handle successful ${options.label} ${options.taskId}: ${toMessage(error)}`);
 		}
+		taskStore.publishHistoryChanged(completedTask);
 	} catch (error) {
+		if (error instanceof TaskTransitionConflictError) {
+			logTransitionConflict(options.label, options.taskId, error);
+			return;
+		}
+
 		if (isTaskFailedError(error)) {
 			await failTask(options, toMessage(error));
 			return;

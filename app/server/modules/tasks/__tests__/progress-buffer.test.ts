@@ -79,3 +79,17 @@ test("persists the first progress update immediately and buffers later updates",
 		buffer.dispose();
 	}
 });
+
+test("stops retrying after the task is no longer active", async () => {
+	vi.useFakeTimers();
+	const task = createBackupTask("progress-buffer-terminal-task");
+	const onError = vi.fn();
+	const buffer = createTaskProgressBuffer(task.id, { intervalMs: 1_000, onError });
+
+	taskStore.markActiveStale({ error: "Task was interrupted" });
+	buffer.update(backupProgress(0.5));
+	vi.advanceTimersByTime(10_000);
+
+	expect(onError).toHaveBeenCalledTimes(1);
+	expect(await getPersistedProgress(task.id)).toBeNull();
+});

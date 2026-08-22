@@ -373,6 +373,59 @@ describe("backup execution - validation failures", () => {
 		});
 	});
 
+	test("does not overwrite restart recovery when Restic finishes after the task became stale", async () => {
+		const { resticBackupMock, resticForgetMock } = setup();
+		const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();
+		const infoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+			retentionPolicy: { keepDaily: 7 },
+		});
+		let finishBackup: (() => void) | undefined;
+		const backupStarted = new Promise<void>((resolve) => {
+			resticBackupMock.mockImplementationOnce(
+				() =>
+					new Promise((resolveBackup) => {
+						finishBackup = () => {
+							resolveBackup({ exitCode: 0, summary: generateBackupOutput(), error: "" });
+						};
+						resolve();
+					}),
+			);
+		});
+
+		await backupsService.executeBackup(schedule.id, true);
+		await backupStarted;
+		const runningTask = await getBackupTaskForSchedule(schedule.id);
+		expect(runningTask?.status).toBe("running");
+		if (!runningTask || !finishBackup) {
+			throw new Error("Expected a running backup");
+		}
+
+		taskStore.markActiveStale({ error: "Zerobyte restarted" });
+		await scheduleQueries.updateStatus(schedule.id, TEST_ORG_ID, {
+			lastBackupStatus: "warning",
+			lastBackupError: "Zerobyte restarted during the backup",
+		});
+		finishBackup();
+
+		await waitForExpect(() => {
+			expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("task is already stale"));
+		});
+
+		const staleTask = await getBackupTaskForSchedule(schedule.id);
+		const recoveredSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(staleTask?.status).toBe("stale");
+		expect(recoveredSchedule.lastBackupStatus).toBe("warning");
+		expect(recoveredSchedule.lastBackupError).toBe("Zerobyte restarted during the backup");
+		expect(resticForgetMock).not.toHaveBeenCalled();
+		const successNotifications = notificationSpy.mock.calls.filter(([, status]) => status === "success");
+		expect(successNotifications).toHaveLength(0);
+	});
+
 	test("records a failed task when backup startup state fails", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
