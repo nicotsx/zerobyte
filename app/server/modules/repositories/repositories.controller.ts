@@ -20,6 +20,8 @@ import {
 	listRepositoriesDto,
 	listSnapshotFilesDto,
 	listSnapshotFilesQuery,
+	getSnapshotUsageDto,
+	getSnapshotUsageQuery,
 	listSnapshotsDto,
 	listSnapshotsFilters,
 	dumpSnapshotDto,
@@ -44,6 +46,7 @@ import {
 	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
 	type ListSnapshotFilesDto,
+	type GetSnapshotUsageDto,
 	type ListSnapshotsDto,
 	type RestoreSnapshotDto,
 	type TagSnapshotsResponseDto,
@@ -188,6 +191,28 @@ export const repositoriesController = new Hono()
 			c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
 
 			return c.json<ListSnapshotFilesDto>(result, 200);
+		},
+	)
+	.get(
+		"/:shortId/snapshots/:snapshotId/usage",
+		getSnapshotUsageDto,
+		validator("query", getSnapshotUsageQuery),
+		async (c) => {
+			const shortId = asShortId(c.req.param("shortId"));
+			const snapshotId = c.req.param("snapshotId");
+			const { path, limit } = c.req.valid("query");
+
+			const result = await repositoriesService.getSnapshotUsage(shortId, snapshotId, {
+				path: path ? decodeURIComponent(path) : undefined,
+				limit,
+			});
+
+			// Trees are immutable once written, so this can be cached hard.
+			if (result.status === "ready") {
+				c.header("Cache-Control", "max-age=300, stale-while-revalidate=600");
+			}
+
+			return c.json<GetSnapshotUsageDto>(result, 200);
 		},
 	)
 	.get("/:shortId/snapshots/:snapshotId/dump", dumpSnapshotDto, validator("query", dumpSnapshotQuery), async (c) => {

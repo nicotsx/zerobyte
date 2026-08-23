@@ -2392,6 +2392,69 @@ export type ListSnapshotFilesResponses = {
 
 export type ListSnapshotFilesResponse = ListSnapshotFilesResponses[keyof ListSnapshotFilesResponses];
 
+export type GetSnapshotUsageData = {
+    body?: never;
+    path: {
+        shortId: string;
+        snapshotId: string;
+    };
+    query?: {
+        path?: string;
+        limit?: number;
+    };
+    url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/usage';
+};
+
+export type GetSnapshotUsageResponses = {
+    /**
+     * Disk usage for a directory in the snapshot
+     */
+    200: {
+        status: 'ready';
+        meta: {
+            source: 'backup' | 'scan';
+            scannedAt: number;
+            durationMs: number;
+            totalSize: number;
+            fileCount: number;
+            dirCount: number;
+            roots: Array<string>;
+            skipped: number;
+            appliedMinSize: number;
+        };
+        path: string;
+        directory: {
+            path: string;
+            name: string;
+            size: number;
+            ownSize: number;
+            fileCount: number;
+            dirCount: number;
+            maxMtime: number;
+            truncatedChildren?: {
+                count: number;
+                size: number;
+            };
+        } | null;
+        entries: Array<{
+            path: string;
+            name: string;
+            type: 'file' | 'dir';
+            size: number;
+            shareOfParent: number;
+            shareOfTotal: number;
+            fileCount?: number;
+            dirCount?: number;
+            maxMtime?: number;
+        }>;
+        totalEntries: number;
+    } | {
+        status: 'missing';
+    };
+};
+
+export type GetSnapshotUsageResponse = GetSnapshotUsageResponses[keyof GetSnapshotUsageResponses];
+
 export type DumpSnapshotData = {
     body?: never;
     path: {
@@ -3698,6 +3761,29 @@ export type GetBackupScheduleForVolumeResponses = {
 };
 
 export type GetBackupScheduleForVolumeResponse = GetBackupScheduleForVolumeResponses[keyof GetBackupScheduleForVolumeResponses];
+
+export type AddExcludePatternsData = {
+    body: {
+        patterns: Array<string>;
+    };
+    path: {
+        shortId: string;
+    };
+    query?: never;
+    url: '/api/v1/backups/{shortId}/exclusions';
+};
+
+export type AddExcludePatternsResponses = {
+    /**
+     * Patterns appended
+     */
+    200: {
+        excludePatterns: Array<string>;
+        added: number;
+    };
+};
+
+export type AddExcludePatternsResponse = AddExcludePatternsResponses[keyof AddExcludePatternsResponses];
 
 export type RunBackupNowData = {
     body?: never;

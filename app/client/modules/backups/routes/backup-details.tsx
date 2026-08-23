@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -14,6 +14,7 @@ import {
 } from "~/client/components/ui/alert-dialog";
 import {
 	getBackupScheduleOptions,
+	getSnapshotUsageOptions,
 	runBackupNowMutation,
 	deleteBackupScheduleMutation,
 	listSnapshotsOptions,
@@ -22,9 +23,12 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { useDeletingSnapshots } from "~/client/modules/repositories/snapshots/delete-tasks";
 import { parseError, handleRepositoryError } from "~/client/lib/errors";
+import { logger } from "~/client/lib/logger";
 import { ScheduleSummary } from "../components/schedule-summary";
 import { SnapshotFileBrowser } from "../components/snapshot-file-browser";
 import { SnapshotTimeline } from "../components/snapshot-timeline";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
+import { UsageExplorer } from "~/client/modules/repositories/components/snapshot-usage/usage-explorer";
 import { ScheduleNotificationsConfig } from "../components/schedule-notifications-config";
 import { ScheduleMirrorsConfig } from "../components/schedule-mirrors-config";
 import { BackupSummaryCard } from "~/client/components/backup-summary-card";
@@ -175,6 +179,22 @@ export function ScheduleDetailsPage(props: Props) {
 	const selectedSnapshot = snapshots?.find((s) => s.short_id === selectedSnapshotId);
 	const isLoadingSnapshots = isPending || (isFetching && !snapshots?.length);
 
+	const queryClient = useQueryClient();
+	useEffect(() => {
+		if (!selectedSnapshot) return;
+
+		// The Usage tab starts unmounted, so its query would not otherwise fire
+		// until the user switches to it — prefetch so it's usually already
+		// cached by then instead of flashing a skeleton in.
+		void queryClient
+			.prefetchQuery(
+				getSnapshotUsageOptions({
+					path: { shortId: schedule.repository.shortId, snapshotId: selectedSnapshot.short_id },
+				}),
+			)
+			.catch((e) => logger.error(e));
+	}, [selectedSnapshot, queryClient, schedule.repository.shortId]);
+
 	return (
 		<div className="flex flex-col gap-6">
 			<ScheduleSummary
@@ -208,15 +228,36 @@ export function ScheduleDetailsPage(props: Props) {
 			/>
 			<BackupSummaryCard summary={selectedSnapshot?.summary} />
 			{selectedSnapshot && (
-				<SnapshotFileBrowser
-					key={selectedSnapshot?.short_id}
-					snapshot={selectedSnapshot}
-					repositoryId={schedule.repository.shortId}
-					backupId={schedule.shortId}
-					displayBasePath={getVolumeMountPath(schedule.volume)}
-					onDeleteSnapshot={handleDeleteSnapshot}
-					isDeletingSnapshot={deleteSnapshot.isPending || deletingSnapshotIds.has(selectedSnapshot.short_id)}
-				/>
+				<Tabs key={selectedSnapshot.short_id} defaultValue="files">
+					<TabsList>
+						<TabsTrigger value="files">Files</TabsTrigger>
+						<TabsTrigger value="usage">Usage</TabsTrigger>
+					</TabsList>
+					<TabsContent value="files">
+						<SnapshotFileBrowser
+							snapshot={selectedSnapshot}
+							repositoryId={schedule.repository.shortId}
+							backupId={schedule.shortId}
+							displayBasePath={getVolumeMountPath(schedule.volume)}
+							onDeleteSnapshot={handleDeleteSnapshot}
+							isDeletingSnapshot={
+								deleteSnapshot.isPending || deletingSnapshotIds.has(selectedSnapshot.short_id)
+							}
+						/>
+					</TabsContent>
+					<TabsContent value="usage">
+						<UsageExplorer
+							repositoryId={schedule.repository.shortId}
+							snapshotId={selectedSnapshot.short_id}
+							schedule={{
+								shortId: schedule.shortId,
+								name: schedule.name,
+								excludePatterns: schedule.excludePatterns,
+							}}
+							repositorySize={selectedSnapshot.size}
+						/>
+					</TabsContent>
+				</Tabs>
 			)}
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

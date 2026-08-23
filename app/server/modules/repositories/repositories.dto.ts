@@ -10,6 +10,11 @@ import {
 	resticSnapshotSummarySchema,
 	resticStatsSchema,
 } from "@zerobyte/core/restic";
+import {
+	snapshotUsageDirectorySchema,
+	snapshotUsageEntrySchema,
+	snapshotUsageMetaSchema,
+} from "~/schemas/snapshot-usage";
 
 export const repositorySchema = z.object({
 	id: z.string(),
@@ -295,6 +300,55 @@ export const listSnapshotFilesDto = describeRoute({
 			content: {
 				"application/json": {
 					schema: resolver(listSnapshotFilesResponse),
+				},
+			},
+		},
+	},
+});
+
+const snapshotUsageReadyResponse = z.object({
+	status: z.literal("ready"),
+	meta: snapshotUsageMetaSchema,
+	/** The directory being listed. */
+	path: z.string(),
+	directory: snapshotUsageDirectorySchema.nullable(),
+	/** Children of `path`, largest first, capped by the query's limit. */
+	entries: snapshotUsageEntrySchema.array(),
+	/** Children before the limit was applied. */
+	totalEntries: z.number(),
+});
+
+/**
+ * No tree stored for this snapshot: it predates usage capture, or it was taken
+ * on a remote agent. Deliberately a 200 with a status rather than a 404, so the
+ * UI can render an explanation instead of an error.
+ */
+const snapshotUsageMissingResponse = z.object({
+	status: z.literal("missing"),
+});
+
+const getSnapshotUsageResponse = z.discriminatedUnion("status", [
+	snapshotUsageReadyResponse,
+	snapshotUsageMissingResponse,
+]);
+
+export type GetSnapshotUsageDto = z.infer<typeof getSnapshotUsageResponse>;
+
+export const getSnapshotUsageQuery = z.object({
+	path: z.string().optional(),
+	limit: z.coerce.number().int().min(1).max(1000).optional(),
+});
+
+export const getSnapshotUsageDto = describeRoute({
+	description: "Directory sizes within a snapshot, largest first",
+	tags: ["Repositories"],
+	operationId: "getSnapshotUsage",
+	responses: {
+		200: {
+			description: "Disk usage for a directory in the snapshot",
+			content: {
+				"application/json": {
+					schema: resolver(getSnapshotUsageResponse),
 				},
 			},
 		},

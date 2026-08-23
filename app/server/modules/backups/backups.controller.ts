@@ -15,6 +15,8 @@ import {
 	runForgetDto,
 	updateBackupScheduleDto,
 	updateBackupScheduleBody,
+	addExcludePatternsDto,
+	addExcludePatternsBody,
 	updateBackupScheduleResponse,
 	getScheduleMirrorsDto,
 	updateScheduleMirrorsDto,
@@ -33,6 +35,7 @@ import {
 	type RunBackupNowDto,
 	type RunForgetDto,
 	type UpdateBackupScheduleDto,
+	type AddExcludePatternsDto,
 	type GetScheduleMirrorsDto,
 	type UpdateScheduleMirrorsDto,
 	type GetMirrorCompatibilityDto,
@@ -84,6 +87,13 @@ export const backupScheduleController = new Hono()
 		const schedule = await backupsService.updateSchedule(shortId, body);
 
 		return c.json<UpdateBackupScheduleDto>(updateBackupScheduleResponse.parse(schedule), 200);
+	})
+	.post("/:shortId/exclusions", addExcludePatternsDto, validator("json", addExcludePatternsBody), async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const { patterns } = c.req.valid("json");
+		const result = await backupsService.addExcludePatterns(shortId, patterns);
+
+		return c.json<AddExcludePatternsDto>(result, 200);
 	})
 	.delete("/:shortId", deleteBackupScheduleDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

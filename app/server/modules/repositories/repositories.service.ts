@@ -26,8 +26,9 @@ import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@ze
 import { restic, resticDeps } from "../../core/restic";
 import { safeSpawn } from "@zerobyte/core/node";
 import type { DumpPathKind, UpdateRepositoryBody } from "./repositories.dto";
-import { findCommonAncestor } from "@zerobyte/core/utils";
+import { findCommonAncestor, normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
+import { loadUsageTree } from "./helpers/snapshot-usage-store";
 import { emptyRepositoryStats, refreshStoredRepositoryStats } from "./helpers/repository-stats";
 import { asShortId, type ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
@@ -372,6 +373,40 @@ const listSnapshotFiles = async (
 	} finally {
 		await runEffectPromise(limiter.release(1));
 	}
+};
+
+/**
+ * Disk usage for one directory inside a snapshot, children largest first.
+ *
+ * Serves entirely from the stored tree — it never touches the repository, so it
+ * is safe to call as fast as somebody can click through a drill-down.
+ */
+const getSnapshotUsage = async (shortId: ShortId, snapshotId: string, options?: { path?: string; limit?: number }) => {
+	const organizationId = getOrganizationId();
+	const repository = await findRepository(shortId);
+
+	if (!repository) {
+		throw new NotFoundError("Repository not found");
+	}
+
+	const indexed = loadUsageTree({ repositoryId: repository.id, organizationId, snapshotId });
+	if (!indexed) {
+		return { status: "missing" as const };
+	}
+
+	const requestedPath = options?.path ? normalizeAbsolutePath(options.path) : (indexed.meta.roots[0] ?? "/");
+	const limit = Math.min(1000, Math.max(1, options?.limit ?? 500));
+
+	const allChildren = indexed.children.get(requestedPath) ?? [];
+
+	return {
+		status: "ready" as const,
+		meta: indexed.meta,
+		path: requestedPath,
+		directory: indexed.directoryDetails.get(requestedPath) ?? null,
+		entries: allChildren.slice(0, limit),
+		totalEntries: allChildren.length,
+	};
 };
 
 const restoreSnapshot = async (
@@ -848,6 +883,7 @@ export const repositoriesService = {
 	updateRepository,
 	listSnapshots,
 	listSnapshotFiles,
+	getSnapshotUsage,
 	restoreSnapshot,
 	dumpSnapshot,
 	getSnapshotDetails,

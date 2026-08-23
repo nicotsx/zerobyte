@@ -6,6 +6,7 @@ import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { runTaskLifecycle } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
+import { deleteUsageTrees } from "../helpers/snapshot-usage-store";
 import type { TaskResult } from "~/schemas/tasks";
 import { refreshStoredRepositoryStats } from "../helpers/repository-stats";
 
@@ -32,6 +33,7 @@ const deleteSnapshots = async (context: DeleteSnapshotsTaskContext): Promise<Del
 			}),
 		);
 		cache.delByPrefix(repositoryCachePrefix);
+		deleteUsageTrees(context.repository.id, context.snapshotIds);
 	} finally {
 		releaseLock();
 	}

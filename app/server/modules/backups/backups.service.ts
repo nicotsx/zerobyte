@@ -130,6 +130,43 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	return newSchedule;
 };
 
+/**
+ * Appends exclusion patterns to a schedule, skipping ones already present.
+ *
+ * Deliberately not routed through updateSchedule: that body requires the whole
+ * schedule and defaults fields like maxRetries, so a caller that only wants to
+ * add one pattern would silently reset unrelated settings. Reading and merging
+ * server-side also keeps two concurrent callers from clobbering each other.
+ */
+const addExcludePatterns = async (scheduleIdOrShortId: number | string, patterns: string[]) => {
+	const organizationId = getOrganizationId();
+	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
+
+	const existing = schedule.excludePatterns ?? [];
+	const seen = new Set(existing.map((pattern) => pattern.trim()));
+	const merged = [...existing];
+
+	for (const pattern of patterns) {
+		const trimmed = pattern.trim();
+		if (!trimmed || seen.has(trimmed)) continue;
+
+		seen.add(trimmed);
+		merged.push(trimmed);
+	}
+
+	const [updated] = await db
+		.update(backupSchedulesTable)
+		.set({ excludePatterns: merged, updatedAt: Date.now() })
+		.where(and(eq(backupSchedulesTable.id, schedule.id), eq(backupSchedulesTable.organizationId, organizationId)))
+		.returning();
+
+	if (!updated) {
+		throw new NotFoundError("Backup schedule not found");
+	}
+
+	return { excludePatterns: updated.excludePatterns ?? [], added: merged.length - existing.length };
+};
+
 const updateSchedule = async (scheduleIdOrShortId: number | string, data: UpdateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
@@ -667,6 +704,7 @@ export const backupsService = {
 	listSchedules,
 	createSchedule,
 	updateSchedule,
+	addExcludePatterns,
 	deleteSchedule,
 	getScheduleForVolume,
 	getMirrors,

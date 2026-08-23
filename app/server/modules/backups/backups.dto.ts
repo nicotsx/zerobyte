@@ -160,6 +160,34 @@ export const createBackupScheduleDto = describeRoute({
 	},
 });
 
+export const addExcludePatternsBody = z.object({
+	patterns: z.array(z.string().min(1).max(512)).min(1).max(64),
+});
+
+const addExcludePatternsResponse = z.object({
+	excludePatterns: z.array(z.string()),
+	/** How many were new; the rest were already on the schedule. */
+	added: z.number(),
+});
+
+export type AddExcludePatternsDto = z.infer<typeof addExcludePatternsResponse>;
+
+export const addExcludePatternsDto = describeRoute({
+	description: "Append exclusion patterns to a backup schedule",
+	operationId: "addExcludePatterns",
+	tags: ["Backups"],
+	responses: {
+		200: {
+			description: "Patterns appended",
+			content: {
+				"application/json": {
+					schema: resolver(addExcludePatternsResponse),
+				},
+			},
+		},
+	},
+});
+
 export const updateBackupScheduleBody = z.object({
 	name: z.string().min(1).max(128).optional(),
 	repositoryId: z.string(),

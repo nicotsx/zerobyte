@@ -19,6 +19,7 @@ import {
 	handleBackupFailure,
 	startPostBackupMirrorSyncs,
 } from "../helpers/backup-lifecycle";
+import { captureSnapshotUsage } from "../helpers/backup-usage-capture";
 import { createForgetCommand } from "./forget-command";
 
 type BackupCommandParams = {
@@ -159,6 +160,11 @@ export const createBackupCommand = (params: BackupCommandParams) => {
 				nextBackupAt,
 			});
 
+			// Captured on success, walked once the lifecycle has released the shared
+			// repository lock below — the walk only reads the local source, so it
+			// must not hold the repository against prune or forget.
+			let capturedSnapshotId: string | null = null;
+
 			void runTaskLifecycle({
 				taskId: task.id,
 				label: "backup task",
@@ -188,6 +194,8 @@ export const createBackupCommand = (params: BackupCommandParams) => {
 					await handleBackupCancellation(scheduleId, ctx.organizationId, errorMessage);
 				},
 				onSucceeded: async (_task, result) => {
+					capturedSnapshotId = result.result?.snapshot_id ?? null;
+
 					await finalizeSuccessfulBackup(ctx, result.exitCode, result.result, result.warningDetails);
 					await runPostBackupMaintenance(ctx);
 					await startPostBackupMirrorSyncs(ctx, scheduleId, result.result).catch((error) => {
@@ -198,6 +206,7 @@ export const createBackupCommand = (params: BackupCommandParams) => {
 				},
 			}).finally(() => {
 				progressBuffer.dispose();
+				void captureSnapshotUsage({ ctx, snapshotId: capturedSnapshotId });
 			});
 
 			return { taskId: task.id, status: "started" as const };

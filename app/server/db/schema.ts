@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	blob,
+	index,
+	int,
+	integer,
+	sqliteTable,
+	text,
+	real,
+	primaryKey,
+	unique,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type {
 	CompressionMode,
 	RepositoryBackend,
@@ -13,6 +24,7 @@ import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 import type { BackendConfig, BackendStatus, BackendType } from "@zerobyte/contracts/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { TaskOutcome, TaskPersistenceFormatVersion } from "~/schemas/tasks";
+import type { SnapshotUsageSource } from "~/schemas/snapshot-usage";
 import type { ShortId } from "~/server/utils/branded";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
@@ -549,6 +561,55 @@ export type BackupScheduleMirror = typeof backupScheduleMirrorsTable.$inferSelec
  * App Metadata Table
  * Used for storing key-value pairs like migration checkpoints
  */
+/**
+ * Snapshot Usage Scans Table
+ *
+ * One directory size tree per snapshot, so the disk usage explorer can answer
+ * "what is eating the space in here" without re-reading the repository.
+ *
+ * `source` says where the tree came from and the two are not interchangeable:
+ * "backup" trees are walked from the locally mounted source at backup time, so
+ * they cost nothing at the repository and they include paths the schedule
+ * excludes; "scan" trees come from `restic ls` and describe only what was
+ * actually stored.
+ */
+export const snapshotUsageScansTable = sqliteTable(
+	"snapshot_usage_scans",
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		repositoryId: text("repository_id")
+			.notNull()
+			.references(() => repositoriesTable.id, { onDelete: "cascade" }),
+		snapshotId: text("snapshot_id").notNull(),
+		/** Owning schedule, when the snapshot came from one. Drives tree retention. */
+		scheduleShortId: text("schedule_short_id").$type<ShortId>(),
+		formatVersion: int("format_version").notNull(),
+		source: text("source").$type<SnapshotUsageSource>().notNull(),
+		totalSize: int("total_size").notNull(),
+		fileCount: int("file_count").notNull(),
+		dirCount: int("dir_count").notNull(),
+		scannedAt: int("scanned_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		durationMs: int("duration_ms").notNull().default(0),
+		/** Gzipped JSON. Directory-path JSON compresses roughly ten to one. */
+		tree: blob("tree").notNull().$type<Uint8Array>(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+	},
+	(table) => [
+		uniqueIndex("snapshot_usage_scans_repo_snapshot_uidx").on(table.repositoryId, table.snapshotId),
+		index("snapshot_usage_scans_schedule_scanned_at_idx").on(
+			table.organizationId,
+			table.scheduleShortId,
+			table.scannedAt,
+		),
+	],
+);
+export type SnapshotUsageScan = typeof snapshotUsageScansTable.$inferSelect;
+export type SnapshotUsageScanInsert = typeof snapshotUsageScansTable.$inferInsert;
+
 export const appMetadataTable = sqliteTable("app_metadata", {
 	key: text().primaryKey(),
 	value: text().notNull(),

@@ -1,7 +1,8 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
 	getRepositoryOptions,
 	getSnapshotDetailsOptions,
+	getSnapshotUsageOptions,
 	listBackupSchedulesOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetSnapshotDetailsResponse } from "~/client/api-client/types.gen";
@@ -10,10 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui
 import { SnapshotFileBrowser } from "~/client/modules/backups/components/snapshot-file-browser";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { BackupSummaryCard } from "~/client/components/backup-summary-card";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Database } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
+import { UsageExplorer } from "../components/snapshot-usage/usage-explorer";
 import { Link, useParams } from "@tanstack/react-router";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
+import { logger } from "~/client/lib/logger";
 
 const SnapshotError = () => {
 	const { repositoryId } = useParams({ from: "/(dashboard)/repositories/$repositoryId/$snapshotId/" });
@@ -24,9 +28,15 @@ const SnapshotError = () => {
 				<Database className="mb-4 h-12 w-12 text-destructive" />
 				<p className="text-destructive font-semibold">Snapshot not found</p>
 				<p className="text-sm text-muted-foreground mt-2">This snapshot does not exist in this repository</p>
-				<p className="text-sm text-muted-foreground mt-1">It may have been deleted manually outside of Zerobyte.</p>
+				<p className="text-sm text-muted-foreground mt-1">
+					It may have been deleted manually outside of Zerobyte.
+				</p>
 				<div className="mt-4">
-					<Link to={`/repositories/$repositoryId`} search={() => ({ tab: "snapshots" })} params={{ repositoryId }}>
+					<Link
+						to={`/repositories/$repositoryId`}
+						search={() => ({ tab: "snapshots" })}
+						params={{ repositoryId }}
+					>
 						<Button variant="outline">Back to repository</Button>
 					</Link>
 				</div>
@@ -74,6 +84,18 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 	});
 	const backupSchedule = schedules?.find((s) => data?.tags?.includes(s.shortId));
 
+	const queryClient = useQueryClient();
+	useEffect(() => {
+		if (!data) return;
+
+		// The Usage tab starts unmounted, so its query would not otherwise
+		// fire until the user switches to it. Fetching it ahead of time means it's
+		// usually already cached by then, instead of flashing a skeleton in.
+		void queryClient
+			.prefetchQuery(getSnapshotUsageOptions({ path: { shortId: repositoryId, snapshotId } }))
+			.catch((e) => logger.error(e));
+	}, [data, queryClient, repositoryId, snapshotId]);
+
 	if (error) {
 		return (
 			<>
@@ -98,11 +120,35 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 			</div>
 
 			{data ? (
-				<SnapshotFileBrowser
-					repositoryId={repositoryId}
-					snapshot={data}
-					displayBasePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
-				/>
+				<Tabs defaultValue="files">
+					<TabsList>
+						<TabsTrigger value="files">Files</TabsTrigger>
+						<TabsTrigger value="usage">Usage</TabsTrigger>
+					</TabsList>
+					<TabsContent value="files">
+						<SnapshotFileBrowser
+							repositoryId={repositoryId}
+							snapshot={data}
+							displayBasePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
+						/>
+					</TabsContent>
+					<TabsContent value="usage">
+						<UsageExplorer
+							repositoryId={repositoryId}
+							snapshotId={snapshotId}
+							schedule={
+								backupSchedule
+									? {
+											shortId: backupSchedule.shortId,
+											name: backupSchedule.name,
+											excludePatterns: backupSchedule.excludePatterns,
+										}
+									: null
+							}
+							repositorySize={data.size}
+						/>
+					</TabsContent>
+				</Tabs>
 			) : (
 				<SnapshotFileBrowserSkeleton />
 			)}
@@ -159,7 +205,10 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 								<span className="text-muted-foreground">Paths:</span>
 								<div className="space-y-1 mt-1">
 									{data.paths.slice(0, showAllPaths ? undefined : 20).map((path) => (
-										<p key={path} className="font-mono text-xs bg-muted px-2 py-1 rounded break-all">
+										<p
+											key={path}
+											className="font-mono text-xs bg-muted px-2 py-1 rounded break-all"
+										>
 											{path}
 										</p>
 									))}
