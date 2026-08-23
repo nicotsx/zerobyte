@@ -1334,6 +1334,7 @@ export type ListRepositoriesResponses = {
             }>;
             completedAt: number;
         } | null;
+        autoCheckEnabled: boolean;
         createdAt: number;
         updatedAt: number;
     }>;
@@ -1345,6 +1346,7 @@ export type CreateRepositoryData = {
     body: {
         name: string;
         compressionMode?: 'off' | 'auto' | 'max';
+        autoCheckEnabled?: boolean;
         config: {
             backend: 's3';
             endpoint: string;
@@ -1757,6 +1759,7 @@ export type GetRepositoryResponses = {
             }>;
             completedAt: number;
         } | null;
+        autoCheckEnabled: boolean;
         createdAt: number;
         updatedAt: number;
     };
@@ -1768,6 +1771,7 @@ export type UpdateRepositoryData = {
     body: {
         name?: string;
         compressionMode?: 'off' | 'auto' | 'max';
+        autoCheckEnabled?: boolean;
         config?: {
             backend: 's3';
             endpoint: string;
@@ -2133,6 +2137,7 @@ export type UpdateRepositoryResponses = {
             }>;
             completedAt: number;
         } | null;
+        autoCheckEnabled: boolean;
         createdAt: number;
         updatedAt: number;
     };
@@ -2848,6 +2853,7 @@ export type ListBackupSchedulesResponses = {
                 }>;
                 completedAt: number;
             } | null;
+            autoCheckEnabled: boolean;
             createdAt: number;
             updatedAt: number;
         };
@@ -3279,6 +3285,7 @@ export type GetBackupScheduleResponses = {
                 }>;
                 completedAt: number;
             } | null;
+            autoCheckEnabled: boolean;
             createdAt: number;
             updatedAt: number;
         };
@@ -3691,6 +3698,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 }>;
                 completedAt: number;
             } | null;
+            autoCheckEnabled: boolean;
             createdAt: number;
             updatedAt: number;
         };
@@ -4158,6 +4166,7 @@ export type GetScheduleMirrorsResponses = {
                 }>;
                 completedAt: number;
             } | null;
+            autoCheckEnabled: boolean;
             createdAt: number;
             updatedAt: number;
         };
@@ -4374,6 +4383,7 @@ export type UpdateScheduleMirrorsResponses = {
                 }>;
                 completedAt: number;
             } | null;
+            autoCheckEnabled: boolean;
             createdAt: number;
             updatedAt: number;
         };

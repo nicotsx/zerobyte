@@ -70,27 +70,37 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 	});
 
 	const initialConfig = repository.config as RepositoryConfig;
+	const initialCompressionMode = repository.compressionMode ?? "auto";
+	const initialAutoCheckEnabled = repository.autoCheckEnabled;
 	const initialValues: RepositoryFormValues = {
 		...initialConfig,
 		name: repository.name,
-		compressionMode: repository.compressionMode ?? "auto",
+		compressionMode: initialCompressionMode,
+		autoCheckEnabled: initialAutoCheckEnabled,
 	};
 
 	const submitUpdate = (values: RepositoryFormValues) => {
-		const { name, compressionMode, ...config } = formSchema.parse(values);
+		const { name, compressionMode, autoCheckEnabled, ...config } = formSchema.parse(values);
 
 		updateRepository.mutate({
 			path: { shortId: repositoryId },
 			body: {
 				name,
 				compressionMode,
+				autoCheckEnabled,
 				config,
 			},
 		});
 	};
 
 	const handleSubmit = (values: RepositoryFormValues) => {
-		const { name: _name, compressionMode: _compressionMode, ...nextConfig } = formSchema.parse(values);
+		const parsedValues = formSchema.parse(values);
+		const {
+			name: _name,
+			compressionMode: _compressionMode,
+			autoCheckEnabled: _autoCheckEnabled,
+			...nextConfig
+		} = parsedValues;
 
 		if (hasRiskyLocationChange(initialConfig, nextConfig)) {
 			setPendingValues(values);
@@ -166,8 +176,8 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Repository location changed</AlertDialogTitle>
 						<AlertDialogDescription>
-							Changing endpoint, bucket, host, or path fields may point to a different repository location. Before
-							saving, ensure the repository already exists at the new target.
+							Changing endpoint, bucket, host, or path fields may point to a different repository
+							location. Before saving, ensure the repository already exists at the new target.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

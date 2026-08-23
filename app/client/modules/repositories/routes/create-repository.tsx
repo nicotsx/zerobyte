@@ -27,13 +27,14 @@ export function CreateRepositoryPage() {
 	});
 
 	const handleSubmit = (values: RepositoryFormValues) => {
-		const { name, compressionMode, ...config } = formSchema.parse(values);
+		const { name, compressionMode, autoCheckEnabled, ...config } = formSchema.parse(values);
 
 		createRepository.mutate({
 			body: {
 				config,
 				name,
 				compressionMode,
+				autoCheckEnabled,
 			},
 		});
 	};

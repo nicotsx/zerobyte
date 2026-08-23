@@ -50,6 +50,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 const formBaseFields = {
 	name: z.string().min(2).max(32),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+	autoCheckEnabled: z.boolean().default(true),
 };
 
 export const formSchema = z
@@ -109,6 +110,7 @@ export const CreateRepositoryForm = ({
 	loading,
 	className,
 }: Props) => {
+	const formDefaultValues = initialValues ?? { autoCheckEnabled: true };
 	const getConstants = useServerFn(getServerConstants);
 	const { data: constants } = useSuspenseQuery({
 		queryKey: ["server-constants"],
@@ -117,7 +119,7 @@ export const CreateRepositoryForm = ({
 
 	const form = useForm<RepositoryFormValues>({
 		resolver: zodResolver(formSchema, undefined, { raw: true }),
-		defaultValues: initialValues,
+		defaultValues: formDefaultValues,
 		resetOptions: {
 			keepDefaultValues: true,
 			keepDirtyValues: false,
@@ -170,15 +172,21 @@ export const CreateRepositoryForm = ({
 							<FormLabel>Backend</FormLabel>
 							<Select
 								onValueChange={(value) => {
+									const currentValues = form.getValues();
+									const selectedBackend = value as keyof ReturnType<typeof defaultValuesForType>;
+									const backendDefaultValues = defaultValuesForType(constants.REPOSITORY_BASE)[
+										selectedBackend
+									];
+									const autoCheckEnabled = currentValues.autoCheckEnabled ?? true;
+									const resetValues = {
+										name: currentValues.name,
+										isExistingRepository: currentValues.isExistingRepository,
+										customPassword: currentValues.customPassword,
+										autoCheckEnabled,
+										...backendDefaultValues,
+									};
 									field.onChange(value);
-									form.reset({
-										name: form.getValues().name,
-										isExistingRepository: form.getValues().isExistingRepository,
-										customPassword: form.getValues().customPassword,
-										...defaultValuesForType(constants.REPOSITORY_BASE)[
-											value as keyof ReturnType<typeof defaultValuesForType>
-										],
-									});
+									form.reset(resetValues);
 								}}
 								value={field.value ?? ""}
 								disabled={mode === "update"}
@@ -231,6 +239,31 @@ export const CreateRepositoryForm = ({
 							</Select>
 							<FormDescription>Compression mode for backups stored in this repository.</FormDescription>
 							<FormMessage />
+						</FormItem>
+					)}
+				/>
+
+				<FormField
+					control={form.control}
+					name="autoCheckEnabled"
+					render={({ field }) => (
+						<FormItem className="flex flex-row items-center space-x-3">
+							<FormControl>
+								<Checkbox
+									checked={field.value}
+									onCheckedChange={(checked) => {
+										const autoCheckEnabled = checked === true;
+										field.onChange(autoCheckEnabled);
+									}}
+								/>
+							</FormControl>
+							<div className="space-y-1">
+								<FormLabel>Enable scheduled repository health checks</FormLabel>
+								<FormDescription>
+									Automatically run scheduled health checks for this repository. This does not affect
+									manual health checks.
+								</FormDescription>
+							</div>
 						</FormItem>
 					)}
 				/>
