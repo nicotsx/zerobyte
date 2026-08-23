@@ -107,6 +107,21 @@ describe("repositoriesService.createRepository", () => {
 		expect(savedConfig.path).toBe(`${REPOSITORY_BASE}/${created.shortId}`);
 		expect(savedConfig.path).not.toBe(REPOSITORY_BASE);
 		expect(created.status).toBe("healthy");
+		expect(created.autoCheckEnabled).toBe(true);
+	});
+
+	test("persists disabled automatic health checks when requested", async () => {
+		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
+
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.createRepository("opted out repo", config, undefined, false),
+		);
+
+		const created = await db.query.repositoriesTable.findFirst({
+			where: { id: result.repository.id },
+		});
+
+		expect(created?.autoCheckEnabled).toBe(false);
 	});
 
 	test("creates a shortId-scoped repository path when using a custom directory", async () => {
@@ -168,6 +183,28 @@ describe("repositoriesService.createRepository", () => {
 		const savedConfig = created.config as Extract<RepositoryConfig, { backend: "local" }>;
 		expect(savedConfig.path).toBe(explicitPath);
 		expect(created.status).toBe("healthy");
+	});
+});
+
+describe("repositoriesService.checkHealth", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	test("allows manual health checks for repositories opted out of scheduled checks", async () => {
+		const repository = await createTestRepository(session.organizationId, { autoCheckEnabled: false });
+		vi.spyOn(restic, "check").mockReturnValue(
+			Effect.succeed({ success: true, hasErrors: false, output: "", error: null }),
+		);
+
+		await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.checkHealth(repository.shortId),
+		);
+
+		const updated = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+
+		expect(updated?.status).toBe("healthy");
+		expect(updated?.lastChecked).not.toBeNull();
 	});
 });
 

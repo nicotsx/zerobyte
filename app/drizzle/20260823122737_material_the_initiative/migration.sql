@@ -1,0 +1,1 @@
+ALTER TABLE `repositories_table` ADD `auto_check_enabled` integer DEFAULT true NOT NULL;

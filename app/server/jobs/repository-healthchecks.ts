@@ -9,7 +9,9 @@ export class RepositoryHealthCheckJob extends Job {
 		logger.debug("Running health check for all repositories...");
 
 		const repositories = await db.query.repositoriesTable.findMany({
-			where: { OR: [{ status: "healthy" }, { status: "error" }] },
+			where: {
+				AND: [{ OR: [{ status: "healthy" }, { status: "error" }] }, { autoCheckEnabled: true }],
+			},
 		});
 
 		for (const repository of repositories) {

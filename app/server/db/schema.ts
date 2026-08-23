@@ -297,6 +297,7 @@ export const repositoriesTable = sqliteTable(
 		downloadLimitEnabled: int("download_limit_enabled", { mode: "boolean" }).notNull().default(false),
 		downloadLimitValue: real("download_limit_value").notNull().default(1),
 		downloadLimitUnit: text("download_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
+		autoCheckEnabled: int("auto_check_enabled", { mode: "boolean" }).notNull().default(true),
 		createdAt: int("created_at", { mode: "number" })
 			.notNull()
 			.default(sql`(unixepoch() * 1000)`),

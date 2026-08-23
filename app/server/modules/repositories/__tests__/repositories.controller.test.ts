@@ -298,6 +298,7 @@ describe("repositories updates", () => {
 		expect(body.lastChecked).toBeNull();
 		expect(body.lastError).toBeNull();
 		expect(body.doctorResult).toBeNull();
+		expect(body.autoCheckEnabled).toBe(true);
 
 		const updated = await db.query.repositoriesTable.findFirst({
 			where: { id: repository.id },
@@ -313,6 +314,27 @@ describe("repositories updates", () => {
 		expect(updated?.lastChecked).toBeNull();
 		expect(updated?.lastError).toBeNull();
 		expect(updated?.doctorResult).toBeNull();
+		expect(updated?.autoCheckEnabled).toBe(true);
+	});
+
+	test("PATCH updates automatic health check scheduling", async () => {
+		const repository = await createRepositoryRecord(session.organizationId);
+
+		const res = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "PATCH",
+			headers: {
+				...session.headers,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ autoCheckEnabled: false }),
+		});
+
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.autoCheckEnabled).toBe(false);
+
+		const updated = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+		expect(updated?.autoCheckEnabled).toBe(false);
 	});
 
 	test("PATCH rejects backend changes", async () => {
