@@ -24,7 +24,7 @@ export const streamEvents = <
 	c: Context,
 	options: StreamEventOptions<TPayloadMap, TEventName>,
 ) => {
-	logger.info(`Client connected to ${options.connectionLabel} SSE endpoint`);
+	logger.debug(`Client connected to ${options.connectionLabel} SSE endpoint`);
 
 	return streamSSE(c, async (stream) => {
 		const unsubscribers = options.events.map((eventName) => {
@@ -53,7 +53,7 @@ export const streamEvents = <
 
 		function handleDisconnect() {
 			if (!keepAlive) return;
-			logger.info(`Client disconnected from ${options.connectionLabel} SSE endpoint`);
+			logger.debug(`Client disconnected from ${options.connectionLabel} SSE endpoint`);
 			keepAlive = false;
 			cleanup();
 		}
