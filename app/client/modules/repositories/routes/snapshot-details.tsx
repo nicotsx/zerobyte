@@ -146,6 +146,7 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 									: null
 							}
 							repositorySize={data.size}
+							displayBasePath={backupSchedule ? getVolumeMountPath(backupSchedule.volume) : undefined}
 						/>
 					</TabsContent>
 				</Tabs>

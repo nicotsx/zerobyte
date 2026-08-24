@@ -4,23 +4,8 @@ import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-qu
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
+import { createPathPrefixFns } from "~/client/lib/volume-path";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
-
-function createPathPrefixFns(basePath: string) {
-	return {
-		strip(path: string) {
-			if (basePath === "/") return path;
-			if (path === basePath) return "/";
-			if (path.startsWith(`${basePath}/`)) return path.slice(basePath.length);
-			return path;
-		},
-		add(displayPath: string) {
-			if (basePath === "/") return displayPath;
-			if (displayPath === "/") return basePath;
-			return `${basePath}${displayPath}`;
-		},
-	};
-}
 
 type SnapshotTreeBrowserProps = FileBrowserUiProps & {
 	repositoryId: string;

@@ -14,14 +14,22 @@ const extensionOf = (name: string) => {
 	return name.slice(index + 1);
 };
 
+const identity = (path: string) => path;
+
 /**
  * Exclude patterns offered for one entry, most specific first.
  *
- * Restic anchors a pattern that starts with a slash to the absolute path, and
- * the paths in a usage tree are the paths restic itself saw at backup time, so
- * the exact-path pattern needs no translation.
+ * The backup executor resolves a pattern starting with `/` relative to the
+ * volume, not the host filesystem (see `processPattern` in
+ * apps/agent/src/commands/helpers/backup.helpers.ts) — so the exact-path
+ * pattern must be volume-relative, even though the tree stores the full host
+ * path. `toDisplayPath` does that conversion; without one, entry.path is used
+ * as-is, which is only correct when there's no volume to be relative to.
  */
-export const buildExcludePatternChoices = (entry: { path: string; type: "file" | "dir" }): ExcludePatternChoice[] => {
+export const buildExcludePatternChoices = (
+	entry: { path: string; type: "file" | "dir" },
+	toDisplayPath: (path: string) => string = identity,
+): ExcludePatternChoice[] => {
 	const name = basename(entry.path);
 
 	const choices: ExcludePatternChoice[] = [
@@ -29,7 +37,7 @@ export const buildExcludePatternChoices = (entry: { path: string; type: "file" |
 			id: "exact",
 			label: "This exact path",
 			description: "Excludes only this one, wherever it sits in the tree.",
-			pattern: entry.path,
+			pattern: toDisplayPath(entry.path),
 		},
 		{
 			id: "name",

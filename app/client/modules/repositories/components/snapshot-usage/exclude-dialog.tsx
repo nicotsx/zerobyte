@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Ban, Copy } from "lucide-react";
+import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { addExcludePatternsMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import {
 	Dialog,
@@ -18,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/
 import { ByteSize } from "~/client/components/bytes-size";
 import { cn } from "~/client/lib/utils";
 import { parseError } from "~/client/lib/errors";
+import { createPathPrefixFns } from "~/client/lib/volume-path";
 import type { SnapshotUsageEntry } from "~/schemas/snapshot-usage";
 import { buildExcludePatternChoices } from "./exclude-patterns";
 
@@ -30,11 +32,20 @@ type OwningSchedule = {
 type Props = {
 	entry: SnapshotUsageEntry | null;
 	schedule: OwningSchedule | null;
+	/** The volume's mount path, so paths can be shown relative to it instead of the host filesystem. */
+	displayBasePath?: string;
 	onClose: () => void;
 };
 
-export const ExcludeDialog = ({ entry, schedule, onClose }: Props) => {
-	const choices = useMemo(() => (entry ? buildExcludePatternChoices(entry) : []), [entry]);
+export const ExcludeDialog = ({ entry, schedule, displayBasePath, onClose }: Props) => {
+	const displayPathFns = useMemo(
+		() => createPathPrefixFns(normalizeAbsolutePath(displayBasePath ?? "/")),
+		[displayBasePath],
+	);
+	const choices = useMemo(
+		() => (entry ? buildExcludePatternChoices(entry, (path) => displayPathFns.strip(path)) : []),
+		[entry, displayPathFns],
+	);
 	const [pattern, setPattern] = useState("");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -93,7 +104,7 @@ export const ExcludeDialog = ({ entry, schedule, onClose }: Props) => {
 				<DialogHeader>
 					<DialogTitle>Exclude from future backups</DialogTitle>
 					<DialogDescription>
-						<span className="font-mono break-all">{entry.path}</span>
+						<span className="font-mono break-all">{displayPathFns.strip(entry.path)}</span>
 						{" — "}
 						<ByteSize bytes={entry.size} />
 					</DialogDescription>

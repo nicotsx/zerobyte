@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ArrowUp, HardDrive, Info } from "lucide-react";
+import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { getSnapshotUsageOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Button } from "~/client/components/ui/button";
@@ -9,6 +10,7 @@ import { Skeleton } from "~/client/components/ui/skeleton";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
+import { createPathPrefixFns } from "~/client/lib/volume-path";
 import type { SnapshotUsageEntry } from "~/schemas/snapshot-usage";
 import { UsageRow } from "./usage-row";
 import { UsageBreadcrumb } from "./usage-breadcrumb";
@@ -26,6 +28,8 @@ type Props = {
 	schedule: OwningSchedule | null;
 	/** Repository-side size, for the honest comparison against apparent size. */
 	repositorySize?: number;
+	/** The volume's mount path, so paths can be shown relative to it instead of the host filesystem. */
+	displayBasePath?: string;
 };
 
 const UsageEmptyState = () => (
@@ -44,7 +48,7 @@ const UsageEmptyState = () => (
 	</Card>
 );
 
-export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySize }: Props) => {
+export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySize, displayBasePath }: Props) => {
 	const [path, setPath] = useState<string | undefined>(undefined);
 	const [entryToExclude, setEntryToExclude] = useState<SnapshotUsageEntry | null>(null);
 	const { formatDateTime } = useTimeFormat();
@@ -73,6 +77,12 @@ export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySi
 		const candidate = currentPath.slice(0, index);
 		return candidate.length >= root.length ? candidate : root;
 	}, [currentPath, root]);
+
+	// Only relativize against the volume's mount path when it actually contains
+	// this tree — otherwise fall back to showing the real path as-is.
+	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
+	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, root) ? normalizedDisplayBasePath : "/";
+	const displayPathFns = useMemo(() => createPathPrefixFns(effectiveDisplayBasePath), [effectiveDisplayBasePath]);
 
 	if (isLoading) {
 		return (
@@ -127,7 +137,11 @@ export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySi
 						)}
 					</div>
 
-					<UsageBreadcrumb root={root} path={currentPath} onNavigate={setPath} />
+					<UsageBreadcrumb
+						root={displayPathFns.strip(root)}
+						path={displayPathFns.strip(currentPath)}
+						onNavigate={(displayPath) => setPath(displayPathFns.add(displayPath))}
+					/>
 				</CardHeader>
 
 				<CardContent className="p-0">
@@ -141,6 +155,7 @@ export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySi
 								<UsageRow
 									key={entry.path}
 									entry={entry}
+									displayPath={displayPathFns.strip(entry.path)}
 									onOpen={(target) => setPath(target.path)}
 									onExclude={setEntryToExclude}
 								/>
@@ -186,7 +201,12 @@ export const UsageExplorer = ({ repositoryId, snapshotId, schedule, repositorySi
 				</CardContent>
 			</Card>
 
-			<ExcludeDialog entry={entryToExclude} schedule={schedule} onClose={() => setEntryToExclude(null)} />
+			<ExcludeDialog
+				entry={entryToExclude}
+				schedule={schedule}
+				displayBasePath={effectiveDisplayBasePath}
+				onClose={() => setEntryToExclude(null)}
+			/>
 		</>
 	);
 };

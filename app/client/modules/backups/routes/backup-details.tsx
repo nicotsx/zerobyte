@@ -255,6 +255,7 @@ export function ScheduleDetailsPage(props: Props) {
 								excludePatterns: schedule.excludePatterns,
 							}}
 							repositorySize={selectedSnapshot.size}
+							displayBasePath={getVolumeMountPath(schedule.volume)}
 						/>
 					</TabsContent>
 				</Tabs>

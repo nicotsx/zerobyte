@@ -2,11 +2,26 @@ import { describe, expect, test } from "vitest";
 import { buildExcludePatternChoices } from "../exclude-patterns";
 
 describe("buildExcludePatternChoices", () => {
-	test("offers the absolute path first, since restic anchors it", () => {
+	test("offers the exact path first, unchanged when there's no volume to be relative to", () => {
 		const [first] = buildExcludePatternChoices({ path: "/mnt/data/media/raw", type: "dir" });
 
 		expect(first?.id).toBe("exact");
 		expect(first?.pattern).toBe("/mnt/data/media/raw");
+	});
+
+	test("makes the exact-path pattern relative to the volume, since that's what the executor expects", () => {
+		const toDisplayPath = (path: string) => path.replace("/mnt/data", "");
+		const [first] = buildExcludePatternChoices({ path: "/mnt/data/media/raw", type: "dir" }, toDisplayPath);
+
+		expect(first?.pattern).toBe("/media/raw");
+	});
+
+	test("does not relativize the name or extension patterns, since they match anywhere already", () => {
+		const toDisplayPath = (path: string) => path.replace("/mnt/data", "");
+		const choices = buildExcludePatternChoices({ path: "/mnt/data/movie.ISO", type: "file" }, toDisplayPath);
+
+		expect(choices.find((choice) => choice.id === "name")?.pattern).toBe("**/movie.ISO");
+		expect(choices.find((choice) => choice.id === "extension")?.pattern).toBe("*.ISO");
 	});
 
 	test("offers a name pattern that matches anywhere in the tree", () => {

@@ -7,6 +7,8 @@ import type { SnapshotUsageEntry } from "~/schemas/snapshot-usage";
 
 type Props = {
 	entry: SnapshotUsageEntry;
+	/** Path to show on hover; falls back to the real path when not relativized. */
+	displayPath?: string;
 	onOpen: (entry: SnapshotUsageEntry) => void;
 	onExclude: (entry: SnapshotUsageEntry) => void;
 };
@@ -18,9 +20,10 @@ const percent = (value: number) => `${(value * 100).toFixed(value >= 0.1 ? 0 : 1
 // hour is a single digit.
 const padHour = (formatted: string) => formatted.replace(/\b(\d):(\d{2})\b/, "0$1:$2");
 
-export const UsageRow = ({ entry, onOpen, onExclude }: Props) => {
+export const UsageRow = ({ entry, displayPath, onOpen, onExclude }: Props) => {
 	const { formatDateTime } = useTimeFormat();
 	const isDirectory = entry.type === "dir";
+	const shownPath = displayPath ?? entry.path;
 
 	return (
 		<div className="group relative flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0 hover:bg-accent/50">
@@ -46,12 +49,12 @@ export const UsageRow = ({ entry, onOpen, onExclude }: Props) => {
 						type="button"
 						onClick={() => onOpen(entry)}
 						className="truncate text-left text-sm font-medium hover:underline"
-						title={entry.path}
+						title={shownPath}
 					>
 						{entry.name}
 					</button>
 				) : (
-					<span className="truncate text-sm" title={entry.path}>
+					<span className="truncate text-sm" title={shownPath}>
 						{entry.name}
 					</span>
 				)}
