@@ -91,7 +91,6 @@
 		"input-otp": "^1.4.2",
 		"ipaddr.js": "^2.5.0",
 		"lucide-react": "^1.31.0",
-		"portless": "^0.15.5",
 		"qrcode.react": "^4.2.0",
 		"react": "^19.2.8",
 		"react-dom": "^19.2.8",
