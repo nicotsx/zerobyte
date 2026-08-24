@@ -150,5 +150,5 @@
 		"esbuild": "^0.28.2",
 		"yauzl": "^3.4.0"
 	},
-	"packageManager": "bun@1.3.14"
+	"packageManager": "bun@1.4.0"
 }
