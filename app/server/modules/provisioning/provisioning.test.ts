@@ -60,6 +60,23 @@ describe("provisioning", () => {
 		).toThrow("Duplicate provisioned repository id for organization acme: shared-id");
 	});
 
+	test("enables automatic repository health checks by default", () => {
+		const parsed = provisionedResourcesSchema.parse({
+			repositories: [
+				{
+					id: "default-health-check",
+					organizationId: "acme",
+					name: "Default health check repository",
+					backend: "local",
+					config: { backend: "local", path: "/tmp/default-health-check" },
+				},
+			],
+			volumes: [],
+		});
+
+		expect(parsed.repositories[0]?.autoCheckEnabled).toBe(true);
+	});
+
 	test("syncs provisioned repositories and volumes into the database", async () => {
 		const { organizationId } = session;
 
@@ -79,6 +96,7 @@ describe("provisioning", () => {
 						name: "AWS Production",
 						backend: "s3",
 						compressionMode: "auto",
+						autoCheckEnabled: false,
 						config: {
 							backend: "s3",
 							endpoint: "https://s3.amazonaws.com",
@@ -121,6 +139,7 @@ describe("provisioning", () => {
 		}
 		expect(repository.config.accessKeyId).toBe("access-key-from-env");
 		expect(repository.provisioningId).toBeDefined();
+		expect(repository.autoCheckEnabled).toBe(false);
 
 		expect(volume).toBeTruthy();
 		expect(volume?.status).toBe("mounted");

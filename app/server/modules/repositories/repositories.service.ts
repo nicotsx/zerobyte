@@ -138,10 +138,17 @@ const listRepositories = async () => {
 	return repositories;
 };
 
-const createRepository = async (name: string, config: RepositoryConfig, compressionMode?: CompressionMode) => {
+const createRepository = async (
+	name: string,
+	config: RepositoryConfig,
+	compressionMode?: CompressionMode,
+	autoCheckEnabled?: boolean,
+) => {
 	const organizationId = getOrganizationId();
 	const id = Bun.randomUUIDv7();
 	const shortId = generateShortId();
+	const resolvedCompressionMode = compressionMode ?? "auto";
+	const resolvedAutoCheckEnabled = autoCheckEnabled ?? true;
 	if (config.backend === "local" && !config.isExistingRepository) {
 		config.path = `${config.path}/${shortId}`;
 	}
@@ -156,7 +163,8 @@ const createRepository = async (name: string, config: RepositoryConfig, compress
 			name: name.trim(),
 			type: config.backend,
 			config: encryptedConfig,
-			compressionMode: compressionMode ?? "auto",
+			compressionMode: resolvedCompressionMode,
+			autoCheckEnabled: resolvedAutoCheckEnabled,
 			status: "unknown",
 			organizationId,
 		})
@@ -700,10 +708,13 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const decryptedExisting = await decryptRepositoryConfig(existingConfig);
 	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
 	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
+	const resolvedCompressionMode = updates.compressionMode ?? existing.compressionMode;
+	const resolvedAutoCheckEnabled = updates.autoCheckEnabled ?? existing.autoCheckEnabled;
 	const updatedAt = Date.now();
 	const updatePayload: Partial<RepositoryInsert> = {
 		name: newName,
-		compressionMode: updates.compressionMode ?? existing.compressionMode,
+		compressionMode: resolvedCompressionMode,
+		autoCheckEnabled: resolvedAutoCheckEnabled,
 		updatedAt,
 		config: encryptedConfig,
 	};

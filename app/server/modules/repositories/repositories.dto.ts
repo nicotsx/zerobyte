@@ -23,6 +23,7 @@ export const repositorySchema = z.object({
 	lastChecked: z.number().nullable(),
 	lastError: z.string().nullable(),
 	doctorResult: doctorResultSchema.nullable(),
+	autoCheckEnabled: z.boolean(),
 	createdAt: z.number(),
 	updatedAt: z.number(),
 });
@@ -49,6 +50,7 @@ export const listRepositoriesDto = describeRoute({
 export const createRepositoryBody = z.object({
 	name: z.string(),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+	autoCheckEnabled: z.boolean().optional(),
 	config: repositoryConfigSchema,
 });
 
@@ -160,6 +162,7 @@ export const deleteRepositoryDto = describeRoute({
 export const updateRepositoryBody = z.object({
 	name: z.string().optional(),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+	autoCheckEnabled: z.boolean().optional(),
 	config: repositoryConfigSchema.optional(),
 });
 

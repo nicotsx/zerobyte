@@ -29,6 +29,7 @@ const provisionedRepositorySchema = z.object({
 	organizationId: z.string().min(1),
 	name: z.string().min(1),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+	autoCheckEnabled: z.boolean().default(true),
 	config: repositoryConfigSchema,
 	backend: z.enum(REPOSITORY_BACKENDS),
 	delete: z.boolean().default(false),
@@ -166,6 +167,7 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 				type: repository.backend,
 				config: encryptedConfig,
 				compressionMode: repository.compressionMode,
+				autoCheckEnabled: repository.autoCheckEnabled,
 				status: "unknown",
 				organizationId: repository.organizationId,
 			});
@@ -202,6 +204,7 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 			type: repository.backend,
 			config: encryptedConfig,
 			compressionMode: repository.compressionMode,
+			autoCheckEnabled: repository.autoCheckEnabled,
 			organizationId: repository.organizationId,
 			updatedAt: Date.now(),
 		};

@@ -67,7 +67,12 @@ export const repositoriesController = new Hono()
 	})
 	.post("/", createRepositoryDto, validator("json", createRepositoryBody), async (c) => {
 		const body = c.req.valid("json");
-		const res = await repositoriesService.createRepository(body.name, body.config, body.compressionMode);
+		const res = await repositoriesService.createRepository(
+			body.name,
+			body.config,
+			body.compressionMode,
+			body.autoCheckEnabled,
+		);
 
 		return c.json({ message: "Repository created", repository: res.repository }, 201);
 	})
