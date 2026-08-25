@@ -23,14 +23,14 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 		const activeBackupTasksOptions = backupTasksOptions(backupId);
 		const activeMirrorSyncTasksOptions = mirrorSyncTasksOptions(backupId);
 
-		const [schedule, notifs, repos, scheduleNotifs, mirrors] = await Promise.all([
+		const [schedule, scheduleNotifs, mirrors] = await Promise.all([
 			context.queryClient.ensureQueryData({ ...getBackupScheduleOptions({ path: { shortId: backupId } }) }),
-			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
-			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
 			context.queryClient.ensureQueryData({
 				...getScheduleNotificationsOptions({ path: { shortId: backupId } }),
 			}),
 			context.queryClient.ensureQueryData({ ...getScheduleMirrorsOptions({ path: { shortId: backupId } }) }),
+			context.queryClient.ensureQueryData({ ...listRepositoriesOptions() }),
+			context.queryClient.ensureQueryData({ ...listNotificationDestinationsOptions() }),
 			context.queryClient.ensureQueryData(activeBackupTasksOptions),
 			context.queryClient.ensureQueryData(activeMirrorSyncTasksOptions),
 		]);
@@ -47,8 +47,6 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/")({
 
 		return {
 			schedule,
-			notifs,
-			repos,
 			scheduleNotifs,
 			mirrors,
 			snapshots: context.queryClient.getQueryData(snapshotOptions.queryKey),
