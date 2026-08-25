@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromAny } from "@total-typescript/shoehorn";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { cleanup, render, screen } from "~/test/test-utils";
+import { cleanup, createTestQueryClient, render, screen } from "~/test/test-utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
@@ -28,11 +28,23 @@ vi.mock("~/client/lib/datetime", async (importOriginal) => {
 });
 
 vi.mock("~/client/modules/backups/components/schedule-notifications-config", () => ({
-	ScheduleNotificationsConfig: () => null,
+	ScheduleNotificationsConfig: ({ destinations }: { destinations: Array<{ id: number; name: string }> }) => (
+		<ul>
+			{destinations.map((destination) => (
+				<li key={destination.id}>{destination.name}</li>
+			))}
+		</ul>
+	),
 }));
 
 vi.mock("~/client/modules/backups/components/schedule-mirrors-config", () => ({
-	ScheduleMirrorsConfig: () => null,
+	ScheduleMirrorsConfig: ({ repositories }: { repositories: Array<{ shortId: string; name: string }> }) => (
+		<ul>
+			{repositories.map((repository) => (
+				<li key={repository.shortId}>{repository.name}</li>
+			))}
+		</ul>
+	),
 }));
 
 vi.mock("~/client/modules/backups/components/schedule-summary", () => ({
@@ -106,6 +118,10 @@ const schedule = {
 	backupWebhooks: null,
 };
 
+const repository = { shortId: "repo-1", name: "Repo 1", type: "local" };
+const mirrorRepository = { shortId: "repo-2", name: "Repo 2", type: "s3" };
+const notificationDestination = { id: 1, name: "Ntfy", provider: "ntfy", enabled: true };
+
 const snapshot = {
 	short_id: "snap-1",
 	paths: ["/mnt/project"],
@@ -161,12 +177,20 @@ const mockScheduleDetailsRequests = (
 		onScheduleRequest?: () => void;
 		snapshots?: () => Array<typeof snapshot>;
 		tasks?: () => Array<typeof deleteSnapshotsTask>;
+		repositories?: () => Array<typeof repository>;
+		destinations?: () => Array<typeof notificationDestination>;
 	} = {},
 ) => {
 	server.use(
 		http.get("/api/v1/backups/:shortId", () => {
 			options.onScheduleRequest?.();
 			return HttpResponse.json({ ...schedule, ...options.scheduleOverride });
+		}),
+		http.get("/api/v1/repositories", () => {
+			return HttpResponse.json(options.repositories ? options.repositories() : [repository]);
+		}),
+		http.get("/api/v1/notifications/destinations", () => {
+			return HttpResponse.json(options.destinations ? options.destinations() : []);
 		}),
 		http.get("/api/v1/repositories/:shortId/snapshots", () => {
 			return HttpResponse.json(options.snapshots ? options.snapshots() : [snapshot]);
@@ -215,8 +239,6 @@ describe("ScheduleDetailsPage", () => {
 			<ScheduleDetailsPage
 				loaderData={fromAny({
 					schedule,
-					notifs: [],
-					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
 					snapshots: [snapshot],
@@ -243,6 +265,8 @@ describe("ScheduleDetailsPage", () => {
 
 		server.use(
 			http.get("/api/v1/backups/:shortId", () => HttpResponse.json(schedule)),
+			http.get("/api/v1/repositories", () => HttpResponse.json([repository])),
+			http.get("/api/v1/notifications/destinations", () => HttpResponse.json([])),
 			http.get(/\/api\/v1\/tasks(?:\?.*)?$/, () => HttpResponse.json([])),
 			http.get("/api/v1/repositories/:shortId/snapshots", () => snapshotsResponse),
 		);
@@ -251,8 +275,6 @@ describe("ScheduleDetailsPage", () => {
 			<ScheduleDetailsPage
 				loaderData={fromAny({
 					schedule,
-					notifs: [],
-					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
 					snapshots: [],
@@ -282,8 +304,6 @@ describe("ScheduleDetailsPage", () => {
 			<ScheduleDetailsPage
 				loaderData={fromAny({
 					schedule: fromAny({ ...schedule, lastBackupStatus: "in_progress" }),
-					notifs: [],
-					repos: [],
 					scheduleNotifs: [],
 					mirrors: [],
 					snapshots: [snapshot],
@@ -296,5 +316,37 @@ describe("ScheduleDetailsPage", () => {
 		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
 		await new Promise((resolve) => setTimeout(resolve, 1200));
 		expect(runningScheduleRequests).toBe(1);
+	});
+
+	test("shows repositories and destinations created after the page was loaded without a reload", async () => {
+		const repositories = [repository];
+		const destinations: Array<typeof notificationDestination> = [];
+		mockScheduleDetailsRequests({ repositories: () => repositories, destinations: () => destinations });
+
+		const queryClient = createTestQueryClient();
+
+		render(
+			<ScheduleDetailsPage
+				loaderData={fromAny({
+					schedule,
+					scheduleNotifs: [],
+					mirrors: [],
+					snapshots: [snapshot],
+				})}
+				scheduleId="backup-1"
+			/>,
+			{ withSuspense: true, queryClient },
+		);
+
+		expect(await screen.findByRole("heading", { name: "Backup 1" })).toBeTruthy();
+		expect(screen.queryByText("Repo 2")).toBeNull();
+		expect(screen.queryByText("Ntfy")).toBeNull();
+
+		repositories.push(mirrorRepository);
+		destinations.push(notificationDestination);
+		await queryClient.invalidateQueries();
+
+		expect(await screen.findByText("Repo 2")).toBeTruthy();
+		expect(await screen.findByText("Ntfy")).toBeTruthy();
 	});
 });
