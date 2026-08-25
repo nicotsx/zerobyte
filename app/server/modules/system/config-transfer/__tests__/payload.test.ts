@@ -2,12 +2,12 @@ import type { RepositoryBackend, RepositoryConfig } from "@zerobyte/core/restic"
 import type { BackendConfig, BackendType } from "@zerobyte/contracts/volumes";
 import { describe, expect, expectTypeOf, test } from "vitest";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
-import type { BackupSchedule } from "~/server/db/schema";
 import type { ConfigTransferModel } from "../model";
 import { encodeCurrentConfigTransferPayload, parseConfigTransferPayload } from "../payload";
 import { loadConfigTransferPayloadFixture } from "./config-transfer-test-helpers";
 
 type CurrentEncodedPayload = ReturnType<typeof encodeCurrentConfigTransferPayload>;
+type CurrentEncodedModel = Omit<CurrentEncodedPayload, "version">;
 
 const repositoryConfigs = {
 	s3: {
@@ -121,8 +121,6 @@ const createVariantCoveragePayload = (): ConfigTransferModel => ({
 		config,
 		compressionMode: "auto",
 		autoCheckEnabled: false,
-		uploadLimit: { enabled: false, value: 1, unit: "Mbps" },
-		downloadLimit: { enabled: false, value: 1, unit: "Mbps" },
 	})),
 	volumes: Object.entries(volumeConfigs).map(([backend, config]) => ({
 		ref: `volume:${backend}`,
@@ -142,22 +140,8 @@ const createVariantCoveragePayload = (): ConfigTransferModel => ({
 });
 
 describe("config transfer payload graph", () => {
-	test("requires a deliberate wire-version decision when persisted config types change", () => {
-		// A mismatch requires either extending the current wire version or adding a new version.
-		expectTypeOf<CurrentEncodedPayload["repositories"][number]["config"]>().toEqualTypeOf<RepositoryConfig>();
-		expectTypeOf<CurrentEncodedPayload["volumes"][number]["config"]>().toEqualTypeOf<BackendConfig>();
-		expectTypeOf<
-			CurrentEncodedPayload["notificationDestinations"][number]["config"]
-		>().toEqualTypeOf<NotificationConfig>();
-		expectTypeOf<CurrentEncodedPayload["backupSchedules"][number]["backupWebhooks"]>().toEqualTypeOf<
-			BackupSchedule["backupWebhooks"]
-		>();
-		expectTypeOf<CurrentEncodedPayload["backupSchedules"][number]["retentionPolicy"]>().toEqualTypeOf<
-			BackupSchedule["retentionPolicy"]
-		>();
-		expectTypeOf<CurrentEncodedPayload["backupSchedules"][number]["compressionMode"]>().toEqualTypeOf<
-			BackupSchedule["compressionMode"]
-		>();
+	test("requires an explicit codec change when the current transfer model changes", () => {
+		expectTypeOf<CurrentEncodedModel>().toEqualTypeOf<ConfigTransferModel>();
 	});
 
 	test("encodes every current backend and notification variant in v1", () => {
@@ -175,37 +159,31 @@ describe("config transfer payload graph", () => {
 		});
 	});
 
-	test("defaults fields omitted by older v1 exports", () => {
-		const currentPayload = encodeCurrentConfigTransferPayload(createVariantCoveragePayload());
-		const olderPayload = {
-			...currentPayload,
-			repositories: currentPayload.repositories.map((repository) => {
-				const { autoCheckEnabled: _omitted, ...olderRepository } = repository;
-				return olderRepository;
-			}),
-			volumes: currentPayload.volumes.map((volume) => {
-				if (volume.config.backend !== "sftp") {
-					return volume;
-				}
+	test("keeps the canonical v1 fixture identical across decode and encode", async () => {
+		const fixture = await loadConfigTransferPayloadFixture();
 
-				const { allowUnsafeSymlinkTargets: _omitted, ...config } = volume.config;
-				return { ...volume, config };
-			}),
-		};
+		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(fixture));
 
-		const parsed = parseConfigTransferPayload(olderPayload);
+		expect(encoded).toEqual(fixture);
+	});
 
-		expect(parsed.volumes.find(({ config }) => config.backend === "sftp")?.config).toMatchObject({
-			allowUnsafeSymlinkTargets: false,
-		});
-		expect(parsed.repositories.map((repository) => repository.autoCheckEnabled)).toEqual(
-			currentPayload.repositories.map(() => true),
-		);
+	test("requires the complete canonical v1 representation", async () => {
+		const payload = await loadConfigTransferPayloadFixture();
+		delete payload.repositories[0].autoCheckEnabled;
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow();
+	});
+
+	test("keeps repository bandwidth limits in one canonical location", async () => {
+		const payload = await loadConfigTransferPayloadFixture();
+		payload.repositories[0].uploadLimit = { enabled: true, value: 999, unit: "Gbps" };
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow();
 	});
 
 	test("rejects values outside the v1 storage contract", async () => {
 		const invalidBandwidth = await loadConfigTransferPayloadFixture();
-		invalidBandwidth.repositories[0].uploadLimit.value = -1;
+		invalidBandwidth.repositories[0].config.uploadLimit.value = -1;
 		const invalidRetries = await loadConfigTransferPayloadFixture();
 		invalidRetries.backupSchedules[0].maxRetries = 33;
 

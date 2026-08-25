@@ -17,6 +17,8 @@ export class UnsupportedConfigTransferEnvelopeVersionError extends Error {
 }
 
 export class UnsupportedConfigTransferVersionError extends Error {
+	readonly name = "UnsupportedConfigTransferVersionError";
+
 	constructor(version: number) {
 		super(
 			`Unsupported config transfer version: ${version}. Use a Zerobyte release that supports this export to convert it to a newer format.`,

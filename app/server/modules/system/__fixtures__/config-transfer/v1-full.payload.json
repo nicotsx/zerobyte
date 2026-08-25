@@ -9,19 +9,20 @@
 				"backend": "rclone",
 				"remote": "fixture-primary",
 				"path": "/primary",
-				"customPassword": "fixture-primary-password"
+				"customPassword": "fixture-primary-password",
+				"uploadLimit": {
+					"enabled": true,
+					"value": 100,
+					"unit": "Mbps"
+				},
+				"downloadLimit": {
+					"enabled": false,
+					"value": 5,
+					"unit": "Kbps"
+				}
 			},
 			"compressionMode": "max",
-			"uploadLimit": {
-				"enabled": true,
-				"value": 100,
-				"unit": "Mbps"
-			},
-			"downloadLimit": {
-				"enabled": false,
-				"value": 5,
-				"unit": "Kbps"
-			}
+			"autoCheckEnabled": true
 		},
 		{
 			"ref": "repository:2",
@@ -29,19 +30,20 @@
 			"config": {
 				"backend": "rclone",
 				"remote": "fixture-mirror",
-				"path": "/mirror"
+				"path": "/mirror",
+				"uploadLimit": {
+					"enabled": false,
+					"value": 5,
+					"unit": "Kbps"
+				},
+				"downloadLimit": {
+					"enabled": true,
+					"value": 9,
+					"unit": "Mbps"
+				}
 			},
 			"compressionMode": "off",
-			"uploadLimit": {
-				"enabled": false,
-				"value": 5,
-				"unit": "Kbps"
-			},
-			"downloadLimit": {
-				"enabled": true,
-				"value": 9,
-				"unit": "Mbps"
-			}
+			"autoCheckEnabled": false
 		}
 	],
 	"volumes": [
@@ -76,6 +78,7 @@
 			"includePatterns": ["**/*.md"],
 			"oneFileSystem": true,
 			"customResticParams": ["--pack-size 64"],
+			"compressionMode": null,
 			"backupWebhooks": null,
 			"maxRetries": 4,
 			"retryDelay": 120000,

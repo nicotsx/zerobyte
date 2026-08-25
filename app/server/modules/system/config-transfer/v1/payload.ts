@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 const transferRefSchema = z.string().min(1);
-const portSchema = z
-	.union([z.string(), z.number()])
-	.transform((value) => (typeof value === "string" ? Number.parseInt(value, 10) : value))
-	.pipe(z.number().int().min(1).max(65535));
+const portSchema = z.number().int().min(1).max(65535);
 
 const bandwidthLimitSchema = z
 	.object({
@@ -14,21 +11,13 @@ const bandwidthLimitSchema = z
 	})
 	.strict();
 
-const storedBandwidthLimitSchema = z
-	.object({
-		enabled: z.boolean().default(false),
-		value: z.number().positive().default(1),
-		unit: z.enum(["Kbps", "Mbps", "Gbps"]).default("Mbps"),
-	})
-	.strict();
-
 const repositoryConfigBase = {
 	isExistingRepository: z.boolean().optional(),
 	customPassword: z.string().optional(),
 	cacert: z.string().optional(),
 	insecureTls: z.boolean().optional(),
-	uploadLimit: storedBandwidthLimitSchema.optional(),
-	downloadLimit: storedBandwidthLimitSchema.optional(),
+	uploadLimit: bandwidthLimitSchema.optional(),
+	downloadLimit: bandwidthLimitSchema.optional(),
 };
 
 const repositoryConfigSchema = z.discriminatedUnion("backend", [
@@ -100,13 +89,13 @@ const repositoryConfigSchema = z.discriminatedUnion("backend", [
 		.object({
 			backend: z.literal("sftp"),
 			host: z.string().min(1),
-			port: portSchema.default(22),
+			port: portSchema,
 			user: z.string().min(1),
 			path: z.string().min(1),
 			privateKey: z.string().min(1),
-			skipHostKeyCheck: z.boolean().default(false),
+			skipHostKeyCheck: z.boolean(),
 			knownHosts: z.string().optional(),
-			allowLegacySshRsa: z.boolean().default(false),
+			allowLegacySshRsa: z.boolean(),
 			...repositoryConfigBase,
 		})
 		.strict(),
@@ -119,7 +108,7 @@ const volumeConfigSchema = z
 				backend: z.literal("nfs"),
 				server: z.string().min(1),
 				exportPath: z.string().min(1),
-				port: portSchema.default(2049),
+				port: portSchema,
 				version: z.enum(["3", "4", "4.1"]),
 				readOnly: z.boolean().optional(),
 			})
@@ -132,10 +121,10 @@ const volumeConfigSchema = z
 				username: z.string().optional(),
 				password: z.string().optional(),
 				guest: z.boolean().optional(),
-				mapToContainerUidGid: z.boolean().default(false),
-				vers: z.enum(["1.0", "2.0", "2.1", "3.0", "auto"]).default("auto"),
+				mapToContainerUidGid: z.boolean(),
+				vers: z.enum(["1.0", "2.0", "2.1", "3.0", "auto"]),
 				domain: z.string().optional(),
-				port: portSchema.default(445),
+				port: portSchema,
 				readOnly: z.boolean().optional(),
 			})
 			.strict(),
@@ -153,7 +142,7 @@ const volumeConfigSchema = z
 				path: z.string().min(1),
 				username: z.string().optional(),
 				password: z.string().optional(),
-				port: portSchema.default(80),
+				port: portSchema,
 				readOnly: z.boolean().optional(),
 				ssl: z.boolean().optional(),
 			})
@@ -170,16 +159,16 @@ const volumeConfigSchema = z
 			.object({
 				backend: z.literal("sftp"),
 				host: z.string().min(1),
-				port: portSchema.default(22),
+				port: portSchema,
 				username: z.string().min(1),
 				password: z.string().optional(),
 				privateKey: z.string().optional(),
 				path: z.string().min(1),
 				readOnly: z.boolean().optional(),
-				skipHostKeyCheck: z.boolean().default(false),
+				skipHostKeyCheck: z.boolean(),
 				knownHosts: z.string().optional(),
-				allowLegacySshRsa: z.boolean().default(false),
-				allowUnsafeSymlinkTargets: z.boolean().default(false),
+				allowLegacySshRsa: z.boolean(),
+				allowUnsafeSymlinkTargets: z.boolean(),
 			})
 			.strict(),
 	])
@@ -326,9 +315,7 @@ const exportedRepositorySchema = z
 		name: z.string().min(1),
 		config: repositoryConfigSchema,
 		compressionMode: z.enum(["off", "auto", "max"]),
-		autoCheckEnabled: z.boolean().default(true),
-		uploadLimit: bandwidthLimitSchema,
-		downloadLimit: bandwidthLimitSchema,
+		autoCheckEnabled: z.boolean(),
 	})
 	.strict();
 
@@ -356,7 +343,7 @@ const exportedBackupScheduleSchema = z
 		includePatterns: z.array(z.string()),
 		oneFileSystem: z.boolean(),
 		customResticParams: z.array(z.string()),
-		compressionMode: z.enum(["off", "auto", "max"]).nullable().default(null),
+		compressionMode: z.enum(["off", "auto", "max"]).nullable(),
 		backupWebhooks: backupWebhooksSchema.nullable(),
 		maxRetries: z.number().int().min(0).max(32),
 		retryDelay: z.number().int().min(60_000).max(86_400_000),

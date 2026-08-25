@@ -6,7 +6,10 @@ import { configTransferPayloadV1Schema, type ConfigTransferPayloadV1 } from "./v
 
 const configTransferVersionSchema = z.object({ version: z.number().int() });
 
-const upgradeConfigTransferPayloadV1 = ({ version: _version, ...payload }: ConfigTransferPayloadV1) => {
+const decodeConfigTransferPayloadV1 = ({
+	version: _version,
+	...payload
+}: ConfigTransferPayloadV1): ConfigTransferModel => {
 	return payload;
 };
 
@@ -23,9 +26,7 @@ export const parseConfigTransferPayload = (raw: unknown): ConfigTransferModel =>
 
 	switch (version) {
 		case 1:
-			return validateConfigTransferGraph(
-				upgradeConfigTransferPayloadV1(configTransferPayloadV1Schema.parse(raw)),
-			);
+			return validateConfigTransferGraph(decodeConfigTransferPayloadV1(configTransferPayloadV1Schema.parse(raw)));
 		default:
 			throw new UnsupportedConfigTransferVersionError(version);
 	}
