@@ -39,6 +39,9 @@ export const validateConfigTransferGraph = (payload: ConfigTransferModel) => {
 	const volumeRefs = assertUniqueRefs(payload.volumes, "volume");
 	const scheduleRefs = assertUniqueRefs(payload.backupSchedules, "backup schedule");
 	const destinationRefs = assertUniqueRefs(payload.notificationDestinations, "notification destination");
+	const primaryRepositoryRefsByScheduleRef = new Map(
+		payload.backupSchedules.map((schedule) => [schedule.ref, schedule.repositoryRef]),
+	);
 
 	for (const schedule of payload.backupSchedules) {
 		assertReferenceExists(volumeRefs, schedule.volumeRef, "volume");
@@ -48,6 +51,11 @@ export const validateConfigTransferGraph = (payload: ConfigTransferModel) => {
 	for (const mirror of payload.backupScheduleMirrors) {
 		assertReferenceExists(scheduleRefs, mirror.scheduleRef, "backup schedule");
 		assertReferenceExists(repositoryRefs, mirror.repositoryRef, "repository");
+
+		const primaryRepositoryRef = primaryRepositoryRefsByScheduleRef.get(mirror.scheduleRef);
+		if (primaryRepositoryRef === mirror.repositoryRef) {
+			throw new Error(`Backup schedule cannot mirror its primary repository: ${mirror.scheduleRef}`);
+		}
 	}
 
 	for (const notification of payload.backupScheduleNotifications) {

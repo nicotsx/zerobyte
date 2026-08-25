@@ -345,8 +345,8 @@ const exportedBackupScheduleSchema = z
 		customResticParams: z.array(z.string()),
 		compressionMode: z.enum(["off", "auto", "max"]).nullable(),
 		backupWebhooks: backupWebhooksSchema.nullable(),
-		maxRetries: z.number().int().min(0).max(32),
-		retryDelay: z.number().int().min(60_000).max(86_400_000),
+		maxRetries: z.number().min(0).max(32),
+		retryDelay: z.number().min(60_000).max(86_400_000),
 		sortOrder: z.number().int(),
 	})
 	.strict();

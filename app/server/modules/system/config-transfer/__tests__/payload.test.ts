@@ -191,6 +191,24 @@ describe("config transfer payload graph", () => {
 		expect(() => parseConfigTransferPayload(invalidRetries)).toThrow();
 	});
 
+	test("preserves fractional retry counts accepted by current schedules", async () => {
+		const payload = await loadConfigTransferPayloadFixture();
+		payload.backupSchedules[0].maxRetries = 1.5;
+
+		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(payload));
+
+		expect(encoded.backupSchedules[0].maxRetries).toBe(1.5);
+	});
+
+	test("preserves fractional retry delays accepted by current schedules", async () => {
+		const payload = await loadConfigTransferPayloadFixture();
+		payload.backupSchedules[0].retryDelay = 60_000.5;
+
+		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(payload));
+
+		expect(encoded.backupSchedules[0].retryDelay).toBe(60_000.5);
+	});
+
 	test("rejects duplicate entity references", async () => {
 		const payload = await loadConfigTransferPayloadFixture();
 		payload.repositories[1].ref = payload.repositories[0].ref;
@@ -210,6 +228,15 @@ describe("config transfer payload graph", () => {
 		payload.backupScheduleMirrors.push({ ...payload.backupScheduleMirrors[0] });
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow("Duplicate backup schedule mirror");
+	});
+
+	test("rejects a schedule's primary repository as its mirror", async () => {
+		const payload = await loadConfigTransferPayloadFixture();
+		payload.backupScheduleMirrors[0].repositoryRef = payload.backupSchedules[0].repositoryRef;
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow(
+			"Backup schedule cannot mirror its primary repository",
+		);
 	});
 
 	test("keeps the v1 wire contract frozen", async () => {
