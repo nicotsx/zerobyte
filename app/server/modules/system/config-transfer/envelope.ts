@@ -1,30 +1,23 @@
-import { z } from "zod";
-import {
-	CONFIG_TRANSFER_MAX_FILE_BYTES,
-	CONFIG_TRANSFER_PASSPHRASE_MAX_LENGTH,
-	CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH,
-} from "~/lib/config-transfer";
+import { CONFIG_TRANSFER_MAX_FILE_BYTES } from "~/lib/config-transfer";
+import { configTransferPassphraseSchema } from "~/schemas/config-transfer";
 import { InvalidConfigTransferEnvelopeError, UnsupportedConfigTransferEnvelopeVersionError } from "./errors";
-import { CONFIG_TRANSFER_ENVELOPE_ROUTING_PREFIX } from "./routing";
 import {
 	CONFIG_TRANSFER_ENVELOPE_VERSION_V1,
 	decryptConfigTransferPayloadV1,
 	encryptConfigTransferPayloadV1,
 } from "./v1/envelope";
 
-const configTransferPassphraseSchema = z
-	.string()
-	.min(CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH)
-	.max(CONFIG_TRANSFER_PASSPHRASE_MAX_LENGTH);
+const CONFIG_TRANSFER_ENVELOPE_PREFIX = "zbcfg:";
+const CONFIG_TRANSFER_ENVELOPE_VERSION_PATTERN = new RegExp(`^${CONFIG_TRANSFER_ENVELOPE_PREFIX}v(\\d+):`);
 
-const createEnvelopePrefix = (version: number) => `${CONFIG_TRANSFER_ENVELOPE_ROUTING_PREFIX}v${version}:`;
+const createEnvelopePrefix = (version: number) => `${CONFIG_TRANSFER_ENVELOPE_PREFIX}v${version}:`;
 
 const parseEnvelopeHeader = (encryptedConfig: string) => {
 	if (Buffer.byteLength(encryptedConfig, "utf8") > CONFIG_TRANSFER_MAX_FILE_BYTES) {
 		throw new InvalidConfigTransferEnvelopeError();
 	}
 
-	const versionMatch = encryptedConfig.match(new RegExp(`^${CONFIG_TRANSFER_ENVELOPE_ROUTING_PREFIX}v(\\d+):`));
+	const versionMatch = encryptedConfig.match(CONFIG_TRANSFER_ENVELOPE_VERSION_PATTERN);
 	if (!versionMatch) {
 		throw new InvalidConfigTransferEnvelopeError();
 	}

@@ -1,1 +1,0 @@
-export const CONFIG_TRANSFER_ENVELOPE_ROUTING_PREFIX = "zbcfg:";

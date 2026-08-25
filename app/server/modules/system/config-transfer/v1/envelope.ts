@@ -16,11 +16,25 @@ const SALT_BYTES = 16;
 const NONCE_BYTES = 12;
 const AUTH_TAG_BYTES = 16;
 
+const canonicalBase64UrlSchema = z
+	.string()
+	.min(1)
+	.regex(/^[A-Za-z0-9_-]+$/)
+	.refine((value) => {
+		const decoded = Buffer.from(value, "base64url");
+		return decoded.toString("base64url") === value;
+	});
+
 const encodedBytesSchema = (byteLength: number) =>
-	z
-		.string()
-		.regex(/^[A-Za-z0-9_-]+$/)
-		.refine((value) => Buffer.from(value, "base64url").byteLength === byteLength);
+	canonicalBase64UrlSchema.refine((value) => {
+		const decoded = Buffer.from(value, "base64url");
+		return decoded.byteLength === byteLength;
+	});
+
+const ciphertextSchema = canonicalBase64UrlSchema.refine((value) => {
+	const decoded = Buffer.from(value, "base64url");
+	return decoded.byteLength <= CONFIG_TRANSFER_MAX_PAYLOAD_BYTES;
+});
 
 const configTransferEnvelopeV1Schema = z
 	.object({
@@ -42,7 +56,7 @@ const configTransferEnvelopeV1Schema = z
 				authTag: encodedBytesSchema(AUTH_TAG_BYTES),
 			})
 			.strict(),
-		ciphertext: z.string().min(1),
+		ciphertext: ciphertextSchema,
 	})
 	.strict();
 
@@ -76,14 +90,28 @@ const createAssociatedData = (
 	kdf: ConfigTransferEnvelopeV1["kdf"],
 	cipher: Omit<ConfigTransferEnvelopeV1["cipher"], "authTag">,
 ) => {
-	return Buffer.from(
-		JSON.stringify({
-			magic: CONFIG_TRANSFER_ENVELOPE_V1_AAD_MAGIC,
-			envelopeVersion: CONFIG_TRANSFER_ENVELOPE_VERSION_V1,
-			kdf,
-			cipher,
-		}),
-	);
+	// This exact UTF-8 JSON shape and property order are part of the frozen v1 wire format.
+	const authenticatedKdf = {
+		name: kdf.name,
+		salt: kdf.salt,
+		cost: kdf.cost,
+		blockSize: kdf.blockSize,
+		parallelization: kdf.parallelization,
+		keyBytes: kdf.keyBytes,
+	};
+	const authenticatedCipher = {
+		name: cipher.name,
+		nonce: cipher.nonce,
+	};
+	const authenticatedMetadata = {
+		magic: CONFIG_TRANSFER_ENVELOPE_V1_AAD_MAGIC,
+		envelopeVersion: CONFIG_TRANSFER_ENVELOPE_VERSION_V1,
+		kdf: authenticatedKdf,
+		cipher: authenticatedCipher,
+	};
+	const serializedMetadata = JSON.stringify(authenticatedMetadata);
+
+	return Buffer.from(serializedMetadata);
 };
 
 const parseEnvelopeV1 = (serializedEnvelope: string): ConfigTransferEnvelopeV1 => {
@@ -96,9 +124,10 @@ const parseEnvelopeV1 = (serializedEnvelope: string): ConfigTransferEnvelopeV1 =
 
 export const encryptConfigTransferPayloadV1 = async (plaintext: string, passphrase: string): Promise<string> => {
 	const plaintextBuffer = Buffer.from(plaintext);
-	if (plaintextBuffer.byteLength > CONFIG_TRANSFER_MAX_PAYLOAD_BYTES) {
+	const plaintextByteLength = plaintextBuffer.byteLength;
+	if (plaintextByteLength === 0 || plaintextByteLength > CONFIG_TRANSFER_MAX_PAYLOAD_BYTES) {
 		plaintextBuffer.fill(0);
-		throw new Error("Configuration transfer payload exceeds the supported size");
+		throw new Error("Configuration transfer payload must be non-empty and within the supported size");
 	}
 
 	const salt = crypto.randomBytes(SALT_BYTES);
@@ -149,6 +178,9 @@ export const decryptConfigTransferPayloadV1 = async (
 	const authTag = Buffer.from(envelope.cipher.authTag, "base64url");
 	const ciphertext = Buffer.from(envelope.ciphertext, "base64url");
 	const key = await deriveFileKey(passphrase, salt, envelope.kdf);
+	let plaintextUpdate: Buffer | undefined;
+	let plaintextFinal: Buffer | undefined;
+	let plaintext: Buffer | undefined;
 
 	try {
 		const decipher = crypto.createDecipheriv("aes-256-gcm", key, nonce);
@@ -160,23 +192,23 @@ export const decryptConfigTransferPayloadV1 = async (
 		);
 		decipher.setAuthTag(authTag);
 
-		let plaintext: Buffer;
 		try {
-			plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+			plaintextUpdate = decipher.update(ciphertext);
+			plaintextFinal = decipher.final();
+			plaintext = Buffer.concat([plaintextUpdate, plaintextFinal]);
 		} catch {
 			throw new InvalidConfigTransferEnvelopeError();
 		}
 
-		try {
-			if (plaintext.byteLength > CONFIG_TRANSFER_MAX_PAYLOAD_BYTES) {
-				throw new InvalidConfigTransferEnvelopeError();
-			}
-
-			return plaintext.toString();
-		} finally {
-			plaintext.fill(0);
+		if (plaintext.byteLength > CONFIG_TRANSFER_MAX_PAYLOAD_BYTES) {
+			throw new InvalidConfigTransferEnvelopeError();
 		}
+
+		return plaintext.toString();
 	} finally {
+		plaintext?.fill(0);
+		plaintextUpdate?.fill(0);
+		plaintextFinal?.fill(0);
 		key.fill(0);
 	}
 };
