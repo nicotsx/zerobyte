@@ -11,11 +11,7 @@ const createTransferRef = (prefix: string, index: number) => `${prefix}:${index 
 const getExportedRepositoryName = (name: string, shortId: string) => {
 	const normalizedName = name.trim();
 
-	if (normalizedName.length > 0) {
-		return normalizedName;
-	}
-
-	return `Repository ${shortId}`;
+	return normalizedName || `Repository ${shortId}`;
 };
 
 export class OrganizationResticPasswordNotFoundError extends Error {
@@ -54,17 +50,14 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		const notificationDestinations = tx.query.notificationDestinationsTable
 			.findMany({ where: { organizationId } })
 			.sync();
+
 		const scheduleIds = backupSchedules.map((schedule) => schedule.id);
-		const backupScheduleMirrors =
-			scheduleIds.length === 0
-				? []
-				: tx.query.backupScheduleMirrorsTable.findMany({ where: { scheduleId: { in: scheduleIds } } }).sync();
-		const backupScheduleNotifications =
-			scheduleIds.length === 0
-				? []
-				: tx.query.backupScheduleNotificationsTable
-						.findMany({ where: { scheduleId: { in: scheduleIds } } })
-						.sync();
+		const backupScheduleMirrors = tx.query.backupScheduleMirrorsTable
+			.findMany({ where: { scheduleId: { in: scheduleIds } } })
+			.sync();
+		const backupScheduleNotifications = tx.query.backupScheduleNotificationsTable
+			.findMany({ where: { scheduleId: { in: scheduleIds } } })
+			.sync();
 
 		return {
 			resticPasswordCiphertext: organization?.metadata?.resticPassword,
@@ -98,23 +91,14 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		Promise.all(
 			repositories.map(async (repository) => {
 				const name = getExportedRepositoryName(repository.name, repository.shortId);
+				const config = await decryptRepositoryConfig(repository.config);
 
 				return {
 					ref: getRequiredRef(repositoryRefs, repository.id, "repository"),
 					name,
-					config: await decryptRepositoryConfig(repository.config),
+					config,
 					compressionMode: repository.compressionMode ?? "auto",
 					autoCheckEnabled: repository.autoCheckEnabled,
-					uploadLimit: {
-						enabled: repository.uploadLimitEnabled,
-						value: repository.uploadLimitValue,
-						unit: repository.uploadLimitUnit,
-					},
-					downloadLimit: {
-						enabled: repository.downloadLimitEnabled,
-						value: repository.downloadLimitValue,
-						unit: repository.downloadLimitUnit,
-					},
 				};
 			}),
 		),
@@ -176,5 +160,5 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		})),
 	});
 
-	return await encryptConfigTransferPayload(JSON.stringify(payload), exportPassphrase);
+	return encryptConfigTransferPayload(JSON.stringify(payload), exportPassphrase);
 };
