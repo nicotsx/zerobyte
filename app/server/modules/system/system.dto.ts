@@ -114,7 +114,6 @@ export const importConfigBodySchema = z.object({
 });
 
 export const importConfigResponse = z.object({
-	message: z.string(),
 	imported: z.object({
 		repositories: z.number(),
 		volumes: z.number(),

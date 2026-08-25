@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { AlertTriangle, Download } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { exportConfigMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Label } from "~/client/components/ui/label";
 import { SecretInput } from "~/client/components/ui/secret-input";
 import { downloadFile } from "~/client/lib/download";
@@ -81,6 +82,15 @@ export function ConfigExportDialog({ hasPassword, passwordAuthSupported }: Props
 			onClose={resetExportPassphrase}
 		>
 			<div className="space-y-4">
+				<Alert variant="warning">
+					<AlertTriangle className="size-5" />
+					<AlertTitle>Configuration only</AlertTitle>
+					<AlertDescription>
+						This export does not include backup data or volume contents. Preserve and migrate local
+						repository directories separately.
+					</AlertDescription>
+				</Alert>
+
 				<div className="space-y-2">
 					<div className="flex items-center justify-between gap-2">
 						<Label htmlFor="config-export-passphrase">Export passphrase</Label>

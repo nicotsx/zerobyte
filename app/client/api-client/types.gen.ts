@@ -5213,7 +5213,6 @@ export type ImportConfigResponses = {
      * Configuration imported successfully
      */
     200: {
-        message: string;
         imported: {
             repositories: number;
             volumes: number;

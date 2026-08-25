@@ -35,7 +35,7 @@ import { getOrganizationId } from "~/server/core/request-context";
 import {
 	createPassphraseProtectedOrganizationConfigExport,
 	OrganizationResticPasswordNotFoundError,
-	importPassphraseProtectedOrganizationConfig,
+	importConfig,
 } from "./config-transfer";
 
 const verifyRecoveryKeyPassword = async (userId: string, password: string, authSource: string) => {
@@ -186,18 +186,10 @@ export const systemController = new Hono()
 		const organizationId = getOrganizationId();
 		const body = c.req.valid("json");
 
-		const result = await importPassphraseProtectedOrganizationConfig(
-			organizationId,
-			user.id,
-			body.encryptedConfig,
-			body.exportPassphrase,
-		);
-		const message =
-			result.warnings.length > 0 ? "Configuration imported with warnings" : "Configuration imported successfully";
+		const result = await importConfig(organizationId, user.id, body.encryptedConfig, body.exportPassphrase);
 
 		return c.json<ImportConfigResponseDto>(
 			{
-				message,
 				imported: result.imported,
 				warnings: result.warnings,
 			},

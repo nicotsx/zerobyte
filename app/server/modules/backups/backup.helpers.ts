@@ -28,6 +28,18 @@ export const isValidCron = (expression: string) => {
 	}
 };
 
+export const validateScheduleTiming = (schedule: { cronExpression: string; enabled: boolean }) => {
+	if (schedule.cronExpression && !isValidCron(schedule.cronExpression)) {
+		return "Invalid cron expression";
+	}
+
+	if (schedule.enabled && !schedule.cronExpression) {
+		return "Enabled schedules require a cron expression";
+	}
+
+	return null;
+};
+
 export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal?: AbortSignal) =>
 	createAgentBackupOptions(
 		{

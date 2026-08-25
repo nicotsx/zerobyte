@@ -7,8 +7,8 @@ import {
 	UnsupportedConfigTransferVersionError,
 } from "./errors";
 import { parseConfigTransferPayload } from "./payload";
-import { prepareConfigImport } from "./prepare-import";
-import { assertConfigImportAllowed, storePreparedConfigImport } from "./store";
+import { prepareImport } from "./prepare-import";
+import { assertImportAllowed, storeImport } from "./store";
 
 const decodeEncryptedPayload = async (encryptedConfig: string, exportPassphrase: string) => {
 	let decryptedPayload: string;
@@ -28,7 +28,7 @@ const decodeEncryptedPayload = async (encryptedConfig: string, exportPassphrase:
 
 	let rawPayload: unknown;
 	try {
-		rawPayload = JSON.parse(decryptedPayload) as unknown;
+		rawPayload = JSON.parse(decryptedPayload);
 	} catch {
 		throw new InvalidConfigTransferError();
 	}
@@ -44,16 +44,16 @@ const decodeEncryptedPayload = async (encryptedConfig: string, exportPassphrase:
 	}
 };
 
-export const importPassphraseProtectedOrganizationConfig = async (
+export const importConfig = async (
 	organizationId: string,
 	userId: string,
 	encryptedConfig: string,
 	exportPassphrase: string,
 ) => {
-	assertConfigImportAllowed(organizationId, userId);
+	assertImportAllowed(organizationId, userId);
 	const payload = await decodeEncryptedPayload(encryptedConfig, exportPassphrase);
-	const preparedImport = await prepareConfigImport(payload);
-	const imported = storePreparedConfigImport(organizationId, userId, preparedImport.prepared);
+	const { prepared, warnings } = await prepareImport(payload);
+	const imported = storeImport(organizationId, userId, prepared);
 
-	return { imported, warnings: preparedImport.warnings };
+	return { imported, warnings };
 };

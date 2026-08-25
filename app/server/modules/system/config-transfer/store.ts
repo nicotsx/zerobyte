@@ -12,10 +12,11 @@ import {
 	volumesTable,
 } from "~/server/db/schema";
 import { calculateNextRun } from "~/server/modules/backups/backup.helpers";
+import { bandwidthFields } from "~/server/modules/repositories/repository-bandwidth-fields";
 import { generateShortId } from "~/server/utils/id";
-import type { PreparedConfigImport } from "./prepare-import";
+import type { PreparedImport } from "./prepare-import";
 
-type ConfigTransferTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 const getRequiredId = <T>(ids: Map<string, T>, ref: string, label: string) => {
 	const id = ids.get(ref);
@@ -27,7 +28,7 @@ const getRequiredId = <T>(ids: Map<string, T>, ref: string, label: string) => {
 	return id;
 };
 
-const assertImportAllowed = (tx: ConfigTransferTransaction, organizationId: string, userId: string) => {
+const assertAllowed = (tx: Transaction, organizationId: string, userId: string) => {
 	const user = tx.query.usersTable
 		.findFirst({ where: { id: userId }, columns: { hasDownloadedResticPassword: true } })
 		.sync();
@@ -51,19 +52,16 @@ const assertImportAllowed = (tx: ConfigTransferTransaction, organizationId: stri
 	}
 };
 
-export const assertConfigImportAllowed = (organizationId: string, userId: string) => {
-	db.transaction((tx) => assertImportAllowed(tx, organizationId, userId));
+export const assertImportAllowed = (organizationId: string, userId: string) => {
+	db.transaction((tx) => assertAllowed(tx, organizationId, userId));
 };
 
-const importRepositories = (
-	tx: ConfigTransferTransaction,
-	organizationId: string,
-	repositories: PreparedConfigImport["repositories"],
-) => {
+const importRepositories = (tx: Transaction, organizationId: string, repositories: PreparedImport["repositories"]) => {
 	const ids = new Map<string, string>();
 
 	for (const repository of repositories) {
 		const id = Bun.randomUUIDv7();
+		const bandwidth = bandwidthFields(repository.config);
 		tx.insert(repositoriesTable)
 			.values({
 				id,
@@ -74,12 +72,7 @@ const importRepositories = (
 				compressionMode: repository.compressionMode,
 				status: "unknown",
 				autoCheckEnabled: repository.autoCheckEnabled,
-				uploadLimitEnabled: repository.uploadLimit.enabled,
-				uploadLimitValue: repository.uploadLimit.value,
-				uploadLimitUnit: repository.uploadLimit.unit,
-				downloadLimitEnabled: repository.downloadLimit.enabled,
-				downloadLimitValue: repository.downloadLimit.value,
-				downloadLimitUnit: repository.downloadLimit.unit,
+				...bandwidth,
 				organizationId,
 			})
 			.run();
@@ -89,11 +82,7 @@ const importRepositories = (
 	return ids;
 };
 
-const importVolumes = (
-	tx: ConfigTransferTransaction,
-	organizationId: string,
-	volumes: PreparedConfigImport["volumes"],
-) => {
+const importVolumes = (tx: Transaction, organizationId: string, volumes: PreparedImport["volumes"]) => {
 	const ids = new Map<string, number>();
 
 	for (const volume of volumes) {
@@ -121,15 +110,16 @@ const importVolumes = (
 };
 
 const importSchedules = (
-	tx: ConfigTransferTransaction,
+	tx: Transaction,
 	organizationId: string,
-	schedules: PreparedConfigImport["backupSchedules"],
+	schedules: PreparedImport["backupSchedules"],
 	volumeIds: Map<string, number>,
 	repositoryIds: Map<string, string>,
 ) => {
 	const ids = new Map<string, number>();
 
 	for (const schedule of schedules) {
+		const nextBackupAt = schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
 		const inserted = tx
 			.insert(backupSchedulesTable)
 			.values({
@@ -144,7 +134,7 @@ const importSchedules = (
 				excludeIfPresent: schedule.excludeIfPresent,
 				includePaths: schedule.includePaths,
 				includePatterns: schedule.includePatterns,
-				nextBackupAt: schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null,
+				nextBackupAt,
 				oneFileSystem: schedule.oneFileSystem,
 				customResticParams: schedule.customResticParams,
 				compressionMode: schedule.compressionMode,
@@ -166,10 +156,10 @@ const importSchedules = (
 	return ids;
 };
 
-const importNotificationDestinations = (
-	tx: ConfigTransferTransaction,
+const importDestinations = (
+	tx: Transaction,
 	organizationId: string,
-	destinations: PreparedConfigImport["notificationDestinations"],
+	destinations: PreparedImport["notificationDestinations"],
 ) => {
 	const ids = new Map<string, number>();
 
@@ -195,9 +185,9 @@ const importNotificationDestinations = (
 	return ids;
 };
 
-export const storePreparedConfigImport = (organizationId: string, userId: string, prepared: PreparedConfigImport) => {
+export const storeImport = (organizationId: string, userId: string, prepared: PreparedImport) => {
 	db.transaction((tx) => {
-		assertImportAllowed(tx, organizationId, userId);
+		assertAllowed(tx, organizationId, userId);
 		const org = tx.query.organization
 			.findFirst({ where: { id: organizationId }, columns: { metadata: true } })
 			.sync();
@@ -209,7 +199,7 @@ export const storePreparedConfigImport = (organizationId: string, userId: string
 		const repositoryIds = importRepositories(tx, organizationId, prepared.repositories);
 		const volumeIds = importVolumes(tx, organizationId, prepared.volumes);
 		const scheduleIds = importSchedules(tx, organizationId, prepared.backupSchedules, volumeIds, repositoryIds);
-		const destinationIds = importNotificationDestinations(tx, organizationId, prepared.notificationDestinations);
+		const destinationIds = importDestinations(tx, organizationId, prepared.notificationDestinations);
 
 		for (const mirror of prepared.backupScheduleMirrors) {
 			tx.insert(backupScheduleMirrorsTable)

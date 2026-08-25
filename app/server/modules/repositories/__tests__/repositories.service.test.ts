@@ -110,8 +110,13 @@ describe("repositoriesService.createRepository", () => {
 		expect(created.autoCheckEnabled).toBe(true);
 	});
 
-	test("persists disabled automatic health checks when requested", async () => {
-		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
+	test("persists repository options", async () => {
+		const config: RepositoryConfig = {
+			backend: "local",
+			path: REPOSITORY_BASE,
+			uploadLimit: { enabled: true, value: 7, unit: "Mbps" },
+			downloadLimit: { enabled: true, value: 8, unit: "Kbps" },
+		};
 
 		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.createRepository("opted out repo", config, undefined, false),
@@ -121,7 +126,15 @@ describe("repositoriesService.createRepository", () => {
 			where: { id: result.repository.id },
 		});
 
-		expect(created?.autoCheckEnabled).toBe(false);
+		expect(created).toMatchObject({
+			autoCheckEnabled: false,
+			uploadLimitEnabled: true,
+			uploadLimitValue: 7,
+			uploadLimitUnit: "Mbps",
+			downloadLimitEnabled: true,
+			downloadLimitValue: 8,
+			downloadLimitUnit: "Kbps",
+		});
 	});
 
 	test("normalizes repository names and rejects empty names", async () => {

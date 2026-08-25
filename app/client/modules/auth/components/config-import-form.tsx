@@ -14,24 +14,16 @@ import {
 } from "~/lib/config-transfer";
 
 type ConfigImportFormProps = {
-	onImportSuccess: () => void;
+	onSuccess: (warnings: string[]) => void;
 };
 
-export function ConfigImportForm({ onImportSuccess }: ConfigImportFormProps) {
+export function ConfigImportForm({ onSuccess }: ConfigImportFormProps) {
 	const [importFile, setImportFile] = useState<File | null>(null);
 	const [exportPassphrase, setExportPassphrase] = useState("");
 	const importConfig = useMutation({
 		...importConfigMutation(),
 		onSuccess: (data) => {
-			if (data.warnings.length > 0) {
-				toast.warning("Configuration imported with warnings", {
-					description: data.warnings.join("\n"),
-				});
-			} else {
-				toast.success("Configuration imported successfully!");
-			}
-
-			onImportSuccess();
+			onSuccess(data.warnings);
 		},
 		onError: (error) => {
 			toast.error("Failed to import configuration", { description: error.message });
@@ -68,11 +60,11 @@ export function ConfigImportForm({ onImportSuccess }: ConfigImportFormProps) {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div className="space-y-1">
-				<h2 className="text-sm font-medium">Or import a previous configuration</h2>
+				<h2 className="text-sm font-medium">Import a previous configuration</h2>
 				<p className="text-xs text-muted-foreground">
-					Use a passphrase-protected export from another Zerobyte instance. Imported local directory volumes
-					and local repositories will require review, and dependent schedules will stay disabled until you
-					validate those paths on this server.
+					Use a passphrase-protected export from another Zerobyte instance. Exports contain settings and
+					credentials, not backup data. Imported local paths require review, and dependent schedules stay
+					disabled until you validate them on this server.
 				</p>
 			</div>
 
@@ -108,12 +100,10 @@ export function ConfigImportForm({ onImportSuccess }: ConfigImportFormProps) {
 				</p>
 			</div>
 
-			<div className="flex flex-col gap-2">
-				<Button type="submit" variant="outline" loading={importConfig.isPending} className="w-full">
-					<Upload size={16} className="mr-2" />
-					Import configuration
-				</Button>
-			</div>
+			<Button type="submit" variant="outline" loading={importConfig.isPending} className="w-full">
+				<Upload size={16} className="mr-2" />
+				Import
+			</Button>
 		</form>
 	);
 }

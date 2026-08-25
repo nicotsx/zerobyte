@@ -38,6 +38,7 @@ import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
 import { Effect } from "effect";
 import { normalizeRequiredName } from "~/server/utils/names";
+import { bandwidthFields } from "./repository-bandwidth-fields";
 
 const lsLimiters = new Map<string, Effect.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
@@ -156,6 +157,7 @@ const createRepository = async (
 	const shortId = generateShortId();
 	const resolvedCompressionMode = compressionMode ?? "auto";
 	const resolvedAutoCheckEnabled = autoCheckEnabled ?? true;
+	const bandwidth = bandwidthFields(config);
 	if (config.backend === "local" && !config.isExistingRepository) {
 		config.path = `${config.path}/${shortId}`;
 	}
@@ -173,6 +175,7 @@ const createRepository = async (
 			compressionMode: resolvedCompressionMode,
 			autoCheckEnabled: resolvedAutoCheckEnabled,
 			status: "unknown",
+			...bandwidth,
 			organizationId,
 		})
 		.returning();
@@ -720,6 +723,7 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
 	const resolvedCompressionMode = updates.compressionMode ?? existing.compressionMode;
 	const resolvedAutoCheckEnabled = updates.autoCheckEnabled ?? existing.autoCheckEnabled;
+	const bandwidth = bandwidthFields(parsedConfig);
 	const updatedAt = Date.now();
 	const updatePayload: Partial<RepositoryInsert> = {
 		name: newName,
@@ -727,6 +731,7 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		autoCheckEnabled: resolvedAutoCheckEnabled,
 		updatedAt,
 		config: encryptedConfig,
+		...bandwidth,
 	};
 
 	if (configChanged) {
