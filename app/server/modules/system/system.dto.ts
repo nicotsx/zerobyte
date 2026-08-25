@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { CONFIG_TRANSFER_PASSPHRASE_MAX_LENGTH, CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH } from "~/lib/config-transfer";
+import { configTransferPassphraseSchema } from "~/schemas/config-transfer";
 
 const capabilitiesSchema = z.object({
 	rclone: z.boolean(),
@@ -67,11 +67,6 @@ export const getUpdatesDto = describeRoute({
 export const downloadResticPasswordBodySchema = z.object({
 	password: z.string(),
 });
-
-const configTransferPassphraseSchema = z
-	.string()
-	.min(CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH)
-	.max(CONFIG_TRANSFER_PASSPHRASE_MAX_LENGTH);
 
 export const exportConfigBodySchema = z.object({
 	password: z.string(),
