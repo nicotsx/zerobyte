@@ -8,6 +8,7 @@ import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { downloadResticPasswordMutation } from "~/client/api-client/@tanstack/react-query.gen";
+import { downloadFile } from "~/client/lib/download";
 import { parseError } from "~/client/lib/errors";
 import {
 	RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_MAX_AGE,
@@ -34,15 +35,11 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 	const downloadResticPassword = useMutation({
 		...downloadResticPasswordMutation(),
 		onSuccess: (data) => {
-			const blob = new Blob([data], { type: "text/plain" });
-			const url = window.URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = "restic.pass";
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			window.setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+			downloadFile({
+				content: data,
+				contentType: "text/plain",
+				fileName: "restic.pass",
+			});
 
 			toast.success("Recovery key downloaded successfully!");
 			setBlockedMessage(null);
