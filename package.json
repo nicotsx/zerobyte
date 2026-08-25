@@ -9,10 +9,10 @@
 	"scripts": {
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
-		"lint": "node ./node_modules/oxlint/bin/oxlint --type-aware --type-check",
-		"lint:fix": "node ./node_modules/oxlint/bin/oxlint --type-aware --type-check --fix",
-		"lint:ci": "node ./node_modules/oxlint/bin/oxlint --type-aware --type-check --deny-warnings",
-		"check": "node ./node_modules/oxlint/bin/oxlint --type-aware --type-check && oxfmt --check",
+		"lint": "bunx --bun oxlint --type-aware --type-check",
+		"lint:fix": "bunx --bun oxlint --type-aware --type-check --fix",
+		"lint:ci": "bunx --bun oxlint --type-aware --type-check --deny-warnings",
+		"check": "bunx --bun oxlint --type-aware --type-check && oxfmt --check",
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"dev:desktop": "bun run --cwd apps/desktop start",
 		"build": "bunx --bun vite build",
@@ -33,9 +33,9 @@
 		"test:server": "dotenv -e .env.test -- bunx --bun vitest run --project server",
 		"test:client": "dotenv -e .env.test -- bunx --bun vitest run --project client",
 		"test": "dotenv -e .env.test -- bunx --bun vitest run && vp run -F './apps/*' -F './packages/*' test",
-		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- playwright test",
-		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- playwright test --ui",
-		"test:codegen": "playwright codegen localhost:4096"
+		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- bunx --bun playwright test",
+		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- bunx --bun playwright test --ui",
+		"test:codegen": "bunx --bun playwright codegen localhost:4096"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "1.6.27",
