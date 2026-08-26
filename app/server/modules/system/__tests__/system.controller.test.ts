@@ -91,6 +91,7 @@ describe("system security", () => {
 			{ method: "GET", path: "/api/v1/system/password-login-status" },
 			{ method: "PUT", path: "/api/v1/system/password-login-status" },
 			{ method: "POST", path: "/api/v1/system/restic-password" },
+			{ method: "POST", path: "/api/v1/system/config-export" },
 			{ method: "GET", path: "/api/v1/system/dev-panel" },
 		];
 
