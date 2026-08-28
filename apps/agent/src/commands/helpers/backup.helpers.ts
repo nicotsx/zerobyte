@@ -46,7 +46,7 @@ export const createBackupOptions = (
 	tags: [params.scheduleId],
 	oneFileSystem: params.options.oneFileSystem,
 	signal,
-	exclude: params.options.excludePatterns?.map((p) => processPattern(p, volumePath)) ?? undefined,
+	exclude: params.options.excludePatterns ?? undefined,
 	excludeIfPresent: params.options.excludeIfPresent ?? undefined,
 	includePaths:
 		params.options.includePaths?.map((p) => {
@@ -56,7 +56,7 @@ export const createBackupOptions = (
 	includePatterns:
 		params.options.includePatterns?.map((p) => {
 			validateIncludeEntry(p, "Include pattern", "text");
-			return processPattern(p, volumePath, true);
+			return p;
 		}) ?? undefined,
 	customResticParams: params.options.customResticParams ?? [],
 	compressionMode: params.options.compressionMode,

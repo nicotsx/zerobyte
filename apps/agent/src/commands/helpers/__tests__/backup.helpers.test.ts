@@ -52,33 +52,29 @@ describe("backup path options", () => {
 			tags: ["sched-1234"],
 			signal,
 			includePaths: [path.join(volumePath, "Photos")],
-			includePatterns: [
-				path.join(volumePath, "*.zip"),
-				`!${path.join(volumePath, "Temp")}`,
-				`!${path.join(volumePath, "*.log")}`,
-			],
-			exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
+			includePatterns: ["*.zip", "!/Temp", "!*.log"],
+			exclude: [".DS_Store", "/Config", "!/Important", "!*.tmp"],
 			excludeIfPresent: [".nobackup"],
 		});
 	});
 
-	test("keeps relative and negated relative exclude patterns unchanged", () => {
-		expect(processPattern("relative/include", "/volume")).toBe("relative/include");
-		expect(processPattern("!*.log", "/volume")).toBe("!*.log");
+	test("preserves patterns that already contain the volume path", () => {
+		const volumePath = "/docker";
+		const includePatterns = ["/docker/engine/buildkit", "!/docker/engine/tmp"];
+		const excludePatterns = ["/docker/engine/containers", "!/docker/engine/plugins"];
+
+		const options = createOptions(createPathOptions({ includePatterns, excludePatterns }), volumePath);
+
+		expect(options.includePatterns).toEqual(includePatterns);
+		expect(options.exclude).toEqual(excludePatterns);
 	});
 
-	test("anchors relative glob include patterns to the volume path", () => {
+	test("keeps relative glob include patterns unchanged", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
-		const options = createOptions(
-			createPathOptions({ includePatterns: ["**/*.xyz", "*.zip", "!**/*.tmp"] }),
-			volumePath,
-		);
+		const includePatterns = ["**/*.xyz", "*.zip", "!**/*.tmp"];
+		const options = createOptions(createPathOptions({ includePatterns }), volumePath);
 
-		expect(options.includePatterns).toEqual([
-			path.join(volumePath, "**/*.xyz"),
-			path.join(volumePath, "*.zip"),
-			`!${path.join(volumePath, "**/*.tmp")}`,
-		]);
+		expect(options.includePatterns).toEqual(includePatterns);
 	});
 
 	test("handles a selected subfolder with the exact same name as the volume path", () => {
@@ -100,10 +96,7 @@ describe("backup path options", () => {
 			volumePath,
 		);
 
-		expect(options.includePatterns).toEqual([
-			path.join(volumePath, relativeInclude),
-			path.join(volumePath, "anchored/include"),
-		]);
+		expect(options.includePatterns).toEqual([relativeInclude, anchoredInclude]);
 	});
 
 	test("handles empty include and exclude patterns", () => {
@@ -117,17 +110,13 @@ describe("backup path options", () => {
 		expect(options.exclude).toEqual([]);
 	});
 
-	test("rejects include patterns that escape the volume root", () => {
+	test("passes include patterns through without resolving them as paths", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const includePatterns = ["../../../../etc/shadow", "/../etc/passwd", "!/../../secrets.txt"];
 
-		expect(() =>
-			createOptions(
-				createPathOptions({
-					includePatterns: ["../../../../etc/shadow", "/../etc/passwd", "!/../../secrets.txt"],
-				}),
-				volumePath,
-			),
-		).toThrow("Include pattern escapes volume root");
+		const options = createOptions(createPathOptions({ includePatterns }), volumePath);
+
+		expect(options.includePatterns).toEqual(includePatterns);
 	});
 
 	test("rejects unsupported characters in selected include paths", () => {
@@ -161,7 +150,7 @@ describe("backup path options", () => {
 		}
 	});
 
-	test("anchors generated include patterns under the volume path", () => {
+	test("anchors generated include paths under the volume path", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
 
 		fc.assert(
@@ -174,7 +163,7 @@ describe("backup path options", () => {
 		);
 	});
 
-	test("rejects generated include patterns that escape the volume root", () => {
+	test("rejects generated include paths that escape the volume root", () => {
 		const volumePath = "/volume/root";
 
 		fc.assert(
@@ -197,6 +186,6 @@ describe("backup path options", () => {
 		);
 
 		expect(options.includePaths).toEqual([path.join(volumePath, "movies [1]")]);
-		expect(options.includePatterns).toEqual([path.join(volumePath, "**/*.txt")]);
+		expect(options.includePatterns).toEqual(["**/*.txt"]);
 	});
 });

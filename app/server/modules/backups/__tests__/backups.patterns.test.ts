@@ -34,12 +34,8 @@ describe("executeBackup - include / exclude patterns", () => {
 		// assert
 		expect(options).toMatchObject({
 			includePaths: [path.join(volumePath, "Photos")],
-			includePatterns: [
-				path.join(volumePath, "*.zip"),
-				`!${path.join(volumePath, "Temp")}`,
-				`!${path.join(volumePath, "*.log")}`,
-			],
-			exclude: [".DS_Store", path.join(volumePath, "Config"), `!${path.join(volumePath, "Important")}`, "!*.tmp"],
+			includePatterns: ["*.zip", "!/Temp", "!*.log"],
+			exclude: [".DS_Store", "/Config", "!/Important", "!*.tmp"],
 			excludeIfPresent: [".nobackup"],
 		});
 	});
