@@ -34,26 +34,47 @@ test.each([
 	{
 		name: "an organization created at least a year ago without an export",
 		organization: oldOrganization,
+		now,
 		expected: true,
 	},
 	{
 		name: "a recently created organization without an export",
 		organization: { ...oldOrganization, createdAt: new Date("2025-08-30T00:00:00.000Z") },
+		now,
 		expected: false,
 	},
 	{
 		name: "a recent recovery export for an old organization",
 		organization: { ...oldOrganization, recoveryMaterialExportedAt: new Date("2026-01-01T00:00:00.000Z") },
+		now,
 		expected: false,
 	},
-])("reminder is due for $name", ({ organization, expected }) => {
+	{
+		name: "the day before a calendar year that includes leap day",
+		organization: { ...oldOrganization, createdAt: new Date("2023-03-01T00:00:00.000Z") },
+		now: new Date("2024-02-29T00:00:00.000Z"),
+		expected: false,
+	},
+	{
+		name: "the calendar-year anniversary after leap day",
+		organization: { ...oldOrganization, createdAt: new Date("2023-03-01T00:00:00.000Z") },
+		now: new Date("2024-03-01T00:00:00.000Z"),
+		expected: true,
+	},
+	{
+		name: "a calendar year after February 29",
+		organization: { ...oldOrganization, createdAt: new Date("2024-02-29T00:00:00.000Z") },
+		now: new Date("2025-02-28T00:00:00.000Z"),
+		expected: true,
+	},
+])("reminder is due for $name", ({ organization, now, expected }) => {
 	expect(isRecoveryMaterialReminderDue(organization, now)).toBe(expected);
 });
 
 test("only shows the reminder to users who can download recovery keys", () => {
 	render(<RecoveryMaterialReminder organization={oldOrganization} canDownloadRecoveryKey={false} />);
 
-	expect(screen.queryByRole("alert")).toBeNull();
+	expect(screen.queryByRole("region", { name: "Recovery material reminder" })).toBeNull();
 });
 
 test("links to organization recovery options and snoozes only the active organization", async () => {
@@ -62,7 +83,7 @@ test("links to organization recovery options and snoozes only the active organiz
 	const reviewOptionsLink = screen.getByRole("link", { name: "Review recovery options" });
 	expect(reviewOptionsLink.getAttribute("href")).toBe("/settings?scope=organization");
 	await userEvent.click(screen.getByRole("button", { name: "Dismiss recovery material reminder" }));
-	expect(screen.queryByRole("alert")).toBeNull();
+	expect(screen.queryByRole("region", { name: "Recovery material reminder" })).toBeNull();
 
 	firstReminder.unmount();
 	render(
@@ -72,5 +93,5 @@ test("links to organization recovery options and snoozes only the active organiz
 		/>,
 	);
 
-	expect(screen.getByRole("alert")).toBeTruthy();
+	expect(screen.getByRole("region", { name: "Recovery material reminder" })).toBeTruthy();
 });

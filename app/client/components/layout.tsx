@@ -102,10 +102,11 @@ export function Layout({ loaderData }: Props) {
 	);
 }
 
-function DashboardRecoveryMaterialReminder() {
+export function DashboardRecoveryMaterialReminder() {
 	const { activeOrganization } = useOrganizationContext();
 	const permissions = usePermissions();
-	const canDownloadRecoveryKey = permissions.can("recoveryKey.download");
+	const permissionsMatchActiveOrganization = permissions.activeOrganizationId === activeOrganization.id;
+	const canDownloadRecoveryKey = permissionsMatchActiveOrganization && permissions.can("recoveryKey.download");
 
 	return (
 		<RecoveryMaterialReminder

@@ -1,10 +1,10 @@
 import { Link } from "@tanstack/react-router";
+import { addYears } from "date-fns";
 import { AlertTriangle, X } from "lucide-react";
 import { useCookieState } from "~/client/hooks/use-cookie-state";
 import { Button, buttonVariants } from "~/client/components/ui/button";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 
-const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
 
 type OrganizationRecoveryMaterial = {
@@ -23,10 +23,11 @@ export function isRecoveryMaterialReminderDue(
 	now = new Date(),
 ) {
 	const baseline = organization.recoveryMaterialExportedAt ?? organization.createdAt;
-	const baselineTime = baseline.getTime();
+	const reminderDate = addYears(baseline, 1);
+	const reminderTime = reminderDate.getTime();
 	const nowTime = now.getTime();
 
-	return nowTime - baselineTime >= ONE_YEAR_MS;
+	return nowTime >= reminderTime;
 }
 
 const getDismissalCookieName = (organizationId: string) => `recovery_material_reminder_dismissed_${organizationId}`;
@@ -43,7 +44,13 @@ export function RecoveryMaterialReminder({ organization, canDownloadRecoveryKey 
 	}
 
 	return (
-		<Alert variant="warning" className="rounded-none border-x-0 border-t-0 px-3 sm:px-8">
+		<Alert
+			variant="warning"
+			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
+			role="region"
+			aria-label="Recovery material reminder"
+			className="rounded-none border-x-0 border-t-0 px-3 sm:px-8"
+		>
 			<AlertTriangle className="size-5" />
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<AlertDescription>
