@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { repositoriesTable, sessionsTable, usersTable } from "~/server/db/schema";
+import { organization, repositoriesTable, sessionsTable, usersTable } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession } from "~/test/helpers/auth";
@@ -106,6 +106,7 @@ describe("configuration import", () => {
 		expect(storedPrimaryRepository?.config.customPassword).toMatch(/^encv1:/);
 		expect(storedPrimaryRepository?.autoCheckEnabled).toBe(true);
 		expect(storedOrganization?.metadata?.resticPassword).toMatch(/^encv1:/);
+		expect(storedOrganization?.recoveryMaterialExportedAt).toBeInstanceOf(Date);
 
 		const storedSchedule = await db.query.backupSchedulesTable.findFirst({
 			where: { organizationId: targetSession.organizationId },
@@ -378,6 +379,8 @@ describe("configuration import", () => {
 		expect(await response.json()).toEqual({
 			message: "Configuration import is only available during onboarding",
 		});
+		const org = await db.query.organization.findFirst({ where: { id: session.organizationId } });
+		expect(org?.recoveryMaterialExportedAt).toBeNull();
 	});
 
 	test("rechecks onboarding eligibility atomically before writing", async () => {

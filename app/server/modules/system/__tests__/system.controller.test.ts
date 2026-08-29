@@ -281,6 +281,10 @@ describe("system security", () => {
 				where: { id: desktopAuthSession.user.id },
 			});
 			expect(updatedUser?.hasDownloadedResticPassword).toBe(true);
+			const updatedOrganization = await db.query.organization.findFirst({
+				where: { id: desktopAuthSession.organizationId },
+			});
+			expect(updatedOrganization?.recoveryMaterialExportedAt).toBeInstanceOf(Date);
 		});
 
 		test("rejects browser sessions in desktop mode", async () => {

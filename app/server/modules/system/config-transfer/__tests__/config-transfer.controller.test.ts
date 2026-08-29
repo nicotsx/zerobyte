@@ -208,6 +208,8 @@ describe("configuration export", () => {
 		expect(response.status).toBe(200);
 		const user = await db.query.usersTable.findFirst({ where: { id: sourceSession.user.id } });
 		expect(user?.hasDownloadedResticPassword).toBe(true);
+		const org = await db.query.organization.findFirst({ where: { id: sourceSession.organizationId } });
+		expect(org?.recoveryMaterialExportedAt).toBeInstanceOf(Date);
 	});
 
 	test("does not record recovery-key completion when export fails", async () => {
@@ -225,6 +227,8 @@ describe("configuration export", () => {
 		expect(await response.json()).toEqual({ message: "Organization Restic password not found" });
 		const user = await db.query.usersTable.findFirst({ where: { id: sourceSession.user.id } });
 		expect(user?.hasDownloadedResticPassword).toBe(false);
+		const org = await db.query.organization.findFirst({ where: { id: sourceSession.organizationId } });
+		expect(org?.recoveryMaterialExportedAt).toBeNull();
 	});
 
 	test("preserves pre and post backup webhook TLS overrides", async () => {

@@ -1,0 +1,1 @@
+ALTER TABLE `organization` ADD `recovery_material_exported_at` integer;

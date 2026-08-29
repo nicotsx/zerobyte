@@ -136,6 +136,7 @@ export const organization = sqliteTable(
 		logo: text("logo"),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 		metadata: text("metadata", { mode: "json" }).$type<OrganizationMetadata>(),
+		recoveryMaterialExportedAt: integer("recovery_material_exported_at", { mode: "timestamp_ms" }),
 	},
 	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
 );

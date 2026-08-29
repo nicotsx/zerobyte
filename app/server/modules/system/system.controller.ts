@@ -26,7 +26,7 @@ import {
 import { systemService } from "./system.service";
 import { requireAuth, requireOrgAdmin, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
-import { usersTable } from "../../db/schema";
+import { organization, usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { InternalServerError } from "http-errors-enhanced";
 import { userHasPassword, verifyUserPassword } from "../auth/helpers";
@@ -58,6 +58,11 @@ const verifyRecoveryKeyPassword = async (userId: string, password: string, authS
 
 const markRecoveryKeyAsDownloaded = async (userId: string) => {
 	await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
+};
+
+const markRecoveryMaterialAsExported = async (organizationId: string) => {
+	const recoveryMaterialExportedAt = new Date();
+	await db.update(organization).set({ recoveryMaterialExportedAt }).where(eq(organization.id, organizationId));
 };
 
 export const systemController = new Hono()
@@ -116,6 +121,7 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
+				await markRecoveryMaterialAsExported(organizationId);
 				await markRecoveryKeyAsDownloaded(user.id);
 
 				c.header("Content-Type", "text/plain");
@@ -173,6 +179,7 @@ export const systemController = new Hono()
 				throw new InternalServerError("Failed to export configuration", { cause });
 			}
 
+			await markRecoveryMaterialAsExported(organizationId);
 			await markRecoveryKeyAsDownloaded(user.id);
 
 			c.header("Content-Type", "text/plain");
