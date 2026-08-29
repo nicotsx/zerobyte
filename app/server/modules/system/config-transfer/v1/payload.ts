@@ -331,6 +331,7 @@ const exportedVolumeSchema = z
 const exportedBackupScheduleSchema = z
 	.object({
 		ref: transferRefSchema,
+		shortId: z.string().min(1),
 		name: z.string().min(1),
 		volumeRef: transferRefSchema,
 		repositoryRef: transferRefSchema,

@@ -177,4 +177,6 @@ export const seedConfig = async (organizationId: string) => {
 		notifyOnWarning: true,
 		notifyOnFailure: false,
 	});
+
+	return { schedule };
 };

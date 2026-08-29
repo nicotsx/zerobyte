@@ -13,6 +13,7 @@ import {
 } from "~/server/db/schema";
 import { calculateNextRun } from "~/server/modules/backups/backup.helpers";
 import { bandwidthFields } from "~/server/modules/repositories/repository-bandwidth-fields";
+import { asShortId } from "~/server/utils/branded";
 import { generateShortId } from "~/server/utils/id";
 import type { PreparedImport } from "./prepare-import";
 
@@ -120,10 +121,11 @@ const importSchedules = (
 
 	for (const schedule of schedules) {
 		const nextBackupAt = schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
+		const shortId = asShortId(schedule.shortId);
 		const inserted = tx
 			.insert(backupSchedulesTable)
 			.values({
-				shortId: generateShortId(),
+				shortId,
 				name: schedule.name,
 				volumeId: getRequiredId(volumeIds, schedule.volumeRef, "volume"),
 				repositoryId: getRequiredId(repositoryIds, schedule.repositoryRef, "repository"),

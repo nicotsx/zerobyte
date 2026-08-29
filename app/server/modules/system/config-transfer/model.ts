@@ -21,6 +21,7 @@ export type ConfigTransferModel = {
 	}>;
 	backupSchedules: Array<{
 		ref: string;
+		shortId: string;
 		name: string;
 		volumeRef: string;
 		repositoryRef: string;

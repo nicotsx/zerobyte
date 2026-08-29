@@ -62,6 +62,7 @@
 	"backupSchedules": [
 		{
 			"ref": "schedule:1",
+			"shortId": "sched001",
 			"name": "Fixture Nightly Backup",
 			"volumeRef": "volume:1",
 			"repositoryRef": "repository:1",

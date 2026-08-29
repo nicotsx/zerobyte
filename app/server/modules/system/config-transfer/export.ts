@@ -126,6 +126,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		volumes: exportedVolumes,
 		backupSchedules: backupSchedules.map((schedule) => ({
 			ref: getRequiredRef(scheduleRefs, schedule.id, "backup schedule"),
+			shortId: schedule.shortId,
 			name: schedule.name,
 			volumeRef: getRequiredRef(volumeRefs, schedule.volumeId, "volume"),
 			repositoryRef: getRequiredRef(repositoryRefs, schedule.repositoryId, "repository"),

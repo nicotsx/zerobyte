@@ -9,6 +9,8 @@ import { encryptVolumeConfig } from "~/server/modules/volumes/volume-config-secr
 import { checkMirrorCompatibility } from "~/server/utils/backend-compatibility";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { normalizeRequiredName } from "~/server/utils/names";
+import type { SystemInfoDto } from "../system.dto";
+import { systemService } from "../system.service";
 import { InvalidConfigTransferError } from "./errors";
 import type { ConfigTransferModel } from "./model";
 
@@ -18,12 +20,18 @@ export type PreparedImport = Omit<ConfigTransferModel, "resticPassword"> & {
 
 const validateSchedules = (schedules: ConfigTransferModel["backupSchedules"]) => {
 	const scheduleNames = new Set<string>();
+	const scheduleShortIds = new Set<string>();
 
 	for (const schedule of schedules) {
-		if (!isValidBackupScheduleName(schedule.name) || scheduleNames.has(schedule.name)) {
+		if (
+			!isValidBackupScheduleName(schedule.name) ||
+			scheduleNames.has(schedule.name) ||
+			scheduleShortIds.has(schedule.shortId)
+		) {
 			throw new InvalidConfigTransferError();
 		}
 		scheduleNames.add(schedule.name);
+		scheduleShortIds.add(schedule.shortId);
 
 		const error = validateScheduleTiming(schedule);
 		if (error) {
@@ -99,18 +107,27 @@ const validateMirrors = async (payload: ConfigTransferModel) => {
 	}
 };
 
-const createLocalPathWarnings = (payload: ConfigTransferModel) => {
+const createWarnings = (payload: ConfigTransferModel, capabilities: SystemInfoDto["capabilities"]) => {
 	const warnings: string[] = [];
 	const volumeRequirements = new Map<string, string>();
 	const repositoryRequirements = new Map<string, string>();
 	const mirrorRequirements = new Map<string, Set<string>>();
+	const volumeBackends = new Set(capabilities.volumeBackends);
+	const repositoryBackends = new Set(capabilities.repositoryBackends);
 
 	for (const volume of payload.volumes) {
+		volumeRequirements.set(volume.ref, `volume "${volume.name}"`);
+
 		if (volume.config.backend === "directory") {
-			volumeRequirements.set(volume.ref, `volume "${volume.name}"`);
 			warnings.push(
-				`Volume "${volume.name}" uses local directory path "${volume.config.path}". Verify this path on this server before using it.`,
+				`Volume "${volume.name}" uses local directory path "${volume.config.path}". Verify and mount this path on this server before using it.`,
 			);
+		} else if (!volumeBackends.has(volume.config.backend)) {
+			warnings.push(
+				`Volume "${volume.name}" uses the "${volume.config.backend}" backend, which is unavailable on this server. Enable that backend and mount the volume before using it.`,
+			);
+		} else {
+			warnings.push(`Volume "${volume.name}" was imported unmounted. Mount it on this server before using it.`);
 		}
 	}
 
@@ -119,6 +136,11 @@ const createLocalPathWarnings = (payload: ConfigTransferModel) => {
 			repositoryRequirements.set(repository.ref, `repository "${repository.name}"`);
 			warnings.push(
 				`Repository "${repository.name}" uses local path "${repository.config.path}". Verify that this repository exists on this server before using it.`,
+			);
+		} else if (!repositoryBackends.has(repository.config.backend)) {
+			repositoryRequirements.set(repository.ref, `repository "${repository.name}"`);
+			warnings.push(
+				`Repository "${repository.name}" uses the "${repository.config.backend}" backend, which is unavailable on this server. Enable that backend before using it.`,
 			);
 		}
 	}
@@ -156,7 +178,7 @@ const createLocalPathWarnings = (payload: ConfigTransferModel) => {
 			if (schedule.enabled) {
 				const requirementList = new Intl.ListFormat("en", { type: "conjunction" }).format(requirements);
 				warnings.push(
-					`Disabled schedule "${schedule.name}" because it references ${requirementList}. Re-enable it after validating those imported paths on this server.`,
+					`Disabled schedule "${schedule.name}" because it references ${requirementList}. Re-enable it after reviewing those imported resources on this server.`,
 				);
 			}
 		}
@@ -171,6 +193,7 @@ export const prepareImport = async (
 	const normalizedPayload = normalizeImportedNames(payload);
 	validateSchedules(normalizedPayload.backupSchedules);
 	await validateMirrors(normalizedPayload);
+	const systemInfo = await systemService.getSystemInfo();
 
 	try {
 		for (const destination of normalizedPayload.notificationDestinations) {
@@ -210,7 +233,7 @@ export const prepareImport = async (
 		throw new InvalidConfigTransferError();
 	}
 
-	const { schedulesRequiringReview, warnings } = createLocalPathWarnings(normalizedPayload);
+	const { schedulesRequiringReview, warnings } = createWarnings(normalizedPayload, systemInfo.capabilities);
 	const backupSchedules = normalizedPayload.backupSchedules.map((schedule) => {
 		const enabled = schedule.enabled && !schedulesRequiringReview.has(schedule.ref);
 

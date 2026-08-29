@@ -36,7 +36,7 @@ describe("configuration export", () => {
 
 	test("exports the complete durable configuration without deployment secrets", async () => {
 		const sourceSession = await createTestSession();
-		await seedConfig(sourceSession.organizationId);
+		const { schedule } = await seedConfig(sourceSession.organizationId);
 		allowConfigExportPassword();
 
 		const response = await requestConfigExport(sourceSession.headers);
@@ -122,6 +122,7 @@ describe("configuration export", () => {
 			backupSchedules: [
 				{
 					ref: scheduleRef,
+					shortId: schedule.shortId,
 					name: "Parity Schedule",
 					volumeRef,
 					repositoryRef: primaryRepositoryRef,

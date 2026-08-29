@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { repositoriesTable, usersTable } from "~/server/db/schema";
+import { repositoriesTable, sessionsTable, usersTable } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession } from "~/test/helpers/auth";
@@ -29,15 +29,21 @@ beforeEach(() => {
 
 afterEach(() => {
 	config.webhookAllowedOrigins = [];
+	config.runtime = "server";
 	vi.restoreAllMocks();
 });
 
 describe("configuration import", () => {
 	test("imports the frozen v1 fixture", async () => {
+		config.runtime = "desktop";
 		const encryptedConfig = await loadEncryptedConfig();
 		const fixture = await loadPayload();
 		const decryptedPayload = JSON.parse(await decryptConfigTransferPayload(encryptedConfig, fixturePassphrase));
 		const targetSession = await createTestSession();
+		await db
+			.update(sessionsTable)
+			.set({ authSource: "desktop-session" })
+			.where(eq(sessionsTable.token, targetSession.session.token));
 
 		expect(decryptedPayload).toEqual(fixture);
 		const response = await requestConfigImport(targetSession.headers, encryptedConfig);
@@ -52,7 +58,12 @@ describe("configuration import", () => {
 				backupScheduleMirrors: fixture.backupScheduleMirrors.length,
 				backupScheduleNotifications: fixture.backupScheduleNotifications.length,
 			},
-			warnings: [],
+			warnings: [
+				'Volume "Fixture Volume" uses the "rclone" backend, which is unavailable on this server. Enable that backend and mount the volume before using it.',
+				'Repository "Fixture Primary Repository" uses the "rclone" backend, which is unavailable on this server. Enable that backend before using it.',
+				'Repository "Fixture Mirror Repository" uses the "rclone" backend, which is unavailable on this server. Enable that backend before using it.',
+				'Disabled schedule "Fixture Nightly Backup" because it references volume "Fixture Volume", repository "Fixture Primary Repository", and repository "Fixture Mirror Repository". Re-enable it after reviewing those imported resources on this server.',
+			],
 		});
 
 		const imported = await loadConfigState(targetSession.organizationId);
@@ -71,7 +82,7 @@ describe("configuration import", () => {
 					name: "Fixture Nightly Backup",
 					volumeName: "Fixture Volume",
 					repositoryName: "Fixture Primary Repository",
-					enabled: true,
+					enabled: false,
 				}),
 			]),
 		);
@@ -100,6 +111,7 @@ describe("configuration import", () => {
 			where: { organizationId: targetSession.organizationId },
 		});
 		expect(storedSchedule).toMatchObject({
+			shortId: fixture.backupSchedules[0].shortId,
 			lastBackupAt: null,
 			lastBackupStatus: null,
 			lastBackupError: null,
@@ -108,10 +120,14 @@ describe("configuration import", () => {
 		expect(storedSchedule?.nextBackupAt).toBeGreaterThan(Date.now());
 	});
 
-	test("preserves every current durable field on round trip", async () => {
+	test("preserves config and snapshot tags while disabling schedules for review", async () => {
 		const sourceSession = await createTestSession();
-		await seedConfig(sourceSession.organizationId);
+		const { schedule: sourceSchedule } = await seedConfig(sourceSession.organizationId);
 		const sourceConfig = await loadConfigState(sourceSession.organizationId);
+		const expectedConfig = {
+			...sourceConfig,
+			backupSchedules: sourceConfig.backupSchedules.map((schedule) => ({ ...schedule, enabled: false })),
+		};
 		allowConfigExportPassword();
 
 		const exportResponse = await requestConfigExport(sourceSession.headers);
@@ -127,7 +143,7 @@ describe("configuration import", () => {
 		const importResponse = await requestConfigImport(targetSession.headers, encryptedConfig);
 
 		expect(importResponse.status).toBe(200);
-		expect(await loadConfigState(targetSession.organizationId)).toEqual(sourceConfig);
+		expect(await loadConfigState(targetSession.organizationId)).toEqual(expectedConfig);
 
 		const storedRepositories = await db.query.repositoriesTable.findMany({
 			where: { organizationId: targetSession.organizationId },
@@ -138,6 +154,9 @@ describe("configuration import", () => {
 		const storedVolume = await db.query.volumesTable.findFirst({
 			where: { organizationId: targetSession.organizationId },
 		});
+		const storedSchedule = await db.query.backupSchedulesTable.findFirst({
+			where: { organizationId: targetSession.organizationId },
+		});
 		const storedDestination = await db.query.notificationDestinationsTable.findFirst({
 			where: { organizationId: targetSession.organizationId },
 		});
@@ -145,7 +164,30 @@ describe("configuration import", () => {
 		expect(storedRepository?.config.backend === "s3" && storedRepository.config.secretAccessKey).toMatch(/^encv1:/);
 		expect(storedVolume?.config.backend === "sftp" && storedVolume.config.password).toMatch(/^encv1:/);
 		expect(storedVolume?.config.backend === "sftp" && storedVolume.config.privateKey).toMatch(/^encv1:/);
+		expect(storedSchedule?.shortId).toBe(sourceSchedule.shortId);
 		expect(storedDestination?.config.type === "slack" && storedDestination.config.webhookUrl).toMatch(/^encv1:/);
+	});
+
+	test("preserves the same snapshot tag across organizations", async () => {
+		const encryptedConfig = await loadEncryptedConfig();
+		const fixture = await loadPayload();
+		const [firstSession, secondSession] = await Promise.all([createTestSession(), createTestSession()]);
+
+		const responses = await Promise.all([
+			requestConfigImport(firstSession.headers, encryptedConfig),
+			requestConfigImport(secondSession.headers, encryptedConfig),
+		]);
+
+		expect(responses.map((response) => response.status)).toEqual([200, 200]);
+		const schedules = await Promise.all(
+			[firstSession, secondSession].map((session) =>
+				db.query.backupSchedulesTable.findFirst({ where: { organizationId: session.organizationId } }),
+			),
+		);
+		expect(schedules.map((schedule) => schedule?.shortId)).toEqual([
+			fixture.backupSchedules[0].shortId,
+			fixture.backupSchedules[0].shortId,
+		]);
 	});
 
 	test("warns about local paths and disables dependent schedules", async () => {
@@ -160,10 +202,10 @@ describe("configuration import", () => {
 		expect(response.status).toBe(200);
 		expect(await response.json()).toMatchObject({
 			warnings: expect.arrayContaining([
-				'Volume "Fixture Volume" uses local directory path "/tmp/source-volume". Verify this path on this server before using it.',
+				'Volume "Fixture Volume" uses local directory path "/tmp/source-volume". Verify and mount this path on this server before using it.',
 				'Repository "Fixture Primary Repository" uses local path "/tmp/source-repository". Verify that this repository exists on this server before using it.',
 				'Repository "Fixture Mirror Repository" uses local path "/tmp/mirror-repository". Verify that this repository exists on this server before using it.',
-				'Disabled schedule "Fixture Nightly Backup" because it references volume "Fixture Volume", repository "Fixture Primary Repository", and repository "Fixture Mirror Repository". Re-enable it after validating those imported paths on this server.',
+				'Disabled schedule "Fixture Nightly Backup" because it references volume "Fixture Volume", repository "Fixture Primary Repository", and repository "Fixture Mirror Repository". Re-enable it after reviewing those imported resources on this server.',
 			]),
 		});
 
