@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
+import { CONFIG_TRANSFER_MAX_FILE_BYTES } from "~/lib/config-transfer";
 import { configTransferPassphraseSchema } from "~/schemas/config-transfer";
 
 const capabilitiesSchema = z.object({
@@ -101,6 +102,41 @@ export const exportConfigDto = describeRoute({
 			content: {
 				"text/plain": {
 					schema: { type: "string" },
+				},
+			},
+		},
+	},
+});
+
+export const importConfigBodySchema = z.object({
+	encryptedConfig: z.string().min(1).max(CONFIG_TRANSFER_MAX_FILE_BYTES),
+	exportPassphrase: configTransferPassphraseSchema,
+});
+
+export const importConfigResponse = z.object({
+	imported: z.object({
+		repositories: z.number(),
+		volumes: z.number(),
+		backupSchedules: z.number(),
+		notificationDestinations: z.number(),
+		backupScheduleMirrors: z.number(),
+		backupScheduleNotifications: z.number(),
+	}),
+	warnings: z.array(z.string()),
+});
+
+export type ImportConfigResponseDto = z.infer<typeof importConfigResponse>;
+
+export const importConfigDto = describeRoute({
+	description: "Import a passphrase-protected organization configuration during onboarding",
+	tags: ["System"],
+	operationId: "importConfig",
+	responses: {
+		200: {
+			description: "Configuration imported successfully",
+			content: {
+				"application/json": {
+					schema: resolver(importConfigResponse),
 				},
 			},
 		},

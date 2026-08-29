@@ -17,6 +17,7 @@ import { volumeConfigSchema, type BackendConfig, type Volume as AgentVolume } fr
 import { Effect } from "effect";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
+import { normalizeRequiredName } from "~/server/utils/names";
 import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
 import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
 import { createVolumeBackend, getStatFs, getVolumePath } from "../../../../apps/agent/src/volume-host";
@@ -102,9 +103,9 @@ const runVolumeBackendCommand = async (
 
 const createVolume = async (name: string, backendConfig: BackendConfig) => {
 	const organizationId = getOrganizationId();
-	const trimmedName = name.trim();
+	const normalizedName = normalizeRequiredName(name);
 
-	if (trimmedName.length === 0) {
+	if (normalizedName === null) {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
 
@@ -115,7 +116,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		.insert(volumesTable)
 		.values({
 			shortId,
-			name: trimmedName,
+			name: normalizedName,
 			config: encryptedConfig,
 			type: backendConfig.backend,
 			agentId: LOCAL_AGENT_ID,
@@ -233,9 +234,9 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	const newName = volumeData.name !== undefined ? volumeData.name.trim() : existing.name;
+	const normalizedName = volumeData.name !== undefined ? normalizeRequiredName(volumeData.name) : existing.name;
 
-	if (newName.length === 0) {
+	if (normalizedName === null) {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
 
@@ -258,7 +259,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
-			name: newName,
+			name: normalizedName,
 			config: encryptedConfig,
 			type: volumeData.config?.backend,
 			autoRemount: volumeData.autoRemount,

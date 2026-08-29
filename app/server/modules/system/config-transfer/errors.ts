@@ -1,3 +1,15 @@
+import { BadRequestError } from "http-errors-enhanced";
+
+export const INVALID_CONFIG_TRANSFER_MESSAGE = "Invalid export file or passphrase";
+
+export class InvalidConfigTransferError extends BadRequestError {
+	readonly name = "InvalidConfigTransferError";
+
+	constructor() {
+		super(INVALID_CONFIG_TRANSFER_MESSAGE);
+	}
+}
+
 export class InvalidConfigTransferEnvelopeError extends Error {
 	readonly name = "InvalidConfigTransferEnvelopeError";
 

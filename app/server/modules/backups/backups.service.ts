@@ -7,7 +7,7 @@ import { asShortId, type ShortId } from "~/server/utils/branded";
 import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { db } from "../../db/db";
 import { backupScheduleMirrorsTable, backupScheduleNotificationsTable, backupSchedulesTable } from "../../db/schema";
-import { calculateNextRun, isValidCron } from "./backup.helpers";
+import { calculateNextRun, validateScheduleTiming } from "./backup.helpers";
 import { mirrorQueries, repositoryQueries, scheduleQueries } from "./backups.queries";
 import type { CreateBackupScheduleBody, UpdateBackupScheduleBody, UpdateScheduleMirrorsBody } from "./backups.dto";
 import { handleValidationResult, validateBackupExecution } from "./helpers/backup-lifecycle";
@@ -43,11 +43,9 @@ const listSchedules = async () => {
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
 	const organizationId = getOrganizationId();
-	if (data.cronExpression && !isValidCron(data.cronExpression)) {
-		throw new BadRequestError("Invalid cron expression");
-	}
-	if (data.enabled && !data.cronExpression) {
-		throw new BadRequestError("Enabled schedules require a cron expression");
+	const error = validateScheduleTiming(data);
+	if (error) {
+		throw new BadRequestError(error);
 	}
 
 	const existingName = await db.query.backupSchedulesTable.findFirst({
@@ -134,11 +132,15 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
 
-	if (data.cronExpression && !isValidCron(data.cronExpression)) {
-		throw new BadRequestError("Invalid cron expression");
-	}
-	if ((data.enabled ?? schedule.enabled) && data.cronExpression === "") {
-		throw new BadRequestError("Enabled schedules require a cron expression");
+	const enabled = data.enabled ?? schedule.enabled;
+
+	const error = validateScheduleTiming({
+		cronExpression: data.cronExpression,
+		enabled,
+	});
+
+	if (error) {
+		throw new BadRequestError(error);
 	}
 
 	if (data.customResticParams && data.customResticParams.length > 0) {

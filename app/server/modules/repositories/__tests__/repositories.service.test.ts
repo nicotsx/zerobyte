@@ -110,8 +110,13 @@ describe("repositoriesService.createRepository", () => {
 		expect(created.autoCheckEnabled).toBe(true);
 	});
 
-	test("persists disabled automatic health checks when requested", async () => {
-		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
+	test("persists repository options", async () => {
+		const config: RepositoryConfig = {
+			backend: "local",
+			path: REPOSITORY_BASE,
+			uploadLimit: { enabled: true, value: 7, unit: "Mbps" },
+			downloadLimit: { enabled: true, value: 8, unit: "Kbps" },
+		};
 
 		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
 			repositoriesService.createRepository("opted out repo", config, undefined, false),
@@ -121,7 +126,31 @@ describe("repositoriesService.createRepository", () => {
 			where: { id: result.repository.id },
 		});
 
-		expect(created?.autoCheckEnabled).toBe(false);
+		expect(created).toMatchObject({
+			autoCheckEnabled: false,
+			uploadLimitEnabled: true,
+			uploadLimitValue: 7,
+			uploadLimitUnit: "Mbps",
+			downloadLimitEnabled: true,
+			downloadLimitValue: 8,
+			downloadLimitUnit: "Kbps",
+		});
+	});
+
+	test("normalizes repository names and rejects empty names", async () => {
+		const config: RepositoryConfig = { backend: "local", path: REPOSITORY_BASE };
+
+		const result = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.createRepository("  normalized repository  ", config),
+		);
+
+		expect(result.repository.name).toBe("normalized repository");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.createRepository(" \t\n ", { backend: "local", path: REPOSITORY_BASE }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
 	});
 
 	test("creates a shortId-scoped repository path when using a custom directory", async () => {
@@ -183,6 +212,30 @@ describe("repositoriesService.createRepository", () => {
 		const savedConfig = created.config as Extract<RepositoryConfig, { backend: "local" }>;
 		expect(savedConfig.path).toBe(explicitPath);
 		expect(created.status).toBe("healthy");
+	});
+});
+
+describe("repositoriesService.updateRepository", () => {
+	test("normalizes repository names and rejects explicit empty updates", async () => {
+		const repository = await createTestRepository(session.organizationId);
+
+		const updated = await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.updateRepository(repository.shortId, { name: "  updated repository  " }),
+		);
+
+		expect(updated.repository.name).toBe("updated repository");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, { name: "" }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, { name: " \t\n " }),
+			),
+		).rejects.toThrow("Repository name cannot be empty");
 	});
 });
 

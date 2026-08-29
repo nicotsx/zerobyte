@@ -6,6 +6,7 @@ import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
 import { finishedTaskStatusSchema } from "~/schemas/tasks";
 import { retentionPolicySchema } from "~/schemas/retention";
 import { repositorySchema } from "../repositories/repositories.dto";
+import { BACKUP_SCHEDULE_NAME_MAX_LENGTH } from "./backup-schedule-name";
 
 const backupScheduleSchema = z.object({
 	id: z.number(),
@@ -113,7 +114,7 @@ export const getBackupScheduleForVolumeDto = describeRoute({
 });
 
 export const createBackupScheduleBody = z.object({
-	name: z.string().min(1).max(128),
+	name: z.string().min(1).max(BACKUP_SCHEDULE_NAME_MAX_LENGTH),
 	volumeId: z.union([z.string(), z.number()]),
 	repositoryId: z.string(),
 	enabled: z.boolean(),
@@ -161,7 +162,7 @@ export const createBackupScheduleDto = describeRoute({
 });
 
 export const updateBackupScheduleBody = z.object({
-	name: z.string().min(1).max(128).optional(),
+	name: z.string().min(1).max(BACKUP_SCHEDULE_NAME_MAX_LENGTH).optional(),
 	repositoryId: z.string(),
 	enabled: z.boolean().optional(),
 	cronExpression: z.string(),

@@ -117,6 +117,9 @@ test("initializes and updates scheduled health checks without adding it to repos
 		name: "Enable scheduled repository health checks",
 	});
 	expect(healthCheckCheckbox.getAttribute("data-state")).toBe("unchecked");
+	expect(screen.getByText("/repositories")).toBeTruthy();
+	expect(screen.queryByText("/{unique-id}")).toBeNull();
+	expect(screen.getByText("The exact path to your existing repository.")).toBeTruthy();
 
 	await userEvent.click(healthCheckCheckbox);
 	await userEvent.click(screen.getByRole("button", { name: "Save Changes" }));

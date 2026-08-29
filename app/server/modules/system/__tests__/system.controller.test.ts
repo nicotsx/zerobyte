@@ -92,6 +92,7 @@ describe("system security", () => {
 			{ method: "PUT", path: "/api/v1/system/password-login-status" },
 			{ method: "POST", path: "/api/v1/system/restic-password" },
 			{ method: "POST", path: "/api/v1/system/config-export" },
+			{ method: "POST", path: "/api/v1/system/config-import" },
 			{ method: "GET", path: "/api/v1/system/dev-panel" },
 		];
 
@@ -356,6 +357,20 @@ describe("system security", () => {
 			expect(res.status).toBe(401);
 			const body = await res.json();
 			expect(body.message).toBe("Invalid password");
+		});
+
+		test("should return 400 for invalid payload on config-import", async () => {
+			const { headers } = await createTestSession();
+			const res = await app.request("/api/v1/system/config-import", {
+				method: "POST",
+				headers: {
+					...headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ encryptedConfig: "" }),
+			});
+
+			expect(res.status).toBe(400);
 		});
 	});
 });

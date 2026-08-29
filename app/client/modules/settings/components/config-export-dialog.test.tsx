@@ -31,6 +31,7 @@ test.each([
 	render(<ConfigExportDialog hasPassword={false} passwordAuthSupported={false} />);
 
 	await userEvent.click(screen.getByRole("button", { name: "Export encrypted config" }));
+	expect(screen.getByText(/does not include backup data or volume contents/i)).toBeTruthy();
 	await userEvent.type(screen.getByLabelText("Export passphrase"), exportPassphrase);
 	await userEvent.type(screen.getByLabelText("Confirm export passphrase"), exportPassphraseConfirmation);
 	await userEvent.click(screen.getByRole("button", { name: "Export" }));

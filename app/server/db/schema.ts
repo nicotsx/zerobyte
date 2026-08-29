@@ -420,53 +420,57 @@ export type TaskInsert = typeof tasksTable.$inferInsert;
 /**
  * Backup Schedules Table
  */
-export const backupSchedulesTable = sqliteTable("backup_schedules_table", {
-	id: int().primaryKey({ autoIncrement: true }),
-	shortId: text("short_id").$type<ShortId>().notNull().unique(),
-	name: text().notNull(),
-	volumeId: int("volume_id")
-		.notNull()
-		.references(() => volumesTable.id, { onDelete: "cascade" }),
-	repositoryId: text("repository_id")
-		.notNull()
-		.references(() => repositoriesTable.id, { onDelete: "cascade" }),
-	enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
-	cronExpression: text("cron_expression").notNull(),
-	retentionPolicy: text("retention_policy", { mode: "json" }).$type<{
-		keepLast?: number;
-		keepHourly?: number;
-		keepDaily?: number;
-		keepWeekly?: number;
-		keepMonthly?: number;
-		keepYearly?: number;
-		keepWithinDuration?: string;
-	}>(),
-	excludePatterns: text("exclude_patterns", { mode: "json" }).$type<string[]>().default([]),
-	excludeIfPresent: text("exclude_if_present", { mode: "json" }).$type<string[]>().default([]),
-	includePaths: text("include_paths", { mode: "json" }).$type<string[]>().default([]),
-	includePatterns: text("include_patterns", { mode: "json" }).$type<string[]>().default([]),
-	lastBackupAt: int("last_backup_at", { mode: "number" }),
-	lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning" | null>(),
-	lastBackupError: text("last_backup_error"),
-	nextBackupAt: int("next_backup_at", { mode: "number" }),
-	oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
-	customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
-	compressionMode: text("compression_mode").$type<CompressionMode | null>(),
-	backupWebhooks: text("backup_webhooks", { mode: "json" }).$type<BackupWebhooks | null>(),
-	sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
-	failureRetryCount: int("failure_retry_count").notNull().default(0),
-	maxRetries: int("max_retries").notNull().default(2),
-	retryDelay: int("retry_delay").notNull().default(900000),
-	createdAt: int("created_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	updatedAt: int("updated_at", { mode: "number" })
-		.notNull()
-		.default(sql`(unixepoch() * 1000)`),
-	organizationId: text("organization_id")
-		.notNull()
-		.references(() => organization.id, { onDelete: "cascade" }),
-});
+export const backupSchedulesTable = sqliteTable(
+	"backup_schedules_table",
+	{
+		id: int().primaryKey({ autoIncrement: true }),
+		shortId: text("short_id").$type<ShortId>().notNull(),
+		name: text().notNull(),
+		volumeId: int("volume_id")
+			.notNull()
+			.references(() => volumesTable.id, { onDelete: "cascade" }),
+		repositoryId: text("repository_id")
+			.notNull()
+			.references(() => repositoriesTable.id, { onDelete: "cascade" }),
+		enabled: int("enabled", { mode: "boolean" }).notNull().default(true),
+		cronExpression: text("cron_expression").notNull(),
+		retentionPolicy: text("retention_policy", { mode: "json" }).$type<{
+			keepLast?: number;
+			keepHourly?: number;
+			keepDaily?: number;
+			keepWeekly?: number;
+			keepMonthly?: number;
+			keepYearly?: number;
+			keepWithinDuration?: string;
+		}>(),
+		excludePatterns: text("exclude_patterns", { mode: "json" }).$type<string[]>().default([]),
+		excludeIfPresent: text("exclude_if_present", { mode: "json" }).$type<string[]>().default([]),
+		includePaths: text("include_paths", { mode: "json" }).$type<string[]>().default([]),
+		includePatterns: text("include_patterns", { mode: "json" }).$type<string[]>().default([]),
+		lastBackupAt: int("last_backup_at", { mode: "number" }),
+		lastBackupStatus: text("last_backup_status").$type<"success" | "error" | "in_progress" | "warning" | null>(),
+		lastBackupError: text("last_backup_error"),
+		nextBackupAt: int("next_backup_at", { mode: "number" }),
+		oneFileSystem: int("one_file_system", { mode: "boolean" }).notNull().default(false),
+		customResticParams: text("custom_restic_params", { mode: "json" }).$type<string[]>().default([]),
+		compressionMode: text("compression_mode").$type<CompressionMode | null>(),
+		backupWebhooks: text("backup_webhooks", { mode: "json" }).$type<BackupWebhooks | null>(),
+		sortOrder: int("sort_order", { mode: "number" }).notNull().default(0),
+		failureRetryCount: int("failure_retry_count").notNull().default(0),
+		maxRetries: int("max_retries").notNull().default(2),
+		retryDelay: int("retry_delay").notNull().default(900000),
+		createdAt: int("created_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		updatedAt: int("updated_at", { mode: "number" })
+			.notNull()
+			.default(sql`(unixepoch() * 1000)`),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+	},
+	(table) => [unique().on(table.shortId, table.organizationId)],
+);
 export type BackupScheduleInsert = typeof backupSchedulesTable.$inferInsert;
 
 export type BackupSchedule = typeof backupSchedulesTable.$inferSelect;

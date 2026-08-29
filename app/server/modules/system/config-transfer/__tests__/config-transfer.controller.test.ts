@@ -1,19 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { organization, usersTable } from "~/server/db/schema";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { createTestSession } from "~/test/helpers/auth";
-import { eq } from "drizzle-orm";
 import { decryptConfigTransferPayload } from "../envelope";
 import { parseConfigTransferPayload } from "../payload";
-import {
-	allowConfigExportPassword,
-	configTransferFixturePassphrase,
-	createCompleteDurableConfiguration,
-	requestConfigExport,
-} from "./config-transfer-test-helpers";
+import { allowConfigExportPassword, fixturePassphrase, requestConfigExport } from "./config-transfer-test-helpers";
+import { seedConfig } from "./config-transfer-fixture-test-helpers";
 
 beforeEach(() => {
 	vi.spyOn(cryptoUtils, "sealSecret").mockImplementation(async (value) => `encv1:test:${value}`);
@@ -27,7 +23,7 @@ afterEach(() => {
 });
 
 describe("configuration export", () => {
-	test("requires password re-authentication", async () => {
+	test("requires password re-authentication on export", async () => {
 		const sourceSession = await createTestSession();
 		vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
 		vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
@@ -40,14 +36,14 @@ describe("configuration export", () => {
 
 	test("exports the complete durable configuration without deployment secrets", async () => {
 		const sourceSession = await createTestSession();
-		await createCompleteDurableConfiguration(sourceSession.organizationId);
+		const { schedule } = await seedConfig(sourceSession.organizationId);
 		allowConfigExportPassword();
 
 		const response = await requestConfigExport(sourceSession.headers);
 
 		expect(response.status).toBe(200);
 		const encryptedConfig = await response.text();
-		const decryptedPayload = await decryptConfigTransferPayload(encryptedConfig, configTransferFixturePassphrase);
+		const decryptedPayload = await decryptConfigTransferPayload(encryptedConfig, fixturePassphrase);
 		const payload = parseConfigTransferPayload(JSON.parse(decryptedPayload));
 		const primaryRepositoryRef = payload.repositories.find(
 			(repository) => repository.name === "Parity Primary Repository",
@@ -126,6 +122,7 @@ describe("configuration export", () => {
 			backupSchedules: [
 				{
 					ref: scheduleRef,
+					shortId: schedule.shortId,
 					name: "Parity Schedule",
 					volumeRef,
 					repositoryRef: primaryRepositoryRef,
@@ -228,5 +225,27 @@ describe("configuration export", () => {
 		expect(await response.json()).toEqual({ message: "Organization Restic password not found" });
 		const user = await db.query.usersTable.findFirst({ where: { id: sourceSession.user.id } });
 		expect(user?.hasDownloadedResticPassword).toBe(false);
+	});
+
+	test("preserves pre and post backup webhook TLS overrides", async () => {
+		const sourceSession = await createTestSession();
+		await seedConfig(sourceSession.organizationId);
+		allowConfigExportPassword();
+
+		const response = await requestConfigExport(sourceSession.headers);
+
+		expect(response.status).toBe(200);
+		const encryptedConfig = await response.text();
+		const decryptedPayload = await decryptConfigTransferPayload(encryptedConfig, fixturePassphrase);
+		const payload = parseConfigTransferPayload(JSON.parse(decryptedPayload));
+		expect(payload.backupSchedules[0]?.backupWebhooks).toEqual({
+			pre: {
+				url: "https://hooks.example.test/pre",
+				headers: ["Authorization: Bearer pre-token"],
+				body: '{"phase":"pre"}',
+				insecureTls: true,
+			},
+			post: { url: "https://hooks.example.test/post", insecureTls: false },
+		});
 	});
 });

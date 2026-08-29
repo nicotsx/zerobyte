@@ -8,9 +8,9 @@ type AuthLayoutProps = {
 
 export function AuthLayout({ title, description, children }: AuthLayoutProps) {
 	return (
-		<div className="flex mt-[25%] lg:mt-0 lg:min-h-screen">
-			<div className="flex flex-1 items-center justify-center bg-background p-8">
-				<div className="w-full max-w-md space-y-8">
+		<div className="fixed inset-0 flex overflow-hidden">
+			<div className="flex min-h-0 flex-1 justify-center overflow-y-auto overscroll-contain bg-background p-8">
+				<div className="my-auto w-full max-w-md space-y-8">
 					<div className="flex items-center gap-3">
 						<img src="/images/zerobyte.png" alt="Zerobyte Logo" className="h-5 w-5 object-contain" />
 						<span className="text-lg font-semibold">Zerobyte</span>

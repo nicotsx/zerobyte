@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, test } from "vitest";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { ConfigTransferModel } from "../model";
 import { encodeCurrentConfigTransferPayload, parseConfigTransferPayload } from "../payload";
-import { loadConfigTransferPayloadFixture } from "./config-transfer-test-helpers";
+import { loadPayload } from "./config-transfer-test-helpers";
 
 type CurrentEncodedPayload = ReturnType<typeof encodeCurrentConfigTransferPayload>;
 type CurrentEncodedModel = Omit<CurrentEncodedPayload, "version">;
@@ -160,7 +160,7 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("keeps the canonical v1 fixture identical across decode and encode", async () => {
-		const fixture = await loadConfigTransferPayloadFixture();
+		const fixture = await loadPayload();
 
 		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(fixture));
 
@@ -168,23 +168,23 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("requires the complete canonical v1 representation", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		delete payload.repositories[0].autoCheckEnabled;
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow();
 	});
 
 	test("keeps repository bandwidth limits in one canonical location", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.repositories[0].uploadLimit = { enabled: true, value: 999, unit: "Gbps" };
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow();
 	});
 
 	test("rejects values outside the v1 storage contract", async () => {
-		const invalidBandwidth = await loadConfigTransferPayloadFixture();
+		const invalidBandwidth = await loadPayload();
 		invalidBandwidth.repositories[0].config.uploadLimit.value = -1;
-		const invalidRetries = await loadConfigTransferPayloadFixture();
+		const invalidRetries = await loadPayload();
 		invalidRetries.backupSchedules[0].maxRetries = 33;
 
 		expect(() => parseConfigTransferPayload(invalidBandwidth)).toThrow();
@@ -192,7 +192,7 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("preserves fractional retry counts accepted by current schedules", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.backupSchedules[0].maxRetries = 1.5;
 
 		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(payload));
@@ -201,7 +201,7 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("preserves fractional retry delays accepted by current schedules", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.backupSchedules[0].retryDelay = 60_000.5;
 
 		const encoded = encodeCurrentConfigTransferPayload(parseConfigTransferPayload(payload));
@@ -210,28 +210,28 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("rejects duplicate entity references", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.repositories[1].ref = payload.repositories[0].ref;
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow("Duplicate repository reference");
 	});
 
 	test("rejects unresolved relationship references", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.backupSchedules[0].volumeRef = "volume:missing";
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow("Unknown volume reference");
 	});
 
 	test("rejects duplicate relationship assignments", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.backupScheduleMirrors.push({ ...payload.backupScheduleMirrors[0] });
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow("Duplicate backup schedule mirror");
 	});
 
 	test("rejects a schedule's primary repository as its mirror", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.backupScheduleMirrors[0].repositoryRef = payload.backupSchedules[0].repositoryRef;
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow(
@@ -240,7 +240,7 @@ describe("config transfer payload graph", () => {
 	});
 
 	test("keeps the v1 wire contract frozen", async () => {
-		const payload = await loadConfigTransferPayloadFixture();
+		const payload = await loadPayload();
 		payload.repositories[0].config.unreleasedFutureField = true;
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow();

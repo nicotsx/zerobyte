@@ -1,5 +1,4 @@
 import type { UseFormReturn } from "react-hook-form";
-import { useWatch } from "react-hook-form";
 import { AlertTriangle } from "lucide-react";
 import { FormItem, FormLabel, FormDescription, FormField, FormControl } from "../../../../components/ui/form";
 import type { RepositoryFormValues } from "../create-repository-form";
@@ -10,16 +9,15 @@ import { FolderSelector } from "~/client/components/folder-selector";
 
 type Props = {
 	form: UseFormReturn<RepositoryFormValues>;
+	exactPath: boolean;
 };
 
-export const LocalRepositoryForm = ({ form }: Props) => {
+export const LocalRepositoryForm = ({ form, exactPath }: Props) => {
 	const getConstants = useServerFn(getServerConstants);
 	const { data: constants } = useSuspenseQuery({
 		queryKey: ["server-constants"],
 		queryFn: getConstants,
 	});
-
-	const isExistingRepository = useWatch({ control: form.control, name: "isExistingRepository" });
 
 	return (
 		<FormField
@@ -35,9 +33,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 							displayValue={
 								<>
 									{field.value || constants.REPOSITORY_BASE}
-									{!isExistingRepository && (
-										<span className="text-muted-foreground">/{"{unique-id}"}</span>
-									)}
+									{!exactPath && <span className="text-muted-foreground">/{"{unique-id}"}</span>}
 								</>
 							}
 							webBrowser={{
@@ -76,7 +72,7 @@ export const LocalRepositoryForm = ({ form }: Props) => {
 						/>
 					</FormControl>
 					<FormDescription>
-						{isExistingRepository
+						{exactPath
 							? "The exact path to your existing repository."
 							: "A unique subdirectory will be created inside this directory to store the repository."}
 					</FormDescription>
