@@ -11,7 +11,9 @@ import { Outlet, useNavigate } from "@tanstack/react-router";
 import { AppBreadcrumb } from "./app-breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { ThemeToggle } from "./theme-toggle";
-import { PermissionsProvider } from "../hooks/use-permissions";
+import { PermissionsProvider, usePermissions } from "../hooks/use-permissions";
+import { useOrganizationContext } from "../hooks/use-org-context";
+import { RecoveryMaterialReminder } from "./recovery-material-reminder";
 
 type Props = {
 	loaderData: AppContext;
@@ -86,6 +88,7 @@ export function Layout({ loaderData }: Props) {
 						</div>
 					</header>
 					<div className="main-content flex-1 md:overflow-y-auto">
+						<DashboardRecoveryMaterialReminder />
 						<GridBackground>
 							<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto">
 								<Outlet />
@@ -96,5 +99,19 @@ export function Layout({ loaderData }: Props) {
 				<DevPanelListener />
 			</PermissionsProvider>
 		</SidebarProvider>
+	);
+}
+
+function DashboardRecoveryMaterialReminder() {
+	const { activeOrganization } = useOrganizationContext();
+	const permissions = usePermissions();
+	const canDownloadRecoveryKey = permissions.can("recoveryKey.download");
+
+	return (
+		<RecoveryMaterialReminder
+			key={activeOrganization.id}
+			organization={activeOrganization}
+			canDownloadRecoveryKey={canDownloadRecoveryKey}
+		/>
 	);
 }
