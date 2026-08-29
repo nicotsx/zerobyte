@@ -1,0 +1,35 @@
+name: API docs deploy
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+jobs:
+  deploy:
+    name: Deploy API docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build API docs
+        run: bun run build:api-docs
+
+      - name: Deploy API docs
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/docs
+          command: deploy --config wrangler-api-docs.jsonc

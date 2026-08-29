@@ -1,5 +1,7 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
+const apiDocsUrl = "https://api-docs.zerobyte.app";
+
 export function baseOptions(): BaseLayoutProps {
 	return {
 		nav: {
@@ -11,6 +13,11 @@ export function baseOptions(): BaseLayoutProps {
 			),
 		},
 		links: [
+			{
+				text: "API Reference",
+				url: apiDocsUrl,
+				external: true,
+			},
 			{
 				type: "icon",
 				url: "https://discord.gg/MzBXz5v5XB",

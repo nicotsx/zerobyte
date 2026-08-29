@@ -1,0 +1,14 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "zerobyte-api-docs",
+	"compatibility_date": "2025-09-02",
+	"assets": {
+		"directory": "../../dist/api-docs",
+	},
+	"routes": [
+		{
+			"pattern": "api-docs.zerobyte.app",
+			"custom_domain": true,
+		},
+	],
+}
