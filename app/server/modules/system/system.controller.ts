@@ -56,13 +56,12 @@ const verifyRecoveryKeyPassword = async (userId: string, password: string, authS
 	return null;
 };
 
-const markRecoveryKeyAsDownloaded = async (userId: string) => {
-	await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
-};
-
-const markRecoveryMaterialAsExported = async (organizationId: string) => {
+const recordRecoveryMaterialDownload = (organizationId: string, userId: string) => {
 	const recoveryMaterialExportedAt = new Date();
-	await db.update(organization).set({ recoveryMaterialExportedAt }).where(eq(organization.id, organizationId));
+	db.transaction((tx) => {
+		tx.update(organization).set({ recoveryMaterialExportedAt }).where(eq(organization.id, organizationId)).run();
+		tx.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId)).run();
+	});
 };
 
 export const systemController = new Hono()
@@ -121,8 +120,7 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
-				await markRecoveryMaterialAsExported(organizationId);
-				await markRecoveryKeyAsDownloaded(user.id);
+				recordRecoveryMaterialDownload(organizationId, user.id);
 
 				c.header("Content-Type", "text/plain");
 				c.header("Content-Disposition", 'attachment; filename="restic.pass"');
@@ -179,8 +177,7 @@ export const systemController = new Hono()
 				throw new InternalServerError("Failed to export configuration", { cause });
 			}
 
-			await markRecoveryMaterialAsExported(organizationId);
-			await markRecoveryKeyAsDownloaded(user.id);
+			recordRecoveryMaterialDownload(organizationId, user.id);
 
 			c.header("Content-Type", "text/plain");
 			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');
