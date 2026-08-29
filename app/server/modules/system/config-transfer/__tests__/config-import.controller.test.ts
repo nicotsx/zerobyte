@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { organization, repositoriesTable, sessionsTable, usersTable } from "~/server/db/schema";
+import { repositoriesTable, sessionsTable, usersTable } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { generateShortId } from "~/server/utils/id";
 import { createTestSession } from "~/test/helpers/auth";
