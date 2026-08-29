@@ -16,6 +16,7 @@
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"dev:desktop": "bun run --cwd apps/desktop start",
 		"build": "bunx --bun vite build",
+		"build:api-docs": "NODE_ENV=test dotenv -e .env.test -- bun scripts/export-api-docs.ts",
 		"build:desktop": "bun run --cwd apps/desktop make",
 		"start": "bun run .output/server/index.mjs",
 		"test:integration": "bash app/test/integration/run.sh",
