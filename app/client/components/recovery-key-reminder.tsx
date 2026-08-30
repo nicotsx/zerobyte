@@ -46,19 +46,25 @@ export function RecoveryKeyReminder({ organization, canDownloadRecoveryKey }: Pr
 	return (
 		<Alert
 			variant="warning"
+			data-recovery-key-reminder
 			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
 			role="region"
 			aria-label="Recovery key reminder"
-			className="rounded-none border-x-0 border-t-0 px-3 sm:px-8"
+			className="absolute inset-x-0 top-16.25 z-40 h-14 rounded-none border-x-0 border-t-0 bg-orange-50 px-0 py-0 text-orange-700 dark:bg-orange-950 dark:text-orange-400"
 		>
-			<AlertTriangle className="size-5" />
-			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<AlertDescription>
-					It has been over a year since this organization’s recovery key was exported. Download a fresh copy
-					and make sure it is stored somewhere safe.
+			<div className="flex h-full w-full items-center gap-3 px-3 sm:px-8">
+				<AlertTriangle className="size-5 shrink-0" />
+				<AlertDescription className="min-w-0 flex-1 truncate">
+					Your recovery key was last exported over a year ago. Download a fresh copy and store it somewhere
+					safe.
 				</AlertDescription>
 				<div className="flex shrink-0 items-center gap-2">
-					<Link to="/settings" search={{ scope: "organization" }} className={reviewOptionsClassName}>
+					<Link
+						to="/settings"
+						search={{ scope: "organization" }}
+						hash="recovery-key"
+						className={reviewOptionsClassName}
+					>
 						Review recovery key
 					</Link>
 					<Button

@@ -382,7 +382,7 @@ export function SettingsPage({
 					)}
 
 					{showRecoveryKey && (
-						<Card className="p-0 gap-0">
+						<Card id="recovery-key" className="scroll-mt-20 p-0 gap-0">
 							<RecoveryKeySection
 								passwordAuthSupported={passwordAuthSupported}
 								hasPassword={hasPassword}

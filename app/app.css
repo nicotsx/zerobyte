@@ -45,6 +45,16 @@ body {
 	scrollbar-gutter: stable;
 }
 
+[data-slot="sidebar-wrapper"]:has([data-recovery-key-reminder]) .main-content {
+	padding-top: 3.5rem;
+}
+
+@media (min-width: 48rem) {
+	[data-slot="sidebar-wrapper"]:has([data-recovery-key-reminder]) [data-slot="sidebar-content"] {
+		margin-top: 3.5rem;
+	}
+}
+
 @theme inline {
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);

@@ -29,7 +29,7 @@ vi.mock("~/server/lib/functions/organization-context", () => ({
 	getOrganizationContext: vi.fn(),
 }));
 
-import { DashboardRecoveryKeyReminder } from "./layout";
+import { DashboardRecoveryKeyReminder } from "../layout";
 
 const activeOrganization = {
 	id: "organization-one",

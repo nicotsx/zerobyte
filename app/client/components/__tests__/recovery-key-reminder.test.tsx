@@ -10,12 +10,20 @@ vi.mock("@tanstack/react-start", () => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children, search, to }: { children: string; search: { scope: string }; to: string }) => (
-		<a href={`${to}?scope=${search.scope}`}>{children}</a>
-	),
+	Link: ({
+		children,
+		hash,
+		search,
+		to,
+	}: {
+		children: string;
+		hash: string;
+		search: { scope: string };
+		to: string;
+	}) => <a href={`${to}?scope=${search.scope}#${hash}`}>{children}</a>,
 }));
 
-import { isRecoveryKeyReminderDue, RecoveryKeyReminder } from "./recovery-key-reminder";
+import { isRecoveryKeyReminderDue, RecoveryKeyReminder } from "../recovery-key-reminder";
 
 const now = new Date("2026-08-29T00:00:00.000Z");
 const oldOrganization = {
@@ -81,7 +89,7 @@ test("links to the organization recovery key and snoozes only the active organiz
 	const firstReminder = render(<RecoveryKeyReminder organization={oldOrganization} canDownloadRecoveryKey />);
 
 	const reviewOptionsLink = screen.getByRole("link", { name: "Review recovery key" });
-	expect(reviewOptionsLink.getAttribute("href")).toBe("/settings?scope=organization");
+	expect(reviewOptionsLink.getAttribute("href")).toBe("/settings?scope=organization#recovery-key");
 	await userEvent.click(screen.getByRole("button", { name: "Dismiss recovery key reminder" }));
 	expect(screen.queryByRole("region", { name: "Recovery key reminder" })).toBeNull();
 

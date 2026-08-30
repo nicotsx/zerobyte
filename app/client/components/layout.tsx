@@ -36,9 +36,10 @@ export function Layout({ loaderData }: Props) {
 	};
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider className="relative">
 			<PermissionsProvider>
 				<AppSidebar />
+				<DashboardRecoveryKeyReminder />
 				<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">
 					<header className="z-50 bg-card-header border-b border-border/80 dark:border-border/50 shrink-0 h-16.25">
 						<div className="flex items-center h-full justify-between px-2 sm:px-8 mx-auto container gap-4">
@@ -88,7 +89,6 @@ export function Layout({ loaderData }: Props) {
 						</div>
 					</header>
 					<div className="main-content flex-1 md:overflow-y-auto">
-						<DashboardRecoveryKeyReminder />
 						<GridBackground>
 							<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto">
 								<Outlet />
