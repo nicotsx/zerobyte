@@ -5,6 +5,7 @@ import type { Permission, RuntimeFeature } from "~/lib/permission-policy";
 import { getCurrentPermissions, getCurrentPermissionsOptions } from "~/server/lib/functions/current-permissions";
 
 type Permissions = {
+	activeOrganizationId: string | null;
 	can: (permission: Permission) => boolean;
 	hasRuntimeFeature: (feature: RuntimeFeature) => boolean;
 };
@@ -21,6 +22,7 @@ export function PermissionsProvider({ children }: Props) {
 
 	const permissions = useMemo<Permissions>(
 		() => ({
+			activeOrganizationId: data.activeOrganizationId,
 			can: (permission) => data.permissions[permission],
 			hasRuntimeFeature: (feature) => data.features[feature],
 		}),

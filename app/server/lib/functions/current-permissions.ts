@@ -8,6 +8,7 @@ import { getSessionAuthSource } from "~/server/modules/auth/helpers";
 export const currentPermissionsQueryKey = ["current-permissions"] as const;
 
 export type CurrentPermissions = {
+	activeOrganizationId: string | null;
 	permissions: Record<Permission, boolean>;
 	features: Record<RuntimeFeature, boolean>;
 };
@@ -31,6 +32,8 @@ export const getCurrentPermissions = createServerFn({ method: "GET" }).handler(
 			authSource: session?.user ? getSessionAuthSource(session.session.authSource) : null,
 		});
 
-		return { permissions, features };
+		const activeOrganizationId = session?.session?.activeOrganizationId ?? null;
+
+		return { activeOrganizationId, permissions, features };
 	},
 );

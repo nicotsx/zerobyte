@@ -11,7 +11,9 @@ import { Outlet, useNavigate } from "@tanstack/react-router";
 import { AppBreadcrumb } from "./app-breadcrumb";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { ThemeToggle } from "./theme-toggle";
-import { PermissionsProvider } from "../hooks/use-permissions";
+import { PermissionsProvider, usePermissions } from "../hooks/use-permissions";
+import { useOrganizationContext } from "../hooks/use-org-context";
+import { RecoveryKeyReminder } from "./recovery-key-reminder";
 
 type Props = {
 	loaderData: AppContext;
@@ -34,9 +36,10 @@ export function Layout({ loaderData }: Props) {
 	};
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider className="relative">
 			<PermissionsProvider>
 				<AppSidebar />
+				<DashboardRecoveryKeyReminder />
 				<div className="w-full relative flex flex-col min-h-screen md:h-screen md:overflow-hidden">
 					<header className="z-50 bg-card-header border-b border-border/80 dark:border-border/50 shrink-0 h-16.25">
 						<div className="flex items-center h-full justify-between px-2 sm:px-8 mx-auto container gap-4">
@@ -96,5 +99,20 @@ export function Layout({ loaderData }: Props) {
 				<DevPanelListener />
 			</PermissionsProvider>
 		</SidebarProvider>
+	);
+}
+
+export function DashboardRecoveryKeyReminder() {
+	const { activeOrganization } = useOrganizationContext();
+	const permissions = usePermissions();
+	const permissionsMatchActiveOrganization = permissions.activeOrganizationId === activeOrganization.id;
+	const canDownloadRecoveryKey = permissionsMatchActiveOrganization && permissions.can("recoveryKey.download");
+
+	return (
+		<RecoveryKeyReminder
+			key={activeOrganization.id}
+			organization={activeOrganization}
+			canDownloadRecoveryKey={canDownloadRecoveryKey}
+		/>
 	);
 }

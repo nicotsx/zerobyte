@@ -52,7 +52,8 @@ test("shows recovery key and configuration export when recovery-key access is gr
 	const permissions = Object.fromEntries(permissionEntries) as CurrentPermissions["permissions"];
 	const featureEntries = RUNTIME_FEATURE_KEYS.map((feature) => [feature, hasRuntimeFeature("desktop", feature)]);
 	const features = Object.fromEntries(featureEntries) as CurrentPermissions["features"];
-	const currentPermissions: CurrentPermissions = { permissions, features };
+	const activeOrganizationId = null;
+	const currentPermissions: CurrentPermissions = { activeOrganizationId, permissions, features };
 	const queryClient = createTestQueryClient();
 	queryClient.setQueryDefaults(currentPermissionsQueryKey, { staleTime: Infinity });
 	queryClient.setQueryData(currentPermissionsQueryKey, currentPermissions);
