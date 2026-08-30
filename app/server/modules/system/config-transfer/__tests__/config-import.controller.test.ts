@@ -106,6 +106,7 @@ describe("configuration import", () => {
 		expect(storedPrimaryRepository?.config.customPassword).toMatch(/^encv1:/);
 		expect(storedPrimaryRepository?.autoCheckEnabled).toBe(true);
 		expect(storedOrganization?.metadata?.resticPassword).toMatch(/^encv1:/);
+		expect(storedOrganization?.recoveryKeyExportedAt).toBeInstanceOf(Date);
 
 		const storedSchedule = await db.query.backupSchedulesTable.findFirst({
 			where: { organizationId: targetSession.organizationId },
@@ -378,6 +379,8 @@ describe("configuration import", () => {
 		expect(await response.json()).toEqual({
 			message: "Configuration import is only available during onboarding",
 		});
+		const org = await db.query.organization.findFirst({ where: { id: session.organizationId } });
+		expect(org?.recoveryKeyExportedAt).toBeNull();
 	});
 
 	test("rechecks onboarding eligibility atomically before writing", async () => {

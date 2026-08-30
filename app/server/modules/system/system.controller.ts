@@ -26,7 +26,7 @@ import {
 import { systemService } from "./system.service";
 import { requireAuth, requireOrgAdmin, requirePermission } from "../auth/auth.middleware";
 import { db } from "../../db/db";
-import { usersTable } from "../../db/schema";
+import { organization, usersTable } from "../../db/schema";
 import { eq } from "drizzle-orm";
 import { InternalServerError } from "http-errors-enhanced";
 import { userHasPassword, verifyUserPassword } from "../auth/helpers";
@@ -56,8 +56,12 @@ const verifyRecoveryKeyPassword = async (userId: string, password: string, authS
 	return null;
 };
 
-const markRecoveryKeyAsDownloaded = async (userId: string) => {
-	await db.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId));
+const recordRecoveryKeyExport = (organizationId: string, userId: string) => {
+	const recoveryKeyExportedAt = new Date();
+	db.transaction((tx) => {
+		tx.update(organization).set({ recoveryKeyExportedAt }).where(eq(organization.id, organizationId)).run();
+		tx.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId)).run();
+	});
 };
 
 export const systemController = new Hono()
@@ -116,7 +120,7 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
-				await markRecoveryKeyAsDownloaded(user.id);
+				recordRecoveryKeyExport(organizationId, user.id);
 
 				c.header("Content-Type", "text/plain");
 				c.header("Content-Disposition", 'attachment; filename="restic.pass"');
@@ -173,7 +177,7 @@ export const systemController = new Hono()
 				throw new InternalServerError("Failed to export configuration", { cause });
 			}
 
-			await markRecoveryKeyAsDownloaded(user.id);
+			recordRecoveryKeyExport(organizationId, user.id);
 
 			c.header("Content-Type", "text/plain");
 			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');

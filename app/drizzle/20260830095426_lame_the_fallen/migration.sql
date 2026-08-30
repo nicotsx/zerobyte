@@ -1,0 +1,1 @@
+ALTER TABLE `organization` ADD `recovery_key_exported_at` integer;
