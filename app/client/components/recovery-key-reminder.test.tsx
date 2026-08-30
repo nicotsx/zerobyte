@@ -15,19 +15,19 @@ vi.mock("@tanstack/react-router", () => ({
 	),
 }));
 
-import { isRecoveryMaterialReminderDue, RecoveryMaterialReminder } from "./recovery-material-reminder";
+import { isRecoveryKeyReminderDue, RecoveryKeyReminder } from "./recovery-key-reminder";
 
 const now = new Date("2026-08-29T00:00:00.000Z");
 const oldOrganization = {
 	id: "organization-one",
 	createdAt: new Date("2025-08-29T00:00:00.000Z"),
-	recoveryMaterialExportedAt: null,
+	recoveryKeyExportedAt: null,
 };
 
 afterEach(() => {
 	cleanup();
-	document.cookie = "recovery_material_reminder_dismissed_organization-one=; Path=/; Max-Age=0";
-	document.cookie = "recovery_material_reminder_dismissed_organization-two=; Path=/; Max-Age=0";
+	document.cookie = "recovery_key_reminder_dismissed_organization-one=; Path=/; Max-Age=0";
+	document.cookie = "recovery_key_reminder_dismissed_organization-two=; Path=/; Max-Age=0";
 });
 
 test.each([
@@ -44,8 +44,8 @@ test.each([
 		expected: false,
 	},
 	{
-		name: "a recent recovery export for an old organization",
-		organization: { ...oldOrganization, recoveryMaterialExportedAt: new Date("2026-01-01T00:00:00.000Z") },
+		name: "a recent recovery key export for an old organization",
+		organization: { ...oldOrganization, recoveryKeyExportedAt: new Date("2026-01-01T00:00:00.000Z") },
 		now,
 		expected: false,
 	},
@@ -68,30 +68,27 @@ test.each([
 		expected: true,
 	},
 ])("reminder is due for $name", ({ organization, now, expected }) => {
-	expect(isRecoveryMaterialReminderDue(organization, now)).toBe(expected);
+	expect(isRecoveryKeyReminderDue(organization, now)).toBe(expected);
 });
 
 test("only shows the reminder to users who can download recovery keys", () => {
-	render(<RecoveryMaterialReminder organization={oldOrganization} canDownloadRecoveryKey={false} />);
+	render(<RecoveryKeyReminder organization={oldOrganization} canDownloadRecoveryKey={false} />);
 
-	expect(screen.queryByRole("region", { name: "Recovery material reminder" })).toBeNull();
+	expect(screen.queryByRole("region", { name: "Recovery key reminder" })).toBeNull();
 });
 
-test("links to organization recovery options and snoozes only the active organization", async () => {
-	const firstReminder = render(<RecoveryMaterialReminder organization={oldOrganization} canDownloadRecoveryKey />);
+test("links to the organization recovery key and snoozes only the active organization", async () => {
+	const firstReminder = render(<RecoveryKeyReminder organization={oldOrganization} canDownloadRecoveryKey />);
 
-	const reviewOptionsLink = screen.getByRole("link", { name: "Review recovery options" });
+	const reviewOptionsLink = screen.getByRole("link", { name: "Review recovery key" });
 	expect(reviewOptionsLink.getAttribute("href")).toBe("/settings?scope=organization");
-	await userEvent.click(screen.getByRole("button", { name: "Dismiss recovery material reminder" }));
-	expect(screen.queryByRole("region", { name: "Recovery material reminder" })).toBeNull();
+	await userEvent.click(screen.getByRole("button", { name: "Dismiss recovery key reminder" }));
+	expect(screen.queryByRole("region", { name: "Recovery key reminder" })).toBeNull();
 
 	firstReminder.unmount();
 	render(
-		<RecoveryMaterialReminder
-			organization={{ ...oldOrganization, id: "organization-two" }}
-			canDownloadRecoveryKey
-		/>,
+		<RecoveryKeyReminder organization={{ ...oldOrganization, id: "organization-two" }} canDownloadRecoveryKey />,
 	);
 
-	expect(screen.getByRole("region", { name: "Recovery material reminder" })).toBeTruthy();
+	expect(screen.getByRole("region", { name: "Recovery key reminder" })).toBeTruthy();
 });

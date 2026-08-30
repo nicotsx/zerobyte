@@ -29,12 +29,12 @@ vi.mock("~/server/lib/functions/organization-context", () => ({
 	getOrganizationContext: vi.fn(),
 }));
 
-import { DashboardRecoveryMaterialReminder } from "./layout";
+import { DashboardRecoveryKeyReminder } from "./layout";
 
 const activeOrganization = {
 	id: "organization-one",
 	createdAt: new Date("2025-01-01T00:00:00.000Z"),
-	recoveryMaterialExportedAt: null,
+	recoveryKeyExportedAt: null,
 };
 
 const createCurrentPermissions = (activeOrganizationId: string): CurrentPermissions => {
@@ -66,12 +66,12 @@ test("hides the reminder until permission refetch matches the switched organizat
 
 	render(
 		<PermissionsProvider>
-			<DashboardRecoveryMaterialReminder />
+			<DashboardRecoveryKeyReminder />
 		</PermissionsProvider>,
 		{ queryClient, withSuspense: true },
 	);
 
-	expect(screen.getByRole("region", { name: "Recovery material reminder" })).toBeTruthy();
+	expect(screen.getByRole("region", { name: "Recovery key reminder" })).toBeTruthy();
 
 	const switchedOrganization = { ...activeOrganization, id: "organization-two" };
 	act(() => {
@@ -82,11 +82,11 @@ test("hides the reminder until permission refetch matches the switched organizat
 		});
 	});
 
-	await waitFor(() => expect(screen.queryByRole("region", { name: "Recovery material reminder" })).toBeNull());
+	await waitFor(() => expect(screen.queryByRole("region", { name: "Recovery key reminder" })).toBeNull());
 
 	act(() => {
 		queryClient.setQueryData(currentPermissionsQueryKey, createCurrentPermissions("organization-two"));
 	});
 
-	await waitFor(() => expect(screen.getByRole("region", { name: "Recovery material reminder" })).toBeTruthy());
+	await waitFor(() => expect(screen.getByRole("region", { name: "Recovery key reminder" })).toBeTruthy());
 });

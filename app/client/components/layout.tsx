@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { ThemeToggle } from "./theme-toggle";
 import { PermissionsProvider, usePermissions } from "../hooks/use-permissions";
 import { useOrganizationContext } from "../hooks/use-org-context";
-import { RecoveryMaterialReminder } from "./recovery-material-reminder";
+import { RecoveryKeyReminder } from "./recovery-key-reminder";
 
 type Props = {
 	loaderData: AppContext;
@@ -88,7 +88,7 @@ export function Layout({ loaderData }: Props) {
 						</div>
 					</header>
 					<div className="main-content flex-1 md:overflow-y-auto">
-						<DashboardRecoveryMaterialReminder />
+						<DashboardRecoveryKeyReminder />
 						<GridBackground>
 							<main className="flex flex-col p-2 pb-6 pt-2 sm:p-8 sm:pt-6 mx-auto">
 								<Outlet />
@@ -102,14 +102,14 @@ export function Layout({ loaderData }: Props) {
 	);
 }
 
-export function DashboardRecoveryMaterialReminder() {
+export function DashboardRecoveryKeyReminder() {
 	const { activeOrganization } = useOrganizationContext();
 	const permissions = usePermissions();
 	const permissionsMatchActiveOrganization = permissions.activeOrganizationId === activeOrganization.id;
 	const canDownloadRecoveryKey = permissionsMatchActiveOrganization && permissions.can("recoveryKey.download");
 
 	return (
-		<RecoveryMaterialReminder
+		<RecoveryKeyReminder
 			key={activeOrganization.id}
 			organization={activeOrganization}
 			canDownloadRecoveryKey={canDownloadRecoveryKey}

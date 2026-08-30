@@ -26,11 +26,11 @@ export const getOrganizationContext = createServerFn({ method: "GET" }).handler(
 	const selectedOrganization = data.find((org) => org.id === activeOrganizationId) ?? fallbackOrganization;
 	const organizationRecord = await db.query.organization.findFirst({
 		where: { id: selectedOrganization.id },
-		columns: { createdAt: true, recoveryMaterialExportedAt: true },
+		columns: { createdAt: true, recoveryKeyExportedAt: true },
 	});
 	const createdAt = organizationRecord?.createdAt ?? selectedOrganization.createdAt;
-	const recoveryMaterialExportedAt = organizationRecord?.recoveryMaterialExportedAt ?? null;
-	const activeOrganization = { ...selectedOrganization, createdAt, recoveryMaterialExportedAt };
+	const recoveryKeyExportedAt = organizationRecord?.recoveryKeyExportedAt ?? null;
+	const activeOrganization = { ...selectedOrganization, createdAt, recoveryKeyExportedAt };
 
 	const member = await auth.api.getActiveMember({
 		headers: request.headers,

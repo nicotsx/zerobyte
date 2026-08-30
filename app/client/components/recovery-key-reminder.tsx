@@ -7,22 +7,22 @@ import { Alert, AlertDescription } from "~/client/components/ui/alert";
 
 const THIRTY_DAYS_IN_SECONDS = 30 * 24 * 60 * 60;
 
-type OrganizationRecoveryMaterial = {
+type OrganizationRecoveryKey = {
 	id: string;
 	createdAt: Date;
-	recoveryMaterialExportedAt: Date | null;
+	recoveryKeyExportedAt: Date | null;
 };
 
 type Props = {
-	organization: OrganizationRecoveryMaterial;
+	organization: OrganizationRecoveryKey;
 	canDownloadRecoveryKey: boolean;
 };
 
-export function isRecoveryMaterialReminderDue(
-	organization: Pick<OrganizationRecoveryMaterial, "createdAt" | "recoveryMaterialExportedAt">,
+export function isRecoveryKeyReminderDue(
+	organization: Pick<OrganizationRecoveryKey, "createdAt" | "recoveryKeyExportedAt">,
 	now = new Date(),
 ) {
-	const baseline = organization.recoveryMaterialExportedAt ?? organization.createdAt;
+	const baseline = organization.recoveryKeyExportedAt ?? organization.createdAt;
 	const reminderDate = addYears(baseline, 1);
 	const reminderTime = reminderDate.getTime();
 	const nowTime = now.getTime();
@@ -30,12 +30,12 @@ export function isRecoveryMaterialReminderDue(
 	return nowTime >= reminderTime;
 }
 
-const getDismissalCookieName = (organizationId: string) => `recovery_material_reminder_dismissed_${organizationId}`;
+const getDismissalCookieName = (organizationId: string) => `recovery_key_reminder_dismissed_${organizationId}`;
 
-export function RecoveryMaterialReminder({ organization, canDownloadRecoveryKey }: Props) {
+export function RecoveryKeyReminder({ organization, canDownloadRecoveryKey }: Props) {
 	const dismissalCookieName = getDismissalCookieName(organization.id);
 	const [dismissed, setDismissed] = useCookieState(dismissalCookieName, false, THIRTY_DAYS_IN_SECONDS);
-	const reminderDue = isRecoveryMaterialReminderDue(organization);
+	const reminderDue = isRecoveryKeyReminderDue(organization);
 	const shouldShowReminder = canDownloadRecoveryKey && reminderDue && !dismissed;
 	const reviewOptionsClassName = buttonVariants({ size: "sm", variant: "outline" });
 
@@ -48,24 +48,24 @@ export function RecoveryMaterialReminder({ organization, canDownloadRecoveryKey 
 			variant="warning"
 			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
 			role="region"
-			aria-label="Recovery material reminder"
+			aria-label="Recovery key reminder"
 			className="rounded-none border-x-0 border-t-0 px-3 sm:px-8"
 		>
 			<AlertTriangle className="size-5" />
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<AlertDescription>
-					It has been over a year since this organization’s recovery material was exported. Download a fresh
-					recovery key and make sure it is stored somewhere safe.
+					It has been over a year since this organization’s recovery key was exported. Download a fresh copy
+					and make sure it is stored somewhere safe.
 				</AlertDescription>
 				<div className="flex shrink-0 items-center gap-2">
 					<Link to="/settings" search={{ scope: "organization" }} className={reviewOptionsClassName}>
-						Review recovery options
+						Review recovery key
 					</Link>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon"
-						aria-label="Dismiss recovery material reminder"
+						aria-label="Dismiss recovery key reminder"
 						onClick={() => setDismissed(true)}
 					>
 						<X className="size-4" />
