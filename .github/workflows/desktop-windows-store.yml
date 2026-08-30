@@ -1,6 +1,9 @@
 name: Desktop Windows Store
 
 on:
+  push:
+    branches:
+      - fix/desktop-alpha
   workflow_dispatch:
     inputs:
       release_tag:
@@ -16,7 +19,7 @@ jobs:
     timeout-minutes: 30
     runs-on: windows-2025
     env:
-      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
+      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag || 'v0.42.0-alpha.1' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
