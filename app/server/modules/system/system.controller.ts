@@ -56,10 +56,10 @@ const verifyRecoveryKeyPassword = async (userId: string, password: string, authS
 	return null;
 };
 
-const recordRecoveryMaterialDownload = (organizationId: string, userId: string) => {
-	const recoveryMaterialExportedAt = new Date();
+const recordRecoveryKeyExport = (organizationId: string, userId: string) => {
+	const recoveryKeyExportedAt = new Date();
 	db.transaction((tx) => {
-		tx.update(organization).set({ recoveryMaterialExportedAt }).where(eq(organization.id, organizationId)).run();
+		tx.update(organization).set({ recoveryKeyExportedAt }).where(eq(organization.id, organizationId)).run();
 		tx.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId)).run();
 	});
 };
@@ -120,7 +120,7 @@ export const systemController = new Hono()
 
 				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
 
-				recordRecoveryMaterialDownload(organizationId, user.id);
+				recordRecoveryKeyExport(organizationId, user.id);
 
 				c.header("Content-Type", "text/plain");
 				c.header("Content-Disposition", 'attachment; filename="restic.pass"');
@@ -177,7 +177,7 @@ export const systemController = new Hono()
 				throw new InternalServerError("Failed to export configuration", { cause });
 			}
 
-			recordRecoveryMaterialDownload(organizationId, user.id);
+			recordRecoveryKeyExport(organizationId, user.id);
 
 			c.header("Content-Type", "text/plain");
 			c.header("Content-Disposition", 'attachment; filename="zerobyte-config.zbex"');

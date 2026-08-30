@@ -231,9 +231,9 @@ export const storeImport = (organizationId: string, userId: string, prepared: Pr
 		}
 
 		const metadata = { ...org.metadata, resticPassword: prepared.sealedResticPassword };
-		const recoveryMaterialExportedAt = new Date();
+		const recoveryKeyExportedAt = new Date();
 		tx.update(organization)
-			.set({ metadata, recoveryMaterialExportedAt })
+			.set({ metadata, recoveryKeyExportedAt })
 			.where(eq(organization.id, organizationId))
 			.run();
 		tx.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId)).run();

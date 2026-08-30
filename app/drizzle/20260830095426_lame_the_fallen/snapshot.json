@@ -1,7 +1,7 @@
 {
 	"version": "7",
 	"dialect": "sqlite",
-	"id": "dbc4c1eb-fa55-423a-a62d-45e8cb3c9edc",
+	"id": "6d570b91-8326-4d30-bd9d-fe3a2745be24",
 	"prevIds": ["4aef57fd-2af5-4f48-b6e9-67a2e911d36f"],
 	"ddl": [
 		{
@@ -1308,7 +1308,7 @@
 			"autoincrement": false,
 			"default": null,
 			"generated": null,
-			"name": "recovery_material_exported_at",
+			"name": "recovery_key_exported_at",
 			"entityType": "columns",
 			"table": "organization"
 		},

@@ -12,7 +12,7 @@ import { PASSWORD_LOGIN_DISABLED_KEY } from "~/server/core/constants";
 import { dropTrigger, escapeSqlLiteral } from "~/test/helpers/user-org";
 
 const app = createApp();
-const RECOVERY_MATERIAL_DOWNLOAD_ROLLBACK_TRIGGER = "recovery_material_download_user_abort";
+const RECOVERY_KEY_DOWNLOAD_ROLLBACK_TRIGGER = "recovery_key_download_user_abort";
 
 let session: Awaited<ReturnType<typeof createTestSession>>;
 let globalAdminSession: Awaited<ReturnType<typeof createTestSessionWithGlobalAdmin>>;
@@ -215,12 +215,12 @@ describe("system security", () => {
 	});
 
 	describe("input validation", () => {
-		test("rolls back recovery material completion when recording the user download fails", async () => {
+		test("rolls back recovery key export when recording the user download fails", async () => {
 			const rollbackSession = await createTestSession();
 			const escapedUserId = escapeSqlLiteral(rollbackSession.user.id);
 			await db
 				.update(organization)
-				.set({ recoveryMaterialExportedAt: null })
+				.set({ recoveryKeyExportedAt: null })
 				.where(eq(organization.id, rollbackSession.organizationId));
 			await db
 				.update(usersTable)
@@ -230,13 +230,13 @@ describe("system security", () => {
 			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(true);
 			vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValueOnce("restic-password");
 
-			dropTrigger(RECOVERY_MATERIAL_DOWNLOAD_ROLLBACK_TRIGGER);
+			dropTrigger(RECOVERY_KEY_DOWNLOAD_ROLLBACK_TRIGGER);
 			sqlite.exec(`
-				CREATE TRIGGER ${RECOVERY_MATERIAL_DOWNLOAD_ROLLBACK_TRIGGER}
+				CREATE TRIGGER ${RECOVERY_KEY_DOWNLOAD_ROLLBACK_TRIGGER}
 				BEFORE UPDATE OF has_downloaded_restic_password ON users_table
 				WHEN OLD.id = '${escapedUserId}'
 				BEGIN
-					SELECT RAISE(ABORT, 'forced recovery material download rollback');
+					SELECT RAISE(ABORT, 'forced recovery key download rollback');
 				END;
 			`);
 
@@ -252,7 +252,7 @@ describe("system security", () => {
 
 				expect(res.status).toBe(500);
 			} finally {
-				dropTrigger(RECOVERY_MATERIAL_DOWNLOAD_ROLLBACK_TRIGGER);
+				dropTrigger(RECOVERY_KEY_DOWNLOAD_ROLLBACK_TRIGGER);
 			}
 
 			const user = await db.query.usersTable.findFirst({
@@ -261,11 +261,11 @@ describe("system security", () => {
 			});
 			const org = await db.query.organization.findFirst({
 				where: { id: rollbackSession.organizationId },
-				columns: { recoveryMaterialExportedAt: true },
+				columns: { recoveryKeyExportedAt: true },
 			});
 
 			expect(user?.hasDownloadedResticPassword).toBe(false);
-			expect(org?.recoveryMaterialExportedAt).toBeNull();
+			expect(org?.recoveryKeyExportedAt).toBeNull();
 		});
 
 		test("should return complete decrypted restic password content", async () => {
@@ -339,7 +339,7 @@ describe("system security", () => {
 			const updatedOrganization = await db.query.organization.findFirst({
 				where: { id: desktopAuthSession.organizationId },
 			});
-			expect(updatedOrganization?.recoveryMaterialExportedAt).toBeInstanceOf(Date);
+			expect(updatedOrganization?.recoveryKeyExportedAt).toBeInstanceOf(Date);
 		});
 
 		test("rejects browser sessions in desktop mode", async () => {
