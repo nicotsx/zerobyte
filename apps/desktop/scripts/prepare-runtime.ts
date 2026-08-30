@@ -148,7 +148,7 @@ const stageApp = async () => {
 	await fs.mkdir(binDir, { recursive: true });
 	await fs.cp(path.join(repoRoot, ".output"), path.join(runtimeDir, ".output"), {
 		recursive: true,
-		verbatimSymlinks: true,
+		dereference: true,
 	});
 	await fs.cp(path.join(repoRoot, "app", "drizzle"), path.join(runtimeDir, "assets", "migrations"), {
 		recursive: true,
