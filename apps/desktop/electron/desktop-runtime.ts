@@ -97,6 +97,7 @@ const getAvailablePort = () =>
 
 const createServerEnv = (port: number, dirs: DesktopDirs, serverUrl: string, launchSecret: string) => ({
 	...process.env,
+	HOST: "127.0.0.1",
 	SERVER_IP: "127.0.0.1",
 	PORT: String(port),
 	BASE_URL: serverUrl,
@@ -161,13 +162,16 @@ export const startDesktopRuntime = async (
 
 	if (app.isPackaged) {
 		const binDir = path.join(dirs.resourcesDir, "bin");
-		command = path.join(binDir, "bun");
+		const executableExtension = process.platform === "win32" ? ".exe" : "";
+		const bunPath = path.join(binDir, `bun${executableExtension}`);
+		const resticPath = path.join(binDir, `restic${executableExtension}`);
+		command = bunPath;
 		args = [path.join(dirs.resourcesDir, ".output", "server", "index.mjs")];
 		cwd = dirs.resourcesDir;
 		Object.assign(env, {
 			NODE_ENV: "production",
 			MIGRATIONS_PATH: path.join(dirs.resourcesDir, "assets", "migrations"),
-			RESTIC_COMMAND: path.join(binDir, "restic"),
+			RESTIC_COMMAND: resticPath,
 			PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
 		});
 	}

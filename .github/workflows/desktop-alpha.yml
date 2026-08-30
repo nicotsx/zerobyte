@@ -1,0 +1,101 @@
+name: Desktop Alpha
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Alpha version without the leading v (for example: 1.0.0-alpha.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      app_version: ${{ steps.version.outputs.app_version }}
+      release_tag: ${{ steps.version.outputs.release_tag }}
+    steps:
+      - name: Validate version
+        id: version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]; then
+            echo "Version must look like 1.0.0-alpha.1" >&2
+            exit 1
+          fi
+
+          app_version="v$VERSION"
+          release_tag="desktop-v$VERSION"
+          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+  checks:
+    uses: ./.github/workflows/checks.yml
+    permissions:
+      contents: read
+
+  build-desktop:
+    needs: [validate, checks]
+    uses: ./.github/workflows/desktop-release.yml
+    permissions:
+      contents: read
+    with:
+      release_tag: ${{ needs.validate.outputs.app_version }}
+      source_ref: ${{ github.sha }}
+      upload_github_release: true
+    secrets: inherit
+
+  publish:
+    needs: [validate, build-desktop]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download DMG
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: desktop-github-release
+          path: release-assets
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: desktop-windows-release
+          path: release-assets
+
+      - name: Download Linux AppImage
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: desktop-linux-release
+          path: release-assets
+
+      - name: Publish desktop alpha prerelease
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.validate.outputs.release_tag }}
+          target_commitish: ${{ github.sha }}
+          name: Zerobyte Desktop ${{ needs.validate.outputs.app_version }} Alpha
+          body: |
+            > [!WARNING]
+            > This is an early Zerobyte Desktop alpha, not an official stable release.
+
+            macOS Apple Silicon, Windows x64, and Linux x64. Expect rough edges and verify important restores independently.
+
+            The Windows installer is currently unsigned, so Microsoft Defender SmartScreen may show a warning.
+
+            On Linux, make the AppImage executable before launching it: `chmod +x Zerobyte*.AppImage`.
+          files: |
+            release-assets/*.dmg
+            release-assets/*.exe
+            release-assets/*.AppImage
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          make_latest: false
