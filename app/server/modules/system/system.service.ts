@@ -62,13 +62,12 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 		const controller = new AbortController();
 		const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-		const response = await fetch("https://api.github.com/repos/nicotsx/zerobyte/releases", {
+		const response = await fetch("https://api.github.com/repos/nicotsx/zerobyte/releases?per_page=100", {
 			signal: controller.signal,
 			headers: {
 				"User-Agent": "zerobyte-app",
 			},
-		});
-		clearTimeout(timeoutId);
+		}).finally(() => clearTimeout(timeoutId));
 
 		if (!response.ok) {
 			throw new Error(`GitHub API returned ${response.status}`);

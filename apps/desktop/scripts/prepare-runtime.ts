@@ -18,6 +18,11 @@ const assetNamesByTarget: Record<string, RuntimeAssets | undefined> = {
 		restic: (version: string) => `restic_${version}_darwin_arm64.bz2`,
 		shoutrrr: (version: string) => `shoutrrr_macOS_arm64v8_${version}.tar.gz`,
 	},
+	"linux-x64": {
+		bun: () => "bun-linux-x64.zip",
+		restic: (version: string) => `restic_${version}_linux_amd64.bz2`,
+		shoutrrr: (version: string) => `shoutrrr_linux_amd64_${version}.tar.gz`,
+	},
 	"win32-x64": {
 		bun: () => "bun-windows-x64.zip",
 		restic: (version: string) => `restic_${version}_windows_amd64.zip`,

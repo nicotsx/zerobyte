@@ -122,20 +122,6 @@ jobs:
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
 
-      - name: Validate release secrets
-        env:
-          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-        run: |
-          : "${APP_STORE_CONNECT_API_KEY_BASE64:?Set APP_STORE_CONNECT_API_KEY_BASE64 secret}"
-          : "${APP_STORE_CONNECT_API_KEY_ID:?Set APP_STORE_CONNECT_API_KEY_ID secret}"
-          : "${APP_STORE_CONNECT_ISSUER_ID:?Set APP_STORE_CONNECT_ISSUER_ID secret}"
-          : "${CSC_KEY_PASSWORD:?Set CSC_KEY_PASSWORD secret}"
-          : "${CSC_LINK:?Set CSC_LINK secret}"
-
       - name: Write App Store Connect API key
         env:
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
@@ -204,6 +190,37 @@ jobs:
         with:
           name: desktop-windows-release
           path: apps/desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  linux-release:
+    if: inputs.upload_github_release
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.source_ref }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Linux AppImage
+        working-directory: apps/desktop
+        run: bun run make:linux
+
+      - name: Upload Linux AppImage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-linux-release
+          path: apps/desktop/dist/*.AppImage
           if-no-files-found: error
           retention-days: 1
           compression-level: 0

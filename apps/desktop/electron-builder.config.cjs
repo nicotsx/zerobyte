@@ -89,6 +89,7 @@ const prepareRuntime = async ({ electronPlatformName, arch }) => {
 const config = {
 	appId: "com.nicotsx.zerobyte",
 	productName: "Zerobyte Alpha",
+	executableName: "zerobyte",
 	extraMetadata: { version: appStoreVersion },
 	asar: true,
 	forceCodeSigning: shouldSign,
@@ -133,6 +134,15 @@ const config = {
 		target: [
 			{
 				target: "nsis",
+				arch: ["x64"],
+			},
+		],
+	},
+	linux: {
+		category: "Utility",
+		target: [
+			{
+				target: "AppImage",
 				arch: ["x64"],
 			},
 		],
