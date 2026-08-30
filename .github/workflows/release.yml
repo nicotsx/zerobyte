@@ -115,6 +115,7 @@ jobs:
       contents: read
     with:
       release_tag: ${{ needs.determine-release-type.outputs.tagname }}
+      source_ref: ${{ needs.determine-release-type.outputs.tagname }}
       publish_testflight: true
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}

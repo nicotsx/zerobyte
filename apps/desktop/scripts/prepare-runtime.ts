@@ -18,6 +18,11 @@ const assetNamesByTarget: Record<string, RuntimeAssets | undefined> = {
 		restic: (version: string) => `restic_${version}_darwin_arm64.bz2`,
 		shoutrrr: (version: string) => `shoutrrr_macOS_arm64v8_${version}.tar.gz`,
 	},
+	"win32-x64": {
+		bun: () => "bun-windows-x64.zip",
+		restic: (version: string) => `restic_${version}_windows_amd64.zip`,
+		shoutrrr: (version: string) => `shoutrrr_windows_amd64_${version}.zip`,
+	},
 };
 
 const args = parseArgs({ options: { platform: { type: "string" }, arch: { type: "string" } } }).values as {
@@ -29,6 +34,10 @@ const platform = args.platform ?? process.env.ZEROBYTE_DESKTOP_TARGET_PLATFORM ?
 const arch = args.arch ?? process.env.ZEROBYTE_DESKTOP_TARGET_ARCH ?? process.arch;
 const targetName = `${platform}-${arch}`;
 const assetNames = assetNamesByTarget[targetName];
+const executableExtension = platform === "win32" ? ".exe" : "";
+const bunExecutableName = `bun${executableExtension}`;
+const resticExecutableName = `restic${executableExtension}`;
+const shoutrrrExecutableName = `shoutrrr${executableExtension}`;
 
 if (!assetNames) {
 	throw new Error(
@@ -79,10 +88,16 @@ const download = async (url: string, destination: string) => {
 	await fs.writeFile(destination, Buffer.from(await response.arrayBuffer()));
 };
 
+const chmodExecutable = async (filePath: string) => {
+	if (process.platform !== "win32") {
+		await fs.chmod(filePath, 0o755);
+	}
+};
+
 const installExecutable = async (source: string, destinationName = path.basename(source)) => {
 	const destination = path.join(binDir, destinationName);
 	await fs.copyFile(source, destination);
-	await fs.chmod(destination, 0o755);
+	await chmodExecutable(destination);
 };
 
 const installBzip2Executable = async (archivePath: string, destinationName: string) => {
@@ -99,7 +114,16 @@ const installBzip2Executable = async (archivePath: string, destinationName: stri
 		throw new Error(`bzip2 failed with exit code ${exitCode}`);
 	}
 
-	await fs.chmod(destination, 0o755);
+	await chmodExecutable(destination);
+};
+
+const extractZip = async (archivePath: string, extractDir: string) => {
+	if (process.platform === "win32") {
+		await run("tar", ["-xf", archivePath, "-C", extractDir], desktopDir);
+		return;
+	}
+
+	await run("unzip", ["-oq", archivePath, "-d", extractDir], desktopDir);
 };
 
 const copyIfExists = async (source: string, destination: string) => {
@@ -144,8 +168,11 @@ const stageBun = async () => {
 	await download(`${releaseUrl}/${assetName}`, archivePath);
 	await fs.rm(extractDir, { recursive: true, force: true });
 	await fs.mkdir(extractDir, { recursive: true });
-	await run("unzip", ["-oq", archivePath, "-d", extractDir], desktopDir);
-	await installExecutable(path.join(extractDir, path.basename(assetName, ".zip"), "bun"), "bun");
+	await extractZip(archivePath, extractDir);
+	await installExecutable(
+		path.join(extractDir, path.basename(assetName, ".zip"), bunExecutableName),
+		bunExecutableName,
+	);
 };
 
 const stageRestic = async () => {
@@ -155,7 +182,17 @@ const stageRestic = async () => {
 	const archivePath = path.join(downloadsDir, `restic-${version}-${assetName}`);
 
 	await download(`${releaseUrl}/${assetName}`, archivePath);
-	await installBzip2Executable(archivePath, "restic");
+	if (assetName.endsWith(".zip")) {
+		const extractDir = path.join(downloadsDir, `restic-${version}-${targetName}`);
+		await fs.rm(extractDir, { recursive: true, force: true });
+		await fs.mkdir(extractDir, { recursive: true });
+		await extractZip(archivePath, extractDir);
+		const extractedExecutableName = `${path.basename(assetName, ".zip")}${executableExtension}`;
+		await installExecutable(path.join(extractDir, extractedExecutableName), resticExecutableName);
+		return;
+	}
+
+	await installBzip2Executable(archivePath, resticExecutableName);
 };
 
 const stageShoutrrr = async () => {
@@ -168,8 +205,12 @@ const stageShoutrrr = async () => {
 	await download(`${releaseUrl}/${assetName}`, archivePath);
 	await fs.rm(extractDir, { recursive: true, force: true });
 	await fs.mkdir(extractDir, { recursive: true });
-	await run("tar", ["-xzf", archivePath, "-C", extractDir], desktopDir);
-	await installExecutable(path.join(extractDir, "shoutrrr"), "shoutrrr");
+	if (assetName.endsWith(".zip")) {
+		await extractZip(archivePath, extractDir);
+	} else {
+		await run("tar", ["-xzf", archivePath, "-C", extractDir], desktopDir);
+	}
+	await installExecutable(path.join(extractDir, shoutrrrExecutableName), shoutrrrExecutableName);
 };
 
 console.info(`Preparing desktop runtime for ${targetName}`);

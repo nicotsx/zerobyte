@@ -91,6 +91,7 @@ const config = {
 	productName: "Zerobyte Alpha",
 	extraMetadata: { version: appStoreVersion },
 	asar: true,
+	forceCodeSigning: shouldSign,
 	artifactName: `\${productName}-${releaseTag}-\${os}-\${arch}.\${ext}`,
 	directories: {
 		output: "dist",
@@ -126,6 +127,15 @@ const config = {
 		...(buildNumber ? { bundleVersion: buildNumber } : {}),
 		...(shouldSign ? {} : { identity: null }),
 		...(shouldNotarize ? { notarize: true } : {}),
+	},
+	win: {
+		icon: "assets/icon.ico",
+		target: [
+			{
+				target: "nsis",
+				arch: ["x64"],
+			},
+		],
 	},
 	mas: {
 		hardenedRuntime: false,

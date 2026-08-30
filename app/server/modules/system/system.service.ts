@@ -84,7 +84,7 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 			body: r.body,
 		}));
 
-		const latestRelease = formattedReleases[0];
+		const latestRelease = formattedReleases.find((release) => semver.valid(release.version));
 		const latestVersion = latestRelease?.version ?? currentVersion;
 
 		const hasUpdate = !!(
