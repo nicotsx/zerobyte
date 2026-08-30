@@ -5,6 +5,7 @@ const { Arch } = require("electron-builder");
 const desktopDir = __dirname;
 const repoRoot = path.resolve(desktopDir, "..", "..");
 const runtimeResourceDir = path.resolve(desktopDir, "..", "..", "tmp", "desktop", "zerobyte-runtime");
+const executableName = "zerobyte";
 const shouldNotarize = Boolean(
 	process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APPLE_API_ISSUER,
 );
@@ -85,15 +86,23 @@ const prepareRuntime = async ({ electronPlatformName, arch }) => {
 	await run("bun", ["scripts/prepare-runtime.ts", "--platform", runtimePlatformName, "--arch", archName]);
 };
 
+const signAdHoc = async ({ appOutDir, electronPlatformName }) => {
+	if (shouldSign || electronPlatformName !== "darwin") return;
+
+	const appPath = path.join(appOutDir, `${executableName}.app`);
+	await run("codesign", ["--deep", "--force", "--sign", "-", appPath]);
+	await run("codesign", ["--verify", "--deep", "--strict", appPath]);
+};
+
 /** @type {import("electron-builder").Configuration} */
 const config = {
 	appId: "com.nicotsx.zerobyte",
-	productName: "Zerobyte Alpha",
-	executableName: "zerobyte",
+	productName: "Zerobyte",
+	executableName,
 	extraMetadata: { version: appStoreVersion },
 	asar: true,
 	forceCodeSigning: shouldSign,
-	artifactName: `\${productName}-${releaseTag}-\${os}-\${arch}.\${ext}`,
+	artifactName: `zerobyte-${releaseTag}-\${os}-\${arch}.\${ext}`,
 	directories: {
 		output: "dist",
 		buildResources: "assets",
@@ -170,6 +179,7 @@ const config = {
 		},
 	},
 	beforePack: prepareRuntime,
+	afterPack: signAdHoc,
 };
 
 module.exports = config;

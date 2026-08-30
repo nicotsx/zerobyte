@@ -131,7 +131,7 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 			{isDesktopRuntime && (
 				<Alert variant="warning" className="mb-3">
 					<AlertTriangle className="size-5" />
-					<AlertTitle>Zerobyte Alpha</AlertTitle>
+					<AlertTitle>Zerobyte</AlertTitle>
 					<AlertDescription>
 						This desktop app is an early Alpha. Expect changes, verify restores, and keep this recovery key
 						somewhere outside the app.

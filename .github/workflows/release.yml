@@ -110,13 +110,12 @@ jobs:
   publish-desktop-testflight:
     needs: [determine-release-type, checks, e2e-tests, integration-tests]
     if: false
-    uses: ./.github/workflows/desktop-release.yml
+    uses: ./.github/workflows/desktop-testflight.yml
     permissions:
       contents: read
     with:
       release_tag: ${{ needs.determine-release-type.outputs.tagname }}
       source_ref: ${{ needs.determine-release-type.outputs.tagname }}
-      publish_testflight: true
     secrets:
       APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
       APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}

@@ -39,19 +39,101 @@ jobs:
     permissions:
       contents: read
 
-  build-desktop:
+  build-macos:
     needs: [validate, checks]
-    uses: ./.github/workflows/desktop-release.yml
+    timeout-minutes: 30
+    runs-on: macos-15
     permissions:
       contents: read
-    with:
-      release_tag: ${{ needs.validate.outputs.app_version }}
-      source_ref: ${{ github.sha }}
-      upload_github_release: true
-    secrets: inherit
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build unsigned DMG
+        working-directory: apps/desktop
+        run: bun run make
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-github-release
+          path: apps/desktop/dist/*.dmg
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  build-windows:
+    needs: [validate, checks]
+    timeout-minutes: 30
+    runs-on: windows-2025
+    permissions:
+      contents: read
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Windows installer
+        working-directory: apps/desktop
+        run: bun run make:windows
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-windows-release
+          path: apps/desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  build-linux:
+    needs: [validate, checks]
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Linux AppImage
+        working-directory: apps/desktop
+        run: bun run make:linux
+
+      - name: Upload Linux AppImage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-linux-release
+          path: apps/desktop/dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
   publish:
-    needs: [validate, build-desktop]
+    needs: [validate, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -81,16 +163,21 @@ jobs:
         with:
           tag_name: ${{ needs.validate.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: Zerobyte Desktop ${{ needs.validate.outputs.app_version }} Alpha
+          name: Zerobyte desktop ${{ needs.validate.outputs.app_version }}
           body: |
             > [!WARNING]
             > This is an early Zerobyte Desktop alpha, not an official stable release.
 
             macOS Apple Silicon, Windows x64, and Linux x64. Expect rough edges and verify important restores independently.
 
+            The macOS build is unsigned. After dragging it to Applications, clear its quarantine attribute:
+            ```sh
+            xattr -dr com.apple.quarantine "/Applications/zerobyte.app"
+            ```
+
             The Windows installer is currently unsigned, so Microsoft Defender SmartScreen may show a warning.
 
-            On Linux, make the AppImage executable before launching it: `chmod +x Zerobyte*.AppImage`.
+            On Linux, make the AppImage executable before launching it: `chmod +x zerobyte*.AppImage`.
           files: |
             release-assets/*.dmg
             release-assets/*.exe
