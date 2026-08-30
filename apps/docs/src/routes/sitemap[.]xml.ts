@@ -22,7 +22,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 	server: {
 		handlers: {
 			GET: async () => {
-				const urls = Array.from(new Set(["/", ...source.getPages().map((page) => page.url)]))
+				const urls = Array.from(new Set(["/", "/privacy", ...source.getPages().map((page) => page.url)]))
 					.sort()
 					.map((path) => new URL(path, siteUrl).toString());
 

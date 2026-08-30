@@ -147,6 +147,13 @@ const config = {
 			},
 		],
 	},
+	appx: {
+		applicationId: "Zerobyte",
+		identityName: "Nicotsx.Zerobyte",
+		publisher: "CN=94BF3996-8B84-4FAE-954C-F7C8553B9BDB",
+		publisherDisplayName: "Nicotsx",
+		displayName: "Zerobyte",
+	},
 	linux: {
 		category: "Utility",
 		target: [

@@ -1,0 +1,40 @@
+name: Desktop Windows Store
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Version to build, including the leading v (for example: v0.40.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    timeout-minutes: 30
+    runs-on: windows-2025
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ inputs.release_tag }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Microsoft Store package
+        working-directory: apps/desktop
+        run: bun run make:windows-store
+
+      - name: Upload Microsoft Store package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: zerobyte-microsoft-store
+          path: apps/desktop/dist/*.appx
+          if-no-files-found: error
+          compression-level: 0

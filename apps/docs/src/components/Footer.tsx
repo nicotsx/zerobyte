@@ -17,6 +17,12 @@ export default function Footer() {
 
 					<nav className="flex items-center gap-6">
 						<Link
+							to="/privacy"
+							className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+						>
+							Privacy
+						</Link>
+						<Link
 							to="/docs/$"
 							params={{ _splat: "" }}
 							className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -36,7 +42,9 @@ export default function Footer() {
 				</div>
 
 				<div className="mt-8 border-t border-border pt-8">
-					<p className="text-center text-sm text-muted-foreground">Open source backup automation for Restic.</p>
+					<p className="text-center text-sm text-muted-foreground">
+						Open source backup automation for Restic.
+					</p>
 				</div>
 			</div>
 		</footer>

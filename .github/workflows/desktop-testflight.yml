@@ -1,6 +1,12 @@
 name: Desktop TestFlight
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Version to upload, including the leading v (for example: v0.40.0)"
+        required: true
+        type: string
   workflow_call:
     inputs:
       release_tag:
@@ -42,7 +48,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ inputs.source_ref || github.sha }}
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
