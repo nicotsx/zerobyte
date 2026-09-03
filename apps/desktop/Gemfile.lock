@@ -42,7 +42,8 @@ GEM
     domain_name (0.6.20240107)
     dotenv (2.8.1)
     emoji_regex (3.2.3)
-    excon (0.112.0)
+    excon (1.5.0)
+      logger
     faraday (1.10.6)
       faraday-em_http (~> 1.0)
       faraday-em_synchrony (~> 1.0)
@@ -72,10 +73,10 @@ GEM
     faraday_middleware (1.2.1)
       faraday (~> 1.0)
     fastimage (2.4.1)
-    fastlane (2.236.1)
+    fastlane (2.237.0)
       CFPropertyList (>= 2.3, < 5.0.0)
       abbrev (~> 0.1)
-      addressable (>= 2.8, < 3.0.0)
+      addressable (>= 2.9.0, < 3.0.0)
       artifactory (~> 3.0)
       aws-sdk-s3 (~> 1.197)
       babosa (>= 1.0.3, < 2.0.0)
@@ -87,7 +88,7 @@ GEM
       csv (~> 3.3)
       dotenv (>= 2.1.1, < 3.0.0)
       emoji_regex (>= 0.1, < 4.0)
-      excon (>= 0.71.0, < 1.0.0)
+      excon (>= 0.71.0, < 2.0.0)
       faraday (~> 1.0)
       faraday-cookie_jar (~> 0.0.6)
       faraday_middleware (~> 1.0)
@@ -265,7 +266,7 @@ CHECKSUMS
   domain_name (0.6.20240107) sha256=5f693b2215708476517479bf2b3802e49068ad82167bcd2286f899536a17d933
   dotenv (2.8.1) sha256=c5944793349ae03c432e1780a2ca929d60b88c7d14d52d630db0508c3a8a17d8
   emoji_regex (3.2.3) sha256=ecd8be856b7691406c6bf3bb3a5e55d6ed683ffab98b4aa531bb90e1ddcc564b
-  excon (0.112.0) sha256=daf9ac3a4c2fc9aa48383a33da77ecb44fa395111e973084d5c52f6f214ae0f0
+  excon (1.5.0) sha256=c503ad1d0123bc8ab2a062ff3789dc891ec368cb9e13765ab88a9c58c8bb6d50
   faraday (1.10.6) sha256=7ff4802a6b312876a2241b3e641ce0d5045e168dd871b422c35b505e5261ad4d
   faraday-cookie_jar (0.0.8) sha256=0140605823f8cc63c7028fccee486aaed8e54835c360cffc1f7c8c07c4299dbb
   faraday-em_http (1.0.0) sha256=7a3d4c7079789121054f57e08cd4ef7e40ad1549b63101f38c7093a9d6c59689
@@ -280,7 +281,7 @@ CHECKSUMS
   faraday-retry (1.0.4) sha256=dc659233777fabf96c69c2ffe56c0a5d2c102af90321a42cc6c90157bcd716aa
   faraday_middleware (1.2.1) sha256=d45b78c8ee864c4783fbc276f845243d4a7918a67301c052647bacabec0529e9
   fastimage (2.4.1) sha256=c64bebd46b6fd8943ab70c1e6e85ff728f970f2e48f92ecd249b6bc3a540ad20
-  fastlane (2.236.1) sha256=fb89e618e0f38636e487743622cf710ad722723f5d33a63f19e367f84d3770bc
+  fastlane (2.237.0) sha256=bb1e867bc070fb328741b5e6e7606d5ba596941a9ecca0478f60ef22d1009db9
   fastlane-sirp (1.1.0) sha256=10bc94f9682efd8e1badfb31452a76dd8981f1f3a33717c765fde6d75b54d847
   gh_inspector (1.1.3) sha256=04cca7171b87164e053aa43147971d3b7f500fcb58177698886b48a9fc4a1939
   google-apis-androidpublisher_v3 (0.102.0) sha256=562415c44bd7f81cc808abbea11845ede16cdc3696d95f95efcf50aaffb159cf
