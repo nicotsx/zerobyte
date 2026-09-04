@@ -2,6 +2,8 @@
 	"name": "@zerobyte/desktop",
 	"version": "0.0.0",
 	"private": true,
+	"description": "Private, encrypted backups with Zerobyte",
+	"author": "Nicolas Meienberger",
 	"type": "commonjs",
 	"main": ".vite/build/main.js",
 	"scripts": {
@@ -11,9 +13,6 @@
 		"make": "electron-builder --config electron-builder.config.cjs --mac --publish never",
 		"make:linux": "electron-builder --config electron-builder.config.cjs --linux --x64 --publish never",
 		"make:windows": "electron-builder --config electron-builder.config.cjs --win --x64 --publish never",
-		"make:windows-store": "electron-builder --config electron-builder.config.cjs --win appx --x64 --publish never",
-		"make:mas": "electron-builder --config electron-builder.config.cjs --mac mas --publish never",
-		"make:mas-dev": "electron-builder --config electron-builder.config.cjs --mac mas-dev --publish never",
 		"publish": "electron-builder --config electron-builder.config.cjs --mac --publish always",
 		"tsc": "tsc --noEmit"
 	},

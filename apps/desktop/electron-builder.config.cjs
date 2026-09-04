@@ -6,11 +6,12 @@ const desktopDir = __dirname;
 const repoRoot = path.resolve(desktopDir, "..", "..");
 const runtimeResourceDir = path.resolve(desktopDir, "..", "..", "tmp", "desktop", "zerobyte-runtime");
 const executableName = "zerobyte";
+const requiresMacSigning = process.env.ZEROBYTE_REQUIRE_MAC_SIGNING === "true";
 const shouldNotarize = Boolean(
 	process.env.APPLE_API_KEY && process.env.APPLE_API_KEY_ID && process.env.APPLE_API_ISSUER,
 );
-const isMasTarget = process.argv.some((arg) => arg === "mas" || arg === "mas-dev" || arg.includes("--mac=mas"));
-const shouldSign = process.env.ZEROBYTE_MAC_SIGN === "true" || shouldNotarize || isMasTarget;
+const shouldSignMac = process.env.ZEROBYTE_MAC_SIGN === "true" || shouldNotarize || requiresMacSigning;
+const macIdentity = shouldSignMac ? undefined : null;
 
 const readCurrentGitTag = () => {
 	try {
@@ -30,15 +31,8 @@ if (!releaseVersion) releaseVersion = process.env.GITHUB_REF_NAME;
 if (!releaseVersion) releaseVersion = readCurrentGitTag();
 
 const releaseTag = releaseVersion?.replace(/^refs\/tags\//, "");
-const appStoreVersion = releaseTag?.replace(/^v/, "").match(/^\d+\.\d+\.\d+/)?.[0];
+const packageVersion = releaseTag?.replace(/^v/, "").match(/^\d+\.\d+\.\d+/)?.[0];
 const buildNumber = process.env.ZEROBYTE_BUILD_NUMBER || process.env.GITHUB_RUN_NUMBER;
-const exportComplianceCode =
-	process.env.ZEROBYTE_EXPORT_COMPLIANCE_CODE || process.env.APP_STORE_EXPORT_COMPLIANCE_CODE;
-const masProvisioningProfile =
-	process.env.ZEROBYTE_MAS_PROVISIONING_PROFILE || path.join(desktopDir, "profiles", "mac-app-store.provisionprofile");
-const masDevProvisioningProfile =
-	process.env.ZEROBYTE_MAS_DEV_PROVISIONING_PROFILE ||
-	path.join(desktopDir, "profiles", "mac-development.provisionprofile");
 
 if (releaseTag && !process.env.APP_VERSION) {
 	process.env.APP_VERSION = releaseTag;
@@ -47,7 +41,7 @@ if (releaseTag && !process.env.VITE_APP_VERSION) {
 	process.env.VITE_APP_VERSION = releaseTag;
 }
 
-if (!releaseTag || !appStoreVersion) {
+if (!releaseTag || !packageVersion) {
 	throw new Error("Desktop builds require a release version like v0.39.0 or v0.39.0-beta.3.");
 }
 
@@ -77,17 +71,16 @@ const run = (command, args) =>
 
 const prepareRuntime = async ({ electronPlatformName, arch }) => {
 	const archName = archNames[arch];
-	const runtimePlatformName = electronPlatformName === "mas" ? "darwin" : electronPlatformName;
 	if (!archName) {
 		throw new Error(`Unsupported desktop target architecture: ${arch}`);
 	}
 
 	await run("bun", ["run", "build:electron"]);
-	await run("bun", ["scripts/prepare-runtime.ts", "--platform", runtimePlatformName, "--arch", archName]);
+	await run("bun", ["scripts/prepare-runtime.ts", "--platform", electronPlatformName, "--arch", archName]);
 };
 
 const signAdHoc = async ({ appOutDir, electronPlatformName }) => {
-	if (shouldSign || electronPlatformName !== "darwin") return;
+	if (shouldSignMac || electronPlatformName !== "darwin") return;
 
 	const appPath = path.join(appOutDir, `${executableName}.app`);
 	await run("codesign", ["--deep", "--force", "--sign", "-", appPath]);
@@ -99,9 +92,9 @@ const config = {
 	appId: "com.nicotsx.zerobyte",
 	productName: "Zerobyte",
 	executableName,
-	extraMetadata: { version: appStoreVersion },
+	extraMetadata: { version: packageVersion },
 	asar: true,
-	forceCodeSigning: shouldSign,
+	forceCodeSigning: requiresMacSigning,
 	artifactName: `zerobyte-${releaseTag}-\${os}-\${arch}.\${ext}`,
 	directories: {
 		output: "dist",
@@ -121,10 +114,6 @@ const config = {
 	mac: {
 		category: "public.app-category.utilities",
 		icon: "assets/icon.icns",
-		extendInfo: {
-			ITSAppUsesNonExemptEncryption: Boolean(exportComplianceCode),
-			...(exportComplianceCode ? { ITSEncryptionExportComplianceCode: exportComplianceCode } : {}),
-		},
 		target: [
 			{
 				target: "dmg",
@@ -134,9 +123,9 @@ const config = {
 		hardenedRuntime: true,
 		entitlements: "electron/entitlements.mac.plist",
 		entitlementsInherit: "electron/entitlements.mac.plist",
-		...(buildNumber ? { bundleVersion: buildNumber } : {}),
-		...(shouldSign ? {} : { identity: null }),
-		...(shouldNotarize ? { notarize: true } : {}),
+		bundleVersion: buildNumber,
+		identity: macIdentity,
+		notarize: shouldNotarize,
 	},
 	win: {
 		icon: "assets/icon.ico",
@@ -147,13 +136,6 @@ const config = {
 			},
 		],
 	},
-	appx: {
-		applicationId: "Zerobyte",
-		identityName: "Nicotsx.Zerobyte",
-		publisher: "CN=94BF3996-8B84-4FAE-954C-F7C8553B9BDB",
-		publisherDisplayName: "Nicotsx",
-		displayName: "Zerobyte",
-	},
 	linux: {
 		category: "Utility",
 		target: [
@@ -162,15 +144,6 @@ const config = {
 				arch: ["x64"],
 			},
 		],
-	},
-	mas: {
-		hardenedRuntime: false,
-		entitlements: "electron/entitlements.mas.plist",
-		entitlementsInherit: "electron/entitlements.mas.inherit.plist",
-		provisioningProfile: masProvisioningProfile,
-	},
-	masDev: {
-		provisioningProfile: masDevProvisioningProfile,
 	},
 	dmg: {
 		background: "assets/dmg-background.png",
