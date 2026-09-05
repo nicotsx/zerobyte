@@ -1,3 +1,4 @@
+import { createAgentRuntimeState } from "../helpers/runtime-state";
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
@@ -8,6 +9,7 @@ import type { BackupRunPayload, VolumeCommand, VolumeCommandResponsePayload } fr
 
 const setAgentRuntime = (agentManagerRuntime: Partial<AgentManagerRuntime> | null) => {
 	(process as ProcessWithAgentRuntime).__zerobyteAgentRuntime = {
+		...createAgentRuntimeState(),
 		agentManager: fromAny(agentManagerRuntime),
 		localAgent: null,
 		isStoppingLocalAgent: false,
@@ -58,11 +60,11 @@ test("runVolumeCommand sends the command to the selected agent", async () => {
 
 	const command = fromPartial<VolumeCommand>({ name: "volume.mount", volume: { agentId: "agent-1" } });
 
-	await expect(agentManager.runVolumeCommand("agent-1", command)).resolves.toEqual({
+	await expect(agentManager.runVolumeCommand("agent-1", "org-1", command)).resolves.toEqual({
 		name: "volume.mount",
 		result: { status: "mounted" },
 	});
-	expect(runVolumeCommand).toHaveBeenCalledWith("agent-1", command);
+	expect(runVolumeCommand).toHaveBeenCalledWith("agent-1", "org-1", command);
 });
 
 test("runVolumeCommand fails when the selected agent is unavailable", async () => {
@@ -70,7 +72,7 @@ test("runVolumeCommand fails when the selected agent is unavailable", async () =
 
 	const command = fromPartial<VolumeCommand>({ name: "volume.mount", volume: { agentId: "agent-1" } });
 
-	await expect(agentManager.runVolumeCommand("agent-1", command)).rejects.toThrow(
+	await expect(agentManager.runVolumeCommand("agent-1", "org-1", command)).rejects.toThrow(
 		"Volume agent agent-1 is not connected",
 	);
 });

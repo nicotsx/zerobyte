@@ -8,6 +8,8 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { createControllerSession } from "../controller-session";
+import { createAgentExecutionPolicy } from "../execution-policy";
+import { createTrustedRootRegistry } from "../trusted-roots";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -21,12 +23,15 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 	);
 
 	const outboundMessages: string[] = [];
+	const registry = createTrustedRootRegistry({ builtinLocal: true });
+	const executionPolicy = createAgentExecutionPolicy({ builtinLocal: true, registry });
 	const session = createControllerSession(
 		fromPartial({
 			send: (message: string) => {
 				outboundMessages.push(message);
 			},
 		}),
+		{ executionPolicy },
 	);
 
 	try {
@@ -36,20 +41,26 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 				jobId: "job-1",
 				scheduleId: "schedule-1",
 				organizationId: "org-1",
-				volume: {
-					id: 1,
-					shortId: "volume-1",
-					name: "Volume 1",
-					config: { backend: "directory", path: "/tmp" },
-					createdAt: 0,
-					updatedAt: 0,
-					lastHealthCheck: 0,
-					type: "directory",
-					status: "mounted",
-					lastError: null,
-					autoRemount: true,
-					agentId: "local",
-					organizationId: "org-1",
+				source: {
+					kind: "managed",
+					volume: {
+						sourceKind: "managed",
+						trustedRootId: null,
+						relativePath: null,
+						id: 1,
+						shortId: "volume-1",
+						name: "Volume 1",
+						config: { backend: "directory", path: "/tmp" },
+						createdAt: 0,
+						updatedAt: 0,
+						lastHealthCheck: 0,
+						type: "directory",
+						status: "mounted",
+						lastError: null,
+						autoRemount: true,
+						agentId: "local",
+						organizationId: "org-1",
+					},
 				},
 				repositoryConfig: {
 					backend: "local",
@@ -118,6 +129,10 @@ test("closes the websocket when an outbound send throws", async () => {
 });
 
 test("continues processing inbound messages after a volume command fails", async () => {
+	const trustedRootPath = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-root-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: trustedRootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const executionPolicy = createAgentExecutionPolicy({ builtinLocal: false, registry });
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
 		fromPartial({
@@ -125,6 +140,7 @@ test("continues processing inbound messages after a volume command fails", async
 				outboundMessages.push(message);
 			},
 		}),
+		{ executionPolicy },
 	);
 
 	try {
@@ -133,7 +149,33 @@ test("continues processing inbound messages after a volume command fails", async
 				commandId: "command-1",
 				command: {
 					name: "filesystem.browse",
-					path: "/path/that/does/not/exist",
+					reference: { rootId: "data", relativePath: "does-not-exist" },
+				},
+			}),
+		);
+		session.onMessage(
+			createControllerMessage("volume.command", {
+				commandId: "command-2",
+				command: {
+					name: "volume.statfs",
+					source: {
+						kind: "agent-filesystem",
+						reference: { rootId: "data", relativePath: "does-not-exist" },
+					},
+				},
+			}),
+		);
+		session.onMessage(
+			createControllerMessage("volume.command", {
+				commandId: "command-3",
+				command: {
+					name: "volume.listFiles",
+					source: {
+						kind: "agent-filesystem",
+						reference: { rootId: "data", relativePath: "does-not-exist" },
+					},
+					offset: 0,
+					limit: 10,
 				},
 			}),
 		);
@@ -141,13 +183,15 @@ test("continues processing inbound messages after a volume command fails", async
 
 		await waitForExpect(() => {
 			const parsedMessages = outboundMessages.map((message) => parseAgentMessage(message));
-			const volumeResult = parsedMessages.find(
+			const volumeResults = parsedMessages.filter(
 				(message) => message?.success && message.data.type === "volume.commandResult",
 			);
 			const heartbeatPong = parsedMessages.find(
 				(message) => message?.success && message.data.type === "heartbeat.pong",
 			);
 
+			expect(volumeResults).toHaveLength(3);
+			const volumeResult = volumeResults[0];
 			expect(volumeResult?.success).toBe(true);
 			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "volume.commandResult") {
 				return;
@@ -156,8 +200,10 @@ test("continues processing inbound messages after a volume command fails", async
 			expect(volumeResult.data.payload).toEqual({
 				commandId: "command-1",
 				status: "error",
-				error: "ENOENT: no such file or directory, scandir '/path/that/does/not/exist'",
+				error: "Trusted source path cannot be resolved",
 			});
+			expect(JSON.stringify(volumeResult.data.payload)).not.toContain(trustedRootPath);
+			expect(JSON.stringify(volumeResults)).not.toContain(trustedRootPath);
 			expect(heartbeatPong?.success).toBe(true);
 			if (!heartbeatPong || !heartbeatPong.success || heartbeatPong.data.type !== "heartbeat.pong") {
 				return;
@@ -167,13 +213,13 @@ test("continues processing inbound messages after a volume command fails", async
 		});
 	} finally {
 		session.close();
+		await fs.rm(trustedRootPath, { recursive: true, force: true });
 	}
 });
 
-test("browses the local filesystem through the controller wire protocol", async () => {
-	const browseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-browse-"));
-	await fs.mkdir(path.join(browseRoot, "backups"));
-	await fs.writeFile(path.join(browseRoot, "ignored.txt"), "not a directory");
+test("continues processing after standalone restore policy rejection", async () => {
+	const registry = createTrustedRootRegistry({ builtinLocal: false });
+	const executionPolicy = createAgentExecutionPolicy({ builtinLocal: false, registry });
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
 		fromPartial({
@@ -181,6 +227,55 @@ test("browses the local filesystem through the controller wire protocol", async 
 				outboundMessages.push(message);
 			},
 		}),
+		{ executionPolicy },
+	);
+
+	try {
+		session.onMessage(
+			createControllerMessage("restore.run", {
+				restoreId: "restore-rejected",
+				organizationId: "org-1",
+				repositoryId: "repository-1",
+				snapshotId: "snapshot-1",
+				target: "/private/restore-target",
+				repositoryConfig: { backend: "local", path: "/private/repository" },
+				runtime: { password: "password" },
+				options: { organizationId: "org-1" },
+			}),
+		);
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 456 }));
+
+		await waitForExpect(() => {
+			const parsedMessages = outboundMessages.map((message) => parseAgentMessage(message));
+			const restoreFailure = parsedMessages.find(
+				(message) => message?.success && message.data.type === "restore.failed",
+			);
+			const heartbeatPong = parsedMessages.find(
+				(message) => message?.success && message.data.type === "heartbeat.pong",
+			);
+			expect(restoreFailure?.success).toBe(true);
+			expect(JSON.stringify(restoreFailure)).not.toContain("/private");
+			expect(heartbeatPong?.success).toBe(true);
+		});
+	} finally {
+		session.close();
+	}
+});
+
+test("preserves the existing-install built-in local filesystem workflow", async () => {
+	const browseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-browse-"));
+	await fs.mkdir(path.join(browseRoot, "backups"));
+	await fs.writeFile(path.join(browseRoot, "ignored.txt"), "not a directory");
+	const outboundMessages: string[] = [];
+	const registry = createTrustedRootRegistry({ builtinLocal: true });
+	const executionPolicy = createAgentExecutionPolicy({ builtinLocal: true, registry });
+	const session = createControllerSession(
+		fromPartial({
+			send: (message: string) => {
+				outboundMessages.push(message);
+			},
+		}),
+		{ executionPolicy },
 	);
 
 	try {

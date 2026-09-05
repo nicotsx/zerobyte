@@ -2,7 +2,9 @@ import { type ReactNode } from "react";
 import { FolderOpen } from "lucide-react";
 import { FileTree, type FileEntry } from "~/client/components/file-tree";
 import { ScrollArea } from "~/client/components/ui/scroll-area";
+import { Button } from "~/client/components/ui/button";
 import { cn } from "~/client/lib/utils";
+import type { FolderFailure } from "~/client/hooks/use-file-browser";
 
 type PaginationState = {
 	hasMore: boolean;
@@ -38,8 +40,11 @@ type FileBrowserProps = FileBrowserUiProps & {
 	isLoading: boolean;
 	isEmpty: boolean;
 	errorMessage?: string;
-	folderErrors: ReadonlyMap<string, string>;
+	folderErrors: ReadonlyMap<string, FolderFailure>;
 	renderError?: (message: string) => ReactNode;
+	renderFolderError?: (message: string) => ReactNode;
+	onRetry?: () => void | Promise<void>;
+	onFolderRetry: (path: string) => void | Promise<void>;
 	fileArray: FileEntry[];
 	expandedFolders: Set<string>;
 	loadingFolders: Set<string>;
@@ -84,6 +89,9 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		errorMessage,
 		folderErrors,
 		renderError = renderDefaultError,
+		renderFolderError = renderError,
+		onRetry,
+		onFolderRetry,
 		fileArray,
 		expandedFolders,
 		loadingFolders,
@@ -101,31 +109,55 @@ export const FileBrowser = (props: FileBrowserProps) => {
 
 	if (isLoading) {
 		body = (
-			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
+			<output
+				className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}
+				aria-live="polite"
+			>
 				<p className="text-muted-foreground">{loadingMessage}</p>
-			</div>
+			</output>
 		);
 	} else if (errorMessage) {
 		body = (
 			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
 				{renderError(errorMessage)}
+				{onRetry && (
+					<Button type="button" variant="outline" size="sm" className="mt-4" onClick={onRetry}>
+						Retry
+					</Button>
+				)}
 			</div>
 		);
 	} else if (isEmpty) {
 		body = (
-			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
+			<output
+				className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}
+			>
 				{resolvedEmptyIcon}
 				<p className="text-muted-foreground">{emptyMessage}</p>
 				{emptyDescription && <p className="mt-2 text-sm text-muted-foreground">{emptyDescription}</p>}
-			</div>
+			</output>
 		);
 	} else {
 		body = (
 			<FileTree
 				files={fileArray}
 				renderFolderError={(path) => {
-					const message = folderErrors.get(path);
-					return message ? renderError(message) : null;
+					const failure = folderErrors.get(path);
+					if (!failure) return null;
+
+					return (
+						<div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+							{renderFolderError(failure.message)}
+							<button
+								type="button"
+								aria-label={`Retry ${path}`}
+								className="cursor-pointer text-xs text-destructive underline underline-offset-2 normal-case"
+								onClick={() => void onFolderRetry(path)}
+							>
+								Retry
+							</button>
+						</div>
+					);
 				}}
 				onFolderToggle={onFolderToggle}
 				onFolderHover={onFolderHover}

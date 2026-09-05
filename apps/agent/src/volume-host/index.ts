@@ -12,6 +12,10 @@ export { getStatFs, isNodeJSErrnoException } from "./fs";
 export { getVolumePath } from "./paths";
 
 export const createVolumeBackend = (volume: AgentVolume, mountPath = getVolumePath(volume)): VolumeBackend => {
+	if (volume.sourceKind === "agent-filesystem" || !volume.config) {
+		throw new Error("Managed volume configuration is missing");
+	}
+
 	switch (volume.config.backend) {
 		case "directory":
 			return makeDirectoryBackend(volume.config, mountPath);

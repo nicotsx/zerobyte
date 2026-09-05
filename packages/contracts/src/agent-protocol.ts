@@ -14,9 +14,12 @@ import {
 	listVolumeFilesResponseSchema,
 	statfsSchema,
 	testVolumeConnectionResponseSchema,
+	trustedRootDescriptorSchema,
+	trustedSourceReferenceSchema,
 	volumeConfigSchema,
+	volumeExecutionSourceSchema,
 	volumeOperationResultSchema,
-	volumeSchema,
+	managedVolumeSchema,
 } from "./volumes";
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
@@ -24,6 +27,7 @@ const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType
 export const AGENT_PROTOCOL_VERSION = 1;
 export const SUPPORTED_AGENT_PROTOCOL_MIN_VERSION = 1;
 export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = 1;
+export const MAX_AGENT_TRUSTED_ROOTS = 100;
 
 export type AgentProtocolRejectionReason =
 	| "agent_too_old"
@@ -62,7 +66,7 @@ const backupRunSchema = z.object({
 		jobId: z.string(),
 		scheduleId: z.string(),
 		organizationId: z.string(),
-		volume: volumeSchema,
+		source: volumeExecutionSourceSchema,
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
 		runtime: commandRuntimeSchema,
@@ -78,19 +82,30 @@ const backupCancelSchema = z.object({
 });
 
 const volumeCommandSchema = z.discriminatedUnion("name", [
-	z.object({ name: z.literal("volume.mount"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.unmount"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.checkHealth"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.statfs"), volume: volumeSchema }),
+	z.object({ name: z.literal("volume.mount"), volume: managedVolumeSchema }),
+	z.object({ name: z.literal("volume.unmount"), volume: managedVolumeSchema }),
+	z.object({ name: z.literal("volume.checkHealth"), volume: managedVolumeSchema }),
+	z.object({
+		name: z.literal("volume.statfs"),
+		source: volumeExecutionSourceSchema,
+	}),
 	z.object({
 		name: z.literal("volume.listFiles"),
-		volume: volumeSchema,
+		source: volumeExecutionSourceSchema,
 		subPath: z.string().optional(),
 		offset: z.number(),
 		limit: z.number(),
 	}),
 	z.object({ name: z.literal("volume.testConnection"), backendConfig: volumeConfigSchema }),
-	z.object({ name: z.literal("filesystem.browse"), path: z.string() }),
+	z
+		.object({
+			name: z.literal("filesystem.browse"),
+			reference: trustedSourceReferenceSchema.optional(),
+			path: z.string().optional(),
+		})
+		.refine((command) => Boolean(command.reference) !== Boolean(command.path), {
+			message: "Filesystem browse commands require exactly one path reference",
+		}),
 ]);
 
 const volumeCommandRequestSchema = z.object({
@@ -189,6 +204,18 @@ const heartbeatPingSchema = z.object({
 	payload: z.object({ sentAt: z.number() }),
 });
 
+export const agentCapabilitiesSchema = z
+	.object({
+		backup: z.boolean().optional(),
+		restore: z.boolean().optional(),
+		volume: z.boolean().optional(),
+		restic: z.boolean().optional(),
+		trustedRoots: z.array(trustedRootDescriptorSchema).max(MAX_AGENT_TRUSTED_ROOTS).optional(),
+	})
+	.catchall(z.unknown());
+
+export type AgentCapabilities = z.infer<typeof agentCapabilitiesSchema>;
+
 const agentReadySchema = z.object({
 	type: z.literal("agent.ready"),
 	payload: z.object({
@@ -196,7 +223,7 @@ const agentReadySchema = z.object({
 		protocolVersion: z.number(),
 		hostname: z.string(),
 		platform: z.string(),
-		capabilities: z.record(z.string(), z.unknown()),
+		capabilities: agentCapabilitiesSchema,
 	}),
 });
 
@@ -211,7 +238,7 @@ const stableAgentReadySchema = z.object({
 		protocolVersion: z.number(),
 		hostname: z.string().optional(),
 		platform: z.string().optional(),
-		capabilities: z.record(z.string(), z.unknown()).optional(),
+		capabilities: agentCapabilitiesSchema.optional(),
 	}),
 });
 

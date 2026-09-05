@@ -3,6 +3,11 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./backup-context": {
+			"types": "./src/backup-context.ts",
+			"import": "./src/backup-context.ts",
+			"default": "./src/backup-context.ts"
+		},
 		"./agent-protocol": {
 			"types": "./src/agent-protocol.ts",
 			"import": "./src/agent-protocol.ts",

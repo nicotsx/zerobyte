@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, InternalServerError, NotFoundError, ServiceUnavailableError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
@@ -8,16 +8,32 @@ import type { StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { agentManager } from "../agents/agents-manager";
-import type { UpdateVolumeBody } from "./volume.dto";
+import type { CreateVolumeBody, UpdateVolumeBody } from "./volume.dto";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
-import { volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
+import {
+	decodeTrustedPathPresentation,
+	normalizeTrustedSourceRelativePath,
+	presentedVolumeDetailSchema,
+	volumeConfigSchema,
+	type BackendConfig,
+	type Volume as CanonicalVolume,
+} from "@zerobyte/contracts/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { normalizeRequiredName } from "~/server/utils/names";
-import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
+import { encryptVolumeConfig } from "./volume-config-secrets";
 import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
+import {
+	assembleTrustedFilesystemExecutionSource,
+	assembleVolumeExecutionSource,
+	toCanonicalVolume,
+	validateTrustedRoot,
+} from "./volume-execution-source";
+import { listSourceMachines as querySourceMachines } from "./source-discovery";
+import { getVolumePath } from "./helpers";
+import { presentVolumes } from "./volume-presentation";
 
 type EnsureHealthyVolumeResult =
 	| { ready: true; volume: Volume; remounted: boolean }
@@ -42,8 +58,12 @@ const findVolume = async (shortId: ShortId) => {
 	});
 };
 
-const runVolumeCommand = async <TCommand extends VolumeCommand>(agentId: string, command: TCommand) => {
-	const result = await agentManager.runVolumeCommand(agentId, command);
+const runVolumeCommand = async <TCommand extends VolumeCommand>(
+	agentId: string,
+	organizationId: string,
+	command: TCommand,
+) => {
+	const result = await agentManager.runVolumeCommand(agentId, organizationId, command);
 	if (result.name !== command.name) {
 		throw new InternalServerError(`Unexpected agent response for ${command.name}`);
 	}
@@ -51,31 +71,93 @@ const runVolumeCommand = async <TCommand extends VolumeCommand>(agentId: string,
 	return result as Extract<VolumeCommandResult, { name: TCommand["name"] }>;
 };
 
-const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
-	...volume,
-	config: await decryptVolumeConfig(volume.config),
-});
+const normalizeRelativePath = (rawPath: string) => {
+	try {
+		return normalizeTrustedSourceRelativePath(rawPath);
+	} catch (error) {
+		throw new BadRequestError(toMessage(error));
+	}
+};
+
+const preflightTrustedFilesystemSource = async (
+	agentId: string,
+	trustedRootId: string,
+	relativePath: string,
+	organizationId: string,
+) => {
+	const source = await assembleTrustedFilesystemExecutionSource(agentId, trustedRootId, relativePath, organizationId);
+	try {
+		await runVolumeCommand(agentId, organizationId, { name: "volume.statfs", source });
+	} catch (error) {
+		throw new ServiceUnavailableError(`Filesystem source is unavailable: ${toMessage(error)}`);
+	}
+};
 
 const runVolumeBackendCommand = async (
 	volume: Volume,
 	name: "volume.mount" | "volume.unmount" | "volume.checkHealth",
 ) => {
-	const command = await runVolumeCommand(volume.agentId, {
+	if (volume.sourceKind === "agent-filesystem") {
+		throw new BadRequestError("Trusted filesystem sources do not support mount operations");
+	}
+	if (volume.agentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError("Managed volume backends can only run on the built-in local agent");
+	}
+	const organizationId = getOrganizationId();
+	const source = await assembleVolumeExecutionSource(volume, organizationId);
+	if (source.kind !== "managed") {
+		throw new InternalServerError("Managed volume execution source was expected");
+	}
+	const command = await runVolumeCommand(volume.agentId, organizationId, {
 		name,
-		volume: await volumeForAgent(volume),
+		volume: source.volume,
 	});
+	if (command.name !== "volume.mount" && command.name !== "volume.unmount" && command.name !== "volume.checkHealth") {
+		throw new InternalServerError(`Unexpected agent response for ${name}`);
+	}
 	return command.result;
 };
 
-const createVolume = async (name: string, backendConfig: BackendConfig) => {
+const createVolume = async (body: CreateVolumeBody) => {
 	const organizationId = getOrganizationId();
-	const normalizedName = normalizeRequiredName(name);
+	const normalizedName = normalizeRequiredName(body.name);
 
 	if (normalizedName === null) {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
 
 	const shortId = generateShortId();
+	if (body.sourceKind === "agent-filesystem") {
+		const relativePath = normalizeRelativePath(body.relativePath);
+		await preflightTrustedFilesystemSource(body.agentId, body.trustedRootId, relativePath, organizationId);
+		const [created] = await db
+			.insert(volumesTable)
+			.values({
+				shortId,
+				name: normalizedName,
+				config: null,
+				type: null,
+				agentId: body.agentId,
+				sourceKind: "agent-filesystem",
+				trustedRootId: body.trustedRootId,
+				relativePath,
+				status: "mounted",
+				autoRemount: false,
+				organizationId,
+			})
+			.returning();
+
+		if (!created) {
+			throw new InternalServerError("Failed to create filesystem source");
+		}
+		return { volume: created, status: 201 };
+	}
+
+	const agentId = body.agentId ?? LOCAL_AGENT_ID;
+	if (agentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError("Managed volume backends can only target the built-in local agent");
+	}
+	const backendConfig = body.config;
 	const encryptedConfig = await encryptVolumeConfig(backendConfig);
 
 	const [created] = await db
@@ -87,6 +169,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 			type: backendConfig.backend,
 			agentId: LOCAL_AGENT_ID,
 			organizationId,
+			sourceKind: "managed",
 		})
 		.returning();
 
@@ -112,7 +195,9 @@ const deleteVolume = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	await runVolumeBackendCommand(volume, "volume.unmount");
+	if (volume.sourceKind !== "agent-filesystem") {
+		await runVolumeBackendCommand(volume, "volume.unmount");
+	}
 	await db
 		.delete(volumesTable)
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
@@ -169,7 +254,7 @@ const unmountVolume = async (shortId: ShortId, options?: { persistStatus?: boole
 	return { error, status };
 };
 
-const getVolume = async (shortId: ShortId) => {
+const getCanonicalVolumeDetail = async (shortId: ShortId) => {
 	const volume = await findVolume(shortId);
 
 	if (!volume) {
@@ -177,18 +262,51 @@ const getVolume = async (shortId: ShortId) => {
 	}
 
 	let statfs: Partial<StatFs> = {};
-	if (volume.status === "mounted") {
-		const statfsCommand = runVolumeCommand(volume.agentId, {
-			name: "volume.statfs",
-			volume: await volumeForAgent(volume),
-		}).then((command) => command.result);
-		statfs = await withTimeout(statfsCommand, 1000, "volume.statfs").catch((error) => {
+	if (volume.sourceKind === "managed" && volume.status === "mounted") {
+		const organizationId = getOrganizationId();
+		const source = await assembleVolumeExecutionSource(volume, organizationId);
+		const statfsCommand = async () => {
+			const command = await runVolumeCommand(volume.agentId, organizationId, {
+				name: "volume.statfs",
+				source,
+			});
+			return command.result;
+		};
+		const statfsResult = statfsCommand();
+		statfs = await withTimeout(statfsResult, 1000, "volume.statfs").catch((error) => {
 			logger.warn(`Failed to get statfs for volume ${volume.name}: ${toMessage(error)}`);
 			return {};
 		});
 	}
 
 	return { volume, statfs };
+};
+
+const validateUpdateFieldsForSourceKind = (volume: CanonicalVolume, volumeData: UpdateVolumeBody) => {
+	if (volumeData.sourceKind !== undefined && volumeData.sourceKind !== volume.sourceKind) {
+		throw new BadRequestError("Volume source kind cannot be changed");
+	}
+	if (volume.sourceKind === "agent-filesystem") {
+		if (volumeData.config !== undefined || volumeData.autoRemount !== undefined) {
+			throw new BadRequestError("Trusted filesystem sources cannot have managed backend fields");
+		}
+		return;
+	}
+	const hasTrustedFilesystemField =
+		volumeData.agentId !== undefined ||
+		volumeData.trustedRootId !== undefined ||
+		volumeData.relativePath !== undefined;
+	if (hasTrustedFilesystemField) {
+		throw new BadRequestError("Managed volume backends cannot have trusted filesystem locations");
+	}
+};
+
+const getUpdatedVolumeName = (existingName: string, name: UpdateVolumeBody["name"]) => {
+	const updatedName = name === undefined ? existingName : normalizeRequiredName(name);
+	if (updatedName === null) {
+		throw new BadRequestError("Volume name cannot be empty");
+	}
+	return updatedName;
 };
 
 const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
@@ -198,43 +316,81 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	if (!existing) {
 		throw new NotFoundError("Volume not found");
 	}
+	const existingVolume = toCanonicalVolume(existing);
+	validateUpdateFieldsForSourceKind(existingVolume, volumeData);
+	const name = getUpdatedVolumeName(existingVolume.name, volumeData.name);
+	const updateErrorMessage =
+		existingVolume.sourceKind === "agent-filesystem"
+			? "Failed to update filesystem source"
+			: "Failed to update volume";
+	let updateValues: Partial<typeof volumesTable.$inferInsert>;
+	let configChanged = false;
 
-	const normalizedName = volumeData.name !== undefined ? normalizeRequiredName(volumeData.name) : existing.name;
-
-	if (normalizedName === null) {
-		throw new BadRequestError("Volume name cannot be empty");
+	if (existingVolume.sourceKind === "agent-filesystem") {
+		const agentChanged = volumeData.agentId !== undefined && volumeData.agentId !== existingVolume.agentId;
+		const rootChanged =
+			volumeData.trustedRootId !== undefined && volumeData.trustedRootId !== existingVolume.trustedRootId;
+		if (agentChanged && volumeData.trustedRootId === undefined) {
+			throw new BadRequestError("Changing the source machine requires a trusted root ID");
+		}
+		if ((agentChanged || rootChanged) && volumeData.relativePath === undefined) {
+			throw new BadRequestError("Changing the source machine or root requires an explicit relative path");
+		}
+		const agentId = volumeData.agentId ?? existingVolume.agentId;
+		const trustedRootId = volumeData.trustedRootId ?? existingVolume.trustedRootId;
+		const rawRelativePath = volumeData.relativePath ?? existingVolume.relativePath;
+		const relativePath = normalizeRelativePath(rawRelativePath);
+		const pathChanged = volumeData.relativePath !== undefined && relativePath !== existingVolume.relativePath;
+		const locationChanged = agentChanged || rootChanged || pathChanged;
+		if (locationChanged) {
+			await preflightTrustedFilesystemSource(agentId, trustedRootId, relativePath, organizationId);
+		}
+		const updatedAt = Date.now();
+		updateValues = {
+			name,
+			agentId,
+			trustedRootId,
+			relativePath,
+			updatedAt,
+		};
+		if (locationChanged) {
+			updateValues.status = "mounted";
+			updateValues.lastError = null;
+			updateValues.lastHealthCheck = updatedAt;
+		}
+	} else {
+		const configCandidate = volumeData.config ?? existingVolume.config;
+		const parsedConfig = volumeConfigSchema.safeParse(configCandidate);
+		if (!parsedConfig.success) {
+			throw new BadRequestError("Invalid volume configuration");
+		}
+		const config = parsedConfig.data;
+		configChanged =
+			volumeData.config !== undefined && JSON.stringify(existingVolume.config) !== JSON.stringify(config);
+		if (configChanged) {
+			logger.debug("Unmounting existing volume before applying new config");
+			await runVolumeBackendCommand(existing, "volume.unmount");
+		}
+		const encryptedConfig = await encryptVolumeConfig(config);
+		const autoRemount = volumeData.autoRemount ?? existingVolume.autoRemount;
+		const updatedAt = Date.now();
+		updateValues = {
+			name,
+			config: encryptedConfig,
+			type: config.backend,
+			autoRemount,
+			updatedAt,
+		};
 	}
-
-	const configChanged =
-		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;
-
-	if (configChanged) {
-		logger.debug("Unmounting existing volume before applying new config");
-		await runVolumeBackendCommand(existing, "volume.unmount");
-	}
-
-	const newConfigResult = volumeConfigSchema.safeParse(volumeData.config || existing.config);
-	if (!newConfigResult.success) {
-		throw new BadRequestError("Invalid volume configuration");
-	}
-	const newConfig = newConfigResult.data;
-
-	const encryptedConfig = await encryptVolumeConfig(newConfig);
 
 	const [updated] = await db
 		.update(volumesTable)
-		.set({
-			name: normalizedName,
-			config: encryptedConfig,
-			type: volumeData.config?.backend,
-			autoRemount: volumeData.autoRemount,
-			updatedAt: Date.now(),
-		})
+		.set(updateValues)
 		.where(and(eq(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)))
 		.returning();
 
 	if (!updated) {
-		throw new InternalServerError("Failed to update volume");
+		throw new InternalServerError(updateErrorMessage);
 	}
 
 	if (configChanged) {
@@ -251,7 +407,14 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 };
 
 const testConnection = async (backendConfig: BackendConfig) => {
-	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
+	const organizationId = getOrganizationId();
+	const command = await agentManager.runVolumeCommand(LOCAL_AGENT_ID, organizationId, {
+		name: "volume.testConnection",
+		backendConfig,
+	});
+	if (command.name !== "volume.testConnection") {
+		throw new InternalServerError("Unexpected agent response for volume.testConnection");
+	}
 	return command.result;
 };
 
@@ -261,6 +424,25 @@ const checkHealth = async (shortId: ShortId) => {
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
+	}
+	if (volume.sourceKind === "agent-filesystem") {
+		const checkedAt = Date.now();
+		try {
+			const source = await assembleVolumeExecutionSource(volume, organizationId);
+			await runVolumeCommand(volume.agentId, organizationId, { name: "volume.statfs", source });
+			await db
+				.update(volumesTable)
+				.set({ lastHealthCheck: checkedAt, status: "mounted", lastError: null })
+				.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
+			return { status: "mounted" as const, error: undefined };
+		} catch (error) {
+			const message = toMessage(error);
+			await db
+				.update(volumesTable)
+				.set({ lastHealthCheck: checkedAt, status: "error", lastError: message })
+				.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
+			return { status: "error" as const, error: message };
+		}
 	}
 
 	const { error, status } = await runVolumeBackendCommand(volume, "volume.checkHealth");
@@ -282,6 +464,16 @@ const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolum
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
+	}
+	if (volume.sourceKind === "agent-filesystem") {
+		const health = await checkHealth(shortId);
+		if (health.status === "mounted") {
+			const healthyVolume = { ...volume, status: "mounted" as const, lastError: null };
+			return { ready: true, volume: healthyVolume, remounted: false };
+		}
+		const reason = health.error ?? "Trusted filesystem source is unavailable";
+		const failedVolume = { ...volume, status: "error" as const, lastError: reason };
+		return { ready: false, volume: failedVolume, reason };
 	}
 
 	if (volume.type === "directory") {
@@ -349,14 +541,16 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 		throw new NotFoundError("Volume not found");
 	}
 
-	if (volume.status !== "mounted") {
+	if (volume.sourceKind === "managed" && volume.status !== "mounted") {
 		throw new InternalServerError("Volume is not mounted");
 	}
 
 	try {
-		const command = await runVolumeCommand(volume.agentId, {
+		const organizationId = getOrganizationId();
+		const source = await assembleVolumeExecutionSource(volume, organizationId);
+		const command = await runVolumeCommand(volume.agentId, organizationId, {
 			name: "volume.listFiles",
-			volume: await volumeForAgent(volume),
+			source,
 			subPath,
 			offset,
 			limit,
@@ -367,14 +561,45 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 	}
 };
 
-const browseFilesystem = async (browsePath: string) => {
+const browseFilesystem = async (agentId: string, rootId: string, browsePath: string) => {
+	const organizationId = getOrganizationId();
+	await validateTrustedRoot(agentId, rootId, organizationId);
+	const decodedPath = decodeTrustedPathPresentation(browsePath);
+	const relativePath = normalizeRelativePath(decodedPath);
+	const reference = { rootId, relativePath };
 	try {
-		const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "filesystem.browse", path: browsePath });
+		const command = await runVolumeCommand(agentId, organizationId, { name: "filesystem.browse", reference });
 		return command.result;
 	} catch (error) {
-		throw new InternalServerError(`Failed to browse filesystem: ${toMessage(error)}`);
+		throw new ServiceUnavailableError(`Failed to browse filesystem: ${toMessage(error)}`);
 	}
 };
+
+const listSourceMachines = async () => {
+	const organizationId = getOrganizationId();
+	return querySourceMachines(organizationId);
+};
+
+const toPresentedVolume = async (volume: Volume) => {
+	const [presented] = await presentVolumes([volume], getOrganizationId());
+	if (!presented) throw new InternalServerError("Source presentation failed");
+	return presented;
+};
+
+const toPresentedVolumeDetail = async (volume: Volume) => {
+	const presentedVolume = await toPresentedVolume(volume);
+	const path = getVolumePath(volume);
+	const detail = { ...presentedVolume, path };
+	return presentedVolumeDetailSchema.parse(detail);
+};
+
+const getVolume = async (shortId: ShortId) => {
+	const result = await getCanonicalVolumeDetail(shortId);
+	const volume = await toPresentedVolumeDetail(result.volume);
+	return { ...result, volume };
+};
+
+const toPresentedVolumes = (volumes: Volume[]) => presentVolumes(volumes, getOrganizationId());
 
 export const volumeService = {
 	listVolumes,
@@ -389,4 +614,10 @@ export const volumeService = {
 	ensureHealthyVolume,
 	listFiles,
 	browseFilesystem,
+	listSourceMachines,
+	validateTrustedRoot,
+	toCanonicalVolume,
+	toPresentedVolume,
+	toPresentedVolumeDetail,
+	toPresentedVolumes,
 };

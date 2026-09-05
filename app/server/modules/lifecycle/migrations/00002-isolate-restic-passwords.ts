@@ -134,6 +134,9 @@ const execute = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
+		if (!volume.config) {
+			continue;
+		}
 		try {
 			const rekeyedConfig = (await rekeySecrets(volume.config)) as BackendConfig;
 

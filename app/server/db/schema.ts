@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	check,
+	index,
+	int,
+	integer,
+	sqliteTable,
+	text,
+	real,
+	primaryKey,
+	unique,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type {
 	CompressionMode,
 	RepositoryBackend,
@@ -207,6 +218,7 @@ export const ssoProvider = sqliteTable("sso_provider", {
 export type AgentKind = "local" | "remote";
 export type AgentStatus = "offline" | "connecting" | "online" | "degraded";
 export type AgentCapabilities = Record<string, unknown>;
+export type VolumeSourceKind = "managed" | "agent-filesystem";
 
 export const agentsTable = sqliteTable(
 	"agents_table",
@@ -217,6 +229,10 @@ export const agentsTable = sqliteTable(
 		kind: text("kind").$type<AgentKind>().notNull(),
 		status: text("status").$type<AgentStatus>().notNull().default("offline"),
 		capabilities: text("capabilities", { mode: "json" }).$type<AgentCapabilities>().notNull().default({}),
+		credentialHash: text("credential_hash"),
+		enrollmentExpiresAt: int("enrollment_expires_at", { mode: "number" }),
+		credentialVersion: int("credential_version", { mode: "number" }).notNull().default(0),
+		revokedAt: int("revoked_at", { mode: "number" }),
 		lastSeenAt: int("last_seen_at", { mode: "number" }),
 		lastReadyAt: int("last_ready_at", { mode: "number" }),
 		createdAt: int("created_at", { mode: "number" })
@@ -244,7 +260,7 @@ export const volumesTable = sqliteTable(
 		shortId: text("short_id").$type<ShortId>().notNull().unique(),
 		provisioningId: text("provisioning_id"),
 		name: text().notNull(),
-		type: text().$type<BackendType>().notNull(),
+		type: text().$type<BackendType>(),
 		status: text().$type<BackendStatus>().notNull().default("unmounted"),
 		lastError: text("last_error"),
 		lastHealthCheck: integer("last_health_check", { mode: "number" })
@@ -257,9 +273,12 @@ export const volumesTable = sqliteTable(
 			.notNull()
 			.$onUpdate(() => Date.now())
 			.default(sql`(unixepoch() * 1000)`),
-		config: text("config", { mode: "json" }).$type<BackendConfig>().notNull(),
+		config: text("config", { mode: "json" }).$type<BackendConfig>(),
 		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 		agentId: text("agent_id").notNull().default(LOCAL_AGENT_ID),
+		sourceKind: text("source_kind").$type<VolumeSourceKind>().notNull().default("managed"),
+		trustedRootId: text("trusted_root_id"),
+		relativePath: text("relative_path"),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
@@ -267,6 +286,10 @@ export const volumesTable = sqliteTable(
 	(table) => [
 		unique().on(table.name, table.organizationId),
 		index("volumes_table_agent_id_idx").on(table.agentId),
+		check(
+			"volumes_table_source_fields_check",
+			sql`(${table.sourceKind} = 'managed' AND ${table.config} IS NOT NULL AND ${table.type} IS NOT NULL AND ${table.trustedRootId} IS NULL AND ${table.relativePath} IS NULL) OR (${table.sourceKind} = 'agent-filesystem' AND ${table.config} IS NULL AND ${table.type} IS NULL AND ${table.trustedRootId} IS NOT NULL AND ${table.relativePath} IS NOT NULL)`,
+		),
 		uniqueIndex("volumes_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
 	],
 );

@@ -1,18 +1,19 @@
 import { useMemo } from "react";
-import { FolderOpen, HardDrive, Settings, Unplug } from "lucide-react";
+import { FolderOpen, HardDrive, Laptop, Settings, Unplug } from "lucide-react";
 import { Label, Pie, PieChart } from "recharts";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardTitle } from "~/client/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/client/components/ui/chart";
-import type { StatFs, Volume } from "~/client/lib/types";
+import type { PresentedVolume, StatFs } from "~/client/lib/types";
 import { cn } from "~/client/lib/utils";
+import { getRemoteSourcePresentation } from "../source-presentation";
 
 type Props = {
-	volume: Volume;
+	volume: PresentedVolume;
 	statfs: StatFs;
 };
 
-const backendLabels: Record<Volume["type"], string> = {
+const backendLabels: Record<Exclude<PresentedVolume["type"], null>, string> = {
 	directory: "Directory",
 	nfs: "NFS",
 	smb: "SMB",
@@ -30,18 +31,37 @@ type ConfigRowProps = {
 
 function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 	return (
-		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+		<div className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0 sm:flex-nowrap sm:items-center">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
-			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
-			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
+			<span className="w-[calc(100%-1.75rem)] shrink-0 text-sm text-muted-foreground sm:w-40">{label}</span>
+			<span className={cn("min-w-0 text-sm break-words", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
 				{value}
 			</span>
 		</div>
 	);
 }
 
-function BackendConfigRows({ volume }: { volume: Volume }) {
+function BackendConfigRows({ volume }: { volume: PresentedVolume }) {
 	const config = volume.config;
+	if (!config) {
+		const presentation = getRemoteSourcePresentation(volume);
+		return (
+			<>
+				<ConfigRow icon={<Laptop className="h-4 w-4" />} label="Machine" value={presentation.machine} />
+				<ConfigRow
+					icon={<FolderOpen className="h-4 w-4" />}
+					label="Allowed location"
+					value={presentation.location}
+				/>
+				<ConfigRow
+					icon={<FolderOpen className="h-4 w-4" />}
+					label="Logical folder"
+					value={presentation.logicalFolder}
+				/>
+				<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Availability" value={presentation.status} />
+			</>
+		);
+	}
 
 	switch (config.backend) {
 		case "directory":
@@ -154,6 +174,10 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const { total = 0, used = 0, free = 0 } = statfs;
 
 	const hasStorage = total > 0;
+	const backendLabel = volume.type === null ? "Agent filesystem" : backendLabels[volume.type];
+	const remotePresentation = volume.sourceKind === "agent-filesystem" ? getRemoteSourcePresentation(volume) : null;
+	const informationTitle = remotePresentation ? "Source information" : "Configuration";
+	const noStorageMessage = "Mount the source to see usage.";
 
 	return (
 		<Card className="px-6 py-6 @container/inner">
@@ -161,20 +185,23 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 				<div>
 					<CardTitle className="flex items-center gap-2 mb-5">
 						<Settings className="h-4 w-4 text-muted-foreground" />
-						Configuration
+						{informationTitle}
 					</CardTitle>
 					<div className="space-y-0 divide-y divide-border/50">
 						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Name" value={volume.name} />
-						<ConfigRow
-							icon={<HardDrive className="h-4 w-4" />}
-							label="Backend"
-							value={backendLabels[volume.type]}
-						/>
+						{!remotePresentation && (
+							<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={backendLabel} />
+						)}
 						<BackendConfigRows volume={volume} />
+						{remotePresentation && (
+							<p className="pt-3 text-pretty text-sm text-muted-foreground">
+								{remotePresentation.explanation}
+							</p>
+						)}
 					</div>
 				</div>
 
-				{hasStorage ? (
+				{!remotePresentation && hasStorage ? (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8">
 						<CardTitle className="flex items-center gap-2 mb-2 text-center @3xl/inner:text-left">
 							<HardDrive className="h-4 w-4" />
@@ -205,16 +232,16 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							</div>
 						</div>
 					</div>
-				) : (
+				) : !remotePresentation ? (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8 flex flex-col items-center justify-center text-center py-8">
 						<Unplug className="mb-4 h-5 w-5 text-muted-foreground" />
 						<p className="text-sm text-muted-foreground">
 							No storage data available.
 							<br />
-							Mount the volume to see usage.
+							{noStorageMessage}
 						</p>
 					</div>
-				)}
+				) : null}
 			</div>
 		</Card>
 	);

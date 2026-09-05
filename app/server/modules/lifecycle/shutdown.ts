@@ -5,14 +5,15 @@ import { logger } from "@zerobyte/core/node";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { volumeService } from "../volumes/volume.service";
 import { toMessage } from "../../utils/errors";
-import { stopApplicationRuntime } from "./bootstrap";
+import { stopAgentController } from "../agents/agents-manager";
+import { enqueueApplicationLifecycleTransition, getApplicationLifecycleRuntime } from "./bootstrap-runtime";
 
-export const shutdown = async () => {
+const stopSchedulerAndUnmountVolumes = async () => {
 	await Scheduler.stop();
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: {
-			AND: [{ agentId: LOCAL_AGENT_ID }, { status: "mounted" }],
+			AND: [{ agentId: LOCAL_AGENT_ID }, { sourceKind: "managed" }, { status: "mounted" }],
 		},
 	});
 
@@ -27,6 +28,27 @@ export const shutdown = async () => {
 			logger.error(`Error unmounting volume ${volume.name} on shutdown: ${toMessage(error)}`);
 		}
 	}
+};
 
-	await stopApplicationRuntime();
+export const shutdown = () => {
+	const runtime = getApplicationLifecycleRuntime();
+	if (runtime.shutdownPromise) return runtime.shutdownPromise;
+
+	const operation = enqueueApplicationLifecycleTransition(async (runtime, generation) => {
+		runtime.status = "stopping";
+
+		try {
+			try {
+				await stopSchedulerAndUnmountVolumes();
+			} finally {
+				await stopAgentController();
+			}
+		} finally {
+			runtime.status = "stopped";
+			runtime.completedGeneration = generation;
+		}
+	});
+
+	runtime.shutdownPromise = operation;
+	return operation;
 };

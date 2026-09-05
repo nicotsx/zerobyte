@@ -1,4 +1,5 @@
 import { logger } from "@zerobyte/core/node";
+import type { ChildProcess } from "node:child_process";
 import type {
 	BackupRunPayload,
 	RestoreRunPayload,
@@ -6,13 +7,11 @@ import type {
 	VolumeCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
-import { config } from "../../core/config";
 import { toMessage } from "../../utils/errors";
 import { createAgentManagerRuntime, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess } from "./local/process";
 import {
-	createAgentRuntimeState,
 	type AgentRuntimeState,
 	type BackupExecutionProgress,
 	type BackupExecutionResult,
@@ -27,10 +26,6 @@ export type {
 	RestoreExecutionResult,
 } from "./helpers/runtime-state";
 export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
-
-type ProcessWithProductionAgentRuntime = NodeJS.Process & {
-	__zerobyteProductionAgentRuntime?: AgentRuntimeState;
-};
 
 type AgentRunBackupRequest = {
 	scheduleId: number;
@@ -49,19 +44,8 @@ type AgentRestoreStartResult =
 	| { status: "started"; result: Promise<RestoreExecutionResult> }
 	| { status: "unavailable"; error: Error };
 
-const getProductionAgentRuntimeState = () => {
-	// Nitro production builds can bundle startup plugins and API handlers into separate chunks.
-	// Keep the live controller on process so both chunks see the same agent sessions.
-	const runtimeProcess = process as ProcessWithProductionAgentRuntime;
-	if (!runtimeProcess.__zerobyteProductionAgentRuntime) {
-		runtimeProcess.__zerobyteProductionAgentRuntime = createAgentRuntimeState();
-	}
-
-	return runtimeProcess.__zerobyteProductionAgentRuntime;
-};
-
-const getAgentRuntimeState = () => (config.__prod__ ? getProductionAgentRuntimeState() : getDevAgentRuntimeState());
-const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
+const getAgentRuntimeState = getDevAgentRuntimeState;
+export const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
 const getActiveRestoresByRestoreId = () => getAgentRuntimeState().activeRestoresByRestoreId;
@@ -382,29 +366,82 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 	}
 };
 
-export const startAgentController = async () => {
+const enqueueAgentManagerLifecycleTransition = <Result>(
+	transition: (runtime: AgentRuntimeState) => Promise<Result>,
+) => {
 	const runtime = getAgentRuntimeState();
+	const runTransition = () => transition(runtime);
+	const operation = runtime.lifecycleTail.then(runTransition);
+	runtime.lifecycleTail = operation.then(
+		() => undefined,
+		() => undefined,
+	);
+	return operation;
+};
 
-	if (runtime.agentManager) {
-		await Effect.runPromise(runtime.agentManager.stop);
+export const startAgentController = () =>
+	enqueueAgentManagerLifecycleTransition(async (runtime) => {
+		if (runtime.agentManager) return;
+
+		const nextAgentManager = createAgentManagerRuntime(handleAgentManagerEvent);
+		await Effect.runPromise(nextAgentManager.start);
+		runtime.agentManager = nextAgentManager;
+	});
+
+export const stopAgentController = () => {
+	const currentRuntime = getAgentRuntimeState();
+	requestLocalAgentStop(currentRuntime);
+	return enqueueAgentManagerLifecycleTransition(async (runtime) => {
+		let localAgentStopFailed = false;
+		let localAgentStopError: unknown;
+		try {
+			await stopLocalAgentNow(runtime);
+		} catch (error) {
+			localAgentStopFailed = true;
+			localAgentStopError = error;
+		}
+
+		const agentManagerRuntime = runtime.agentManager;
 		runtime.agentManager = null;
-	}
+		try {
+			if (agentManagerRuntime) {
+				await Effect.runPromise(agentManagerRuntime.stop);
+			}
+		} catch (agentManagerStopError) {
+			if (localAgentStopFailed) {
+				throw new AggregateError(
+					[localAgentStopError, agentManagerStopError],
+					"Failed to stop the local agent and agent controller",
+				);
+			}
+			throw agentManagerStopError;
+		}
 
-	const nextAgentManager = createAgentManagerRuntime(handleAgentManagerEvent);
-	await Effect.runPromise(nextAgentManager.start);
-	runtime.agentManager = nextAgentManager;
+		if (localAgentStopFailed) {
+			throw localAgentStopError;
+		}
+	});
 };
 
-export const stopAgentController = async () => {
-	const runtime = getAgentRuntimeState();
-	const agentManagerRuntime = runtime.agentManager;
-	runtime.agentManager = null;
-	if (agentManagerRuntime) {
-		await Effect.runPromise(agentManagerRuntime.stop);
-	}
-};
+async function runAgentVolumeCommand(
+	agentId: string,
+	organizationId: string,
+	command: VolumeCommand,
+): Promise<VolumeCommandResult> {
+	const runtime = getAgentManagerRuntime();
+	if (!runtime) throw new Error(`Volume agent ${agentId} is not connected`);
+	const response = await Effect.runPromise(runtime.runVolumeCommand(agentId, organizationId, command));
+	if (!response) throw new Error(`Failed to send volume command ${command.name} to agent ${agentId}`);
+	if (response.status === "error") throw new Error(response.error);
+	return response.command;
+}
 
 export const agentManager = {
+	isAgentReady: async (agentId: string) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) return false;
+		return runtime.waitForAgentReady(agentId, 0);
+	},
 	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
 		const runtime = getAgentManagerRuntime();
 		if (!runtime) {
@@ -463,23 +500,7 @@ export const agentManager = {
 	cancelBackup: async (agentId: string, scheduleId: number) => {
 		return requestBackupCancellation(agentId, scheduleId);
 	},
-	runVolumeCommand: async (agentId: string, command: VolumeCommand): Promise<VolumeCommandResult> => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			throw new Error(`Volume agent ${agentId} is not connected`);
-		}
-
-		const response = await Effect.runPromise(runtime.runVolumeCommand(agentId, command));
-		if (!response) {
-			throw new Error(`Failed to send volume command ${command.name} to agent ${agentId}`);
-		}
-
-		if (response.status === "error") {
-			throw new Error(response.error);
-		}
-
-		return response.command;
-	},
+	runVolumeCommand: runAgentVolumeCommand,
 	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
 		const runtime = getAgentManagerRuntime();
 		if (!runtime) {
@@ -534,30 +555,166 @@ export const agentManager = {
 	cancelRestore: async (agentId: string, restoreId: string) => {
 		return requestRestoreCancellation(agentId, restoreId);
 	},
+	disconnectAgent: async (agentId: string) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) return false;
+
+		try {
+			return await runtime.disconnectAgent(agentId);
+		} catch {
+			logger.warn(`Failed to disconnect agent ${agentId}`);
+			return false;
+		}
+	},
 };
 
-export const startLocalAgent = async () => {
-	const runtime = getAgentRuntimeState();
+const isCurrentLocalAgentGeneration = (runtime: AgentRuntimeState, generation: number) => {
+	return runtime.localAgentDesiredRunning && runtime.localAgentGeneration === generation;
+};
 
-	if (!runtime.agentManager) {
+const stopPublishedLocalAgent = async (runtime: AgentRuntimeState, agentProcess: ChildProcess) => {
+	if (runtime.localAgent === agentProcess) {
+		runtime.localAgent = null;
+	}
+
+	runtime.isStoppingLocalAgent = true;
+	try {
+		await stopLocalAgentProcess(agentProcess);
+	} finally {
+		runtime.isStoppingLocalAgent = false;
+	}
+};
+
+const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) => {
+	if (!isCurrentLocalAgentGeneration(runtime, generation)) {
+		return;
+	}
+
+	const pendingRestart = runtime.localAgentRestartTimeout;
+	if (pendingRestart) {
+		clearTimeout(pendingRestart);
+		runtime.localAgentRestartTimeout = null;
+	}
+
+	const currentAgent = runtime.localAgent;
+	const currentAgentIsHealthy =
+		currentAgent !== null && currentAgent.exitCode === null && currentAgent.signalCode === null;
+	if (currentAgentIsHealthy) {
+		return;
+	}
+
+	if (currentAgent) {
+		runtime.localAgent = null;
+	}
+
+	const agentManager = runtime.agentManager;
+	if (!agentManager) {
 		throw new Error(
 			`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because runtime.agentManager is missing; waitForAgentReady cannot check readiness`,
 		);
 	}
 
-	const controllerUrl = runtime.agentManager.getControllerUrl();
+	const controllerUrl = agentManager.getControllerUrl();
 	if (!controllerUrl) {
 		throw new Error(`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller URL is not available`);
 	}
 
-	await spawnLocalAgentProcess(runtime, controllerUrl);
+	const agentProcess = await spawnLocalAgentProcess(controllerUrl);
+	const generationIsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
+	const managerIsCurrent = runtime.agentManager === agentManager;
+	if (!generationIsCurrent || !managerIsCurrent) {
+		await stopLocalAgentProcess(agentProcess);
+		return;
+	}
 
-	if (!(await runtime.agentManager.waitForAgentReady(LOCAL_AGENT_ID))) {
+	runtime.localAgent = agentProcess;
+	agentProcess.on("exit", (code, signal) => {
+		logger.info(`Agent process exited with code ${code} and signal ${signal}`);
+		const handleExit = async () => {
+			const childIsCurrent = runtime.localAgent === agentProcess;
+			const generationIsStillCurrent = runtime.localAgentGeneration === generation;
+			if (!childIsCurrent || !generationIsStillCurrent) {
+				return;
+			}
+
+			runtime.localAgent = null;
+			if (!runtime.localAgentDesiredRunning) {
+				return;
+			}
+
+			const restartTimeout = setTimeout(() => {
+				const restart = async () => {
+					const timeoutIsCurrent = runtime.localAgentRestartTimeout === restartTimeout;
+					const generationIsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
+					if (!timeoutIsCurrent || !generationIsCurrent) {
+						return;
+					}
+
+					runtime.localAgentRestartTimeout = null;
+					await ensureLocalAgent(runtime, generation);
+				};
+				const restartOperation = enqueueAgentManagerLifecycleTransition(restart);
+				void restartOperation.catch((error) => {
+					logger.error(
+						`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`,
+					);
+				});
+			}, 1_000);
+			runtime.localAgentRestartTimeout = restartTimeout;
+		};
+		const exitOperation = enqueueAgentManagerLifecycleTransition(handleExit);
+		void exitOperation.catch((error) => {
+			logger.error(
+				`Failed to handle local agent exit: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		});
+	});
+
+	const agentIsReady = await agentManager.waitForAgentReady(LOCAL_AGENT_ID);
+	const generationRemainsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
+	const childRemainsCurrent = runtime.localAgent === agentProcess;
+	const managerRemainsCurrent = runtime.agentManager === agentManager;
+	if (!generationRemainsCurrent || !childRemainsCurrent || !managerRemainsCurrent) {
+		await stopPublishedLocalAgent(runtime, agentProcess);
+		return;
+	}
+
+	if (!agentIsReady) {
+		await stopPublishedLocalAgent(runtime, agentProcess);
 		throw new Error("Local agent did not become ready before startup");
 	}
 };
 
+export const startLocalAgent = () => {
+	const runtime = getAgentRuntimeState();
+	const wasDesiredRunning = runtime.localAgentDesiredRunning;
+	runtime.localAgentDesiredRunning = true;
+	if (!wasDesiredRunning) {
+		runtime.localAgentGeneration += 1;
+	}
+	const generation = runtime.localAgentGeneration;
+	const ensureAgent = () => ensureLocalAgent(runtime, generation);
+	return enqueueAgentManagerLifecycleTransition(ensureAgent);
+};
+
+const requestLocalAgentStop = (runtime: AgentRuntimeState) => {
+	runtime.localAgentDesiredRunning = false;
+	runtime.localAgentGeneration += 1;
+};
+
+const stopLocalAgentNow = async (runtime: AgentRuntimeState) => {
+	const restartTimeout = runtime.localAgentRestartTimeout;
+	if (restartTimeout) {
+		clearTimeout(restartTimeout);
+		runtime.localAgentRestartTimeout = null;
+	}
+	const agentProcess = runtime.localAgent;
+	if (agentProcess) await stopPublishedLocalAgent(runtime, agentProcess);
+};
+
 // fallow-ignore-next-line unused-export
-export const stopLocalAgent = async () => {
-	await stopLocalAgentProcess(getAgentRuntimeState());
+export const stopLocalAgent = () => {
+	const runtime = getAgentRuntimeState();
+	requestLocalAgentStop(runtime);
+	return enqueueAgentManagerLifecycleTransition(stopLocalAgentNow);
 };

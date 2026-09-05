@@ -45,7 +45,10 @@ type ActiveRestoreRun = {
 
 export type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime | null;
+	lifecycleTail: Promise<void>;
 	localAgent: ChildProcess | null;
+	localAgentGeneration: number;
+	localAgentDesiredRunning: boolean;
 	isStoppingLocalAgent: boolean;
 	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
 	activeBackupsByScheduleId: Map<number, ActiveBackupRun>;
@@ -55,7 +58,10 @@ export type AgentRuntimeState = {
 
 export const createAgentRuntimeState = (): AgentRuntimeState => ({
 	agentManager: null,
+	lifecycleTail: Promise.resolve(),
 	localAgent: null,
+	localAgentGeneration: 0,
+	localAgentDesiredRunning: false,
 	isStoppingLocalAgent: false,
 	localAgentRestartTimeout: null,
 	activeBackupsByScheduleId: new Map(),

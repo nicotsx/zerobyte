@@ -3,16 +3,16 @@ import { describeRoute, resolver } from "hono-openapi";
 import {
 	browseFilesystemResponseSchema,
 	listVolumeFilesResponseSchema,
-	publicVolumeSchema,
+	presentedVolumeDetailSchema,
+	presentedVolumeSchema,
 	statfsSchema,
 	testVolumeConnectionResponseSchema,
+	sourceMachineSchema,
 	volumeConfigSchema,
 	volumeOperationResultSchema,
 } from "@zerobyte/contracts/volumes";
 
-const volumeSchema = publicVolumeSchema;
-
-const listVolumesResponse = volumeSchema.array();
+const listVolumesResponse = presentedVolumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;
 
 export const listVolumesDto = describeRoute({
@@ -31,12 +31,40 @@ export const listVolumesDto = describeRoute({
 	},
 });
 
-export const createVolumeBody = z.object({
-	name: z.string(),
-	config: volumeConfigSchema,
+const listSourceMachinesResponse = z.array(sourceMachineSchema);
+export type ListSourceMachinesDto = z.infer<typeof listSourceMachinesResponse>;
+
+export const listSourceMachinesDto = describeRoute({
+	description: "List organization-scoped machines and trusted roots available for filesystem sources",
+	tags: ["Volumes"],
+	operationId: "listSourceMachines",
+	responses: {
+		200: {
+			description: "Source machines",
+			content: { "application/json": { schema: resolver(listSourceMachinesResponse) } },
+		},
+	},
 });
 
-const createVolumeResponse = volumeSchema;
+export const createVolumeBody = z
+	.object({
+		name: z.string(),
+		config: volumeConfigSchema,
+		sourceKind: z.literal("managed").optional(),
+		agentId: z.string().optional(),
+	})
+	.or(
+		z.object({
+			name: z.string(),
+			sourceKind: z.literal("agent-filesystem"),
+			agentId: z.string().min(1),
+			trustedRootId: z.string().min(1),
+			relativePath: z.string().default(""),
+		}),
+	);
+export type CreateVolumeBody = z.infer<typeof createVolumeBody>;
+
+const createVolumeResponse = presentedVolumeDetailSchema;
 export type CreateVolumeDto = z.infer<typeof createVolumeResponse>;
 
 export const createVolumeDto = describeRoute({
@@ -76,7 +104,7 @@ export const deleteVolumeDto = describeRoute({
 });
 
 const getVolumeResponse = z.object({
-	volume: volumeSchema,
+	volume: presentedVolumeDetailSchema,
 	statfs: statfsSchema,
 });
 
@@ -102,14 +130,18 @@ export const getVolumeDto = describeRoute({
 });
 
 export const updateVolumeBody = z.object({
+	sourceKind: z.enum(["managed", "agent-filesystem"]).optional(),
 	name: z.string().optional(),
 	autoRemount: z.boolean().optional(),
 	config: volumeConfigSchema.optional(),
+	agentId: z.string().optional(),
+	trustedRootId: z.string().optional(),
+	relativePath: z.string().optional(),
 });
 
 export type UpdateVolumeBody = z.infer<typeof updateVolumeBody>;
 
-const updateVolumeResponse = volumeSchema;
+const updateVolumeResponse = presentedVolumeDetailSchema;
 export type UpdateVolumeDto = z.infer<typeof updateVolumeResponse>;
 
 export const updateVolumeDto = describeRoute({
@@ -245,12 +277,26 @@ export const browseFilesystemDto = describeRoute({
 	parameters: [
 		{
 			in: "query",
+			name: "agentId",
+			required: false,
+			schema: { type: "string" },
+			description: "Agent that owns the trusted root (defaults to the built-in local agent)",
+		},
+		{
+			in: "query",
+			name: "rootId",
+			required: false,
+			schema: { type: "string" },
+			description: "Stable trusted root ID (defaults to the built-in compatibility root)",
+		},
+		{
+			in: "query",
 			name: "path",
 			required: false,
 			schema: {
 				type: "string",
 			},
-			description: "Directory path to browse (absolute path, defaults to /)",
+			description: "Path relative to the trusted root (defaults to /)",
 		},
 	],
 	responses: {

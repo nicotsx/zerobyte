@@ -2,10 +2,10 @@ import { Cloud, Folder, Server } from "lucide-react";
 import type { BackendType } from "@zerobyte/contracts/volumes";
 
 type VolumeIconProps = {
-	backend: BackendType;
+	backend: BackendType | null;
 };
 
-const getIconAndLabel = (backend: BackendType) => {
+const getIconAndLabel = (backend: BackendType | null) => {
 	switch (backend) {
 		case "directory":
 			return {
@@ -36,6 +36,11 @@ const getIconAndLabel = (backend: BackendType) => {
 			return {
 				icon: Server,
 				label: "SFTP",
+			};
+		case null:
+			return {
+				icon: Folder,
+				label: "Filesystem",
 			};
 		default:
 			return {

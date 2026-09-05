@@ -1,3 +1,4 @@
+import { createAgentRuntimeState } from "../helpers/runtime-state";
 import { afterEach, expect, test, vi } from "vitest";
 import { Effect } from "effect";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
@@ -35,6 +36,7 @@ const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 
 const resetAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
+		...createAgentRuntimeState(),
 		agentManager: null,
 		localAgent: null,
 		isStoppingLocalAgent: false,

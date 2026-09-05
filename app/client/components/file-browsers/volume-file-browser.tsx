@@ -10,13 +10,19 @@ import { FolderAccessError } from "./folder-access-error";
 type VolumeFileBrowserProps = FileBrowserUiProps & {
 	volumeId: string;
 	enabled?: boolean;
+	requestErrorMessage?: string;
 };
 
-export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: VolumeFileBrowserProps) => {
+export const VolumeFileBrowser = ({
+	volumeId,
+	enabled = true,
+	requestErrorMessage,
+	...uiProps
+}: VolumeFileBrowserProps) => {
 	const queryClient = useQueryClient();
 	const isDesktop = useIsDesktop();
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error, refetch } = useQuery({
 		...listFilesOptions({ path: { shortId: volumeId } }),
 		enabled,
 	});
@@ -46,16 +52,27 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 				},
 	});
 
+	const genericNestedRequestErrorMessage = "Files could not be loaded. Try again.";
+	const parsedErrorMessage = parseError(error)?.message;
+	const errorMessage = error ? (requestErrorMessage ?? parsedErrorMessage) : undefined;
+
+	const renderError = (message: string) => (
+		<FolderAccessError
+			message={message}
+			openPrivacySettings={isDesktop ? window.zerobyteDesktop?.openPrivacySettings : undefined}
+		/>
+	);
+
 	return (
 		<FileBrowser
 			{...uiProps}
 			folderErrors={fileBrowser.folderErrors}
-			renderError={(message) => (
-				<FolderAccessError
-					message={message}
-					openPrivacySettings={isDesktop ? window.zerobyteDesktop?.openPrivacySettings : undefined}
-				/>
-			)}
+			onFolderRetry={fileBrowser.retryFolder}
+			renderError={renderError}
+			renderFolderError={(message) => {
+				const denied = /\b(EPERM|EACCES)\b/.test(message);
+				return renderError(requestErrorMessage ?? (denied ? message : genericNestedRequestErrorMessage));
+			}}
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
@@ -65,9 +82,12 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 			getFolderPagination={fileBrowser.getFolderPagination}
 			isLoading={fileBrowser.isLoading}
 			isEmpty={fileBrowser.isEmpty}
-			errorMessage={parseError(error)?.message}
+			errorMessage={errorMessage}
+			onRetry={async () => {
+				await refetch();
+			}}
 			loadingMessage={uiProps.loadingMessage ?? "Loading files..."}
-			emptyMessage={uiProps.emptyMessage ?? "This volume appears to be empty."}
+			emptyMessage={uiProps.emptyMessage ?? "This source appears to be empty."}
 		/>
 	);
 };

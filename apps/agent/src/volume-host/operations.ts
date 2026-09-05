@@ -1,11 +1,14 @@
 import * as fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { BackendConfig, Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
 import { Data, Effect } from "effect";
-import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
+import { createVolumeBackend, isNodeJSErrnoException } from ".";
+import type { ResolvedFileListingSource } from "../execution-policy";
+import { serializeFilesystemPath } from "../trusted-source-presentation";
 
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
@@ -16,13 +19,13 @@ const realpath = async (value: string) => {
 };
 
 export const listVolumeFiles = async (
-	volume: AgentVolume,
-	subPath?: string,
+	source: ResolvedFileListingSource,
 	offset: number = 0,
 	limit: number = DEFAULT_PAGE_SIZE,
 ) => {
-	const volumePath = getVolumePath(volume);
-	const requestedPath = subPath ? path.join(volumePath, subPath) : volumePath;
+	const volumePath = source.canonicalPath;
+	const requestedSubPath = source.requestedSubPath;
+	const requestedPath = requestedSubPath ? path.join(volumePath, requestedSubPath) : volumePath;
 	const normalizedPath = path.normalize(requestedPath);
 	const requestedRelativePath = path.relative(volumePath, normalizedPath);
 
@@ -68,7 +71,7 @@ export const listVolumeFiles = async (
 
 					try {
 						const stats = await fs.stat(fullPath);
-						const relativePath = path.relative(realVolumeRoot, fullPath);
+						const relativePath = serializeFilesystemPath(path.relative(realVolumeRoot, fullPath));
 
 						return {
 							name: dirent.name,
@@ -84,9 +87,15 @@ export const listVolumeFiles = async (
 			)
 		).filter((entry) => entry !== null);
 
+		let responsePath = "/";
+		if (source.responsePathStyle === "source-relative" && requestedRelativePath) {
+			responsePath = `/${serializeFilesystemPath(requestedRelativePath)}`;
+		} else if (source.responsePathStyle === "legacy" && requestedSubPath) {
+			responsePath = serializeFilesystemPath(requestedSubPath);
+		}
 		return {
 			files: entries,
-			path: subPath || "/",
+			path: responsePath,
 			offset: startOffset,
 			limit: pageSize,
 			total,
@@ -94,7 +103,7 @@ export const listVolumeFiles = async (
 		};
 	} catch (error) {
 		logger.error("Failed to list volume directory", {
-			volumeId: volume.shortId,
+			volumeId: source.sourceId,
 			volumePath,
 			requestedPath,
 			error: toMessage(error),
@@ -106,13 +115,20 @@ export const listVolumeFiles = async (
 		if (toMessage(error) === "Invalid path") {
 			throw error;
 		}
-		throw new Error(`Failed to list files: ${toMessage(error)}`);
+		console.error(`Failed to list trusted source files: ${toMessage(error)}`);
+		throw new Error("Failed to list files");
 	}
 };
 
-export const browseFilesystem = async (browsePath: string) => {
+export const browseFilesystem = async (browsePath: string, trustedRootPath?: string) => {
 	const normalizedPath = path.normalize(browsePath);
-	const entries = await fs.readdir(normalizedPath, { withFileTypes: true });
+	let entries: Dirent[];
+	try {
+		entries = await fs.readdir(normalizedPath, { withFileTypes: true });
+	} catch (error) {
+		console.error(`Failed to browse trusted source: ${toMessage(error)}`);
+		throw new Error("Failed to browse filesystem");
+	}
 
 	const directories = await Promise.all(
 		entries
@@ -122,17 +138,29 @@ export const browseFilesystem = async (browsePath: string) => {
 
 				try {
 					const stats = await fs.stat(fullPath);
+					const relativePath = trustedRootPath ? path.relative(trustedRootPath, fullPath) : fullPath;
+					const portableRelativePath = serializeFilesystemPath(relativePath);
+					const displayPath =
+						trustedRootPath && portableRelativePath
+							? `/${portableRelativePath}`
+							: portableRelativePath || "/";
 					return {
 						name: entry.name,
-						path: fullPath,
+						path: displayPath,
 						type: "directory" as const,
 						size: undefined,
 						modifiedAt: stats.mtimeMs,
 					};
 				} catch {
+					const relativePath = trustedRootPath ? path.relative(trustedRootPath, fullPath) : fullPath;
+					const portableRelativePath = serializeFilesystemPath(relativePath);
+					const displayPath =
+						trustedRootPath && portableRelativePath
+							? `/${portableRelativePath}`
+							: portableRelativePath || "/";
 					return {
 						name: entry.name,
-						path: fullPath,
+						path: displayPath,
 						type: "directory" as const,
 						size: undefined,
 						modifiedAt: undefined,
@@ -141,9 +169,11 @@ export const browseFilesystem = async (browsePath: string) => {
 			}),
 	);
 
+	const relativeBrowsePath = trustedRootPath ? path.relative(trustedRootPath, normalizedPath) : normalizedPath;
+	const displayBrowsePath = serializeFilesystemPath(relativeBrowsePath) || "/";
 	return {
 		directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
-		path: normalizedPath,
+		path: displayBrowsePath,
 	};
 };
 
@@ -192,6 +222,9 @@ export const testVolumeConnection = (backendConfig: BackendConfig) =>
 				autoRemount: true,
 				agentId: "local",
 				organizationId: "test-org",
+				sourceKind: "managed",
+				trustedRootId: null,
+				relativePath: null,
 			};
 
 			const backend = createVolumeBackend(mockVolume, tempDir);

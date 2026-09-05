@@ -14,6 +14,17 @@ const getExportedRepositoryName = (name: string, shortId: string) => {
 	return normalizedName || `Repository ${shortId}`;
 };
 
+const decryptExportedVolumeConfig = async (volume: {
+	name: string;
+	config: Parameters<typeof decryptVolumeConfig>[0] | null;
+}) => {
+	if (!volume.config) {
+		throw new Error(`Cannot export remote filesystem source "${volume.name}"`);
+	}
+
+	return decryptVolumeConfig(volume.config);
+};
+
 export class OrganizationResticPasswordNotFoundError extends Error {
 	constructor() {
 		super("Organization Restic password not found");
@@ -106,7 +117,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 			volumes.map(async (volume) => ({
 				ref: getRequiredRef(volumeRefs, volume.id, "volume"),
 				name: volume.name,
-				config: await decryptVolumeConfig(volume.config),
+				config: await decryptExportedVolumeConfig(volume),
 				autoRemount: volume.autoRemount,
 			})),
 		),

@@ -41,7 +41,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
 			displayBasePath: getVolumeMountPath(schedule.data.volume),
 			hasNonPosixSnapshotPaths,
-			volumeReadOnly: schedule.data.volume.config.readOnly ?? false,
+			volumeReadOnly: schedule.data.volume.config?.readOnly ?? false,
 		};
 	},
 	head: ({ params }) => ({

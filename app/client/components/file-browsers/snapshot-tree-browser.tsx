@@ -140,6 +140,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 				{...fileBrowserUiProps}
 				className="flex flex-1 min-h-0 flex-col"
 				folderErrors={fileBrowser.folderErrors}
+				onFolderRetry={fileBrowser.retryFolder}
 				fileArray={fileBrowser.fileArray}
 				expandedFolders={fileBrowser.expandedFolders}
 				loadingFolders={fileBrowser.loadingFolders}

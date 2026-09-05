@@ -558,7 +558,9 @@ describe("RestoreForm", () => {
 				"The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
 			),
 		).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Original path on this server" }).hasAttribute("disabled")).toBe(
+			true,
+		);
 		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
 
 		await userEvent.click(screen.getByRole("button", { name: "Change" }));

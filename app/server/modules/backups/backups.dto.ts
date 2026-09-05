@@ -2,7 +2,7 @@ import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { backupWebhooksSchema } from "@zerobyte/core/backup-hooks";
 import { COMPRESSION_MODES } from "@zerobyte/core/restic";
-import { publicVolumeSchema } from "@zerobyte/contracts/volumes";
+import { presentedVolumeSchema } from "@zerobyte/contracts/volumes";
 import { finishedTaskStatusSchema } from "~/schemas/tasks";
 import { retentionPolicySchema } from "~/schemas/retention";
 import { repositorySchema } from "../repositories/repositories.dto";
@@ -33,7 +33,7 @@ const backupScheduleSchema = z.object({
 	nextBackupAt: z.number().nullable(),
 	createdAt: z.number(),
 	updatedAt: z.number(),
-	volume: publicVolumeSchema,
+	volume: presentedVolumeSchema,
 	repository: repositorySchema,
 });
 

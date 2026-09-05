@@ -1,16 +1,16 @@
 import { runDbMigrations } from "../../db/db";
-import { startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } from "../agents/agents-manager";
+import { startAgentController, startLocalAgent, stopAgentController } from "../agents/agents-manager";
 import { agentsService } from "../agents/agents.service";
+import { enqueueApplicationLifecycleTransition, getApplicationLifecycleRuntime } from "./bootstrap-runtime";
 import { runMigrations } from "./migrations";
 import { startup } from "./startup";
-
-let bootstrapPromise: Promise<void> | undefined;
 
 const runBootstrap = async () => {
 	const bootstrapStartedAt = Date.now();
 	await runDbMigrations();
 	await runMigrations();
 	await agentsService.ensureLocalAgent();
+	await agentsService.markStaleRemoteAgentsOffline();
 
 	try {
 		await startAgentController();
@@ -19,30 +19,29 @@ const runBootstrap = async () => {
 
 		await startup(bootstrapStartedAt);
 	} catch (error) {
-		await stopLocalAgent();
 		await stopAgentController();
 		throw error;
 	}
 };
 
-export const bootstrapApplication = async () => {
-	if (!bootstrapPromise) {
-		bootstrapPromise = runBootstrap();
-	}
+export const bootstrapApplication = () => {
+	getApplicationLifecycleRuntime().shutdownPromise = null;
 
-	try {
-		await bootstrapPromise;
-	} catch (err) {
-		bootstrapPromise = undefined;
-		throw err;
-	}
-};
+	return enqueueApplicationLifecycleTransition(async (runtime, generation) => {
+		if (runtime.status === "running") {
+			runtime.completedGeneration = generation;
+			return;
+		}
 
-export const stopApplicationRuntime = async () => {
-	try {
-		await stopLocalAgent();
-		await stopAgentController();
-	} finally {
-		bootstrapPromise = undefined;
-	}
+		runtime.status = "starting";
+		try {
+			await runBootstrap();
+			runtime.status = "running";
+		} catch (error) {
+			runtime.status = "stopped";
+			throw error;
+		} finally {
+			runtime.completedGeneration = generation;
+		}
+	});
 };

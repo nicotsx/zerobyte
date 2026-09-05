@@ -338,7 +338,7 @@ export const dumpSnapshotDto = describeRoute({
 
 const overwriteModeSchema = z.enum(OVERWRITE_MODES);
 
-export const restoreSnapshotBody = z.object({
+export const restoreSnapshotBody = z.strictObject({
 	snapshotId: z.string(),
 	include: z.array(z.string()).optional(),
 	selectedItemKind: dumpPathKindSchema.optional(),
@@ -346,7 +346,6 @@ export const restoreSnapshotBody = z.object({
 	excludeXattr: z.array(z.string()).optional(),
 	delete: z.boolean().optional(),
 	targetPath: z.string().optional(),
-	targetAgentId: z.string().optional(),
 	overwrite: overwriteModeSchema.optional(),
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `agents_table` ADD `enrollment_expires_at` integer;

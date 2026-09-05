@@ -82,6 +82,7 @@ type BackupLifecycleOptions<TResult> = {
 	scheduleId: string;
 	organizationId: string;
 	sourcePath: string;
+	presentationSourcePath?: string;
 	restic: {
 		backup: (
 			config: RepositoryConfig,
@@ -342,6 +343,7 @@ export const runBackupLifecycle = <TResult>({
 	scheduleId,
 	organizationId,
 	sourcePath,
+	presentationSourcePath,
 	restic,
 	repositoryConfig,
 	options,
@@ -353,7 +355,8 @@ export const runBackupLifecycle = <TResult>({
 	formatError = toErrorDetails,
 }: BackupLifecycleOptions<TResult>): Effect.Effect<BackupLifecycleResult<TResult>, never> =>
 	Effect.gen(function* () {
-		const context = { jobId, scheduleId, organizationId, sourcePath };
+		const webhookSourcePath = presentationSourcePath ?? sourcePath;
+		const context = { jobId, scheduleId, organizationId, sourcePath: webhookSourcePath };
 		const preHookError = yield* runBackupWebhook(
 			webhooks.pre,
 			{ ...context, phase: "pre", event: "backup.pre" },
@@ -378,12 +381,12 @@ export const runBackupLifecycle = <TResult>({
 		const backupResult = yield* Effect.suspend(() =>
 			restic.backup(repositoryConfig, sourcePath, { ...options, organizationId, signal, onProgress }),
 		).pipe(
-			Effect.map((result) => ({
-				status: "completed" as const,
-				...result,
-				hookStatus: getCompletedStatus(result.exitCode, result.warningDetails, signal),
-				hookError: signal.aborted ? formatError(signal.reason) : (result.warningDetails ?? undefined),
-			})),
+			Effect.map((result) => {
+				const warningDetails = result.warningDetails ? formatError(result.warningDetails) : null;
+				const hookStatus = getCompletedStatus(result.exitCode, warningDetails, signal);
+				const hookError = signal.aborted ? formatError(signal.reason) : (warningDetails ?? undefined);
+				return { status: "completed" as const, ...result, warningDetails, hookStatus, hookError };
+			}),
 			Effect.catchAll((error) => {
 				const errorDetails = formatError(error);
 

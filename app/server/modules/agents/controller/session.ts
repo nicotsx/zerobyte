@@ -25,9 +25,13 @@ export type AgentConnectionData = {
 	organizationId: string | null;
 	agentName: string;
 	agentKind: AgentKind;
+	credentialVersion: number;
 };
 
-type AgentSocket = Bun.ServerWebSocket<AgentConnectionData>;
+export type ControllerTransport = {
+	send: (message: string) => number | void;
+	close: (code?: number, reason?: string) => void;
+};
 
 type SessionState = {
 	isReady: boolean;
@@ -39,9 +43,9 @@ type SessionState = {
 type PendingCommand = { deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>; description: string };
 
 export type ControllerAgentSessionEvent =
-	| Exclude<AgentMessage, { type: "volume.commandResult" }>
+	| AgentMessage
 	| { type: "agent.protocolRejected"; payload: AgentProtocolRejection }
-	| { type: "agent.disconnected" };
+	| { type: "session.terminal"; payload: { code?: number; reason: string } };
 
 export type ControllerAgentSession = {
 	readonly connectionId: string;
@@ -50,19 +54,42 @@ export type ControllerAgentSession = {
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
 	sendRestore: (payload: RestoreRunPayload) => Effect.Effect<boolean>;
 	sendRestoreCancel: (payload: RestoreCancelPayload) => Effect.Effect<boolean>;
+	startVolumeCommand: (
+		command: VolumeCommand,
+	) => Effect.Effect<Effect.Effect<VolumeCommandResponsePayload, Error>, Error>;
 	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
+	handleVolumeCommandResult: (payload: VolumeCommandResponsePayload) => Effect.Effect<void>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
 
+type ControllerAgentSessionOptions = {
+	startupTimeoutMs?: number;
+	livenessTimeoutMs?: number;
+	livenessCheckIntervalMs?: number;
+	heartbeatIntervalMs?: number;
+};
+
 export const createControllerAgentSession = (
-	socket: AgentSocket,
+	connection: AgentConnectionData,
+	transport: ControllerTransport,
 	onEvent: (event: ControllerAgentSessionEvent) => Effect.Effect<void>,
+	options: ControllerAgentSessionOptions = {},
 ): Effect.Effect<ControllerAgentSession, never, Scope.Scope> =>
 	Effect.gen(function* () {
-		let isClosed = false;
+		let isReleased = false;
+		let terminalSignaled = false;
+
+		const connectedAt = Date.now();
+
+		const startupTimeoutMs = options.startupTimeoutMs ?? 10_000;
+		const livenessTimeoutMs = options.livenessTimeoutMs ?? 45_000;
+		const livenessCheckIntervalMs = options.livenessCheckIntervalMs ?? 5_000;
+		const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 15_000;
+
 		const outboundQueue = yield* Queue.bounded<ControllerWireMessage>(64);
 		const pendingCommands = yield* Ref.make(new Map<string, PendingCommand>());
+
 		const state = yield* Ref.make<SessionState>({
 			isReady: false,
 			protocolVersion: null,
@@ -70,17 +97,19 @@ export const createControllerAgentSession = (
 			lastPongAt: null,
 		});
 
-		const offerOutbound = (message: ControllerWireMessage) =>
-			Queue.offer(outboundQueue, message).pipe(
+		const offerOutbound = (message: ControllerWireMessage) => {
+			if (terminalSignaled) return Effect.succeed(false);
+			return Queue.offer(outboundQueue, message).pipe(
 				Effect.catchAllCause((cause) =>
 					Effect.sync(() => {
 						logger.error(
-							`Failed to queue outbound message for agent ${socket.data.agentId}: ${toMessage(cause)}`,
+							`Failed to queue outbound message for agent ${connection.agentId}: ${toMessage(cause)}`,
 						);
 						return false;
 					}),
 				),
 			);
+		};
 
 		const updateState = (update: (current: SessionState) => SessionState) => Ref.update(state, update);
 
@@ -111,31 +140,46 @@ export const createControllerAgentSession = (
 			const disconnectedAt = Date.now();
 			yield* updateState((current) => ({ ...current, isReady: false, lastSeenAt: disconnectedAt }));
 			yield* rejectPendingCommands;
-			yield* onEvent({ type: "agent.disconnected" });
-
 			yield* Queue.shutdown(outboundQueue);
 		});
 
 		const closeSession = () =>
 			Effect.suspend(() => {
-				if (isClosed) {
+				if (isReleased) {
 					return Effect.sync(() => undefined);
 				}
 
-				isClosed = true;
+				isReleased = true;
 				return releaseSession;
 			});
+
+		const signalTerminal = (code: number | undefined, reason: string) =>
+			Effect.suspend(() => {
+				if (terminalSignaled) return Effect.void;
+				terminalSignaled = true;
+				return onEvent({ type: "session.terminal", payload: { code, reason } });
+			});
+
+		const closeTransport = (code?: number, reason?: string) =>
+			Effect.try({
+				try: () => transport.close(code, reason),
+				catch: (error) => toMessage(error),
+			}).pipe(
+				Effect.catchAll((error) =>
+					logger.effect.error(`Failed to close transport for agent ${connection.agentId}: ${error}`),
+				),
+			);
 
 		yield* Effect.addFinalizer(() => closeSession());
 
 		const handleSendFailure = (reason: string) => {
 			return Effect.gen(function* () {
 				logger.error(
-					`Closing session for agent ${socket.data.agentId} on ${socket.data.id} after an outbound websocket send failed: ${reason}`,
+					`Closing session for agent ${connection.agentId} on ${connection.id} after an outbound websocket send failed: ${reason}`,
 				);
 
-				yield* Effect.sync(() => socket.close());
-				yield* closeSession();
+				yield* closeTransport();
+				yield* signalTerminal(undefined, "transport_send_failed");
 			});
 		};
 
@@ -146,7 +190,7 @@ export const createControllerAgentSession = (
 						const message = yield* Queue.take(outboundQueue);
 
 						const sendResult = yield* Effect.try({
-							try: () => socket.send(message),
+							try: () => transport.send(message),
 							catch: (error) => toMessage(error),
 						});
 
@@ -160,7 +204,25 @@ export const createControllerAgentSession = (
 			yield* Effect.forkScoped(
 				Effect.forever(
 					Effect.gen(function* () {
-						yield* Effect.sleep("15 seconds");
+						yield* Effect.sleep(livenessCheckIntervalMs);
+						const current = yield* Ref.get(state);
+						const now = Date.now();
+						const startupExpired = !current.isReady && now - connectedAt >= startupTimeoutMs;
+						const lastSeenAt = current.lastSeenAt ?? connectedAt;
+						const livenessExpired = current.isReady && now - lastSeenAt >= livenessTimeoutMs;
+						if (startupExpired || livenessExpired) {
+							const reason = startupExpired ? "agent_ready_timeout" : "heartbeat_timeout";
+							yield* closeTransport(1001, reason);
+							yield* signalTerminal(1001, reason);
+						}
+					}),
+				),
+			);
+
+			yield* Effect.forkScoped(
+				Effect.forever(
+					Effect.gen(function* () {
+						yield* Effect.sleep(heartbeatIntervalMs);
 						yield* Queue.offer(
 							outboundQueue,
 							createControllerMessage("heartbeat.ping", {
@@ -177,6 +239,7 @@ export const createControllerAgentSession = (
 		const handleVolumeCommandResult = (payload: VolumeCommandResponsePayload) =>
 			Effect.gen(function* () {
 				const pending = yield* removePendingCommand(payload.commandId);
+
 				if (!pending) {
 					yield* logger.effect.warn(`Received response for unknown volume command ${payload.commandId}`);
 					return;
@@ -190,18 +253,20 @@ export const createControllerAgentSession = (
 				switch (message.type) {
 					case "agent.ready": {
 						const readyAt = Date.now();
+
 						yield* updateState((current) => ({
 							...current,
 							isReady: true,
 							protocolVersion: message.payload.protocolVersion,
 							lastSeenAt: readyAt,
 						}));
-						yield* logger.effect.info(`Agent "${socket.data.agentName}" (${socket.data.agentId}) is ready`);
+						yield* logger.effect.info(`Agent "${connection.agentName}" (${connection.agentId}) is ready`);
 						yield* onEvent(message);
 						break;
 					}
 					case "heartbeat.pong": {
 						const seenAt = Date.now();
+
 						yield* updateState((current) => ({
 							...current,
 							lastSeenAt: seenAt,
@@ -211,7 +276,7 @@ export const createControllerAgentSession = (
 						break;
 					}
 					case "volume.commandResult": {
-						yield* handleVolumeCommandResult(message.payload);
+						yield* onEvent(message);
 						break;
 					}
 					default: {
@@ -224,17 +289,42 @@ export const createControllerAgentSession = (
 		const rejectStartupMessage = (rejection: AgentProtocolRejection) =>
 			Effect.gen(function* () {
 				yield* logger.effect.warn(
-					`Rejecting startup message from agent ${socket.data.agentId}: ${rejection.reason}`,
+					`Rejecting startup message from agent ${connection.agentId}: ${rejection.reason}`,
 				);
 				yield* onEvent({ type: "agent.protocolRejected", payload: rejection });
-				yield* Effect.sync(() => socket.close(1002, rejection.reason));
-				yield* closeSession();
+				yield* closeTransport(1002, rejection.reason);
+				yield* signalTerminal(1002, rejection.reason);
+			});
+
+		const startVolumeCommand = (command: VolumeCommand) =>
+			Effect.gen(function* () {
+				const commandId = Bun.randomUUIDv7();
+				const description = `volume command ${command.name}`;
+				const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
+
+				yield* setPendingCommand(commandId, { deferred, description });
+
+				const queued = yield* offerOutbound(createControllerMessage("volume.command", { commandId, command }));
+
+				if (!queued) {
+					yield* removePendingCommand(commandId);
+					return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
+				}
+
+				return Deferred.await(deferred).pipe(
+					Effect.timeoutFail({
+						duration: "60 seconds",
+						onTimeout: () => new Error(`Volume command ${command.name} timed out`),
+					}),
+					Effect.ensuring(removePendingCommand(commandId)),
+				);
 			});
 
 		return {
-			connectionId: socket.data.id,
+			connectionId: connection.id,
 			handleMessage: (data: string) => {
 				return Effect.gen(function* () {
+					if (terminalSignaled) return;
 					const currentState = yield* Ref.get(state);
 
 					if (!currentState.isReady) {
@@ -248,7 +338,7 @@ export const createControllerAgentSession = (
 					const parsed = parseAgentMessage(data);
 
 					if (parsed === null) {
-						yield* logger.effect.warn(`Invalid JSON from agent ${socket.data.agentId}`);
+						yield* logger.effect.warn(`Invalid JSON from agent ${connection.agentId}`);
 						return;
 					}
 
@@ -263,7 +353,7 @@ export const createControllerAgentSession = (
 						}
 
 						yield* logger.effect.warn(
-							`Invalid agent message from ${socket.data.agentId}: ${parsed.error.message}`,
+							`Invalid agent message from ${connection.agentId}: ${parsed.error.message}`,
 						);
 						return;
 					}
@@ -275,30 +365,10 @@ export const createControllerAgentSession = (
 			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
 			sendRestore: (payload) => offerOutbound(createControllerMessage("restore.run", payload)),
 			sendRestoreCancel: (payload) => offerOutbound(createControllerMessage("restore.cancel", payload)),
-			runVolumeCommand: (command) =>
-				Effect.gen(function* () {
-					const commandId = Bun.randomUUIDv7();
-					const description = `volume command ${command.name}`;
-					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
-					yield* setPendingCommand(commandId, { deferred, description });
-
-					const queued = yield* offerOutbound(
-						createControllerMessage("volume.command", { commandId, command }),
-					);
-					if (!queued) {
-						yield* removePendingCommand(commandId);
-						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
-					}
-
-					return yield* Deferred.await(deferred).pipe(
-						Effect.timeoutFail({
-							duration: "60 seconds",
-							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
-						}),
-						Effect.ensuring(removePendingCommand(commandId)),
-					);
-				}),
+			startVolumeCommand,
+			runVolumeCommand: (command) => startVolumeCommand(command).pipe(Effect.flatten),
 			isReady: () => Ref.get(state).pipe(Effect.map((current) => current.isReady)),
+			handleVolumeCommandResult,
 			run,
 		};
 	});

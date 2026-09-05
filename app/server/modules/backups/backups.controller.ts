@@ -52,6 +52,8 @@ import { notificationsService } from "../notifications/notifications.service";
 import { requireAuth } from "../auth/auth.middleware";
 import { asShortId } from "~/server/utils/branded";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
+import { getOrganizationId } from "~/server/core/request-context";
+import { presentBackupSchedule } from "./backup-presentation";
 
 export const backupScheduleController = new Hono()
 	.use(requireAuth)
@@ -63,8 +65,10 @@ export const backupScheduleController = new Hono()
 	.get("/:shortId", getBackupScheduleDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const schedule = await getScheduleByIdOrShortId(shortId);
+		const organizationId = getOrganizationId();
+		const presentedSchedule = await presentBackupSchedule(schedule, organizationId);
 
-		return c.json<GetBackupScheduleDto>(getBackupScheduleResponse.parse(schedule), 200);
+		return c.json<GetBackupScheduleDto>(getBackupScheduleResponse.parse(presentedSchedule), 200);
 	})
 	.get("/volume/:volumeShortId", getBackupScheduleForVolumeDto, async (c) => {
 		const volumeShortId = asShortId(c.req.param("volumeShortId"));

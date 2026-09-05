@@ -6,10 +6,12 @@ import { cache, cacheKeys } from "../../../utils/cache";
 import { toErrorDetails, toMessage } from "../../../utils/errors";
 import { notificationsService } from "../../notifications/notifications.service";
 import { getOrganizationId } from "~/server/core/request-context";
-import type { BackupProgressEventDto } from "~/schemas/events-dto";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
 import { commands } from "../commands";
+import { assertBackupRepositoryCompatibility } from "../backup-context";
+import { LOCAL_AGENT_ID } from "../../agents/constants";
+import { getActionableTrustedRoot } from "../../volumes/source-discovery";
 
 export interface BackupContext {
 	schedule: BackupSchedule;
@@ -35,10 +37,6 @@ type ValidationSkipped = {
 };
 
 type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkipped;
-
-export function getBackupProgress(scheduleId: number): BackupProgressEventDto | undefined {
-	return cache.get<BackupProgressEventDto>(cacheKeys.backup.progress(scheduleId));
-}
 
 export async function validateBackupExecution(scheduleId: number, manual = false): Promise<ValidationResult> {
 	const organizationId = getOrganizationId();
@@ -68,6 +66,25 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 			type: "failure",
 			error: new NotFoundError("Repository not found"),
 			partialContext: { schedule, volume },
+		};
+	}
+
+	try {
+		assertBackupRepositoryCompatibility(volume, repository);
+		if (volume.sourceKind === "agent-filesystem" && volume.agentId !== LOCAL_AGENT_ID) {
+			const trustedRootId = volume.trustedRootId;
+			if (!trustedRootId) {
+				throw new Error("Backup source location is incomplete");
+			}
+			await getActionableTrustedRoot(volume.agentId, trustedRootId, organizationId);
+		}
+	} catch (error) {
+		const compatibilityError =
+			error instanceof Error ? error : new Error("Backup source and repository are incompatible");
+		return {
+			type: "failure",
+			error: compatibilityError,
+			partialContext: { schedule, volume, repository },
 		};
 	}
 
@@ -203,31 +220,38 @@ export async function handleBackupFailure(
 ) {
 	const errorMessage = toMessage(error);
 	const errorDetails = toErrorDetails(error);
-
-	await scheduleQueries.updateStatus(scheduleId, organizationId, {
-		lastBackupAt: Date.now(),
+	const failedAt = Date.now();
+	const schedule = partialContext?.schedule;
+	const currentRetryCount = schedule?.failureRetryCount ?? 0;
+	const maxRetries = schedule?.maxRetries ?? 0;
+	const nextRetryBackupAt = schedule ? failedAt + schedule.retryDelay : null;
+	const nextScheduledBackupAt = schedule?.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
+	const hasRetryRemaining = currentRetryCount < maxRetries;
+	const retryPrecedesNextSchedule =
+		nextRetryBackupAt !== null && nextScheduledBackupAt !== null && nextRetryBackupAt < nextScheduledBackupAt;
+	const shouldRetry = !manual && hasRetryRemaining && retryPrecedesNextSchedule;
+	const nextBackupAt = shouldRetry ? nextRetryBackupAt : nextScheduledBackupAt;
+	const failureRetryCount = shouldRetry ? currentRetryCount + 1 : 0;
+	const shouldUpdateNextBackupAt = Boolean(schedule) && !manual;
+	const statusUpdate: Parameters<typeof scheduleQueries.updateStatus>[2] = {
+		lastBackupAt: failedAt,
 		lastBackupStatus: "error",
 		lastBackupError: errorDetails,
-	});
+	};
+	if (shouldUpdateNextBackupAt) {
+		statusUpdate.nextBackupAt = nextBackupAt;
+	}
+	if (schedule) {
+		statusUpdate.failureRetryCount = failureRetryCount;
+	}
 
-	if (!partialContext?.schedule || !partialContext?.volume || !partialContext?.repository) {
+	await scheduleQueries.updateStatus(scheduleId, organizationId, statusUpdate);
+
+	if (!schedule || !partialContext?.volume || !partialContext?.repository) {
 		return;
 	}
 
-	// Determine if the backup should be retried
-	const schedule = partialContext.schedule;
-	const currentRetryCount = schedule.failureRetryCount;
-	const maxRetries = schedule.maxRetries;
-	const shouldRetry = currentRetryCount < maxRetries;
-	const nextRetryBackupAt = Date.now() + schedule.retryDelay;
-	const nextScheduledBackupAt = schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
-
-	if (!manual && shouldRetry && nextScheduledBackupAt && nextRetryBackupAt < nextScheduledBackupAt) {
-		await scheduleQueries.updateStatus(scheduleId, organizationId, {
-			nextBackupAt: nextRetryBackupAt,
-			failureRetryCount: currentRetryCount + 1,
-		});
-
+	if (shouldRetry) {
 		const delayMinutes = Math.round((schedule.retryDelay / (60 * 1000)) * 10) / 10;
 
 		logger.error(
@@ -249,10 +273,6 @@ export async function handleBackupFailure(
 
 		return;
 	}
-
-	await scheduleQueries.updateStatus(scheduleId, organizationId, {
-		failureRetryCount: 0,
-	});
 
 	const { volume, repository } = partialContext;
 

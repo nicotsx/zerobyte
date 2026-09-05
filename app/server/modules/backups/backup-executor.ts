@@ -3,10 +3,9 @@ import { config } from "../../core/config";
 import { resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
-import { LOCAL_AGENT_ID } from "../agents/constants";
-import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
-import { BadRequestError } from "http-errors-enhanced";
+import { assembleVolumeExecutionSource } from "../volumes/volume-execution-source";
+import { assertBackupRepositoryCompatibility } from "./backup-context";
 
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
 const IGNORE_INODE_FLAG = "--ignore-inode";
@@ -24,10 +23,7 @@ type BackupExecutionRequest = {
 export type { BackupExecutionResult } from "../agents/agents-manager";
 
 const getBackupExecutionAgentId = (volume: Volume, repository: Repository) => {
-	if (repository.type === "local" && volume.agentId !== LOCAL_AGENT_ID) {
-		throw new BadRequestError(`Local repository "${repository.name}" can only be used with the local agent`);
-	}
-
+	assertBackupRepositoryCompatibility(volume, repository);
 	return volume.agentId;
 };
 
@@ -38,8 +34,12 @@ const createBackupRunPayload = async ({
 	repository,
 	organizationId,
 }: BackupExecutionRequest): Promise<BackupRunPayload> => {
-	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
 	const customResticParams = schedule.customResticParams ?? [];
+	const needsIgnoreInode = volume.type !== null && FUSE_VOLUME_BACKENDS.has(volume.type);
+	const hasIgnoreInode = customResticParams.includes(IGNORE_INODE_FLAG);
+	const executionResticParams =
+		needsIgnoreInode && !hasIgnoreInode ? [...customResticParams, IGNORE_INODE_FLAG] : customResticParams;
+	const source = await assembleVolumeExecutionSource(volume, organizationId);
 
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
@@ -49,7 +49,7 @@ const createBackupRunPayload = async ({
 		jobId,
 		scheduleId: schedule.shortId,
 		organizationId,
-		volume: agentVolume,
+		source,
 		repositoryConfig,
 		options: {
 			oneFileSystem: schedule.oneFileSystem,
@@ -57,10 +57,7 @@ const createBackupRunPayload = async ({
 			excludeIfPresent: schedule.excludeIfPresent,
 			includePaths: schedule.includePaths,
 			includePatterns: schedule.includePatterns,
-			customResticParams:
-				FUSE_VOLUME_BACKENDS.has(volume.type) && !customResticParams.includes(IGNORE_INODE_FLAG)
-					? [...customResticParams, IGNORE_INODE_FLAG]
-					: customResticParams,
+			customResticParams: executionResticParams,
 			compressionMode: schedule.compressionMode ?? repository.compressionMode ?? "auto",
 		},
 		runtime: {
@@ -78,13 +75,12 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
+		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
 		const payload = await createBackupRunPayload(request);
 
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
-
-		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
 
 		const executionResult = await agentManager.runBackup(executionAgentId, {
 			scheduleId: request.scheduleId,

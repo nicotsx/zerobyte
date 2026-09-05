@@ -33,8 +33,6 @@ import { asShortId, type ShortId } from "~/server/utils/branded";
 import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
 import { commands } from "./commands";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
-import { agentsService } from "../agents/agents.service";
-import { LOCAL_AGENT_ID } from "../agents/constants";
 import { taskStore } from "../tasks/tasks.store";
 import { Effect } from "effect";
 import { normalizeRequiredName } from "~/server/utils/names";
@@ -93,17 +91,6 @@ const findActiveDoctorTask = (organizationId: string, repositoryShortId: string)
 	});
 };
 
-const assertAllowedRestoreAgent = async (agentId: string, organizationId: string) => {
-	if (agentId === LOCAL_AGENT_ID) {
-		return;
-	}
-
-	const agent = await agentsService.getAgent(agentId);
-	if (!agent || agent.organizationId !== organizationId) {
-		throw new NotFoundError("Restore target agent not found");
-	}
-};
-
 const assertOriginalLocationRestoreAllowed = async (organizationId: string, snapshotTags?: string[] | null) => {
 	if (!snapshotTags?.length) {
 		return;
@@ -116,7 +103,7 @@ const assertOriginalLocationRestoreAllowed = async (organizationId: string, snap
 		},
 		with: { volume: true },
 	});
-	const hasReadOnlySourceVolume = schedules.some((schedule) => schedule.volume.config.readOnly === true);
+	const hasReadOnlySourceVolume = schedules.some((schedule) => schedule.volume?.config?.readOnly === true);
 
 	if (hasReadOnlySourceVolume) {
 		throw new BadRequestError(
@@ -124,7 +111,6 @@ const assertOriginalLocationRestoreAllowed = async (organizationId: string, snap
 		);
 	}
 };
-
 const findRepository = async (shortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	return await db.query.repositoriesTable.findFirst({
@@ -391,7 +377,6 @@ const restoreSnapshot = async (
 		excludeXattr?: string[];
 		delete?: boolean;
 		targetPath?: string;
-		targetAgentId?: string;
 		overwrite?: OverwriteMode;
 	},
 ) => {
@@ -402,7 +387,7 @@ const restoreSnapshot = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	const { targetAgentId, targetPath, ...restoreExecutionOptions } = options ?? {};
+	const { targetPath, ...restoreExecutionOptions } = options ?? {};
 	const target = targetPath || "/";
 	const restoresToOriginalLocation = nodePath.resolve(target) === "/";
 
@@ -420,18 +405,7 @@ const restoreSnapshot = async (
 	}
 
 	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
-	const executionAgentId = targetAgentId ?? LOCAL_AGENT_ID;
-	await assertAllowedRestoreAgent(executionAgentId, organizationId);
-
-	if (repository.type === "local" && executionAgentId !== LOCAL_AGENT_ID) {
-		throw new BadRequestError(
-			"Local repository restores must run on the agent that can access the repository path.",
-		);
-	}
-
-	if (executionAgentId === LOCAL_AGENT_ID) {
-		assertAllowedControllerLocalRestoreTarget(target);
-	}
+	assertAllowedControllerLocalRestoreTarget(target);
 
 	const activeRestore = findActiveRestoreTask(organizationId, repository.shortId, snapshotId);
 	if (activeRestore) {
@@ -447,7 +421,6 @@ const restoreSnapshot = async (
 		repositoryConfig,
 		snapshotId,
 		target,
-		executionTarget: { kind: "agent", agentId: executionAgentId },
 		options: {
 			basePath,
 			...restoreExecutionOptions,

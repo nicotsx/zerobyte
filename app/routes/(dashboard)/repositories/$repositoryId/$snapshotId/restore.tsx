@@ -31,7 +31,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			const scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
 			if (scheduleRes.data) {
 				displayBasePath = getVolumeMountPath(scheduleRes.data.volume);
-				volumeReadOnly = scheduleRes.data.volume.config.readOnly ?? false;
+				volumeReadOnly = scheduleRes.data.volume.config?.readOnly ?? false;
 			}
 		}
 

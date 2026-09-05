@@ -1,112 +1,21 @@
 import { Effect } from "effect";
-import { afterEach, expect, test, vi } from "vitest";
+import { expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
-import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
+import {
+	backupPayload,
+	createSocket,
+	getAgentsServiceMocks,
+	getTokenMocks,
+	invokeFetch,
+	readyPayload,
+	startRuntime,
+} from "./controller-runtime.test-utils";
 
-const agentsServiceMocks = vi.hoisted(() => ({
-	markAgentConnecting: vi.fn(() => Promise.resolve()),
-	markAgentOnline: vi.fn(() => Promise.resolve()),
-	markAgentSeen: vi.fn(() => Promise.resolve()),
-	markAgentOffline: vi.fn(() => Promise.resolve()),
-}));
-
-const tokenMocks = vi.hoisted(() => ({
-	validateAgentToken: vi.fn(),
-}));
-
-vi.mock("../agents.service", () => ({
-	agentsService: agentsServiceMocks,
-}));
-
-vi.mock("../helpers/tokens", () => ({
-	validateAgentToken: tokenMocks.validateAgentToken,
-}));
-
-const createSocket = (id: string, agentId = LOCAL_AGENT_ID) => ({
-	data: {
-		id,
-		agentId,
-		organizationId: null,
-		agentName: agentId === LOCAL_AGENT_ID ? LOCAL_AGENT_NAME : `${LOCAL_AGENT_NAME} ${agentId}`,
-		agentKind: LOCAL_AGENT_KIND,
-	},
-	send: vi.fn(() => 1),
-	close: vi.fn(),
-});
-
-const backupVolume = {
-	id: 1,
-	shortId: "volume-1",
-	name: "Volume 1",
-	config: { backend: "directory", path: "/tmp" },
-	createdAt: 0,
-	updatedAt: 0,
-	lastHealthCheck: 0,
-	type: "directory",
-	status: "mounted" as const,
-	lastError: null,
-	autoRemount: true,
-	agentId: LOCAL_AGENT_ID,
-	organizationId: "org-1",
-} satisfies Volume;
-
-const readyPayload = {
-	agentId: LOCAL_AGENT_ID,
-	protocolVersion: 1,
-	hostname: "host",
-	platform: "linux",
-	capabilities: { backup: true },
-};
-
-const backupPayload = {
-	jobId: "job-1",
-	scheduleId: "schedule-1",
-	organizationId: "org-1",
-	volume: backupVolume,
-	repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
-	options: {
-		oneFileSystem: false,
-		excludePatterns: null,
-		excludeIfPresent: null,
-		includePaths: null,
-		includePatterns: null,
-		customResticParams: null,
-		compressionMode: "auto" as const,
-	},
-	runtime: { password: "password" },
-	webhooks: { pre: null, post: null },
-	webhookAllowedOrigins: [],
-	webhookTimeoutMs: 60_000,
-};
-
-type CapturedFetch = NonNullable<Parameters<typeof Bun.serve>[0]["fetch"]>;
-
-const invokeFetch = (fetch: CapturedFetch | undefined, request: Request, srv: Parameters<CapturedFetch>[1]) => {
-	if (!fetch) {
-		throw new Error("Bun.serve was not called with a fetch handler");
-	}
-
-	return Reflect.apply(fetch, fromPartial<ThisParameterType<CapturedFetch>>({}), [
-		request,
-		srv,
-	]) as ReturnType<CapturedFetch>;
-};
-
-const startRuntime = async (onEvent = vi.fn()) => {
-	const { createAgentManagerRuntime } = await import("../controller/server");
-	const runtime = createAgentManagerRuntime(onEvent);
-	await Effect.runPromise(runtime.start);
-	return { runtime, onEvent };
-};
-
-afterEach(() => {
-	vi.restoreAllMocks();
-	tokenMocks.validateAgentToken.mockReset();
-	vi.resetModules();
-});
+const agentsServiceMocks = getAgentsServiceMocks();
+const tokenMocks = getTokenMocks();
 
 test("websocket fetch rejects requests without a bearer token", async () => {
 	const serve = vi
@@ -156,6 +65,7 @@ test("websocket fetch upgrades valid agent tokens with connection metadata", asy
 		organizationId: null,
 		agentName: LOCAL_AGENT_NAME,
 		agentKind: LOCAL_AGENT_KIND,
+		credentialVersion: 0,
 	});
 	const serve = vi
 		.spyOn(Bun, "serve")
@@ -185,6 +95,43 @@ test("websocket fetch upgrades valid agent tokens with connection metadata", asy
 	});
 });
 
+test("shutdown fences an upgrade whose token validation began before the stop", async () => {
+	let releaseValidation: (() => void) | undefined;
+	const validationBlocked = new Promise<void>((resolve) => {
+		releaseValidation = resolve;
+	});
+	tokenMocks.validateAgentToken.mockImplementation(async () => {
+		await validationBlocked;
+		return {
+			agentId: LOCAL_AGENT_ID,
+			organizationId: null,
+			agentName: LOCAL_AGENT_NAME,
+			agentKind: LOCAL_AGENT_KIND,
+			credentialVersion: 0,
+		};
+	});
+	const stopServer = vi.fn(() => Promise.resolve());
+	const serve = vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop: stopServer }));
+	const { runtime } = await startRuntime();
+	const fetch = serve.mock.calls[0]?.[0].fetch;
+	const upgrade = vi.fn(() => true);
+	const srv = fromPartial<Parameters<NonNullable<typeof fetch>>[1]>({ upgrade });
+	const request = new Request("http://localhost:3001/agent", {
+		headers: { authorization: "Bearer valid-token" },
+	});
+	const responsePromise = invokeFetch(fetch, request, srv);
+	await waitForExpect(() => expect(tokenMocks.validateAgentToken).toHaveBeenCalledOnce());
+
+	await Effect.runPromise(runtime.stop);
+	releaseValidation?.();
+	const response = await responsePromise;
+
+	expect(response?.status).toBe(503);
+	expect(upgrade).not.toHaveBeenCalled();
+	expect(runtime.getLifecycle()).toBe("stopped");
+	expect(stopServer).toHaveBeenCalledOnce();
+});
+
 test("websocket lifecycle updates agent connection status", async () => {
 	const stop = vi.fn(() => Promise.resolve());
 	const serve = vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop }));
@@ -203,17 +150,23 @@ test("websocket lifecycle updates agent connection status", async () => {
 		organizationId: null,
 		agentName: LOCAL_AGENT_NAME,
 		agentKind: LOCAL_AGENT_KIND,
+		credentialVersion: 0,
 	});
-	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), {
-		backup: true,
-		protocolVersion: 1,
-		protocolCompatible: true,
-		hostname: "host",
-		platform: "linux",
-	});
-	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number));
-	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
-	expect(stop).toHaveBeenCalledWith(true);
+	expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledWith(
+		LOCAL_AGENT_ID,
+		expect.any(Number),
+		expect.objectContaining({
+			backup: true,
+			protocolVersion: 1,
+			protocolCompatible: true,
+			hostname: "host",
+			platform: "linux",
+		}),
+		0,
+	);
+	expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), 0);
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), 0);
+	expect(stop).toHaveBeenCalledWith(false);
 });
 
 test("websocket protocol rejection forwards the event and closes the connection", async () => {
@@ -246,7 +199,9 @@ test("websocket protocol rejection forwards the event and closes the connection"
 			payload: expect.objectContaining({ reason: "agent_too_new" }),
 		}),
 	);
-	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID);
+	await waitForExpect(() => {
+		expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(LOCAL_AGENT_ID, expect.any(Number), 0);
+	});
 	expect(socket.close).toHaveBeenCalledWith(1002, "agent_too_new");
 });
 
@@ -283,7 +238,7 @@ test("websocket restore events are forwarded with agent metadata", async () => {
 	);
 });
 
-test("websocket open failure closes the upgraded socket", async () => {
+test("websocket open failure clears provisional state and permits reconnect", async () => {
 	agentsServiceMocks.markAgentConnecting.mockRejectedValueOnce(new Error("db unavailable"));
 	const serve = vi
 		.spyOn(Bun, "serve")
@@ -294,28 +249,68 @@ test("websocket open failure closes the upgraded socket", async () => {
 
 	await websocket?.open?.(fromPartial(socket));
 
-	expect(socket.close).toHaveBeenCalled();
+	expect(socket.close).toHaveBeenCalledWith(1011, "promotion_failed");
+	const replacement = createSocket("connection-after-open-failure");
+	await websocket?.open?.(fromPartial(replacement));
+	await websocket?.message?.(fromPartial(replacement), createAgentMessage("agent.ready", readyPayload));
+	await expect(runtime.waitForAgentReady(LOCAL_AGENT_ID)).resolves.toBe(true);
 	await Effect.runPromise(runtime.stop);
 });
 
-test("shutdown closes all sessions and stops the server when marking one agent offline fails", async () => {
+test("replacement connecting failure terminal-cleans both promoted and replaced generations", async () => {
+	agentsServiceMocks.markAgentConnecting
+		.mockResolvedValueOnce(undefined)
+		.mockRejectedValueOnce(new Error("db unavailable"));
+	vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
+	const { runtime } = await startRuntime();
+	const oldSocket = createSocket("connection-old");
+	const newSocket = createSocket("connection-new");
+	await runtime.openConnection(oldSocket.data, { send: oldSocket.send, close: oldSocket.close });
+	await runtime.handleConnectionMessage(
+		oldSocket.data.agentId,
+		oldSocket.data.id,
+		createAgentMessage("agent.ready", readyPayload),
+	);
+
+	await expect(
+		runtime.openConnection(newSocket.data, { send: newSocket.send, close: newSocket.close }),
+	).rejects.toThrow("db unavailable");
+	expect(newSocket.close).toHaveBeenCalledWith(1011, "promotion_failed");
+	expect(oldSocket.close).toHaveBeenCalledWith(1000, "connection_replaced");
+	await expect(Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(false);
+	await Effect.runPromise(runtime.stop);
+});
+
+test("shutdown contains cleanup failures, closes every session, and stops the server once", async () => {
 	agentsServiceMocks.markAgentOffline.mockRejectedValueOnce(new Error("db unavailable"));
 	const stop = vi.fn(() => Promise.resolve());
 	const serve = vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop }));
-	const { runtime, onEvent } = await startRuntime(vi.fn());
+	const onEvent = vi.fn((event: { type: string; agentId?: string }) => {
+		if (event.type === "agent.disconnected" && event.agentId === "agent-1") {
+			return Promise.reject(new Error("disconnect callback failed"));
+		}
+		return Promise.resolve();
+	});
+	const { runtime } = await startRuntime(onEvent);
 	const websocket = serve.mock.calls[0]?.[0].websocket;
 	const firstSocket = createSocket("connection-1", "agent-1");
 	const secondSocket = createSocket("connection-2", "agent-2");
 
 	await websocket?.open?.(fromPartial(firstSocket));
 	await websocket?.open?.(fromPartial(secondSocket));
-	await Effect.runPromise(runtime.stop);
+	firstSocket.close.mockImplementation(() => {
+		throw new Error("close failed");
+	});
+	await expect(Effect.runPromise(runtime.stop)).resolves.toBeUndefined();
 
-	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-1");
-	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-2");
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-1", expect.any(Number), 0);
+	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith("agent-2", expect.any(Number), 0);
 	expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "agent.disconnected", agentId: "agent-1" }));
 	expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "agent.disconnected", agentId: "agent-2" }));
-	expect(stop).toHaveBeenCalledWith(true);
+	expect(firstSocket.close).toHaveBeenCalledWith(1000, "controller_shutdown");
+	expect(secondSocket.close).toHaveBeenCalledWith(1000, "controller_shutdown");
+	expect(stop).toHaveBeenCalledOnce();
+	expect(stop).toHaveBeenCalledWith(false);
 });
 
 test("closing a replaced connection reports disconnect without marking the active agent offline", async () => {
@@ -326,11 +321,11 @@ test("closing a replaced connection reports disconnect without marking the activ
 	const websocket = serve.mock.calls[0]?.[0].websocket;
 	const oldSocket = createSocket("connection-1");
 	const newSocket = createSocket("connection-2");
-	const offlineCallsBeforeClose = agentsServiceMocks.markAgentOffline.mock.calls.length;
 
 	await websocket?.open?.(fromPartial(oldSocket));
 	await websocket?.open?.(fromPartial(newSocket));
 	await websocket?.message?.(fromPartial(newSocket), createAgentMessage("agent.ready", readyPayload));
+	const offlineCallsBeforeClose = agentsServiceMocks.markAgentOffline.mock.calls.length;
 	await websocket?.close?.(fromPartial(oldSocket), 1000, "replaced");
 
 	expect(onEvent).toHaveBeenCalledWith(
@@ -338,26 +333,5 @@ test("closing a replaced connection reports disconnect without marking the activ
 	);
 	expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledTimes(offlineCallsBeforeClose);
 	expect(await Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, backupPayload))).toBe(true);
-	await Effect.runPromise(runtime.stop);
-});
-
-test("sendBackup is only delivered after the agent is ready", async () => {
-	const serve = vi
-		.spyOn(Bun, "serve")
-		.mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
-	const { runtime } = await startRuntime();
-	const websocket = serve.mock.calls[0]?.[0].websocket;
-	const socket = createSocket("connection-1");
-	const payload = backupPayload;
-
-	await websocket?.open?.(fromPartial(socket));
-	await expect(Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, payload))).resolves.toBe(false);
-
-	await websocket?.message?.(fromPartial(socket), createAgentMessage("agent.ready", readyPayload));
-	await expect(Effect.runPromise(runtime.sendBackup(LOCAL_AGENT_ID, payload))).resolves.toBe(true);
-
-	await waitForExpect(() => {
-		expect(socket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"backup.run"'));
-	});
 	await Effect.runPromise(runtime.stop);
 });

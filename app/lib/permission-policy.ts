@@ -7,6 +7,7 @@ export type RuntimeFeature =
 	| "ssoManagement"
 	| "remoteVolumeBackends"
 	| "apiKeys"
+	| "remoteAgents"
 	| "passwordAuthentication";
 
 export const RUNTIME_FEATURES = {
@@ -17,6 +18,7 @@ export const RUNTIME_FEATURES = {
 		remoteVolumeBackends: true,
 		apiKeys: true,
 		passwordAuthentication: true,
+		remoteAgents: true,
 	},
 	desktop: {
 		instanceAdministration: false,
@@ -25,6 +27,7 @@ export const RUNTIME_FEATURES = {
 		remoteVolumeBackends: false,
 		apiKeys: false,
 		passwordAuthentication: false,
+		remoteAgents: false,
 	},
 } as const satisfies Record<Runtime, Record<RuntimeFeature, boolean>>;
 
@@ -77,6 +80,11 @@ const PERMISSIONS = {
 	"recoveryKey.download": {
 		orgRoles: ["owner", "admin"],
 		authSources: ["browser-session", "desktop-session"],
+	},
+	"agents.manage": {
+		feature: "remoteAgents",
+		orgRoles: ["owner", "admin"],
+		authSources: ["browser-session"],
 	},
 } as const satisfies Record<string, PermissionPolicy>;
 

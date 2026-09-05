@@ -7,6 +7,8 @@ import * as resticServer from "@zerobyte/core/restic/server";
 import { handleRestoreCancelCommand } from "../restore-cancel";
 import { handleRestoreRunCommand } from "../restore";
 import type { ControllerCommandContext, RunningJob } from "../../context";
+import { createAgentExecutionPolicy } from "../../execution-policy";
+import { createTrustedRootRegistry } from "../../trusted-roots";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -30,6 +32,10 @@ const createContext = () => {
 	const runningJobs = new Map<string, RunningJob>();
 
 	const context: ControllerCommandContext = {
+		executionPolicy: createAgentExecutionPolicy({
+			builtinLocal: true,
+			registry: createTrustedRootRegistry({ builtinLocal: true }),
+		}),
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.sync(() => {

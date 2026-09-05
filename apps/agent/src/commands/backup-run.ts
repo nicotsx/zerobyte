@@ -1,13 +1,14 @@
 import { Data, Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import type { Volume } from "@zerobyte/contracts/volumes";
+import type { Volume, VolumeExecutionSource } from "@zerobyte/contracts/volumes";
 import { createBackupOptions, runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
 import { createRestic } from "@zerobyte/core/restic/server";
-import { toMessage } from "@zerobyte/core/utils";
+import { toErrorDetails, toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
+import { getAgentExecutionPolicy } from "../execution-policy";
 import { resticDeps } from "../restic/deps";
-import { createVolumeBackend, getVolumePath } from "../volume-host";
+import { createVolumeBackend } from "../volume-host";
 
 class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 	readonly _tag: "VolumeReadinessError";
@@ -56,7 +57,22 @@ const ensureHealthyVolume = (volume: Volume) =>
 		}
 	});
 
+const resolveBackupSource = (context: ControllerCommandContext, source: VolumeExecutionSource) =>
+	Effect.gen(function* () {
+		const executionPolicy = getAgentExecutionPolicy(context);
+		const resolved = yield* Effect.try({
+			try: () => executionPolicy.resolveExecutionSource(source, "backup.run"),
+			catch: (error) => new VolumeReadinessError({ message: toMessage(error) }),
+		});
+		if (source.kind === "managed") {
+			yield* ensureHealthyVolume(source.volume);
+		}
+
+		return { sourcePath: resolved.canonicalPath, presentation: resolved.presentation };
+	});
+
 export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
+	let formatControllerError = toErrorDetails;
 	return Effect.gen(function* () {
 		const existing = yield* context.getRunningJob(payload.jobId);
 		if (existing) {
@@ -97,17 +113,24 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					}),
 				);
 
-				const restic = createRestic(resticDeps(payload.runtime.password));
 				const runtime = yield* Effect.runtime<never>();
 
-				yield* ensureHealthyVolume(payload.volume);
-				const sourcePath = getVolumePath(payload.volume);
+				const resolvedSource = yield* resolveBackupSource(context, payload.source);
+				const sourcePath = resolvedSource.sourcePath;
+				const presentation = resolvedSource.presentation;
+				formatControllerError = presentation?.formatError ?? toErrorDetails;
+				const dependencies = resticDeps(payload.runtime.password);
+				const restic = yield* Effect.try({
+					try: () => createRestic(dependencies),
+					catch: (error) => error,
+				});
 				const options = createBackupOptions(payload, sourcePath, abortController.signal);
 
 				const backupResult = yield* runBackupLifecycle({
 					restic,
 					repositoryConfig: payload.repositoryConfig,
 					sourcePath,
+					presentationSourcePath: presentation?.sourcePath,
 					jobId: payload.jobId,
 					scheduleId: payload.scheduleId,
 					organizationId: payload.organizationId,
@@ -116,14 +139,16 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					webhookAllowedOrigins: payload.webhookAllowedOrigins,
 					webhookTimeoutMs: payload.webhookTimeoutMs,
 					signal: abortController.signal,
+					formatError: formatControllerError,
 					onProgress: (progress) => {
+						const controllerProgress = presentation ? presentation.formatProgress(progress) : progress;
 						void Runtime.runPromise(
 							runtime,
 							context.offerOutbound(
 								createAgentMessage("backup.progress", {
 									jobId: payload.jobId,
 									scheduleId: payload.scheduleId,
-									progress,
+									progress: controllerProgress,
 								}),
 							),
 						).catch((error) => {
@@ -159,16 +184,17 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						return;
 				}
 			}).pipe(
-				Effect.catchAll((error) =>
-					context.offerOutbound(
+				Effect.catchAll((error) => {
+					const errorDetails = formatControllerError(error);
+					return context.offerOutbound(
 						createAgentMessage("backup.failed", {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
-							error: error.message,
-							errorDetails: toMessage(error),
+							error: errorDetails,
+							errorDetails,
 						}),
-					),
-				),
+					);
+				}),
 				Effect.ensuring(context.deleteRunningJob(payload.jobId)),
 			),
 		);

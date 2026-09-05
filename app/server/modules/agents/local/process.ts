@@ -5,15 +5,7 @@ import { logger } from "@zerobyte/core/node";
 import { config } from "../../../core/config";
 import { deriveLocalAgentToken } from "../helpers/tokens";
 
-type LocalAgentState = {
-	localAgent: ChildProcess | null;
-	isStoppingLocalAgent: boolean;
-	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
-};
-
-export async function spawnLocalAgentProcess(runtime: LocalAgentState, controllerUrl: string) {
-	await stopLocalAgentProcess(runtime);
-
+export async function spawnLocalAgentProcess(controllerUrl: string) {
 	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
 
@@ -29,11 +21,10 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState, controlle
 			...process.env,
 			ZEROBYTE_CONTROLLER_URL: controllerUrl,
 			ZEROBYTE_AGENT_TOKEN: agentToken,
+			ZEROBYTE_BUILTIN_LOCAL_AGENT: "1",
 		},
 		stdio: ["ignore", "pipe", "pipe"],
 	});
-
-	runtime.localAgent = agentProcess;
 
 	agentProcess.stdout?.on("data", (data: Buffer) => {
 		const line = data.toString().trim();
@@ -45,46 +36,11 @@ export async function spawnLocalAgentProcess(runtime: LocalAgentState, controlle
 		if (line) logger.error(`[agent] ${line}`);
 	});
 
-	agentProcess.on("exit", (code, signal) => {
-		const shouldRestart = runtime.localAgent === agentProcess && !runtime.isStoppingLocalAgent;
-		if (runtime.localAgent === agentProcess) {
-			runtime.localAgent = null;
-		}
-		logger.info(`Agent process exited with code ${code} and signal ${signal}`);
-
-		if (!shouldRestart) {
-			return;
-		}
-
-		runtime.localAgentRestartTimeout = setTimeout(() => {
-			runtime.localAgentRestartTimeout = null;
-			void spawnLocalAgentProcess(runtime, controllerUrl).catch((error) => {
-				logger.error(
-					`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`,
-				);
-			});
-		}, 1_000);
-	});
+	return agentProcess;
 }
 
-export async function stopLocalAgentProcess(runtime: LocalAgentState) {
-	if (runtime.localAgentRestartTimeout) {
-		clearTimeout(runtime.localAgentRestartTimeout);
-		runtime.localAgentRestartTimeout = null;
-	}
-
-	if (!runtime.localAgent) {
-		return;
-	}
-
-	const agentProcess = runtime.localAgent;
-	runtime.isStoppingLocalAgent = true;
-
+export async function stopLocalAgentProcess(agentProcess: ChildProcess) {
 	if (agentProcess.exitCode !== null || agentProcess.signalCode !== null) {
-		if (runtime.localAgent === agentProcess) {
-			runtime.localAgent = null;
-		}
-		runtime.isStoppingLocalAgent = false;
 		return;
 	}
 
@@ -97,10 +53,6 @@ export async function stopLocalAgentProcess(runtime: LocalAgentState) {
 			if (forcedShutdownTimeout) clearTimeout(forcedShutdownTimeout);
 			agentProcess.off("exit", confirmTermination);
 			agentProcess.off("close", confirmTermination);
-			if (runtime.localAgent === agentProcess) {
-				runtime.localAgent = null;
-			}
-			runtime.isStoppingLocalAgent = false;
 			if (!shutdownPromiseSettled) {
 				shutdownPromiseSettled = true;
 				resolve();
