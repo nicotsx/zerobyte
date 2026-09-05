@@ -172,46 +172,52 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 							</FormItem>
 						)}
 					/>
-					<FormField
-						control={form.control}
-						name="backend"
-						defaultValue="directory"
-						render={({ field }) => (
-							<FormItem>
-								<FormLabel>Backend</FormLabel>
-								<Select
-									onValueChange={(value) => {
-										field.onChange(value);
-										if (mode === "create") {
-											form.reset({
-												name: form.getValues().name,
-												...defaultValuesForType[value as keyof typeof defaultValuesForType],
-											});
-										}
-									}}
-									value={field.value}
-								>
-									<FormControl>
-										<SelectTrigger>
-											<SelectValue placeholder="Select a backend" />
-										</SelectTrigger>
-									</FormControl>
-									<SelectContent>
-										{isBackendAllowed("directory") && (
-											<SelectItem value="directory">Directory</SelectItem>
-										)}
-										{isBackendAllowed("nfs") && <SelectItem value="nfs">NFS</SelectItem>}
-										{isBackendAllowed("smb") && <SelectItem value="smb">SMB</SelectItem>}
-										{isBackendAllowed("webdav") && <SelectItem value="webdav">WebDAV</SelectItem>}
-										{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
-										{isBackendAllowed("rclone") && <SelectItem value="rclone">rclone</SelectItem>}
-									</SelectContent>
-								</Select>
-								<FormDescription>Choose the storage backend for this volume.</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
+					{capabilities.volumeBackends.length > 1 && (
+						<FormField
+							control={form.control}
+							name="backend"
+							defaultValue="directory"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Backend</FormLabel>
+									<Select
+										onValueChange={(value) => {
+											field.onChange(value);
+											if (mode === "create") {
+												form.reset({
+													name: form.getValues().name,
+													...defaultValuesForType[value as keyof typeof defaultValuesForType],
+												});
+											}
+										}}
+										value={field.value}
+									>
+										<FormControl>
+											<SelectTrigger>
+												<SelectValue placeholder="Select a backend" />
+											</SelectTrigger>
+										</FormControl>
+										<SelectContent>
+											{isBackendAllowed("directory") && (
+												<SelectItem value="directory">Directory</SelectItem>
+											)}
+											{isBackendAllowed("nfs") && <SelectItem value="nfs">NFS</SelectItem>}
+											{isBackendAllowed("smb") && <SelectItem value="smb">SMB</SelectItem>}
+											{isBackendAllowed("webdav") && (
+												<SelectItem value="webdav">WebDAV</SelectItem>
+											)}
+											{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
+											{isBackendAllowed("rclone") && (
+												<SelectItem value="rclone">rclone</SelectItem>
+											)}
+										</SelectContent>
+									</Select>
+									<FormDescription>Choose the storage backend for this volume.</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					)}
 					{watchedBackend === "directory" && <DirectoryForm form={form} />}
 					{watchedBackend === "nfs" && <NFSForm form={form} />}
 					{watchedBackend === "webdav" && <WebDAVForm form={form} />}
