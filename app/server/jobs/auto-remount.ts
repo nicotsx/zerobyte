@@ -13,14 +13,12 @@ export class VolumeAutoRemountJob extends Job {
 		});
 
 		for (const volume of volumes) {
-			if (volume.autoRemount) {
-				try {
-					await withContext({ organizationId: volume.organizationId }, async () => {
-						await volumeService.mountVolume(volume.shortId);
-					});
-				} catch (err) {
-					logger.error(`Failed to auto-remount volume ${volume.name}:`, err);
-				}
+			try {
+				await withContext({ organizationId: volume.organizationId }, async () => {
+					await volumeService.ensureHealthyVolume(volume.shortId);
+				});
+			} catch (err) {
+				logger.error(`Failed to recover volume ${volume.name}:`, err);
 			}
 		}
 

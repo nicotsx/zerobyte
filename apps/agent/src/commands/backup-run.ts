@@ -17,13 +17,22 @@ class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 
 const ensureHealthyVolume = (volume: Volume) =>
 	Effect.gen(function* () {
+		const backend = createVolumeBackend(volume);
+		if (volume.type === "directory") {
+			const health = yield* Effect.promise(() => backend.checkHealth());
+			if (health.status !== "mounted") {
+				const message = health.error ?? "Directory is not accessible";
+				return yield* new VolumeReadinessError({ message });
+			}
+			return;
+		}
+
 		if (volume.status === "unmounted") {
 			return yield* new VolumeReadinessError({
 				message: `Volume ${volume.name} is not mounted`,
 			});
 		}
 
-		const backend = createVolumeBackend(volume);
 		let failureReason = volume.lastError ?? "Volume health check failed";
 
 		if (volume.status !== "error") {

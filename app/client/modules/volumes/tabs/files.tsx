@@ -9,12 +9,19 @@ type Props = {
 
 export const FilesTabContent = ({ volume }: Props) => {
 	if (volume.status !== "mounted") {
+		const isDirectory = volume.type === "directory";
+		const unavailableMessage = isDirectory
+			? "Directory is not accessible."
+			: "Volume must be mounted to browse files.";
+		const recoveryMessage = isDirectory
+			? "Make sure the folder exists and is accessible, then run Check Now."
+			: "Mount the volume to explore its contents.";
 		return (
 			<Card>
 				<CardContent className="flex flex-col items-center justify-center text-center py-12">
 					<FolderOpen className="mb-4 h-12 w-12 text-muted-foreground" />
-					<p className="text-muted-foreground">Volume must be mounted to browse files.</p>
-					<p className="text-sm text-muted-foreground mt-2">Mount the volume to explore its contents.</p>
+					<p className="text-muted-foreground">{unavailableMessage}</p>
+					<p className="text-sm text-muted-foreground mt-2">{recoveryMessage}</p>
 				</CardContent>
 			</Card>
 		);

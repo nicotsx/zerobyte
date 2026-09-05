@@ -107,6 +107,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 		deleteVol.mutate({ path: { shortId: volume.shortId } });
 	};
 
+	const isDirectory = volume.type === "directory";
 	const isMounted = volume.status === "mounted";
 	const isError = volume.status === "error";
 
@@ -136,12 +137,14 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									<Badge variant="secondary">{volume.type}</Badge>
 									{volume.provisioningId && <ManagedBadge />}
 								</div>
-								<p className="text-sm text-muted-foreground mt-0.5">Created {formatDateTime(volume.createdAt)}</p>
+								<p className="text-sm text-muted-foreground mt-0.5">
+									Created {formatDateTime(volume.createdAt)}
+								</p>
 							</div>
 						</div>
 						<div className="flex items-center gap-2">
 							<Button
-								className={cn({ hidden: !isMounted })}
+								className={cn({ hidden: isDirectory || !isMounted })}
 								variant="secondary"
 								onClick={() =>
 									toast.promise(unmountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
@@ -156,7 +159,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								Unmount
 							</Button>
 							<Button
-								className={cn({ hidden: isMounted })}
+								className={cn({ hidden: isDirectory || isMounted })}
 								onClick={() =>
 									toast.promise(mountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
 										loading: "Mounting volume...",
@@ -177,7 +180,9 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={() => navigate({ to: `/volumes/${volume.shortId}/edit` })}>
+									<DropdownMenuItem
+										onClick={() => navigate({ to: `/volumes/${volume.shortId}/edit` })}
+									>
 										<Pencil />
 										Edit
 									</DropdownMenuItem>
@@ -207,7 +212,9 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								</Badge>
 								<Badge
 									variant="outline"
-									className={cn("text-success border-success/30 bg-success/10 ml-1", { hidden: !isMounted })}
+									className={cn("text-success border-success/30 bg-success/10 ml-1", {
+										hidden: !isMounted,
+									})}
 								>
 									Healthy
 								</Badge>
@@ -216,27 +223,33 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								</Badge>
 							</div>
 							<Separator orientation="vertical" className="h-4 hidden @lg:block" />
-							<span className="text-sm text-muted-foreground">Checked {formatTimeAgo(volume.lastHealthCheck)}</span>
-							<Separator orientation="vertical" className="h-4 hidden @lg:block" />
-							<div className="flex items-center gap-2">
-								<span className="text-sm text-muted-foreground">Auto-remount</span>
-								<Switch
-									checked={volume.autoRemount}
-									onCheckedChange={() =>
-										toggleAutoRemount.mutate({
-											path: { shortId: volume.shortId },
-											body: { autoRemount: !volume.autoRemount },
-										})
-									}
-									disabled={toggleAutoRemount.isPending}
-								/>
-							</div>
+							<span className="text-sm text-muted-foreground">
+								Checked {formatTimeAgo(volume.lastHealthCheck)}
+							</span>
+							{!isDirectory && (
+								<>
+									<Separator orientation="vertical" className="h-4 hidden @lg:block" />
+									<div className="flex items-center gap-2">
+										<span className="text-sm text-muted-foreground">Auto-remount</span>
+										<Switch
+											checked={volume.autoRemount}
+											onCheckedChange={() =>
+												toggleAutoRemount.mutate({
+													path: { shortId: volume.shortId },
+													body: { autoRemount: !volume.autoRemount },
+												})
+											}
+											disabled={toggleAutoRemount.isPending}
+										/>
+									</div>
+								</>
+							)}
 						</div>
 						<Button
 							variant="outline"
 							size="sm"
 							className="shrink-0"
-							disabled={volume.status === "unmounted"}
+							disabled={!isDirectory && volume.status === "unmounted"}
 							loading={healthcheck.isPending}
 							onClick={() => healthcheck.mutate({ path: { shortId: volume.shortId } })}
 						>
@@ -253,7 +266,10 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 					</div>
 				</Card>
 
-				<Tabs value={activeTab} onValueChange={(value) => navigate({ to: ".", search: () => ({ tab: value }) })}>
+				<Tabs
+					value={activeTab}
+					onValueChange={(value) => navigate({ to: ".", search: () => ({ tab: value }) })}
+				>
 					<TabsList className="mb-2">
 						<TabsTrigger value="info">Configuration</TabsTrigger>
 						<TabsTrigger value="files">Files</TabsTrigger>
@@ -272,7 +288,8 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete volume?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete the volume <strong>{volume.name}</strong>? This action cannot be undone.
+							Are you sure you want to delete the volume <strong>{volume.name}</strong>? This action
+							cannot be undone.
 							<br />
 							<br />
 							All backup schedules associated with this volume will also be removed.

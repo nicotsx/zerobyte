@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import nodeHttp, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -469,3 +470,24 @@ test("waits for running-job registration before returning to the processor loop"
 		await processorLoopPromise;
 	}
 });
+
+test.each(["unmounted", "error"] as const)(
+	"backs up an accessible directory with saved %s status and auto-remount disabled",
+	async (status) => {
+		vi.spyOn(resticServer, "createRestic").mockReturnValue(
+			fromPartial({
+				backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }),
+			}),
+		);
+		const payload = createRunPayload();
+		payload.volume = {
+			...payload.volume,
+			status,
+			autoRemount: false,
+			config: { backend: "directory", path: tmpdir() },
+		};
+		const messages = await runBackupCommand(payload);
+		expect(messages.some((message) => message?.success && message.data.type === "backup.completed")).toBe(true);
+		expect(messages.some((message) => message?.success && message.data.type === "backup.failed")).toBe(false);
+	},
+);
