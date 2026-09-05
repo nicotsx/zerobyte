@@ -96,6 +96,25 @@ describe("parseConfig", () => {
 		expect(config.resticHostname).toBe("manual-restic-host");
 	});
 
+	test("allows disabling the server idle timeout", () => {
+		const config = parseConfig(
+			createEnv({
+				SERVER_IDLE_TIMEOUT: "0",
+			}),
+		);
+
+		expect(config.serverIdleTimeout).toBe(0);
+	});
+
+	test("exits when the server idle timeout is negative", () => {
+		expectParseConfigToExit(
+			createEnv({
+				SERVER_IDLE_TIMEOUT: "-1",
+			}),
+			"Too small: expected number to be >=0",
+		);
+	});
+
 	test("parses desktop runtime values when present", () => {
 		const config = parseConfig(
 			createEnv({
