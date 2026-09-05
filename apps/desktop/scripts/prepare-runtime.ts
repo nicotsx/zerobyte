@@ -142,6 +142,9 @@ const copyIfExists = async (source: string, destination: string) => {
 };
 
 const stageApp = async () => {
+	process.env.VITE_RESTIC_VERSION = await readDockerArg("RESTIC_VERSION");
+	process.env.VITE_SHOUTRRR_VERSION = await readDockerArg("SHOUTRRR_VERSION");
+	process.env.VITE_RCLONE_VERSION = "Not bundled";
 	await run("bun", ["run", "build"]);
 
 	await fs.rm(runtimeDir, { recursive: true, force: true });
