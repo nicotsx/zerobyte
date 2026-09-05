@@ -271,7 +271,7 @@ export function AppSidebar() {
 				<div
 					className={cn(
 						sidebarPanelClassName,
-						"z-10 shadow-[-12px_0_24px_-20px_rgba(0,0,0,0.55)] transition-transform duration-200 ease-out motion-reduce:transition-none",
+						"z-10 dark:shadow-[-12px_0_24px_-20px_rgba(0,0,0,0.55)] transition-transform duration-200 ease-out motion-reduce:transition-none",
 						settingsPanelPosition,
 					)}
 					aria-hidden={!isSettingsMode}
