@@ -58,7 +58,7 @@ const settingsScopeIcons: Record<SettingsScope, typeof User> = {
 };
 
 const footerActionClassName =
-	"relative flex size-10 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:pointer-events-none disabled:opacity-50";
+	"relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:pointer-events-none disabled:opacity-50";
 const activeFooterActionClassName = "bg-strong-accent/10 text-strong-accent";
 const sidebarPanelClassName = "absolute inset-0 flex min-h-0 flex-col bg-sidebar";
 
