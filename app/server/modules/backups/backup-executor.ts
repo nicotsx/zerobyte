@@ -1,15 +1,12 @@
-import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
-import { restic, resticDeps } from "../../core/restic";
+import { resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { LOCAL_AGENT_ID } from "../agents/constants";
+import { volumeService } from "../volumes/volume.service";
 import { getVolumePath } from "../volumes/helpers";
-import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
-import { createBackupOptions } from "./backup.helpers";
-import { runEffectPromise, toErrorDetails } from "../../utils/errors";
 import { BadRequestError } from "http-errors-enhanced";
 
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
@@ -27,9 +24,9 @@ type BackupExecutionRequest = {
 
 export type { BackupExecutionResult } from "../agents/agents-manager";
 
-const getBackupExecutionAgentId = (volume: Volume, repository: Repository) => {
-	if (repository.type === "local" && volume.agentId !== LOCAL_AGENT_ID) {
-		throw new BadRequestError(`Local repository "${repository.name}" can only be used with the local agent`);
+const getBackupExecutionAgentId = (volume: Volume) => {
+	if (volume.agentId !== LOCAL_AGENT_ID) {
+		throw new BadRequestError("Backups can only run on the local agent");
 	}
 
 	return volume.agentId;
@@ -41,8 +38,15 @@ const createBackupRunPayload = async ({
 	volume,
 	repository,
 	organizationId,
+	signal,
 }: BackupExecutionRequest): Promise<BackupRunPayload> => {
-	const agentVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
+	const readiness = await volumeService.ensureHealthyVolume(volume.shortId, signal);
+	signal.throwIfAborted();
+
+	if (!readiness.ready) {
+		throw new Error(readiness.reason);
+	}
+
 	const customResticParams = schedule.customResticParams ?? [];
 
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
@@ -53,7 +57,7 @@ const createBackupRunPayload = async ({
 		jobId,
 		scheduleId: schedule.shortId,
 		organizationId,
-		volume: agentVolume,
+		source: { kind: "controller-path", path: getVolumePath(readiness.volume) },
 		repositoryConfig,
 		options: {
 			oneFileSystem: schedule.oneFileSystem,
@@ -71,41 +75,9 @@ const createBackupRunPayload = async ({
 			password: resticPassword,
 		},
 		webhooks: schedule.backupWebhooks ?? { pre: null, post: null },
-		webhookAllowedOrigins: config.webhookAllowedOrigins,
+		webhookAllowedOrigins: config.runtime === "desktop" ? null : config.webhookAllowedOrigins,
 		webhookTimeoutMs: config.webhookTimeout * 1000,
 	};
-};
-
-const executeBackupWithoutAgent = async (
-	payload: BackupRunPayload,
-	{ schedule, volume, signal, onProgress }: BackupExecutionRequest,
-) => {
-	const sourcePath = getVolumePath(volume);
-	const webhookAllowedOrigins = config.runtime === "desktop" ? null : payload.webhookAllowedOrigins;
-	const { signal: _, ...backupOptions } = createBackupOptions(schedule, sourcePath, signal);
-	const options = {
-		...backupOptions,
-		customResticParams: payload.options.customResticParams ?? [],
-		compressionMode: payload.options.compressionMode,
-	};
-
-	return runEffectPromise(
-		runBackupLifecycle({
-			restic,
-			repositoryConfig: payload.repositoryConfig,
-			sourcePath,
-			jobId: payload.jobId,
-			scheduleId: payload.scheduleId,
-			organizationId: payload.organizationId,
-			options,
-			webhooks: payload.webhooks,
-			webhookAllowedOrigins,
-			webhookTimeoutMs: payload.webhookTimeoutMs,
-			signal,
-			onProgress,
-			formatError: toErrorDetails,
-		}),
-	);
 };
 
 export const backupExecutor = {
@@ -114,13 +86,12 @@ export const backupExecutor = {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
 
+		const executionAgentId = getBackupExecutionAgentId(request.volume);
 		const payload = await createBackupRunPayload(request);
 
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
-
-		const executionAgentId = getBackupExecutionAgentId(request.volume, request.repository);
 
 		const executionResult = await agentManager.runBackup(executionAgentId, {
 			scheduleId: request.scheduleId,
@@ -128,14 +99,6 @@ export const backupExecutor = {
 			signal: request.signal,
 			onProgress: request.onProgress,
 		});
-
-		if (
-			executionResult.status === "unavailable" &&
-			executionAgentId === LOCAL_AGENT_ID &&
-			!config.flags.enableLocalAgent
-		) {
-			return executeBackupWithoutAgent(payload, request);
-		}
 
 		return executionResult;
 	},

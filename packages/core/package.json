@@ -3,6 +3,11 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./filesystem": {
+			"types": "./src/filesystem/index.ts",
+			"import": "./src/filesystem/index.ts",
+			"default": "./src/filesystem/index.ts"
+		},
 		"./restic": {
 			"types": "./src/restic/index.ts",
 			"import": "./src/restic/index.ts",

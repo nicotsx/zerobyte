@@ -8,8 +8,8 @@ import type {
 	BackupRunPayload,
 	RestoreCancelPayload,
 	RestoreRunPayload,
-	VolumeCommand,
-	VolumeCommandResponsePayload,
+	FilesystemCommand,
+	FilesystemCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
 import {
 	createControllerAgentSession,
@@ -402,29 +402,29 @@ export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) =>
 				logger.info(`Sent restore cancel for command ${payload.restoreId} to agent ${agentId}`);
 				return true;
 			}),
-		runVolumeCommand: (
+		runFilesystemCommand: (
 			agentId: string,
-			command: VolumeCommand,
-		): Effect.Effect<VolumeCommandResponsePayload | null, Error> =>
+			command: FilesystemCommand,
+		): Effect.Effect<FilesystemCommandResponsePayload | null, Error> =>
 			Effect.gen(function* () {
 				const session = getSession(agentId);
 
 				if (!session) {
 					yield* logger.effect.warn(
-						`Cannot send volume command ${command.name}. Agent ${agentId} is not connected.`,
+						`Cannot send filesystem command ${command.name}. Agent ${agentId} is not connected.`,
 					);
 					return null;
 				}
 
 				if (!(yield* session.isReady())) {
 					yield* logger.effect.warn(
-						`Cannot send volume command ${command.name}. Agent ${agentId} is not ready.`,
+						`Cannot send filesystem command ${command.name}. Agent ${agentId} is not ready.`,
 					);
 					return null;
 				}
 
-				const result = yield* session.runVolumeCommand(command);
-				yield* logger.effect.info(`Completed volume command ${command.name} on agent ${agentId}`);
+				const result = yield* session.runFilesystemCommand(command);
+				yield* logger.effect.info(`Completed filesystem command ${command.name} on agent ${agentId}`);
 				return result;
 			}),
 		stop,

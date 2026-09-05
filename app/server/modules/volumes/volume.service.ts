@@ -4,28 +4,23 @@ import { db } from "../../db/db";
 import { volumesTable } from "../../db/schema";
 import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
-import type { StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
-import { config } from "../../core/config";
 import { LOCAL_AGENT_ID } from "../agents/constants";
+import { createVolumeBackend } from "./volume-host";
+import { getVolumePath } from "./helpers";
+import type { StatFs } from "@zerobyte/core/filesystem";
 import { agentManager } from "../agents/agents-manager";
+import { testVolumeConnection } from "./volume-host/operations";
+import { Effect } from "effect";
 import type { UpdateVolumeBody } from "./volume.dto";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
-import { volumeConfigSchema, type BackendConfig, type Volume as AgentVolume } from "@zerobyte/contracts/volumes";
-import { Effect } from "effect";
+import { volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { normalizeRequiredName } from "~/server/utils/names";
 import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
-import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
-import { createVolumeBackend, getStatFs, getVolumePath } from "../../../../apps/agent/src/volume-host";
-import {
-	browseFilesystem as browseHostFilesystem,
-	listVolumeFiles,
-	testVolumeConnection,
-} from "../../../../apps/agent/src/volume-host/operations";
 
 type EnsureHealthyVolumeResult =
 	| { ready: true; volume: Volume; remounted: boolean }
@@ -50,55 +45,9 @@ const findVolume = async (shortId: ShortId) => {
 	});
 };
 
-const runVolumeCommand = async <TCommand extends VolumeCommand>(agentId: string, command: TCommand) => {
-	const result = await agentManager.runVolumeCommand(agentId, command);
-	if (result.name !== command.name) {
-		throw new InternalServerError(`Unexpected agent response for ${command.name}`);
-	}
-
-	return result as Extract<VolumeCommandResult, { name: TCommand["name"] }>;
-};
-
-const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
-	...volume,
-	config: await decryptVolumeConfig(volume.config),
-});
-
-const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
-	...volume,
-	shortId: volume.shortId,
-	config: await decryptVolumeConfig(volume.config),
-	provisioningId: volume.provisioningId ?? null,
-});
-
-// Transitional fallback: older controller-only installs do not run the supervised local agent.
-// Keep all controller-local host execution behind this predicate so the fallback is easy to delete
-// once volume operations always go through the local agent.
-const shouldRunViaAgent = (volume: Volume) => volume.agentId !== LOCAL_AGENT_ID || config.flags.enableLocalAgent;
-
-const shouldUseControllerLocalVolumeFallback = (volume: Volume) => !shouldRunViaAgent(volume);
-
-const runVolumeBackendCommand = async (
-	volume: Volume,
-	name: "volume.mount" | "volume.unmount" | "volume.checkHealth",
-) => {
-	if (shouldUseControllerLocalVolumeFallback(volume)) {
-		const backend = createVolumeBackend(await volumeForHost(volume));
-		switch (name) {
-			case "volume.mount":
-				return backend.mount();
-			case "volume.unmount":
-				return backend.unmount();
-			case "volume.checkHealth":
-				return backend.checkHealth();
-		}
-	}
-
-	const command = await runVolumeCommand(volume.agentId, {
-		name,
-		volume: await volumeForAgent(volume),
-	});
-	return command.result;
+const runVolumeBackendOperation = async (volume: Volume, operation: "mount" | "unmount" | "checkHealth") => {
+	const config = await decryptVolumeConfig(volume.config);
+	return createVolumeBackend({ ...volume, config })[operation]();
 };
 
 const createVolume = async (name: string, backendConfig: BackendConfig) => {
@@ -128,7 +77,7 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		throw new InternalServerError("Failed to create volume");
 	}
 
-	const { error, status } = await runVolumeBackendCommand(created, "volume.mount");
+	const { error, status } = await runVolumeBackendOperation(created, "mount");
 
 	await db
 		.update(volumesTable)
@@ -146,13 +95,15 @@ const deleteVolume = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	await runVolumeBackendCommand(volume, "volume.unmount");
+	await runVolumeBackendOperation(volume, "unmount");
 	await db
 		.delete(volumesTable)
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 };
 
-const mountVolume = async (shortId: ShortId) => {
+const mountVolume = async (shortId: ShortId, signal?: AbortSignal) => {
+	signal?.throwIfAborted();
+
 	const organizationId = getOrganizationId();
 	const volume = await findVolume(shortId);
 
@@ -164,8 +115,23 @@ const mountVolume = async (shortId: ShortId) => {
 		return checkHealth(shortId);
 	}
 
-	await runVolumeBackendCommand(volume, "volume.unmount");
-	const { error, status } = await runVolumeBackendCommand(volume, "volume.mount");
+	const unmount = await runVolumeBackendOperation(volume, "unmount");
+
+	if (signal?.aborted) {
+		const lastError = unmount.error ?? "Volume is not mounted";
+		await db
+			.update(volumesTable)
+			.set({ status: "error", lastError, lastHealthCheck: Date.now() })
+			.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
+
+		if (volume.status !== "error") {
+			serverEvents.emit("volume:status_changed", { organizationId, volumeName: volume.name, status: "error" });
+		}
+
+		signal.throwIfAborted();
+	}
+
+	const { error, status } = await runVolumeBackendOperation(volume, "mount");
 
 	await db
 		.update(volumesTable)
@@ -187,7 +153,7 @@ const unmountVolume = async (shortId: ShortId, options?: { persistStatus?: boole
 		throw new NotFoundError("Volume not found");
 	}
 
-	const { status, error } = await runVolumeBackendCommand(volume, "volume.unmount");
+	const { status, error } = await runVolumeBackendOperation(volume, "unmount");
 
 	if (options?.persistStatus !== false) {
 		await db
@@ -212,16 +178,14 @@ const getVolume = async (shortId: ShortId) => {
 
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
-		statfs = await withTimeout(
-			shouldRunViaAgent(volume)
-				? runVolumeCommand(volume.agentId, {
-						name: "volume.statfs",
-						volume: await volumeForAgent(volume),
-					}).then((command) => command.result)
-				: volumeForHost(volume).then((hostVolume) => getStatFs(getVolumePath(hostVolume))),
-			1000,
-			"volume.statfs",
-		).catch((error) => {
+		const statfsCommand = agentManager
+			.runFilesystemCommand(volume.agentId, { name: "filesystem.statfs", path: getVolumePath(volume) })
+			.then((response) => {
+				if (response.name !== "filesystem.statfs") throw new Error("Unexpected filesystem response");
+
+				return response.result;
+			});
+		statfs = await withTimeout(statfsCommand, 1000, "filesystem.statfs").catch((error) => {
 			logger.warn(`Failed to get statfs for volume ${volume.name}: ${toMessage(error)}`);
 			return {};
 		});
@@ -249,7 +213,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 
 	if (configChanged) {
 		logger.debug("Unmounting existing volume before applying new config");
-		await runVolumeBackendCommand(existing, "volume.unmount");
+		await runVolumeBackendOperation(existing, "unmount");
 	}
 
 	const newConfigResult = volumeConfigSchema.safeParse(volumeData.config || existing.config);
@@ -277,7 +241,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	}
 
 	if (configChanged) {
-		const { error, status } = await runVolumeBackendCommand(updated, "volume.mount");
+		const { error, status } = await runVolumeBackendOperation(updated, "mount");
 		await db
 			.update(volumesTable)
 			.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
@@ -290,12 +254,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 };
 
 const testConnection = async (backendConfig: BackendConfig) => {
-	if (!config.flags.enableLocalAgent) {
-		return Effect.runPromise(testVolumeConnection(backendConfig));
-	}
-
-	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
-	return command.result;
+	return Effect.runPromise(testVolumeConnection(backendConfig));
 };
 
 const checkHealth = async (shortId: ShortId) => {
@@ -306,7 +265,7 @@ const checkHealth = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	const { error, status } = await runVolumeBackendCommand(volume, "volume.checkHealth");
+	const { error, status } = await runVolumeBackendOperation(volume, "checkHealth");
 
 	if (status !== volume.status) {
 		serverEvents.emit("volume:status_changed", { organizationId, volumeName: volume.name, status });
@@ -320,7 +279,9 @@ const checkHealth = async (shortId: ShortId) => {
 	return { status, error };
 };
 
-const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolumeResult> => {
+const ensureHealthyVolume = async (shortId: ShortId, signal?: AbortSignal): Promise<EnsureHealthyVolumeResult> => {
+	signal?.throwIfAborted();
+
 	const volume = await findVolume(shortId);
 
 	if (!volume) {
@@ -329,11 +290,15 @@ const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolum
 
 	if (volume.type === "directory") {
 		const health = await checkHealth(shortId);
+		signal?.throwIfAborted();
 		const checkedVolume = { ...volume, status: health.status, lastError: health.error ?? null };
+
 		if (health.status === "mounted") {
 			return { ready: true, volume: checkedVolume, remounted: false };
 		}
+
 		const reason = health.error ?? "Directory is not accessible";
+
 		return { ready: false, volume: checkedVolume, reason };
 	}
 
@@ -346,6 +311,7 @@ const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolum
 
 	if (volume.status !== "error") {
 		const health = await checkHealth(shortId);
+		signal?.throwIfAborted();
 
 		if (health.status === "mounted") {
 			return {
@@ -366,7 +332,8 @@ const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolum
 	logger.warn(
 		`${volume.name} is not healthy. Auto-remount is enabled, attempting to remount. Reason: ${failureReason}`,
 	);
-	const remount = await mountVolume(shortId);
+	signal?.throwIfAborted();
+	const remount = await mountVolume(shortId, signal);
 
 	if (remount.status !== "mounted") {
 		return {
@@ -397,18 +364,16 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 	}
 
 	try {
-		if (shouldUseControllerLocalVolumeFallback(volume)) {
-			return await listVolumeFiles(await volumeForHost(volume), subPath, offset, limit);
-		}
-
-		const command = await runVolumeCommand(volume.agentId, {
-			name: "volume.listFiles",
-			volume: await volumeForAgent(volume),
+		const response = await agentManager.runFilesystemCommand(volume.agentId, {
+			name: "filesystem.listFiles",
+			path: getVolumePath(volume),
 			subPath,
 			offset,
 			limit,
 		});
-		return command.result;
+		if (response.name !== "filesystem.listFiles") throw new Error("Unexpected filesystem response");
+
+		return response.result;
 	} catch (error) {
 		throw new InternalServerError(`Failed to list files: ${toMessage(error)}`);
 	}
@@ -416,12 +381,13 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 
 const browseFilesystem = async (browsePath: string) => {
 	try {
-		if (!config.flags.enableLocalAgent) {
-			return await browseHostFilesystem(browsePath);
-		}
+		const response = await agentManager.runFilesystemCommand(LOCAL_AGENT_ID, {
+			name: "filesystem.browse",
+			path: browsePath,
+		});
+		if (response.name !== "filesystem.browse") throw new Error("Unexpected filesystem response");
 
-		const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "filesystem.browse", path: browsePath });
-		return command.result;
+		return response.result;
 	} catch (error) {
 		throw new InternalServerError(`Failed to browse filesystem: ${toMessage(error)}`);
 	}

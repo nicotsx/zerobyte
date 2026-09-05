@@ -1,61 +1,11 @@
-import { Data, Effect, Runtime } from "effect";
+import { Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import type { Volume } from "@zerobyte/contracts/volumes";
-import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
+import { createBackupOptions, runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
 import { resticDeps } from "../restic/deps";
-import { createVolumeBackend, getVolumePath } from "../volume-host";
-import { createBackupOptions } from "./helpers/backup.helpers";
-
-class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
-	readonly _tag: "VolumeReadinessError";
-	message: string;
-}> {}
-
-const ensureHealthyVolume = (volume: Volume) =>
-	Effect.gen(function* () {
-		const backend = createVolumeBackend(volume);
-		if (volume.type === "directory") {
-			const health = yield* Effect.promise(() => backend.checkHealth());
-			if (health.status !== "mounted") {
-				const message = health.error ?? "Directory is not accessible";
-				return yield* new VolumeReadinessError({ message });
-			}
-			return;
-		}
-
-		if (volume.status === "unmounted") {
-			return yield* new VolumeReadinessError({
-				message: `Volume ${volume.name} is not mounted`,
-			});
-		}
-
-		let failureReason = volume.lastError ?? "Volume health check failed";
-
-		if (volume.status !== "error") {
-			const health = yield* Effect.promise(() => backend.checkHealth());
-			if (health.status === "mounted") {
-				return;
-			}
-
-			failureReason = health.error ?? failureReason;
-		}
-
-		if (!volume.autoRemount) {
-			return yield* new VolumeReadinessError({ message: failureReason });
-		}
-
-		logger.warn(
-			`${volume.name} is not healthy. Auto-remount is enabled, attempting to remount. Reason: ${failureReason}`,
-		);
-		const remount = yield* Effect.promise(() => backend.mount());
-		if (remount.status !== "mounted") {
-			return yield* new VolumeReadinessError({ message: remount.error ?? failureReason });
-		}
-	});
 
 export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
 	return Effect.gen(function* () {
@@ -98,12 +48,13 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					}),
 				);
 
-				const restic = createRestic(resticDeps(payload.runtime.password));
+				const restic = yield* Effect.try(() => createRestic(resticDeps(payload.runtime.password)));
 				const runtime = yield* Effect.runtime<never>();
 
-				yield* ensureHealthyVolume(payload.volume);
-				const sourcePath = getVolumePath(payload.volume);
-				const options = createBackupOptions(payload, sourcePath, abortController.signal);
+				const sourcePath = payload.source.path;
+				const options = yield* Effect.try(() =>
+					createBackupOptions(payload, sourcePath, abortController.signal),
+				);
 
 				const backupResult = yield* runBackupLifecycle({
 					restic,
@@ -160,16 +111,30 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						return;
 				}
 			}).pipe(
-				Effect.catchAll((error) =>
-					context.offerOutbound(
+				Effect.catchAll((error) => {
+					if (abortController.signal.aborted) {
+						return context.offerOutbound(
+							createAgentMessage("backup.cancelled", {
+								jobId: payload.jobId,
+								scheduleId: payload.scheduleId,
+								message: "Backup was cancelled",
+							}),
+						);
+					}
+
+					const errorMessage = toMessage(
+						error instanceof Error && error.cause !== undefined ? error.cause : error,
+					);
+
+					return context.offerOutbound(
 						createAgentMessage("backup.failed", {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
-							error: error.message,
-							errorDetails: toMessage(error),
+							error: errorMessage,
+							errorDetails: errorMessage,
 						}),
-					),
-				),
+					);
+				}),
 				Effect.ensuring(context.deleteRunningJob(payload.jobId)),
 			),
 		);

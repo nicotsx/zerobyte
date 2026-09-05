@@ -15,7 +15,7 @@
 		"check": "bunx --bun oxlint --type-aware --type-check && oxfmt --check",
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"dev:desktop": "bun run --cwd apps/desktop start",
-		"build": "bunx --bun vite build",
+		"build": "bunx --bun vite build && bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun",
 		"build:api-docs": "NODE_ENV=test dotenv run -f .env.test -- bun scripts/export-api-docs.ts",
 		"build:desktop": "bun run --cwd apps/desktop make",
 		"start": "bun run .output/server/index.mjs",

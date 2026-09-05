@@ -1,9 +1,9 @@
 import { runDbMigrations } from "../../db/db";
-import { config } from "../../core/config";
-import { startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } from "../agents/agents-manager";
+import { startAgentController, startLocalAgent, stopAgentController } from "../agents/agents-manager";
 import { agentsService } from "../agents/agents.service";
 import { runMigrations } from "./migrations";
-import { startup } from "./startup";
+import { prepareStartup, activateScheduledJobs } from "./startup";
+import { Scheduler } from "../../core/scheduler";
 
 let bootstrapPromise: Promise<void> | undefined;
 
@@ -16,14 +16,16 @@ const runBootstrap = async () => {
 	try {
 		await startAgentController();
 
-		if (config.flags.enableLocalAgent) {
-			await startLocalAgent();
-		}
+		await prepareStartup(bootstrapStartedAt);
 
-		await startup(bootstrapStartedAt);
+		await startLocalAgent();
+		await activateScheduledJobs();
 	} catch (error) {
-		await stopLocalAgent();
-		await stopAgentController();
+		try {
+			await Scheduler.stop();
+		} finally {
+			await stopAgentController();
+		}
 		throw error;
 	}
 };
@@ -43,7 +45,6 @@ export const bootstrapApplication = async () => {
 
 export const stopApplicationRuntime = async () => {
 	try {
-		await stopLocalAgent();
 		await stopAgentController();
 	} finally {
 		bootstrapPromise = undefined;

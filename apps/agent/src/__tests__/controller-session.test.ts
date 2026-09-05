@@ -1,4 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { Effect } from "effect";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
@@ -33,21 +36,7 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 				jobId: "job-1",
 				scheduleId: "schedule-1",
 				organizationId: "org-1",
-				volume: {
-					id: 1,
-					shortId: "volume-1",
-					name: "Volume 1",
-					config: { backend: "directory", path: "/tmp" },
-					createdAt: 0,
-					updatedAt: 0,
-					lastHealthCheck: 0,
-					type: "directory",
-					status: "mounted",
-					lastError: null,
-					autoRemount: true,
-					agentId: "local",
-					organizationId: "org-1",
-				},
+				source: { kind: "controller-path", path: "/tmp" },
 				repositoryConfig: {
 					backend: "local",
 					path: "/tmp/test-repository",
@@ -114,7 +103,7 @@ test("closes the websocket when an outbound send throws", async () => {
 	}
 });
 
-test("continues processing inbound messages after a volume command fails", async () => {
+test("continues processing inbound messages after a filesystem command fails", async () => {
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
 		fromPartial({
@@ -126,7 +115,7 @@ test("continues processing inbound messages after a volume command fails", async
 
 	try {
 		session.onMessage(
-			createControllerMessage("volume.command", {
+			createControllerMessage("filesystem.command", {
 				commandId: "command-1",
 				command: {
 					name: "filesystem.browse",
@@ -139,14 +128,14 @@ test("continues processing inbound messages after a volume command fails", async
 		await waitForExpect(() => {
 			const parsedMessages = outboundMessages.map((message) => parseAgentMessage(message));
 			const volumeResult = parsedMessages.find(
-				(message) => message?.success && message.data.type === "volume.commandResult",
+				(message) => message?.success && message.data.type === "filesystem.commandResult",
 			);
 			const heartbeatPong = parsedMessages.find(
 				(message) => message?.success && message.data.type === "heartbeat.pong",
 			);
 
 			expect(volumeResult?.success).toBe(true);
-			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "volume.commandResult") {
+			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "filesystem.commandResult") {
 				return;
 			}
 
@@ -164,5 +153,51 @@ test("continues processing inbound messages after a volume command fails", async
 		});
 	} finally {
 		session.close();
+	}
+});
+
+test("browses the local filesystem through the controller wire protocol", async () => {
+	const browseRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-browse-"));
+	await fs.mkdir(path.join(browseRoot, "backups"));
+	await fs.writeFile(path.join(browseRoot, "ignored.txt"), "not a directory");
+	const outboundMessages: string[] = [];
+	const session = createControllerSession(
+		fromPartial({
+			send: (message: string) => {
+				outboundMessages.push(message);
+			},
+		}),
+	);
+
+	try {
+		session.onOpen();
+		session.onMessage(
+			createControllerMessage("filesystem.command", {
+				commandId: "browse-1",
+				command: { name: "filesystem.browse", path: browseRoot },
+			}),
+		);
+
+		await waitForExpect(() => {
+			const response = outboundMessages
+				.map((message) => parseAgentMessage(message))
+				.find((message) => message?.success && message.data.type === "filesystem.commandResult");
+			expect(response?.success).toBe(true);
+			if (!response || !response.success || response.data.type !== "filesystem.commandResult") return;
+			expect(response.data.payload).toEqual({
+				commandId: "browse-1",
+				status: "success",
+				command: {
+					name: "filesystem.browse",
+					result: {
+						path: browseRoot,
+						directories: [expect.objectContaining({ name: "backups", type: "directory" })],
+					},
+				},
+			});
+		});
+	} finally {
+		session.close();
+		await fs.rm(browseRoot, { recursive: true, force: true });
 	}
 });

@@ -1,8 +1,8 @@
+import { CleanupDanglingVolumeMountsJob } from "../../jobs/cleanup-dangling";
 import { Scheduler } from "../../core/scheduler";
 import { db } from "../../db/db";
 import { logger } from "@zerobyte/core/node";
 import { volumeService } from "../volumes/volume.service";
-import { CleanupDanglingMountsJob } from "../../jobs/cleanup-dangling";
 import { VolumeHealthCheckJob } from "../../jobs/healthchecks";
 import { RepositoryHealthCheckJob } from "../../jobs/repository-healthchecks";
 import { BackupExecutionJob } from "../../jobs/backup-execution";
@@ -51,7 +51,7 @@ const ensureLatestConfigurationSchema = async () => {
 	}
 };
 
-export const startup = async (bootstrapStartedAt?: number) => {
+export const prepareStartup = async (bootstrapStartedAt?: number) => {
 	cache.clear();
 
 	let staleTasks: ReturnType<typeof taskStore.markActiveStale> = [];
@@ -72,7 +72,6 @@ export const startup = async (bootstrapStartedAt?: number) => {
 		logger.error(`Failed to recover interrupted backup schedules on startup: ${err.message}`);
 	});
 
-	await Scheduler.start();
 	await Scheduler.clear();
 
 	await syncProvisionedResources(config.provisioningPath).catch((error) => {
@@ -80,6 +79,29 @@ export const startup = async (bootstrapStartedAt?: number) => {
 	});
 
 	await ensureLatestConfigurationSchema();
+
+	const volumes = await db.query.volumesTable.findMany({
+		where: {
+			AND: [
+				{ agentId: LOCAL_AGENT_ID },
+				{
+					OR: [
+						{ type: "directory" },
+						{ status: "mounted" },
+						{ AND: [{ autoRemount: true }, { status: "error" }] },
+					],
+				},
+			],
+		},
+	});
+
+	for (const volume of volumes) {
+		await withContext({ organizationId: volume.organizationId }, async () => {
+			await volumeService.mountVolume(volume.shortId).catch((error) => {
+				logger.error(`Error auto-remounting volume ${volume.name} on startup: ${toMessage(error)}`);
+			});
+		});
+	}
 
 	const { deletedSchedules } = await backupsService.cleanupOrphanedSchedules().catch((err) => {
 		logger.error(`Failed to cleanup orphaned backup schedules on startup: ${err.message}`);
@@ -89,37 +111,12 @@ export const startup = async (bootstrapStartedAt?: number) => {
 	if (deletedSchedules > 0) {
 		logger.warn(`Removed ${deletedSchedules} orphaned backup schedule(s) during startup`);
 	}
+};
 
-	if (!config.flags.enableLocalAgent) {
-		const volumes = await db.query.volumesTable.findMany({
-			where: {
-				AND: [
-					{ agentId: LOCAL_AGENT_ID },
-					{
-						OR: [
-							{ type: "directory" },
-							{ status: "mounted" },
-							{
-								AND: [{ autoRemount: true }, { status: "error" }],
-							},
-						],
-					},
-				],
-			},
-		});
+export const activateScheduledJobs = async () => {
+	await Scheduler.start();
 
-		for (const volume of volumes) {
-			await withContext({ organizationId: volume.organizationId }, async () => {
-				await volumeService.mountVolume(volume.shortId).catch((err) => {
-					logger.error(`Error auto-remounting volume ${volume.name} on startup: ${err.message}`);
-				});
-			});
-		}
-	}
-
-	if (!config.flags.enableLocalAgent) {
-		Scheduler.build(CleanupDanglingMountsJob).schedule("0 * * * *");
-	}
+	Scheduler.build(CleanupDanglingVolumeMountsJob).schedule("*/5 * * * *");
 	Scheduler.build(VolumeHealthCheckJob).schedule("*/30 * * * *");
 	Scheduler.build(RepositoryHealthCheckJob).schedule("50 12 * * *");
 	Scheduler.build(BackupExecutionJob).schedule("* * * * *");

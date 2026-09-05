@@ -1,5 +1,5 @@
 import { VOLUME_MOUNT_BASE } from "../../core/constants";
-import type { Volume } from "../../db/schema";
+import type { Volume } from "@zerobyte/contracts/volumes";
 
 export const getVolumePath = (volume: Volume) => {
 	if (volume.config.backend === "directory") {

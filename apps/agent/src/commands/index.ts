@@ -5,7 +5,7 @@ import type { ControllerCommandContext } from "../context";
 import { handleHeartbeatPingCommand } from "./heartbeat-ping";
 import { handleRestoreCancelCommand } from "./restore-cancel";
 import { handleRestoreRunCommand } from "./restore";
-import { handleVolumeCommand } from "./volume";
+import { handleFilesystemCommand } from "./filesystem";
 
 export const handleControllerCommand = (context: ControllerCommandContext, message: ControllerMessage) => {
 	switch (message.type) {
@@ -15,8 +15,8 @@ export const handleControllerCommand = (context: ControllerCommandContext, messa
 		case "backup.cancel": {
 			return handleBackupCancelCommand(context, message.payload);
 		}
-		case "volume.command": {
-			return handleVolumeCommand(context, message.payload);
+		case "filesystem.command": {
+			return handleFilesystemCommand(context, message.payload);
 		}
 		case "restore.run": {
 			return handleRestoreRunCommand(context, message.payload);

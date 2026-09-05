@@ -1,10 +1,9 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { afterEach, expect, test, vi } from "vitest";
 import { logger } from "@zerobyte/core/node";
-import { listVolumeFiles } from "../operations";
+import { listFiles } from "..";
 
 vi.mock("node:fs/promises", async (importOriginal) => ({
 	...(await importOriginal<typeof fs>()),
@@ -21,33 +20,18 @@ afterEach(async () => {
 	}
 });
 
-const createDirectoryVolume = async (): Promise<AgentVolume> => {
+const createDirectoryRoot = async () => {
 	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-volume-ops-"));
-	return {
-		id: 1,
-		shortId: "volume-1",
-		name: "Test volume",
-		config: { backend: "directory", path: tempRoot },
-		createdAt: Date.now(),
-		updatedAt: Date.now(),
-		lastHealthCheck: Date.now(),
-		type: "directory",
-		status: "mounted",
-		lastError: null,
-		provisioningId: null,
-		autoRemount: true,
-		agentId: "local",
-		organizationId: "org-1",
-	};
+	return tempRoot;
 };
 
-test("listVolumeFiles returns sorted paginated entries inside the volume", async () => {
-	const volume = await createDirectoryVolume();
+test("listFiles returns sorted paginated entries inside the volume", async () => {
+	const volume = await createDirectoryRoot();
 	await fs.mkdir(path.join(tempRoot!, "z-dir"));
 	await fs.mkdir(path.join(tempRoot!, "a-dir"));
 	await fs.writeFile(path.join(tempRoot!, "b-file.txt"), "hello");
 
-	const result = await listVolumeFiles(volume, undefined, 1, 2);
+	const result = await listFiles(volume, undefined, 1, 2);
 
 	expect(result).toMatchObject({
 		path: "/",
@@ -60,19 +44,18 @@ test("listVolumeFiles returns sorted paginated entries inside the volume", async
 	expect(result.files[1]).toMatchObject({ path: "/b-file.txt", type: "file", size: 5 });
 });
 
-test("listVolumeFiles rejects traversal outside the volume", async () => {
-	const volume = await createDirectoryVolume();
+test("listFiles rejects traversal outside the volume", async () => {
+	const volume = await createDirectoryRoot();
 
-	await expect(listVolumeFiles(volume, "../outside", 0, 10)).rejects.toThrow("Invalid path");
+	await expect(listFiles(volume, "../outside", 0, 10)).rejects.toThrow("Invalid path");
 });
 
-test("listVolumeFiles reports missing directories consistently", async () => {
-	const volume = await createDirectoryVolume();
+test("listFiles reports missing directories consistently", async () => {
+	const volume = await createDirectoryRoot();
 	const logError = vi.spyOn(logger, "error").mockImplementation(() => {});
 
-	await expect(listVolumeFiles(volume, "missing", 0, 10)).rejects.toThrow("Directory not found");
-	expect(logError).toHaveBeenCalledWith("Failed to list volume directory", {
-		volumeId: volume.shortId,
+	await expect(listFiles(volume, "missing", 0, 10)).rejects.toThrow("Directory not found");
+	expect(logError).toHaveBeenCalledWith("Failed to list directory", {
 		volumePath: tempRoot,
 		requestedPath: path.join(tempRoot!, "missing"),
 		error: expect.stringContaining("ENOENT"),
@@ -80,29 +63,28 @@ test("listVolumeFiles reports missing directories consistently", async () => {
 	});
 });
 
-test("listVolumeFiles returns slash-separated paths when expanding nested folders", async () => {
-	const volume = await createDirectoryVolume();
+test("listFiles returns slash-separated paths when expanding nested folders", async () => {
+	const volume = await createDirectoryRoot();
 	await fs.mkdir(path.join(tempRoot!, "Default", "AppData", "Local"), { recursive: true });
 	await fs.writeFile(path.join(tempRoot!, "Default", "AppData", "Local", "example.txt"), "hello");
 
-	const folders = await listVolumeFiles(volume, "/Default/AppData");
+	const folders = await listFiles(volume, "/Default/AppData");
 	expect(folders.files).toEqual([
 		expect.objectContaining({ name: "Local", path: "/Default/AppData/Local", type: "directory" }),
 	]);
-	const files = await listVolumeFiles(volume, folders.files[0]!.path);
+	const files = await listFiles(volume, folders.files[0]!.path);
 	expect(files.files).toEqual([
 		expect.objectContaining({ name: "example.txt", path: "/Default/AppData/Local/example.txt", type: "file" }),
 	]);
 });
 
-test("listVolumeFiles restores the separator when Windows realpath returns a bare drive", async () => {
-	const volume = await createDirectoryVolume();
-	volume.config = { backend: "directory", path: "C:\\" };
+test("listFiles restores the separator when Windows realpath returns a bare drive", async () => {
+	const volume = "C:\\";
 	vi.stubGlobal("process", { ...process, platform: "win32" });
 	const resolve = vi.spyOn(fs, "realpath").mockResolvedValue("C:");
 	const read = vi.spyOn(fs, "readdir").mockResolvedValue([]);
 
-	const result = await listVolumeFiles(volume);
+	const result = await listFiles(volume);
 	expect(resolve).toHaveBeenCalledWith("C:\\");
 	expect(read).toHaveBeenCalledWith("C:\\", { withFileTypes: true });
 	expect(result.files).toEqual([]);

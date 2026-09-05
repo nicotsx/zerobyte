@@ -13,8 +13,8 @@ import {
 	type ControllerWireMessage,
 	type RestoreCancelPayload,
 	type RestoreRunPayload,
-	type VolumeCommand,
-	type VolumeCommandResponsePayload,
+	type FilesystemCommand,
+	type FilesystemCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
@@ -36,10 +36,10 @@ type SessionState = {
 	lastPongAt: number | null;
 };
 
-type PendingCommand = { deferred: Deferred.Deferred<VolumeCommandResponsePayload, Error>; description: string };
+type PendingCommand = { deferred: Deferred.Deferred<FilesystemCommandResponsePayload, Error>; description: string };
 
 export type ControllerAgentSessionEvent =
-	| Exclude<AgentMessage, { type: "volume.commandResult" }>
+	| Exclude<AgentMessage, { type: "filesystem.commandResult" }>
 	| { type: "agent.protocolRejected"; payload: AgentProtocolRejection }
 	| { type: "agent.disconnected" };
 
@@ -50,7 +50,7 @@ export type ControllerAgentSession = {
 	sendBackupCancel: (payload: BackupCancelPayload) => Effect.Effect<boolean>;
 	sendRestore: (payload: RestoreRunPayload) => Effect.Effect<boolean>;
 	sendRestoreCancel: (payload: RestoreCancelPayload) => Effect.Effect<boolean>;
-	runVolumeCommand: (command: VolumeCommand) => Effect.Effect<VolumeCommandResponsePayload, Error>;
+	runFilesystemCommand: (command: FilesystemCommand) => Effect.Effect<FilesystemCommandResponsePayload, Error>;
 	isReady: () => Effect.Effect<boolean>;
 	run: Effect.Effect<void, never, Scope.Scope>;
 };
@@ -174,11 +174,11 @@ export const createControllerAgentSession = (
 			return yield* Effect.never;
 		});
 
-		const handleVolumeCommandResult = (payload: VolumeCommandResponsePayload) =>
+		const handleFilesystemCommandResult = (payload: FilesystemCommandResponsePayload) =>
 			Effect.gen(function* () {
 				const pending = yield* removePendingCommand(payload.commandId);
 				if (!pending) {
-					yield* logger.effect.warn(`Received response for unknown volume command ${payload.commandId}`);
+					yield* logger.effect.warn(`Received response for unknown filesystem command ${payload.commandId}`);
 					return;
 				}
 
@@ -210,8 +210,8 @@ export const createControllerAgentSession = (
 						yield* onEvent(message);
 						break;
 					}
-					case "volume.commandResult": {
-						yield* handleVolumeCommandResult(message.payload);
+					case "filesystem.commandResult": {
+						yield* handleFilesystemCommandResult(message.payload);
 						break;
 					}
 					default: {
@@ -275,25 +275,25 @@ export const createControllerAgentSession = (
 			sendBackupCancel: (payload) => offerOutbound(createControllerMessage("backup.cancel", payload)),
 			sendRestore: (payload) => offerOutbound(createControllerMessage("restore.run", payload)),
 			sendRestoreCancel: (payload) => offerOutbound(createControllerMessage("restore.cancel", payload)),
-			runVolumeCommand: (command) =>
+			runFilesystemCommand: (command) =>
 				Effect.gen(function* () {
 					const commandId = Bun.randomUUIDv7();
-					const description = `volume command ${command.name}`;
-					const deferred = yield* Deferred.make<VolumeCommandResponsePayload, Error>();
+					const description = `filesystem command ${command.name}`;
+					const deferred = yield* Deferred.make<FilesystemCommandResponsePayload, Error>();
 					yield* setPendingCommand(commandId, { deferred, description });
 
 					const queued = yield* offerOutbound(
-						createControllerMessage("volume.command", { commandId, command }),
+						createControllerMessage("filesystem.command", { commandId, command }),
 					);
 					if (!queued) {
 						yield* removePendingCommand(commandId);
-						return yield* Effect.fail(new Error(`Failed to queue volume command ${command.name}`));
+						return yield* Effect.fail(new Error(`Failed to queue filesystem command ${command.name}`));
 					}
 
 					return yield* Deferred.await(deferred).pipe(
 						Effect.timeoutFail({
 							duration: "60 seconds",
-							onTimeout: () => new Error(`Volume command ${command.name} timed out`),
+							onTimeout: () => new Error(`Filesystem command ${command.name} timed out`),
 						}),
 						Effect.ensuring(removePendingCommand(commandId)),
 					);

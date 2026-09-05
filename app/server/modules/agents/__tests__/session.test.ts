@@ -7,7 +7,6 @@ import {
 	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
 	type AgentMessage,
 } from "@zerobyte/contracts/agent-protocol";
-import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
@@ -56,22 +55,6 @@ const createSession = (
 	}
 };
 
-const backupVolume = {
-	id: 1,
-	shortId: "volume-1",
-	name: "Volume 1",
-	config: { backend: "directory", path: "/tmp" },
-	createdAt: 0,
-	updatedAt: 0,
-	lastHealthCheck: 0,
-	type: "directory",
-	status: "mounted" as const,
-	lastError: null,
-	autoRemount: true,
-	agentId: LOCAL_AGENT_ID,
-	organizationId: "org-1",
-} satisfies Volume;
-
 test("closing the session scope interrupts the session runner", async () => {
 	const { run, closeAsync } = createSession();
 	const fiber = run();
@@ -105,7 +88,7 @@ test("sendBackup only queues the transport message", () => {
 			jobId: "job-queued",
 			scheduleId: "schedule-queued",
 			organizationId: "org-1",
-			volume: backupVolume,
+			source: { kind: "controller-path" as const, path: "/tmp" },
 			repositoryConfig: {
 				backend: "local",
 				path: "/tmp/repository",

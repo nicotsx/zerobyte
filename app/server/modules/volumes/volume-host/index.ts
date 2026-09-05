@@ -4,12 +4,9 @@ import { makeRcloneBackend } from "./backends/rclone";
 import { makeSftpBackend } from "./backends/sftp";
 import { makeSmbBackend } from "./backends/smb";
 import { makeWebdavBackend } from "./backends/webdav";
-import { getVolumePath } from "./paths";
+import { getVolumePath } from "../helpers";
 import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import type { VolumeBackend } from "./types";
-
-export { getStatFs, isNodeJSErrnoException } from "./fs";
-export { getVolumePath } from "./paths";
 
 export const createVolumeBackend = (volume: AgentVolume, mountPath = getVolumePath(volume)): VolumeBackend => {
 	switch (volume.config.backend) {

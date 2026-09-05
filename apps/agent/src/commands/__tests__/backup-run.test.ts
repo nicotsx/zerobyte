@@ -1,4 +1,3 @@
-import { tmpdir } from "node:os";
 import nodeHttp, { type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -84,21 +83,7 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
-		volume: {
-			id: 1,
-			shortId: "volume-1",
-			name: "Volume 1",
-			config: { backend: "directory", path: "/tmp" },
-			createdAt: 0,
-			updatedAt: 0,
-			lastHealthCheck: 0,
-			type: "directory",
-			status: "mounted",
-			lastError: null,
-			autoRemount: true,
-			agentId: "local",
-			organizationId: "org-1",
-		},
+		source: { kind: "controller-path", path: "/tmp" },
 		repositoryConfig: {
 			backend: "local",
 			path: "/tmp/repository",
@@ -121,8 +106,9 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 		...overrides,
 	});
 
-const runBackupCommand = async (payload: BackupRunPayload) => {
+const runBackupCommand = async (payload: BackupRunPayload, cancelOnStart = false) => {
 	const outboundMessages: string[] = [];
+	const messagesAtCleanup: string[] = [];
 	const runningJobs = new Map<string, RunningJob>();
 
 	const context: ControllerCommandContext = {
@@ -133,11 +119,18 @@ const runBackupCommand = async (payload: BackupRunPayload) => {
 			}),
 		deleteRunningJob: (jobId) =>
 			Effect.sync(() => {
+				messagesAtCleanup.push(...outboundMessages);
 				runningJobs.delete(jobId);
 			}),
 		offerOutbound: (message) =>
 			Effect.sync(() => {
 				outboundMessages.push(message);
+
+				const parsed = parseAgentMessage(message);
+				if (cancelOnStart && parsed?.success && parsed.data.type === "backup.started") {
+					runningJobs.get(payload.jobId)?.abortController.abort();
+				}
+
 				return true;
 			}),
 	};
@@ -153,7 +146,7 @@ const runBackupCommand = async (payload: BackupRunPayload) => {
 		}),
 	);
 
-	return outboundMessages.map((message) => parseAgentMessage(message));
+	return messagesAtCleanup.map((message) => parseAgentMessage(message));
 };
 
 test("runs pre and post backup webhooks around restic", async () => {
@@ -385,21 +378,7 @@ test("waits for running-job registration before returning to the processor loop"
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
-		volume: {
-			id: 1,
-			shortId: "volume-1",
-			name: "Volume 1",
-			config: { backend: "directory", path: "/tmp" },
-			createdAt: 0,
-			updatedAt: 0,
-			lastHealthCheck: 0,
-			type: "directory",
-			status: "mounted",
-			lastError: null,
-			autoRemount: true,
-			agentId: "local",
-			organizationId: "org-1",
-		},
+		source: { kind: "controller-path", path: "/tmp" },
 		repositoryConfig: {
 			backend: "local",
 			path: "/tmp/repository",
@@ -471,23 +450,71 @@ test("waits for running-job registration before returning to the processor loop"
 	}
 });
 
-test.each(["unmounted", "error"] as const)(
-	"backs up an accessible directory with saved %s status and auto-remount disabled",
-	async (status) => {
-		vi.spyOn(resticServer, "createRestic").mockReturnValue(
-			fromPartial({
-				backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }),
-			}),
-		);
-		const payload = createRunPayload();
-		payload.volume = {
-			...payload.volume,
-			status,
-			autoRemount: false,
-			config: { backend: "directory", path: tmpdir() },
-		};
-		const messages = await runBackupCommand(payload);
-		expect(messages.some((message) => message?.success && message.data.type === "backup.completed")).toBe(true);
-		expect(messages.some((message) => message?.success && message.data.type === "backup.failed")).toBe(false);
-	},
-);
+test("reports invalid stored include patterns as terminal failures and removes the running job", async () => {
+	const backup = vi.fn();
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+
+	const payload = createRunPayload();
+	payload.options.includePatterns = ["../outside"];
+
+	const messages = await runBackupCommand(payload);
+
+	expect(messages.map((message) => message?.success && message.data.type)).toEqual([
+		"backup.started",
+		"backup.failed",
+	]);
+
+	const failed = messages[1];
+	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
+
+	expect(failed.data.payload.error).toContain("Include pattern escapes volume root: ../outside");
+	expect(failed.data.payload.errorDetails).toContain("Include pattern escapes volume root: ../outside");
+	expect(backup).not.toHaveBeenCalled();
+});
+
+test("reports restic setup errors as terminal failures and removes the running job", async () => {
+	vi.spyOn(resticServer, "createRestic").mockImplementation(() => {
+		throw new Error("Restic setup failed");
+	});
+
+	const messages = await runBackupCommand(createRunPayload());
+
+	expect(messages.map((message) => message?.success && message.data.type)).toEqual([
+		"backup.started",
+		"backup.failed",
+	]);
+
+	const failed = messages[1];
+	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
+
+	expect(failed.data.payload.error).toBe("Restic setup failed");
+});
+
+test("preserves the wrapper message when a setup failure has no cause", async () => {
+	vi.spyOn(resticServer, "createRestic").mockImplementation(() => {
+		throw undefined;
+	});
+
+	const messages = await runBackupCommand(createRunPayload());
+	const failed = messages.find((message) => message?.success && message.data.type === "backup.failed");
+	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
+
+	expect(failed.data.payload.error).toBe("An unknown error occurred in Effect.try");
+	expect(failed.data.payload.errorDetails).toBe(failed.data.payload.error);
+});
+
+test("reports cancellation when a setup error occurs after the job was aborted", async () => {
+	const backup = vi.fn();
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+
+	const payload = createRunPayload();
+	payload.options.includePatterns = ["../outside"];
+
+	const messages = await runBackupCommand(payload, true);
+
+	expect(messages.map((message) => message?.success && message.data.type)).toEqual([
+		"backup.started",
+		"backup.cancelled",
+	]);
+	expect(backup).not.toHaveBeenCalled();
+});

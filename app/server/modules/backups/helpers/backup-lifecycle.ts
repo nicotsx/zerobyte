@@ -1,4 +1,4 @@
-import { BadRequestError, NotFoundError } from "http-errors-enhanced";
+import { NotFoundError } from "http-errors-enhanced";
 import { logger } from "@zerobyte/core/node";
 import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type { BackupSchedule, Repository, Volume } from "../../../db/schema";
@@ -8,9 +8,6 @@ import { notificationsService } from "../../notifications/notifications.service"
 import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
-import { volumeService } from "../../volumes/volume.service";
-import { config } from "../../../core/config";
-import { LOCAL_AGENT_ID } from "../../agents/constants";
 import { commands } from "../commands";
 
 export interface BackupContext {
@@ -37,9 +34,6 @@ type ValidationSkipped = {
 };
 
 type ValidationResult = ValidationSuccess | ValidationFailure | ValidationSkipped;
-
-const requiresControllerLocalVolumeReadiness = (volume: Volume) =>
-	volume.agentId === LOCAL_AGENT_ID && !config.flags.enableLocalAgent;
 
 export async function validateBackupExecution(scheduleId: number, manual = false): Promise<ValidationResult> {
 	const organizationId = getOrganizationId();
@@ -72,26 +66,9 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 		};
 	}
 
-	if (!requiresControllerLocalVolumeReadiness(volume)) {
-		return {
-			type: "success",
-			context: { schedule, volume, repository, organizationId },
-		};
-	}
-
-	const volumeReadiness = await volumeService.ensureHealthyVolume(volume.shortId);
-
-	if (!volumeReadiness.ready) {
-		return {
-			type: "failure",
-			error: new BadRequestError(volumeReadiness.reason),
-			partialContext: { schedule, volume: volumeReadiness.volume, repository },
-		};
-	}
-
 	return {
 		type: "success",
-		context: { schedule, volume: volumeReadiness.volume, repository, organizationId },
+		context: { schedule, volume, repository, organizationId },
 	};
 }
 

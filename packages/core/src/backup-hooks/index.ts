@@ -430,3 +430,4 @@ export const runBackupLifecycle = <TResult>({
 			error: appendDetails(backupResult.errorDetails, postHookError) || backupResult.errorDetails,
 		};
 	});
+export { createBackupOptions, processBackupPattern } from "./options.js";

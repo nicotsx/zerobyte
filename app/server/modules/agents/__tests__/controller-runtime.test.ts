@@ -3,7 +3,6 @@ import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
-import type { Volume } from "@zerobyte/contracts/volumes";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 
 const agentsServiceMocks = vi.hoisted(() => ({
@@ -37,22 +36,6 @@ const createSocket = (id: string, agentId = LOCAL_AGENT_ID) => ({
 	close: vi.fn(),
 });
 
-const backupVolume = {
-	id: 1,
-	shortId: "volume-1",
-	name: "Volume 1",
-	config: { backend: "directory", path: "/tmp" },
-	createdAt: 0,
-	updatedAt: 0,
-	lastHealthCheck: 0,
-	type: "directory",
-	status: "mounted" as const,
-	lastError: null,
-	autoRemount: true,
-	agentId: LOCAL_AGENT_ID,
-	organizationId: "org-1",
-} satisfies Volume;
-
 const readyPayload = {
 	agentId: LOCAL_AGENT_ID,
 	protocolVersion: 1,
@@ -65,7 +48,7 @@ const backupPayload = {
 	jobId: "job-1",
 	scheduleId: "schedule-1",
 	organizationId: "org-1",
-	volume: backupVolume,
+	source: { kind: "controller-path" as const, path: "/tmp" },
 	repositoryConfig: { backend: "local" as const, path: "/tmp/repository" },
 	options: {
 		oneFileSystem: false,

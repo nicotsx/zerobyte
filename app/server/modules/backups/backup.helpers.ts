@@ -1,6 +1,4 @@
 import { CronExpressionParser } from "cron-parser";
-import { createBackupOptions as createAgentBackupOptions } from "../../../../apps/agent/src/commands/helpers/backup.helpers";
-import type { BackupSchedule } from "~/server/db/schema";
 import { toMessage } from "~/server/utils/errors";
 import { logger } from "@zerobyte/core/node";
 
@@ -39,21 +37,3 @@ export const validateScheduleTiming = (schedule: { cronExpression: string; enabl
 
 	return null;
 };
-
-export const createBackupOptions = (schedule: BackupSchedule, volumePath: string, signal?: AbortSignal) =>
-	createAgentBackupOptions(
-		{
-			scheduleId: schedule.shortId,
-			options: {
-				oneFileSystem: schedule.oneFileSystem,
-				excludePatterns: schedule.excludePatterns,
-				excludeIfPresent: schedule.excludeIfPresent,
-				includePaths: schedule.includePaths,
-				includePatterns: schedule.includePatterns,
-				customResticParams: schedule.customResticParams,
-				compressionMode: "auto",
-			},
-		},
-		volumePath,
-		signal,
-	);

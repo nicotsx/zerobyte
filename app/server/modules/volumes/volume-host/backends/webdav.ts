@@ -131,7 +131,10 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			};
 		}
 		if (message.includes("unauthorized") || message.includes("Unauthorized")) {
-			return { status: "error" as const, error: "Authentication failed. Please check your username and password." };
+			return {
+				status: "error" as const,
+				error: "Authentication failed. Please check your username and password.",
+			};
 		}
 
 		return { status: "error" as const, error: message };

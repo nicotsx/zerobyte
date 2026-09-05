@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { ResticDeps } from "@zerobyte/core/restic";
-import { resolveResticHostname } from "./hostname";
+import { resolveResticHostname } from "@zerobyte/core/node";
 
 const REPOSITORY_BASE = process.env.ZEROBYTE_REPOSITORIES_DIR || "/var/lib/zerobyte/repositories";
 const RESTIC_CACHE_DIR = process.env.RESTIC_CACHE_DIR || "/var/lib/zerobyte/restic/cache";

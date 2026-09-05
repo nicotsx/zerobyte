@@ -8,7 +8,6 @@ import { Effect } from "effect";
 import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
-import { config } from "~/server/core/config";
 import { withContext } from "~/server/core/request-context";
 import { db } from "~/server/db/db";
 import { agentsTable, repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
@@ -660,7 +659,6 @@ describe("repositoriesService.dumpSnapshot", () => {
 });
 
 describe("repositoriesService.restoreSnapshot", () => {
-	let originalEnableLocalAgent: boolean;
 	const createPendingRestoreStart = () => ({
 		status: "started" as const,
 		result: new Promise<RestoreExecutionResult>(() => {}),
@@ -684,13 +682,9 @@ describe("repositoriesService.restoreSnapshot", () => {
 		});
 	};
 
-	beforeEach(() => {
-		originalEnableLocalAgent = config.flags.enableLocalAgent;
-		config.flags.enableLocalAgent = true;
-	});
+	beforeEach(() => {});
 
 	afterEach(() => {
-		config.flags.enableLocalAgent = originalEnableLocalAgent;
 		vi.restoreAllMocks();
 	});
 
@@ -1053,43 +1047,6 @@ describe("repositoriesService.restoreSnapshot", () => {
 		).rejects.toThrow("Restore target agent not found");
 
 		expect(restoreMock).not.toHaveBeenCalled();
-	});
-
-	test("uses controller-local restore fallback when local agent supervision is disabled", async () => {
-		config.flags.enableLocalAgent = false;
-		const { organizationId, userId, repositoryShortId, restoreMock } = await setupRestoreSnapshotScenario();
-		const resticRestoreMock = vi.spyOn(restic, "restore").mockReturnValue(
-			Effect.succeed({
-				message_type: "summary" as const,
-				files_skipped: 0,
-				files_restored: 1,
-			}),
-		);
-		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
-
-		try {
-			await withContext({ organizationId, userId }, () =>
-				repositoriesService.restoreSnapshot(repositoryShortId, "snapshot-restore", {
-					targetPath,
-				}),
-			);
-		} finally {
-			await fs.rm(targetPath, { recursive: true, force: true });
-		}
-
-		expect(restoreMock).not.toHaveBeenCalled();
-		await waitForExpect(() => {
-			expect(resticRestoreMock).toHaveBeenCalledWith(
-				expect.objectContaining({ backend: "local" }),
-				"snapshot-restore",
-				targetPath,
-				expect.objectContaining({
-					organizationId,
-					basePath: "/var/lib/zerobyte/volumes/vol123/_data",
-					signal: expect.any(AbortSignal),
-				}),
-			);
-		});
 	});
 
 	test("rejects original-location restore for snapshots with non-posix source paths", async () => {

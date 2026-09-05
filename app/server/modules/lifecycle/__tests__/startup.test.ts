@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Scheduler } from "~/server/core/scheduler";
-import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
+import { volumesTable } from "~/server/db/schema";
 import { backupsService } from "~/server/modules/backups/backups.service";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
@@ -22,25 +22,21 @@ const loadStartupModule = async () => {
 	return import(moduleUrl.href);
 };
 
-let originalEnableLocalAgent: boolean;
-
-beforeEach(() => {
-	originalEnableLocalAgent = config.flags.enableLocalAgent;
-	config.flags.enableLocalAgent = true;
-
+beforeEach(async () => {
+	await db.delete(volumesTable);
 	vi.spyOn(Scheduler, "start").mockResolvedValue();
 	vi.spyOn(Scheduler, "clear").mockResolvedValue();
 	vi.spyOn(Scheduler, "build").mockImplementation(() => ({ schedule: vi.fn() }));
 	vi.spyOn(provisioningModule, "syncProvisionedResources").mockResolvedValue();
 	vi.spyOn(backupsService, "cleanupOrphanedSchedules").mockResolvedValue({ deletedSchedules: 0 });
 	vi.spyOn(volumeService, "updateVolume").mockResolvedValue(undefined as never);
+	vi.spyOn(volumeService, "mountVolume").mockResolvedValue({ status: "mounted", error: undefined });
 	vi.spyOn(repositoriesService, "updateRepository").mockResolvedValue(undefined as never);
 	vi.spyOn(notificationsService, "updateDestination").mockResolvedValue(undefined as never);
 });
 
 afterEach(() => {
 	vi.useRealTimers();
-	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	vi.restoreAllMocks();
 });
 
@@ -71,7 +67,7 @@ test("marks active scheduled backup tasks stale and makes them executable again"
 	});
 	taskStore.markRunning(task.id);
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -115,7 +111,7 @@ test("marks active manual backup tasks stale without making the schedule executa
 	});
 	taskStore.markRunning(task.id);
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -152,7 +148,7 @@ test("does not immediately retry cancellation-requested scheduled backups", asyn
 	taskStore.markRunning(task.id);
 	taskStore.requestCancel(task.id);
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -173,7 +169,7 @@ test("makes in-progress scheduled backups without task rows executable again", a
 		nextBackupAt,
 	});
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -230,7 +226,7 @@ test("ignores previously stale scheduled tasks when the current interrupted task
 	});
 	taskStore.markRunning(latestTask.id);
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -273,7 +269,7 @@ test("does not use previously stale scheduled tasks to retry immediately", async
 		error: RESTART_TASK_ERROR,
 	});
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 
 	await startup();
 
@@ -335,7 +331,7 @@ test("does not stale tasks or schedules created after bootstrap begins", async (
 	});
 	taskStore.markRunning(currentTask.id);
 
-	const { startup } = await loadStartupModule();
+	const { prepareStartup: startup } = await loadStartupModule();
 	await startup(bootstrapStartedAt);
 
 	const staleTask = await db.query.tasksTable.findFirst({ where: { id: oldTask.id } });
@@ -347,3 +343,70 @@ test("does not stale tasks or schedules created after bootstrap begins", async (
 	expect(preservedTask?.status).toBe("running");
 	expect(preservedSchedule?.lastBackupStatus).toBe("in_progress");
 });
+
+test("remounts saved local managed volumes without retrying other source states", async () => {
+	const mountBackend = {
+		type: "nfs" as const,
+		config: {
+			backend: "nfs" as const,
+			server: "nas.example",
+			exportPath: "/data",
+			version: "4" as const,
+			port: 2049,
+			readOnly: false,
+		},
+	};
+
+	const mounted = await createTestVolume({
+		...mountBackend,
+		name: "Startup mounted",
+		autoRemount: false,
+		status: "mounted",
+	});
+	const retryableError = await createTestVolume({
+		...mountBackend,
+		name: "Startup retryable error",
+		autoRemount: true,
+		status: "error",
+	});
+	const nonRetryableError = await createTestVolume({
+		...mountBackend,
+		name: "Startup non-retryable error",
+		autoRemount: false,
+		status: "error",
+	});
+	const unmounted = await createTestVolume({ ...mountBackend, name: "Startup unmounted", status: "unmounted" });
+	const remoteManaged = await createTestVolume({
+		...mountBackend,
+		name: "Startup remote managed",
+		agentId: "remote-agent",
+		status: "mounted",
+	});
+	const mountVolume = vi.mocked(volumeService.mountVolume);
+	mountVolume.mockRejectedValueOnce(new Error("mount failed"));
+
+	const { prepareStartup: startup } = await loadStartupModule();
+
+	await startup();
+
+	expect(mountVolume).toHaveBeenCalledTimes(2);
+	expect(mountVolume).toHaveBeenCalledWith(mounted.shortId);
+	expect(mountVolume).toHaveBeenCalledWith(retryableError.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(nonRetryableError.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(unmounted.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(remoteManaged.shortId);
+});
+
+test.each(["mounted", "unmounted", "error"] as const)(
+	"rechecks local directory volumes with status %s even without auto-remount",
+	async (status) => {
+		const directory = await createTestVolume({ status, autoRemount: false });
+		const remoteDirectory = await createTestVolume({ status, autoRemount: false, agentId: "remote-agent" });
+
+		const { prepareStartup: startup } = await loadStartupModule();
+		await startup();
+
+		expect(volumeService.mountVolume).toHaveBeenCalledExactlyOnceWith(directory.shortId);
+		expect(volumeService.mountVolume).not.toHaveBeenCalledWith(remoteDirectory.shortId);
+	},
+);

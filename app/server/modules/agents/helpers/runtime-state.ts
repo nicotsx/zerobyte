@@ -1,4 +1,5 @@
 import type { ChildProcess } from "node:child_process";
+import { Effect, type Deferred, type Fiber } from "effect";
 import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type {
 	BackupProgressPayload,
@@ -45,9 +46,12 @@ type ActiveRestoreRun = {
 
 export type AgentRuntimeState = {
 	agentManager: AgentManagerRuntime | null;
+	lifecycleSemaphore: Effect.Semaphore;
 	localAgent: ChildProcess | null;
-	isStoppingLocalAgent: boolean;
-	localAgentRestartTimeout: ReturnType<typeof setTimeout> | null;
+	localAgentSupervisor: {
+		fiber: Fiber.RuntimeFiber<void, Error>;
+		readiness: { current: Deferred.Deferred<void, Error> };
+	} | null;
 	activeBackupsByScheduleId: Map<number, ActiveBackupRun>;
 	activeBackupScheduleIdsByJobId: Map<string, number>;
 	activeRestoresByRestoreId: Map<string, ActiveRestoreRun>;
@@ -55,9 +59,9 @@ export type AgentRuntimeState = {
 
 export const createAgentRuntimeState = (): AgentRuntimeState => ({
 	agentManager: null,
+	lifecycleSemaphore: Effect.unsafeMakeSemaphore(1),
 	localAgent: null,
-	isStoppingLocalAgent: false,
-	localAgentRestartTimeout: null,
+	localAgentSupervisor: null,
 	activeBackupsByScheduleId: new Map(),
 	activeBackupScheduleIdsByJobId: new Map(),
 	activeRestoresByRestoreId: new Map(),

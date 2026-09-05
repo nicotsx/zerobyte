@@ -22,7 +22,6 @@ import { createAgentBackupMocks } from "~/test/helpers/agent-mock";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 import { volumeService } from "~/server/modules/volumes/volume.service";
 import { db } from "~/server/db/db";
-import { config } from "~/server/core/config";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
@@ -154,7 +153,6 @@ afterEach(() => {
 		cleanup();
 	}
 	vi.restoreAllMocks();
-	config.flags.enableLocalAgent = true;
 });
 
 describe("backup execution - validation failures", () => {
@@ -729,32 +727,6 @@ describe("backup execution - validation failures", () => {
 		);
 	});
 
-	test("passes the job compression override to the restic command on the local no-agent path", async () => {
-		const { resticBackupMock, runBackupMock } = setup();
-		config.flags.enableLocalAgent = false;
-		const volume = await createTestVolume();
-		const repository = await createTestRepository({ compressionMode: "max" });
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-			compressionMode: "off",
-		});
-
-		runBackupMock.mockResolvedValueOnce({
-			status: "unavailable",
-			error: new Error("Local backup agent is not connected"),
-		});
-
-		await backupsService.executeBackup(schedule.id);
-		await waitForBackupTaskStatus(schedule.id, "succeeded");
-
-		expect(resticBackupMock).toHaveBeenCalled();
-		const args = resticBackupMock.mock.calls[0][0].args;
-		const compressionIdx = args.indexOf("--compression");
-		expect(compressionIdx).toBeGreaterThan(-1);
-		expect(args[compressionIdx + 1]).toBe("off");
-	});
-
 	test("should fail backup when the local agent is unavailable", async () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume();
@@ -799,48 +771,6 @@ describe("backup execution - validation failures", () => {
 
 		expect(statusesAtTerminalEvent).toEqual(["error"]);
 	});
-
-	test("removes stale locks and retries once when the local backup fallback hits a restic lock", async () => {
-		const { resticBackupMock, runBackupMock } = setup();
-		config.flags.enableLocalAgent = false;
-		const safeExecMock = vi.spyOn(spawnModule, "safeExec").mockResolvedValue({
-			exitCode: 0,
-			stdout: "",
-			stderr: "",
-			timedOut: false,
-		});
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-		});
-
-		runBackupMock.mockResolvedValueOnce({
-			status: "unavailable",
-			error: new Error("Local backup agent is not connected"),
-		});
-		resticBackupMock
-			.mockImplementationOnce((params: SafeSpawnParams) => {
-				params.onStderr?.("unable to create lock in backend: repository is already locked");
-				return Promise.resolve({
-					exitCode: 11,
-					summary: "",
-					error: "unable to create lock in backend: repository is already locked",
-				});
-			})
-			.mockImplementationOnce(() => Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }));
-
-		await backupsService.executeBackup(schedule.id);
-		await waitForBackupTaskStatus(schedule.id, "succeeded");
-
-		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
-		expect(updatedSchedule.lastBackupStatus).toBe("success");
-		expect(resticBackupMock).toHaveBeenCalledTimes(2);
-		const unlockCalls = safeExecMock.mock.calls.filter(([params]) => params.args?.includes("unlock"));
-		expect(unlockCalls).toHaveLength(1);
-		expect(unlockCalls[0]?.[0].args).not.toContain("--remove-all");
-	});
 });
 
 describe("backup execution - routing", () => {
@@ -858,14 +788,12 @@ describe("backup execution - routing", () => {
 
 		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
 		expect(updatedSchedule.lastBackupStatus).toBe("error");
-		expect(updatedSchedule.lastBackupError).toBe(
-			`Local repository "${repository.name}" can only be used with the local agent`,
-		);
+		expect(updatedSchedule.lastBackupError).toBe("Backups can only run on the local agent");
 		expect(runBackupMock).not.toHaveBeenCalled();
 	});
 
-	test("routes remote repository backups through the owning volume agent", async () => {
-		const { runBackupMock } = setup();
+	test("fails remote repository backups on non-local volume agents before preparing the volume", async () => {
+		const { runBackupMock, ensureHealthyVolumeMock } = setup();
 		const volume = await createTestVolume({ agentId: "agent-remote" });
 		const repository = await createTestRepository({
 			type: "s3",
@@ -883,13 +811,12 @@ describe("backup execution - routing", () => {
 		});
 
 		await backupsService.executeBackup(schedule.id);
+		await waitForBackupTaskStatus(schedule.id, "failed");
 
-		await waitForExpect(() => {
-			expect(runBackupMock).toHaveBeenCalledWith(
-				"agent-remote",
-				expect.objectContaining({ scheduleId: schedule.id }),
-			);
-		});
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+		expect(updatedSchedule.lastBackupError).toBe("Backups can only run on the local agent");
+		expect(ensureHealthyVolumeMock).not.toHaveBeenCalled();
+		expect(runBackupMock).not.toHaveBeenCalled();
 	});
 });
 

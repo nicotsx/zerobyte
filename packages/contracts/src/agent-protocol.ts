@@ -9,15 +9,7 @@ import {
 	restoreProgressSchema,
 	type CompressionMode,
 } from "@zerobyte/core/restic";
-import {
-	browseFilesystemResponseSchema,
-	listVolumeFilesResponseSchema,
-	statfsSchema,
-	testVolumeConnectionResponseSchema,
-	volumeConfigSchema,
-	volumeOperationResultSchema,
-	volumeSchema,
-} from "./volumes";
+import { browseFilesystemResponseSchema, listVolumeFilesResponseSchema, statfsSchema } from "./volumes";
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
@@ -62,12 +54,12 @@ const backupRunSchema = z.object({
 		jobId: z.string(),
 		scheduleId: z.string(),
 		organizationId: z.string(),
-		volume: volumeSchema,
+		source: z.object({ kind: z.literal("controller-path"), path: z.string() }),
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
 		runtime: commandRuntimeSchema,
 		webhooks: backupWebhooksSchema,
-		webhookAllowedOrigins: z.array(z.string()),
+		webhookAllowedOrigins: z.array(z.string()).nullable(),
 		webhookTimeoutMs: z.number(),
 	}),
 });
@@ -77,44 +69,33 @@ const backupCancelSchema = z.object({
 	payload: z.object({ jobId: z.string(), scheduleId: z.string() }),
 });
 
-const volumeCommandSchema = z.discriminatedUnion("name", [
-	z.object({ name: z.literal("volume.mount"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.unmount"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.checkHealth"), volume: volumeSchema }),
-	z.object({ name: z.literal("volume.statfs"), volume: volumeSchema }),
+const filesystemCommandSchema = z.discriminatedUnion("name", [
+	z.object({ name: z.literal("filesystem.statfs"), path: z.string() }),
 	z.object({
-		name: z.literal("volume.listFiles"),
-		volume: volumeSchema,
+		name: z.literal("filesystem.listFiles"),
+		path: z.string(),
 		subPath: z.string().optional(),
 		offset: z.number(),
 		limit: z.number(),
 	}),
-	z.object({ name: z.literal("volume.testConnection"), backendConfig: volumeConfigSchema }),
 	z.object({ name: z.literal("filesystem.browse"), path: z.string() }),
 ]);
 
-const volumeCommandRequestSchema = z.object({
-	type: z.literal("volume.command"),
-	payload: z.object({
-		commandId: z.string(),
-		command: volumeCommandSchema,
-	}),
+const filesystemCommandRequestSchema = z.object({
+	type: z.literal("filesystem.command"),
+	payload: z.object({ commandId: z.string(), command: filesystemCommandSchema }),
 });
 
-const volumeCommandResultSchema = z.discriminatedUnion("name", [
-	z.object({ name: z.literal("volume.mount"), result: volumeOperationResultSchema }),
-	z.object({ name: z.literal("volume.unmount"), result: volumeOperationResultSchema }),
-	z.object({ name: z.literal("volume.checkHealth"), result: volumeOperationResultSchema }),
-	z.object({ name: z.literal("volume.statfs"), result: statfsSchema }),
-	z.object({ name: z.literal("volume.listFiles"), result: listVolumeFilesResponseSchema }),
-	z.object({ name: z.literal("volume.testConnection"), result: testVolumeConnectionResponseSchema }),
+const filesystemCommandResultSchema = z.discriminatedUnion("name", [
+	z.object({ name: z.literal("filesystem.statfs"), result: statfsSchema }),
+	z.object({ name: z.literal("filesystem.listFiles"), result: listVolumeFilesResponseSchema }),
 	z.object({ name: z.literal("filesystem.browse"), result: browseFilesystemResponseSchema }),
 ]);
 
-const volumeCommandResponseSchema = z.object({
-	type: z.literal("volume.commandResult"),
+const filesystemCommandResponseSchema = z.object({
+	type: z.literal("filesystem.commandResult"),
 	payload: z.discriminatedUnion("status", [
-		z.object({ commandId: z.string(), status: z.literal("success"), command: volumeCommandResultSchema }),
+		z.object({ commandId: z.string(), status: z.literal("success"), command: filesystemCommandResultSchema }),
 		z.object({ commandId: z.string(), status: z.literal("error"), error: z.string() }),
 	]),
 });
@@ -267,7 +248,7 @@ const heartbeatPongSchema = z.object({
 const controllerMessageSchema = z.discriminatedUnion("type", [
 	backupRunSchema,
 	backupCancelSchema,
-	volumeCommandRequestSchema,
+	filesystemCommandRequestSchema,
 	restoreRunSchema,
 	restoreCancelSchema,
 	heartbeatPingSchema,
@@ -279,7 +260,7 @@ const agentMessageSchema = z.discriminatedUnion("type", [
 	backupCompletedSchema,
 	backupFailedSchema,
 	backupCancelledSchema,
-	volumeCommandResponseSchema,
+	filesystemCommandResponseSchema,
 	restoreStartedSchema,
 	restoreProgressMessageSchema,
 	restoreCompletedSchema,
@@ -295,10 +276,10 @@ export type BackupProgressPayload = z.infer<typeof backupProgressSchema>["payloa
 export type BackupCompletedPayload = z.infer<typeof backupCompletedSchema>["payload"];
 export type BackupFailedPayload = z.infer<typeof backupFailedSchema>["payload"];
 export type BackupCancelledPayload = z.infer<typeof backupCancelledSchema>["payload"];
-export type VolumeCommandPayload = z.infer<typeof volumeCommandRequestSchema>["payload"];
-export type VolumeCommand = z.infer<typeof volumeCommandSchema>;
-export type VolumeCommandResult = z.infer<typeof volumeCommandResultSchema>;
-export type VolumeCommandResponsePayload = z.infer<typeof volumeCommandResponseSchema>["payload"];
+export type FilesystemCommandPayload = z.infer<typeof filesystemCommandRequestSchema>["payload"];
+export type FilesystemCommand = z.infer<typeof filesystemCommandSchema>;
+export type FilesystemCommandResult = z.infer<typeof filesystemCommandResultSchema>;
+export type FilesystemCommandResponsePayload = z.infer<typeof filesystemCommandResponseSchema>["payload"];
 export type RestoreRunPayload = z.infer<typeof restoreRunSchema>["payload"];
 export type RestoreCancelPayload = z.infer<typeof restoreCancelSchema>["payload"];
 export type RestoreStartedPayload = z.infer<typeof restoreStartedSchema>["payload"];

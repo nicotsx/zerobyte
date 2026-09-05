@@ -123,7 +123,6 @@ RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile --filter '!docs'
 COPY . .
 
 RUN bun run build
-RUN bun build apps/agent/src/index.ts --outfile .output/agent/index.mjs --target bun
 
 FROM base AS production
 

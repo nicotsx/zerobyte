@@ -10,7 +10,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
-import { resolveResticHostname } from "./restic/hostname";
+import { resolveResticHostname } from "@zerobyte/core/node";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -127,11 +127,19 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					parsed.data,
 				);
 
-				yield* commandEffect.pipe(
+				const handledCommand = commandEffect.pipe(
 					Effect.catchAll((error) =>
 						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(error)}`)),
 					),
 				);
+
+				// Filesystem reads can wait on a mount; keep session control messages responsive.
+				// Child fibers are interrupted when this session's processor is interrupted.
+				if (parsed.data.type === "filesystem.command") {
+					yield* Effect.fork(handledCommand);
+				} else {
+					yield* handledCommand;
+				}
 			}),
 		),
 	);
@@ -145,7 +153,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 						protocolVersion: AGENT_PROTOCOL_VERSION,
 						hostname: resolveResticHostname(),
 						platform: process.platform,
-						capabilities: { backup: true, restore: true, volume: true, restic: true },
+						capabilities: { backup: true, restore: true, filesystem: true, restic: true },
 					}),
 				),
 			).catch((error) => {
