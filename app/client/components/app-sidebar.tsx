@@ -73,9 +73,10 @@ export function AppSidebar() {
 	const settingsReturnLocationRef = useRef("/volumes");
 
 	const location = useRouterState({ select: (routerState) => routerState.location });
-	const isSettingsMode = location.pathname === "/settings" || location.pathname.startsWith("/settings/");
 	const isCollapsed = state === "collapsed";
 	const isDesktopRuntime = runtime === "desktop";
+	const isSettingsMode =
+		!isDesktopRuntime && (location.pathname === "/settings" || location.pathname.startsWith("/settings/"));
 	const footerOverlaySide = isCollapsed ? "right" : "top";
 
 	const scopeAvailability = getSettingsScopeAvailability(permissions);
