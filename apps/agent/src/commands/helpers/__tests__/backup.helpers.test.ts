@@ -151,6 +151,13 @@ describe("backup path options", () => {
 		]);
 	});
 
+	test("keeps leading exclamation marks in selected include paths literal", () => {
+		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
+		const options = createOptions(createPathOptions({ includePaths: ["!reports [1]"] }), volumePath);
+
+		expect(options.includePaths).toEqual([path.join(volumePath, "!reports [1]")]);
+	});
+
 	test("rejects unsupported characters in include patterns", () => {
 		const volumePath = "/var/lib/zerobyte/volumes/vol123/_data";
 

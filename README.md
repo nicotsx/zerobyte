@@ -116,6 +116,25 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `RCLONE_CONFIG_DIR`       | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`       | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
 
+### Remote machines
+
+Local installations need no new configuration. Zerobyte starts its built-in agent automatically; existing local volumes, network mounts, backups, and restores continue through that agent. Its filesystem access remains unrestricted by default. Operators can optionally restrict it with `ZEROBYTE_AGENT_ROOTS`.
+
+To connect another machine:
+
+1. Open organization settings → Machines → Connect machine.
+2. Name the machine and choose the folder to allow on it.
+3. Copy the generated command onto that machine. Bun and Restic must already be installed. The command downloads the agent from your controller, exchanges a single-use code (valid for 15 minutes), and starts the agent.
+4. Create a Source on “Another machine”, select an allowed folder, then configure its backup destination and schedule as usual.
+
+Remote agents expose only folders explicitly allowed on that machine. Repeat `--root /another/folder` during enrollment to share more folders. NFS, SMB, or other network shares must be mounted by the remote machine's operator first; Zerobyte does not send mount credentials or manage remote mounts. The controller schedules backups, and the machine executes them and reports progress. Restores target the Zerobyte server, not a remote machine. Backup destinations must be reachable from the machine running the backup; local-directory repositories on the controller cannot be used by remote agents.
+
+The agent stores its revocable machine credential and allowed roots in `~/.config/zerobyte-agent/agent.json` (owner-only permissions). The enrollment code cannot reconnect an agent or be reused. Restart with `bun ./zerobyte-agent.mjs`; use your operating system's service manager to keep it running. Use `--config /path/to/agent.json` for a different configuration location. To change allowed folders, edit the roots in this file and restart the agent. Revoking a machine in settings disconnects it immediately. Re-enrollment never overwrites an existing identity: after rotating a credential, move the old configuration file aside before running the new connection command.
+
+Enrollment requires verified HTTPS; remote connections use WSS. Production builds require verified HTTPS/WSS on the public connection endpoint even when `BASE_URL` points at localhost or another loopback address. Plain HTTP/WS requests receive status 426.
+
+For local production-build testing, expose Zerobyte through Portless or another TLS-terminating reverse proxy and set `TRUST_PROXY=true` only when that trusted proxy supplies `X-Forwarded-Proto: https`. The built-in local agent uses a separate private Bun loopback socket and does not require public TLS.
+
 ### Performance tuning
 
 If backups use too much CPU, set `GOMAXPROCS` on the Zerobyte container and restart it:

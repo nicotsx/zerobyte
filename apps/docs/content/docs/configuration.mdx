@@ -9,41 +9,56 @@ Zerobyte is configured through environment variables and Docker Compose settings
 
 ### Required
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BASE_URL` | The URL where Zerobyte will be accessed. Controls cookie security and CORS behavior. | `http://localhost:4096` or `https://zerobyte.example.com` |
-| `APP_SECRET` | Random secret key (32+ characters) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`. Set this or `APP_SECRET_FILE`, but not both. | `94bad46e...c66e25d5c2b` |
-| `APP_SECRET_FILE` | Alternative to `APP_SECRET`. Path to a file containing the app secret, useful with Docker or Kubernetes secrets. Set this or `APP_SECRET`, but not both. | `/run/secrets/app_secret` |
+| Variable          | Description                                                                                                                                                           | Example                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `BASE_URL`        | The URL where Zerobyte will be accessed. Controls cookie security and CORS behavior.                                                                                  | `http://localhost:4096` or `https://zerobyte.example.com` |
+| `APP_SECRET`      | Random secret key (32+ characters) used to encrypt sensitive data in the database. Generate with `openssl rand -hex 32`. Set this or `APP_SECRET_FILE`, but not both. | `94bad46e...c66e25d5c2b`                                  |
+| `APP_SECRET_FILE` | Alternative to `APP_SECRET`. Path to a file containing the app secret, useful with Docker or Kubernetes secrets. Set this or `APP_SECRET`, but not both.              | `/run/secrets/app_secret`                                 |
 
 <Callout type="warn">
-  Never share or commit your `APP_SECRET`. If you lose it, encrypted data (credentials stored for volumes and repositories) cannot be recovered.
+	Never share or commit your `APP_SECRET`. If you lose it, encrypted data (credentials stored for volumes and
+	repositories) cannot be recovered.
 </Callout>
 
 <Callout type="info">
-  Zerobyte reads the contents of `APP_SECRET_FILE`, trims surrounding whitespace and newlines, and applies the same 32-256 character requirement as `APP_SECRET`.
+	Zerobyte reads the contents of `APP_SECRET_FILE`, trims surrounding whitespace and newlines, and applies the same
+	32-256 character requirement as `APP_SECRET`.
 </Callout>
 
 ### Recommended
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `TZ` | Timezone for the container. **Important for accurate backup scheduling.** | `UTC` |
+| Variable | Description                                                               | Default |
+| -------- | ------------------------------------------------------------------------- | ------- |
+| `TZ`     | Timezone for the container. **Important for accurate backup scheduling.** | `UTC`   |
 
 ### Optional
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Port the web interface and API listen on inside the container. | `4096` |
-| `RESTIC_HOSTNAME` | Hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker. | `zerobyte` |
-| `GOMAXPROCS` | Optional positive integer passed to Restic processes to limit CPU scheduler threads. See [Performance tuning](/docs/guides/performance-tuning). | Restic default |
-| `TRUST_PROXY` | Set to `true` to trust `X-Forwarded-For` headers from a reverse proxy. | `false` |
-| `TRUSTED_ORIGINS` | Comma-separated list of additional trusted origins for CORS. | (none) |
-| `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations. | (none) |
-| `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds. | `60` |
-| `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error`. | `info` |
-| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds. | `60` |
-| `RCLONE_CONFIG_DIR` | Path to the rclone config directory inside the container. | `/root/.config/rclone` |
-| `PROVISIONING_PATH` | Path to a JSON file with operator-managed repositories and volumes to sync at startup. | (none) |
+| Variable                  | Description                                                                                                                                                       | Default                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `PORT`                    | Port the web interface and API listen on inside the container.                                                                                                    | `4096`                 |
+| `RESTIC_HOSTNAME`         | Hostname used by Restic when creating snapshots. Automatically detected if a custom hostname is set in Docker.                                                    | `zerobyte`             |
+| `GOMAXPROCS`              | Optional positive integer passed to Restic processes to limit CPU scheduler threads. See [Performance tuning](/docs/guides/performance-tuning).                   | Restic default         |
+| `TRUST_PROXY`             | Set to `true` to trust `X-Forwarded-For` headers from a reverse proxy.                                                                                            | `false`                |
+| `TRUSTED_ORIGINS`         | Comma-separated list of additional trusted origins for CORS.                                                                                                      | (none)                 |
+| `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations.                                                     | (none)                 |
+| `WEBHOOK_TIMEOUT`         | Timeout for backup webhook requests in seconds.                                                                                                                   | `60`                   |
+| `LOG_LEVEL`               | Logging verbosity: `debug`, `info`, `warn`, `error`.                                                                                                              | `info`                 |
+| `SERVER_IDLE_TIMEOUT`     | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds.                                                                          | `60`                   |
+| `RCLONE_CONFIG_DIR`       | Path to the rclone config directory inside the container.                                                                                                         | `/root/.config/rclone` |
+| `PROVISIONING_PATH`       | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                                            | (none)                 |
+| `ZEROBYTE_AGENT_ROOTS`    | Standalone agent JSON allow-list of filesystem roots. Each entry has `id`, `label`, `path`, and optional `allowBackup` (default `true`).                          | `[]`                   |
+| `ZEROBYTE_CONTROLLER_URL` | Standalone agent outbound WebSocket URL, normally `wss://host/api/v1/agents/connect`. The public endpoint is enabled in production Bun builds, not `bun run dev`. | (none)                 |
+| `ZEROBYTE_AGENT_TOKEN`    | Standalone agent machine credential. Enrollment exchanges its one-time code for this credential; do not set this to the enrollment code.                          | (none)                 |
+
+### Trusted agent filesystem roots
+
+Standalone agents expose local files through an explicit allow-list. Enrollment saves the credential and roots; use the [Remote agents](/docs/guides/remote-agents) guide for that flow. When configuring a saved machine credential through environment variables, set all three agent variables. For example:
+
+```bash
+ZEROBYTE_AGENT_ROOTS='[{"id":"data","label":"Application data","path":"/srv/data"}]'
+```
+
+IDs and labels must be unique and non-empty. Paths are expanded and canonicalized by the agent at startup; invalid or missing paths prevent startup. Only the ID, label, and backup capability are advertised to the controller. Absolute host paths are never sent. Remote restore is not supported. Enrolled CLI agents load their saved roots when this variable is absent. When both `ZEROBYTE_AGENT_TOKEN` and `ZEROBYTE_CONTROLLER_URL` are set, the agent uses environment configuration instead; set `ZEROBYTE_AGENT_ROOTS` as well or it advertises no filesystem roots. The supervised built-in local agent separately provides its compatibility root for existing local workflows.
 
 ## Using APP_SECRET_FILE
 
@@ -88,26 +103,28 @@ volumes:
 ```
 
 <Callout type="warn">
-  **Do not** point `/var/lib/zerobyte` to a network share. This causes permission issues and severe performance degradation. Always use local storage.
+	**Do not** point `/var/lib/zerobyte` to a network share. This causes permission issues and severe performance
+	degradation. Always use local storage.
 </Callout>
 
 <Callout type="info">
   **TrueNAS users**: The `/var/lib` path is ephemeral and resets during system upgrades. Create a dedicated ZFS dataset instead:
 
-  ```yaml
-  volumes:
-    - /mnt/tank/docker/zerobyte:/var/lib/zerobyte
-  ```
+```yaml
+volumes:
+  - /mnt/tank/docker/zerobyte:/var/lib/zerobyte
+```
+
 </Callout>
 
 #### Additional Volume Mounts
 
-| Mount | Purpose |
-|-------|---------|
-| `/path/to/data:/data:ro` | Mount host directories for local directory backups (use `:ro` for read-only) |
-| `~/.config/rclone:/root/.config/rclone:ro` | Mount rclone configuration for rclone-based repositories and volumes |
-| `~/.ssh:/root/.ssh:ro` | Mount SSH keys for rclone SFTP remotes that use `key_file` |
-| `./provisioning.json:/config/provisioning.json:ro` | Mount a provisioning file for operator-managed resources |
+| Mount                                              | Purpose                                                                      |
+| -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `/path/to/data:/data:ro`                           | Mount host directories for local directory backups (use `:ro` for read-only) |
+| `~/.config/rclone:/root/.config/rclone:ro`         | Mount rclone configuration for rclone-based repositories and volumes         |
+| `~/.ssh:/root/.ssh:ro`                             | Mount SSH keys for rclone SFTP remotes that use `key_file`                   |
+| `./provisioning.json:/config/provisioning.json:ro` | Mount a provisioning file for operator-managed resources                     |
 
 ### Container Capabilities
 
@@ -154,33 +171,36 @@ ports:
 
 The `BASE_URL` determines how authentication cookies behave:
 
-| BASE_URL | Cookie Behavior |
-|----------|----------------|
-| `http://192.168.1.50:4096` | Secure cookies **disabled**, allows login over HTTP |
-| `http://localhost:4096` | Secure cookies **disabled**, allows local development |
-| `https://zerobyte.example.com` | Secure cookies **enabled**, requires HTTPS |
+| BASE_URL                       | Cookie Behavior                                       |
+| ------------------------------ | ----------------------------------------------------- |
+| `http://192.168.1.50:4096`     | Secure cookies **disabled**, allows login over HTTP   |
+| `http://localhost:4096`        | Secure cookies **disabled**, allows local development |
+| `https://zerobyte.example.com` | Secure cookies **enabled**, requires HTTPS            |
 
 <Callout type="info">
-  If `BASE_URL` starts with `https://`, browsers will only send auth cookies over HTTPS connections. Plain HTTP access may show the login page but authentication will fail.
+	If `BASE_URL` starts with `https://`, browsers will only send auth cookies over HTTPS connections. Plain HTTP access
+	may show the login page but authentication will fail.
 </Callout>
 
 <Callout type="warn">
-  `TRUSTED_ORIGINS` only allows additional origins for CORS. It does **not** disable secure cookies or make HTTP access work when `BASE_URL` is HTTPS.
+	`TRUSTED_ORIGINS` only allows additional origins for CORS. It does **not** disable secure cookies or make HTTP access
+	work when `BASE_URL` is HTTPS.
 </Callout>
 
 ## Secret References
 
 When provisioning volumes or repositories, sensitive fields support secret references:
 
-| Reference | Resolves From | Example |
-|-----------|--------------|---------|
-| `env://VARIABLE_NAME` | Container environment variable | `env://S3_SECRET_KEY` |
-| `file://secret_name` | Docker secret at `/run/secrets/secret_name` | `file://smb_password` |
+| Reference             | Resolves From                               | Example               |
+| --------------------- | ------------------------------------------- | --------------------- |
+| `env://VARIABLE_NAME` | Container environment variable              | `env://S3_SECRET_KEY` |
+| `file://secret_name`  | Docker secret at `/run/secrets/secret_name` | `file://smb_password` |
 
 This allows you to keep credentials in your deployment configuration rather than writing them directly into the provisioning file.
 
 <Callout type="info">
-  The standard volume and repository forms in the UI currently store the value you enter, encrypted at rest. `env://` and `file://` references are only resolved during provisioning.
+	The standard volume and repository forms in the UI currently store the value you enter, encrypted at rest. `env://`
+	and `file://` references are only resolved during provisioning.
 </Callout>
 
 ### Example with Docker Secrets
@@ -201,6 +221,7 @@ secrets:
 ```
 
 In the provisioning file, reference these as:
+
 - Access Key: `env://S3_ACCESS_KEY`
 - Secret Key: `file://s3_secret_key`
 
@@ -215,7 +236,8 @@ docker compose logs -f zerobyte
 ```
 
 <Callout type="warn">
-  Always check the [release notes](https://github.com/nicotsx/zerobyte/releases) before updating, especially for v0.x.x versions which may include breaking changes.
+	Always check the [release notes](https://github.com/nicotsx/zerobyte/releases) before updating, especially for v0.x.x
+	versions which may include breaking changes.
 </Callout>
 
 import { Step, Steps } from "fumadocs-ui/components/steps";

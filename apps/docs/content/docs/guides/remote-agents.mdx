@@ -1,0 +1,37 @@
+---
+title: Remote agents
+description: Enroll an outbound-only backup agent on another machine.
+---
+
+Remote agents connect outbound to Zerobyte and expose only explicitly trusted filesystem roots. An organization owner or admin creates the agent through the API and receives a one-time enrollment code exactly once. Store the code as a secret until it is used; list and detail responses never return it.
+
+Build or download the agent bundle (`bun run build` writes `.output/agent/index.mjs`), then run its `enroll` command on the remote machine:
+
+```bash
+bun run .output/agent/index.mjs enroll \
+	--controller https://zerobyte.example.com \
+	--code zba1... \
+	--root /srv/data
+```
+
+The controller URL must use `https://`. Enrollment exchanges the code over HTTPS for a machine credential, saves it to `~/.config/zerobyte-agent/agent.json` with owner-only permissions, and starts the agent. The code is consumed and is not saved.
+
+Subsequent starts use the saved configuration; do not pass the enrollment code or set `ZEROBYTE_AGENT_TOKEN` to it:
+
+```bash
+bun run .output/agent/index.mjs
+```
+
+Pass `--root` for every directory to expose. The CLI resolves each root to an absolute path and grants backup access only; files outside those roots and remote restores are unavailable. Commands identify a trusted root and a relative path. Do not set `ZEROBYTE_BUILTIN_LOCAL_AGENT`; that marker is reserved for Zerobyte's supervised loopback agent.
+
+The public endpoint must be served over TLS and your reverse proxy must forward WebSocket upgrades. The enrollment code is sent in the HTTPS enrollment request; the saved machine credential is sent only in the WebSocket `Authorization` header, never in the URL.
+
+For local development, start the server with `bun run dev` and get its worktree-specific URL with `portless get zerobyte`. Remote agents can connect to that server: Vite forwards agent WebSocket upgrades to the controller's authenticated Bun listener. Use a hostname reachable from the remote machine, such as the Tailscale URL printed at startup.
+
+Development mode accepts enrollment through a TLS-terminating proxy without requiring `TRUST_PROXY=true`. Production still requires HTTPS and trusted proxy metadata.
+
+Enrollment codes expire after 15 minutes and can be used once. Rotating an agent credential invalidates its saved machine credential and disconnects the current session, then returns a new enrollment code. Stop the agent, remove `~/.config/zerobyte-agent/agent.json`, and run `enroll` again with the new code and every `--root`; enrollment never overwrites an existing machine configuration. Revoking also disconnects the agent and prevents reconnection. To use it again, rotate it to create a new enrollment code, then re-enroll it the same way.
+
+Source volume and mount-backend credentials remain on the controller/local executor and are never sent to a remote agent. Repository configuration and its Restic password are a separate execution boundary: they are delivered ephemerally over the authenticated TLS session, held in memory for the Restic command, and are not persisted by the agent. Remote restore is not supported until remote destination policy is designed.
+
+Remote backups support repository backends whose complete configuration can be delivered ephemerally to the agent. Local and rclone repositories are controller-scoped and cannot be used by remote agents. In particular, the controller's `rclone.conf` is never sent to an agent. Agent-scoped rclone provisioning is not currently supported and is planned as a future capability.

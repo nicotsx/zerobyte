@@ -16,21 +16,26 @@ export type RemoteSourcePresentation = {
 	logicalFolder: string;
 	explanation: string;
 	guidance: string;
-	isAvailable: boolean;
+	isActionable: boolean;
+	hasObservedFailure: boolean;
 };
 
 const CONTROL_CHARACTERS = /[\p{Cc}\p{Cf}]/gu;
 const safeLogicalFolder = (value: string) => {
 	const cleanedValue = value.replace(CONTROL_CHARACTERS, "").trim();
+
 	if (!cleanedValue) {
 		return "Whole allowed location";
 	}
+
 	const segments = cleanedValue.split("/");
 	const hasUnsafeSegment = segments.some((segment) => !segment || segment === "." || segment === "..");
 	const isUnsafePath = cleanedValue.startsWith("/") || cleanedValue.includes("\\") || hasUnsafeSegment;
+
 	if (isUnsafePath) {
 		return "Selected folder";
 	}
+
 	return segments.join("/").slice(0, 200);
 };
 
@@ -107,23 +112,29 @@ const observedFailureCopy = {
 	guidance: "Check the machine and allowed location, then check availability again.",
 } satisfies Pick<RemoteSourcePresentation, "status" | "statusVariant" | "explanation" | "guidance">;
 
+export const isRemoteSourceActionable = (sourceLocation: Pick<SourceLocation, "availability">) =>
+	sourceLocation.availability === "available";
+
 export const getRemoteSourcePresentation = (volume: RemoteVolumeState): RemoteSourcePresentation => {
 	const sourceLocation = volume.sourceLocation;
 	const safeMachineLabel = getSafeMachinePresentationLabel(sourceLocation.machine.name);
 	const safeLocationLabel = getSafeAllowedLocationLabel(sourceLocation.root.label);
+
 	const machine = safeMachineLabel.slice(0, 100);
 	const location = safeLocationLabel.slice(0, 100);
 	const logicalFolder = safeLogicalFolder(sourceLocation.relativePath);
+
 	const locationContext =
 		logicalFolder === "Whole allowed location"
 			? `${location} (whole allowed location)`
 			: `${location}/${logicalFolder}`;
 	const context = `${machine} · ${locationContext}`;
-	const sourceIsReady = sourceLocation.availability === "available";
-	const hasObservedFailure = volume.status === "error";
-	const copy =
-		sourceIsReady && hasObservedFailure ? observedFailureCopy : availabilityCopy[sourceLocation.availability];
-	const isAvailable = copy.status === "Available";
 
-	return { ...copy, context, machine, location, logicalFolder, isAvailable };
+	const isActionable = isRemoteSourceActionable(sourceLocation);
+	const hasObservedFailure = volume.status === "error";
+
+	const copy =
+		isActionable && hasObservedFailure ? observedFailureCopy : availabilityCopy[sourceLocation.availability];
+
+	return { ...copy, context, machine, location, logicalFolder, isActionable, hasObservedFailure };
 };

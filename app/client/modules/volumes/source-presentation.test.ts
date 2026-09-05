@@ -37,12 +37,14 @@ describe("remote source presentation", () => {
 		"maps %s to an explicit %s status with the %s variant",
 		(availability, expectedStatus, expectedVariant) => {
 			const presentation = getRemoteSourcePresentation(sourceLocation(availability));
+			const expectedActionability = availability === "available";
 
 			expect(presentation.status).toBe(expectedStatus);
 			expect(presentation.statusVariant).toBe(expectedVariant);
 			expect(presentation.explanation.length).toBeGreaterThan(10);
 			expect(presentation.guidance.length).toBeGreaterThan(10);
-			expect(presentation.isAvailable).toBe(availability === "available");
+			expect(presentation.isActionable).toBe(expectedActionability);
+			expect(presentation.hasObservedFailure).toBe(false);
 		},
 	);
 
@@ -65,23 +67,25 @@ describe("remote source presentation", () => {
 		const presentation = getRemoteSourcePresentation(volume);
 
 		expect(presentation.status).toBe(expected);
-		expect(presentation.isAvailable).toBe(true);
+		expect(presentation.isActionable).toBe(true);
 	});
 
-	test("blocks a ready source after an observed failure and recovers after the next successful check", () => {
+	test("keeps a ready source actionable while showing an observed failure", () => {
 		const volume = sourceLocation("available");
 		volume.status = "error";
 		const failedPresentation = getRemoteSourcePresentation(volume);
 
 		expect(failedPresentation.status).toBe("Needs attention");
-		expect(failedPresentation.isAvailable).toBe(false);
+		expect(failedPresentation.isActionable).toBe(true);
+		expect(failedPresentation.hasObservedFailure).toBe(true);
 		expect(failedPresentation.explanation).toContain("most recent availability check");
 
 		volume.status = "mounted";
 		const recoveredPresentation = getRemoteSourcePresentation(volume);
 
 		expect(recoveredPresentation.status).toBe("Available");
-		expect(recoveredPresentation.isAvailable).toBe(true);
+		expect(recoveredPresentation.isActionable).toBe(true);
+		expect(recoveredPresentation.hasObservedFailure).toBe(false);
 	});
 
 	test.each([

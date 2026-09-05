@@ -104,7 +104,8 @@ describe("source list", () => {
 		expect(screen.getByLabelText("unmounted")).toBeTruthy();
 		expect(screen.getByText("Directory")).toBeTruthy();
 		expect(screen.getByText("Design files")).toBeTruthy();
-		expect(screen.getByText("Studio Mac · Work files/client/launch")).toBeTruthy();
+		expect(screen.getByText("Studio Mac")).toBeTruthy();
+		expect(screen.queryByText(/client\/launch/)).toBeNull();
 		expect(screen.getByLabelText("Available")).toBeTruthy();
 		expect(screen.getByText("Remote files")).toBeTruthy();
 		expect(screen.queryByText("studio-id")).toBeNull();
@@ -163,35 +164,42 @@ describe("source detail", () => {
 		["offline", "bg-gray-500"],
 		["degraded", "bg-yellow-500"],
 		["revoked", "bg-red-500"],
-	] as const)("uses the canonical %s status-dot styling everywhere", async (availability, expectedClass) => {
-		const sourceLocation = { ...remoteVolumeDetail.sourceLocation, availability };
-		const listedVolume = { ...remoteVolume, sourceLocation } satisfies ListedVolume;
-		const volume = {
-			...remoteVolumeDetail,
-			sourceLocation,
-		} satisfies VolumeDetail;
-		server.use(
-			http.get("/api/v1/volumes", () => HttpResponse.json([listedVolume])),
-			http.get("/api/v1/volumes/source-2", () => HttpResponse.json(detail(volume))),
-		);
+	] as const)(
+		"uses the canonical %s status-dot styling alongside the compact header badge",
+		async (availability, expectedClass) => {
+			const sourceLocation = { ...remoteVolumeDetail.sourceLocation, availability };
+			const listedVolume = { ...remoteVolume, sourceLocation } satisfies ListedVolume;
+			const volume = {
+				...remoteVolumeDetail,
+				sourceLocation,
+			} satisfies VolumeDetail;
+			server.use(
+				http.get("/api/v1/volumes", () => HttpResponse.json([listedVolume])),
+				http.get("/api/v1/volumes/source-2", () => HttpResponse.json(detail(volume))),
+			);
 
-		render(
-			<>
-				<VolumesPage />
-				<VolumeDetails volumeId="source-2" />
-			</>,
-			{ withSuspense: true },
-		);
+			render(
+				<>
+					<VolumesPage />
+					<VolumeDetails volumeId="source-2" />
+				</>,
+				{ withSuspense: true },
+			);
 
-		const expectedLabel =
-			availability === "available" ? "Available" : availability === "offline" ? "Unavailable" : "Needs attention";
-		const statusDots = await screen.findAllByLabelText(expectedLabel);
-		const dotClasses = statusDots.map((statusDot) => statusDot.lastElementChild?.className);
+			const expectedLabel =
+				availability === "available"
+					? "Available"
+					: availability === "offline"
+						? "Unavailable"
+						: "Needs attention";
+			const statusDots = await screen.findAllByLabelText(expectedLabel);
+			const dotClasses = statusDots.map((statusDot) => statusDot.lastElementChild?.className);
 
-		expect(statusDots.length).toBeGreaterThanOrEqual(3);
-		expect(dotClasses.every((className) => className?.includes(expectedClass))).toBe(true);
-		expect(screen.getAllByText(expectedLabel).length).toBeGreaterThanOrEqual(2);
-	});
+			expect(statusDots.length).toBeGreaterThanOrEqual(1);
+			expect(dotClasses.every((className) => className?.includes(expectedClass))).toBe(true);
+			expect(screen.getAllByText(expectedLabel).length).toBeGreaterThanOrEqual(2);
+		},
+	);
 
 	test("preserves managed directory health, backend, and configuration controls", async () => {
 		server.use(http.get("/api/v1/volumes/source-1", () => HttpResponse.json(detail(managedVolumeDetail))));
@@ -230,7 +238,7 @@ describe("source detail", () => {
 		expect(screen.queryByText(/Users\/nicolas/)).toBeNull();
 	});
 
-	test("updates availability and blocks files after a failed explicit check", async () => {
+	test("keeps files actionable while showing a failed explicit check", async () => {
 		let checkStatus: "initial" | "failed" | "recovered" = "initial";
 		const failedAt = Date.now();
 		const recoveredAt = failedAt + 1;
@@ -269,8 +277,8 @@ describe("source detail", () => {
 		await userEvent.click(screen.getByRole("button", { name: "Check availability" }));
 
 		await waitFor(() => expect(screen.getAllByText("Needs attention").length).toBeGreaterThan(0));
-		expect(screen.getByRole("status").textContent).toContain("most recent availability check");
-		expect(screen.queryByText("File Explorer")).toBeNull();
+		expect(screen.getAllByText(/most recent availability check/).length).toBeGreaterThan(0);
+		expect(screen.getByText("File Explorer")).toBeTruthy();
 		expect(document.body.textContent).not.toContain("/private/statfs");
 
 		await userEvent.click(screen.getByRole("button", { name: "Check availability" }));

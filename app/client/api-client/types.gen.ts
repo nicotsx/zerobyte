@@ -1325,7 +1325,7 @@ export type BrowseFilesystemData = {
          */
         rootId?: string;
         /**
-         * Path relative to the trusted root (defaults to /)
+         * Path relative to the trusted root (defaults to the root)
          */
         path?: string;
     };
@@ -6579,7 +6579,13 @@ export type ListAgentsResponses = {
         kind: 'local' | 'remote';
         status: 'offline' | 'connecting' | 'online' | 'degraded';
         capabilities: {
-            [key: string]: unknown;
+            hostname: string | null;
+            platform: string | null;
+            trustedRoots: Array<{
+                id: string;
+                label: string;
+                canBackup: boolean;
+            }>;
         };
         lastSeenAt: number | null;
         lastReadyAt: number | null;
@@ -6613,7 +6619,13 @@ export type CreateRemoteAgentResponses = {
             kind: 'local' | 'remote';
             status: 'offline' | 'connecting' | 'online' | 'degraded';
             capabilities: {
-                [key: string]: unknown;
+                hostname: string | null;
+                platform: string | null;
+                trustedRoots: Array<{
+                    id: string;
+                    label: string;
+                    canBackup: boolean;
+                }>;
             };
             lastSeenAt: number | null;
             lastReadyAt: number | null;
@@ -6651,7 +6663,13 @@ export type RotateRemoteAgentTokenResponses = {
             kind: 'local' | 'remote';
             status: 'offline' | 'connecting' | 'online' | 'degraded';
             capabilities: {
-                [key: string]: unknown;
+                hostname: string | null;
+                platform: string | null;
+                trustedRoots: Array<{
+                    id: string;
+                    label: string;
+                    canBackup: boolean;
+                }>;
             };
             lastSeenAt: number | null;
             lastReadyAt: number | null;
@@ -6687,7 +6705,13 @@ export type RevokeRemoteAgentTokenResponses = {
         kind: 'local' | 'remote';
         status: 'offline' | 'connecting' | 'online' | 'degraded';
         capabilities: {
-            [key: string]: unknown;
+            hostname: string | null;
+            platform: string | null;
+            trustedRoots: Array<{
+                id: string;
+                label: string;
+                canBackup: boolean;
+            }>;
         };
         lastSeenAt: number | null;
         lastReadyAt: number | null;
@@ -6699,3 +6723,12 @@ export type RevokeRemoteAgentTokenResponses = {
 };
 
 export type RevokeRemoteAgentTokenResponse = RevokeRemoteAgentTokenResponses[keyof RevokeRemoteAgentTokenResponses];
+
+export type DeleteRemoteAgentData = {
+    body?: never;
+    path: { agentId: string };
+    query?: never;
+    url: '/api/v1/agents/{agentId}';
+};
+export type DeleteRemoteAgentResponses = { 200: { success: boolean } };
+export type DeleteRemoteAgentResponse = DeleteRemoteAgentResponses[keyof DeleteRemoteAgentResponses];

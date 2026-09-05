@@ -276,7 +276,9 @@ export function RestoreForm({
 					<Card>
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
-							<CardDescription>Choose where to restore the files</CardDescription>
+							<CardDescription>
+								Destination: This server. Choose a folder on this server to restore the files.
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							<div className="grid grid-cols-1 gap-2">
@@ -289,7 +291,7 @@ export function RestoreForm({
 									disabled={!!restoreRequiresCustomTarget}
 								>
 									<RotateCcw size={16} className="mr-1" />
-									Original location
+									Original path on this server
 								</Button>
 								<Button
 									type="button"

@@ -44,7 +44,7 @@ import { OrganizationSwitcher } from "./organization-switcher";
 import { ReleaseNotesDialog } from "./release-notes-dialog";
 
 const items = [
-	{ title: "Volumes", url: "/volumes", icon: HardDrive },
+	{ title: "Sources", url: "/volumes", icon: HardDrive },
 	{ title: "Repositories", url: "/repositories", icon: Database },
 	{ title: "Backups", url: "/backups", icon: CalendarClock },
 	{ title: "Notifications", url: "/notifications", icon: Bell },

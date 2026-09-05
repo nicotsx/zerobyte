@@ -31,6 +31,7 @@ import { TimeAgo } from "~/client/components/time-ago";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { useBackupTask } from "../backup-tasks";
+import { getBackupContextLabel, getBackupRunBlockReason, getSourceLabel } from "../lib/backup-context";
 
 type Props = {
 	schedule: BackupSchedule;
@@ -43,10 +44,15 @@ export const ScheduleSummary = (props: Props) => {
 	const { schedule, handleToggleEnabled, handleRunBackupNow, handleDeleteSchedule } = props;
 	const { formatShortDateTime } = useTimeFormat();
 	const navigate = useNavigate();
+
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
+
 	const { activeBackupTask, backupProgress, isBackupRunning } = useBackupTask(schedule.shortId);
+
+	const backupContextLabel = getBackupContextLabel(schedule.volume, schedule.repository.name);
+	const runBlockReason = getBackupRunBlockReason(schedule.volume, schedule.repository);
 
 	const cancelBackup = useMutation({
 		...cancelTaskMutation(),
@@ -116,14 +122,14 @@ export const ScheduleSummary = (props: Props) => {
 					<div className="flex flex-col @medium:flex-row @medium:items-center @medium:justify-between gap-4">
 						<div>
 							<CardTitle>{schedule.name}</CardTitle>
-							<CardDescription className="mt-1">
+							<CardDescription className="mt-1" title={backupContextLabel}>
 								<Link
 									to="/volumes/$volumeId"
 									className="hover:underline"
 									params={{ volumeId: schedule.volume.shortId }}
 								>
 									<HardDrive className="inline h-4 w-4 mr-2" />
-									<span>{schedule.volume.name}</span>
+									<span>{getSourceLabel(schedule.volume)}</span>
 								</Link>
 								<span className="mx-2">→</span>
 								<Link
@@ -162,7 +168,13 @@ export const ScheduleSummary = (props: Props) => {
 								<span>{stopBackupLabel}</span>
 							</Button>
 						) : (
-							<Button variant="default" size="sm" onClick={handleRunBackupNow}>
+							<Button
+								variant="default"
+								size="sm"
+								onClick={handleRunBackupNow}
+								disabled={Boolean(runBlockReason)}
+								title={runBlockReason ?? undefined}
+							>
 								<Play className="h-4 w-4 mr-2" />
 								<span>Backup now</span>
 							</Button>
@@ -203,6 +215,9 @@ export const ScheduleSummary = (props: Props) => {
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</div>
+					{runBlockReason ? (
+						<p className="text-sm text-muted-foreground text-pretty">{runBlockReason}</p>
+					) : null}
 				</CardHeader>
 				<CardContent className="grid min-w-0 gap-4 grid-cols-1 @medium:grid-cols-2 @wide:grid-cols-4">
 					<div className="min-w-0">
@@ -281,7 +296,7 @@ export const ScheduleSummary = (props: Props) => {
 				</CardContent>
 			</Card>
 
-			{isBackupRunning && <BackupProgressCard progress={backupProgress} />}
+			{isBackupRunning && <BackupProgressCard progress={backupProgress} contextLabel={backupContextLabel} />}
 
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>

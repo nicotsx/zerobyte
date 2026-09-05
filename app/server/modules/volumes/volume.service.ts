@@ -13,7 +13,6 @@ import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
 import {
-	decodeTrustedPathPresentation,
 	normalizeTrustedSourceRelativePath,
 	presentedVolumeDetailSchema,
 	volumeConfigSchema,
@@ -564,8 +563,7 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 const browseFilesystem = async (agentId: string, rootId: string, browsePath: string) => {
 	const organizationId = getOrganizationId();
 	await validateTrustedRoot(agentId, rootId, organizationId);
-	const decodedPath = decodeTrustedPathPresentation(browsePath);
-	const relativePath = normalizeRelativePath(decodedPath);
+	const relativePath = normalizeRelativePath(browsePath);
 	const reference = { rootId, relativePath };
 	try {
 		const command = await runVolumeCommand(agentId, organizationId, { name: "filesystem.browse", reference });

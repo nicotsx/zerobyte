@@ -77,7 +77,7 @@ test("user can enable 2FA and sign in with a TOTP code", async ({ browser }, tes
 		await fillOtp(twoFactorPage, await generateTotp(secret));
 
 		await expect(twoFactorPage).toHaveURL("/volumes");
-		await expect(twoFactorPage.getByRole("button", { name: "Create Volume" })).toBeVisible();
+		await expect(twoFactorPage.getByRole("button", { name: "Create Source" })).toBeVisible();
 	} finally {
 		await context.close();
 	}

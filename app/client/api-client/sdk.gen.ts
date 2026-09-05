@@ -671,3 +671,7 @@ export const createRemoteAgent = <ThrowOnError extends boolean = false>(options:
 export const rotateRemoteAgentToken = <ThrowOnError extends boolean = false>(options: Options<RotateRemoteAgentTokenData, ThrowOnError>): RequestResult<RotateRemoteAgentTokenResponses, unknown, ThrowOnError> => (options.client ?? client).post<RotateRemoteAgentTokenResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}/token/rotate', ...options });
 
 export const revokeRemoteAgentToken = <ThrowOnError extends boolean = false>(options: Options<RevokeRemoteAgentTokenData, ThrowOnError>): RequestResult<RevokeRemoteAgentTokenResponses, unknown, ThrowOnError> => (options.client ?? client).delete<RevokeRemoteAgentTokenResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}/token', ...options });
+
+import type { DeleteRemoteAgentData, DeleteRemoteAgentResponses } from './types.gen';
+
+export const deleteRemoteAgent = <ThrowOnError extends boolean = false>(options: Options<DeleteRemoteAgentData, ThrowOnError>): RequestResult<DeleteRemoteAgentResponses, unknown, ThrowOnError> => (options.client ?? client).delete<DeleteRemoteAgentResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}', ...options });

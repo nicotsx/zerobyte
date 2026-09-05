@@ -17,8 +17,8 @@ export const Route = createFileRoute("/(dashboard)/volumes/$volumeId/")({
 	validateSearch: z.object({ tab: z.string().optional() }),
 	staticData: {
 		breadcrumb: (match) => [
-			{ label: "Volumes", href: "/volumes" },
-			{ label: match.loaderData?.volume.name || "Volume Details" },
+			{ label: "Sources", href: "/volumes" },
+			{ label: match.loaderData?.volume.name || "Source Details" },
 		],
 	},
 	head: ({ loaderData }) => ({
@@ -26,7 +26,7 @@ export const Route = createFileRoute("/(dashboard)/volumes/$volumeId/")({
 			{ title: `Zerobyte - ${loaderData?.volume.name}` },
 			{
 				name: "description",
-				content: "View and manage volume details, configuration, and files.",
+				content: "View and manage source details, configuration, and files.",
 			},
 		],
 	}),

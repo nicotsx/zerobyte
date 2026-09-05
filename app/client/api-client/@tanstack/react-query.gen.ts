@@ -1711,3 +1711,20 @@ export const revokeRemoteAgentTokenMutation = (options?: Partial<Options<RevokeR
     };
     return mutationOptions;
 };
+
+import { deleteRemoteAgent } from '../sdk.gen';
+import type { DeleteRemoteAgentData, DeleteRemoteAgentResponse } from '../types.gen';
+
+export const deleteRemoteAgentMutation = (options?: Partial<Options<DeleteRemoteAgentData>>): UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> => {
+    const mutationOptions: UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteRemoteAgent({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};

@@ -11,7 +11,7 @@ type Props = {
 export const FilesTabContent = ({ volume }: Props) => {
 	const isDirectory = volume.type === "directory";
 	const remotePresentation = volume.sourceKind === "agent-filesystem" ? getRemoteSourcePresentation(volume) : null;
-	const sourceIsBrowsable = remotePresentation ? remotePresentation.isAvailable : volume.status === "mounted";
+	const sourceIsBrowsable = remotePresentation ? remotePresentation.isActionable : volume.status === "mounted";
 	const requestErrorMessage = remotePresentation
 		? "Files could not be loaded. Check the source availability and try again."
 		: undefined;

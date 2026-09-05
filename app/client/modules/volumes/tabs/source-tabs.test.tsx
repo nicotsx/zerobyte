@@ -137,12 +137,12 @@ describe("source files", () => {
 		expect(screen.queryByText(/mount/i)).toBeNull();
 	});
 
-	test("blocks browsing after a failed health check despite ready source availability", () => {
+	test("allows browsing after a failed health check when the source is ready", () => {
 		const unhealthyVolume = { ...remoteVolume("available"), status: "error" } satisfies PresentedVolume;
 		render(<FilesTabContent volume={unhealthyVolume} />);
 
-		expect(screen.getByRole("status").textContent).toContain("most recent availability check");
-		expect(screen.queryByTestId("source-browser")).toBeNull();
+		const browser = screen.getByTestId("source-browser");
+		expect(browser.getAttribute("data-enabled")).toBe("true");
 	});
 
 	test.each(unavailableCases)(

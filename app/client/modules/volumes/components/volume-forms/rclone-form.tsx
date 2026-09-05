@@ -108,16 +108,16 @@ export const RcloneForm = ({ form }: Props) => {
 							<div className="flex items-center space-x-2">
 								<input
 									type="checkbox"
-									aria-label="Mount volume as read-only"
+									aria-label="Mount source as read-only"
 									checked={field.value ?? false}
 									onChange={(e) => field.onChange(e.target.checked)}
 									className="rounded border-gray-300"
 								/>
-								<span className="text-sm">Mount volume as read-only</span>
+								<span className="text-sm">Mount source as read-only</span>
 							</div>
 						</FormControl>
 						<FormDescription>
-							Prevent any modifications to the volume. Recommended for backup sources and sensitive data.
+							Prevent any modifications to the source. Recommended for sensitive data.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>

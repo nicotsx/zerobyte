@@ -15,6 +15,7 @@ import { EmptyState } from "~/client/components/empty-state";
 import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { getSourceLabel } from "../lib/backup-context";
 
 export function CreateBackupPage() {
 	const navigate = useNavigate();
@@ -124,14 +125,16 @@ export function CreateBackupPage() {
 							<SelectValue placeholder="Choose a volume to backup" />
 						</SelectTrigger>
 						<SelectContent>
-							{volumesData.map((volume) => (
-								<SelectItem key={volume.shortId} value={volume.shortId}>
-									<span className="flex items-center gap-2">
-										<HardDrive className="h-4 w-4" />
-										{volume.name}
-									</span>
-								</SelectItem>
-							))}
+							{volumesData.map((volume) => {
+								return (
+									<SelectItem key={volume.shortId} value={volume.shortId}>
+										<span className="flex min-w-0 items-center gap-2">
+											<HardDrive className="h-4 w-4 shrink-0" />
+											<span className="min-w-0 truncate">{getSourceLabel(volume)}</span>
+										</span>
+									</SelectItem>
+								);
+							})}
 						</SelectContent>
 					</Select>
 				</CardContent>

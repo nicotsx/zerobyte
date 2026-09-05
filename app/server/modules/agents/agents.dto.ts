@@ -1,6 +1,7 @@
 import { describeRoute, resolver } from "hono-openapi";
 import { z } from "zod";
 import { isValidMachineName, MACHINE_NAME_MAX_LENGTH } from "~/lib/machine-name";
+import { publicAgentCapabilitiesSchema } from "./agent-capability-presentation";
 
 export const publicAgentSchema = z.object({
 	id: z.string(),
@@ -8,7 +9,7 @@ export const publicAgentSchema = z.object({
 	name: z.string(),
 	kind: z.enum(["local", "remote"]),
 	status: z.enum(["offline", "connecting", "online", "degraded"]),
-	capabilities: z.record(z.string(), z.unknown()),
+	capabilities: publicAgentCapabilitiesSchema,
 	lastSeenAt: z.number().nullable(),
 	lastReadyAt: z.number().nullable(),
 	createdAt: z.number(),
@@ -55,4 +56,10 @@ export const revokeAgentTokenDto = describeRoute({
 	operationId: "revokeRemoteAgentToken",
 	tags: ["Agents"],
 	responses: { 200: response(publicAgentSchema, "Enrollment token revoked") },
+});
+
+export const deleteAgentDto = describeRoute({
+	operationId: "deleteRemoteAgent",
+	tags: ["Agents"],
+	responses: { 200: response(z.object({ success: z.boolean() }), "Remote machine deleted") },
 });

@@ -6,6 +6,7 @@
 		"backup-webhooks",
 		"performance-tuning",
 		"mounted-shares-and-acls",
+		"remote-agents",
 		"notifications",
 		"recovery-key-and-repository-passwords",
 		"repository-maintenance",

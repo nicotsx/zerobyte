@@ -45,7 +45,7 @@ describe("trusted filesystem source browsing", () => {
 			const { agentId } = await createTrustedFilesystemSource(organizationId, "online");
 			await db.update(agentsTable).set({ status }).where(eq(agentsTable.id, agentId));
 			await withContext({ organizationId, userId: user.id }, async () => {
-				await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow(`is ${status}`);
+				await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow(`is ${status}`);
 			});
 		},
 	);
@@ -56,13 +56,13 @@ describe("trusted filesystem source browsing", () => {
 
 		await withContext({ organizationId, userId: user.id }, async () => {
 			await db.update(agentsTable).set({ revokedAt: Date.now() }).where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("is revoked");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("is revoked");
 
 			await db
 				.update(agentsTable)
 				.set({ revokedAt: null, capabilities: { trustedRoots: [] } })
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("not advertised");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("not advertised");
 
 			await db
 				.update(agentsTable)
@@ -72,7 +72,7 @@ describe("trusted filesystem source browsing", () => {
 					},
 				})
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow(
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow(
 				"does not allow backups",
 			);
 
@@ -80,9 +80,9 @@ describe("trusted filesystem source browsing", () => {
 				.update(agentsTable)
 				.set({ capabilities: { trustedRoots: "invalid" } })
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("incompatible");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("incompatible");
 
-			await expect(volumeService.browseFilesystem("missing-agent", "photos", "/")).rejects.toThrow(
+			await expect(volumeService.browseFilesystem("missing-agent", "photos", "")).rejects.toThrow(
 				"Source machine not found",
 			);
 
@@ -95,11 +95,11 @@ describe("trusted filesystem source browsing", () => {
 				})
 				.where(eq(agentsTable.id, agentId));
 			agentManagerMock.isAgentReady.mockResolvedValue(false);
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("is not connected");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("is not connected");
 		});
 	});
 
-	test("browses with a root reference instead of an absolute host path", async () => {
+	test("passes raw relative browse paths to the trusted root", async () => {
 		const { organizationId, user } = await createTestSession();
 		const agentId = `agent-${randomUUID()}`;
 		await db.insert(agentsTable).values({
@@ -118,16 +118,24 @@ describe("trusted filesystem source browsing", () => {
 		});
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			await volumeService.browseFilesystem(agentId, "photos", "/family");
+			await volumeService.browseFilesystem(agentId, "photos", "trusted-root:photos");
+			await volumeService.browseFilesystem(agentId, "photos", "family//summer/./");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "family/../private")).rejects.toThrow(
+				"cannot traverse outside its root",
+			);
 		});
 
-		expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledWith(agentId, organizationId, {
+		expect(agentManagerMock.runVolumeCommand).toHaveBeenNthCalledWith(1, agentId, organizationId, {
 			name: "filesystem.browse",
-			reference: { rootId: "photos", relativePath: "family" },
+			reference: { rootId: "photos", relativePath: "trusted-root:photos" },
+		});
+		expect(agentManagerMock.runVolumeCommand).toHaveBeenNthCalledWith(2, agentId, organizationId, {
+			name: "filesystem.browse",
+			reference: { rootId: "photos", relativePath: "family/summer" },
 		});
 	});
 
-	test("round-trips root-safe browse paths from controller to agent across two levels", async () => {
+	test("round-trips root-safe browse responses with raw request paths across two levels", async () => {
 		const { organizationId, user } = await createTestSession();
 		const agentId = `agent-${randomUUID()}`;
 		const rootId = "filesystem";
@@ -178,7 +186,7 @@ describe("trusted filesystem source browsing", () => {
 		}
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			const rootResult = await volumeService.browseFilesystem(agentId, rootId, "/");
+			const rootResult = await volumeService.browseFilesystem(agentId, rootId, "");
 			expect(rootResult.path).toBe("trusted-root:");
 			const firstDirectory = rootResult.directories.find((directory) => directory.name === firstSegment);
 			expect(firstDirectory?.path).toBe(`trusted-root:${firstSegment}`);
@@ -186,7 +194,7 @@ describe("trusted filesystem source browsing", () => {
 				throw new Error(`Expected root browse result to contain ${firstSegment}`);
 			}
 
-			const directoryResult = await volumeService.browseFilesystem(agentId, rootId, firstDirectory.path);
+			const directoryResult = await volumeService.browseFilesystem(agentId, rootId, firstSegment);
 			expect(directoryResult.path).toBe(firstDirectory.path);
 			const secondDirectory = directoryResult.directories.find((directory) => directory.name === secondSegment);
 			expect(secondDirectory?.path).toBe(`trusted-root:${firstSegment}/${secondSegment}`);
@@ -194,7 +202,8 @@ describe("trusted filesystem source browsing", () => {
 				throw new Error(`Expected nested browse result to contain ${secondSegment}`);
 			}
 
-			const childResult = await volumeService.browseFilesystem(agentId, rootId, secondDirectory.path);
+			const childPath = `${firstSegment}/${secondSegment}`;
+			const childResult = await volumeService.browseFilesystem(agentId, rootId, childPath);
 			expect(childResult.path).toBe(secondDirectory.path);
 		});
 	});

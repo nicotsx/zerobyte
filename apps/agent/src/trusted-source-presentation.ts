@@ -3,7 +3,12 @@ import type { ResticBackupProgressDto } from "@zerobyte/core/restic";
 import { toErrorDetails } from "@zerobyte/core/utils";
 import { encodeTrustedPathPresentation } from "@zerobyte/contracts/volumes";
 
-export const serializeFilesystemPath = (value: string) => value.replaceAll("\\", "/");
+export const serializeFilesystemPath = (value: string, pathSeparator: string = path.sep) => {
+	if (pathSeparator !== "\\") return value;
+	return value.replaceAll(pathSeparator, "/");
+};
+
+export const hasUnsupportedTrustedPathSeparator = (value: string) => path.sep === "/" && value.includes("\\");
 
 // Arbitrary subprocess diagnostics stay on the machine that produced them.
 // Only structured path fields cross the controller boundary.
@@ -19,31 +24,53 @@ export const createTrustedSourcePresentation = (options: {
 }) => {
 	const rootPath = options.canonicalRootPath;
 	const rootSafe = path.parse(rootPath).root === rootPath;
+
 	const formatPath = (value: string) => {
 		for (const root of [rootPath, options.configuredRootPath]) {
 			const relative = path.relative(root, value);
 			const escapesRoot = relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative);
 			if (escapesRoot) continue;
+			if (hasUnsupportedTrustedPathSeparator(relative)) return "[unsupported source path]";
 			const portablePath = serializeFilesystemPath(relative);
 			return encodeTrustedPathPresentation(portablePath, rootSafe);
 		}
 		return "[outside source]";
 	};
+
 	const formatProgress = (progress: ResticBackupProgressDto): ResticBackupProgressDto => {
 		const currentFiles = progress.current_files.map(formatPath);
+
 		return { ...progress, current_files: currentFiles };
 	};
+
 	const formatBrowseResult = <Result extends { path: string; directories: Array<{ path: string }> }>(
 		result: Result,
 	) => {
-		const directories = result.directories.map((directory) => {
+		if (hasUnsupportedTrustedPathSeparator(result.path)) {
+			throw new Error("Trusted source path contains an invalid separator");
+		}
+
+		const compatibleDirectories = result.directories.filter(
+			(directory) => !hasUnsupportedTrustedPathSeparator(directory.path),
+		);
+
+		const directories = compatibleDirectories.map((directory) => {
 			const directoryPath = encodeTrustedPathPresentation(directory.path, true);
+
 			return { ...directory, path: directoryPath };
 		});
+
 		const browsePath = encodeTrustedPathPresentation(result.path, true);
+
 		return { ...result, path: browsePath, directories };
 	};
+
+	if (hasUnsupportedTrustedPathSeparator(options.sourceRelativePath)) {
+		throw new Error("Trusted source path contains an invalid separator");
+	}
+
 	const sourcePath = encodeTrustedPathPresentation(options.sourceRelativePath, rootSafe);
+
 	return {
 		sourcePath,
 		browseRootPath: rootPath,

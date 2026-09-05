@@ -3,11 +3,13 @@ import { LocalFileBrowser } from "./local-file-browser";
 type Props = {
 	onSelectPath: (path: string) => void;
 	selectedPath?: string;
+	remote?: { agentId: string; rootId: string };
 };
 
-export const DirectoryBrowser = ({ onSelectPath, selectedPath }: Props) => {
+export const DirectoryBrowser = ({ onSelectPath, selectedPath, remote }: Props) => {
 	return (
 		<LocalFileBrowser
+			remote={remote}
 			className="border rounded-lg overflow-hidden"
 			useScrollArea
 			scrollAreaClassName="h-64"

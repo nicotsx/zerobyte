@@ -8,6 +8,7 @@ import { toErrorDetails, toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
 import { getAgentExecutionPolicy } from "../execution-policy";
 import { resticDeps } from "../restic/deps";
+import { resolveTrustedBackupSelection } from "../trusted-backup-selection";
 import { createVolumeBackend } from "../volume-host";
 
 class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
@@ -18,8 +19,10 @@ class VolumeReadinessError extends Data.TaggedError("VolumeReadinessError")<{
 const ensureHealthyVolume = (volume: Volume) =>
 	Effect.gen(function* () {
 		const backend = createVolumeBackend(volume);
+
 		if (volume.type === "directory") {
 			const health = yield* Effect.promise(() => backend.checkHealth());
+
 			if (health.status !== "mounted") {
 				const message = health.error ?? "Directory is not accessible";
 				return yield* new VolumeReadinessError({ message });
@@ -51,7 +54,9 @@ const ensureHealthyVolume = (volume: Volume) =>
 		logger.warn(
 			`${volume.name} is not healthy. Auto-remount is enabled, attempting to remount. Reason: ${failureReason}`,
 		);
+
 		const remount = yield* Effect.promise(() => backend.mount());
+
 		if (remount.status !== "mounted") {
 			return yield* new VolumeReadinessError({ message: remount.error ?? failureReason });
 		}
@@ -60,21 +65,28 @@ const ensureHealthyVolume = (volume: Volume) =>
 const resolveBackupSource = (context: ControllerCommandContext, source: VolumeExecutionSource) =>
 	Effect.gen(function* () {
 		const executionPolicy = getAgentExecutionPolicy(context);
+
 		const resolved = yield* Effect.try({
 			try: () => executionPolicy.resolveExecutionSource(source, "backup.run"),
 			catch: (error) => new VolumeReadinessError({ message: toMessage(error) }),
 		});
+
 		if (source.kind === "managed") {
 			yield* ensureHealthyVolume(source.volume);
 		}
 
-		return { sourcePath: resolved.canonicalPath, presentation: resolved.presentation };
+		return {
+			sourcePath: resolved.canonicalPath,
+			containmentRootPath: resolved.containmentRootPath,
+			presentation: resolved.presentation,
+		};
 	});
 
 export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
 	let formatControllerError = toErrorDetails;
 	return Effect.gen(function* () {
 		const existing = yield* context.getRunningJob(payload.jobId);
+
 		if (existing) {
 			yield* context.offerOutbound(
 				createAgentMessage("backup.failed", {
@@ -87,7 +99,9 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 		}
 
 		yield* logger.effect.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
+
 		const abortController = new AbortController();
+
 		yield* context.setRunningJob(payload.jobId, {
 			kind: "backup",
 			scheduleId: payload.scheduleId,
@@ -117,17 +131,56 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 				const resolvedSource = yield* resolveBackupSource(context, payload.source);
 				const sourcePath = resolvedSource.sourcePath;
+				const containmentRootPath = resolvedSource.containmentRootPath;
 				const presentation = resolvedSource.presentation;
+
 				formatControllerError = presentation?.formatError ?? toErrorDetails;
+
 				const dependencies = resticDeps(payload.runtime.password);
+
 				const restic = yield* Effect.try({
 					try: () => createRestic(dependencies),
 					catch: (error) => error,
 				});
-				const options = createBackupOptions(payload, sourcePath, abortController.signal);
+
+				const options = yield* Effect.try({
+					try: () => createBackupOptions(payload, sourcePath, abortController.signal),
+					catch: (error) => error,
+				});
+
+				let lifecycleRestic: {
+					backup: (...args: Parameters<typeof restic.backup>) => ReturnType<typeof restic.backup>;
+				} = restic;
+
+				if (payload.source.kind === "agent-filesystem") {
+					lifecycleRestic = {
+						backup: (repositoryConfig, backupSourcePath, resticOptions) => {
+							const selectionSignal = resticOptions.signal ?? abortController.signal;
+							return Effect.tryPromise({
+								try: () =>
+									resolveTrustedBackupSelection(
+										resticOptions,
+										backupSourcePath,
+										containmentRootPath,
+										selectionSignal,
+									),
+								catch: (error) => new Error(toMessage(error)),
+							}).pipe(
+								Effect.flatMap((selection) => {
+									const selectedOptions = {
+										...resticOptions,
+										includePaths: selection.includePaths,
+										includePatterns: undefined,
+									};
+									return restic.backup(repositoryConfig, backupSourcePath, selectedOptions);
+								}),
+							);
+						},
+					};
+				}
 
 				const backupResult = yield* runBackupLifecycle({
-					restic,
+					restic: lifecycleRestic,
 					repositoryConfig: payload.repositoryConfig,
 					sourcePath,
 					presentationSourcePath: presentation?.sourcePath,

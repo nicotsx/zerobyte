@@ -8,13 +8,14 @@ import { logger } from "@zerobyte/core/node";
 import { Data, Effect } from "effect";
 import { createVolumeBackend, isNodeJSErrnoException } from ".";
 import type { ResolvedFileListingSource } from "../execution-policy";
-import { serializeFilesystemPath } from "../trusted-source-presentation";
+import { hasUnsupportedTrustedPathSeparator, serializeFilesystemPath } from "../trusted-source-presentation";
 
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
 
 const realpath = async (value: string) => {
 	const resolved = await fs.realpath(value);
+
 	return process.platform === "win32" && /^[a-z]:$/i.test(resolved) ? `${resolved}\\` : resolved;
 };
 
@@ -61,8 +62,17 @@ export const listVolumeFiles = async (
 			return aIsDir ? -1 : 1;
 		});
 
-		const total = dirents.length;
-		const paginatedDirents = dirents.slice(startOffset, startOffset + pageSize);
+		const listableDirents = dirents.filter((dirent) => {
+			if (!source.presentation) return true;
+
+			const fullPath = path.join(realRequestedPath, dirent.name);
+			const relativePath = path.relative(realVolumeRoot, fullPath);
+
+			return !hasUnsupportedTrustedPathSeparator(relativePath);
+		});
+
+		const total = listableDirents.length;
+		const paginatedDirents = listableDirents.slice(startOffset, startOffset + pageSize);
 
 		const entries = (
 			await Promise.all(
@@ -71,7 +81,8 @@ export const listVolumeFiles = async (
 
 					try {
 						const stats = await fs.stat(fullPath);
-						const relativePath = serializeFilesystemPath(path.relative(realVolumeRoot, fullPath));
+						const rawRelativePath = path.relative(realVolumeRoot, fullPath);
+						const relativePath = serializeFilesystemPath(rawRelativePath);
 
 						return {
 							name: dirent.name,
@@ -89,10 +100,13 @@ export const listVolumeFiles = async (
 
 		let responsePath = "/";
 		if (source.responsePathStyle === "source-relative" && requestedRelativePath) {
-			responsePath = `/${serializeFilesystemPath(requestedRelativePath)}`;
+			const portableRelativePath = serializeFilesystemPath(requestedRelativePath);
+			responsePath = `/${portableRelativePath}`;
 		} else if (source.responsePathStyle === "legacy" && requestedSubPath) {
-			responsePath = serializeFilesystemPath(requestedSubPath);
+			const portableSubPath = serializeFilesystemPath(requestedSubPath);
+			responsePath = portableSubPath;
 		}
+
 		return {
 			files: entries,
 			path: responsePath,
@@ -109,6 +123,7 @@ export const listVolumeFiles = async (
 			error: toMessage(error),
 			code: isNodeJSErrnoException(error) ? error.code : undefined,
 		});
+
 		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {
 			throw new Error("Directory not found");
 		}
@@ -122,7 +137,9 @@ export const listVolumeFiles = async (
 
 export const browseFilesystem = async (browsePath: string, trustedRootPath?: string) => {
 	const normalizedPath = path.normalize(browsePath);
+
 	let entries: Dirent[];
+
 	try {
 		entries = await fs.readdir(normalizedPath, { withFileTypes: true });
 	} catch (error) {
@@ -135,15 +152,14 @@ export const browseFilesystem = async (browsePath: string, trustedRootPath?: str
 			.filter((entry) => entry.isDirectory())
 			.map(async (entry) => {
 				const fullPath = path.join(normalizedPath, entry.name);
+				const relativePath = trustedRootPath ? path.relative(trustedRootPath, fullPath) : fullPath;
+				if (trustedRootPath && hasUnsupportedTrustedPathSeparator(relativePath)) return null;
+				const portableRelativePath = serializeFilesystemPath(relativePath);
+				const displayPath =
+					trustedRootPath && portableRelativePath ? `/${portableRelativePath}` : portableRelativePath || "/";
 
 				try {
 					const stats = await fs.stat(fullPath);
-					const relativePath = trustedRootPath ? path.relative(trustedRootPath, fullPath) : fullPath;
-					const portableRelativePath = serializeFilesystemPath(relativePath);
-					const displayPath =
-						trustedRootPath && portableRelativePath
-							? `/${portableRelativePath}`
-							: portableRelativePath || "/";
 					return {
 						name: entry.name,
 						path: displayPath,
@@ -152,12 +168,6 @@ export const browseFilesystem = async (browsePath: string, trustedRootPath?: str
 						modifiedAt: stats.mtimeMs,
 					};
 				} catch {
-					const relativePath = trustedRootPath ? path.relative(trustedRootPath, fullPath) : fullPath;
-					const portableRelativePath = serializeFilesystemPath(relativePath);
-					const displayPath =
-						trustedRootPath && portableRelativePath
-							? `/${portableRelativePath}`
-							: portableRelativePath || "/";
 					return {
 						name: entry.name,
 						path: displayPath,
@@ -170,9 +180,15 @@ export const browseFilesystem = async (browsePath: string, trustedRootPath?: str
 	);
 
 	const relativeBrowsePath = trustedRootPath ? path.relative(trustedRootPath, normalizedPath) : normalizedPath;
+
+	if (trustedRootPath && hasUnsupportedTrustedPathSeparator(relativeBrowsePath)) {
+		throw new Error("Trusted source path contains an invalid separator");
+	}
 	const displayBrowsePath = serializeFilesystemPath(relativeBrowsePath) || "/";
+	const compatibleDirectories = directories.filter((directory) => directory !== null);
+
 	return {
-		directories: directories.sort((a, b) => a.name.localeCompare(b.name)),
+		directories: compatibleDirectories.sort((a, b) => a.name.localeCompare(b.name)),
 		path: displayBrowsePath,
 	};
 };

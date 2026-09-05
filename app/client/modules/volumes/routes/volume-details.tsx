@@ -35,7 +35,6 @@ import { Separator } from "~/client/components/ui/separator";
 import { Switch } from "~/client/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
 import { ManagedBadge } from "~/client/components/managed-badge";
-import { StatusDot } from "~/client/components/status-dot";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
 import { VolumeInfoTabContent } from "../tabs/info";
@@ -142,21 +141,20 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									<h2 className="text-balance text-lg font-semibold tracking-tight">{volume.name}</h2>
 									<Separator orientation="vertical" className="h-4 mx-1" />
 									<Badge variant="outline" className="capitalize gap-1.5">
-										{remotePresentation ? (
-											<StatusDot
-												variant={remotePresentation.statusVariant}
-												label={remotePresentation.status}
-												animated={false}
-											/>
-										) : (
-											<span
-												className={cn("w-2 h-2 rounded-full shrink-0", {
-													"bg-success": isMounted,
-													"bg-red-500": isError,
-													"bg-amber-500": isUnmounted,
-												})}
-											/>
-										)}
+										<span
+											className={cn("w-2 h-2 rounded-full shrink-0", {
+												"bg-success": remotePresentation
+													? remotePresentation.statusVariant === "success"
+													: isMounted,
+												"bg-red-500": remotePresentation
+													? remotePresentation.statusVariant === "error"
+													: isError,
+												"bg-amber-500": remotePresentation
+													? remotePresentation.statusVariant === "warning"
+													: isUnmounted,
+												"bg-gray-500": remotePresentation?.statusVariant === "neutral",
+											})}
+										/>
 										{displayStatus}
 									</Badge>
 									{!isRemoteSource && <Badge variant="secondary">{volume.type}</Badge>}
@@ -242,12 +240,21 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								<div className="flex flex-wrap items-center gap-2">
 									<HeartIcon className="h-4 w-4 text-muted-foreground" />
 									<span className="text-sm font-medium">Availability</span>
-									<Badge variant="outline" className="gap-1.5">
-										<StatusDot
-											variant={remotePresentation.statusVariant}
-											label={remotePresentation.status}
-											animated={false}
-										/>
+									<Badge
+										variant={
+											remotePresentation.statusVariant === "error"
+												? "destructive"
+												: remotePresentation.statusVariant === "neutral"
+													? "secondary"
+													: "outline"
+										}
+										className={cn("ml-1", {
+											"text-success border-success/30 bg-success/10":
+												remotePresentation.statusVariant === "success",
+											"text-amber-500 border-amber-500/30 bg-amber-500/10":
+												remotePresentation.statusVariant === "warning",
+										})}
+									>
 										{remotePresentation.status}
 									</Badge>
 								</div>

@@ -3,16 +3,16 @@ import { CreateVolumePage } from "~/client/modules/volumes/routes/create-volume"
 
 export const Route = createFileRoute("/(dashboard)/volumes/create")({
 	component: RouteComponent,
-	errorComponent: () => <div>Failed to load volume creation</div>,
+	errorComponent: () => <div>Failed to load source creation</div>,
 	staticData: {
-		breadcrumb: () => [{ label: "Volumes", href: "/volumes" }, { label: "Create" }],
+		breadcrumb: () => [{ label: "Sources", href: "/volumes" }, { label: "Create" }],
 	},
 	head: () => ({
 		meta: [
-			{ title: "Zerobyte - Create Volume" },
+			{ title: "Zerobyte - Create Source" },
 			{
 				name: "description",
-				content: "Create a new storage volume with automatic mounting and health checks.",
+				content: "Create a new source for files and folders you want to back up.",
 			},
 		],
 	}),

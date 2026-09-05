@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/cli
 import { cn } from "~/client/lib/utils";
 import type { Volume } from "~/client/lib/types";
 import type { InternalFormValues } from "./types";
+import { getBackupContextLabel, getSourceLabel } from "../../lib/backup-context";
 
 type SummarySectionProps = {
 	volume: Volume;
@@ -27,6 +28,8 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 		.filter(([, value]) => Boolean(value))
 		.map(([label, value]) => `${value} ${label}`)
 		.join(", ");
+	const selectedRepository = repositoriesData?.find((repository) => repository.shortId === formValues.repositoryId);
+	const backupContextLabel = selectedRepository ? getBackupContextLabel(volume, selectedRepository.name) : null;
 
 	return (
 		<Card>
@@ -39,7 +42,11 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 			<CardContent className="flex flex-col gap-4 text-sm">
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Volume</p>
-					<p className="font-medium">{volume.name}</p>
+					<p className="font-medium">{getSourceLabel(volume)}</p>
+				</div>
+				<div>
+					<p className="text-xs uppercase text-muted-foreground">Backup path</p>
+					<p className="font-medium text-pretty">{backupContextLabel ?? "—"}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Schedule</p>

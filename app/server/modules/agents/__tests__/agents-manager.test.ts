@@ -108,6 +108,84 @@ test("respawns the local agent after an unexpected exit", async () => {
 	);
 });
 
+test("retries failed automatic local-agent replacements until one is ready", async () => {
+	vi.useFakeTimers();
+
+	const firstChild = createFakeChild();
+	const secondChild = createFakeChild();
+	const thirdChild = createFakeChild();
+	const waitForAgentReady = vi
+		.fn()
+		.mockResolvedValueOnce(true)
+		.mockResolvedValueOnce(false)
+		.mockResolvedValueOnce(true);
+	const runtime = processWithAgentRuntime.__zerobyteAgentRuntime!;
+	runtime.agentManager = fromAny({
+		stop: Effect.void,
+		getControllerUrl: vi.fn(() => "ws://127.0.0.1:4567"),
+		waitForAgentReady,
+	});
+	spawnMock
+		.mockReturnValueOnce(firstChild)
+		.mockReturnValueOnce(secondChild)
+		.mockImplementationOnce(() => {
+			throw new Error("spawn failed");
+		})
+		.mockReturnValueOnce(thirdChild);
+
+	await startLocalAgent();
+	firstChild.exitCode = 1;
+	firstChild.emit("exit", 1, null);
+
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(spawnMock).toHaveBeenCalledTimes(2);
+	expect(secondChild.kill).toHaveBeenCalledOnce();
+	expect(runtime.localAgentRestartTimeout).not.toBeNull();
+
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(spawnMock).toHaveBeenCalledTimes(3);
+	expect(runtime.localAgent).toBeNull();
+	expect(runtime.localAgentRestartTimeout).not.toBeNull();
+
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(spawnMock).toHaveBeenCalledTimes(4);
+	expect(runtime.localAgent).toBe(thirdChild);
+	expect(runtime.localAgentRestartTimeout).toBeNull();
+	expect(waitForAgentReady).toHaveBeenCalledTimes(3);
+});
+
+test("does not retry a failed automatic local-agent replacement after stopping", async () => {
+	vi.useFakeTimers();
+
+	const firstChild = createFakeChild();
+	const secondChild = createFakeChild();
+	const waitForAgentReady = vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+	const runtime = processWithAgentRuntime.__zerobyteAgentRuntime!;
+	runtime.agentManager = fromAny({
+		stop: Effect.void,
+		getControllerUrl: vi.fn(() => "ws://127.0.0.1:4567"),
+		waitForAgentReady,
+	});
+	spawnMock.mockReturnValueOnce(firstChild).mockReturnValueOnce(secondChild);
+
+	await startLocalAgent();
+	firstChild.exitCode = 1;
+	firstChild.emit("exit", 1, null);
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(spawnMock).toHaveBeenCalledTimes(2);
+	expect(runtime.localAgentRestartTimeout).not.toBeNull();
+
+	await stopLocalAgent();
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(spawnMock).toHaveBeenCalledTimes(2);
+	expect(runtime.localAgentRestartTimeout).toBeNull();
+});
+
 test("does not respawn the local agent after an intentional stop", async () => {
 	vi.useFakeTimers();
 

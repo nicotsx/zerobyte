@@ -1,4 +1,4 @@
-import { Fingerprint, KeyRound, User, Settings as SettingsIcon, Building2 } from "lucide-react";
+import { Fingerprint, KeyRound, User, Settings as SettingsIcon, Building2, MonitorCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type {
@@ -24,6 +24,8 @@ import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { DateTimeFormatSection } from "../components/date-time-format-section";
 import { usePermissions } from "~/client/hooks/use-permissions";
 import { RecoveryKeySection } from "../components/recovery-key-section";
+import { MachinesSection } from "../components/machines-section";
+import { getControllerUrlForOrigin } from "../components/machine-presentation";
 
 type Props = {
 	activeScope: "personal" | "organization";
@@ -78,6 +80,10 @@ export function SettingsPage({
 	const showOrganizationMembers = permissions.can("organizationMembers.manage");
 	const showSsoSettings = permissions.can("sso.manage");
 	const showRecoveryKey = permissions.can("recoveryKey.download");
+	const canManageAgents = permissions.can("agents.manage");
+	const hasRemoteAgents = permissions.hasRuntimeFeature("remoteAgents");
+	const machineControllerUrl = initialOrigin ? getControllerUrlForOrigin(initialOrigin) : null;
+	const showMachines = canManageAgents && hasRemoteAgents && machineControllerUrl !== null;
 	const passwordAuthSupported = appContext.passwordAuthSupported;
 	const hasPassword = appContext.user?.hasPassword === true;
 
@@ -248,6 +254,22 @@ export function SettingsPage({
 			{activeScope === "organization" && (
 				<div className="space-y-4">
 					{showOrganizationDetails && <OrganizationDetailsSection />}
+					{showMachines && (
+						<Card className="p-0 gap-0">
+							<div className="border-b border-border/50 bg-card-header p-6">
+								<CardTitle className="flex items-center gap-2 text-balance">
+									<MonitorCog className="size-5" />
+									Machines
+								</CardTitle>
+								<CardDescription className="mt-1.5 text-pretty">
+									Connect and manage remote machines for this organization
+								</CardDescription>
+							</div>
+							<CardContent className="min-w-0 p-6">
+								<MachinesSection controllerUrl={machineControllerUrl} />
+							</CardContent>
+						</Card>
+					)}
 					{showOrganizationMembers && (
 						<Card className="p-0 gap-0">
 							<div className="border-b border-border/50 bg-card-header p-6">

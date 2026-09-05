@@ -54,6 +54,7 @@ const clearActiveBackupRun = (scheduleId: number) => {
 	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
 	const activeBackupScheduleIdsByJobId = getActiveBackupScheduleIdsByJobId();
 	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
+
 	if (!activeBackupRun) {
 		return null;
 	}
@@ -65,6 +66,7 @@ const clearActiveBackupRun = (scheduleId: number) => {
 
 const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResult) => {
 	const activeBackupRun = clearActiveBackupRun(scheduleId);
+
 	if (!activeBackupRun) {
 		return false;
 	}
@@ -76,6 +78,7 @@ const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResul
 const clearActiveRestoreRun = (restoreId: string) => {
 	const activeRestoresByRestoreId = getActiveRestoresByRestoreId();
 	const activeRestoreRun = activeRestoresByRestoreId.get(restoreId);
+
 	if (!activeRestoreRun) {
 		return null;
 	}
@@ -86,6 +89,7 @@ const clearActiveRestoreRun = (restoreId: string) => {
 
 const resolveActiveRestoreRun = (restoreId: string, result: RestoreExecutionResult) => {
 	const activeRestoreRun = clearActiveRestoreRun(restoreId);
+
 	if (!activeRestoreRun) {
 		return false;
 	}
@@ -118,12 +122,14 @@ const cancelActiveRestoreRunsForAgent = (agentId: string, message: string) => {
 
 const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
 	const trackedScheduleId = getActiveBackupScheduleIdsByJobId().get(jobId);
+
 	if (trackedScheduleId === undefined) {
 		logger.warn(`Received ${eventName} for unknown job ${jobId} from agent ${agentId}`);
 		return null;
 	}
 
 	const activeBackupRun = getActiveBackupsByScheduleId().get(trackedScheduleId);
+
 	if (!activeBackupRun) {
 		logger.warn(`Received ${eventName} for inactive job ${jobId} from agent ${agentId}`);
 		return null;
@@ -146,6 +152,7 @@ const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string
 
 const getActiveRestoreRun = (restoreId: string, eventName: string, agentId: string) => {
 	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+
 	if (!activeRestoreRun) {
 		logger.warn(`Received ${eventName} for unknown restore ${restoreId} from agent ${agentId}`);
 		return null;
@@ -161,6 +168,7 @@ const getActiveRestoreRun = (restoreId: string, eventName: string, agentId: stri
 
 const requestBackupCancellation = async (agentId: string, scheduleId: number) => {
 	const activeBackupRun = getActiveBackupsByScheduleId().get(scheduleId);
+
 	if (!activeBackupRun) {
 		return false;
 	}
@@ -172,6 +180,7 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 	activeBackupRun.cancellationRequested = true;
 
 	const runtime = getAgentManagerRuntime();
+
 	if (!runtime) {
 		resolveActiveBackupRun(scheduleId, { status: "cancelled" });
 		return true;
@@ -195,6 +204,7 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 
 const requestRestoreCancellation = async (agentId: string, restoreId: string) => {
 	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+
 	if (!activeRestoreRun) {
 		return false;
 	}
@@ -206,6 +216,7 @@ const requestRestoreCancellation = async (agentId: string, restoreId: string) =>
 	activeRestoreRun.cancellationRequested = true;
 
 	const runtime = getAgentManagerRuntime();
+
 	if (!runtime) {
 		resolveActiveRestoreRun(restoreId, { status: "cancelled" });
 		return true;
@@ -429,21 +440,27 @@ async function runAgentVolumeCommand(
 	command: VolumeCommand,
 ): Promise<VolumeCommandResult> {
 	const runtime = getAgentManagerRuntime();
+
 	if (!runtime) throw new Error(`Volume agent ${agentId} is not connected`);
+
 	const response = await Effect.runPromise(runtime.runVolumeCommand(agentId, organizationId, command));
+
 	if (!response) throw new Error(`Failed to send volume command ${command.name} to agent ${agentId}`);
 	if (response.status === "error") throw new Error(response.error);
+
 	return response.command;
 }
 
 export const agentManager = {
 	isAgentReady: async (agentId: string) => {
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) return false;
 		return runtime.waitForAgentReady(agentId, 0);
 	},
 	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) {
 			return {
 				status: "unavailable",
@@ -479,11 +496,14 @@ export const agentManager = {
 
 			const cancelOnAbort = () => {
 				const cancellation = requestBackupCancellation(agentId, request.scheduleId);
+
 				void cancellation.catch((error) => {
 					const message = toMessage(error);
+
 					logger.warn(`Failed to request backup cancellation for ${request.payload.jobId}: ${message}`);
 				});
 			};
+
 			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
 				cancelOnAbort();
@@ -503,6 +523,7 @@ export const agentManager = {
 	runVolumeCommand: runAgentVolumeCommand,
 	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) {
 			return {
 				status: "unavailable",
@@ -536,6 +557,7 @@ export const agentManager = {
 			const cancelOnAbort = () => {
 				void requestRestoreCancellation(agentId, request.payload.restoreId);
 			};
+
 			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
 				cancelOnAbort();
@@ -557,6 +579,7 @@ export const agentManager = {
 	},
 	disconnectAgent: async (agentId: string) => {
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) return false;
 
 		try {
@@ -578,11 +601,43 @@ const stopPublishedLocalAgent = async (runtime: AgentRuntimeState, agentProcess:
 	}
 
 	runtime.isStoppingLocalAgent = true;
+
 	try {
 		await stopLocalAgentProcess(agentProcess);
 	} finally {
 		runtime.isStoppingLocalAgent = false;
 	}
+};
+
+const scheduleLocalAgentRestart = (runtime: AgentRuntimeState, generation: number) => {
+	const restartIsNeeded = isCurrentLocalAgentGeneration(runtime, generation);
+	const restartIsScheduled = runtime.localAgentRestartTimeout !== null;
+
+	if (!restartIsNeeded || restartIsScheduled) {
+		return;
+	}
+
+	const restartTimeout = setTimeout(() => {
+		const restart = async () => {
+			const timeoutIsCurrent = runtime.localAgentRestartTimeout === restartTimeout;
+			const generationIsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
+
+			if (!timeoutIsCurrent || !generationIsCurrent) {
+				return;
+			}
+
+			runtime.localAgentRestartTimeout = null;
+			await ensureLocalAgent(runtime, generation);
+		};
+
+		const restartOperation = enqueueAgentManagerLifecycleTransition(restart);
+
+		void restartOperation.catch((error) => {
+			logger.error(`Failed to restart local agent: ${toMessage(error)}`);
+			scheduleLocalAgentRestart(runtime, generation);
+		});
+	}, 1_000);
+	runtime.localAgentRestartTimeout = restartTimeout;
 };
 
 const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) => {
@@ -599,6 +654,7 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 	const currentAgent = runtime.localAgent;
 	const currentAgentIsHealthy =
 		currentAgent !== null && currentAgent.exitCode === null && currentAgent.signalCode === null;
+
 	if (currentAgentIsHealthy) {
 		return;
 	}
@@ -608,6 +664,7 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 	}
 
 	const agentManager = runtime.agentManager;
+
 	if (!agentManager) {
 		throw new Error(
 			`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because runtime.agentManager is missing; waitForAgentReady cannot check readiness`,
@@ -615,6 +672,7 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 	}
 
 	const controllerUrl = agentManager.getControllerUrl();
+
 	if (!controllerUrl) {
 		throw new Error(`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller URL is not available`);
 	}
@@ -622,6 +680,7 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 	const agentProcess = await spawnLocalAgentProcess(controllerUrl);
 	const generationIsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
 	const managerIsCurrent = runtime.agentManager === agentManager;
+
 	if (!generationIsCurrent || !managerIsCurrent) {
 		await stopLocalAgentProcess(agentProcess);
 		return;
@@ -633,6 +692,7 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 		const handleExit = async () => {
 			const childIsCurrent = runtime.localAgent === agentProcess;
 			const generationIsStillCurrent = runtime.localAgentGeneration === generation;
+
 			if (!childIsCurrent || !generationIsStillCurrent) {
 				return;
 			}
@@ -642,27 +702,11 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 				return;
 			}
 
-			const restartTimeout = setTimeout(() => {
-				const restart = async () => {
-					const timeoutIsCurrent = runtime.localAgentRestartTimeout === restartTimeout;
-					const generationIsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
-					if (!timeoutIsCurrent || !generationIsCurrent) {
-						return;
-					}
-
-					runtime.localAgentRestartTimeout = null;
-					await ensureLocalAgent(runtime, generation);
-				};
-				const restartOperation = enqueueAgentManagerLifecycleTransition(restart);
-				void restartOperation.catch((error) => {
-					logger.error(
-						`Failed to restart local agent: ${error instanceof Error ? error.message : String(error)}`,
-					);
-				});
-			}, 1_000);
-			runtime.localAgentRestartTimeout = restartTimeout;
+			scheduleLocalAgentRestart(runtime, generation);
 		};
+
 		const exitOperation = enqueueAgentManagerLifecycleTransition(handleExit);
+
 		void exitOperation.catch((error) => {
 			logger.error(
 				`Failed to handle local agent exit: ${error instanceof Error ? error.message : String(error)}`,
@@ -670,10 +714,19 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 		});
 	});
 
-	const agentIsReady = await agentManager.waitForAgentReady(LOCAL_AGENT_ID);
+	let agentIsReady: boolean;
+
+	try {
+		agentIsReady = await agentManager.waitForAgentReady(LOCAL_AGENT_ID);
+	} catch (error) {
+		await stopPublishedLocalAgent(runtime, agentProcess);
+		throw error;
+	}
+
 	const generationRemainsCurrent = isCurrentLocalAgentGeneration(runtime, generation);
 	const childRemainsCurrent = runtime.localAgent === agentProcess;
 	const managerRemainsCurrent = runtime.agentManager === agentManager;
+
 	if (!generationRemainsCurrent || !childRemainsCurrent || !managerRemainsCurrent) {
 		await stopPublishedLocalAgent(runtime, agentProcess);
 		return;
@@ -688,12 +741,16 @@ const ensureLocalAgent = async (runtime: AgentRuntimeState, generation: number) 
 export const startLocalAgent = () => {
 	const runtime = getAgentRuntimeState();
 	const wasDesiredRunning = runtime.localAgentDesiredRunning;
+
 	runtime.localAgentDesiredRunning = true;
+
 	if (!wasDesiredRunning) {
 		runtime.localAgentGeneration += 1;
 	}
+
 	const generation = runtime.localAgentGeneration;
 	const ensureAgent = () => ensureLocalAgent(runtime, generation);
+
 	return enqueueAgentManagerLifecycleTransition(ensureAgent);
 };
 
@@ -704,10 +761,12 @@ const requestLocalAgentStop = (runtime: AgentRuntimeState) => {
 
 const stopLocalAgentNow = async (runtime: AgentRuntimeState) => {
 	const restartTimeout = runtime.localAgentRestartTimeout;
+
 	if (restartTimeout) {
 		clearTimeout(restartTimeout);
 		runtime.localAgentRestartTimeout = null;
 	}
+
 	const agentProcess = runtime.localAgent;
 	if (agentProcess) await stopPublishedLocalAgent(runtime, agentProcess);
 };
@@ -715,6 +774,8 @@ const stopLocalAgentNow = async (runtime: AgentRuntimeState) => {
 // fallow-ignore-next-line unused-export
 export const stopLocalAgent = () => {
 	const runtime = getAgentRuntimeState();
+
 	requestLocalAgentStop(runtime);
+
 	return enqueueAgentManagerLifecycleTransition(stopLocalAgentNow);
 };

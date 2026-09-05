@@ -197,7 +197,7 @@ describe("backup execution - validation failures", () => {
 		expect(runBackupMock).not.toHaveBeenCalled();
 	});
 
-	test("does not fail validation when the agent runtime owns volume readiness", async () => {
+	test("fails validation when a managed volume is unmounted", async () => {
 		// arrange
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume({ status: "unmounted" });
@@ -211,8 +211,54 @@ describe("backup execution - validation failures", () => {
 		const result = await backupsService.validateBackupExecution(schedule.id);
 
 		// assert
-		expect(result.type).toBe("success");
+		expect(result.type).toBe("failure");
+		if (result.type === "failure") {
+			expect(result.error.message).toBe("Volume is not mounted");
+		}
 		expect(resticBackupMock).not.toHaveBeenCalled();
+	});
+
+	test("persists managed volume recovery before sending the refreshed source to the backup agent", async () => {
+		const { ensureHealthyVolumeMock, runBackupMock } = setup();
+		ensureHealthyVolumeMock.mockRestore();
+		const volume = await createTestVolume({
+			status: "error",
+			lastError: "stale mount",
+			autoRemount: true,
+		});
+		const repository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: repository.id,
+		});
+		const runVolumeCommandMock = vi
+			.spyOn(agentManager, "runVolumeCommand")
+			.mockResolvedValueOnce({ name: "volume.checkHealth", result: { status: "mounted" } });
+
+		await backupsService.executeBackup(schedule.id);
+
+		expect(runVolumeCommandMock).toHaveBeenNthCalledWith(
+			1,
+			volume.agentId,
+			TEST_ORG_ID,
+			expect.objectContaining({ name: "volume.checkHealth" }),
+		);
+		await waitForExpect(() => {
+			expect(runBackupMock).toHaveBeenCalledWith(
+				volume.agentId,
+				expect.objectContaining({
+					payload: expect.objectContaining({
+						source: expect.objectContaining({
+							kind: "managed",
+							volume: expect.objectContaining({ status: "mounted", lastError: null }),
+						}),
+					}),
+				}),
+			);
+		});
+
+		const persisted = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(persisted).toMatchObject({ status: "mounted", lastError: null });
 	});
 
 	test("should fail backup when volume does not exist", async () => {

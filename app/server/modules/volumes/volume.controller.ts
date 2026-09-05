@@ -126,7 +126,7 @@ export const volumeController = new Hono()
 		return c.json<ListFilesDto>(response, 200);
 	})
 	.get("/filesystem/browse", browseFilesystemDto, async (c) => {
-		const browsePath = c.req.query("path") || "/";
+		const browsePath = c.req.query("path") || "";
 		const agentId = c.req.query("agentId") || "local";
 		const rootId = c.req.query("rootId") || "local-filesystem";
 		const result = await volumeService.browseFilesystem(agentId, rootId, browsePath);

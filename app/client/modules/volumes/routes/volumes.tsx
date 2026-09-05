@@ -49,11 +49,13 @@ const volumeColumns = volumeColumnHelper.columns([
 			<DataTableSortHeader column={column} title="Name" sortDirection={column.getIsSorted()} />
 		),
 		cell: ({ row }) => (
-			<div className="min-w-0">
-				<span className="block">{row.original.name}</span>
+			<div className="min-w-0 max-w-64">
+				<span className="block truncate" title={row.original.name}>
+					{row.original.name}
+				</span>
 				{row.original.remotePresentation && (
-					<span className="block max-w-[52ch] whitespace-normal break-words font-sans text-xs text-muted-foreground">
-						{row.original.remotePresentation.context}
+					<span className="block truncate font-sans text-xs text-muted-foreground">
+						{row.original.remotePresentation.machine}
 					</span>
 				)}
 			</div>

@@ -34,7 +34,7 @@ const internalWebhookFormSchema = z.object({
 
 export const internalFormSchema = z.object({
 	name: z.string().min(1).max(128),
-	repositoryId: z.string(),
+	repositoryId: z.string().min(1, "Select a compatible backup repository"),
 	excludePatternsText: z.string().optional(),
 	excludeIfPresentText: z.string().optional(),
 	includePatterns: z.string().optional(),

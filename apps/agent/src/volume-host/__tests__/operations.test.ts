@@ -5,7 +5,7 @@ import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { afterEach, expect, test, vi } from "vitest";
 import { logger } from "@zerobyte/core/node";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { listVolumeFiles } from "../operations";
+import { browseFilesystem, listVolumeFiles } from "../operations";
 import { createAgentExecutionPolicy, type ResolvedFileListingSource } from "../../execution-policy";
 import { createTrustedRootRegistry } from "../../trusted-roots";
 import { createTrustedSourcePresentation, serializeFilesystemPath } from "../../trusted-source-presentation";
@@ -126,6 +126,26 @@ test("listVolumeFiles restores the separator when Windows realpath returns a bar
 	expect(result.files).toEqual([]);
 });
 
+test.skipIf(path.sep !== "/")("listVolumeFiles preserves literal POSIX backslashes for managed volumes", async () => {
+	const volume = await resolveManagedVolume();
+	const name = String.raw`reports\2026`;
+	await fs.mkdir(path.join(tempRoot!, name));
+
+	const result = await listVolumeFiles(volume, 0, 10);
+
+	expect(result.files).toMatchObject([{ name, path: `/${name}` }]);
+});
+
+test.skipIf(path.sep !== "/")("trusted browsing omits names the trusted-path contract cannot represent", async () => {
+	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-volume-ops-trusted-"));
+	const name = String.raw`reports\2026`;
+	await fs.mkdir(path.join(tempRoot, name));
+
+	const result = await browseFilesystem(tempRoot, tempRoot);
+
+	expect(result.directories).toEqual([]);
+});
+
 test("trusted nested listings stay relative to the selected source", async () => {
 	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-volume-ops-trusted-"));
 	await fs.mkdir(path.join(tempRoot, "configured", "dir", "child"), { recursive: true });
@@ -164,5 +184,6 @@ test("structured progress is relative and arbitrary errors stay agent-local", ()
 	expect(safeError).not.toContain("/srv/data");
 	expect(safeError).not.toContain("/private");
 	expect(presentation.sourcePath).toBe("/photos");
-	expect(serializeFilesystemPath(String.raw`dir\file`)).toBe("dir/file");
+	expect(serializeFilesystemPath(String.raw`dir\file`, "/")).toBe(String.raw`dir\file`);
+	expect(serializeFilesystemPath(String.raw`dir\file`, "\\")).toBe("dir/file");
 });

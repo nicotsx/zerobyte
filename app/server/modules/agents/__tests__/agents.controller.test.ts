@@ -1,6 +1,11 @@
 import { logger } from "@zerobyte/core/node";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { createApp } from "~/server/app";
+import { db } from "~/server/db/db";
+import { config } from "~/server/core/config";
+import { createTestVolume } from "~/test/helpers/volume";
+import { agentsTable } from "~/server/db/schema";
 import {
 	createTestSession,
 	createTestSessionWithOrgAdmin,
@@ -51,6 +56,46 @@ describe("remote agent enrollment API", () => {
 		expect(agents).toEqual(expect.arrayContaining([expect.objectContaining({ id: enrollment.agent.id })]));
 		expect(JSON.stringify(agents)).not.toContain(enrollment.token);
 		expect(JSON.stringify(agents)).not.toContain("credentialHash");
+	});
+
+	test("projects only safe, recognized capabilities in machine responses", async () => {
+		const enrollment = await agentsService.createRemoteAgent(owner.organizationId, "Projection agent");
+		const capabilities = {
+			hostname: "  archive-node  ",
+			platform: "linux",
+			privatePath: "/srv/private",
+			trustedRoots: [{ id: "documents", label: "~/private", canBackup: true, path: "/srv/documents" }],
+		};
+		await db.update(agentsTable).set({ capabilities }).where(eq(agentsTable.id, enrollment.agent.id));
+
+		const listed = await app.request("/api/v1/agents", { headers: owner.headers });
+		const agents = await listed.json();
+		const agent = agents.find((candidate: { id: string }) => candidate.id === enrollment.agent.id);
+		const expectedCapabilities = {
+			hostname: "archive-node",
+			platform: "linux",
+			trustedRoots: [{ id: "documents", label: "Allowed location", canBackup: true }],
+		};
+		expect(agent?.capabilities).toEqual(expectedCapabilities);
+		expect(JSON.stringify(agent)).not.toContain("/srv/private");
+		expect(JSON.stringify(agent)).not.toContain("/srv/documents");
+
+		const malformedCapabilities = {
+			trustedRoots: [
+				{ id: "documents", label: "Documents", canBackup: true },
+				{ id: "invalid", label: "Invalid", canBackup: "yes" },
+			],
+		};
+		await db
+			.update(agentsTable)
+			.set({ capabilities: malformedCapabilities })
+			.where(eq(agentsTable.id, enrollment.agent.id));
+
+		const relisted = await app.request("/api/v1/agents", { headers: owner.headers });
+		const relistedAgents = await relisted.json();
+		const malformedAgent = relistedAgents.find((candidate: { id: string }) => candidate.id === enrollment.agent.id);
+		const expectedMalformedCapabilities = { hostname: null, platform: null, trustedRoots: [] };
+		expect(malformedAgent?.capabilities).toEqual(expectedMalformedCapabilities);
 	});
 
 	test.each(["line\nbreak", "right-to-left\u202eoverride"])(
@@ -135,4 +180,40 @@ test("enrollment requires TLS, consumes the code once, and needs no browser sess
 	const credential = await response.json();
 	expect(await validateRemoteAgentToken(credential.token)).toMatchObject({ agentId: enrollment.agent.id });
 	expect((await app.request("https://localhost/api/v1/agents/enroll", options)).status).toBe(401);
+});
+
+test("remote machine deletion is scoped and rejects attached sources", async () => {
+	const enrollment = await agentsService.createRemoteAgent(owner.organizationId, "Delete candidate");
+	const url = `/api/v1/agents/${enrollment.agent.id}`;
+	expect((await app.request(url, { method: "DELETE", headers: admin.headers })).status).toBe(404);
+	expect((await app.request(url, { method: "DELETE", headers: member.headers })).status).toBe(403);
+	expect((await app.request("/api/v1/agents/local", { method: "DELETE", headers: owner.headers })).status).toBe(404);
+	await createTestVolume({ organizationId: owner.organizationId, agentId: enrollment.agent.id });
+	expect((await app.request(url, { method: "DELETE", headers: owner.headers })).status).toBe(409);
+	expect(await db.query.agentsTable.findFirst({ where: { id: enrollment.agent.id } })).toBeDefined();
+});
+
+test("deleting a remote machine invalidates credentials and disconnects it", async () => {
+	const enrollment = await agentsService.createRemoteAgent(owner.organizationId, "Delete me");
+	const credential = await agentsService.exchangeEnrollmentToken(enrollment.token);
+	const disconnect = vi.spyOn(agentManager, "disconnectAgent").mockResolvedValue(true);
+	const response = await app.request(`/api/v1/agents/${enrollment.agent.id}`, {
+		method: "DELETE",
+		headers: owner.headers,
+	});
+	expect(response.status).toBe(200);
+	expect(disconnect).toHaveBeenCalledWith(enrollment.agent.id);
+	expect(await validateRemoteAgentToken(credential.token)).toBeNull();
+	expect(await db.query.agentsTable.findFirst({ where: { id: enrollment.agent.id } })).toBeUndefined();
+});
+
+test("development permits HTTP enrollment", async () => {
+	vi.spyOn(config, "environment", "get").mockReturnValue("development");
+	const enrollment = await agentsService.createRemoteAgent(owner.organizationId, "Development");
+	const response = await app.request("http://localhost/api/v1/agents/enroll", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code: enrollment.token }),
+	});
+	expect(response.status).toBe(200);
 });

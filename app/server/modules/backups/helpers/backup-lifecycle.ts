@@ -12,6 +12,7 @@ import { commands } from "../commands";
 import { assertBackupRepositoryCompatibility } from "../backup-context";
 import { LOCAL_AGENT_ID } from "../../agents/constants";
 import { getActionableTrustedRoot } from "../../volumes/source-discovery";
+import { volumeService } from "../../volumes/volume.service";
 
 export interface BackupContext {
 	schedule: BackupSchedule;
@@ -69,6 +70,8 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 		};
 	}
 
+	let readyVolume = volume;
+
 	try {
 		assertBackupRepositoryCompatibility(volume, repository);
 		if (volume.sourceKind === "agent-filesystem" && volume.agentId !== LOCAL_AGENT_ID) {
@@ -77,6 +80,13 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 				throw new Error("Backup source location is incomplete");
 			}
 			await getActionableTrustedRoot(volume.agentId, trustedRootId, organizationId);
+		}
+		if (volume.sourceKind === "managed") {
+			const readiness = await volumeService.ensureHealthyVolume(volume.shortId);
+			if (!readiness.ready) {
+				throw new Error(readiness.reason);
+			}
+			readyVolume = readiness.volume;
 		}
 	} catch (error) {
 		const compatibilityError =
@@ -90,7 +100,7 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 
 	return {
 		type: "success",
-		context: { schedule, volume, repository, organizationId },
+		context: { schedule, volume: readyVolume, repository, organizationId },
 	};
 }
 

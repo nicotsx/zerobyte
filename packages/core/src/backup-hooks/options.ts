@@ -17,6 +17,20 @@ const validateIncludeEntry = (entry: string, name: string, format: "raw" | "text
 	}
 };
 
+const processBackupPath = (includePath: string, volumePath: string) => {
+	const pathWithinVolume = includePath.startsWith("/") ? includePath.slice(1) : includePath;
+	const resolvedVolumePath = path.resolve(volumePath);
+	const resolvedPath = path.resolve(volumePath, pathWithinVolume);
+	const relativePath = path.relative(resolvedVolumePath, resolvedPath);
+	const escapesRoot =
+		relativePath === ".." || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath);
+	if (escapesRoot) {
+		throw new Error(`Include path escapes volume root: ${includePath}`);
+	}
+
+	return path.join(volumePath, pathWithinVolume);
+};
+
 export const processBackupPattern = (pattern: string, volumePath: string, relative = false) => {
 	const isNegated = pattern.startsWith("!");
 	const value = isNegated ? pattern.slice(1) : pattern;
@@ -57,7 +71,7 @@ export const createBackupOptions = (
 	includePaths:
 		params.options.includePaths?.map((includePath) => {
 			validateIncludeEntry(includePath, "Include path", "raw");
-			return processBackupPattern(includePath, volumePath, true);
+			return processBackupPath(includePath, volumePath);
 		}) ?? undefined,
 	includePatterns:
 		params.options.includePatterns?.map((pattern) => {

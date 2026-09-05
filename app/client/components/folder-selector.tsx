@@ -32,6 +32,7 @@ type Props = {
 	displayValue?: ReactNode;
 	placeholder?: string;
 	webBrowser?: WebFolderBrowser;
+	remote?: { agentId: string; rootId: string };
 };
 
 export const FolderSelector = ({
@@ -40,10 +41,12 @@ export const FolderSelector = ({
 	displayValue,
 	placeholder = "No folder selected",
 	webBrowser,
+	remote,
 }: Props) => {
 	const [showBrowser, setShowBrowser] = useState(false);
 	const [showWarning, setShowWarning] = useState(false);
-	const isDesktop = useIsDesktop();
+	const desktopRuntime = useIsDesktop();
+	const isDesktop = desktopRuntime && !remote;
 	const webBrowserMode = webBrowser?.mode ?? "inline";
 
 	const chooseDesktopFolder = async () => {
@@ -99,7 +102,7 @@ export const FolderSelector = ({
 
 			{!isDesktop && webBrowserMode === "inline" && showBrowser && (
 				<>
-					<DirectoryBrowser selectedPath={value} onSelectPath={selectWebFolder} />
+					<DirectoryBrowser remote={remote} selectedPath={value} onSelectPath={selectWebFolder} />
 					<Button type="button" variant="ghost" size="sm" onClick={() => setShowBrowser(false)}>
 						Cancel
 					</Button>
@@ -142,7 +145,7 @@ export const FolderSelector = ({
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<div className="py-4">
-							<DirectoryBrowser selectedPath={value} onSelectPath={selectWebFolder} />
+							<DirectoryBrowser remote={remote} selectedPath={value} onSelectPath={selectWebFolder} />
 						</div>
 						<AlertDialogFooter>
 							<AlertDialogCancel>Cancel</AlertDialogCancel>
