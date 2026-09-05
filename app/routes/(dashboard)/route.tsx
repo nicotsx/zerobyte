@@ -10,6 +10,7 @@ import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { isPasswordAuthSupported, userHasPassword } from "~/server/modules/auth/helpers";
 import { authService } from "~/server/modules/auth/auth.service";
 import { RECOVERY_KEY_DOWNLOAD_SKIPPED_COOKIE_NAME } from "~/lib/recovery-key-skip";
+import { getSystemInfoOptions } from "~/client/api-client/@tanstack/react-query.gen";
 
 export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 	const headers = getRequestHeaders();
@@ -39,6 +40,7 @@ export const Route = createFileRoute("/(dashboard)")({
 	loader: async ({ context }) => {
 		const [authContext] = await Promise.all([
 			fetchUser(),
+			context.queryClient.ensureQueryData(getSystemInfoOptions()),
 			context.queryClient.ensureQueryData({
 				queryKey: ["organization-context"],
 				queryFn: () => getOrganizationContext(),
