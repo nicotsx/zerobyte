@@ -20,10 +20,8 @@ import { createTestSession } from "~/test/helpers/auth";
 import { withContext } from "~/server/core/request-context";
 import { asShortId } from "~/server/utils/branded";
 import { createTestVolume } from "~/test/helpers/volume";
-import { config } from "~/server/core/config";
 
 afterEach(() => {
-	config.flags.enableLocalAgent = false;
 	vi.restoreAllMocks();
 	agentManagerMock.runVolumeCommand.mockReset();
 });
@@ -288,7 +286,6 @@ describe("volumeService.ensureHealthyVolume", () => {
 
 describe("volumeService.testConnection", () => {
 	test("routes test connections to the local agent", async () => {
-		config.flags.enableLocalAgent = true;
 		agentManagerMock.runVolumeCommand.mockResolvedValue({
 			name: "volume.testConnection",
 			result: { success: true, message: "Connection successful" },

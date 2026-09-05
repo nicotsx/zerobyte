@@ -1,15 +1,11 @@
-import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
-import { restic, resticDeps } from "../../core/restic";
+import { resticDeps } from "../../core/restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { LOCAL_AGENT_ID } from "../agents/constants";
-import { getVolumePath } from "../volumes/helpers";
 import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
-import { createBackupOptions } from "./backup.helpers";
-import { runEffectPromise, toErrorDetails } from "../../utils/errors";
 import { BadRequestError } from "http-errors-enhanced";
 
 const FUSE_VOLUME_BACKENDS = new Set<Volume["type"]>(["rclone", "sftp", "webdav"]);
@@ -76,38 +72,6 @@ const createBackupRunPayload = async ({
 	};
 };
 
-const executeBackupWithoutAgent = async (
-	payload: BackupRunPayload,
-	{ schedule, volume, signal, onProgress }: BackupExecutionRequest,
-) => {
-	const sourcePath = getVolumePath(volume);
-	const webhookAllowedOrigins = config.runtime === "desktop" ? null : payload.webhookAllowedOrigins;
-	const { signal: _, ...backupOptions } = createBackupOptions(schedule, sourcePath, signal);
-	const options = {
-		...backupOptions,
-		customResticParams: payload.options.customResticParams ?? [],
-		compressionMode: payload.options.compressionMode,
-	};
-
-	return runEffectPromise(
-		runBackupLifecycle({
-			restic,
-			repositoryConfig: payload.repositoryConfig,
-			sourcePath,
-			jobId: payload.jobId,
-			scheduleId: payload.scheduleId,
-			organizationId: payload.organizationId,
-			options,
-			webhooks: payload.webhooks,
-			webhookAllowedOrigins,
-			webhookTimeoutMs: payload.webhookTimeoutMs,
-			signal,
-			onProgress,
-			formatError: toErrorDetails,
-		}),
-	);
-};
-
 export const backupExecutor = {
 	execute: async (request: BackupExecutionRequest) => {
 		if (request.signal.aborted) {
@@ -128,14 +92,6 @@ export const backupExecutor = {
 			signal: request.signal,
 			onProgress: request.onProgress,
 		});
-
-		if (
-			executionResult.status === "unavailable" &&
-			executionAgentId === LOCAL_AGENT_ID &&
-			!config.flags.enableLocalAgent
-		) {
-			return executeBackupWithoutAgent(payload, request);
-		}
 
 		return executionResult;
 	},

@@ -12,11 +12,8 @@ vi.mock("node:child_process", async () => {
 });
 
 let startLocalAgent: (typeof import("../agents-manager"))["startLocalAgent"];
-let startAgentController: (typeof import("../agents-manager"))["startAgentController"];
 let stopLocalAgent: (typeof import("../agents-manager"))["stopLocalAgent"];
 let stopAgentController: (typeof import("../agents-manager"))["stopAgentController"];
-let config: (typeof import("~/server/core/config"))["config"];
-let originalEnableLocalAgent: boolean;
 
 const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 
@@ -59,18 +56,13 @@ const createFakeChild = () => {
 
 beforeEach(async () => {
 	vi.resetModules();
-	({ config } = await import("~/server/core/config"));
-	originalEnableLocalAgent = config.flags.enableLocalAgent;
-	config.flags.enableLocalAgent = true;
 	setAgentRuntime();
-	({ startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } =
-		await import("../agents-manager"));
+	({ startLocalAgent, stopAgentController, stopLocalAgent } = await import("../agents-manager"));
 });
 
 afterEach(async () => {
 	await stopLocalAgent();
 	await stopAgentController();
-	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	delete processWithAgentRuntime.__zerobyteAgentRuntime;
 	spawnMock.mockReset();
 	vi.restoreAllMocks();
@@ -116,12 +108,47 @@ test("does not respawn the local agent after an intentional stop", async () => {
 	expect(child.kill).toHaveBeenCalledTimes(1);
 });
 
-test("does not start the websocket server when the local agent flag is disabled", async () => {
-	config.flags.enableLocalAgent = false;
-	const serve = vi.spyOn(Bun, "serve");
+test("waits for confirmed local agent exit after forcing shutdown", async () => {
+	vi.useFakeTimers();
+	const child = createFakeChild();
+	child.kill.mockImplementation(() => true);
+	spawnMock.mockReturnValue(child);
 
-	await startAgentController();
+	await startLocalAgent();
+	let stopped = false;
+	const stopping = stopLocalAgent();
+	void stopping.then(() => {
+		stopped = true;
+	});
+	await vi.advanceTimersByTimeAsync(5_000);
 
-	expect(serve).not.toHaveBeenCalled();
-	expect(processWithAgentRuntime.__zerobyteAgentRuntime?.agentManager).toBeNull();
+	expect(child.kill).toHaveBeenNthCalledWith(1);
+	expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+	expect(stopped).toBe(false);
+
+	child.exitCode = 137;
+	child.emit("exit", 137, "SIGKILL");
+	await stopping;
+
+	expect(stopped).toBe(true);
+});
+
+test("does not spawn a replacement when forced termination cannot be confirmed", async () => {
+	vi.useFakeTimers();
+	const child = createFakeChild();
+	child.kill.mockImplementation(() => true);
+	spawnMock.mockReturnValue(child);
+
+	await startLocalAgent();
+	const replacement = startLocalAgent();
+	const replacementFailure = expect(replacement).rejects.toThrow(
+		"Local agent termination was not confirmed after SIGKILL",
+	);
+	await vi.advanceTimersByTimeAsync(10_000);
+	await replacementFailure;
+
+	expect(spawnMock).toHaveBeenCalledTimes(1);
+
+	child.exitCode = 137;
+	child.emit("exit", 137, "SIGKILL");
 });

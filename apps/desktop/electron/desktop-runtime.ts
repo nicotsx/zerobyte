@@ -111,7 +111,6 @@ const createServerEnv = (port: number, dirs: DesktopDirs, serverUrl: string, lau
 	RESTIC_CACHE_DIR: dirs.resticCacheDir,
 	ZEROBYTE_REPOSITORIES_DIR: dirs.repositoriesDir,
 	ZEROBYTE_VOLUMES_DIR: dirs.volumesDir,
-	ENABLE_LOCAL_AGENT: "false",
 	DISABLE_RATE_LIMITING: "true",
 	NO_COLOR: "1",
 	FORCE_COLOR: "0",

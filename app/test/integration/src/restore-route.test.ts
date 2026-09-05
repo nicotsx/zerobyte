@@ -5,7 +5,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
-import { beforeAll, expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { OVERWRITE_MODES, type OverwriteMode, type RepositoryConfig } from "@zerobyte/core/restic";
 import { organization, repositoriesTable, tasksTable } from "~/server/db/schema";
@@ -18,7 +18,6 @@ process.env.APP_SECRET = "8b9acd4456dd5db0a4a3c4f4e1240b2c3ae08bb59690167197425e
 process.env.BASE_URL = "http://localhost:4096";
 process.env.TRUSTED_ORIGINS = "http://localhost:4096";
 process.env.ZEROBYTE_DATABASE_URL = ":memory:";
-process.env.ENABLE_LOCAL_AGENT = "false";
 process.env.RESTIC_CACHE_DIR = path.join(os.tmpdir(), "zerobyte-integration-server-restic-cache");
 process.env.RESTIC_PASS_FILE = path.join(os.tmpdir(), "zerobyte-integration-server-restic.pass");
 
@@ -46,6 +45,7 @@ let app: ReturnType<typeof import("~/server/app").createApp>;
 let db: (typeof import("~/server/db/db"))["db"];
 let cryptoUtils: typeof import("~/server/utils/crypto").cryptoUtils;
 let session: Awaited<ReturnType<typeof import("~/test/helpers/auth").createTestSession>>;
+let agentManager: typeof import("~/server/modules/agents/agents-manager");
 
 const resticPassword = `restore-route-${crypto.randomBytes(16).toString("hex")}`;
 const snapshotTime = new Date("2025-01-01T00:00:00.000Z");
@@ -79,6 +79,17 @@ beforeAll(async () => {
 		.update(organization)
 		.set({ metadata: { resticPassword: await cryptoUtils.sealSecret(resticPassword) } })
 		.where(eq(organization.id, session.organizationId));
+
+	const { agentsService } = await import("~/server/modules/agents/agents.service");
+	agentManager = await import("~/server/modules/agents/agents-manager");
+
+	await agentsService.ensureLocalAgent();
+	await agentManager.startAgentController();
+	await agentManager.startLocalAgent();
+});
+
+afterAll(async () => {
+	await agentManager.stopAgentController();
 });
 
 const writeFile = async (filePath: string, content: string, mtime = snapshotTime) => {

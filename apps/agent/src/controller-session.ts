@@ -10,7 +10,7 @@ import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
-import { resolveResticHostname } from "./restic/hostname";
+import { resolveResticHostname } from "@zerobyte/core/node";
 
 export type ControllerSession = {
 	onOpen: () => void;

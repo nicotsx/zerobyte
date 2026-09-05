@@ -2,7 +2,7 @@ import path from "node:path";
 import fc from "fast-check";
 import { describe, expect, test } from "vitest";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import { createBackupOptions, processPattern } from "../backup.helpers";
+import { createBackupOptions, processBackupPattern as processPattern } from "@zerobyte/core/backup-hooks";
 
 type BackupPathOptions = BackupRunPayload["options"];
 

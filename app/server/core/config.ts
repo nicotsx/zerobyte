@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { prettifyError, z } from "zod";
 import "dotenv/config";
-import { resolveResticHostname } from "../../../apps/agent/src/restic/hostname";
+import { resolveResticHostname } from "@zerobyte/core/node";
 import { buildAllowedHosts } from "../lib/auth/base-url";
 import { toMessage } from "@zerobyte/core/utils";
 
@@ -30,7 +30,6 @@ const envSchema = z
 		APP_SECRET_FILE: z.string().optional(),
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),
-		ENABLE_LOCAL_AGENT: z.string().default("false"),
 		WEBHOOK_ALLOWED_ORIGINS: z.string().optional(),
 		PROVISIONING_PATH: z.string().optional(),
 		RESTIC_COMMAND: z.string().default("restic"),
@@ -148,7 +147,6 @@ const envSchema = z
 			flags: {
 				disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
 				enableDevPanel: s.ENABLE_DEV_PANEL === "true",
-				enableLocalAgent: s.ENABLE_LOCAL_AGENT === "true",
 			},
 			provisioningPath: s.PROVISIONING_PATH,
 			allowedHosts,

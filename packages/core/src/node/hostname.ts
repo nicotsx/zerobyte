@@ -12,9 +12,7 @@ export const resolveResticHostname = () => {
 
 		if (hostnameLine) {
 			const hostname = os.hostname();
-			const containerIdMatch = hostnameLine.match(/[0-9a-f]{64}/);
-			const containerId = containerIdMatch ? containerIdMatch[0] : null;
-
+			const containerId = hostnameLine.match(/[0-9a-f]{64}/)?.[0];
 			if (containerId?.startsWith(hostname)) {
 				return "zerobyte";
 			}

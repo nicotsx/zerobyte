@@ -1,5 +1,4 @@
 import { runDbMigrations } from "../../db/db";
-import { config } from "../../core/config";
 import { startAgentController, startLocalAgent, stopAgentController, stopLocalAgent } from "../agents/agents-manager";
 import { agentsService } from "../agents/agents.service";
 import { runMigrations } from "./migrations";
@@ -16,9 +15,7 @@ const runBootstrap = async () => {
 	try {
 		await startAgentController();
 
-		if (config.flags.enableLocalAgent) {
-			await startLocalAgent();
-		}
+		await startLocalAgent();
 
 		await startup(bootstrapStartedAt);
 	} catch (error) {

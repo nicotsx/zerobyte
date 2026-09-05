@@ -5,12 +5,14 @@ import { afterEach, expect, test, vi } from "vitest";
 
 let tempRoot: string | undefined;
 let mockMountPoints: string[] = [];
+let mockMountInfoError: Error | undefined;
 
 afterEach(async () => {
 	vi.doUnmock("../constants");
 	vi.doUnmock("../fs");
 	vi.resetModules();
 	mockMountPoints = [];
+	mockMountInfoError = undefined;
 	if (tempRoot) {
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		tempRoot = undefined;
@@ -22,7 +24,13 @@ const loadCleanup = async () => {
 	tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-cleanup-"));
 	vi.doMock("../constants", () => ({ VOLUME_MOUNT_BASE: tempRoot }));
 	vi.doMock("../fs", () => ({
-		readMountInfo: async () => mockMountPoints.map((mountPoint) => ({ mountPoint, fstype: "fuse.sshfs" })),
+		readMountInfo: async () => {
+			if (mockMountInfoError) {
+				throw mockMountInfoError;
+			}
+
+			return mockMountPoints.map((mountPoint) => ({ mountPoint, fstype: "fuse.sshfs" }));
+		},
 	}));
 
 	return import("../cleanup");
@@ -46,4 +54,18 @@ test("keeps volume directories that are still mounted on the agent host", async 
 	await cleanupDanglingVolumeMountDirectories();
 
 	await expect(fs.access(localVolumeDir)).resolves.toBeNull();
+});
+
+test.each([
+	["mount discovery", new Error("mount command failed")],
+	["mount parser", new Error("Failed to parse non-empty mount command output")],
+])("removes nothing when %s fails", async (_failureType, error) => {
+	const { cleanupDanglingVolumeMountDirectories } = await loadCleanup();
+	const volumeDir = path.join(tempRoot!, "preserved-volume");
+	mockMountInfoError = error;
+	await fs.mkdir(path.join(volumeDir, "_data"), { recursive: true });
+
+	await expect(cleanupDanglingVolumeMountDirectories()).rejects.toThrow(error.message);
+
+	await expect(fs.access(volumeDir)).resolves.toBeNull();
 });

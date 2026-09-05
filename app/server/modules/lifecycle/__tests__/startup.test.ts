@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Scheduler } from "~/server/core/scheduler";
-import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
+import { volumesTable } from "~/server/db/schema";
 import { backupsService } from "~/server/modules/backups/backups.service";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
@@ -22,25 +22,21 @@ const loadStartupModule = async () => {
 	return import(moduleUrl.href);
 };
 
-let originalEnableLocalAgent: boolean;
-
-beforeEach(() => {
-	originalEnableLocalAgent = config.flags.enableLocalAgent;
-	config.flags.enableLocalAgent = true;
-
+beforeEach(async () => {
+	await db.delete(volumesTable);
 	vi.spyOn(Scheduler, "start").mockResolvedValue();
 	vi.spyOn(Scheduler, "clear").mockResolvedValue();
 	vi.spyOn(Scheduler, "build").mockImplementation(() => ({ schedule: vi.fn() }));
 	vi.spyOn(provisioningModule, "syncProvisionedResources").mockResolvedValue();
 	vi.spyOn(backupsService, "cleanupOrphanedSchedules").mockResolvedValue({ deletedSchedules: 0 });
 	vi.spyOn(volumeService, "updateVolume").mockResolvedValue(undefined as never);
+	vi.spyOn(volumeService, "mountVolume").mockResolvedValue({ status: "mounted", error: undefined });
 	vi.spyOn(repositoriesService, "updateRepository").mockResolvedValue(undefined as never);
 	vi.spyOn(notificationsService, "updateDestination").mockResolvedValue(undefined as never);
 });
 
 afterEach(() => {
 	vi.useRealTimers();
-	config.flags.enableLocalAgent = originalEnableLocalAgent;
 	vi.restoreAllMocks();
 });
 
@@ -346,4 +342,37 @@ test("does not stale tasks or schedules created after bootstrap begins", async (
 	expect(staleSchedule?.lastBackupStatus).toBe("warning");
 	expect(preservedTask?.status).toBe("running");
 	expect(preservedSchedule?.lastBackupStatus).toBe("in_progress");
+});
+
+test("remounts saved local managed volumes without retrying other source states", async () => {
+	const mounted = await createTestVolume({ name: "Startup mounted", autoRemount: false, status: "mounted" });
+	const retryableError = await createTestVolume({
+		name: "Startup retryable error",
+		autoRemount: true,
+		status: "error",
+	});
+	const nonRetryableError = await createTestVolume({
+		name: "Startup non-retryable error",
+		autoRemount: false,
+		status: "error",
+	});
+	const unmounted = await createTestVolume({ name: "Startup unmounted", status: "unmounted" });
+	const remoteManaged = await createTestVolume({
+		name: "Startup remote managed",
+		agentId: "remote-agent",
+		status: "mounted",
+	});
+	const mountVolume = vi.mocked(volumeService.mountVolume);
+	mountVolume.mockRejectedValueOnce(new Error("mount failed"));
+
+	const { startup } = await loadStartupModule();
+
+	await startup();
+
+	expect(mountVolume).toHaveBeenCalledTimes(2);
+	expect(mountVolume).toHaveBeenCalledWith(mounted.shortId);
+	expect(mountVolume).toHaveBeenCalledWith(retryableError.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(nonRetryableError.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(unmounted.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(remoteManaged.shortId);
 });

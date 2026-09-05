@@ -14,10 +14,6 @@ type LocalAgentState = {
 export async function spawnLocalAgentProcess(runtime: LocalAgentState, controllerUrl: string) {
 	await stopLocalAgentProcess(runtime);
 
-	if (!config.flags.enableLocalAgent) {
-		return;
-	}
-
 	const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
 	const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
 
@@ -82,19 +78,53 @@ export async function stopLocalAgentProcess(runtime: LocalAgentState) {
 	}
 
 	const agentProcess = runtime.localAgent;
-	runtime.localAgent = null;
 	runtime.isStoppingLocalAgent = true;
 
 	if (agentProcess.exitCode !== null || agentProcess.signalCode !== null) {
+		if (runtime.localAgent === agentProcess) {
+			runtime.localAgent = null;
+		}
 		runtime.isStoppingLocalAgent = false;
 		return;
 	}
 
-	const exited = new Promise<void>((resolve) => {
-		agentProcess.once("exit", () => {
+	let gracefulShutdownTimeout: ReturnType<typeof setTimeout> | undefined;
+	let forcedShutdownTimeout: ReturnType<typeof setTimeout> | undefined;
+	let shutdownPromiseSettled = false;
+	const exited = new Promise<void>((resolve, reject) => {
+		const confirmTermination = () => {
+			if (gracefulShutdownTimeout) clearTimeout(gracefulShutdownTimeout);
+			if (forcedShutdownTimeout) clearTimeout(forcedShutdownTimeout);
+			agentProcess.off("exit", confirmTermination);
+			agentProcess.off("close", confirmTermination);
+			if (runtime.localAgent === agentProcess) {
+				runtime.localAgent = null;
+			}
 			runtime.isStoppingLocalAgent = false;
-			resolve();
-		});
+			if (!shutdownPromiseSettled) {
+				shutdownPromiseSettled = true;
+				resolve();
+			}
+		};
+		agentProcess.once("exit", confirmTermination);
+		agentProcess.once("close", confirmTermination);
+
+		gracefulShutdownTimeout = setTimeout(() => {
+			logger.warn("Local agent did not stop gracefully; forcing shutdown");
+			agentProcess.kill("SIGKILL");
+			if (shutdownPromiseSettled) {
+				return;
+			}
+
+			forcedShutdownTimeout = setTimeout(() => {
+				if (shutdownPromiseSettled) {
+					return;
+				}
+
+				shutdownPromiseSettled = true;
+				reject(new Error("Local agent termination was not confirmed after SIGKILL"));
+			}, 5_000);
+		}, 5_000);
 	});
 
 	agentProcess.kill();

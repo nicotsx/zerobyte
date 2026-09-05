@@ -6,10 +6,7 @@ import { VOLUME_MOUNT_BASE } from "./constants";
 import { readMountInfo } from "./fs";
 
 export const cleanupDanglingVolumeMountDirectories = async () => {
-	const mounts = await readMountInfo().catch((error) => {
-		logger.warn(`Failed to read mount info for volume cleanup: ${toMessage(error)}`);
-		return [];
-	});
+	const mounts = await readMountInfo();
 	const mountedPaths = new Set(mounts.map((mount) => mount.mountPoint));
 	const volumeDirs = await fs.readdir(VOLUME_MOUNT_BASE).catch(() => []);
 

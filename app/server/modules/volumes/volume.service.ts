@@ -6,26 +6,18 @@ import { toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
 import type { StatFs } from "../../utils/mountinfo";
 import { withTimeout } from "../../utils/timeout";
-import { config } from "../../core/config";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { agentManager } from "../agents/agents-manager";
 import type { UpdateVolumeBody } from "./volume.dto";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
-import { volumeConfigSchema, type BackendConfig, type Volume as AgentVolume } from "@zerobyte/contracts/volumes";
-import { Effect } from "effect";
+import { volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { normalizeRequiredName } from "~/server/utils/names";
 import { decryptVolumeConfig, encryptVolumeConfig } from "./volume-config-secrets";
 import type { VolumeCommand, VolumeCommandResult } from "@zerobyte/contracts/agent-protocol";
-import { createVolumeBackend, getStatFs, getVolumePath } from "../../../../apps/agent/src/volume-host";
-import {
-	browseFilesystem as browseHostFilesystem,
-	listVolumeFiles,
-	testVolumeConnection,
-} from "../../../../apps/agent/src/volume-host/operations";
 
 type EnsureHealthyVolumeResult =
 	| { ready: true; volume: Volume; remounted: boolean }
@@ -64,36 +56,10 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 	config: await decryptVolumeConfig(volume.config),
 });
 
-const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
-	...volume,
-	shortId: volume.shortId,
-	config: await decryptVolumeConfig(volume.config),
-	provisioningId: volume.provisioningId ?? null,
-});
-
-// Transitional fallback: older controller-only installs do not run the supervised local agent.
-// Keep all controller-local host execution behind this predicate so the fallback is easy to delete
-// once volume operations always go through the local agent.
-const shouldRunViaAgent = (volume: Volume) => volume.agentId !== LOCAL_AGENT_ID || config.flags.enableLocalAgent;
-
-const shouldUseControllerLocalVolumeFallback = (volume: Volume) => !shouldRunViaAgent(volume);
-
 const runVolumeBackendCommand = async (
 	volume: Volume,
 	name: "volume.mount" | "volume.unmount" | "volume.checkHealth",
 ) => {
-	if (shouldUseControllerLocalVolumeFallback(volume)) {
-		const backend = createVolumeBackend(await volumeForHost(volume));
-		switch (name) {
-			case "volume.mount":
-				return backend.mount();
-			case "volume.unmount":
-				return backend.unmount();
-			case "volume.checkHealth":
-				return backend.checkHealth();
-		}
-	}
-
 	const command = await runVolumeCommand(volume.agentId, {
 		name,
 		volume: await volumeForAgent(volume),
@@ -212,16 +178,11 @@ const getVolume = async (shortId: ShortId) => {
 
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
-		statfs = await withTimeout(
-			shouldRunViaAgent(volume)
-				? runVolumeCommand(volume.agentId, {
-						name: "volume.statfs",
-						volume: await volumeForAgent(volume),
-					}).then((command) => command.result)
-				: volumeForHost(volume).then((hostVolume) => getStatFs(getVolumePath(hostVolume))),
-			1000,
-			"volume.statfs",
-		).catch((error) => {
+		const statfsCommand = runVolumeCommand(volume.agentId, {
+			name: "volume.statfs",
+			volume: await volumeForAgent(volume),
+		}).then((command) => command.result);
+		statfs = await withTimeout(statfsCommand, 1000, "volume.statfs").catch((error) => {
 			logger.warn(`Failed to get statfs for volume ${volume.name}: ${toMessage(error)}`);
 			return {};
 		});
@@ -290,10 +251,6 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 };
 
 const testConnection = async (backendConfig: BackendConfig) => {
-	if (!config.flags.enableLocalAgent) {
-		return Effect.runPromise(testVolumeConnection(backendConfig));
-	}
-
 	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
 	return command.result;
 };
@@ -397,10 +354,6 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 	}
 
 	try {
-		if (shouldUseControllerLocalVolumeFallback(volume)) {
-			return await listVolumeFiles(await volumeForHost(volume), subPath, offset, limit);
-		}
-
 		const command = await runVolumeCommand(volume.agentId, {
 			name: "volume.listFiles",
 			volume: await volumeForAgent(volume),
@@ -416,10 +369,6 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 
 const browseFilesystem = async (browsePath: string) => {
 	try {
-		if (!config.flags.enableLocalAgent) {
-			return await browseHostFilesystem(browsePath);
-		}
-
 		const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "filesystem.browse", path: browsePath });
 		return command.result;
 	} catch (error) {

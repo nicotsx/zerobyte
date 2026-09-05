@@ -2,15 +2,14 @@ import type { RepositoryConfig } from "@zerobyte/core/restic";
 import type { RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import type { TaskResult } from "~/schemas/tasks";
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic, resticDeps } from "../../../core/restic";
-import { runEffectPromise } from "../../../utils/errors";
+import { resticDeps } from "../../../core/restic";
 import { agentManager, type RestoreExecutionProgress } from "../../agents/agents-manager";
 import { runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
 
-type RestoreExecutionOptions = Omit<Parameters<typeof restic.restore>[3], "organizationId" | "signal" | "onProgress">;
+type RestoreExecutionOptions = Omit<RestoreRunPayload["options"], "organizationId">;
 
-type RestoreExecutionTarget = { kind: "controller" } | { kind: "agent"; agentId: string };
+type RestoreExecutionTarget = { kind: "agent"; agentId: string };
 
 type RestoreCommandParams = {
 	organizationId: string;
@@ -51,17 +50,6 @@ const createRestoreRunPayload = async (request: RestoreExecutionRequest): Promis
 	};
 };
 
-const executeControllerRestore = async (request: RestoreExecutionRequest) => {
-	return await runEffectPromise(
-		restic.restore(request.repositoryConfig, request.snapshotId, request.target, {
-			...request.options,
-			organizationId: request.organizationId,
-			signal: request.signal,
-			onProgress: request.onProgress,
-		}),
-	);
-};
-
 const executeAgentRestore = async (request: RestoreExecutionRequest, agentId: string) => {
 	const payload = await createRestoreRunPayload(request);
 	const started = await agentManager.startRestore(agentId, {
@@ -95,10 +83,6 @@ const executeRestore = async (request: RestoreExecutionRequest) => {
 	);
 
 	try {
-		if (request.executionTarget.kind === "controller") {
-			return await executeControllerRestore(request);
-		}
-
 		return await executeAgentRestore(request, request.executionTarget.agentId);
 	} finally {
 		releaseLock();
@@ -129,7 +113,7 @@ export const createRestoreCommand = (params: RestoreCommandParams) => {
 				resourceId: params.repositoryShortId,
 				operationKey: params.snapshotId,
 				targetDisplayName: params.repositoryName,
-				targetAgentId: params.executionTarget.kind === "agent" ? params.executionTarget.agentId : null,
+				targetAgentId: params.executionTarget.agentId,
 				input: {
 					kind: "restore",
 					repositoryId: params.repositoryShortId,

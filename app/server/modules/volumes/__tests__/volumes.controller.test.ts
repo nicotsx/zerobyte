@@ -1,24 +1,16 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
 import { volumesTable } from "~/server/db/schema";
 import { createApp } from "~/server/app";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { generateShortId } from "~/server/utils/id";
-import { config } from "~/server/core/config";
+import { agentManager } from "~/server/modules/agents/agents-manager";
 
 const app = createApp();
 
 let session: Awaited<ReturnType<typeof createTestSession>>;
-let previousEnableLocalAgent: boolean;
-
 beforeAll(async () => {
-	previousEnableLocalAgent = config.flags.enableLocalAgent;
-	config.flags.enableLocalAgent = false;
 	session = await createTestSession();
-});
-
-afterAll(() => {
-	config.flags.enableLocalAgent = previousEnableLocalAgent;
 });
 
 const createManagedVolumeRecord = async (organizationId: string) => {
@@ -158,6 +150,10 @@ describe("volumes security", () => {
 
 		test("should allow deletion for managed volumes", async () => {
 			const volume = await createManagedVolumeRecord(session.organizationId);
+			vi.spyOn(agentManager, "runVolumeCommand").mockResolvedValue({
+				name: "volume.unmount",
+				result: { status: "unmounted" },
+			});
 
 			const res = await app.request(`/api/v1/volumes/${volume.shortId}`, {
 				method: "DELETE",

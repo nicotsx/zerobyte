@@ -1,27 +1,30 @@
 import { Scheduler } from "../../core/scheduler";
+import { withContext } from "../../core/request-context";
 import { db } from "../../db/db";
 import { logger } from "@zerobyte/core/node";
-import { stopApplicationRuntime } from "./bootstrap";
-import { withContext } from "../../core/request-context";
+import { LOCAL_AGENT_ID } from "../agents/constants";
 import { volumeService } from "../volumes/volume.service";
 import { toMessage } from "../../utils/errors";
-import { config } from "../../core/config";
-import { LOCAL_AGENT_ID } from "../agents/constants";
+import { stopApplicationRuntime } from "./bootstrap";
 
 export const shutdown = async () => {
 	await Scheduler.stop();
 
-	if (!config.flags.enableLocalAgent) {
-		const volumes = await db.query.volumesTable.findMany({
-			where: { AND: [{ status: "mounted" }, { agentId: LOCAL_AGENT_ID }] },
-		});
+	const volumes = await db.query.volumesTable.findMany({
+		where: {
+			AND: [{ agentId: LOCAL_AGENT_ID }, { status: "mounted" }],
+		},
+	});
 
-		for (const volume of volumes) {
-			const { status, error } = await withContext({ organizationId: volume.organizationId }, () =>
+	for (const volume of volumes) {
+		try {
+			const result = await withContext({ organizationId: volume.organizationId }, () =>
 				volumeService.unmountVolume(volume.shortId, { persistStatus: false }),
-			).catch((error) => ({ status: "error" as const, error: toMessage(error) }));
-
-			logger.info(`Volume ${volume.name} unmount status: ${status}${error ? `, error: ${error}` : ""}`);
+			);
+			const errorSuffix = result.error ? `, error: ${result.error}` : "";
+			logger.info(`Volume ${volume.name} unmount status: ${result.status}${errorSuffix}`);
+		} catch (error) {
+			logger.error(`Error unmounting volume ${volume.name} on shutdown: ${toMessage(error)}`);
 		}
 	}
 

@@ -421,10 +421,9 @@ const restoreSnapshot = async (
 
 	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
 	const executionAgentId = targetAgentId ?? LOCAL_AGENT_ID;
-	const useControllerLocalRestoreFallback = executionAgentId === LOCAL_AGENT_ID && !appConfig.flags.enableLocalAgent;
 	await assertAllowedRestoreAgent(executionAgentId, organizationId);
 
-	if (!useControllerLocalRestoreFallback && repository.type === "local" && executionAgentId !== LOCAL_AGENT_ID) {
+	if (repository.type === "local" && executionAgentId !== LOCAL_AGENT_ID) {
 		throw new BadRequestError(
 			"Local repository restores must run on the agent that can access the repository path.",
 		);
@@ -448,9 +447,7 @@ const restoreSnapshot = async (
 		repositoryConfig,
 		snapshotId,
 		target,
-		executionTarget: useControllerLocalRestoreFallback
-			? { kind: "controller" }
-			: { kind: "agent", agentId: executionAgentId },
+		executionTarget: { kind: "agent", agentId: executionAgentId },
 		options: {
 			basePath,
 			...restoreExecutionOptions,
