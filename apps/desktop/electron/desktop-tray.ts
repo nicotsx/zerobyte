@@ -42,7 +42,7 @@ const createTrayIcon = () => {
 };
 
 const formatTrayTooltip = ({ runningCount, attentionCount }: TrayStatus) => {
-	const parts = ["Zerobyte Alpha"];
+	const parts = ["Zerobyte"];
 
 	if (runningCount > 0) {
 		parts.push(`${runningCount} running`);
@@ -108,7 +108,7 @@ export const createTrayPopoverWindow = async ({ serverUrl, isQuitting }: TrayPop
 		resizable: false,
 		skipTaskbar: true,
 		alwaysOnTop: true,
-		title: "Zerobyte Alpha",
+		title: "Zerobyte",
 		backgroundColor: "#131313",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
@@ -170,9 +170,9 @@ export const createTray = ({ openWindow, togglePopover, quit }: TrayOptions) => 
 	tray.on("right-click", () => {
 		tray.popUpContextMenu(
 			Menu.buildFromTemplate([
-				{ label: "Open Zerobyte Alpha", click: openWindow },
+				{ label: "Open Zerobyte", click: openWindow },
 				{ type: "separator" },
-				{ label: "Quit Zerobyte Alpha", click: quit },
+				{ label: "Quit Zerobyte", click: quit },
 			]),
 		);
 	});

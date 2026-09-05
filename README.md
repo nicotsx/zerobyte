@@ -401,6 +401,13 @@ Zerobyte includes [Restic](https://github.com/restic/restic) for backup function
 
 For a complete list of third-party software licenses and attributions, please refer to the [NOTICES.md](NOTICES.md) file.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- Committer, reviewer, and approver: [Nicolas Meienberger (@nicotsx)](https://github.com/nicotsx)
+- Privacy policy: [zerobyte.app/privacy](https://zerobyte.app/privacy)
+
 ## Contributing
 
 Contributions by anyone are welcome! If you find a bug or have a feature request, please open an issue on GitHub. If you want to contribute code, feel free to fork the repository and submit a pull request. We require that all contributors sign a Contributor License Agreement (CLA) before we can accept your contributions. This is to protect both you and the project. Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for more details.

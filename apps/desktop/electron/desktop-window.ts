@@ -38,7 +38,7 @@ export const createDesktopWindow = async ({ currentWindow, serverUrl, isQuitting
 		height: 840,
 		minWidth: 960,
 		minHeight: 640,
-		title: "Zerobyte Alpha",
+		title: "Zerobyte",
 		webPreferences: {
 			preload: path.join(__dirname, "preload.js"),
 			contextIsolation: true,

@@ -93,11 +93,12 @@ describe("SnapshotTreeBrowser", () => {
 		});
 
 		const mntRow = await screen.findByRole("button", { name: "mnt" });
+		await waitFor(() => expect(screen.queryByRole("button", { name: "project" })).toBeNull());
 		const mntExpandIcon = mntRow.querySelector("svg");
 		if (!mntExpandIcon) {
 			throw new Error("Expected expand icon for mnt row");
 		}
-		fireEvent.click(mntExpandIcon);
+		await userEvent.click(mntExpandIcon);
 
 		expect(await screen.findByRole("button", { name: "project" })).toBeTruthy();
 		expect(requests[0]).toEqual({

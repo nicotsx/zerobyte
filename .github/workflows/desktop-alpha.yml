@@ -7,6 +7,11 @@ on:
         description: "Alpha version without the leading v (for example: 1.0.0-alpha.1)"
         required: true
         type: string
+      create_release:
+        description: "Create a public GitHub prerelease"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -39,27 +44,172 @@ jobs:
     permissions:
       contents: read
 
-  build-desktop:
+  build-macos:
     needs: [validate, checks]
-    uses: ./.github/workflows/desktop-release.yml
+    environment: release
+    timeout-minutes: 30
+    runs-on: macos-15
     permissions:
       contents: read
-    with:
-      release_tag: ${{ needs.validate.outputs.app_version }}
-      source_ref: ${{ github.sha }}
-      upload_github_release: true
-    secrets: inherit
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Write Apple notarization key
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          api_key_path="$RUNNER_TEMP/apple-api-key.p8"
+          printf '%s' "$APPLE_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          echo "APPLE_API_KEY=$api_key_path" >> "$GITHUB_ENV"
+
+      - name: Build signed and notarized DMG
+        working-directory: apps/desktop
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          ZEROBYTE_REQUIRE_MAC_SIGNING: "true"
+        run: bun run make
+
+      - name: Verify macOS signing and notarization
+        working-directory: apps/desktop
+        run: |
+          app_path="$(find dist -maxdepth 2 -type d -name '*.app' -print -quit)"
+          codesign --verify --deep --strict --verbose=2 "$app_path"
+          xcrun stapler validate "$app_path"
+          spctl --assess --type execute --verbose=2 "$app_path"
+
+      - name: Remove Apple notarization key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/apple-api-key.p8"
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-macos-release
+          path: apps/desktop/dist/*.dmg
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  build-windows:
+    needs: [validate, checks]
+    timeout-minutes: 30
+    runs-on: windows-2025
+    permissions:
+      actions: read
+      contents: read
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Windows installer
+        working-directory: apps/desktop
+        run: bun run make:windows
+
+      - name: Upload unsigned Windows installer
+        id: upload-unsigned-windows
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-windows-unsigned
+          path: apps/desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Sign Windows installer
+        uses: signpath/github-action-submit-signing-request@c92b958760219087e01f8d67a1669ed57afe2627 # v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned-windows.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: signed-windows
+
+      - name: Verify Windows signature
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "signed-windows" -Recurse -Filter "*.exe" | Select-Object -First 1
+          $signature = Get-AuthenticodeSignature $installer.FullName
+          if ($signature.Status -ne "Valid") {
+            throw "Windows installer signature is $($signature.Status): $($signature.StatusMessage)"
+          }
+
+      - name: Upload signed Windows installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-windows-release
+          path: signed-windows/**/*.exe
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  build-linux:
+    needs: [validate, checks]
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      ZEROBYTE_DESKTOP_VERSION: ${{ needs.validate.outputs.app_version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Build Linux AppImage
+        working-directory: apps/desktop
+        run: bun run make:linux
+
+      - name: Upload Linux AppImage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-linux-release
+          path: apps/desktop/dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
 
   publish:
-    needs: [validate, build-desktop]
+    if: ${{ inputs.create_release }}
+    needs: [validate, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:
+      attestations: write
       contents: write
+      id-token: write
     steps:
       - name: Download DMG
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: desktop-github-release
+          name: desktop-macos-release
           path: release-assets
 
       - name: Download Windows installer
@@ -74,6 +224,14 @@ jobs:
           name: desktop-linux-release
           path: release-assets
 
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            release-assets/*.dmg
+            release-assets/*.exe
+            release-assets/*.AppImage
+
       - name: Publish desktop alpha prerelease
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         env:
@@ -81,16 +239,16 @@ jobs:
         with:
           tag_name: ${{ needs.validate.outputs.release_tag }}
           target_commitish: ${{ github.sha }}
-          name: Zerobyte Desktop ${{ needs.validate.outputs.app_version }} Alpha
+          name: Zerobyte desktop ${{ needs.validate.outputs.app_version }}
           body: |
             > [!WARNING]
             > This is an early Zerobyte Desktop alpha, not an official stable release.
 
             macOS Apple Silicon, Windows x64, and Linux x64. Expect rough edges and verify important restores independently.
 
-            The Windows installer is currently unsigned, so Microsoft Defender SmartScreen may show a warning.
+            The macOS app is signed with an Apple Developer ID and notarized by Apple. The Windows installer is Authenticode-signed. All three downloads have signed GitHub build-provenance attestations.
 
-            On Linux, make the AppImage executable before launching it: `chmod +x Zerobyte*.AppImage`.
+            On Linux, make the AppImage executable before launching it: `chmod +x zerobyte*.AppImage`.
           files: |
             release-assets/*.dmg
             release-assets/*.exe
