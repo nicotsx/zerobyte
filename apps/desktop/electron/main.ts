@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, type OpenDialogOptions, type Tray } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, type OpenDialogOptions, type Tray } from "electron";
 import { toMessage } from "@zerobyte/core/utils";
 import { startDesktopRuntime, type DesktopRuntime } from "./desktop-runtime";
 import { createDesktopSession } from "./desktop-session";
@@ -159,6 +159,9 @@ if (!app.requestSingleInstanceLock()) {
 
 	void app.whenReady().then(async () => {
 		try {
+			if (process.platform !== "darwin") {
+				Menu.setApplicationMenu(null);
+			}
 			nativeTheme.themeSource = "dark";
 			stopAccessingBookmarks = await startAccessingSavedBookmarks();
 			runtime = await startDesktopRuntime((status) => {
