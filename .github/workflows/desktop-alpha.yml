@@ -7,6 +7,11 @@ on:
         description: "Alpha version without the leading v (for example: 1.0.0-alpha.1)"
         required: true
         type: string
+      create_release:
+        description: "Create a public GitHub prerelease"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -193,6 +198,7 @@ jobs:
           compression-level: 0
 
   publish:
+    if: ${{ inputs.create_release }}
     needs: [validate, build-macos, build-windows, build-linux]
     runs-on: ubuntu-latest
     permissions:

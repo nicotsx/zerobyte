@@ -36,7 +36,8 @@
 		"test": "dotenv -e .env.test -- bunx --bun vitest run && vp run -F './apps/*' -F './packages/*' test",
 		"test:e2e": "NODE_ENV=test dotenv -e .env.local -- bunx --bun playwright test",
 		"test:e2e:ui": "NODE_ENV=test dotenv -e .env.local -- bunx --bun playwright test --ui",
-		"test:codegen": "bunx --bun playwright codegen localhost:4096"
+		"test:codegen": "bunx --bun playwright codegen localhost:4096",
+		"screenshots:store": "bun scripts/generate-store-screenshots.ts"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "1.6.27",

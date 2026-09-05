@@ -79,10 +79,10 @@ const prepareRuntime = async ({ electronPlatformName, arch }) => {
 	await run("bun", ["scripts/prepare-runtime.ts", "--platform", electronPlatformName, "--arch", archName]);
 };
 
-const signAdHoc = async ({ appOutDir, electronPlatformName }) => {
+const signAdHoc = async ({ appOutDir, electronPlatformName, packager }) => {
 	if (shouldSignMac || electronPlatformName !== "darwin") return;
 
-	const appPath = path.join(appOutDir, `${executableName}.app`);
+	const appPath = path.join(appOutDir, `${packager.appInfo.productFilename}.app`);
 	await run("codesign", ["--deep", "--force", "--sign", "-", appPath]);
 	await run("codesign", ["--verify", "--deep", "--strict", appPath]);
 };
