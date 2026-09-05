@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { config } from "~/server/core/config";
 import { assertNotificationTargetAllowed } from "../utils/notification-target-policy";
 
 describe("assertNotificationTargetAllowed", () => {
@@ -66,4 +67,19 @@ describe("assertNotificationTargetAllowed", () => {
 			assertNotificationTargetAllowed({ type: "custom", shoutrrrUrl: "unknown://example.com/path" }, []),
 		).toThrow('Custom Shoutrrr scheme "unknown" is not supported by the SSRF policy.');
 	});
+});
+
+test("desktop notification targets do not require an origin allowlist", () => {
+	const originalRuntime = config.runtime;
+	config.runtime = "desktop";
+	try {
+		expect(() =>
+			assertNotificationTargetAllowed({ type: "generic", url: "http://127.0.0.1:8080/hook", method: "POST" }, []),
+		).not.toThrow();
+		expect(() =>
+			assertNotificationTargetAllowed({ type: "custom", shoutrrrUrl: "generic+http://127.0.0.1:8080/hook" }, []),
+		).not.toThrow();
+	} finally {
+		config.runtime = originalRuntime;
+	}
 });

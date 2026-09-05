@@ -96,7 +96,8 @@ type BackupLifecycleOptions<TResult> = {
 	repositoryConfig: RepositoryConfig;
 	options: BackupOptions;
 	webhooks: BackupWebhooks;
-	webhookAllowedOrigins: readonly string[];
+	/** null disables the origin allowlist for the local desktop runtime. */
+	webhookAllowedOrigins: readonly string[] | null;
 	webhookTimeoutMs: number;
 	signal: AbortSignal;
 	onProgress?: (progress: ResticBackupProgressDto) => void;
@@ -283,7 +284,7 @@ const runBackupWebhook = (
 	context: BackupWebhookContext,
 	options: {
 		formatError: (error: unknown) => string;
-		allowedOrigins: readonly string[];
+		allowedOrigins: readonly string[] | null;
 		signal?: AbortSignal;
 		timeoutMs: number;
 	},
@@ -297,7 +298,7 @@ const runBackupWebhook = (
 
 		return Effect.tryPromise({
 			try: async () => {
-				if (!isAllowedWebhookUrl(config.url, options.allowedOrigins)) {
+				if (options.allowedOrigins !== null && !isAllowedWebhookUrl(config.url, options.allowedOrigins)) {
 					const webhookOrigin = getUrlOrigin(config.url);
 					throw new BackupWebhookError({
 						cause: new Error("Webhook URL origin is not allowed"),

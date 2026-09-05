@@ -81,6 +81,7 @@ const executeBackupWithoutAgent = async (
 	{ schedule, volume, signal, onProgress }: BackupExecutionRequest,
 ) => {
 	const sourcePath = getVolumePath(volume);
+	const webhookAllowedOrigins = config.runtime === "desktop" ? null : payload.webhookAllowedOrigins;
 	const { signal: _, ...backupOptions } = createBackupOptions(schedule, sourcePath, signal);
 	const options = {
 		...backupOptions,
@@ -98,7 +99,7 @@ const executeBackupWithoutAgent = async (
 			organizationId: payload.organizationId,
 			options,
 			webhooks: payload.webhooks,
-			webhookAllowedOrigins: payload.webhookAllowedOrigins,
+			webhookAllowedOrigins,
 			webhookTimeoutMs: payload.webhookTimeoutMs,
 			signal,
 			onProgress,
