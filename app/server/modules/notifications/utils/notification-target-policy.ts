@@ -1,5 +1,6 @@
 import { BadRequestError } from "http-errors-enhanced";
 import type { NotificationConfig } from "~/schemas/notifications";
+import { config } from "~/server/core/config";
 
 type ShoutrrrTargetGetter = (url: URL, scheme: string) => string | null;
 
@@ -82,6 +83,9 @@ const isAllowedNotificationTarget = (target: string, allowedTargets: readonly st
 };
 
 const assertTargetAllowed = (target: string, allowedTargets: readonly string[]) => {
+	if (config.runtime === "desktop") {
+		return;
+	}
 	if (!isAllowedNotificationTarget(target, allowedTargets)) {
 		throw new BadRequestError(
 			`Notification webhook URL origin is not allowed. Add ${getComparableTarget(target) ?? target} to WEBHOOK_ALLOWED_ORIGINS.`,

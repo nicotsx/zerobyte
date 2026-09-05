@@ -598,3 +598,30 @@ test("cancels after the pre-backup webhook without running the backup", async ()
 	expect(backupRan).toBe(false);
 	expect(result).toEqual({ status: "cancelled", message: "Backup was cancelled" });
 });
+
+test("runs desktop pre and post webhooks without an origin allowlist", async () => {
+	const events: string[] = [];
+	useWebhookHandlers(
+		postWebhook("/pre", ({ response }) => {
+			events.push("pre");
+			sendWebhookResponse(response);
+		}),
+		postWebhook("/post", ({ response }) => {
+			events.push("post");
+			sendWebhookResponse(response);
+		}),
+	);
+
+	const result = await runWithHooks({
+		webhookAllowedOrigins: null,
+		webhooks: { pre: { url: webhookUrl("/pre") }, post: { url: webhookUrl("/post") } },
+		runBackup: () =>
+			Effect.sync(() => {
+				events.push("backup");
+				return { exitCode: 0, result: null, warningDetails: null };
+			}),
+	});
+
+	expect(events).toEqual(["pre", "backup", "post"]);
+	expect(result.status).toBe("completed");
+});

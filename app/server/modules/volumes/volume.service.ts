@@ -160,6 +160,10 @@ const mountVolume = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
+	if (volume.type === "directory") {
+		return checkHealth(shortId);
+	}
+
 	await runVolumeBackendCommand(volume, "volume.unmount");
 	const { error, status } = await runVolumeBackendCommand(volume, "volume.mount");
 
@@ -321,6 +325,16 @@ const ensureHealthyVolume = async (shortId: ShortId): Promise<EnsureHealthyVolum
 
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
+	}
+
+	if (volume.type === "directory") {
+		const health = await checkHealth(shortId);
+		const checkedVolume = { ...volume, status: health.status, lastError: health.error ?? null };
+		if (health.status === "mounted") {
+			return { ready: true, volume: checkedVolume, remounted: false };
+		}
+		const reason = health.error ?? "Directory is not accessible";
+		return { ready: false, volume: checkedVolume, reason };
 	}
 
 	if (volume.status === "unmounted") {

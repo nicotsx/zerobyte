@@ -95,6 +95,7 @@ export const startup = async (bootstrapStartedAt?: number) => {
 					{ agentId: LOCAL_AGENT_ID },
 					{
 						OR: [
+							{ type: "directory" },
 							{ status: "mounted" },
 							{
 								AND: [{ autoRemount: true }, { status: "error" }],

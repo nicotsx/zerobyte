@@ -17,20 +17,20 @@ export function RecoveryKeySection({ passwordAuthSupported, hasPassword }: Props
 					Backup Recovery Key
 				</CardTitle>
 				<CardDescription className="mt-1.5">
-					Download the recovery key used by this organization&apos;s Restic repositories
+					Download the recovery key used by your Restic repositories
 				</CardDescription>
 			</div>
 			<CardContent className="p-6 space-y-4">
 				<p className="text-sm text-muted-foreground max-w-2xl">
-					This file contains the encryption password used by Restic to secure this organization&apos;s
-					backups. Store it in a password manager or other encrypted storage. You will need it to recover
-					backup data if this server becomes unavailable.
+					This file contains the encryption password used by Restic to secure your backups. Store it in a
+					password manager or other encrypted storage. You will need it to recover backup data if Zerobyte
+					becomes unavailable.
 				</p>
 				<RecoveryKeyDownloadDialog passwordAuthSupported={passwordAuthSupported} hasPassword={hasPassword} />
 				<div className="space-y-2 pt-2">
 					<p className="text-sm text-muted-foreground max-w-2xl">
-						Download an encrypted export of your organization configuration. You can import it during
-						onboarding on a new Zerobyte instance using the export passphrase.
+						Download an encrypted export of your configuration. You can import it during onboarding on a new
+						Zerobyte instance using the export passphrase.
 					</p>
 					<ConfigExportDialog hasPassword={hasPassword} passwordAuthSupported={passwordAuthSupported} />
 				</div>

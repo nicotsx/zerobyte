@@ -10,7 +10,7 @@ export class VolumeHealthCheckJob extends Job {
 
 		const volumes = await db.query.volumesTable.findMany({
 			where: {
-				OR: [{ status: "mounted" }, { status: "error" }],
+				OR: [{ type: "directory" }, { status: "mounted" }, { status: "error" }],
 			},
 		});
 

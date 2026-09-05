@@ -1,3 +1,8 @@
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { VolumeHealthCheckJob } from "~/server/jobs/healthchecks";
+import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { afterEach, describe, expect, test, vi } from "vitest";
 const agentManagerMock = vi.hoisted(() => ({
 	runVolumeCommand: vi.fn(),
@@ -129,7 +134,13 @@ describe("volumeService.listFiles security", () => {
 describe("volumeService.mountVolume", () => {
 	test("routes unmount and mount to the owning agent before updating state", async () => {
 		const { organizationId, user } = await createTestSession();
-		const volume = await createTestVolume({ organizationId, status: "mounted", agentId: "agent-1" });
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
+		});
 		agentManagerMock.runVolumeCommand
 			.mockResolvedValueOnce({ name: "volume.unmount", result: { status: "unmounted" } })
 			.mockResolvedValueOnce({ name: "volume.mount", result: { status: "mounted" } });
@@ -155,7 +166,13 @@ describe("volumeService.mountVolume", () => {
 describe("volumeService.unmountVolume", () => {
 	test("persists the unmounted status for normal unmount requests", async () => {
 		const { organizationId, user } = await createTestSession();
-		const volume = await createTestVolume({ organizationId, status: "mounted", agentId: "agent-1" });
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
+		});
 		agentManagerMock.runVolumeCommand.mockResolvedValueOnce({
 			name: "volume.unmount",
 			result: { status: "unmounted" },
@@ -179,7 +196,13 @@ describe("volumeService.unmountVolume", () => {
 describe("volumeService.ensureHealthyVolume", () => {
 	test("returns ready when the mounted volume passes its health check", async () => {
 		const { organizationId, user } = await createTestSession();
-		const volume = await createTestVolume({ organizationId, status: "mounted", agentId: "agent-1" });
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
+		});
 		agentManagerMock.runVolumeCommand.mockResolvedValue({
 			name: "volume.checkHealth",
 			result: { status: "mounted" },
@@ -209,6 +232,8 @@ describe("volumeService.ensureHealthyVolume", () => {
 		const volume = await createTestVolume({
 			organizationId,
 			status: "mounted",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
 			autoRemount: true,
 			agentId: "agent-1",
 		});
@@ -238,6 +263,8 @@ describe("volumeService.ensureHealthyVolume", () => {
 		const volume = await createTestVolume({
 			organizationId,
 			status: "mounted",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
 			autoRemount: false,
 			agentId: "agent-1",
 		});
@@ -286,4 +313,77 @@ describe("volumeService.testConnection", () => {
 			expect.objectContaining({ name: "volume.testConnection" }),
 		);
 	});
+});
+
+test.each(["unmounted", "error"] as const)(
+	"recovers a directory saved as %s even when auto-remount is disabled",
+	async (status) => {
+		config.flags.enableLocalAgent = false;
+		const { organizationId } = await createTestSession();
+		const tempRoot = await mkdtemp(join(tmpdir(), "zerobyte-directory-recovery-"));
+		const directoryPath = join(tempRoot, "folder");
+		try {
+			const volume = await createTestVolume({
+				organizationId,
+				status,
+				autoRemount: false,
+				config: { backend: "directory", path: directoryPath },
+			});
+			await withContext({ organizationId }, async () => {
+				const unavailable = await volumeService.ensureHealthyVolume(volume.shortId);
+				expect(unavailable.ready).toBe(false);
+				expect(unavailable.volume.status).toBe("error");
+				await mkdir(directoryPath);
+				const recovered = await volumeService.ensureHealthyVolume(volume.shortId);
+				expect(recovered).toMatchObject({
+					ready: true,
+					remounted: false,
+					volume: { status: "mounted", lastError: null },
+				});
+				const unmounted = await volumeService.unmountVolume(volume.shortId);
+				expect(unmounted.status).toBe("mounted");
+				await rm(directoryPath, { recursive: true });
+				await writeFile(directoryPath, "This is a file, not a folder.");
+				const replacedWithFile = await volumeService.ensureHealthyVolume(volume.shortId);
+				expect(replacedWithFile).toMatchObject({ ready: false, reason: "Path is not a directory" });
+			});
+		} finally {
+			await rm(tempRoot, { recursive: true, force: true });
+		}
+	},
+);
+
+test("periodic health checks recover old unmounted directories without mounting network volumes", async () => {
+	config.flags.enableLocalAgent = false;
+	const { organizationId } = await createTestSession();
+	const folderPath = await mkdtemp(join(tmpdir(), "zerobyte-directory-health-job-"));
+	try {
+		const directory = await createTestVolume({
+			organizationId,
+			status: "unmounted",
+			autoRemount: false,
+			config: { backend: "directory", path: folderPath },
+		});
+		const networkVolume = await createTestVolume({
+			organizationId,
+			status: "unmounted",
+			type: "nfs",
+			config: { backend: "nfs", server: "nas", exportPath: "/data", version: "4", port: 2049, readOnly: false },
+			agentId: "remote-agent",
+		});
+		await new VolumeHealthCheckJob().run();
+		const recovered = await db.query.volumesTable.findFirst({ where: { id: directory.id } });
+		const network = await db.query.volumesTable.findFirst({ where: { id: networkVolume.id } });
+		expect(recovered).toMatchObject({ status: "mounted", lastError: null });
+		expect(network?.status).toBe("unmounted");
+		expect(agentManagerMock.runVolumeCommand).not.toHaveBeenCalledWith("remote-agent", expect.anything());
+		await rm(folderPath, { recursive: true });
+		await withContext({ organizationId }, () => volumeService.checkHealth(directory.shortId));
+		await mkdir(folderPath);
+		await new VolumeAutoRemountJob().run();
+		const recoveredAgain = await db.query.volumesTable.findFirst({ where: { id: directory.id } });
+		expect(recoveredAgain).toMatchObject({ status: "mounted", autoRemount: false, lastError: null });
+	} finally {
+		await rm(folderPath, { recursive: true, force: true });
+	}
 });

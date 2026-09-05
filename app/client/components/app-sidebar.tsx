@@ -58,7 +58,7 @@ const settingsScopeIcons: Record<SettingsScope, typeof User> = {
 };
 
 const footerActionClassName =
-	"relative flex size-10 shrink-0 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:pointer-events-none disabled:opacity-50";
+	"relative flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:pointer-events-none disabled:opacity-50";
 const activeFooterActionClassName = "bg-strong-accent/10 text-strong-accent";
 const sidebarPanelClassName = "absolute inset-0 flex min-h-0 flex-col bg-sidebar";
 
@@ -73,9 +73,10 @@ export function AppSidebar() {
 	const settingsReturnLocationRef = useRef("/volumes");
 
 	const location = useRouterState({ select: (routerState) => routerState.location });
-	const isSettingsMode = location.pathname === "/settings" || location.pathname.startsWith("/settings/");
 	const isCollapsed = state === "collapsed";
 	const isDesktopRuntime = runtime === "desktop";
+	const isSettingsMode =
+		!isDesktopRuntime && (location.pathname === "/settings" || location.pathname.startsWith("/settings/"));
 	const footerOverlaySide = isCollapsed ? "right" : "top";
 
 	const scopeAvailability = getSettingsScopeAvailability(permissions);
@@ -271,7 +272,7 @@ export function AppSidebar() {
 				<div
 					className={cn(
 						sidebarPanelClassName,
-						"z-10 shadow-[-12px_0_24px_-20px_rgba(0,0,0,0.55)] transition-transform duration-200 ease-out motion-reduce:transition-none",
+						"z-10 dark:shadow-[-12px_0_24px_-20px_rgba(0,0,0,0.55)] transition-transform duration-200 ease-out motion-reduce:transition-none",
 						settingsPanelPosition,
 					)}
 					aria-hidden={!isSettingsMode}
