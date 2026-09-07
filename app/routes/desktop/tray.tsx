@@ -43,7 +43,7 @@ export const Route = createFileRoute("/desktop/tray")({
 	}),
 });
 
-export function DesktopTrayPage() {
+function DesktopTrayPage() {
 	const { data: schedules = [], isLoading, error } = useQuery(listBackupSchedulesOptions());
 	const { data: activeBackupTasks } = useActiveBackupTasks();
 

@@ -57,6 +57,20 @@ export async function runWithRequestClient<T>(client: RequestClient, fn: () => T
 	return store.run(client, fn);
 }
 
-export function createRequestClient(config: Config): RequestClient {
-	return createClient(createConfig(config));
+export function createRequestClient(config: Config & { baseUrl: string }, internalOrigin: string): RequestClient {
+	const client = createClient(createConfig(config));
+	const publicUrl = new URL(config.baseUrl);
+	const internalUrl = new URL(internalOrigin);
+
+	client.interceptors.request.use((request) => {
+		const url = new URL(request.url);
+		if (url.origin !== publicUrl.origin) return request;
+
+		url.protocol = internalUrl.protocol;
+		url.hostname = internalUrl.hostname;
+		url.port = internalUrl.port;
+		return new Request(url, request);
+	});
+
+	return client;
 }

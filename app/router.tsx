@@ -6,8 +6,9 @@ import { logger } from "./client/lib/logger";
 import { client } from "./client/api-client/client.gen";
 import type { BreadcrumbItemData } from "./client/components/app-breadcrumb";
 
+const baseUrl = typeof window === "undefined" ? "/" : window.location.origin;
 client.setConfig({
-	baseUrl: "/",
+	baseUrl,
 	credentials: "include",
 });
 
