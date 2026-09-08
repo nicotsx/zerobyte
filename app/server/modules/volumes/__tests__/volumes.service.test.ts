@@ -21,6 +21,18 @@ import { withContext } from "~/server/core/request-context";
 import { asShortId } from "~/server/utils/branded";
 import { createTestVolume } from "~/test/helpers/volume";
 import { config } from "~/server/core/config";
+import { cryptoUtils } from "~/server/utils/crypto";
+
+const unreadableSmbConfig = {
+	backend: "smb" as const,
+	server: "nas",
+	share: "backups",
+	username: "backup",
+	password: "encv1:unreadable",
+	port: 445,
+	vers: "3.0" as const,
+	mapToContainerUidGid: false,
+};
 
 afterEach(() => {
 	config.flags.enableLocalAgent = false;
@@ -105,6 +117,31 @@ describe("volumeService.getVolume", () => {
 			await expect(volumeService.getVolume(asShortId("nonexistent"))).rejects.toThrow("Volume not found");
 		});
 	});
+
+	test("gets statfs without decrypting stored credentials", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "smb",
+			config: unreadableSmbConfig,
+		});
+		agentManagerMock.runVolumeCommand.mockResolvedValue({
+			name: "volume.statfs",
+			result: { total: 100, used: 40, free: 60 },
+		});
+		vi.spyOn(cryptoUtils, "resolveSecret").mockRejectedValue(
+			new Error("Unsupported state or unable to authenticate data"),
+		);
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const result = await volumeService.getVolume(volume.shortId);
+
+			expect(result.statfs).toEqual({ total: 100, used: 40, free: 60 });
+		});
+		expect(cryptoUtils.resolveSecret).not.toHaveBeenCalled();
+	});
 });
 
 describe("volumeService.listFiles security", () => {
@@ -160,6 +197,141 @@ describe("volumeService.mountVolume", () => {
 				expect.objectContaining({ name: "volume.mount", volume: expect.objectContaining({ id: volume.id }) }),
 			);
 		});
+	});
+
+	test("does not unmount when stored credentials cannot be decrypted", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({
+			organizationId,
+			status: "error",
+			agentId: "agent-1",
+			type: "smb",
+			config: unreadableSmbConfig,
+		});
+		vi.spyOn(cryptoUtils, "resolveSecret").mockRejectedValue(
+			new Error("Unsupported state or unable to authenticate data"),
+		);
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			await expect(volumeService.mountVolume(volume.shortId)).rejects.toThrow(
+				"Unsupported state or unable to authenticate data",
+			);
+		});
+		expect(agentManagerMock.runVolumeCommand).not.toHaveBeenCalled();
+	});
+});
+
+describe("volumeService.updateVolume", () => {
+	test("can replace a volume secret when the previous secret cannot be decrypted", async () => {
+		const { organizationId, user } = await createTestSession();
+		const replacementCiphertext = "encv1:replacement";
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "smb",
+			config: unreadableSmbConfig,
+		});
+		agentManagerMock.runVolumeCommand
+			.mockResolvedValueOnce({ name: "volume.unmount", result: { status: "unmounted" } })
+			.mockResolvedValueOnce({ name: "volume.mount", result: { status: "mounted" } });
+		vi.spyOn(cryptoUtils, "sealSecret").mockResolvedValue(replacementCiphertext);
+		vi.spyOn(cryptoUtils, "resolveSecret").mockImplementation(async (value) => {
+			if (value === unreadableSmbConfig.password) {
+				throw new Error("Unsupported state or unable to authenticate data");
+			}
+			if (value === replacementCiphertext) {
+				return "new-password";
+			}
+			return value;
+		});
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			await expect(
+				volumeService.updateVolume(volume.shortId, {
+					config: {
+						backend: "smb",
+						server: "nas",
+						share: "backups",
+						username: "backup",
+						password: "new-password",
+						port: 445,
+						vers: "3.0",
+						mapToContainerUidGid: false,
+					},
+				}),
+			).resolves.toBeDefined();
+		});
+
+		expect(agentManagerMock.runVolumeCommand).toHaveBeenNthCalledWith(
+			1,
+			volume.agentId,
+			expect.objectContaining({
+				name: "volume.unmount",
+				volume: expect.objectContaining({
+					config: expect.objectContaining({ password: unreadableSmbConfig.password }),
+				}),
+			}),
+		);
+		expect(agentManagerMock.runVolumeCommand).toHaveBeenNthCalledWith(
+			2,
+			volume.agentId,
+			expect.objectContaining({
+				name: "volume.mount",
+				volume: expect.objectContaining({ config: expect.objectContaining({ password: "new-password" }) }),
+			}),
+		);
+
+		const updatedVolume = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(updatedVolume).toMatchObject({ status: "mounted" });
+		expect(updatedVolume?.config).toMatchObject({ password: replacementCiphertext });
+	});
+
+	test("preserves unchanged stored credentials without resealing or remounting", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "smb",
+			config: unreadableSmbConfig,
+		});
+		vi.spyOn(cryptoUtils, "sealSecret").mockRejectedValue(
+			new Error("Unsupported state or unable to authenticate data"),
+		);
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			await expect(
+				volumeService.updateVolume(volume.shortId, { name: "Renamed volume", config: volume.config }),
+			).resolves.toBeDefined();
+		});
+
+		expect(cryptoUtils.sealSecret).not.toHaveBeenCalled();
+		expect(agentManagerMock.runVolumeCommand).not.toHaveBeenCalled();
+		const updatedVolume = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+		expect(updatedVolume).toMatchObject({ name: "Renamed volume", config: volume.config });
+	});
+
+	test("does not unmount when preparing changed credentials fails", async () => {
+		const { organizationId, user } = await createTestSession();
+		const volume = await createTestVolume({
+			organizationId,
+			status: "mounted",
+			agentId: "agent-1",
+			type: "smb",
+			config: unreadableSmbConfig,
+		});
+		vi.spyOn(cryptoUtils, "sealSecret").mockRejectedValue(new Error("Failed to encrypt replacement credential"));
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			await expect(
+				volumeService.updateVolume(volume.shortId, {
+					config: { ...unreadableSmbConfig, password: "new-password" },
+				}),
+			).rejects.toThrow("Failed to encrypt replacement credential");
+		});
+
+		expect(agentManagerMock.runVolumeCommand).not.toHaveBeenCalled();
 	});
 });
 
@@ -287,8 +459,9 @@ describe("volumeService.ensureHealthyVolume", () => {
 });
 
 describe("volumeService.testConnection", () => {
-	test("routes test connections to the local agent", async () => {
+	test("decrypts stored credentials before routing test connections to the local agent", async () => {
 		config.flags.enableLocalAgent = true;
+		const password = await cryptoUtils.sealSecret("stored-password");
 		agentManagerMock.runVolumeCommand.mockResolvedValue({
 			name: "volume.testConnection",
 			result: { success: true, message: "Connection successful" },
@@ -296,12 +469,14 @@ describe("volumeService.testConnection", () => {
 
 		await expect(
 			volumeService.testConnection({
-				backend: "nfs",
-				server: "127.0.0.1",
-				exportPath: "/exports/test",
-				version: "4",
-				port: 2049,
-				readOnly: false,
+				backend: "smb",
+				server: "nas",
+				share: "backups",
+				username: "backup",
+				password,
+				port: 445,
+				vers: "3.0",
+				mapToContainerUidGid: false,
 			}),
 		).resolves.toEqual({
 			success: true,
@@ -310,7 +485,10 @@ describe("volumeService.testConnection", () => {
 
 		expect(agentManagerMock.runVolumeCommand).toHaveBeenCalledWith(
 			"local",
-			expect.objectContaining({ name: "volume.testConnection" }),
+			expect.objectContaining({
+				name: "volume.testConnection",
+				backendConfig: expect.objectContaining({ password: "stored-password" }),
+			}),
 		);
 	});
 });
