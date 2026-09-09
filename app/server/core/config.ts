@@ -11,7 +11,7 @@ const envSchema = z
 	.object({
 		NODE_ENV: z.enum(["development", "production", "test"]).default("production"),
 		SERVER_IP: z.string().default("localhost"),
-		SERVER_IDLE_TIMEOUT: z.coerce.number().int().default(60),
+		SERVER_IDLE_TIMEOUT: z.coerce.number().int().min(0).default(60),
 		WEBHOOK_TIMEOUT: z.coerce.number().int().default(60),
 		RESTIC_HOSTNAME: z.string().optional(),
 		PORT: z.coerce.number().int().default(4096),

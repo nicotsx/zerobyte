@@ -41,7 +41,7 @@ Zerobyte is configured through environment variables and Docker Compose settings
 | `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations. | (none) |
 | `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds. | `60` |
 | `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error`. | `info` |
-| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. | `60` |
+| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds. | `60` |
 | `RCLONE_CONFIG_DIR` | Path to the rclone config directory inside the container. | `/root/.config/rclone` |
 | `PROVISIONING_PATH` | Path to a JSON file with operator-managed repositories and volumes to sync at startup. | (none) |
 

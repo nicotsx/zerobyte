@@ -119,7 +119,7 @@ The `BASE_URL` determines cookie security behavior:
 | `TRUSTED_ORIGINS` | Comma-separated list of additional trusted CORS origins | (none) |
 | `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds | `60` |
 | `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error` | `info` |
-| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds | `60` |
+| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds. | `60` |
 | `RCLONE_CONFIG_DIR` | Path to rclone config directory inside container | `/root/.config/rclone` |
 
 ### 3. Configure Volume Mounts
