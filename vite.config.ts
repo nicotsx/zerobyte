@@ -21,6 +21,16 @@ export default defineConfig({
 	resolve: {
 		tsconfigPaths: true,
 	},
+	environments: {
+		ssr: {
+			build: {
+				rollupOptions: {
+					external: [/\/app\/server\/(?!lib\/functions\/)/],
+					makeAbsoluteExternalsRelative: false,
+				},
+			},
+		},
+	},
 	build: {
 		outDir: "dist",
 		sourcemap: false,
