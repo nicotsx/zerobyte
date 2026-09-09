@@ -53,7 +53,7 @@
 		"vite": "^8.2.2",
 		"vite-plugin-killer-instincts": "^1.1.0",
 		"vite-plus": "^0.3.0",
-		"vitest": "^4.1.11",
+		"vitest": "^5.0.0",
 		"wrangler": "^4.129.0"
 	},
 	"pnpm": {
