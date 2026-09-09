@@ -12,6 +12,7 @@ export function useMinimumDuration(isActive: boolean, minimumDuration: number): 
 				timeoutRef.current = null;
 			}
 			startTimeRef.current = Date.now();
+			// oxlint-disable-next-line react/set-state-in-effect -- Start the minimum-duration timer when the external loading signal changes.
 			setDisplayActive(true);
 		} else if (startTimeRef.current !== null) {
 			const elapsed = Date.now() - startTimeRef.current;

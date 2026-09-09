@@ -1,6 +1,7 @@
 import { ACCOUNT_LINK_REQUIRED_DESCRIPTION, type LoginErrorCode } from "~/lib/sso-errors";
 
 const INVITE_REQUIRED_ERRORS = new Set([
+	"INVITE_REQUIRED",
 	"Access denied. You must be invited to this organization before you can sign in with SSO.",
 	"SSO sign-in is invite-only for this organization",
 	"unable to create session",

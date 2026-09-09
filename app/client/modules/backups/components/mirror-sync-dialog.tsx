@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { syncMirrorMutation, getMirrorSyncStatusOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -31,9 +31,11 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 	const queryEnabled = mirror !== null;
 	const dialogOpen = mirror !== null;
 
-	useEffect(() => {
+	const [previousMirrorId, setPreviousMirrorId] = useState(mirrorShortId);
+	if (previousMirrorId !== mirrorShortId) {
+		setPreviousMirrorId(mirrorShortId);
 		setSelectedSnapshotIds(new Set());
-	}, [mirrorShortId]);
+	}
 
 	const { data: syncStatus, isLoading: isSyncStatusLoading } = useQuery({
 		...getMirrorSyncStatusOptions({

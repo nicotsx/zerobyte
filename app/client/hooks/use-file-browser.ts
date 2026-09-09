@@ -48,6 +48,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 	useEffect(() => {
 		if (initialData?.files) {
 			const files = initialData.files;
+			// oxlint-disable-next-line react/set-state-in-effect -- Merge refreshed root results into the folder cache without discarding loaded pages.
 			setAllFiles((prev) => {
 				const next = new Map(prev);
 				for (const file of files) {
@@ -85,65 +86,69 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 
 	const fileArray = useMemo(() => Array.from(allFiles.values()), [allFiles]);
 
-	const handleFolderExpand = useCallback(
-		async (folderPath: string) => {
+	const handleFolderToggle = useCallback(
+		async (folderPath: string, expanded: boolean) => {
 			setExpandedFolders((prev) => {
 				const next = new Set(prev);
-				next.add(folderPath);
+				if (expanded) {
+					next.add(folderPath);
+				} else {
+					next.delete(folderPath);
+				}
 				return next;
 			});
 
-			if (!fetchedFolders.has(folderPath)) {
-				setLoadingFolders((prev) => new Set(prev).add(folderPath));
+			if (!expanded || fetchedFolders.has(folderPath)) return;
 
-				try {
-					const pathToFetch = addPath ? addPath(folderPath) : folderPath;
-					const result = await fetchFolder(pathToFetch);
+			setLoadingFolders((prev) => new Set(prev).add(folderPath));
 
-					if (result.files) {
-						const files = result.files;
-						setAllFiles((prev) => {
-							const next = new Map(prev);
-							for (const file of files) {
-								const strippedPath = stripPath ? stripPath(file.path) : file.path;
-								// Skip the directory itself
-								if (strippedPath !== folderPath) {
-									next.set(strippedPath, { ...file, path: strippedPath });
-								}
+			try {
+				const pathToFetch = addPath ? addPath(folderPath) : folderPath;
+				const result = await fetchFolder(pathToFetch);
+
+				if (result.files) {
+					const files = result.files;
+					setAllFiles((prev) => {
+						const next = new Map(prev);
+						for (const file of files) {
+							const strippedPath = stripPath ? stripPath(file.path) : file.path;
+							// Skip the directory itself
+							if (strippedPath !== folderPath) {
+								next.set(strippedPath, { ...file, path: strippedPath });
 							}
-							return next;
+						}
+						return next;
+					});
+					setFolderPagination((prev) => {
+						const next = new Map(prev);
+						next.set(folderPath, {
+							currentOffset: result.offset ?? 0,
+							limit: result.limit ?? 100,
+							hasMore: result.hasMore ?? false,
+							isLoadingMore: false,
 						});
-						setFolderPagination((prev) => {
-							const next = new Map(prev);
-							next.set(folderPath, {
-								currentOffset: result.offset ?? 0,
-								limit: result.limit ?? 100,
-								hasMore: result.hasMore ?? false,
-								isLoadingMore: false,
-							});
-							return next;
-						});
-					} else if (result.directories) {
-						const directories = result.directories;
-						setAllFiles((prev) => {
-							const next = new Map(prev);
-							for (const dir of directories) {
-								next.set(dir.path, { name: dir.name, path: dir.path, type: "folder" });
-							}
-							return next;
-						});
-					}
-
-					setFetchedFolders((prev) => new Set(prev).add(folderPath));
-				} catch (error) {
-					logger.error("Failed to fetch folder contents:", error);
-				} finally {
-					setLoadingFolders((prev) => {
-						const next = new Set(prev);
-						next.delete(folderPath);
+						return next;
+					});
+				} else if (result.directories) {
+					const directories = result.directories;
+					setAllFiles((prev) => {
+						const next = new Map(prev);
+						for (const dir of directories) {
+							next.set(dir.path, { name: dir.name, path: dir.path, type: "folder" });
+						}
 						return next;
 					});
 				}
+
+				setFetchedFolders((prev) => new Set(prev).add(folderPath));
+			} catch (error) {
+				logger.error("Failed to fetch folder contents:", error);
+			} finally {
+				setLoadingFolders((prev) => {
+					const next = new Set(prev);
+					next.delete(folderPath);
+					return next;
+				});
 			}
 		},
 		[fetchedFolders, fetchFolder, stripPath, addPath],
@@ -223,7 +228,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		fileArray,
 		expandedFolders,
 		loadingFolders,
-		handleFolderExpand,
+		handleFolderToggle,
 		handleFolderHover,
 		handleLoadMore,
 		getFolderPagination,

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { cn } from "~/client/lib/utils";
 import { Button } from "../../../components/ui/button";
@@ -103,12 +103,12 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 		},
 	});
 
-	const { getValues, watch } = form;
+	const { getValues } = form;
 
 	const { capabilities } = useSystemInfo();
 	const isBackendAllowed = (backend: BackendType) => capabilities.volumeBackends.includes(backend);
 	const scrollToFirstError = useScrollToFormError();
-	const watchedBackend = watch("backend");
+	const watchedBackend = useWatch({ control: form.control, name: "backend" });
 
 	const [testMessage, setTestMessage] = useState<{ success: boolean; message: string } | null>(null);
 

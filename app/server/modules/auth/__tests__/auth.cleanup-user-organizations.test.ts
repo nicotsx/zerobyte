@@ -162,7 +162,9 @@ describe("authService.cleanupUserOrganizations", () => {
 		`);
 
 		try {
-			await expect(authService.cleanupUserOrganizations(deletedUserId)).rejects.toThrow("forced cleanup rollback");
+			await expect(authService.cleanupUserOrganizations(deletedUserId)).rejects.toMatchObject({
+				cause: { message: "forced cleanup rollback" },
+			});
 		} finally {
 			dropTrigger(CLEANUP_USER_ORGS_ROLLBACK_TRIGGER);
 		}

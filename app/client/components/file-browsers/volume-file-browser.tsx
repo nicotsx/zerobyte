@@ -47,7 +47,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
-			onFolderExpand={fileBrowser.handleFolderExpand}
+			onFolderToggle={fileBrowser.handleFolderToggle}
 			onFolderHover={fileBrowser.handleFolderHover}
 			onLoadMore={fileBrowser.handleLoadMore}
 			getFolderPagination={fileBrowser.getFolderPagination}

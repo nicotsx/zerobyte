@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw, Square } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
@@ -71,11 +71,9 @@ export function RestoreForm({
 	const hasCustomTargetPath = trimmedCustomTargetPath !== "";
 	const selectedPathCount = selectedPaths.size;
 
-	useEffect(() => {
-		if (restoreRequiresCustomTarget) {
-			setRestoreLocation("custom");
-		}
-	}, [restoreRequiresCustomTarget]);
+	if (restoreRequiresCustomTarget && restoreLocation !== "custom") {
+		setRestoreLocation("custom");
+	}
 
 	const {
 		data: restoreStart,

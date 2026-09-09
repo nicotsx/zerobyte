@@ -129,9 +129,9 @@ describe("authService account and membership management", () => {
 		`);
 
 		try {
-			await expect(authService.deleteUserAccount(userId, credentialAccountId)).rejects.toThrow(
-				"forced deleteUserAccount rollback",
-			);
+			await expect(authService.deleteUserAccount(userId, credentialAccountId)).rejects.toMatchObject({
+				cause: { message: "forced deleteUserAccount rollback" },
+			});
 		} finally {
 			dropTrigger(DELETE_USER_ACCOUNT_ROLLBACK_TRIGGER);
 		}
@@ -272,9 +272,9 @@ describe("authService account and membership management", () => {
 		`);
 
 		try {
-			await expect(authService.removeOrgMember(membershipId, removedOrgId)).rejects.toThrow(
-				"forced removeOrgMember rollback",
-			);
+			await expect(authService.removeOrgMember(membershipId, removedOrgId)).rejects.toMatchObject({
+				cause: { message: "forced removeOrgMember rollback" },
+			});
 		} finally {
 			dropTrigger(REMOVE_ORG_MEMBER_ROLLBACK_TRIGGER);
 		}

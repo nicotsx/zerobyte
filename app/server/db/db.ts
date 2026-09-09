@@ -6,7 +6,6 @@ import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { DATABASE_URL } from "../core/constants";
 import fs from "node:fs";
 import { config } from "../core/config";
-import * as schema from "./schema";
 
 fs.mkdirSync(path.dirname(DATABASE_URL), { recursive: true });
 
@@ -15,7 +14,7 @@ if (fs.existsSync(path.join(path.dirname(DATABASE_URL), "ironmount.db")) && !fs.
 }
 
 export const sqlite = new Database(DATABASE_URL);
-export const db = drizzle({ client: sqlite, relations, schema });
+export const db = drizzle({ client: sqlite, relations });
 
 let migrationsPromise: Promise<void> | undefined;
 

@@ -1,3 +1,4 @@
+import type { DeepPartial } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -8,7 +9,7 @@ import type { InternalFormValues } from "./types";
 type SummarySectionProps = {
 	volume: Volume;
 	frequency: string | undefined;
-	formValues: InternalFormValues;
+	formValues: DeepPartial<InternalFormValues>;
 };
 
 export const SummarySection = ({ volume, frequency, formValues }: SummarySectionProps) => {

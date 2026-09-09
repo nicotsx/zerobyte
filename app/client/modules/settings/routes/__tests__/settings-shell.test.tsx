@@ -16,7 +16,8 @@ const { mockCurrentPermissionsQueryKey, mockSearch } = vi.hoisted(() => ({
 	mockSearch: vi.fn(),
 }));
 
-vi.mock("@tanstack/react-router", () => ({
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+	...(await importOriginal<typeof import("@tanstack/react-router")>()),
 	useNavigate: () => vi.fn(),
 	useSearch: mockSearch,
 }));

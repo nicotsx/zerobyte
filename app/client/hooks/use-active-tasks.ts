@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef } from "react";
 import { queryOptions, useQueryClient, useSuspenseQuery, type UseSuspenseQueryResult } from "@tanstack/react-query";
 import { listTasks, type ListTasksData, type ListTasksResponse } from "~/client/api-client";
 import { getTaskOptions } from "~/client/api-client/@tanstack/react-query.gen";
@@ -93,17 +93,11 @@ export const taskEventsOptions = (query: TaskEventsQuery) => {
 
 export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, options: UseActiveTasksOptions<Q> = {}) => {
 	const queryClient = useQueryClient();
-	const onTaskActivityRef = useRef(options.onTaskActivity);
-	const onTaskFinishedRef = useRef(options.onTaskFinished);
-	const onTasksSnapshotRef = useRef(options.onTasksSnapshot);
 	const finishedTasksRef = useRef(new Map<string, TaskDto>());
 	const queryKind = query.kind;
 	const queryResourceType = query.resourceType;
 	const queryResourceId = query.resourceId;
 	const queryOperationKey = query.operationKey;
-	onTaskActivityRef.current = options.onTaskActivity;
-	onTaskFinishedRef.current = options.onTaskFinished;
-	onTasksSnapshotRef.current = options.onTasksSnapshot;
 
 	const taskListOptions = useMemo(() => {
 		return taskEventsOptions({
@@ -123,16 +117,24 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 		});
 	}, [queryKind, queryOperationKey, queryResourceId, queryResourceType]);
 
-	const taskQueryKeyRef = useRef(taskListOptions.queryKey);
-	taskQueryKeyRef.current = taskListOptions.queryKey;
+	const onTaskActivity = useEffectEvent((task: TaskDto) => {
+		options.onTaskActivity?.(task as TaskForQuery<Q>);
+	});
+	const onTaskFinished = useEffectEvent((task: TaskDto) => {
+		options.onTaskFinished?.(task as TaskForQuery<Q>);
+	});
+	const onTasksSnapshot = useEffectEvent((snapshot: TaskDto[]) => {
+		options.onTasksSnapshot?.(snapshot as TaskForQuery<Q>[]);
+	});
 
 	const tasks = useSuspenseQuery(taskListOptions);
 
 	useEffect(() => {
+		const taskQueryKey = taskListOptions.queryKey;
 		const finishTask = (task: TaskDto) => {
 			finishedTasksRef.current.set(task.id, task);
-			onTaskFinishedRef.current?.(task as TaskForQuery<Q>);
-			onTaskActivityRef.current?.(task as TaskForQuery<Q>);
+			onTaskFinished(task);
+			onTaskActivity(task);
 		};
 
 		const reconcileMissingTask = async (missingTask: Pick<TaskDto, "id" | "updatedAt">) => {
@@ -149,16 +151,16 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 
 		const handleTasksSnapshot = (event: Event) => {
 			const snapshot = parseTasksSnapshotEvent(event);
-			const currentTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKeyRef.current) ?? [];
+			const currentTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKey) ?? [];
 
 			const snapshotTaskIds = new Set(snapshot.map((task) => task.id));
 			const missingTasks = currentTasks.filter((task) => !snapshotTaskIds.has(task.id));
 
 			queryClient.setQueryData<ListTasksResponse>(
-				taskQueryKeyRef.current,
+				taskQueryKey,
 				snapshot.filter((task) => !hasTaskFinished(finishedTasksRef.current, task)),
 			);
-			onTasksSnapshotRef.current?.(snapshot as TaskForQuery<Q>[]);
+			onTasksSnapshot(snapshot);
 
 			for (const missingTask of missingTasks) {
 				void reconcileMissingTask(missingTask).catch((error: unknown) => {
@@ -169,15 +171,15 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 
 		const handleTaskChanged = (event: Event) => {
 			const task = parseTaskEvent(event);
-			const activeTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKeyRef.current) ?? [];
+			const activeTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKey) ?? [];
 
 			if (isTaskActive(task)) {
 				if (hasTaskFinished(finishedTasksRef.current, task)) {
 					return;
 				}
 
-				queryClient.setQueryData<ListTasksResponse>(taskQueryKeyRef.current, upsertTask(activeTasks, task));
-				onTaskActivityRef.current?.(task as TaskForQuery<Q>);
+				queryClient.setQueryData<ListTasksResponse>(taskQueryKey, upsertTask(activeTasks, task));
+				onTaskActivity(task);
 				return;
 			}
 
@@ -187,7 +189,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 			}
 
 			queryClient.setQueryData<ListTasksResponse>(
-				taskQueryKeyRef.current,
+				taskQueryKey,
 				activeTasks.filter((entry) => entry.id !== task.id),
 			);
 
@@ -209,7 +211,7 @@ export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, option
 		return () => {
 			eventSource.close();
 		};
-	}, [queryClient, taskEventsUrl]);
+	}, [queryClient, taskEventsUrl, taskListOptions.queryKey]);
 
 	return tasks as UseSuspenseQueryResult<TaskForQuery<Q>[]>;
 };

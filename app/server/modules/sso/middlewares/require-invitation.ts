@@ -27,6 +27,7 @@ export const requireSsoInvitation = async (userEmail: string, ctx: GenericEndpoi
 
 	if (!pendingInvitation) {
 		throw new APIError("FORBIDDEN", {
+			code: "INVITE_REQUIRED",
 			message: "Access denied. You must be invited to this organization before you can sign in with SSO.",
 		});
 	}

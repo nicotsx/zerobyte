@@ -142,7 +142,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
-			onFolderExpand={fileBrowser.handleFolderExpand}
+			onFolderToggle={fileBrowser.handleFolderToggle}
 			onFolderHover={fileBrowser.handleFolderHover}
 			onLoadMore={fileBrowser.handleLoadMore}
 			getFolderPagination={fileBrowser.getFolderPagination}
