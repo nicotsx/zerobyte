@@ -41,7 +41,7 @@ type FileBrowserProps = FileBrowserUiProps & {
 	fileArray: FileEntry[];
 	expandedFolders: Set<string>;
 	loadingFolders: Set<string>;
-	onFolderExpand: (folderPath: string) => void | Promise<void>;
+	onFolderToggle: (folderPath: string, expanded: boolean) => void | Promise<void>;
 	onFolderHover: (folderPath: string) => void;
 	onLoadMore: (folderPath: string) => void | Promise<void>;
 	getFolderPagination: (folderPath: string) => PaginationState;
@@ -77,7 +77,7 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		fileArray,
 		expandedFolders,
 		loadingFolders,
-		onFolderExpand,
+		onFolderToggle,
 		onFolderHover,
 		onLoadMore,
 		getFolderPagination,
@@ -113,7 +113,7 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		body = (
 			<FileTree
 				files={fileArray}
-				onFolderExpand={onFolderExpand}
+				onFolderToggle={onFolderToggle}
 				onFolderHover={onFolderHover}
 				onLoadMore={onLoadMore}
 				getFolderPagination={getFolderPagination}

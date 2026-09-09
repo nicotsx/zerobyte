@@ -1,5 +1,5 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
 	applyServerEventEffects,
 	getServerEventAliases,
@@ -147,7 +147,6 @@ const addSharedEventListener = <T extends ServerEventType>(
  */
 export function useServerEvents({ enabled = true }: { enabled?: boolean } = {}) {
 	const queryClient = useQueryClient();
-	const addEventListener = useCallback(addSharedEventListener, []);
 	const hasMountedRef = useRef(false);
 
 	useEffect(() => {
@@ -174,5 +173,5 @@ export function useServerEvents({ enabled = true }: { enabled?: boolean } = {}) 
 		};
 	}, [enabled, queryClient]);
 
-	return { addEventListener };
+	return { addEventListener: addSharedEventListener };
 }

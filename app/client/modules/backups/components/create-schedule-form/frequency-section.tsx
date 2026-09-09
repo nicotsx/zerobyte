@@ -9,7 +9,7 @@ import { weeklyDays } from "./types";
 
 type FrequencySectionProps = {
 	form: UseFormReturn<InternalFormValues>;
-	frequency: string;
+	frequency: string | undefined;
 };
 
 export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => {
@@ -47,7 +47,11 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 					control={form.control}
 					name="cronExpression"
 					render={({ field, fieldState }) => (
-						<CronInput value={field.value || ""} onChange={field.onChange} error={fieldState.error?.message} />
+						<CronInput
+							value={field.value || ""}
+							onChange={field.onChange}
+							error={fieldState.error?.message}
+						/>
 					)}
 				/>
 			)}
@@ -117,7 +121,9 @@ export const FrequencySection = ({ form, frequency }: FrequencySectionProps) => 
 												size="icon"
 												onClick={() => {
 													const current = field.value || [];
-													const next = isSelected ? current.filter((d) => d !== day) : [...current, day];
+													const next = isSelected
+														? current.filter((d) => d !== day)
+														: [...current, day];
 													field.onChange(next);
 												}}
 											>

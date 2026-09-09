@@ -1,5 +1,6 @@
 // fallow-ignore-file unused-export
 import * as React from "react";
+import { useHydrated } from "@tanstack/react-router";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 
@@ -17,7 +18,10 @@ function collectSelectItems(children: React.ReactNode, items = new Map<string, R
 			continue;
 		}
 
-		if ((child.type === SelectItem || child.type === SelectPrimitive.Item) && typeof child.props.value === "string") {
+		if (
+			(child.type === SelectItem || child.type === SelectPrimitive.Item) &&
+			typeof child.props.value === "string"
+		) {
 			items.set(child.props.value, child.props.children);
 		}
 
@@ -30,12 +34,8 @@ function collectSelectItems(children: React.ReactNode, items = new Map<string, R
 }
 
 function Select({ children, value, ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-	const [hydrated, setHydrated] = React.useState(false);
+	const hydrated = useHydrated();
 	const items = collectSelectItems(children);
-
-	React.useEffect(() => {
-		setHydrated(true);
-	}, []);
 
 	return (
 		<SelectSsrValueContext.Provider value={{ hydrated, items, value }}>

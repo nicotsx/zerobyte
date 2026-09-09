@@ -1,7 +1,8 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: Testing file - non-null assertions are acceptable here */
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import { useState } from "react";
+import userEvent from "@testing-library/user-event";
 import { FileTree, type FileEntry } from "../file-tree";
 
 const getCheckboxFor = (name: string) => {
@@ -12,7 +13,7 @@ const getCheckboxFor = (name: string) => {
 const FileTreeSelection = ({
 	files,
 	initialSelectedPaths = [],
-	expandedFolders,
+	expandedFolders = new Set(),
 }: {
 	files: FileEntry[];
 	initialSelectedPaths?: string[];
@@ -133,6 +134,7 @@ describe("FileTree Pagination", () => {
 		render(
 			<FileTree
 				files={rootFiles}
+				expandedFolders={new Set()}
 				getFolderPagination={(path) => {
 					if (path === "/") {
 						return { hasMore: true, isLoadingMore: false };
@@ -189,6 +191,7 @@ describe("FileTree Pagination", () => {
 	test("renders missing ancestor folders for nested paths", () => {
 		render(
 			<FileTree
+				expandedFolders={new Set()}
 				files={[
 					{ name: "subdir", path: "/project/subdir", type: "folder" },
 					{ name: "file1", path: "/project/subdir/file1", type: "file" },
@@ -266,11 +269,46 @@ describe("FileTree Selection Logic", () => {
 		];
 
 		render(
-			<FileTreeSelection files={files} initialSelectedPaths={["/hello", "/hello_prev", "/service/app/data/upload"]} />,
+			<FileTreeSelection
+				files={files}
+				initialSelectedPaths={["/hello", "/hello_prev", "/service/app/data/upload"]}
+			/>,
 		);
 
 		fireEvent.click(getCheckboxFor("service"));
 
 		expect(getSelectedPaths()).toEqual(["/hello", "/hello_prev", "/service"]);
 	});
+});
+
+test("reports folder toggles and renders the supplied expansion state as files arrive", async () => {
+	const user = userEvent.setup();
+	const onFolderToggle = vi.fn();
+	const files: FileEntry[] = [
+		{ name: "root", path: "/root", type: "folder" },
+		{ name: "first.txt", path: "/root/first.txt", type: "file" },
+	];
+	const { rerender } = render(<FileTree files={files} expandedFolders={new Set()} onFolderToggle={onFolderToggle} />);
+	expect(screen.queryByText("first.txt")).toBeNull();
+	screen.getByRole("button", { name: "Expand folder" }).focus();
+	await user.keyboard("{Enter}");
+	expect(onFolderToggle).toHaveBeenLastCalledWith("/root", true);
+	expect(screen.queryByText("first.txt")).toBeNull();
+	rerender(<FileTree files={files} expandedFolders={new Set(["/root"])} onFolderToggle={onFolderToggle} />);
+	expect(screen.getByText("first.txt")).toBeTruthy();
+	const moreFiles: FileEntry[] = [
+		...files,
+		{ name: "second.txt", path: "/root/second.txt", type: "file" },
+		{ name: "nested", path: "/root/nested", type: "folder" },
+		{ name: "hidden.txt", path: "/root/nested/hidden.txt", type: "file" },
+	];
+	rerender(<FileTree files={moreFiles} expandedFolders={new Set(["/root"])} onFolderToggle={onFolderToggle} />);
+	expect(screen.getByText("second.txt")).toBeTruthy();
+	expect(screen.getByText("nested")).toBeTruthy();
+	expect(screen.queryByText("hidden.txt")).toBeNull();
+	await user.click(screen.getByRole("button", { name: "Collapse folder" }));
+	expect(onFolderToggle).toHaveBeenLastCalledWith("/root", false);
+	expect(screen.getByText("first.txt")).toBeTruthy();
+	rerender(<FileTree files={[...moreFiles]} expandedFolders={new Set()} onFolderToggle={onFolderToggle} />);
+	expect(screen.queryByText("first.txt")).toBeNull();
 });

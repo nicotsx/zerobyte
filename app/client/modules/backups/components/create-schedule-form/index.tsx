@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCallback, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { Form } from "~/client/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
@@ -78,8 +78,8 @@ export const CreateScheduleForm = ({ initialValues, formId, onSubmit, volume }: 
 		[onSubmit],
 	);
 
-	const frequency = form.watch("frequency");
-	const formValues = form.watch();
+	const formValues = useWatch({ control: form.control });
+	const frequency = formValues.frequency;
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set(initialValues?.includePaths || []));
 	const [showAllSelectedPaths, setShowAllSelectedPaths] = useState(false);

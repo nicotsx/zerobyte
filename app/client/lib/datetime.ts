@@ -18,6 +18,7 @@ export function useTimeFormat() {
 
 	useEffect(() => {
 		const nextNow = Date.now();
+		// oxlint-disable-next-line react/set-state-in-effect -- Replace the SSR timestamp with the client clock only after hydration.
 		setCurrentNow(nextNow === now ? now : nextNow);
 	}, [now]);
 

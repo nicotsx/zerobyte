@@ -4,7 +4,7 @@ import { cleanup, createTestQueryClient, render, waitFor } from "~/test/test-uti
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import type { TaskDto } from "~/schemas/tasks";
 import { HttpResponse, http, server } from "~/test/msw/server";
-import { taskEventsOptions, useActiveTasks, type TaskOfKind } from "../use-active-tasks";
+import { taskEventsOptions, useActiveTasks, type TaskEventsQuery, type TaskOfKind } from "../use-active-tasks";
 
 class MockEventSource {
 	static instances: MockEventSource[] = [];
@@ -33,7 +33,7 @@ class MockEventSource {
 		}
 	}
 
-	close() {}
+	close = vi.fn(() => this.listeners.clear());
 
 	static reset() {
 		MockEventSource.instances = [];
@@ -84,8 +84,16 @@ const finishedTask: TaskDto = {
 	finishedAt: 1711411201000,
 };
 
-const ActiveTasksConsumer = ({ onTaskFinished }: { onTaskFinished: (task: TaskOfKind<"restore">) => void }) => {
-	useActiveTasks(filter, { onTaskFinished });
+const ActiveTasksConsumer = ({
+	query = filter,
+	...options
+}: {
+	query?: TaskEventsQuery & { kind: "restore" };
+	onTaskFinished: (task: TaskOfKind<"restore">) => void;
+	onTaskActivity?: (task: TaskOfKind<"restore">) => void;
+	onTasksSnapshot?: (tasks: TaskOfKind<"restore">[]) => void;
+}) => {
+	useActiveTasks(query, options);
 	return null;
 };
 
@@ -160,5 +168,66 @@ describe("useActiveTasks", () => {
 			expect(queryClient.getQueryData<ListTasksResponse>(taskEventsOptions(filter).queryKey)).toEqual([]);
 		});
 		expect(onTaskFinished).toHaveBeenCalledTimes(1);
+	});
+
+	test("uses the latest callbacks without reconnecting the task stream", async () => {
+		const queryClient = createTestQueryClient();
+		queryClient.setQueryData(taskEventsOptions(filter).queryKey, [activeTask]);
+		const previousCallbacks = { onTaskFinished: vi.fn(), onTaskActivity: vi.fn(), onTasksSnapshot: vi.fn() };
+		const nextCallbacks = { onTaskFinished: vi.fn(), onTaskActivity: vi.fn(), onTasksSnapshot: vi.fn() };
+		const { rerender } = render(<ActiveTasksConsumer {...previousCallbacks} />, {
+			queryClient,
+			withSuspense: true,
+		});
+		await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+		rerender(<ActiveTasksConsumer {...nextCallbacks} />);
+		MockEventSource.instances[0]?.emit(tasksSnapshotEventName, [activeTask]);
+		MockEventSource.instances[0]?.emit(taskChangedEventName, activeTask);
+		MockEventSource.instances[0]?.emit(taskChangedEventName, finishedTask);
+		await waitFor(() => expect(nextCallbacks.onTaskFinished).toHaveBeenCalledWith(finishedTask));
+		expect(nextCallbacks.onTasksSnapshot).toHaveBeenCalledWith([activeTask]);
+		expect(nextCallbacks.onTaskActivity).toHaveBeenCalledWith(activeTask);
+		expect(nextCallbacks.onTaskActivity).toHaveBeenCalledWith(finishedTask);
+		expect(previousCallbacks.onTaskFinished).not.toHaveBeenCalled();
+		expect(previousCallbacks.onTaskActivity).not.toHaveBeenCalled();
+		expect(previousCallbacks.onTasksSnapshot).not.toHaveBeenCalled();
+		expect(MockEventSource.instances).toHaveLength(1);
+	});
+
+	test("replaces the stream when the filter changes and updates only the matching task cache", async () => {
+		const queryClient = createTestQueryClient();
+		const nextFilter = { ...filter, operationKey: "snap-2" };
+		const nextTask: TaskDto = {
+			...activeTask,
+			id: "task-restore-2",
+			operationKey: "snap-2",
+			input: { kind: "restore", repositoryId: "repo-1", snapshotId: "snap-2", target: "/restore" },
+		};
+		const nextFinishedTask: TaskDto = {
+			...nextTask,
+			status: "succeeded",
+			result: finishedTask.result,
+			updatedAt: finishedTask.updatedAt,
+			finishedAt: finishedTask.finishedAt,
+		};
+		queryClient.setQueryData(taskEventsOptions(filter).queryKey, [activeTask]);
+		queryClient.setQueryData(taskEventsOptions(nextFilter).queryKey, [nextTask]);
+		const onTaskFinished = vi.fn();
+		const { rerender } = render(<ActiveTasksConsumer onTaskFinished={onTaskFinished} />, {
+			queryClient,
+			withSuspense: true,
+		});
+		await waitFor(() => expect(MockEventSource.instances).toHaveLength(1));
+
+		rerender(<ActiveTasksConsumer query={nextFilter} onTaskFinished={onTaskFinished} />);
+		await waitFor(() => expect(MockEventSource.instances).toHaveLength(2));
+		expect(MockEventSource.instances[0]?.close).toHaveBeenCalledOnce();
+		expect(MockEventSource.instances[1]?.url).toContain("operationKey=snap-2");
+		MockEventSource.instances[1]?.emit(tasksSnapshotEventName, [nextTask]);
+		MockEventSource.instances[1]?.emit(taskChangedEventName, nextFinishedTask);
+
+		await waitFor(() => expect(onTaskFinished).toHaveBeenCalledExactlyOnceWith(nextFinishedTask));
+		expect(queryClient.getQueryData(taskEventsOptions(nextFilter).queryKey)).toEqual([]);
+		expect(queryClient.getQueryData(taskEventsOptions(filter).queryKey)).toEqual([activeTask]);
 	});
 });

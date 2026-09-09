@@ -96,7 +96,9 @@ describe("ensureDefaultOrg", () => {
 		`);
 
 		try {
-			await expect(ensureDefaultOrg(userId)).rejects.toThrow("forced createDefaultOrg rollback");
+			await expect(ensureDefaultOrg(userId)).rejects.toMatchObject({
+				cause: { message: "forced createDefaultOrg rollback" },
+			});
 		} finally {
 			dropTrigger(CREATE_DEFAULT_ORG_ROLLBACK_TRIGGER);
 		}

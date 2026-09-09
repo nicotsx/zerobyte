@@ -27,15 +27,18 @@ export const ensureDesktopIdentity = async ({ dateFormat, timeFormat }: DesktopD
 		const authContext = await auth.$context;
 		const passwordHash = await authContext.password.hash(password);
 
-		await authContext.internalAdapter.createUser({
-			email: DESKTOP_USER_EMAIL,
-			name: "Zerobyte",
-			username: DESKTOP_USERNAME,
-			hasDownloadedResticPassword: false,
-			dateFormat,
-			timeFormat,
-			emailVerified: false,
-		});
+		await authContext.internalAdapter.createUser(
+			{
+				email: DESKTOP_USER_EMAIL,
+				name: "Zerobyte",
+				username: DESKTOP_USERNAME,
+				hasDownloadedResticPassword: false,
+				dateFormat,
+				timeFormat,
+				emailVerified: false,
+			},
+			{ method: "email-password" },
+		);
 
 		user = await db.query.usersTable.findFirst({ where: { email: DESKTOP_USER_EMAIL } });
 		if (!user) {

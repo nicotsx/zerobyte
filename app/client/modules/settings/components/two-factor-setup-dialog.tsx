@@ -42,6 +42,7 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 		const { data, error } = await authClient.twoFactor.enable({
 			password,
 			issuer: "Zerobyte",
+			method: "totp",
 			fetchOptions: {
 				onRequest: () => {
 					setIsEnabling2FA(true);
@@ -55,6 +56,11 @@ export const TwoFactorSetupDialog = ({ open, onOpenChange, onSuccess }: TwoFacto
 		if (error) {
 			logger.error(error);
 			toast.error("Failed to enable 2FA", { description: error.message });
+			return;
+		}
+
+		if (data.method !== "totp") {
+			toast.error("Failed to enable authenticator setup");
 			return;
 		}
 

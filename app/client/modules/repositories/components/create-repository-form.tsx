@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Save } from "lucide-react";
 import { z } from "zod";
 import { cn } from "~/client/lib/utils";
@@ -126,10 +126,10 @@ export const CreateRepositoryForm = ({
 		},
 	});
 
-	const { watch, setValue } = form;
+	const { setValue } = form;
 
-	const backend = watch("backend");
-	const isExisting = watch("isExistingRepository");
+	const backend = useWatch({ control: form.control, name: "backend" });
+	const isExisting = useWatch({ control: form.control, name: "isExistingRepository" });
 	const exactPath = mode === "update" || isExisting === true;
 
 	const [passwordMode, setPasswordMode] = useState<"default" | "custom">("default");

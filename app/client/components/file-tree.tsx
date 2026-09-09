@@ -17,7 +17,7 @@ import {
 	Loader2,
 	MoreHorizontal,
 } from "lucide-react";
-import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type ReactNode, useCallback, useMemo } from "react";
 import { cn } from "~/client/lib/utils";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import { ByteSize } from "~/client/components/bytes-size";
@@ -41,11 +41,11 @@ interface Props {
 	files?: FileEntry[];
 	selectedFile?: string;
 	onFileSelect?: (filePath: string) => void;
-	onFolderExpand?: (folderPath: string) => void;
+	onFolderToggle?: (folderPath: string, expanded: boolean) => void;
 	onFolderHover?: (folderPath: string) => void;
 	onLoadMore?: (folderPath: string) => void;
 	getFolderPagination?: (folderPath: string) => PaginationState;
-	expandedFolders?: Set<string>;
+	expandedFolders: Set<string>;
 	loadingFolders?: Set<string>;
 	className?: string;
 	withCheckboxes?: boolean;
@@ -62,11 +62,11 @@ export const FileTree = memo((props: Props) => {
 		files = [],
 		onFileSelect,
 		selectedFile,
-		onFolderExpand,
+		onFolderToggle,
 		onFolderHover,
 		onLoadMore,
 		getFolderPagination,
-		expandedFolders = new Set(),
+		expandedFolders,
 		loadingFolders = new Set(),
 		className,
 		withCheckboxes = false,
@@ -82,8 +82,6 @@ export const FileTree = memo((props: Props) => {
 		return buildFileList(files, foldersOnly);
 	}, [files, foldersOnly]);
 
-	const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
-
 	const filteredFileList = useMemo(() => {
 		const list = [];
 		let lastDepth = Number.MAX_SAFE_INTEGER;
@@ -97,7 +95,7 @@ export const FileTree = memo((props: Props) => {
 			}
 
 			// ignore collapsed folders
-			if (collapsedFolders.has(fileOrFolder.fullPath)) {
+			if (fileOrFolder.kind === "folder" && !expandedFolders.has(fileOrFolder.fullPath)) {
 				lastDepth = Math.min(lastDepth, depth);
 			}
 
@@ -110,44 +108,6 @@ export const FileTree = memo((props: Props) => {
 		}
 
 		return list;
-	}, [fileList, collapsedFolders]);
-
-	const toggleCollapseState = useCallback(
-		(fullPath: string) => {
-			const shouldExpand = collapsedFolders.has(fullPath);
-
-			setCollapsedFolders((prevSet) => {
-				const newSet = new Set(prevSet);
-
-				if (newSet.has(fullPath)) {
-					newSet.delete(fullPath);
-				} else {
-					newSet.add(fullPath);
-				}
-
-				return newSet;
-			});
-
-			if (shouldExpand) {
-				onFolderExpand?.(fullPath);
-			}
-		},
-		[collapsedFolders, onFolderExpand],
-	);
-
-	// Add new folders to collapsed set when file list changes
-	useEffect(() => {
-		setCollapsedFolders((prevSet) => {
-			let hasChanges = false;
-			const newSet = new Set(prevSet);
-			for (const item of fileList) {
-				if (item.kind === "folder" && !newSet.has(item.fullPath) && !expandedFolders.has(item.fullPath)) {
-					newSet.add(item.fullPath);
-					hasChanges = true;
-				}
-			}
-			return hasChanges ? newSet : prevSet;
-		});
 	}, [fileList, expandedFolders]);
 
 	const handleFileSelect = useCallback(
@@ -322,14 +282,14 @@ export const FileTree = memo((props: Props) => {
 			const item = filteredFileList[i];
 			const parentPath = item.fullPath.slice(0, item.fullPath.lastIndexOf("/")) || "/";
 			const pagination = getFolderPagination?.(parentPath);
-			if (pagination?.hasMore && !collapsedFolders.has(parentPath)) {
+			if (pagination?.hasMore) {
 				// Update the last index for this parent
 				map.set(parentPath, i);
 			}
 		}
 
 		return map;
-	}, [filteredFileList, getFolderPagination, collapsedFolders]);
+	}, [filteredFileList, getFolderPagination]);
 
 	return (
 		<div className={cn("text-sm", className)}>
@@ -357,12 +317,14 @@ export const FileTree = memo((props: Props) => {
 							<Folder
 								key={fileOrFolder.id}
 								folder={fileOrFolder}
-								collapsed={collapsedFolders.has(fileOrFolder.fullPath)}
+								collapsed={!expandedFolders.has(fileOrFolder.fullPath)}
 								loading={loadingFolders.has(fileOrFolder.fullPath)}
-								onToggle={toggleCollapseState}
+								onToggle={onFolderToggle}
 								onHover={onFolderHover}
 								withCheckbox={withCheckboxes}
-								checked={isPathSelected(fileOrFolder.fullPath) && !isPartiallySelected(fileOrFolder.fullPath)}
+								checked={
+									isPathSelected(fileOrFolder.fullPath) && !isPartiallySelected(fileOrFolder.fullPath)
+								}
 								partiallyChecked={isPartiallySelected(fileOrFolder.fullPath)}
 								onCheckboxChange={handleSelectionChange}
 								selectableMode={selectableFolders}
@@ -402,7 +364,7 @@ interface FolderProps {
 	folder: FolderNode;
 	collapsed: boolean;
 	loading?: boolean;
-	onToggle: (fullPath: string) => void;
+	onToggle?: (fullPath: string, expanded: boolean) => void;
 	onHover?: (fullPath: string) => void;
 	withCheckbox?: boolean;
 	checked?: boolean;
@@ -434,9 +396,11 @@ const Folder = memo(
 		const handleChevronClick = useCallback(
 			(e: React.MouseEvent) => {
 				e.stopPropagation();
-				onToggle(fullPath);
+				if (!loading) {
+					onToggle?.(fullPath, collapsed);
+				}
 			},
-			[onToggle, fullPath],
+			[onToggle, fullPath, collapsed, loading],
 		);
 
 		const handleMouseEnter = useCallback(() => {
@@ -460,6 +424,7 @@ const Folder = memo(
 
 		return (
 			<NodeButton
+				label={name}
 				className={cn("group", {
 					"hover:bg-accent/50 text-foreground": !selected,
 					"bg-accent text-accent-foreground": selected,
@@ -467,13 +432,25 @@ const Folder = memo(
 				})}
 				depth={depth}
 				icon={
-					loading ? (
-						<Loader2 className="w-4 h-4 shrink-0 animate-spin" />
-					) : collapsed ? (
-						<ChevronRight className="w-4 h-4 shrink-0 cursor-pointer" onClick={handleChevronClick} />
-					) : (
-						<ChevronDown className="w-4 h-4 shrink-0 cursor-pointer" onClick={handleChevronClick} />
-					)
+					<button
+						type="button"
+						aria-label={collapsed ? "Expand folder" : "Collapse folder"}
+						title={`${collapsed ? "Expand" : "Collapse"} ${name}`}
+						aria-expanded={!collapsed}
+						aria-busy={loading}
+						aria-disabled={loading}
+						onClick={handleChevronClick}
+						onKeyDown={(event) => event.stopPropagation()}
+						className="shrink-0 cursor-pointer"
+					>
+						{loading ? (
+							<Loader2 className="w-4 h-4 animate-spin" />
+						) : collapsed ? (
+							<ChevronRight className="w-4 h-4" />
+						) : (
+							<ChevronDown className="w-4 h-4" />
+						)}
+					</button>
 				}
 				onClick={selectableMode ? handleFolderClick : undefined}
 				onMouseEnter={handleMouseEnter}
@@ -526,7 +503,11 @@ const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onChec
 			onClick={handleClick}
 		>
 			{withCheckbox && (
-				<Checkbox checked={checked} onCheckedChange={handleCheckboxChange} onClick={(e) => e.stopPropagation()} />
+				<Checkbox
+					checked={checked}
+					onCheckedChange={handleCheckboxChange}
+					onClick={(e) => e.stopPropagation()}
+				/>
 			)}
 			<span className="truncate">{name}</span>
 			{typeof size === "number" && (
@@ -564,6 +545,7 @@ const LoadMoreButton = memo(({ depth, onClick, isLoading }: LoadMoreButtonProps)
 });
 
 interface ButtonProps {
+	label?: string;
 	depth: number;
 	icon: ReactNode;
 	children: ReactNode;
@@ -572,7 +554,7 @@ interface ButtonProps {
 	onMouseEnter?: () => void;
 }
 
-const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, children }: ButtonProps) => {
+const NodeButton = memo(({ label, depth, icon, onClick, onMouseEnter, className, children }: ButtonProps) => {
 	const paddingLeft = useMemo(() => `${8 + depth * NODE_PADDING_LEFT}px`, [depth]);
 
 	const handleKeyDown = useCallback(
@@ -589,6 +571,7 @@ const NodeButton = memo(({ depth, icon, onClick, onMouseEnter, className, childr
 		<div
 			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
 			role="button"
+			aria-label={label}
 			tabIndex={0}
 			className={cn("flex items-center gap-2 w-full pr-2 text-sm py-1.5 text-left", className)}
 			style={{ paddingLeft }}

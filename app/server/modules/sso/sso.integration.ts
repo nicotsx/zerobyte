@@ -51,7 +51,10 @@ async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext 
 
 	if (!pendingInvitation) {
 		logger.debug("No pending invitation found for user");
-		throw new APIError("FORBIDDEN", { message: "SSO sign-in is invite-only for this organization" });
+		throw new APIError("FORBIDDEN", {
+			code: "INVITE_REQUIRED",
+			message: "SSO sign-in is invite-only for this organization",
+		});
 	}
 
 	db.transaction((tx) => {

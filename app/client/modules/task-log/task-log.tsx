@@ -126,9 +126,11 @@ function TaskLogPageContent({
 		if (page > lastPage) onPageChange(lastPage);
 	}, [history.data, onPageChange, page]);
 
-	useEffect(() => {
+	const [previousPage, setPreviousPage] = useState(page);
+	if (previousPage !== page) {
+		setPreviousPage(page);
 		setSelection(null);
-	}, [page]);
+	}
 
 	const refresh = async () => {
 		const result = await history.refetch();

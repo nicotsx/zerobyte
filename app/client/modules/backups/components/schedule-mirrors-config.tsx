@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import {
@@ -42,19 +42,16 @@ const buildAssignments = (mirrors: GetScheduleMirrorsResponse) =>
 	);
 
 export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, repositories, initialData }: Props) => {
-	const [assignments, setAssignments] = useState<Map<string, MirrorAssignment>>(() => buildAssignments(initialData));
-	const [hasChanges, setHasChanges] = useState(false);
+	const [draftAssignments, setAssignments] = useState<Map<string, MirrorAssignment> | null>(null);
+	const hasChanges = draftAssignments !== null;
 	const [isAddingNew, setIsAddingNew] = useState(false);
 
 	const { data: currentMirrors } = useSuspenseQuery({
 		...getScheduleMirrorsOptions({ path: { shortId: scheduleShortId } }),
+		initialData,
 	});
 
-	useEffect(() => {
-		if (!hasChanges) {
-			setAssignments(buildAssignments(currentMirrors));
-		}
-	}, [currentMirrors, hasChanges]);
+	const assignments = draftAssignments ?? buildAssignments(currentMirrors);
 
 	const { data: compatibility } = useQuery({
 		...getMirrorCompatibilityOptions({ path: { shortId: scheduleShortId } }),
@@ -64,7 +61,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		...updateScheduleMirrorsMutation(),
 		onSuccess: () => {
 			toast.success("Mirror settings saved successfully");
-			setHasChanges(false);
+			setAssignments(null);
 		},
 		onError: (error) => {
 			toast.error("Failed to save mirror settings", {
@@ -91,7 +88,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		});
 
 		setAssignments(newAssignments);
-		setHasChanges(true);
 		setIsAddingNew(false);
 	};
 
@@ -99,7 +95,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		const newAssignments = new Map(assignments);
 		newAssignments.delete(repositoryId);
 		setAssignments(newAssignments);
-		setHasChanges(true);
 	};
 
 	const toggleEnabled = (repositoryId: string) => {
@@ -113,7 +108,6 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 		});
 
 		setAssignments(newAssignments);
-		setHasChanges(true);
 	};
 
 	const handleSave = () => {
@@ -128,8 +122,7 @@ export const ScheduleMirrorsConfig = ({ scheduleShortId, primaryRepositoryId, re
 	};
 
 	const handleReset = () => {
-		setAssignments(buildAssignments(currentMirrors));
-		setHasChanges(false);
+		setAssignments(null);
 	};
 
 	const selectableRepositories = repositories.filter((repository) => {

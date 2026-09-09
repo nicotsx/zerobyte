@@ -195,7 +195,9 @@ describe("ssoService.deleteSsoProvider", () => {
 		`);
 
 		try {
-			await expect(ssoService.deleteSsoProvider(providerId, org)).rejects.toThrow("forced deleteSsoProvider rollback");
+			await expect(ssoService.deleteSsoProvider(providerId, org)).rejects.toMatchObject({
+				cause: { message: "forced deleteSsoProvider rollback" },
+			});
 		} finally {
 			dropTrigger(DELETE_SSO_PROVIDER_ROLLBACK_TRIGGER);
 		}

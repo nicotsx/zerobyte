@@ -6,6 +6,7 @@ export const useLiveClock = (enabled: boolean) => {
 	const [now, setNow] = useState(initialNow);
 
 	useEffect(() => {
+		// oxlint-disable-next-line react/set-state-in-effect -- Refresh the SSR timestamp on mount and when the live clock stops or starts.
 		setNow(Date.now());
 		if (!enabled) return;
 

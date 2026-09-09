@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { cn } from "~/client/lib/utils";
 import {
@@ -133,9 +133,8 @@ export const CreateNotificationForm = ({ onSubmit, mode = "create", initialValue
 		},
 	});
 
-	const { watch } = form;
 	const scrollToFirstError = useScrollToFormError();
-	const watchedType = watch("type");
+	const watchedType = useWatch({ control: form.control, name: "type" });
 
 	return (
 		<Form {...form}>
