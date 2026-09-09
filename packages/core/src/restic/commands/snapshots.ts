@@ -33,51 +33,54 @@ const snapshotInfoSchema = z.object({
 
 export const snapshots = (
 	config: RepositoryConfig,
-	options: { tags?: string[]; organizationId: string },
+	options: { tags?: string[]; organizationId: string; signal?: AbortSignal },
 	deps: ResticDeps,
 ) => {
 	return Effect.tryPromise({
 		try: async () => {
-			const { tags, organizationId } = options;
+			const { tags, organizationId, signal } = options;
 
 			const repoUrl = buildRepoUrl(config);
 			const env = await buildEnv(config, organizationId, deps);
+			try {
+				const args = ["--repo", repoUrl, "snapshots"];
 
-			const args = ["--repo", repoUrl, "snapshots"];
-
-			if (tags && tags.length > 0) {
-				for (const tag of tags) {
-					args.push("--tag", tag);
+				if (tags && tags.length > 0) {
+					for (const tag of tags) {
+						args.push("--tag", tag);
+					}
 				}
+
+				addCommonArgs(args, env, config);
+
+				const stdoutLines: string[] = [];
+				const res = await safeSpawn({
+					command: deps.resticCommand ?? "restic",
+					args,
+					env,
+					signal,
+					onStdout: (line) => {
+						stdoutLines.push(line);
+					},
+				});
+
+				if (res.exitCode !== 0) {
+					const errorMessage = res.stderr || res.error;
+					logger.error(`Restic snapshots retrieval failed: ${errorMessage}`);
+					throw new Error(`Restic snapshots retrieval failed: ${errorMessage}`);
+				}
+
+				const result = snapshotInfoSchema.array().safeParse(JSON.parse(stdoutLines.join("\n")));
+
+				if (!result.success) {
+					logger.error(`Restic snapshots output validation failed: ${result.error.message}`);
+					throw new Error(`Restic snapshots output validation failed: ${result.error.message}`);
+				}
+
+				return result.data;
+			} finally {
+				await cleanupTemporaryKeys(env, deps);
 			}
-
-			addCommonArgs(args, env, config);
-
-			const stdoutLines: string[] = [];
-			const res = await safeSpawn({
-				command: deps.resticCommand ?? "restic",
-				args,
-				env,
-				onStdout: (line) => {
-					stdoutLines.push(line);
-				},
-			});
-			await cleanupTemporaryKeys(env, deps);
-
-			if (res.exitCode !== 0) {
-				const errorMessage = res.stderr || res.error;
-				logger.error(`Restic snapshots retrieval failed: ${errorMessage}`);
-				throw new Error(`Restic snapshots retrieval failed: ${errorMessage}`);
-			}
-
-			const result = snapshotInfoSchema.array().safeParse(JSON.parse(stdoutLines.join("\n")));
-
-			if (!result.success) {
-				logger.error(`Restic snapshots output validation failed: ${result.error.message}`);
-				throw new Error(`Restic snapshots output validation failed: ${result.error.message}`);
-			}
-
-			return result.data;
 		},
 
 		catch: (error) => {

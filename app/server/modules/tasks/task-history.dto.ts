@@ -1,10 +1,10 @@
 import { describeRoute, resolver } from "hono-openapi";
 import { z } from "zod";
 import { taskHistoryOutcomeSchema } from "~/schemas/task-history";
-import { taskKindSchema, taskStatusSchema } from "~/schemas/tasks";
+import { activityTaskKindSchema, taskStatusSchema } from "~/schemas/tasks";
 
 export const listTaskHistoryQuery = z.object({
-	kind: taskKindSchema.optional(),
+	kind: activityTaskKindSchema.optional(),
 	outcome: taskHistoryOutcomeSchema.optional(),
 	page: z.coerce.number().int().positive().default(1),
 });
@@ -32,7 +32,7 @@ const taskHistoryTargetSchema = z.discriminatedUnion("kind", [
 
 export const taskHistoryItemSchema = z.object({
 	id: z.string(),
-	kind: taskKindSchema,
+	kind: activityTaskKindSchema,
 	outcome: taskHistoryOutcomeSchema.nullable(),
 	target: taskHistoryTargetSchema,
 	status: taskStatusSchema,

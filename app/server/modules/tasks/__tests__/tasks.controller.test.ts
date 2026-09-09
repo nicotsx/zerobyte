@@ -61,6 +61,23 @@ const createBackupTask = (organizationId: string) => {
 	});
 };
 
+const createMirrorStatusTask = (organizationId: string) => {
+	return taskStore.create({
+		organizationId,
+		resourceType: "backup_schedule",
+		resourceId: "schedule-short",
+		operationKey: "source-repository:mirror-repository",
+		targetDisplayName: "Backup schedule",
+		input: {
+			kind: "mirrorStatus",
+			scheduleId: 1,
+			scheduleShortId: "schedule-short",
+			sourceRepositoryId: "source-repository",
+			mirrorRepositoryId: "mirror-repository",
+		},
+	});
+};
+
 const readStreamUntil = async (body: ReadableStream<Uint8Array>, matcher: string) => {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
@@ -102,6 +119,58 @@ beforeEach(async () => {
 });
 
 describe("tasksController", () => {
+	test("hides mirror status lookups from global task lists and streams but keeps task-specific access", async () => {
+		const session = await createTestSession();
+		const task = createMirrorStatusTask(session.organizationId);
+		const visibleTask = createTask(session.organizationId);
+
+		const listResponse = await app.request("/api/v1/tasks", { headers: session.headers });
+		const streamResponse = await app.request("/api/v1/tasks/events", { headers: session.headers });
+
+		expect(listResponse.status).toBe(200);
+		const activeTasks = await listResponse.json();
+		expect(activeTasks.map((entry: { id: string }) => entry.id)).toEqual([visibleTask.id]);
+		expect(streamResponse.status).toBe(200);
+		const reader = streamResponse.body!.getReader();
+		const decoder = new TextDecoder();
+
+		try {
+			let streamText = await readReaderUntil(reader, decoder, "", tasksSnapshotEventName);
+			expect(streamText).toContain(visibleTask.id);
+			expect(streamText).not.toContain(task.id);
+
+			taskStore.markRunning(task.id);
+			taskStore.complete(task.id, {
+				kind: "mirrorStatus",
+				sourceCount: 1,
+				mirrorCount: 0,
+				missingSnapshots: [{ short_id: "snapshot-1", time: "2025-01-01T00:00:00Z", size: 1 }],
+			});
+			taskStore.fail(visibleTask.id, "visible task finished");
+			streamText = await readReaderUntil(reader, decoder, streamText, "visible task finished");
+
+			expect(streamText).toContain(`event: ${taskChangedEventName}`);
+			expect(streamText).toContain("visible task finished");
+			expect(streamText).not.toContain(task.id);
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
+
+		const taskResponse = await app.request(`/api/v1/tasks/${task.id}`, { headers: session.headers });
+		const taskStreamResponse = await app.request(`/api/v1/tasks/${task.id}/events`, { headers: session.headers });
+		expect(taskResponse.status).toBe(200);
+		expect(await taskResponse.json()).toMatchObject({
+			id: task.id,
+			kind: "mirrorStatus",
+			result: { kind: "mirrorStatus", missingSnapshots: [{ short_id: "snapshot-1" }] },
+		});
+		expect(taskStreamResponse.status).toBe(200);
+		const taskStreamText = await readStreamUntil(taskStreamResponse.body!, taskChangedEventName);
+		expect(taskStreamText).toContain('"status":"succeeded"');
+		expect(taskStreamText).toContain('"kind":"mirrorStatus"');
+	});
+
 	test("requests cancellation for a cancellable running task", async () => {
 		const session = await createTestSession();
 		const task = createRestoreTask(session.organizationId);

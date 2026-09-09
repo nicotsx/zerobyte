@@ -1,11 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import { listTaskHistory } from "~/client/api-client/sdk.gen";
 import type { TaskHistoryOutcome } from "~/schemas/task-history";
-import type { TaskKind } from "~/schemas/tasks";
+import type { ActivityTaskKind } from "~/schemas/tasks";
 
 type TaskHistoryQueryParams = {
 	organizationId: string;
-	kind?: TaskKind;
+	kind?: ActivityTaskKind;
 	outcome?: TaskHistoryOutcome;
 	page: number;
 };

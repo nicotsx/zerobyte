@@ -243,6 +243,36 @@ describe("safeSpawn", () => {
 			expect(result.exitCode).toBe(-1);
 			expect(result.error.length).toBeGreaterThan(0);
 		});
+
+		test("waits for a cancelled process to close", async () => {
+			const controller = new AbortController();
+			let childClosed = false;
+			let childExitCode: number | null = null;
+
+			const result = await safeSpawn({
+				command: process.execPath,
+				args: [
+					"-e",
+					'process.on("SIGTERM", () => setTimeout(() => process.exit(0), 200)); console.log("ready"); setInterval(() => {}, 1000);',
+				],
+				signal: controller.signal,
+				onSpawn: (child) => {
+					child.once("close", () => {
+						childClosed = true;
+						childExitCode = child.exitCode;
+					});
+				},
+				onStdout: (line) => {
+					if (line === "ready") {
+						controller.abort();
+					}
+				},
+			});
+
+			expect(childClosed).toBe(true);
+			expect(childExitCode).toBe(0);
+			expect(result).toMatchObject({ exitCode: -1, error: "The operation was aborted" });
+		});
 	});
 
 	describe("stdoutMode", () => {

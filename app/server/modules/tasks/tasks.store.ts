@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne, sql, type SQL } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import type { TaskHistoryOutcome } from "~/schemas/task-history";
@@ -6,6 +6,8 @@ import {
 	activeTaskStatuses,
 	finishedTaskStatuses,
 	finishedTaskStatusSchema,
+	hiddenTaskKinds,
+	isActivityTaskKind,
 	taskInputSchema,
 	TASK_PERSISTENCE_FORMAT_VERSION,
 	taskProgressSchema,
@@ -99,6 +101,10 @@ const emitTaskChanged = (task: ParsedTask) => {
 
 const emitTaskHistoryChanged = (task: ParsedTask, previousOutcome: TaskHistoryOutcome | null = null) => {
 	emitTaskChanged(task);
+	if (!isActivityTaskKind(task.kind)) {
+		return;
+	}
+
 	const item = toTaskHistoryLifecycleItem(task);
 
 	serverEvents.emit("task:history-changed", {
@@ -139,6 +145,7 @@ const subscribeToTaskChanges = (taskId: string, listener: TaskChangeListener) =>
 };
 
 const taskMatchesFilter = (task: ParsedTask, filter: Partial<TaskResource>) => {
+	if (!isActivityTaskKind(task.kind)) return false;
 	if (filter.organizationId && task.organizationId !== filter.organizationId) return false;
 	if (filter.kind && task.kind !== filter.kind) return false;
 	if (filter.resourceType && task.resourceType !== filter.resourceType) return false;
@@ -194,10 +201,11 @@ const getUpdatedTask = (row: unknown, taskId: string, operation: string) => {
 
 const listActiveTasks = (params: ListActiveTasksParams = {}): ParsedTask[] => {
 	const activeConditions = buildActiveConditions(params);
+	const visibleTaskConditions = hiddenTaskKinds.map((kind) => ne(tasksTable.kind, kind));
 	const rows = db
 		.select()
 		.from(tasksTable)
-		.where(and(...activeConditions))
+		.where(and(...activeConditions, ...visibleTaskConditions))
 		.orderBy(desc(tasksTable.createdAt), desc(tasksTable.id))
 		.all();
 
@@ -205,6 +213,19 @@ const listActiveTasks = (params: ListActiveTasksParams = {}): ParsedTask[] => {
 };
 
 export const taskStore = {
+	deleteFinishedBefore: (params: { kind: TaskKind; finishedBefore: number }) => {
+		return db
+			.delete(tasksTable)
+			.where(
+				and(
+					eq(tasksTable.kind, params.kind),
+					finishedStatusCondition(),
+					lt(tasksTable.finishedAt, params.finishedBefore),
+				),
+			)
+			.run();
+	},
+
 	create: (params: CreateTaskParams): ParsedTask => {
 		const input = taskInputSchema.parse(params.input);
 		const now = Date.now();

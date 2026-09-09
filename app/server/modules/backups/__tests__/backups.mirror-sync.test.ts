@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
+import { eq } from "drizzle-orm";
 import { backupsService } from "../backups.service";
 import { createTestVolume } from "~/test/helpers/volume";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestRepository } from "~/test/helpers/repository";
 import { createTestBackupScheduleMirror } from "~/test/helpers/backup-mirror";
-import { TEST_ORG_ID } from "~/test/helpers/organization";
+import { createTestOrganization, TEST_ORG_ID } from "~/test/helpers/organization";
 import * as context from "~/server/core/request-context";
 import * as resticModule from "~/server/core/restic";
 import * as spawnModule from "@zerobyte/core/node";
@@ -13,7 +14,10 @@ import type { ShortId } from "~/server/utils/branded";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
+import { repoMutex } from "~/server/core/repository-mutex";
 import { cache, cacheKeys } from "~/server/utils/cache";
+import { db } from "~/server/db/db";
+import { backupSchedulesTable } from "~/server/db/schema";
 
 const setup = () => {
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
@@ -43,8 +47,8 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-describe("getMirrorSyncStatus", () => {
-	test("should return missing snapshots based on time comparison", async () => {
+describe("startMirrorStatus", () => {
+	test("persists the missing snapshots as the task result", async () => {
 		const { mockSnapshots } = setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
@@ -90,54 +94,223 @@ describe("getMirrorSyncStatus", () => {
 			],
 		);
 
-		const status = await backupsService.getMirrorSyncStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+		const result = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
 
-		expect(status.sourceCount).toBe(3);
-		expect(status.mirrorCount).toBe(1);
-		expect(status.missingSnapshots).toHaveLength(2);
-		expect(status.missingSnapshots.map((s) => s.short_id)).toEqual(["bbb", "ccc"]);
+		expect(result).toEqual({ taskId: expect.any(String), status: "started" });
+		await waitForExpect(() => {
+			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
+			expect(task).toMatchObject({
+				kind: "mirrorStatus",
+				status: "succeeded",
+				input: {
+					kind: "mirrorStatus",
+					scheduleId: schedule.id,
+					sourceRepositoryId: repository.id,
+					mirrorRepositoryId: mirrorRepository.shortId,
+				},
+				result: {
+					kind: "mirrorStatus",
+					sourceCount: 3,
+					mirrorCount: 1,
+					missingSnapshots: [
+						{ short_id: "bbb", time: "2025-01-02T10:00:00Z", size: 200 },
+						{ short_id: "ccc", time: "2025-01-03T10:00:00Z", size: 300 },
+					],
+				},
+			});
+		});
 	});
 
-	test("should return empty missing list when all snapshots are synced", async () => {
-		const { mockSnapshots } = setup();
+	test("reuses an active lookup only for the same organization and source repository", async () => {
+		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
 		const mirrorRepository = await createTestRepository();
+		const replacementRepository = await createTestRepository();
 		const schedule = await createTestBackupSchedule({
 			volumeId: volume.id,
 			repositoryId: repository.id,
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
 
-		mockSnapshots(
-			[
-				{
-					id: "aaa",
-					short_id: "aaa",
-					time: "2025-01-01T10:00:00Z",
-					paths: ["/data"],
-					summary: { total_bytes_processed: 100 },
-				},
-			],
-			[
-				{
-					id: "xxx",
-					short_id: "xxx",
-					time: "2025-01-01T10:00:00Z",
-					paths: ["/data"],
-					summary: { total_bytes_processed: 100 },
-				},
-			],
+		let releaseSnapshots: (() => void) | undefined;
+		const snapshotsReleased = new Promise<void>((resolve) => {
+			releaseSnapshots = resolve;
+		});
+		vi.spyOn(resticModule.restic, "snapshots").mockImplementation(() => {
+			return Effect.promise(async () => {
+				await snapshotsReleased;
+				return [] as never;
+			});
+		});
+
+		const first = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+		const duplicate = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+
+		expect(duplicate.taskId).toBe(first.taskId);
+
+		await db
+			.update(backupSchedulesTable)
+			.set({ repositoryId: replacementRepository.id })
+			.where(eq(backupSchedulesTable.id, schedule.id));
+		const changedSource = await backupsService.startMirrorStatus(
+			schedule.shortId,
+			mirrorRepository.shortId as ShortId,
 		);
 
-		const status = await backupsService.getMirrorSyncStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
-
-		expect(status.sourceCount).toBe(1);
-		expect(status.mirrorCount).toBe(1);
-		expect(status.missingSnapshots).toHaveLength(0);
+		expect(changedSource.taskId).not.toBe(first.taskId);
+		releaseSnapshots?.();
+		await waitForExpect(() => {
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: first.taskId })?.status).toBe("succeeded");
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: changedSource.taskId })?.status).toBe(
+				"succeeded",
+			);
+		});
 	});
 
-	test("should throw if mirror is not configured for the schedule", async () => {
+	test("does not share an active lookup across organizations", async () => {
+		setup();
+		const otherOrganizationId = "mirror-status-other-org";
+		await createTestOrganization({ id: otherOrganizationId });
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({ volumeId: volume.id, repositoryId: repository.id });
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const otherVolume = await createTestVolume({ organizationId: otherOrganizationId });
+		const otherRepository = await createTestRepository({ organizationId: otherOrganizationId });
+		const otherMirrorRepository = await createTestRepository({ organizationId: otherOrganizationId });
+		const otherSchedule = await createTestBackupSchedule({
+			organizationId: otherOrganizationId,
+			volumeId: otherVolume.id,
+			repositoryId: otherRepository.id,
+		});
+		await createTestBackupScheduleMirror(otherSchedule.id, otherMirrorRepository.id);
+
+		let releaseSnapshots: (() => void) | undefined;
+		const snapshotsReleased = new Promise<void>((resolve) => {
+			releaseSnapshots = resolve;
+		});
+		vi.spyOn(resticModule.restic, "snapshots").mockImplementation(() =>
+			Effect.promise(async () => {
+				await snapshotsReleased;
+				return [] as never;
+			}),
+		);
+
+		const first = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+		vi.mocked(context.getOrganizationId).mockReturnValue(otherOrganizationId);
+		const second = await backupsService.startMirrorStatus(
+			otherSchedule.shortId,
+			otherMirrorRepository.shortId as ShortId,
+		);
+
+		expect(second.taskId).not.toBe(first.taskId);
+		releaseSnapshots?.();
+		await waitForExpect(() => {
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: first.taskId })?.status).toBe("succeeded");
+			expect(taskStore.findById({ organizationId: otherOrganizationId, taskId: second.taskId })?.status).toBe(
+				"succeeded",
+			);
+		});
+	});
+
+	test("cancels an in-progress snapshot lookup", async () => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({ volumeId: volume.id, repositoryId: repository.id });
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		let resolveSnapshotsStarted: (() => void) | undefined;
+		const snapshotsStarted = new Promise<void>((resolve) => {
+			resolveSnapshotsStarted = resolve;
+		});
+		vi.spyOn(resticModule.restic, "snapshots").mockImplementation((_config, options) =>
+			Effect.promise(
+				() =>
+					new Promise<never>((_, reject) => {
+						options.signal?.addEventListener("abort", () => reject(options.signal?.reason), { once: true });
+						resolveSnapshotsStarted?.();
+					}),
+			),
+		);
+
+		const result = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+		await snapshotsStarted;
+		expect(requestTaskCancel(result.taskId)).toBe(true);
+
+		await waitForExpect(() => {
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId })?.status).toBe(
+				"cancelled",
+			);
+		});
+	});
+
+	test.each([1, 2])("aborts the peer when lookup %s fails and waits for cleanup", async (failingCall) => {
+		setup();
+		const volume = await createTestVolume();
+		const repository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({ volumeId: volume.id, repositoryId: repository.id });
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+
+		const failure = Promise.withResolvers<never>();
+		const peerStarted = Promise.withResolvers<void>();
+		const peerAborted = Promise.withResolvers<void>();
+		const peerCleanup = Promise.withResolvers<void>();
+		let aborted = false;
+		let peerCleaned = false;
+		let callCount = 0;
+		vi.spyOn(resticModule.restic, "snapshots").mockImplementation((_config, options) => {
+			callCount++;
+			if (callCount === failingCall) {
+				return Effect.tryPromise({ try: () => failure.promise, catch: (error) => error }) as never;
+			}
+
+			return Effect.tryPromise(async () => {
+				options?.signal?.addEventListener(
+					"abort",
+					() => {
+						aborted = true;
+						peerAborted.resolve();
+					},
+					{ once: true },
+				);
+				peerStarted.resolve();
+				await peerAborted.promise;
+				await peerCleanup.promise;
+				peerCleaned = true;
+				throw new DOMException("Peer aborted", "AbortError");
+			}) as never;
+		});
+
+		const result = await backupsService.startMirrorStatus(schedule.shortId, mirrorRepository.shortId as ShortId);
+		await peerStarted.promise;
+		failure.reject(new Error("Repository lookup failed"));
+		try {
+			await waitForExpect(() => expect(aborted).toBe(true), 1000);
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId })?.status).toBe("running");
+			expect(repoMutex.isLocked(repository.id)).toBe(true);
+			expect(repoMutex.isLocked(mirrorRepository.id)).toBe(true);
+			expect(peerCleaned).toBe(false);
+		} finally {
+			peerAborted.resolve();
+			peerCleanup.resolve();
+		}
+		await waitForExpect(() => {
+			expect(peerCleaned).toBe(true);
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId })).toMatchObject({
+				status: "failed",
+				error: "Repository lookup failed",
+			});
+			expect(repoMutex.isLocked(repository.id)).toBe(false);
+			expect(repoMutex.isLocked(mirrorRepository.id)).toBe(false);
+		});
+	});
+
+	test("throws if mirror is not configured for the schedule", async () => {
 		setup();
 		const volume = await createTestVolume();
 		const repository = await createTestRepository();
@@ -148,7 +321,7 @@ describe("getMirrorSyncStatus", () => {
 		});
 
 		await expect(
-			backupsService.getMirrorSyncStatus(schedule.shortId, unrelatedRepository.shortId as ShortId),
+			backupsService.startMirrorStatus(schedule.shortId, unrelatedRepository.shortId as ShortId),
 		).rejects.toThrow("Mirror not found for this schedule");
 	});
 });

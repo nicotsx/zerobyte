@@ -2,9 +2,9 @@ import type { ListTaskHistoryResponse } from "~/client/api-client";
 import { Ban, Check, CircleX, Clock3, LoaderCircle, TriangleAlert, type LucideIcon } from "lucide-react";
 import { cn } from "~/client/lib/utils";
 import type { TaskHistoryOutcome } from "~/schemas/task-history";
-import type { TaskKind } from "~/schemas/tasks";
+import type { ActivityTaskKind } from "~/schemas/tasks";
 
-export type TaskLogKind = TaskKind;
+export type TaskLogKind = ActivityTaskKind;
 export type TaskLogOutcome = TaskHistoryOutcome;
 export type TaskLogItem = ListTaskHistoryResponse["items"][number];
 

@@ -18,8 +18,10 @@ export const taskKinds = [
 	"tagSnapshots",
 	"doctor",
 	"mirrorSync",
+	"mirrorStatus",
 	"forget",
 ] as const;
+export const hiddenTaskKinds = ["mirrorStatus"] as const;
 export const taskOutcomes = ["success", "warning", "error", "cancelled", "stale"] as const;
 export const TASK_PERSISTENCE_FORMAT_VERSION = 1 as const;
 
@@ -30,6 +32,16 @@ export const taskKindSchema = z.enum(taskKinds);
 export const taskOutcomeSchema = z.enum(taskOutcomes);
 export const taskResourceTypeSchema = z.enum(["backup_schedule", "repository"]);
 export const mirrorSyncPhaseSchema = z.enum(["preparing", "copying", "retention"]);
+
+export type TaskKind = z.infer<typeof taskKindSchema>;
+export type ActivityTaskKind = Exclude<TaskKind, (typeof hiddenTaskKinds)[number]>;
+
+export const isActivityTaskKind = (kind: TaskKind): kind is ActivityTaskKind => {
+	return !hiddenTaskKinds.some((hiddenKind) => hiddenKind === kind);
+};
+
+export const activityTaskKinds = taskKinds.filter(isActivityTaskKind) as [ActivityTaskKind, ...ActivityTaskKind[]];
+export const activityTaskKindSchema = z.enum(activityTaskKinds);
 
 const forgetTaskInputSchema = z.object({
 	kind: z.literal("forget"),
@@ -77,6 +89,13 @@ export const taskInputSchema = z.discriminatedUnion("kind", [
 		sourceRepositoryId: z.string().optional(),
 		mirrorRepositoryId: z.string(),
 		snapshotIds: z.array(z.string()).optional(),
+	}),
+	z.object({
+		kind: z.literal("mirrorStatus"),
+		scheduleId: z.number(),
+		scheduleShortId: z.string(),
+		sourceRepositoryId: z.string(),
+		mirrorRepositoryId: z.string(),
 	}),
 	forgetTaskInputSchema,
 ]);
@@ -128,6 +147,18 @@ export const taskResultSchema = z.discriminatedUnion("kind", [
 	}),
 	z.object({
 		kind: z.literal("mirrorSync"),
+	}),
+	z.object({
+		kind: z.literal("mirrorStatus"),
+		sourceCount: z.number(),
+		mirrorCount: z.number(),
+		missingSnapshots: z.array(
+			z.object({
+				short_id: z.string(),
+				time: z.string(),
+				size: z.number(),
+			}),
+		),
 	}),
 	z.object({
 		kind: z.literal("forget"),
@@ -211,7 +242,6 @@ export const taskDtoSchema = z.object(taskDtoShape);
 export type TaskStatus = z.infer<typeof taskStatusSchema>;
 export type ActiveTaskStatus = z.infer<typeof activeTaskStatusSchema>;
 export type FinishedTaskStatus = z.infer<typeof finishedTaskStatusSchema>;
-export type TaskKind = z.infer<typeof taskKindSchema>;
 export type TaskOutcome = z.infer<typeof taskOutcomeSchema>;
 export type TaskPersistenceFormatVersion = typeof TASK_PERSISTENCE_FORMAT_VERSION;
 export type TaskResourceType = z.infer<typeof taskResourceTypeSchema>;

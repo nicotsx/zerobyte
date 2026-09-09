@@ -1,7 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { syncMirrorMutation, getMirrorSyncStatusOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { syncMirrorMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Button } from "~/client/components/ui/button";
 import { Checkbox } from "~/client/components/ui/checkbox";
@@ -17,32 +18,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~
 import { useTimeFormat } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import type { Repository } from "~/client/lib/types";
+import { useMirrorStatus } from "../mirror-tasks";
 
 type Props = {
 	scheduleShortId: string;
-	mirror: Repository | null;
+	mirror: Repository;
 	onClose: () => void;
 };
 
 export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) => {
 	const { formatDateTime } = useTimeFormat();
 	const [selectedSnapshotIds, setSelectedSnapshotIds] = useState<Set<string>>(new Set());
-	const mirrorShortId = mirror?.shortId ?? "";
-	const queryEnabled = mirror !== null;
-	const dialogOpen = mirror !== null;
+	const lookup = useMirrorStatus(scheduleShortId, mirror.shortId);
 
-	const [previousMirrorId, setPreviousMirrorId] = useState(mirrorShortId);
-	if (previousMirrorId !== mirrorShortId) {
-		setPreviousMirrorId(mirrorShortId);
-		setSelectedSnapshotIds(new Set());
-	}
-
-	const { data: syncStatus, isLoading: isSyncStatusLoading } = useQuery({
-		...getMirrorSyncStatusOptions({
-			path: { shortId: scheduleShortId, mirrorShortId },
-		}),
-		enabled: queryEnabled,
-	});
+	const statusResult = lookup.result;
+	const lookupPending = lookup.isPending;
+	const lookupUnsuccessful = lookup.isError;
+	const lookupStatusMessage = "Checking snapshot status...";
 
 	const triggerSync = useMutation({
 		...syncMirrorMutation(),
@@ -70,21 +62,19 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 	};
 
 	const toggleAllSnapshots = () => {
-		if (!syncStatus) return;
+		if (!statusResult) return;
 
-		const allSnapshotsSelected = selectedSnapshotIds.size === syncStatus.missingSnapshots.length;
+		const allSnapshotsSelected = selectedSnapshotIds.size === statusResult.missingSnapshots.length;
 		if (allSnapshotsSelected) {
 			setSelectedSnapshotIds(new Set());
 			return;
 		}
 
-		const missingSnapshotIds = syncStatus.missingSnapshots.map((snapshot) => snapshot.short_id);
+		const missingSnapshotIds = statusResult.missingSnapshots.map((snapshot) => snapshot.short_id);
 		setSelectedSnapshotIds(new Set(missingSnapshotIds));
 	};
 
 	const handleSync = () => {
-		if (!mirror) return;
-
 		const snapshotIds = Array.from(selectedSnapshotIds);
 		triggerSync.mutate({
 			path: {
@@ -95,6 +85,17 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 		});
 	};
 
+	const handleCancelLookup = () => {
+		const cancellation = lookup.cancel();
+		if (!cancellation) return;
+
+		void cancellation.catch((error) => {
+			toast.error("Failed to cancel snapshot lookup", {
+				description: parseError(error)?.message,
+			});
+		});
+	};
+
 	const handleOpenChange = (open: boolean) => {
 		if (!open) {
 			onClose();
@@ -102,31 +103,45 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 	};
 
 	const allSnapshotsSelected =
-		syncStatus !== undefined &&
-		syncStatus.missingSnapshots.length > 0 &&
-		selectedSnapshotIds.size === syncStatus.missingSnapshots.length;
+		statusResult !== null &&
+		statusResult.missingSnapshots.length > 0 &&
+		selectedSnapshotIds.size === statusResult.missingSnapshots.length;
 	const selectedSnapshotCount = selectedSnapshotIds.size;
-	const mirrorName = mirror?.name ?? "mirror repository";
+	const mirrorName = mirror.name;
+	const lookupErrorMessage = lookup.error ?? "Snapshot lookup did not complete.";
+	const lookupFailureMessage =
+		lookup.status === "cancelled"
+			? "Snapshot lookup was cancelled."
+			: lookup.status === "stale"
+				? "Snapshot lookup became stale."
+				: lookupErrorMessage;
 
 	return (
-		<Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+		<Dialog open onOpenChange={handleOpenChange}>
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Sync snapshots</DialogTitle>
 					<DialogDescription>{`Sync missing snapshots to ${mirrorName}.`}</DialogDescription>
 				</DialogHeader>
 
-				{isSyncStatusLoading && !syncStatus ? (
-					<div className="py-6 text-center text-muted-foreground text-sm">Loading snapshot status...</div>
-				) : syncStatus && syncStatus.missingSnapshots.length === 0 ? (
-					<div className="py-6 text-center text-muted-foreground text-sm">
-						All {syncStatus.sourceCount} snapshots are already synced to this mirror.
+				{lookupPending ? (
+					<div className="flex items-center justify-center gap-2 py-6 text-center text-muted-foreground text-sm">
+						<Loader2 className="h-4 w-4 animate-spin" />
+						<span>{lookupStatusMessage}</span>
 					</div>
-				) : syncStatus ? (
+				) : lookupUnsuccessful ? (
+					<div className="py-6 text-center text-muted-foreground text-sm" role="alert">
+						{lookupFailureMessage}
+					</div>
+				) : statusResult && statusResult.missingSnapshots.length === 0 ? (
+					<div className="py-6 text-center text-muted-foreground text-sm">
+						All {statusResult.sourceCount} snapshots are already synced to this mirror.
+					</div>
+				) : statusResult ? (
 					<div className="space-y-3">
 						<p className="text-sm text-muted-foreground">
-							{syncStatus.missingSnapshots.length} of {syncStatus.sourceCount} snapshots are missing in
-							this mirror.
+							{statusResult.missingSnapshots.length} of {statusResult.sourceCount} snapshots are missing
+							in this mirror.
 						</p>
 						<div className="rounded-md border max-h-64 overflow-y-auto">
 							<Table>
@@ -144,7 +159,7 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{syncStatus.missingSnapshots.map((snapshot) => (
+									{statusResult.missingSnapshots.map((snapshot) => (
 										<TableRow
 											key={snapshot.short_id}
 											className="cursor-pointer"
@@ -173,11 +188,23 @@ export const MirrorSyncDialog = ({ scheduleShortId, mirror, onClose }: Props) =>
 
 				<DialogFooter>
 					<Button variant="outline" onClick={onClose}>
-						Cancel
+						Close
 					</Button>
-					<Button onClick={handleSync} loading={triggerSync.isPending} disabled={selectedSnapshotCount === 0}>
-						Sync {selectedSnapshotCount} snapshots
-					</Button>
+					{lookupUnsuccessful ? <Button onClick={() => lookup.retry()}>Retry</Button> : null}
+					{lookup.canCancel ? (
+						<Button variant="destructive" onClick={handleCancelLookup} loading={lookup.isCancelling}>
+							Cancel lookup
+						</Button>
+					) : null}
+					{statusResult && statusResult.missingSnapshots.length > 0 ? (
+						<Button
+							onClick={handleSync}
+							loading={triggerSync.isPending}
+							disabled={selectedSnapshotCount === 0}
+						>
+							Sync {selectedSnapshotCount} snapshots
+						</Button>
+					) : null}
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

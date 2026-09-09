@@ -4,10 +4,10 @@ import { listTaskHistory } from "~/client/api-client/sdk.gen";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { TaskLogPage, type TaskLogKind, type TaskLogOutcome } from "~/client/modules/task-log/task-log";
 import { taskHistoryOutcomeSchema } from "~/schemas/task-history";
-import { taskKindSchema } from "~/schemas/tasks";
+import { activityTaskKindSchema } from "~/schemas/tasks";
 
 export const activitySearchSchema = z.object({
-	kind: taskKindSchema.optional(),
+	kind: activityTaskKindSchema.optional(),
 	outcome: taskHistoryOutcomeSchema.optional(),
 	page: z.coerce.number().int().positive().optional(),
 });

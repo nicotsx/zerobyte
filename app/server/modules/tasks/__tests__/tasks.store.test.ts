@@ -392,3 +392,38 @@ test("terminal updates do not mutate unrelated task rows", async () => {
 	expect(unrelatedRow?.status).toBe("queued");
 	expect(unrelatedRow?.finishedAt).toBeNull();
 });
+
+test("deletes only finished tasks of the requested kind before the cutoff", () => {
+	const createStatus = () =>
+		createBackupTask({
+			input: {
+				kind: "mirrorStatus",
+				scheduleId: 1,
+				scheduleShortId: "schedule-1",
+				sourceRepositoryId: "source",
+				mirrorRepositoryId: "mirror",
+			},
+		});
+	const expired = createStatus();
+	const recent = createStatus();
+	const active = createStatus();
+	const backup = createBackupTask();
+	const result = {
+		kind: "mirrorStatus" as const,
+		sourceCount: 1,
+		mirrorCount: 0,
+		missingSnapshots: [{ short_id: "snapshot", time: "2025-01-01T00:00:00Z", size: 100 }],
+	};
+	for (const task of [expired, recent]) taskStore.complete(task.id, result);
+	taskStore.complete(backup.id, backupResult());
+	const old = Date.now() - 25 * 60 * 60 * 1000;
+	for (const task of [expired, backup, active]) {
+		db.update(tasksTable).set({ createdAt: old, finishedAt: old }).where(eq(tasksTable.id, task.id)).run();
+	}
+	taskStore.deleteFinishedBefore({ kind: "mirrorStatus", finishedBefore: Date.now() - 24 * 60 * 60 * 1000 });
+	const find = (taskId: string) => taskStore.findById({ organizationId: TEST_ORG_ID, taskId });
+	expect(find(expired.id)).toBeNull();
+	expect(find(recent.id)?.result).toEqual(result);
+	expect(find(active.id)?.status).toBe("queued");
+	expect(find(backup.id)?.result).toEqual(backupResult());
+});
