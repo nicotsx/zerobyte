@@ -220,7 +220,9 @@ test("offers a retry when the snapshot-status task is cancelled", async () => {
 	const taskStream = await getTaskStream("task-mirror-status-1");
 	taskStream.emit(taskChangedEventName, createMirrorStatusTask({ id: "task-mirror-status-1", status: "running" }));
 	await userEvent.click(screen.getByRole("button", { name: "Cancel lookup" }));
-	expect(cancelRequests).toBe(1);
+	await waitFor(() => {
+		expect(cancelRequests).toBe(1);
+	});
 	const cancelledTask = createMirrorStatusTask({ id: "task-mirror-status-1", status: "cancelled" });
 
 	taskStream?.emit(taskChangedEventName, cancelledTask);
