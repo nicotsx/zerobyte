@@ -3,34 +3,113 @@ title: Remote agents
 description: Enroll an outbound-only backup agent on another machine.
 ---
 
-Remote agents connect outbound to Zerobyte and expose only explicitly trusted filesystem roots. An organization owner or admin creates the agent through the API and receives a one-time enrollment code exactly once. Store the code as a secret until it is used; list and detail responses never return it.
+Remote agents connect outbound to Zerobyte and expose only explicitly trusted filesystem roots. An organization owner or admin adds a machine in **Settings → Machines** and receives a command containing a one-time enrollment code. Store the code as a secret until it is used; list and detail responses never return it.
 
-Build or download the agent bundle (`bun run build` writes `.output/agent/index.mjs`), then run its `enroll` command on the remote machine:
+## Install on Linux
+
+The installer supports **Linux x64 and ARM64 with glibc and systemd**. Install [Restic](https://restic.readthedocs.io/en/stable/020_installation.html) **0.18.0 or newer** first, with its executable on the system service's PATH (for example, `/usr/local/bin/restic` or `/usr/bin/restic`). Bun is included in the agent executable and does not need to be installed separately. Alpine/musl, macOS, Windows, and machines without systemd are not supported by this installer.
+
+Copy the connection command from the dashboard and run it on the remote machine:
 
 ```bash
-bun run .output/agent/index.mjs enroll \
-	--controller https://zerobyte.example.com \
-	--code zba1... \
-	--root /srv/data
+curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+  https://zerobyte.app/install.sh | sudo bash -s -- \
+  --controller https://zerobyte.example.com \
+  --code zba1...
 ```
 
-The controller URL must use `https://`. Enrollment exchanges the code over HTTPS for a machine credential, saves it to `~/.config/zerobyte-agent/agent.json` with owner-only permissions, and starts the agent. The code is consumed and is not saved.
+The bootstrap detects the CPU architecture, downloads the executable, and verifies its SHA-256 checksum over HTTPS. It then runs the native `zerobyte-agent install` command, which checks Restic before consuming the enrollment code, saves the identity to `/var/lib/zerobyte-agent/agent.json`, installs the executable, and enables `zerobyte-agent.service` to start immediately and on boot. The service runs in the background and initially shares no folders.
+
+## Choose folders
+
+On the connected machine, run:
+
+```bash
+sudo zerobyte-agent folders add
+```
+
+Use the arrow keys to browse, Space to select folders, and Enter to confirm. You can select one folder or several, and repeat the command later to add more. Ctrl+C cancels without changing the configuration. Existing folder IDs and permissions are preserved. Adding folders restarts the agent to publish the updated selection; do this between backup runs.
+
+```bash
+sudo zerobyte-agent folders list
+sudo zerobyte-agent logs           # Last 30 lines
+sudo zerobyte-agent logs -n 100     # Last 100 lines
+sudo zerobyte-agent logs --follow  # Ctrl+C stops following; the agent keeps running
+```
+
+The default command and `start` start the background service. `stop`, `restart`, and `status` manage it. `run` is the explicit foreground command used by systemd and for debugging.
+
+Restic is checked again on every agent startup. Missing, outdated, unrecognized, or failing Restic executables stop startup with a clear error. Startup configuration errors exit with status 78; systemd waits for an operator to fix them instead of repeatedly restarting. Once fixed, restart the service:
+
+```bash
+sudo zerobyte-agent restart
+sudo zerobyte-agent status
+sudo zerobyte-agent logs --follow
+```
+
+To update an installed agent to the latest stable release, run its native updater. It verifies the new release, preserves the saved identity, lets the new executable refresh its own systemd service definition, and restarts the service. Pin an exact release with `--version` when needed. There are no automatic background updates.
+
+```bash
+sudo zerobyte-agent update
+sudo zerobyte-agent update --version vX.Y.Z
+```
+
+Agents released before the native updater can be upgraded by rerunning the curl installer without enrollment arguments. `ZEROBYTE_AGENT_VERSION=vX.Y.Z` selects an exact release; the default is the latest stable release.
+
+```bash
+curl -fsSL --proto '=https' --proto-redir '=https' https://zerobyte.app/install.sh | sudo env ZEROBYTE_AGENT_VERSION=vX.Y.Z bash
+```
+
+Release binaries are available at `https://zerobyte.app/agent/vX.Y.Z/zerobyte-agent-linux-x64` and `https://zerobyte.app/agent/vX.Y.Z/zerobyte-agent-linux-arm64`, with matching `.sha256` files. These URLs redirect to the corresponding GitHub release assets. The installer is published by the website deployment; binaries are published by the tagged release workflow. Both must be published before an installation URL can be used.
+
+To remove the service, stop and disable it, remove `/etc/systemd/system/zerobyte-agent.service` and `/usr/local/bin/zerobyte-agent`, then run `sudo systemctl daemon-reload`. Keep `/var/lib/zerobyte-agent` if you intend to reinstall using the same identity. Revoke the machine in the dashboard when retiring it.
+
+## Run manually or from source
+
+For development, `bun run build` still writes `.output/agent/index.mjs`. This JavaScript bundle requires both Bun and Restic on the remote machine:
+
+```bash
+bun run .output/agent/index.mjs enroll --no-start \
+	--controller https://zerobyte.example.com \
+	--code zba1...
+```
+
+The controller URL uses `https://` by default. Manual enrollment exchanges the code over HTTPS for a machine credential, saves it to `~/.config/zerobyte-agent/agent.json` with owner-only permissions, without starting it. The code is consumed and is not saved. Use `--config FILE` to choose a different identity file and `--no-start` with `enroll` when a service manager will start the agent afterward.
 
 Subsequent starts use the saved configuration; do not pass the enrollment code or set `ZEROBYTE_AGENT_TOKEN` to it:
 
 ```bash
-bun run .output/agent/index.mjs
+bun run .output/agent/index.mjs run
 ```
 
-Pass `--root` for every directory to expose. The CLI resolves each root to an absolute path and grants backup access only; files outside those roots and remote restores are unavailable. Commands identify a trusted root and a relative path. Do not set `ZEROBYTE_BUILTIN_LOCAL_AGENT`; that marker is reserved for Zerobyte's supervised loopback agent.
+Build standalone executables from the repository root using Bun's native compiler:
+
+```bash
+bun run build:agent --target=bun-linux-x64-baseline --outfile=.output/agent-binaries/zerobyte-agent-linux-x64
+bun run build:agent --target=bun-linux-arm64 --outfile=.output/agent-binaries/zerobyte-agent-linux-arm64
+```
+
+`build:agent` runs `bun build --compile` directly. Set `ZEROBYTE_AGENT_VERSION` to the release tag when building to embed it in the executable. CI builds and tests each architecture, then adds SHA-256 checksums and license files to the release assets. Each executable supports `--help`, `enroll --help`, `--version`, and `check` (Restic prerequisite verification without enrollment). Manual runs honor `RESTIC_COMMAND` for a nonstandard Restic executable path.
+
+To test local changes on a Linux machine, run this from the repository root:
+
+```bash
+bun run dev:agent user@linux-server
+```
+
+It detects the architecture, builds with Bun, uploads over SSH, and installs/restarts the background service. First-time setup prompts for the controller URL and connection code. Later runs preserve the identity and shared folders. Set `ZEROBYTE_DEV_AGENT_HOST` in `.env.local` to use `bun run dev:agent` without repeating the host. SSH aliases and keys work as usual; `--port` overrides the SSH port. Deploy between backup runs, since this restarts the agent.
+
+Use `folders add` after connecting. For unattended setup, optional repeated `--root` arguments remain supported. The CLI resolves each root to an absolute path and grants backup access only; files outside those roots and remote restores are unavailable. Commands identify a trusted root and a relative path. Do not set `ZEROBYTE_BUILTIN_LOCAL_AGENT`; that marker is reserved for Zerobyte's supervised loopback agent.
+
+## Controller connectivity
 
 The public endpoint must be served over TLS and your reverse proxy must forward WebSocket upgrades. The enrollment code is sent in the HTTPS enrollment request; the saved machine credential is sent only in the WebSocket `Authorization` header, never in the URL.
 
 For local development, start the server with `bun run dev` and get its worktree-specific URL with `portless get zerobyte`. Remote agents can connect to that server: Vite forwards agent WebSocket upgrades to the controller's authenticated Bun listener. Use a hostname reachable from the remote machine, such as the Tailscale URL printed at startup.
 
-Development mode accepts enrollment through a TLS-terminating proxy without requiring `TRUST_PROXY=true`. Production still requires HTTPS and trusted proxy metadata.
+Development mode accepts enrollment through a TLS-terminating proxy without requiring `TRUST_PROXY=true`. Production still requires HTTPS and trusted proxy metadata. For a plain HTTP development URL, add `--allow-insecure` to `enroll` or `install`. The dashboard includes this flag when its controller URL uses HTTP. This choice is saved with the identity, so the service can reconnect after a restart or update. It does not disable certificate verification or the production server's TLS requirement.
 
-Enrollment codes expire after 15 minutes and can be used once. Rotating an agent credential invalidates its saved machine credential and disconnects the current session, then returns a new enrollment code. Stop the agent, remove `~/.config/zerobyte-agent/agent.json`, and run `enroll` again with the new code and every `--root`; enrollment never overwrites an existing machine configuration. Revoking also disconnects the agent and prevents reconnection. To use it again, rotate it to create a new enrollment code, then re-enroll it the same way.
+Enrollment codes expire after 15 minutes and can be used once. Rotating an agent credential invalidates its saved machine credential and disconnects the current session, then returns a new enrollment code. For an installed service, stop `zerobyte-agent` and move `/var/lib/zerobyte-agent/agent.json` aside before running the new dashboard command, then select folders again with `folders add`. For a manual agent, stop it and move `~/.config/zerobyte-agent/agent.json` aside before running `enroll` again. Enrollment never overwrites an existing machine configuration. Revoking also disconnects the agent and prevents reconnection. To use it again, rotate it to create a new enrollment code, then re-enroll it the same way.
 
 Source volume and mount-backend credentials remain on the controller/local executor and are never sent to a remote agent. Repository configuration and its Restic password are a separate execution boundary: they are delivered ephemerally over the authenticated TLS session, held in memory for the Restic command, and are not persisted by the agent. Remote restore is not supported until remote destination policy is designed.
 

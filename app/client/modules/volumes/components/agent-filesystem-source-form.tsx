@@ -44,24 +44,29 @@ function RemoteLocationPicker({
 	const [agentId, setAgentId] = useState("");
 	const [rootId, setRootId] = useState("");
 	const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
 	const machines = discovery.status === "ready" ? discovery.machines : [];
 	const machine = machines.find((item) => item.id === agentId);
 	const root = machine?.trustedRoots.find((item) => item.id === rootId);
 	const available = machine?.availability === "available" && root?.canBackup === true;
+
 	const invalidate = useCallback(() => {
 		setSelectedPath(null);
 		onChange(null);
 	}, [onChange]);
+
 	useEffect(() => {
 		// oxlint-disable-next-line react/set-state-in-effect -- Availability can change asynchronously and must invalidate a stale selection.
 		if (!available) invalidate();
 	}, [available, invalidate]);
+
 	const handleVerification = useCallback(
 		(verified: boolean) => {
 			onChange(verified && selectedPath !== null ? { agentId, rootId, relativePath: selectedPath } : null);
 		},
 		[agentId, rootId, selectedPath, onChange],
 	);
+
 	const fieldId = useId();
 
 	if (discovery.status === "loading") return <p>Loading available machines…</p>;
@@ -102,7 +107,7 @@ function RemoteLocationPicker({
 					</SelectContent>
 				</Select>
 			</div>
-			{machine && (
+			{machine && machine.trustedRoots.length > 0 && (
 				<div className="space-y-2">
 					<Label htmlFor={fieldId + "-root"}>Allowed location</Label>
 					<Select
@@ -125,6 +130,12 @@ function RemoteLocationPicker({
 						</SelectContent>
 					</Select>
 				</div>
+			)}
+			{machine && machine.trustedRoots.length === 0 && (
+				<p className="text-sm text-muted-foreground">
+					No folders shared yet. On {machine.name}, run <code>sudo zerobyte-agent folders add</code> to choose
+					folders.
+				</p>
 			)}
 			{available && root && (
 				<TrustedRootBrowser
@@ -153,29 +164,37 @@ function RemoteLocationPicker({
 function SourceForm({ formId, discovery, loading, onSubmit, edit }: Props & { edit?: EditProps }) {
 	const generatedId = useId();
 	const id = formId ?? generatedId;
+
 	const [name, setName] = useState(edit?.initialName ?? "");
 	const [changingLocation, setChangingLocation] = useState(!edit);
 	const [location, setLocation] = useState<Location | null>(null);
 	const [error, setError] = useState("");
+
 	const submit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (loading) return;
+
 		const trimmedName = name.trim();
+
 		if (trimmedName.length < 2 || trimmedName.length > 32) {
 			setError("Name must be between 2 and 32 characters.");
 			return;
 		}
+
 		if (edit && !changingLocation) {
 			edit.onRename(trimmedName);
 			return;
 		}
+
 		const machine =
 			discovery.status === "ready" ? discovery.machines.find((item) => item.id === location?.agentId) : undefined;
 		const root = machine?.trustedRoots.find((item) => item.id === location?.rootId);
+
 		if (!location || machine?.availability !== "available" || !root?.canBackup) {
 			setError("Choose an available machine and select a folder before saving.");
 			return;
 		}
+
 		onSubmit({
 			name: trimmedName,
 			sourceKind: "agent-filesystem",
@@ -184,6 +203,7 @@ function SourceForm({ formId, discovery, loading, onSubmit, edit }: Props & { ed
 			relativePath: location.relativePath,
 		});
 	};
+
 	return (
 		<form id={id} onSubmit={submit} className="space-y-4">
 			<Label htmlFor={id + "-name"}>Source name</Label>

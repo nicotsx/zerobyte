@@ -110,12 +110,20 @@ jobs:
   publish-release:
     runs-on: ubuntu-latest
     needs: [build-images, determine-release-type]
-    if: needs.determine-release-type.outputs.release_type == 'release'
     permissions:
       contents: write
+      actions: read
     outputs:
       id: ${{ steps.create_release.outputs.id }}
     steps:
+      - name: Download verified agent binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'zerobyte-agent-linux-*' --dir agent-artifacts
+          mkdir agent-dist
+          cp agent-artifacts/*/* agent-dist/
+
       - name: Create GitHub release
         id: create_release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
@@ -127,7 +135,10 @@ jobs:
           tag_name: ${{ needs.determine-release-type.outputs.tagname }}
           name: ${{ needs.determine-release-type.outputs.tagname }}
           draft: false
-          prerelease: true
+          prerelease: ${{ needs.determine-release-type.outputs.release_type != 'release' }}
+          make_latest: ${{ needs.determine-release-type.outputs.release_type == 'release' && 'true' || 'false' }}
+          files: agent-dist/*
+          fail_on_unmatched_files: true
 
   build-desktop:
     needs: publish-release

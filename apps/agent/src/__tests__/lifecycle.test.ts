@@ -44,6 +44,7 @@ beforeEach(() => {
 	vi.useFakeTimers();
 	vi.spyOn(Math, "random").mockReturnValue(0.5);
 	vi.stubEnv("ZEROBYTE_BUILTIN_LOCAL_AGENT", "0");
+	vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE", undefined);
 	vi.stubGlobal("WebSocket", TestWebSocket);
 	TestWebSocket.instances = [];
 	mocks.closeSession.mockReset();
@@ -179,4 +180,13 @@ test("starts managed cleanup once for the built-in local agent and stops it", as
 
 	const exit = await Effect.runPromise(Fiber.await(cleanupFiber));
 	expect(Exit.isInterrupted(exit)).toBe(true);
+});
+
+test("explicit development permission allows remote plaintext WebSockets", async () => {
+	vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE", "1");
+	const { Agent } = await import("../index");
+	const agent = new Agent("ws://192.168.1.10:8080/api/v1/agents/connect", "token");
+	agent.connect();
+	expect(TestWebSocket.instances[0]?.url).toBe("ws://192.168.1.10:8080/api/v1/agents/connect");
+	agent.stop();
 });

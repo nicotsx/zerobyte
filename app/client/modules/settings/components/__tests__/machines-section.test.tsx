@@ -95,8 +95,11 @@ describe("MachinesSection", () => {
 		const dialog = await screen.findByRole("dialog", { name: "Credential for Off-site vault" });
 		expect(submittedName).toBe("Off-site vault");
 		expect(within(dialog).getByText(/--code 'one-time-token'/)).toBeTruthy();
+		expect(within(dialog).getByText(/https:\/\/zerobyte.app\/install.sh/)).toBeTruthy();
+		expect(within(dialog).getByText(/sudo env ZEROBYTE_AGENT_VERSION=.* bash -s --/)).toBeTruthy();
+		expect(within(dialog).queryByText(/Restic 0.18.0 or newer/)).toBeNull();
 
-		expect(within(dialog).getByLabelText("Folder to allow on the remote machine")).toBeTruthy();
+		expect(within(dialog).queryByLabelText("Folder to allow on the remote machine")).toBeNull();
 		expect(JSON.stringify(getCachedMutationData(queryClient))).toContain("one-time-token");
 
 		await userEvent.click(within(dialog).getByRole("button", { name: "Copy connection command" }));

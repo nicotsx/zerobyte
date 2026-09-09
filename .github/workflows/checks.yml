@@ -15,6 +15,45 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  agent-binaries:
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            target: bun-linux-x64-baseline
+            runner: ubuntu-24.04
+          - arch: arm64
+            target: bun-linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: "./.github/actions/install-dependencies"
+      - name: Build executable
+        env:
+          ZEROBYTE_AGENT_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
+        run: >-
+          bun run build:agent --target=${{ matrix.target }}
+          --outfile=.output/agent-binaries/zerobyte-agent-linux-${{ matrix.arch }}
+      - name: Test agent and compiled CLI
+        env:
+          AGENT_BINARY: ${{ github.workspace }}/.output/agent-binaries/zerobyte-agent-linux-${{ matrix.arch }}
+          ZEROBYTE_AGENT_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'dev' }}
+        run: bun run --cwd apps/agent test
+      - name: Check installer syntax
+        run: shellcheck apps/docs/public/install.sh
+      - name: Prepare release assets
+        working-directory: .output/agent-binaries
+        run: |
+          sha256sum zerobyte-agent-linux-${{ matrix.arch }} > zerobyte-agent-linux-${{ matrix.arch }}.sha256
+          cp ../../LICENSE zerobyte-agent-linux-${{ matrix.arch }}.LICENSE.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: zerobyte-agent-linux-${{ matrix.arch }}
+          path: .output/agent-binaries/*
+          if-no-files-found: error
+
   lint:
     timeout-minutes: 10
     runs-on: ubuntu-latest

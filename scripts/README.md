@@ -2,6 +2,18 @@
 
 Utility scripts for Zerobyte development and testing.
 
+## Deploy a development agent
+
+```bash
+bun run dev:agent user@linux-server
+```
+
+Uses your normal SSH configuration and keys, detects the remote architecture, compiles the local source with Bun, uploads it, and runs the native installer. The agent is installed at `/usr/local/bin/zerobyte-agent` and runs in the background. Existing identity and shared folders are preserved; the service is restarted, so deploy between backup runs.
+
+First-time setup prompts for the controller URL and connection code from the dashboard. The remote machine needs the usual agent prerequisites, including Restic and systemd. Sudo may prompt for your password. For a development HTTP controller, add `--allow-insecure`.
+
+Use `--port 2222` for a custom SSH port. To avoid repeating the host, set `ZEROBYTE_DEV_AGENT_HOST` in your local environment or `.env.local`, then run just `bun run dev:agent`. This deploys unpublished local code; it does not push or publish a release.
+
 ## create-test-files.ts
 
 Generates temporary test files with random content for testing Zerobyte backup functionality.
@@ -14,14 +26,14 @@ bun scripts/create-test-files.ts [options]
 
 ### Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `-c, --count <num>` | Number of files to create | 10 |
-| `--min-size <size>` | Minimum file size | 1K |
-| `--max-size <size>` | Maximum file size | 1M |
-| `-o, --out <dir>` | Output directory | ./tmp/test-files |
-| `-n, --nested` | Create files in nested subdirectories | false |
-| `-h, --help` | Show help message | - |
+| Option              | Description                           | Default          |
+| ------------------- | ------------------------------------- | ---------------- |
+| `-c, --count <num>` | Number of files to create             | 10               |
+| `--min-size <size>` | Minimum file size                     | 1K               |
+| `--max-size <size>` | Maximum file size                     | 1M               |
+| `-o, --out <dir>`   | Output directory                      | ./tmp/test-files |
+| `-n, --nested`      | Create files in nested subdirectories | false            |
+| `-h, --help`        | Show help message                     | -                |
 
 ### Size Format
 

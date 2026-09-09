@@ -8,6 +8,7 @@ import {
 	createTrustedRootRegistry,
 	getTrustedRootDescriptors,
 	normalizeTrustedRelativePath,
+	parseConfiguredRoots,
 	resolveTrustedSourcePath,
 } from "../trusted-roots";
 import { createAgentExecutionPolicy } from "../execution-policy";
@@ -50,7 +51,17 @@ describe("trusted root configuration", () => {
 		const rawRoots = createRawRoots(oversizedRootCount, rootPath);
 		const expectedMessage = `ZEROBYTE_AGENT_ROOTS must contain at most ${MAX_AGENT_TRUSTED_ROOTS} roots`;
 
+		expect(() => parseConfiguredRoots(rawRoots)).toThrow(expectedMessage);
 		expect(() => createTrustedRootRegistry({ rawRoots })).toThrow(expectedMessage);
+	});
+
+	test("parses unavailable root definitions without granting execution access", () => {
+		const rootPath = path.join(createTemporaryDirectory(), "missing");
+		const roots = [{ id: "offline", label: "Offline", path: rootPath, allowBackup: false }];
+		const rawRoots = JSON.stringify(roots);
+
+		expect(parseConfiguredRoots(rawRoots)).toEqual(roots);
+		expect(() => createTrustedRootRegistry({ rawRoots })).toThrow("cannot be resolved");
 	});
 
 	test("advertises descriptors without revealing canonical host paths", () => {
@@ -74,6 +85,7 @@ describe("trusted root configuration", () => {
 			"duplicate label",
 		],
 	])("rejects %s", (_name, rawRoots, expectedMessage) => {
+		expect(() => parseConfiguredRoots(rawRoots)).toThrow(expectedMessage);
 		expect(() => createTrustedRootRegistry({ rawRoots })).toThrow(expectedMessage);
 	});
 

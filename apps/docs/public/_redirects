@@ -1,0 +1,2 @@
+/agent/latest/:asset https://github.com/nicotsx/zerobyte/releases/latest/download/:asset 302
+/agent/:version/:asset https://github.com/nicotsx/zerobyte/releases/download/:version/:asset 302

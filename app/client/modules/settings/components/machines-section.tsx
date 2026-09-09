@@ -119,14 +119,11 @@ function CredentialDialog({
 	returnFocus: React.RefObject<HTMLButtonElement | null>;
 }) {
 	const [clipboardMessage, setClipboardMessage] = useState("");
-	const [rootPath, setRootPath] = useState("/path/on/remote/machine");
 	const isOpen = presentation !== null;
 	const token = presentation?.token ?? "";
 	const controllerUrl = presentation?.controllerUrl ?? "";
-	const connectionCommand = controllerUrl.startsWith("wss:")
-		? createConnectionCommand(controllerUrl, token, rootPath)
-		: "";
-	const isSecureController = controllerUrl.startsWith("wss:");
+	const connectionCommand = /^wss?:/.test(controllerUrl) ? createConnectionCommand(controllerUrl, token) : "";
+	const hasController = /^wss?:/.test(controllerUrl);
 
 	const handleOpenChange = (open: boolean) => {
 		if (open) return;
@@ -151,25 +148,8 @@ function CredentialDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				{!isSecureController && (
-					<Alert variant="destructive">
-						<AlertTriangle aria-hidden="true" />
-						<AlertTitle>Production connection blocked</AlertTitle>
-						<AlertDescription>
-							Configure verified HTTPS/WSS before enrolling a remote machine. Enrollment codes cannot be
-							exchanged over plaintext HTTP.
-						</AlertDescription>
-					</Alert>
-				)}
-
 				<div className="min-w-0 space-y-4">
-					<Label htmlFor="agent-root-path">Folder to allow on the remote machine</Label>
-					<Input
-						id="agent-root-path"
-						value={rootPath}
-						onChange={(event) => setRootPath(event.target.value)}
-					/>
-					{isSecureController && (
+					{hasController && (
 						<CopyField
 							label="connection command"
 							value={connectionCommand}
@@ -178,13 +158,6 @@ function CredentialDialog({
 					)}
 				</div>
 
-				<p className="text-pretty text-sm text-muted-foreground">
-					Bun and Restic must be installed on the remote machine. The command downloads the agent from this
-					controller, saves its machine credential privately, and starts it. Only the folder you choose is
-					shared. To restart it later, run bun ./zerobyte-agent.mjs; configure your service manager to keep it
-					running. When re-enrolling, move the previous ~/.config/zerobyte-agent/agent.json aside first; the
-					command never overwrites an existing identity.
-				</p>
 				<p className="sr-only" aria-live="polite" aria-atomic="true">
 					{clipboardMessage}
 				</p>
@@ -272,7 +245,7 @@ function MachineRow({
 							{status === "online" && presentation.trustedRoots.length === 0 && (
 								<p className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
 									<AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-									Configure ZEROBYTE_AGENT_ROOTS on this remote machine before adding Sources.
+									Choose folders on this machine with <code>sudo zerobyte-agent folders add</code>.
 								</p>
 							)}
 						</div>
@@ -326,29 +299,37 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 	const [rotationTarget, setRotationTarget] = useState<Agent | null>(null);
 	const [deletionTarget, setDeletionTarget] = useState<Agent | null>(null);
 	const [revocationTarget, setRevocationTarget] = useState<Agent | null>(null);
+
 	const agentsQuery = useQuery({
 		...listAgentsOptions(),
 		refetchInterval: 5_000,
 		refetchIntervalInBackground: false,
 	});
+
 	const agents = agentsQuery.data ?? [];
+
 	const remoteAgents = agents.filter((agent) => agent.kind === "remote");
 	const remoteCount = remoteAgents.length;
 	const remoteMachineLabel =
 		remoteCount === 0 ? "No remote machines" : `${remoteCount} remote machine${remoteCount === 1 ? "" : "s"}`;
+
 	const normalizedMachineName = normalizeMachineName(machineName);
+
 	const machineNameIsValid = isValidMachineName(machineName);
 	const machineNameHasError = machineName.length > 0 && !machineNameIsValid;
 	const machineNameHintId = "remote-machine-name-hint";
 	const machineNameErrorId = "remote-machine-name-error";
+
 	const machineNameDescriptionIds = machineNameHasError
 		? `${machineNameHintId} ${machineNameErrorId}`
 		: machineNameHintId;
+
 	const connectTriggerRef = useRef<HTMLButtonElement>(null);
 	const machineNameInputRef = useRef<HTMLInputElement>(null);
 	const rotationTriggerRef = useRef<HTMLButtonElement>(null);
 	const revocationTriggerRef = useRef<HTMLButtonElement>(null);
 	const credentialReturnFocusRef = useRef<HTMLButtonElement>(null);
+
 	const queryClient = useQueryClient();
 
 	const createAgent = useMutation({
@@ -357,6 +338,7 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 		mutationKey: createCredentialMutationKey,
 		onSuccess: (result) => {
 			const enrollmentControllerUrl = result.controllerUrl;
+
 			credentialReturnFocusRef.current = connectTriggerRef.current;
 			setCreateDialogOpen(false);
 			setMachineName("");
@@ -386,6 +368,7 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 	});
 
 	const deleteMachine = useMutation({ ...deleteRemoteAgentMutation(), onSuccess: () => setDeletionTarget(null) });
+
 	const revokeCredential = useMutation({
 		...revokeRemoteAgentTokenMutation(),
 		onSuccess: () => {
@@ -402,12 +385,14 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 	const handleCreate = (event: React.SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const name = normalizedMachineName;
+
 		if (!machineNameIsValid) return;
 		createAgent.mutate({ body: { name } });
 	};
 
 	const handleRotate = () => {
 		const target = rotationTarget;
+
 		if (!target) return;
 		rotateCredential.mutate({ path: { agentId: target.id } });
 	};
@@ -420,6 +405,7 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 
 	const handleRevoke = () => {
 		const target = revocationTarget;
+
 		if (!target) return;
 		revokeCredential.mutate({ path: { agentId: target.id } });
 	};
@@ -434,15 +420,19 @@ export function MachinesSection({ controllerUrl }: { controllerUrl: string }) {
 	const rotationTitle = rotationStatus === "revoked" ? "Issue new credential" : "Rotate credential";
 	const rotationTargetName = rotationTarget ? getMachineDisplayName(rotationTarget.name) : "";
 	const revocationTargetName = revocationTarget ? getMachineDisplayName(revocationTarget.name) : "";
+
 	const removeCredentialMutations = () => {
 		createAgent.reset();
 		rotateCredential.reset();
+
 		const mutationCache = queryClient.getMutationCache();
 		const createMutations = mutationCache.findAll({ mutationKey: createCredentialMutationKey });
 		const rotateMutations = mutationCache.findAll({ mutationKey: rotateCredentialMutationKey });
 		const credentialMutations = [...createMutations, ...rotateMutations];
+
 		for (const mutation of credentialMutations) mutationCache.remove(mutation);
 	};
+
 	const closeCredentialPresentation = () => {
 		setCredentialPresentation(null);
 		removeCredentialMutations();
