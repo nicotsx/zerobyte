@@ -77,7 +77,7 @@ export const MirrorRepositoriesTable = ({
 	onRemove,
 }: Props) => {
 	const { formatTimeAgo } = useTimeFormat();
-	const [syncDialogMirror, setSyncDialogMirror] = useState<Repository | null>(null);
+	const [statusLookupMirror, setStatusLookupMirror] = useState<Repository | null>(null);
 	const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
 	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
 	const { data: activeMirrorSyncs } = useActiveMirrorSyncTasks(scheduleShortId);
@@ -90,6 +90,10 @@ export const MirrorRepositoriesTable = ({
 			});
 		},
 	});
+
+	const startMirrorStatusLookup = (mirror: Repository) => {
+		setStatusLookupMirror(mirror);
+	};
 
 	const confirmCancellation = () => {
 		if (!cancelConfirmation) return;
@@ -122,8 +126,11 @@ export const MirrorRepositoriesTable = ({
 	const assignedRepositories = Array.from(assignments.keys())
 		.map((repositoryId) => repositories.find((repository) => repository.shortId === repositoryId))
 		.filter((repository) => repository !== undefined);
+
 	const currentMirrorsByRepository = new Map(currentMirrors.map((mirror) => [mirror.repositoryId, mirror]));
 	const allActiveMirrorSyncs = activeMirrorSyncs ?? [];
+
+	const closeMirrorStatusLookup = () => setStatusLookupMirror(null);
 
 	if (assignedRepositories.length === 0) {
 		return (
@@ -179,7 +186,7 @@ export const MirrorRepositoriesTable = ({
 									setCancelConfirmationOpen(true);
 									return;
 								}
-								setSyncDialogMirror(repository);
+								startMirrorStatusLookup(repository);
 							};
 
 							return (
@@ -226,6 +233,7 @@ export const MirrorRepositoriesTable = ({
 														<Button
 															variant="ghost"
 															size="icon"
+															aria-label={buttonTooltip}
 															onClick={handleSyncAction}
 															disabled={syncing ? cancelling : hasChanges}
 															className={cn("h-8 w-8 text-muted-foreground", {
@@ -261,11 +269,14 @@ export const MirrorRepositoriesTable = ({
 				</Table>
 			</div>
 
-			<MirrorSyncDialog
-				scheduleShortId={scheduleShortId}
-				mirror={syncDialogMirror}
-				onClose={() => setSyncDialogMirror(null)}
-			/>
+			{statusLookupMirror && (
+				<MirrorSyncDialog
+					key={statusLookupMirror.shortId}
+					scheduleShortId={scheduleShortId}
+					mirror={statusLookupMirror}
+					onClose={closeMirrorStatusLookup}
+				/>
+			)}
 
 			<AlertDialog
 				open={cancelConfirmationOpen}

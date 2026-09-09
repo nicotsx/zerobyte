@@ -107,6 +107,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 	const stderrLines: string[] = [];
 
 	return new Promise<SpawnResult>((resolve) => {
+		let spawnError: Error | null = null;
 		const child = spawn(spawnCommand.command, spawnCommand.args, {
 			env: { ...process.env, ...env },
 			shell: false,
@@ -152,22 +153,20 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 		});
 
 		child.on("error", (err) => {
-			rlErr.close();
-			rl?.close();
-
-			resolve({
-				exitCode: -1,
-				summary: lastStdout,
-				error: err.message || lastStderr,
-				stderr: stderrLines.join("\n"),
-			});
+			spawnError = err;
 		});
 
 		child.on("close", (code) => {
+			rlErr.close();
+			rl?.close();
+
+			const exitCode = spawnError ? -1 : (code ?? -1);
+			const error = spawnError?.message || lastStderr;
+
 			resolve({
-				exitCode: code ?? -1,
+				exitCode,
 				summary: lastStdout,
-				error: lastStderr,
+				error,
 				stderr: stderrLines.join("\n"),
 			});
 		});

@@ -1,5 +1,5 @@
 import { getTaskHistoryOutcome, type TaskHistoryLifecycleItem, type TaskHistoryOutcome } from "~/schemas/task-history";
-import type { ParsedTask, PersistedTask } from "~/schemas/tasks";
+import { isActivityTaskKind, type ParsedTask, type PersistedTask } from "~/schemas/tasks";
 import type { TaskHistoryItem, TaskHistoryTarget } from "./task-history.dto";
 
 const getTaskHistoryTarget = (task: PersistedTask): TaskHistoryTarget => {
@@ -74,6 +74,10 @@ const getTaskHistoryMessage = (
 };
 
 export const toTaskHistoryLifecycleItem = (task: TaskHistoryLifecycleSource): TaskHistoryLifecycleItem => {
+	if (!isActivityTaskKind(task.kind)) {
+		throw new Error(`Internal task ${task.id} cannot be presented in activity history`);
+	}
+
 	const outcome = getTaskHistoryOutcome(task.status, task.outcome);
 
 	return {

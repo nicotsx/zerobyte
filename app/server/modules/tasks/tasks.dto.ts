@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
-import { taskDtoSchema, taskKindSchema, taskResourceTypeSchema } from "~/schemas/tasks";
+import { activityTaskKindSchema, taskDtoSchema, taskResourceTypeSchema } from "~/schemas/tasks";
 
 export const listTasksQuery = z
 	.object({
-		kind: taskKindSchema.optional(),
+		kind: activityTaskKindSchema.optional(),
 		resourceType: taskResourceTypeSchema.optional(),
 		resourceId: z.string().optional(),
 		operationKey: z.string().optional(),

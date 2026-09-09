@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { activeTaskStatuses, taskOutcomes, type TaskKind, type TaskOutcome, type TaskStatus } from "./tasks";
+import { activeTaskStatuses, taskOutcomes, type ActivityTaskKind, type TaskOutcome, type TaskStatus } from "./tasks";
 
 export const taskHistoryOutcomes = ["running", ...taskOutcomes] as const;
 export const taskHistoryOutcomeSchema = z.enum(taskHistoryOutcomes);
@@ -8,7 +8,7 @@ export type TaskHistoryOutcome = z.infer<typeof taskHistoryOutcomeSchema>;
 
 export type TaskHistoryLifecycleItem = {
 	id: string;
-	kind: TaskKind;
+	kind: ActivityTaskKind;
 	status: TaskStatus;
 	outcome: TaskHistoryOutcome | null;
 	startedAt: number | null;

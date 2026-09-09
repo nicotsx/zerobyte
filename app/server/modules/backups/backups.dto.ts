@@ -383,44 +383,16 @@ export const reorderBackupSchedulesDto = describeRoute({
 	},
 });
 
-const missingSnapshotSchema = z.object({
-	short_id: z.string(),
-	time: z.string(),
-	size: z.number(),
-});
-
-const getMirrorSyncStatusResponse = z.object({
-	sourceCount: z.number(),
-	mirrorCount: z.number(),
-	missingSnapshots: missingSnapshotSchema.array(),
-});
-export type GetMirrorSyncStatusDto = z.infer<typeof getMirrorSyncStatusResponse>;
-
-export const getMirrorSyncStatusDto = describeRoute({
-	description: "Get sync status for a specific mirror, including missing snapshots",
-	operationId: "getMirrorSyncStatus",
-	tags: ["Backups"],
-	responses: {
-		200: {
-			description: "Mirror sync status with missing snapshots",
-			content: {
-				"application/json": {
-					schema: resolver(getMirrorSyncStatusResponse),
-				},
-			},
-		},
-	},
-});
-
 export const syncMirrorBody = z.object({
 	snapshotIds: z.array(z.string()).optional(),
 });
 
-const syncMirrorResponse = z.object({
+const startedTaskResponse = z.object({
 	taskId: z.string(),
 	status: z.literal("started"),
 });
-export type SyncMirrorDto = z.infer<typeof syncMirrorResponse>;
+export type SyncMirrorDto = z.infer<typeof startedTaskResponse>;
+export type StartMirrorStatusDto = z.infer<typeof startedTaskResponse>;
 
 export const syncMirrorDto = describeRoute({
 	description: "Sync selected snapshots to a specific mirror repository",
@@ -431,12 +403,28 @@ export const syncMirrorDto = describeRoute({
 			description: "Mirror sync started successfully",
 			content: {
 				"application/json": {
-					schema: resolver(syncMirrorResponse),
+					schema: resolver(startedTaskResponse),
 				},
 			},
 		},
 		409: {
 			description: "Mirror is already syncing",
+		},
+	},
+});
+
+export const startMirrorStatusDto = describeRoute({
+	description: "Start a background lookup of snapshots missing from a mirror repository",
+	operationId: "startMirrorStatus",
+	tags: ["Backups"],
+	responses: {
+		202: {
+			description: "Mirror snapshot lookup started successfully",
+			content: {
+				"application/json": {
+					schema: resolver(startedTaskResponse),
+				},
+			},
 		},
 	},
 });

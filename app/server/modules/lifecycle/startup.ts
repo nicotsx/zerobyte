@@ -11,6 +11,7 @@ import { notificationsService } from "../notifications/notifications.service";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { cache } from "~/server/utils/cache";
 import { withContext } from "~/server/core/request-context";
+import { pruneExpiredMirrorStatus } from "../backups/commands/mirror-status-command";
 import { backupsService } from "../backups/backups.service";
 import { config } from "~/server/core/config";
 import { syncProvisionedResources } from "../provisioning/provisioning";
@@ -55,6 +56,7 @@ export const startup = async (bootstrapStartedAt?: number) => {
 
 	let staleTasks: ReturnType<typeof taskStore.markActiveStale> = [];
 	try {
+		pruneExpiredMirrorStatus();
 		staleTasks = taskStore.markActiveStale({
 			error: RESTART_TASK_ERROR,
 			createdBefore: bootstrapStartedAt,

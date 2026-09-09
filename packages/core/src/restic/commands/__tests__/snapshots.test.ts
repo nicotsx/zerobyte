@@ -62,4 +62,21 @@ describe("snapshots command", () => {
 
 		expect(result).toEqual(snapshotsOutput);
 	});
+
+	test("forwards cancellation and cleans temporary keys when restic fails", async () => {
+		const cleanup = vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+		const abortController = new AbortController();
+		let spawnParams: SafeSpawnParams | undefined;
+		vi.spyOn(nodeModule, "safeSpawn").mockImplementation((params) => {
+			spawnParams = params;
+			return Promise.resolve({ exitCode: -1, summary: "", error: "aborted" });
+		});
+
+		await expect(
+			Effect.runPromise(snapshots(config, { organizationId: "org-1", signal: abortController.signal }, mockDeps)),
+		).rejects.toThrow("Restic snapshots retrieval failed: aborted");
+
+		expect(spawnParams?.signal).toBe(abortController.signal);
+		expect(cleanup).toHaveBeenCalledTimes(1);
+	});
 });

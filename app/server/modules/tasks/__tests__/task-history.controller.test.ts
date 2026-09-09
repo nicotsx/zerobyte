@@ -1,7 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { eq, sql } from "drizzle-orm";
+import type { ServerEventPayloadMap } from "~/schemas/server-events";
 import { TASK_PERSISTENCE_FORMAT_VERSION } from "~/schemas/tasks";
 import { createApp } from "~/server/app";
+import { serverEvents } from "~/server/core/events";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
 import { createTestSession } from "~/test/helpers/auth";
@@ -27,6 +29,24 @@ const createRepositoryTask = (
 			kind === "doctor"
 				? { kind: "doctor", repositoryId }
 				: { kind: "deleteSnapshots", repositoryId, snapshotIds: ["snapshot-1"] },
+	});
+};
+
+const createMirrorStatusTask = (organizationId: string, id: string) => {
+	return taskStore.create({
+		id,
+		organizationId,
+		resourceType: "backup_schedule",
+		resourceId: "schedule-short",
+		operationKey: "source-repository:mirror-repository",
+		targetDisplayName: "Backup schedule",
+		input: {
+			kind: "mirrorStatus",
+			scheduleId: 1,
+			scheduleShortId: "schedule-short",
+			sourceRepositoryId: "source-repository",
+			mirrorRepositoryId: "mirror-repository",
+		},
 	});
 };
 
@@ -88,6 +108,37 @@ beforeEach(async () => {
 });
 
 describe("task history", () => {
+	test("hides mirror status lookups from activity, counts, filters, and history events", async () => {
+		const changes: ServerEventPayloadMap["task:history-changed"][] = [];
+		const recordChange = (event: ServerEventPayloadMap["task:history-changed"]) => changes.push(event);
+		serverEvents.on("task:history-changed", recordChange);
+		const hiddenTask = createMirrorStatusTask(session.organizationId, "hidden-mirror-status");
+		const visibleTask = createRepositoryTask(session.organizationId, "visible-task");
+		taskStore.complete(hiddenTask.id, {
+			kind: "mirrorStatus",
+			sourceCount: 1,
+			mirrorCount: 0,
+			missingSnapshots: [{ short_id: "snapshot-1", time: "2025-01-01T00:00:00Z", size: 1 }],
+		});
+
+		try {
+			const response = await app.request("/api/v1/tasks/history", { headers: session.headers });
+			const history = await response.json();
+			const filterResponse = await app.request("/api/v1/tasks/history?kind=mirrorStatus", {
+				headers: session.headers,
+			});
+
+			expect(response.status).toBe(200);
+			expect(history.items.map((item: { id: string }) => item.id)).toEqual([visibleTask.id]);
+			expect(history.totalItems).toBe(1);
+			expect(history.totalPages).toBe(1);
+			expect(filterResponse.status).toBe(400);
+			expect(changes.some((change) => change.item.id === hiddenTask.id)).toBe(false);
+		} finally {
+			serverEvents.off("task:history-changed", recordChange);
+		}
+	});
+
 	test("presents retention tasks against their backup schedule", async () => {
 		const task = taskStore.create({
 			id: "retention-task",

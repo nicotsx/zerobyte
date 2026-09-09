@@ -1,10 +1,11 @@
-import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, type SQL } from "drizzle-orm";
 import type { TaskHistoryOutcome } from "~/schemas/task-history";
 import {
 	activeTaskStatuses,
+	hiddenTaskKinds,
 	persistedTaskSchema,
 	TASK_PERSISTENCE_FORMAT_VERSION,
-	type TaskKind,
+	type ActivityTaskKind,
 } from "~/schemas/tasks";
 import { db } from "~/server/db/db";
 import { tasksTable } from "~/server/db/schema";
@@ -15,7 +16,7 @@ export const TASK_HISTORY_PAGE_SIZE = 25;
 
 type ListTaskHistoryParams = {
 	organizationId: string;
-	kind?: TaskKind;
+	kind?: ActivityTaskKind;
 	outcome?: TaskHistoryOutcome;
 	page: number;
 };
@@ -25,6 +26,8 @@ export const listTaskHistory = (params: ListTaskHistoryParams): TaskHistoryRespo
 		eq(tasksTable.organizationId, params.organizationId),
 		eq(tasksTable.persistenceFormatVersion, TASK_PERSISTENCE_FORMAT_VERSION),
 	];
+	const hiddenTaskConditions = hiddenTaskKinds.map((kind) => ne(tasksTable.kind, kind));
+	conditions.push(...hiddenTaskConditions);
 	if (params.kind) conditions.push(eq(tasksTable.kind, params.kind));
 	if (params.outcome === "running") {
 		conditions.push(inArray(tasksTable.status, activeTaskStatuses));

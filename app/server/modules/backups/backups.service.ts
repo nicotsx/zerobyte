@@ -14,9 +14,6 @@ import { handleValidationResult, validateBackupExecution } from "./helpers/backu
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
 import { commands } from "./commands";
 import { createBackupCommand } from "./commands/backup-command";
-import { restic } from "../../core/restic";
-import { runEffectPromise } from "../../utils/errors";
-import { Effect } from "effect";
 import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask } from "~/schemas/tasks";
 
@@ -536,56 +533,6 @@ const recoverInterruptedBackups = async (staleTasks: ParsedTask[], bootstrapStar
 	});
 };
 
-const getMirrorSyncStatus = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
-	const organizationId = getOrganizationId();
-	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
-
-	const mirrorRepo = await db.query.repositoriesTable.findFirst({
-		where: {
-			AND: [{ shortId: { eq: mirrorShortId } }, { organizationId }],
-		},
-	});
-
-	if (!mirrorRepo) {
-		throw new NotFoundError("Mirror repository not found");
-	}
-
-	const mirror = await mirrorQueries.findByScheduleAndRepository(schedule.id, mirrorRepo.id);
-
-	if (!mirror) {
-		throw new NotFoundError("Mirror not found for this schedule");
-	}
-
-	const [sourceSnapshots, mirrorSnapshots] = await runEffectPromise(
-		Effect.all(
-			[
-				restic.snapshots(schedule.repository.config, {
-					tags: [schedule.shortId],
-					organizationId,
-				}),
-				restic.snapshots(mirrorRepo.config, { tags: [schedule.shortId], organizationId }),
-			],
-			{ concurrency: "unbounded" },
-		),
-	);
-
-	const mirrorSnapshotTimes = new Set(mirrorSnapshots.map((s) => s.time));
-
-	const missingSnapshots = sourceSnapshots
-		.filter((s) => !mirrorSnapshotTimes.has(s.time))
-		.map((s) => ({
-			short_id: s.short_id,
-			time: s.time,
-			size: s.summary?.total_bytes_processed ?? 0,
-		}));
-
-	return {
-		sourceCount: sourceSnapshots.length,
-		mirrorCount: mirrorSnapshots.length,
-		missingSnapshots,
-	};
-};
-
 const getMirrorSyncContext = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
 	const organizationId = getOrganizationId();
 	const schedule = await getScheduleByIdOrShortId(scheduleIdOrShortId);
@@ -635,6 +582,23 @@ const startMirrorSync = async (
 	return commands.createMirrorSync(plan).start();
 };
 
+const startMirrorStatus = async (scheduleIdOrShortId: number | string, mirrorShortId: ShortId) => {
+	const { organizationId, schedule, mirrorRepository } = await getMirrorSyncContext(
+		scheduleIdOrShortId,
+		mirrorShortId,
+	);
+	const plan = {
+		organizationId,
+		scheduleId: schedule.id,
+		scheduleShortId: schedule.shortId,
+		targetDisplayName: schedule.name,
+		sourceRepository: schedule.repository,
+		mirrorRepository,
+	};
+
+	return commands.createMirrorStatus(plan).start();
+};
+
 const runForget = async (scheduleId: number, repositoryId?: string) => {
 	const organizationId = getOrganizationId();
 	const schedule = await scheduleQueries.findById(scheduleId, organizationId);
@@ -681,6 +645,6 @@ export const backupsService = {
 	getSchedulesToExecute,
 	recoverInterruptedBackups,
 	runForget,
-	getMirrorSyncStatus,
 	startMirrorSync,
+	startMirrorStatus,
 };
