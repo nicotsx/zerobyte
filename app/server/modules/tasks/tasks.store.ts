@@ -50,6 +50,13 @@ type FindTaskParams = {
 	taskId: string;
 };
 type TaskChangeListener = (task: ParsedTask) => void;
+type TaskListenerState = {
+	taskListeners: Map<string, Set<TaskChangeListener>>;
+	allTaskListeners: Set<TaskChangeListener>;
+};
+type ProcessWithTaskListeners = NodeJS.Process & {
+	__zerobyteTaskListeners?: TaskListenerState;
+};
 
 export const RESTART_TASK_ERROR = "Zerobyte was restarted before this task completed";
 
@@ -81,10 +88,16 @@ const parseFinishedTask = (row: unknown): FinishedTask => {
 	return { ...task, status, finishedAt: task.finishedAt };
 };
 
-const taskListeners = new Map<string, Set<TaskChangeListener>>();
-const allTaskListeners = new Set<TaskChangeListener>();
+const getTaskListenerState = () => {
+	const runtimeProcess = process as ProcessWithTaskListeners;
+	return (runtimeProcess.__zerobyteTaskListeners ??= {
+		taskListeners: new Map(),
+		allTaskListeners: new Set(),
+	});
+};
 
 const emitTaskChanged = (task: ParsedTask) => {
+	const { taskListeners, allTaskListeners } = getTaskListenerState();
 	const listeners = taskListeners.get(task.id);
 	if (listeners) {
 		for (const listener of listeners) {
@@ -109,6 +122,7 @@ const emitTaskHistoryChanged = (task: ParsedTask, previousOutcome: TaskHistoryOu
 };
 
 const subscribeToAllTaskChanges = (listener: TaskChangeListener) => {
+	const { allTaskListeners } = getTaskListenerState();
 	allTaskListeners.add(listener);
 
 	return () => {
@@ -117,6 +131,7 @@ const subscribeToAllTaskChanges = (listener: TaskChangeListener) => {
 };
 
 const subscribeToTaskChanges = (taskId: string, listener: TaskChangeListener) => {
+	const { taskListeners } = getTaskListenerState();
 	let listeners = taskListeners.get(taskId);
 	if (!listeners) {
 		listeners = new Set();
