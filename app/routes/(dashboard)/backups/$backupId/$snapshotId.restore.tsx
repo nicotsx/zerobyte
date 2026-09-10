@@ -68,7 +68,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId, snapshotId } = Route.useParams();
-	const { repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
+	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
 		Route.useLoaderData();
 
 	return (
@@ -80,6 +80,7 @@ function RouteComponent() {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
+			snapshot={snapshot}
 		/>
 	);
 }

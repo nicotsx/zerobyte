@@ -10,6 +10,7 @@ import { SnapshotsTable } from "~/client/components/snapshots-table";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import { Input } from "~/client/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableRow } from "~/client/components/ui/table";
 import type { BackupSchedule, Repository, Snapshot } from "~/client/lib/types";
 import { toast } from "sonner";
@@ -22,6 +23,7 @@ type Props = {
 
 export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, initialBackupSchedules }: Props) => {
 	const [searchQuery, setSearchQuery] = useState("");
+	const [selectedHost, setSelectedHost] = useState("all");
 
 	const { data, isPending, failureReason } = useQuery({
 		...listSnapshotsOptions({ path: { shortId: repository.shortId } }),
@@ -48,8 +50,12 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 	};
 
 	const snapshots = data ?? [];
+	const hosts = Array.from(
+		new Set(snapshots.map((snapshot) => snapshot.hostname).filter((hostname): hostname is string => !!hostname)),
+	).sort((a, b) => a.localeCompare(b));
 
 	const filteredSnapshots = snapshots.filter((snapshot: Snapshot) => {
+		if (selectedHost !== "all" && snapshot.hostname !== selectedHost) return false;
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
 
@@ -139,13 +145,26 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 							Backup snapshots stored in this repository. Total: {snapshots.length}
 						</CardDescription>
 					</div>
-					<div className="flex gap-2 items-center">
+					<div className="flex flex-col sm:flex-row gap-2 sm:items-center">
 						<Input
 							className="w-full lg:w-60"
 							placeholder="Search snapshots..."
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
+						<Select value={selectedHost} onValueChange={setSelectedHost}>
+							<SelectTrigger className="w-full sm:w-48" aria-label="Filter snapshots by host">
+								<SelectValue placeholder="All hosts" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All hosts</SelectItem>
+								{hosts.map((host) => (
+									<SelectItem key={host} value={host}>
+										{host}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 						<Button
 							onClick={handleRefresh}
 							variant="outline"
@@ -161,12 +180,19 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 				<Table className="border-t">
 					<TableBody>
 						<TableRow>
-							<TableCell colSpan={5} className="text-center py-12">
+							<TableCell colSpan={7} className="text-center py-12">
 								<div className="flex flex-col items-center gap-3">
-									<p className="text-muted-foreground">No snapshots match your search.</p>
-									<Button onClick={() => setSearchQuery("")} variant="outline" size="sm">
+									<p className="text-muted-foreground">No snapshots match your filters.</p>
+									<Button
+										onClick={() => {
+											setSearchQuery("");
+											setSelectedHost("all");
+										}}
+										variant="outline"
+										size="sm"
+									>
 										<X className="h-4 w-4 mr-2" />
-										Clear search
+										Clear filters
 									</Button>
 								</div>
 							</TableCell>

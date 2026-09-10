@@ -24,10 +24,11 @@ import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client
 import { useRestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
 import { isPathWithin } from "@zerobyte/core/utils";
-import type { Repository } from "~/client/lib/types";
+import type { Repository, Snapshot } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "~/client/lib/utils";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 type RestoreLocation = "original" | "custom";
 
@@ -39,6 +40,7 @@ interface RestoreFormProps {
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
+	snapshot?: Snapshot;
 }
 
 export function RestoreForm({
@@ -49,8 +51,10 @@ export function RestoreForm({
 	displayBasePath,
 	hasNonPosixSnapshotPaths = false,
 	volumeReadOnly = false,
+	snapshot,
 }: RestoreFormProps) {
 	const navigate = useNavigate();
+	const { formatDateTime } = useTimeFormat();
 
 	const snapshotBasePath = queryBasePath ?? "/";
 	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
@@ -196,6 +200,8 @@ export function RestoreForm({
 					<h1 className="text-2xl font-bold">Restore Snapshot</h1>
 					<p className="text-sm text-muted-foreground">
 						{repository.name} / {snapshotId}
+						{snapshot?.hostname && ` / ${snapshot.hostname}`}
+						{snapshot?.time && ` / ${formatDateTime(snapshot.time)}`}
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">

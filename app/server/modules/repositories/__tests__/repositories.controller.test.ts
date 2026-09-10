@@ -266,6 +266,30 @@ describe("repositories security", () => {
 	});
 });
 
+describe("list snapshots", () => {
+	test("includes each snapshot hostname", async () => {
+		vi.spyOn(repositoriesService, "listSnapshots").mockResolvedValue([
+			{
+				id: "snapshot-id",
+				short_id: "snapshot",
+				time: "2026-09-09T13:30:00Z",
+				paths: ["/var/lib/zerobyte/volumes/data"],
+				hostname: "zerobyte",
+			},
+		]);
+		vi.spyOn(repositoriesService, "getRetentionCategories").mockResolvedValue(new Map());
+
+		const response = await app.request("/api/v1/repositories/test-repo/snapshots", {
+			headers: session.headers,
+		});
+
+		expect(response.status).toBe(200);
+		await expect(response.json()).resolves.toEqual([
+			expect.objectContaining({ short_id: "snapshot", hostname: "zerobyte" }),
+		]);
+	});
+});
+
 describe("repositories updates", () => {
 	test("PATCH updates full config and metadata using shortId", async () => {
 		const repository = await createRepositoryRecord(session.organizationId);

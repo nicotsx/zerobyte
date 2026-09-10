@@ -132,6 +132,7 @@ export const repositoriesController = new Hono()
 
 			return {
 				short_id: snapshot.short_id,
+				hostname: snapshot.hostname,
 				duration,
 				paths: snapshot.paths,
 				tags: snapshot.tags ?? [],

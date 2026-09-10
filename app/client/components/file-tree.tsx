@@ -30,6 +30,8 @@ export interface FileEntry {
 	type: string;
 	size?: number;
 	modifiedAt?: number;
+	mode?: number;
+	mtime?: string;
 }
 
 interface PaginationState {

@@ -1,5 +1,5 @@
 import { RestoreForm } from "~/client/components/restore-form";
-import type { Repository } from "~/client/lib/types";
+import type { Repository, Snapshot } from "~/client/lib/types";
 
 type Props = {
 	repository: Repository;
@@ -9,6 +9,7 @@ type Props = {
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
+	snapshot?: Snapshot;
 };
 
 export function RestoreSnapshotPage(props: Props) {
@@ -20,6 +21,7 @@ export function RestoreSnapshotPage(props: Props) {
 		displayBasePath,
 		hasNonPosixSnapshotPaths,
 		volumeReadOnly,
+		snapshot,
 	} = props;
 
 	return (
@@ -32,6 +34,7 @@ export function RestoreSnapshotPage(props: Props) {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
+			snapshot={snapshot}
 		/>
 	);
 }
