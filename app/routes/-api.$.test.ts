@@ -10,7 +10,7 @@ vi.mock("~/server/app", () => ({
 
 vi.mock("~/server/core/config", () => ({
 	config: {
-		serverIdleTimeout: 300,
+		serverIdleTimeout: 255,
 		trustProxy: false,
 	},
 }));
@@ -43,7 +43,7 @@ test("sets runtime timeouts before cloning an API request", async () => {
 
 	await handle({ request });
 
-	expect(setTimeout).toHaveBeenCalledWith(300_000);
+	expect(setTimeout).toHaveBeenCalledWith(255_000);
 	expect(timeout).toHaveBeenCalledWith(request, 255);
 	expect(fetch).toHaveBeenCalledOnce();
 	const preparedRequest = fetch.mock.calls[0]?.[0];

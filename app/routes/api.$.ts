@@ -4,8 +4,6 @@ import { config } from "~/server/core/config";
 
 const app = createApp();
 
-const BUN_MAX_IDLE_TIMEOUT_SECONDS = 255;
-
 type RuntimeRequest = Request & {
 	ip?: string;
 	runtime?: {
@@ -24,10 +22,9 @@ type RequestInitWithDuplex = RequestInit & {
 
 const prepareApiRequest = (request: RuntimeRequest, timeoutSeconds: number) => {
 	const timeoutMs = timeoutSeconds * 1000;
-	const bunTimeoutSeconds = Math.min(timeoutSeconds, BUN_MAX_IDLE_TIMEOUT_SECONDS);
 
 	request.runtime?.node?.res?.setTimeout(timeoutMs);
-	request.runtime?.bun?.server.timeout(request, bunTimeoutSeconds);
+	request.runtime?.bun?.server.timeout(request, timeoutSeconds);
 
 	if (config.trustProxy && request.headers.has("x-forwarded-for")) {
 		return request.clone();

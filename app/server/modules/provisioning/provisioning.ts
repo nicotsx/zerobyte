@@ -9,7 +9,6 @@ import {
 } from "@zerobyte/core/restic";
 import { logger } from "@zerobyte/core/node";
 import { z } from "zod";
-import { config as appConfig } from "~/server/core/config";
 import { restic } from "~/server/core/restic";
 import { db } from "~/server/db/db";
 import { repositoriesTable, volumesTable } from "~/server/db/schema";
@@ -176,7 +175,6 @@ const syncProvisionedRepositories = async (repositories: ProvisionedRepository[]
 				const result = await runEffectPromise(
 					restic.init(encryptedConfig, {
 						organizationId: repository.organizationId,
-						timeoutMs: appConfig.serverIdleTimeout * 1000,
 					}),
 				).catch((error) => ({ success: false, error }));
 

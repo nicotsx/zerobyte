@@ -113,7 +113,6 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `WEBHOOK_ALLOWED_ORIGINS` | Comma-separated list of HTTP origins allowed for backup webhooks and outbound HTTP notification destinations.                             | (none)                 |
 | `WEBHOOK_TIMEOUT`         | Timeout for backup webhook requests in seconds.                                                                                           | `60`                   |
 | `LOG_LEVEL`               | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
-| `SERVER_IDLE_TIMEOUT`     | Idle timeout for the server in seconds. Set `0` to disable it; Bun supports up to `255` seconds.                                          | `60`                   |
 | `RCLONE_CONFIG_DIR`       | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`       | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
 

@@ -196,7 +196,6 @@ const createRepository = async (
 		const initResult = await runEffectPromise(
 			restic.init(encryptedConfig, {
 				organizationId,
-				timeoutMs: appConfig.serverIdleTimeout * 1000,
 			}),
 		);
 		error = initResult.error;
