@@ -336,7 +336,7 @@ const listSnapshotFiles = async (
 			hostname: string;
 			paths: string[];
 		} | null;
-		nodes: { name: string; type: string; path: string; size?: number; mode?: number }[];
+		nodes: { name: string; type: string; path: string; size?: number; mode?: number; mtime?: string }[];
 		pagination: { offset: number; limit: number; total: number; hasMore: boolean };
 	};
 	const cached = cache.get<LsResult>(cacheKey);

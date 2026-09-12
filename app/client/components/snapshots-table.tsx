@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Calendar, Clock, Database, HardDrive, Loader2, Tag, Trash2, X } from "lucide-react";
+import { Calendar, Clock, Database, HardDrive, Loader2, Monitor, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
@@ -212,6 +212,7 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 							</TableHead>
 							<TableHead className="uppercase">Snapshot ID</TableHead>
 							<TableHead className="uppercase">Schedule</TableHead>
+							<TableHead className="uppercase">Host</TableHead>
 							<TableHead className="uppercase">Date & Time</TableHead>
 							<TableHead className="uppercase">Size</TableHead>
 							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
@@ -281,6 +282,12 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups }: Props) => {
 											<span hidden={!!backup} className="text-sm text-muted-foreground">
 												-
 											</span>
+										</div>
+									</TableCell>
+									<TableCell>
+										<div className="flex items-center gap-2">
+											<Monitor className="h-4 w-4 text-muted-foreground" />
+											<span className="text-sm">{snapshot.hostname || "Unknown"}</span>
 										</div>
 									</TableCell>
 									<TableCell>

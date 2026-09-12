@@ -52,7 +52,7 @@ export const SnapshotFileBrowser = (props: Props) => {
 							<CardTitle>File Browser</CardTitle>
 							<CardDescription
 								className={cn({ hidden: !snapshot.time })}
-							>{`Viewing snapshot from ${formatDateTime(snapshot?.time)}`}</CardDescription>
+							>{`Viewing ${snapshot.hostname ? `${snapshot.hostname} from ` : "snapshot from "}${formatDateTime(snapshot.time)}`}</CardDescription>
 						</div>
 						<div className="flex gap-2 flex-wrap sm:flex-nowrap">
 							<Link

@@ -1,10 +1,12 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
+import { ByteSize } from "~/client/components/bytes-size";
+import { useTimeFormat } from "~/client/lib/datetime";
 
 function createPathPrefixFns(basePath: string) {
 	return {
@@ -45,6 +47,8 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 
 	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
+	const { formatDateTime } = useTimeFormat();
+	const [selectedEntryPath, setSelectedEntryPath] = useState<string>();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
 	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
 	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
@@ -108,6 +112,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		}
 		return kinds;
 	}, [fileBrowser.fileArray]);
+	const selectedEntry = fileBrowser.fileArray.find((entry) => entry.path === selectedEntryPath);
 
 	const handleSelectionChange = useCallback(
 		(nextDisplayPaths: Set<string>) => {
@@ -137,21 +142,71 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	);
 
 	return (
-		<FileBrowser
-			{...fileBrowserUiProps}
-			fileArray={fileBrowser.fileArray}
-			expandedFolders={fileBrowser.expandedFolders}
-			loadingFolders={fileBrowser.loadingFolders}
-			onFolderToggle={fileBrowser.handleFolderToggle}
-			onFolderHover={fileBrowser.handleFolderHover}
-			onLoadMore={fileBrowser.handleLoadMore}
-			getFolderPagination={fileBrowser.getFolderPagination}
-			isLoading={fileBrowser.isLoading}
-			isEmpty={fileBrowser.isEmpty}
-			errorMessage={parseError(error)?.message}
-			loadingMessage={fileBrowserUiProps.loadingMessage ?? "Loading files..."}
-			selectedPaths={displaySelectedPaths}
-			onSelectionChange={onSelectionChange ? handleSelectionChange : undefined}
-		/>
+		<>
+			<FileBrowser
+				{...fileBrowserUiProps}
+				fileArray={fileBrowser.fileArray}
+				expandedFolders={fileBrowser.expandedFolders}
+				loadingFolders={fileBrowser.loadingFolders}
+				onFolderToggle={fileBrowser.handleFolderToggle}
+				onFolderHover={fileBrowser.handleFolderHover}
+				onLoadMore={fileBrowser.handleLoadMore}
+				getFolderPagination={fileBrowser.getFolderPagination}
+				isLoading={fileBrowser.isLoading}
+				isEmpty={fileBrowser.isEmpty}
+				errorMessage={parseError(error)?.message}
+				loadingMessage={fileBrowserUiProps.loadingMessage ?? "Loading files..."}
+				selectedPaths={displaySelectedPaths}
+				onSelectionChange={onSelectionChange ? handleSelectionChange : undefined}
+				selectableFolders
+				selectedFile={selectedEntry?.type === "file" ? selectedEntryPath : undefined}
+				selectedFolder={selectedEntry && selectedEntry.type !== "file" ? selectedEntryPath : undefined}
+				onFileSelect={setSelectedEntryPath}
+				onFolderSelect={setSelectedEntryPath}
+			/>
+			{selectedEntry && (
+				<div className="border-t bg-muted/30 px-4 py-3" aria-live="polite">
+					<div className="mb-2 truncate text-sm font-medium" title={selectedEntry.path}>
+						{selectedEntry.path}
+					</div>
+					<dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs sm:grid-cols-4">
+						<div>
+							<dt className="text-muted-foreground">Type</dt>
+							<dd className="mt-0.5 capitalize">
+								{selectedEntry.type === "dir" ? "Directory" : selectedEntry.type}
+							</dd>
+						</div>
+						<div>
+							<dt className="text-muted-foreground">Size</dt>
+							<dd className="mt-0.5">
+								{typeof selectedEntry.size === "number" ? (
+									<ByteSize bytes={selectedEntry.size} base={1024} />
+								) : (
+									"-"
+								)}
+							</dd>
+						</div>
+						<div>
+							<dt className="text-muted-foreground">Modified</dt>
+							<dd className="mt-0.5">
+								{selectedEntry.mtime
+									? formatDateTime(selectedEntry.mtime)
+									: selectedEntry.modifiedAt
+										? formatDateTime(selectedEntry.modifiedAt)
+										: "-"}
+							</dd>
+						</div>
+						<div>
+							<dt className="text-muted-foreground">Permissions</dt>
+							<dd className="mt-0.5 font-mono">
+								{typeof selectedEntry.mode === "number"
+									? (selectedEntry.mode & 0o7777).toString(8).padStart(4, "0")
+									: "-"}
+							</dd>
+						</div>
+					</dl>
+				</div>
+			)}
+		</>
 	);
 };

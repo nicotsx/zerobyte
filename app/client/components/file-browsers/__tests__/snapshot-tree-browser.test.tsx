@@ -18,9 +18,20 @@ const snapshotFiles = {
 	],
 };
 
+type SnapshotFilesResponse = {
+	files: Array<{
+		name: string;
+		path: string;
+		type: string;
+		size?: number;
+		mode?: number;
+		mtime?: string;
+	}>;
+};
+
 import { SnapshotTreeBrowser } from "../snapshot-tree-browser";
 
-const mockListSnapshotFiles = (response = snapshotFiles) => {
+const mockListSnapshotFiles = (response: SnapshotFilesResponse = snapshotFiles) => {
 	const requests: SnapshotFilesRequest[] = [];
 
 	server.use(
@@ -241,5 +252,34 @@ describe("SnapshotTreeBrowser", () => {
 		}
 
 		expect(await screen.findByRole("button", { name: "a.txt" })).toBeTruthy();
+	});
+
+	test("shows available attributes for the selected entry", async () => {
+		mockListSnapshotFiles({
+			files: [
+				{ name: "project", path: "/mnt/project", type: "dir" },
+				{
+					name: "a.txt",
+					path: "/mnt/project/a.txt",
+					type: "file",
+					size: 1024,
+					mode: 0o100644,
+					mtime: "2026-08-13T23:35:02Z",
+				},
+			],
+		});
+
+		renderSnapshotTreeBrowser();
+
+		const folder = await screen.findByRole("button", { name: "project" });
+		const expandIcon = folder.querySelector("svg");
+		if (!expandIcon) throw new Error("Expected expand icon for folder row");
+		fireEvent.click(expandIcon);
+
+		await userEvent.click(await screen.findByRole("button", { name: /^a\.txt/ }));
+
+		expect(screen.getByText("/project/a.txt")).toBeTruthy();
+		expect(screen.getAllByText("1 KiB")).toHaveLength(2);
+		expect(screen.getByText("0644")).toBeTruthy();
 	});
 });
