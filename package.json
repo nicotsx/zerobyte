@@ -10,7 +10,7 @@
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"lint": "bunx --bun oxlint --type-aware --type-check",
-		"lint:fix": "bunx --bun oxlint --type-aware --type-check --fix",
+		"lint:fix": "bunx --bun oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
 		"lint:ci": "bunx --bun oxlint --type-aware --type-check --deny-warnings",
 		"check": "bunx --bun oxlint --type-aware --type-check && oxfmt --check",
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",

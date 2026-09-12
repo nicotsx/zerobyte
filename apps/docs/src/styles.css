@@ -862,6 +862,17 @@ div[style*="--callout-color"] {
 }
 
 /* --- Sticky header offset --------------------------------------- */
+/* Match Fumadocs' mobile header breakpoint. */
+@media (width < 48rem) {
+	body:has([data-docs-page]) {
+		--site-header-offset: 0px;
+	}
+
+	body:has([data-docs-page]) [data-site-header] {
+		display: none;
+	}
+}
+
 #nd-docs-layout {
 	background: var(--background);
 	/* Treat the global site header as the docs layout banner offset. */
