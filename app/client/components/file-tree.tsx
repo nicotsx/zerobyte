@@ -39,6 +39,7 @@ interface PaginationState {
 
 interface Props {
 	files?: FileEntry[];
+	renderFolderError?: (folderPath: string) => ReactNode;
 	selectedFile?: string;
 	onFileSelect?: (filePath: string) => void;
 	onFolderToggle?: (folderPath: string, expanded: boolean) => void;
@@ -60,6 +61,7 @@ interface Props {
 export const FileTree = memo((props: Props) => {
 	const {
 		files = [],
+		renderFolderError,
 		onFileSelect,
 		selectedFile,
 		onFolderToggle,
@@ -291,6 +293,8 @@ export const FileTree = memo((props: Props) => {
 		return map;
 	}, [filteredFileList, getFolderPagination]);
 
+	const rootError = renderFolderError?.("/");
+
 	return (
 		<div className={cn("text-sm", className)}>
 			{filteredFileList.map((fileOrFolder, index) => {
@@ -336,6 +340,21 @@ export const FileTree = memo((props: Props) => {
 					}
 				}
 
+				const folderError = expandedFolders.has(fileOrFolder.fullPath)
+					? renderFolderError?.(fileOrFolder.fullPath)
+					: null;
+				if (folderError) {
+					elements.push(
+						<div
+							key={`error:${fileOrFolder.fullPath}`}
+							className="py-1.5 pr-2"
+							style={{ paddingLeft: 8 + (fileOrFolder.depth + 1) * NODE_PADDING_LEFT }}
+						>
+							{folderError}
+						</div>,
+					);
+				}
+
 				// Check if this is the last child of any folder with more files to load
 				for (const [folderPath, lastIndex] of folderPaginationMap.entries()) {
 					if (lastIndex === index) {
@@ -356,6 +375,7 @@ export const FileTree = memo((props: Props) => {
 
 				return elements;
 			})}
+			{rootError && <div className="px-2 py-1.5">{rootError}</div>}
 		</div>
 	);
 });

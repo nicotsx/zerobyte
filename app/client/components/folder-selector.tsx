@@ -13,7 +13,7 @@ import {
 	AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
-import { useSystemInfo } from "~/client/hooks/use-system-info";
+import { useIsDesktop } from "~/client/hooks/use-is-desktop";
 
 type WebFolderBrowser = {
 	mode?: "inline" | "dialog";
@@ -43,8 +43,7 @@ export const FolderSelector = ({
 }: Props) => {
 	const [showBrowser, setShowBrowser] = useState(false);
 	const [showWarning, setShowWarning] = useState(false);
-	const { runtime } = useSystemInfo();
-	const isDesktop = runtime === "desktop";
+	const isDesktop = useIsDesktop();
 	const webBrowserMode = webBrowser?.mode ?? "inline";
 
 	const chooseDesktopFolder = async () => {

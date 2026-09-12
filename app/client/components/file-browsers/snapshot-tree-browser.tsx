@@ -139,6 +139,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	return (
 		<FileBrowser
 			{...fileBrowserUiProps}
+			folderErrors={fileBrowser.folderErrors}
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}

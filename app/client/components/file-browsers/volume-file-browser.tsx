@@ -4,6 +4,8 @@ import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-b
 import { useFileBrowser, type FetchFolderResult } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { logger } from "~/client/lib/logger";
+import { useIsDesktop } from "~/client/hooks/use-is-desktop";
+import { FolderAccessError } from "./folder-access-error";
 
 type VolumeFileBrowserProps = FileBrowserUiProps & {
 	volumeId: string;
@@ -12,6 +14,7 @@ type VolumeFileBrowserProps = FileBrowserUiProps & {
 
 export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: VolumeFileBrowserProps) => {
 	const queryClient = useQueryClient();
+	const isDesktop = useIsDesktop();
 
 	const { data, isLoading, error } = useQuery({
 		...listFilesOptions({ path: { shortId: volumeId } }),
@@ -29,21 +32,30 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 				}),
 			);
 		},
-		prefetchFolder: (path) => {
-			void queryClient
-				.prefetchQuery(
-					listFilesOptions({
-						path: { shortId: volumeId },
-						query: { path },
-					}),
-				)
-				.catch((e) => logger.error(e));
-		},
+		prefetchFolder: isDesktop
+			? undefined
+			: (path) => {
+					void queryClient
+						.prefetchQuery(
+							listFilesOptions({
+								path: { shortId: volumeId },
+								query: { path },
+							}),
+						)
+						.catch((e) => logger.error(e));
+				},
 	});
 
 	return (
 		<FileBrowser
 			{...uiProps}
+			folderErrors={fileBrowser.folderErrors}
+			renderError={(message) => (
+				<FolderAccessError
+					message={message}
+					openPrivacySettings={isDesktop ? window.zerobyteDesktop?.openPrivacySettings : undefined}
+				/>
+			)}
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
