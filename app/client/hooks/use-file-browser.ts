@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { parseError } from "~/client/lib/errors";
 import { logger } from "~/client/lib/logger";
 import type { FileEntry } from "../components/file-tree";
 
@@ -36,6 +37,7 @@ type FolderPaginationState = {
 
 export const useFileBrowser = (props: UseFileBrowserOptions) => {
 	const { initialData, isLoading, fetchFolder, prefetchFolder, pathTransform, rootPath = "/" } = props;
+	const [folderErrors, setFolderErrors] = useState<ReadonlyMap<string, string>>(new Map());
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 	const [fetchedFolders, setFetchedFolders] = useState<Set<string>>(new Set([rootPath]));
 	const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
@@ -44,6 +46,15 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 
 	const stripPath = pathTransform?.strip;
 	const addPath = pathTransform?.add;
+
+	const setFolderError = useCallback((path: string, message?: string) => {
+		setFolderErrors((prev) => {
+			const next = new Map(prev);
+			if (message === undefined) next.delete(path);
+			else next.set(path, message);
+			return next;
+		});
+	}, []);
 
 	useEffect(() => {
 		if (initialData?.files) {
@@ -100,6 +111,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 
 			if (!expanded || fetchedFolders.has(folderPath)) return;
 
+			setFolderError(folderPath);
 			setLoadingFolders((prev) => new Set(prev).add(folderPath));
 
 			try {
@@ -143,6 +155,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				setFetchedFolders((prev) => new Set(prev).add(folderPath));
 			} catch (error) {
 				logger.error("Failed to fetch folder contents:", error);
+				setFolderError(folderPath, parseError(error)?.message ?? "Failed to read folder");
 			} finally {
 				setLoadingFolders((prev) => {
 					const next = new Set(prev);
@@ -151,7 +164,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				});
 			}
 		},
-		[fetchedFolders, fetchFolder, stripPath, addPath],
+		[fetchedFolders, fetchFolder, stripPath, addPath, setFolderError],
 	);
 
 	const handleLoadMore = useCallback(
@@ -161,6 +174,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				return;
 			}
 
+			setFolderError(folderPath);
 			setFolderPagination((prev) => {
 				const next = new Map(prev);
 				next.set(folderPath, { ...pagination, isLoadingMore: true });
@@ -197,6 +211,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				}
 			} catch (error) {
 				logger.error("Failed to load more files:", error);
+				setFolderError(folderPath, parseError(error)?.message ?? "Failed to read folder");
 				setFolderPagination((prev) => {
 					const next = new Map(prev);
 					next.set(folderPath, { ...pagination, isLoadingMore: false });
@@ -204,7 +219,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				});
 			}
 		},
-		[folderPagination, fetchFolder, stripPath, addPath],
+		[folderPagination, fetchFolder, stripPath, addPath, setFolderError],
 	);
 
 	const handleFolderHover = useCallback(
@@ -225,6 +240,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 	);
 
 	return {
+		folderErrors,
 		fileArray,
 		expandedFolders,
 		loadingFolders,

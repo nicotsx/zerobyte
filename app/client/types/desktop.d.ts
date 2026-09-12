@@ -1,4 +1,5 @@
 type ZerobyteDesktopApi = {
+	openPrivacySettings?: () => Promise<void>;
 	chooseFolder: () => Promise<string | null>;
 	openMainWindow: (path?: string) => Promise<void>;
 	quit: () => void;

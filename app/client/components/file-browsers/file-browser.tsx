@@ -38,6 +38,8 @@ type FileBrowserProps = FileBrowserUiProps & {
 	isLoading: boolean;
 	isEmpty: boolean;
 	errorMessage?: string;
+	folderErrors: ReadonlyMap<string, string>;
+	renderError?: (message: string) => ReactNode;
 	fileArray: FileEntry[];
 	expandedFolders: Set<string>;
 	loadingFolders: Set<string>;
@@ -46,6 +48,12 @@ type FileBrowserProps = FileBrowserUiProps & {
 	onLoadMore: (folderPath: string) => void | Promise<void>;
 	getFolderPagination: (folderPath: string) => PaginationState;
 };
+
+const renderDefaultError = (message: string) => (
+	<p role="alert" className="text-destructive">
+		{message}
+	</p>
+);
 
 export const FileBrowser = (props: FileBrowserProps) => {
 	const {
@@ -74,6 +82,8 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		isLoading,
 		isEmpty,
 		errorMessage,
+		folderErrors,
+		renderError = renderDefaultError,
 		fileArray,
 		expandedFolders,
 		loadingFolders,
@@ -98,7 +108,7 @@ export const FileBrowser = (props: FileBrowserProps) => {
 	} else if (errorMessage) {
 		body = (
 			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
-				<p className="text-destructive">{errorMessage}</p>
+				{renderError(errorMessage)}
 			</div>
 		);
 	} else if (isEmpty) {
@@ -113,6 +123,10 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		body = (
 			<FileTree
 				files={fileArray}
+				renderFolderError={(path) => {
+					const message = folderErrors.get(path);
+					return message ? renderError(message) : null;
+				}}
 				onFolderToggle={onFolderToggle}
 				onFolderHover={onFolderHover}
 				onLoadMore={onLoadMore}

@@ -6,6 +6,7 @@ import {
 	Menu,
 	nativeTheme,
 	session,
+	shell,
 	type OpenDialogOptions,
 	type Tray,
 } from "electron";
@@ -250,4 +251,10 @@ ipcMain.on("desktop:set-theme", (event, theme) => {
 	if (theme === "light" || theme === "dark") {
 		nativeTheme.themeSource = theme;
 	}
+});
+
+ipcMain.handle("desktop:open-privacy-settings", async (event) => {
+	if (!isTrustedDesktopSender(event.senderFrame?.url)) throw new Error("Invalid desktop IPC sender");
+	if (process.platform !== "darwin") return;
+	await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_FilesAndFolders");
 });

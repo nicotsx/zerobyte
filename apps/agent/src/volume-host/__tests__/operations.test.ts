@@ -6,10 +6,15 @@ import { afterEach, expect, test, vi } from "vitest";
 import { logger } from "@zerobyte/core/node";
 import { listVolumeFiles } from "../operations";
 
+vi.mock("node:fs/promises", async (importOriginal) => ({
+	...(await importOriginal<typeof fs>()),
+}));
+
 let tempRoot: string | undefined;
 
 afterEach(async () => {
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
 	if (tempRoot) {
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		tempRoot = undefined;
@@ -73,4 +78,32 @@ test("listVolumeFiles reports missing directories consistently", async () => {
 		error: expect.stringContaining("ENOENT"),
 		code: "ENOENT",
 	});
+});
+
+test("listVolumeFiles returns slash-separated paths when expanding nested folders", async () => {
+	const volume = await createDirectoryVolume();
+	await fs.mkdir(path.join(tempRoot!, "Default", "AppData", "Local"), { recursive: true });
+	await fs.writeFile(path.join(tempRoot!, "Default", "AppData", "Local", "example.txt"), "hello");
+
+	const folders = await listVolumeFiles(volume, "/Default/AppData");
+	expect(folders.files).toEqual([
+		expect.objectContaining({ name: "Local", path: "/Default/AppData/Local", type: "directory" }),
+	]);
+	const files = await listVolumeFiles(volume, folders.files[0]!.path);
+	expect(files.files).toEqual([
+		expect.objectContaining({ name: "example.txt", path: "/Default/AppData/Local/example.txt", type: "file" }),
+	]);
+});
+
+test("listVolumeFiles restores the separator when Windows realpath returns a bare drive", async () => {
+	const volume = await createDirectoryVolume();
+	volume.config = { backend: "directory", path: "C:\\" };
+	vi.stubGlobal("process", { ...process, platform: "win32" });
+	const resolve = vi.spyOn(fs, "realpath").mockResolvedValue("C:");
+	const read = vi.spyOn(fs, "readdir").mockResolvedValue([]);
+
+	const result = await listVolumeFiles(volume);
+	expect(resolve).toHaveBeenCalledWith("C:\\");
+	expect(read).toHaveBeenCalledWith("C:\\", { withFileTypes: true });
+	expect(result.files).toEqual([]);
 });

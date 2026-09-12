@@ -10,6 +10,11 @@ import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
 const DEFAULT_PAGE_SIZE = 500;
 const MAX_PAGE_SIZE = 500;
 
+const realpath = async (value: string) => {
+	const resolved = await fs.realpath(value);
+	return process.platform === "win32" && /^[a-z]:$/i.test(resolved) ? `${resolved}\\` : resolved;
+};
+
 export const listVolumeFiles = async (
 	volume: AgentVolume,
 	subPath?: string,
@@ -33,8 +38,8 @@ export const listVolumeFiles = async (
 	const startOffset = Math.max(offset, 0);
 
 	try {
-		const realVolumeRoot = await fs.realpath(volumePath);
-		const realRequestedPath = await fs.realpath(requestedPath);
+		const realVolumeRoot = await realpath(volumePath);
+		const realRequestedPath = await realpath(requestedPath);
 		const relative = path.relative(realVolumeRoot, realRequestedPath);
 
 		if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
@@ -67,7 +72,7 @@ export const listVolumeFiles = async (
 
 						return {
 							name: dirent.name,
-							path: `/${relativePath}`,
+							path: `/${relativePath.split(path.sep).join("/")}`,
 							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
 							size: dirent.isFile() ? stats.size : undefined,
 							modifiedAt: stats.mtimeMs,

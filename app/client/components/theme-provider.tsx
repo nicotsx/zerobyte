@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect } from "react";
+import { useIsDesktop } from "~/client/hooks/use-is-desktop";
 
 export type Theme = "light" | "dark";
 
@@ -13,9 +14,10 @@ export const THEME_COOKIE_NAME = "theme";
 export const DEFAULT_THEME: Theme = "dark";
 
 export function ThemeProvider({ children, theme, setTheme }: ThemeContextValue & { children: React.ReactNode }) {
+	const isDesktop = useIsDesktop();
 	useEffect(() => {
-		window.zerobyteDesktop?.setTheme(theme);
-	}, [theme]);
+		if (isDesktop) window.zerobyteDesktop?.setTheme(theme);
+	}, [isDesktop, theme]);
 
 	return <ThemeContext value={{ theme, setTheme }}>{children}</ThemeContext>;
 }

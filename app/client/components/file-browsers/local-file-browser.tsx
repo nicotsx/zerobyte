@@ -5,6 +5,8 @@ import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
+import { useIsDesktop } from "~/client/hooks/use-is-desktop";
+import { FolderAccessError } from "./folder-access-error";
 
 type LocalFileBrowserProps = FileBrowserUiProps & {
 	initialPath?: string;
@@ -13,6 +15,7 @@ type LocalFileBrowserProps = FileBrowserUiProps & {
 
 export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps }: LocalFileBrowserProps) => {
 	const queryClient = useQueryClient();
+	const isDesktop = useIsDesktop();
 	const normalizedInitialPath = normalizeAbsolutePath(initialPath);
 
 	const { data, isLoading, error } = useQuery({
@@ -26,14 +29,25 @@ export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps
 		fetchFolder: async (path) => {
 			return await queryClient.ensureQueryData(browseFilesystemOptions({ query: { path } }));
 		},
-		prefetchFolder: (path) => {
-			void queryClient.prefetchQuery(browseFilesystemOptions({ query: { path } })).catch((e) => logger.error(e));
-		},
+		prefetchFolder: isDesktop
+			? undefined
+			: (path) => {
+					void queryClient
+						.prefetchQuery(browseFilesystemOptions({ query: { path } }))
+						.catch((e) => logger.error(e));
+				},
 	});
 
 	return (
 		<FileBrowser
 			{...uiProps}
+			folderErrors={fileBrowser.folderErrors}
+			renderError={(message) => (
+				<FolderAccessError
+					message={message}
+					openPrivacySettings={isDesktop ? window.zerobyteDesktop?.openPrivacySettings : undefined}
+				/>
+			)}
 			fileArray={fileBrowser.fileArray}
 			expandedFolders={fileBrowser.expandedFolders}
 			loadingFolders={fileBrowser.loadingFolders}
