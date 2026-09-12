@@ -41,6 +41,10 @@ export default defineConfig({
 	server: {
 		host: "0.0.0.0",
 		port: 3000,
+		https:
+			process.env.ZEROBYTE_RUNTIME === "desktop"
+				? { cert: process.env.NITRO_SSL_CERT, key: process.env.NITRO_SSL_KEY }
+				: undefined,
 		allowedHosts: [".ts.net"],
 	},
 	run: {

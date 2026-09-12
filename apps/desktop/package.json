@@ -17,6 +17,7 @@
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@peculiar/x509": "1.14.3",
 		"@zerobyte/core": "workspace:*"
 	},
 	"devDependencies": {

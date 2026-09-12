@@ -17,6 +17,14 @@ export default defineConfig({
 			{
 				extends: true,
 				test: {
+					name: "desktop",
+					environment: "node",
+					include: ["apps/desktop/electron/**/*.test.ts"],
+				},
+			},
+			{
+				extends: true,
+				test: {
 					name: "server",
 					environment: "node",
 					include: ["app/**/*.test.ts", "app/**/*.test.tsx", "app/**/*.spec.ts", "app/**/*.spec.tsx"],

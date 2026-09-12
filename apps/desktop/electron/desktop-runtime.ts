@@ -1,10 +1,11 @@
-import { app } from "electron";
+import { app, session } from "electron";
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 import { toMessage } from "@zerobyte/core/utils";
+import { createDesktopTls } from "./desktop-tls";
 
 type DesktopDirs = {
 	dataDir: string;
@@ -132,8 +133,12 @@ const waitForServer = async (serverUrl: string, serverProcess: ChildProcessWitho
 		throwIfExited(serverProcess);
 
 		try {
-			const response = await fetch(`${serverUrl}/api/healthcheck`, { signal: AbortSignal.timeout(5_000) });
+			const response = await session.defaultSession.fetch(`${serverUrl}/api/healthcheck`, {
+				signal: AbortSignal.timeout(5_000),
+				redirect: "error",
+			});
 			if (response.ok) {
+				throwIfExited(serverProcess);
 				return;
 			}
 			lastError = `${response.status} ${response.statusText}`;
@@ -152,13 +157,19 @@ export const startDesktopRuntime = async (
 ): Promise<DesktopRuntime> => {
 	const port = await getAvailablePort();
 	const dirs = await ensureDesktopDirs();
-	const url = `http://127.0.0.1:${port}`;
+	const url = `https://127.0.0.1:${port}`;
 	const launchSecret = crypto.randomBytes(32).toString("hex");
+	const tls = await createDesktopTls();
 	let stopped = false;
 	let command = "bunx";
 	let args = ["--bun", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
 	let cwd = process.env.ZEROBYTE_REPO_ROOT ?? path.resolve(process.cwd(), "../..");
-	const env = { ...createServerEnv(port, dirs, url, launchSecret), NODE_ENV: "development" };
+	const env = {
+		...createServerEnv(port, dirs, url, launchSecret),
+		NODE_ENV: "development",
+		NITRO_SSL_CERT: tls.cert,
+		NITRO_SSL_KEY: tls.key,
+	};
 
 	if (app.isPackaged) {
 		const binDir = path.join(dirs.resourcesDir, "bin");
