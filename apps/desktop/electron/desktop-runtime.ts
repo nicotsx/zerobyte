@@ -4,8 +4,10 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import { toMessage } from "@zerobyte/core/utils";
 import { createDesktopTls } from "./desktop-tls";
+import { redactDesktopLogSecrets, writeDesktopLog } from "./desktop-log";
 
 type DesktopDirs = {
 	dataDir: string;
@@ -25,9 +27,6 @@ export type DesktopRuntime = {
 const ownerOnlyDirMode = 0o700;
 const ownerOnlyFileMode = 0o600;
 const desktopAppVersion = import.meta.env.VITE_APP_VERSION;
-if (app.isPackaged && !desktopAppVersion) {
-	throw new Error("Packaged desktop app is missing VITE_APP_VERSION.");
-}
 
 const chmodIfSupported = async (targetPath: string, mode: number) => {
 	if (process.platform !== "win32") {
@@ -114,6 +113,8 @@ const createServerEnv = (port: number, dirs: DesktopDirs, serverUrl: string, lau
 	ZEROBYTE_VOLUMES_DIR: dirs.volumesDir,
 	ENABLE_LOCAL_AGENT: "false",
 	DISABLE_RATE_LIMITING: "true",
+	NO_COLOR: "1",
+	FORCE_COLOR: "0",
 });
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -155,15 +156,23 @@ const waitForServer = async (serverUrl: string, serverProcess: ChildProcessWitho
 export const startDesktopRuntime = async (
 	onUnexpectedExit: (status: string | number) => void,
 ): Promise<DesktopRuntime> => {
+	if (app.isPackaged && !desktopAppVersion) {
+		throw new Error("Packaged desktop app is missing VITE_APP_VERSION.");
+	}
+
 	const port = await getAvailablePort();
 	const dirs = await ensureDesktopDirs();
 	const url = `https://127.0.0.1:${port}`;
 	const launchSecret = crypto.randomBytes(32).toString("hex");
 	const tls = await createDesktopTls();
+
+	redactDesktopLogSecrets(launchSecret, dirs.appSecret, String(tls.key));
+
 	let stopped = false;
 	let command = "bunx";
 	let args = ["--bun", "vite", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
 	let cwd = process.env.ZEROBYTE_REPO_ROOT ?? path.resolve(process.cwd(), "../..");
+
 	const env = {
 		...createServerEnv(port, dirs, url, launchSecret),
 		NODE_ENV: "development",
@@ -194,17 +203,23 @@ export const startDesktopRuntime = async (
 	});
 
 	const handleServerExit = (code: number | null, signal: NodeJS.Signals | null) => {
+		writeDesktopLog("server", `Exited: ${signal ?? code ?? "unknown status"}`);
 		if (!stopped) {
 			onUnexpectedExit(signal ?? code ?? "unknown status");
 		}
 	};
 
 	try {
-		serverProcess.stdout.on("data", (data) => process.stdout.write(`[zerobyte] ${data}`));
-		serverProcess.stderr.on("data", (data) => process.stderr.write(`[zerobyte] ${data}`));
+		writeDesktopLog("desktop", `Starting server at ${url}`);
+		for (const source of ["stdout", "stderr"] as const) {
+			createInterface({ input: serverProcess[source] }).on("line", (line) =>
+				writeDesktopLog(`server:${source}`, line),
+			);
+		}
 		serverProcess.once("exit", handleServerExit);
 
 		await waitForServer(url, serverProcess);
+		writeDesktopLog("desktop", "Server ready");
 
 		return {
 			url,

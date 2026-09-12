@@ -49,12 +49,6 @@ describe("sanitizeSensitiveData", () => {
 			expected: "request failed for https://alice:***@example.com/hook",
 			secret: "supersecret",
 		},
-		{
-			name: "space-delimited URL credential entry",
-			input: "https://dav.example.test/path operator dav-password",
-			expected: "https://dav.example.test/path operator ***",
-			secret: "dav-password",
-		},
 	])("redacts $name", ({ input, expected, secret }) => {
 		withNodeEnv("production", () => {
 			const sanitized = sanitizeSensitiveData(input);
@@ -62,6 +56,13 @@ describe("sanitizeSensitiveData", () => {
 			expect(sanitized).toBe(expected);
 			expect(sanitized).not.toContain(secret);
 		});
+	});
+
+	test.each([
+		"fetch https://example.test/data failed: ENOENT",
+		"Error: request https://example.test/data\n    at download (/app/download.ts:12:3)",
+	])("preserves URL-bearing diagnostics: %s", (input) => {
+		withNodeEnv("production", () => expect(sanitizeSensitiveData(input)).toBe(input));
 	});
 
 	test("does not redact in development", () => {

@@ -15,6 +15,7 @@ import { createDesktopSession } from "./desktop-session";
 import { createTray, createTrayPopoverWindow, toggleTrayPopover, updateTrayStatus } from "./desktop-tray";
 import { createDesktopWindow } from "./desktop-window";
 import { saveSecurityScopedBookmark, startAccessingSavedBookmarks } from "./security-scoped-bookmarks";
+import { closeDesktopLog, writeDesktopLog } from "./desktop-log";
 
 const trayStatusPollMs = 30_000;
 
@@ -153,6 +154,7 @@ const setupTray = () => {
 			void getTrayPopoverWindow()
 				.then((window) => toggleTrayPopover(window, bounds))
 				.catch((error) => {
+					writeDesktopLog("desktop", error);
 					dialog.showErrorBox("Zerobyte tray failed to open", toMessage(error));
 				});
 		},
@@ -167,6 +169,10 @@ if (!app.requestSingleInstanceLock()) {
 
 	void app.whenReady().then(async () => {
 		try {
+			writeDesktopLog(
+				"desktop",
+				`Starting Zerobyte ${import.meta.env.VITE_APP_VERSION || app.getVersion()} on ${process.platform}/${process.arch}; Electron ${process.versions.electron}`,
+			);
 			if (process.platform !== "darwin") {
 				Menu.setApplicationMenu(null);
 			}
@@ -181,6 +187,7 @@ if (!app.requestSingleInstanceLock()) {
 			trayStatusTimer = setInterval(() => void refreshTrayStatus(), trayStatusPollMs);
 			await createWindow();
 		} catch (error) {
+			writeDesktopLog("desktop:startup", error);
 			if (trayStatusTimer) clearInterval(trayStatusTimer);
 			stopAccessingBookmarks?.();
 			stopAccessingBookmarks = null;
@@ -190,13 +197,22 @@ if (!app.requestSingleInstanceLock()) {
 	});
 }
 
-app.on("before-quit", () => {
+let shutdownStarted = false;
+app.on("before-quit", (event) => {
+	event.preventDefault();
+	if (shutdownStarted) return;
+	shutdownStarted = true;
 	isQuitting = true;
+
+	const finish = () => app.exit(0);
+	setTimeout(finish, 1_000);
+
 	if (trayStatusTimer) clearInterval(trayStatusTimer);
+	if (runtime) writeDesktopLog("desktop", "Stopping Zerobyte");
+
 	runtime?.stop();
-	runtime = null;
 	stopAccessingBookmarks?.();
-	stopAccessingBookmarks = null;
+	void closeDesktopLog().then(finish, finish);
 });
 
 app.on("window-all-closed", () => {});
@@ -208,6 +224,7 @@ ipcMain.handle("desktop:choose-folder", (event) => {
 
 	return chooseFolder();
 });
+
 ipcMain.handle("desktop:open-main-window", (event, appPath?: unknown) => {
 	if (!isTrustedDesktopSender(event.senderFrame?.url)) {
 		throw new Error("Invalid desktop IPC sender");
@@ -222,10 +239,12 @@ ipcMain.handle("desktop:open-main-window", (event, appPath?: unknown) => {
 
 	return createWindow(appPath);
 });
+
 ipcMain.on("desktop:quit", (event) => {
 	if (!isTrustedDesktopSender(event.senderFrame?.url)) return;
 	quitApp();
 });
+
 ipcMain.on("desktop:set-theme", (event, theme) => {
 	if (!isTrustedDesktopSender(event.senderFrame?.url)) return;
 	if (theme === "light" || theme === "dark") {

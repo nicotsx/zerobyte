@@ -11,12 +11,5 @@ export const sanitizeSensitiveData = (text: string): string => {
 
 	sanitized = sanitized.replace(/\/\/([^:@\s]+):([^@\s]+)@/g, "//$1:***@");
 
-	sanitized = sanitized.replace(/(\S+)\s+(\S+)\s+(\S+)/g, (match, url, user, _pass) => {
-		if (url.startsWith("http://") || url.startsWith("https://")) {
-			return `${url} ${user} ***`;
-		}
-		return match;
-	});
-
 	return sanitized;
 };

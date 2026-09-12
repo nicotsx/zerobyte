@@ -3,6 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { BackendConfig, Volume as AgentVolume } from "@zerobyte/contracts/volumes";
 import { toMessage } from "@zerobyte/core/utils";
+import { logger } from "@zerobyte/core/node";
 import { Data, Effect } from "effect";
 import { createVolumeBackend, getVolumePath, isNodeJSErrnoException } from ".";
 
@@ -87,6 +88,13 @@ export const listVolumeFiles = async (
 			hasMore: startOffset + pageSize < total,
 		};
 	} catch (error) {
+		logger.error("Failed to list volume directory", {
+			volumeId: volume.shortId,
+			volumePath,
+			requestedPath,
+			error: toMessage(error),
+			code: isNodeJSErrnoException(error) ? error.code : undefined,
+		});
 		if (isNodeJSErrnoException(error) && error.code === "ENOENT") {
 			throw new Error("Directory not found");
 		}

@@ -2,12 +2,14 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
-import { afterEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+import { logger } from "@zerobyte/core/node";
 import { listVolumeFiles } from "../operations";
 
 let tempRoot: string | undefined;
 
 afterEach(async () => {
+	vi.restoreAllMocks();
 	if (tempRoot) {
 		await fs.rm(tempRoot, { recursive: true, force: true });
 		tempRoot = undefined;
@@ -61,6 +63,14 @@ test("listVolumeFiles rejects traversal outside the volume", async () => {
 
 test("listVolumeFiles reports missing directories consistently", async () => {
 	const volume = await createDirectoryVolume();
+	const logError = vi.spyOn(logger, "error").mockImplementation(() => {});
 
 	await expect(listVolumeFiles(volume, "missing", 0, 10)).rejects.toThrow("Directory not found");
+	expect(logError).toHaveBeenCalledWith("Failed to list volume directory", {
+		volumeId: volume.shortId,
+		volumePath: tempRoot,
+		requestedPath: path.join(tempRoot!, "missing"),
+		error: expect.stringContaining("ENOENT"),
+		code: "ENOENT",
+	});
 });
