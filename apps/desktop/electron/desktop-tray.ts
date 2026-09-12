@@ -1,5 +1,6 @@
-import { app, BrowserWindow, Menu, nativeImage, screen, Tray, type Rectangle } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeImage, screen, shell, Tray, type Rectangle } from "electron";
 import path from "node:path";
+import { getDesktopLogsPath } from "./desktop-log";
 
 const trayIconFileName = "tray-icon.png";
 const trayIconSize = 18;
@@ -171,6 +172,13 @@ export const createTray = ({ openWindow, togglePopover, quit }: TrayOptions) => 
 		tray.popUpContextMenu(
 			Menu.buildFromTemplate([
 				{ label: "Open Zerobyte", click: openWindow },
+				{
+					label: "Open logs folder",
+					click: async () => {
+						const error = await shell.openPath(getDesktopLogsPath());
+						if (error) dialog.showErrorBox("Could not open logs folder", error);
+					},
+				},
 				{ type: "separator" },
 				{ label: "Quit Zerobyte", click: quit },
 			]),
