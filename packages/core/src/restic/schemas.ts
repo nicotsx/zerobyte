@@ -45,6 +45,7 @@ export const s3RepositoryConfigSchema = z
 		backend: z.literal("s3"),
 		endpoint: z.string().min(1),
 		bucket: z.string().min(1),
+		storageClass: z.string().min(1).optional(),
 		accessKeyId: z.string().min(1),
 		secretAccessKey: z.string().min(1),
 	})
