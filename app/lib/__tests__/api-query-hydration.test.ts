@@ -5,47 +5,55 @@ import { createClient } from "~/client/api-client/client";
 import { getSystemInfoOptions, getSystemInfoQueryKey } from "~/client/api-client/@tanstack/react-query.gen";
 import { createRequestClient, runWithRequestClient } from "~/lib/request-client";
 
-test("reuses SSR system info after hydration while requests retain their own URL and cookies", async () => {
-	const originalConfig = client.getConfig();
-	const baseUrl = "https://zerobyte.example";
-	const serverCache = new QueryClient();
-	const browserCache = new QueryClient();
-	const systemInfo = {
-		runtime: "desktop",
-		capabilities: { rclone: false, sysAdmin: false, volumeBackends: ["directory"], repositoryBackends: ["local"] },
-	};
-	const requests: Request[] = [];
-	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-		const request = new Request(input, init);
-		requests.push(request);
-		return Response.json(systemInfo);
-	});
-	const serverClient = createRequestClient({ baseUrl, headers: { cookie: "session=ssr" } }, "http://127.0.0.1:54321");
+test.each(["http://127.0.0.1:54321", "https://127.0.0.1:54321"])(
+	"reuses SSR system info after hydration with transport %s",
+	async (internalOrigin) => {
+		const originalConfig = client.getConfig();
+		const baseUrl = "https://zerobyte.example";
+		const serverCache = new QueryClient();
+		const browserCache = new QueryClient();
+		const systemInfo = {
+			runtime: "desktop",
+			capabilities: {
+				rclone: false,
+				sysAdmin: false,
+				volumeBackends: ["directory"],
+				repositoryBackends: ["local"],
+			},
+		};
+		const requests: Request[] = [];
+		const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const request = new Request(input, init);
+			requests.push(request);
+			return Response.json(systemInfo);
+		});
+		const serverClient = createRequestClient({ baseUrl, headers: { cookie: "session=ssr" } }, internalOrigin);
 
-	try {
-		client.setConfig({ baseUrl });
-		await runWithRequestClient(serverClient, () => serverCache.fetchQuery(getSystemInfoOptions()));
-		const serializedCache = JSON.stringify(dehydrate(serverCache));
-		hydrate(browserCache, JSON.parse(serializedCache));
+		try {
+			client.setConfig({ baseUrl });
+			await runWithRequestClient(serverClient, () => serverCache.fetchQuery(getSystemInfoOptions()));
+			const serializedCache = JSON.stringify(dehydrate(serverCache));
+			hydrate(browserCache, JSON.parse(serializedCache));
 
-		expect(browserCache.getQueryData(getSystemInfoQueryKey())).toEqual(systemInfo);
-		expect(requests[0]?.url).toBe("http://127.0.0.1:54321/api/v1/system/info");
-		expect(requests[0]?.headers.get("cookie")).toBe("session=ssr");
-		expect(serializedCache).not.toContain("127.0.0.1");
-		expect(serializedCache).not.toContain("session=ssr");
+			expect(browserCache.getQueryData(getSystemInfoQueryKey())).toEqual(systemInfo);
+			expect(requests[0]?.url).toBe(`${internalOrigin}/api/v1/system/info`);
+			expect(requests[0]?.headers.get("cookie")).toBe("session=ssr");
+			expect(serializedCache).not.toContain("127.0.0.1");
+			expect(serializedCache).not.toContain("session=ssr");
 
-		await browserCache.ensureQueryData(getSystemInfoOptions());
-		expect(fetch).toHaveBeenCalledTimes(1);
-		await browserCache.fetchQuery(getSystemInfoOptions());
-		expect(requests[1]?.url).toBe("https://zerobyte.example/api/v1/system/info");
-		expect(requests[1]?.headers.has("cookie")).toBe(false);
-	} finally {
-		fetch.mockRestore();
-		client.setConfig(originalConfig);
-		serverCache.clear();
-		browserCache.clear();
-	}
-});
+			await browserCache.ensureQueryData(getSystemInfoOptions());
+			expect(fetch).toHaveBeenCalledTimes(1);
+			await browserCache.fetchQuery(getSystemInfoOptions());
+			expect(requests[1]?.url).toBe("https://zerobyte.example/api/v1/system/info");
+			expect(requests[1]?.headers.has("cookie")).toBe(false);
+		} finally {
+			fetch.mockRestore();
+			client.setConfig(originalConfig);
+			serverCache.clear();
+			browserCache.clear();
+		}
+	},
+);
 
 test("keeps explicitly selected API origins in separate caches", () => {
 	const cache = new QueryClient();
