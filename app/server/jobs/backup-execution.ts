@@ -23,7 +23,7 @@ export class BackupExecutionJob extends Job {
 				logger.info(`Found ${scheduleIds.length} backup schedule(s) to execute for organization ${org.name}`);
 
 				for (const scheduleId of scheduleIds) {
-					backupsService.executeBackup(scheduleId).catch((err: Error) => {
+					await backupsService.executeBackup(scheduleId).catch((err: Error) => {
 						logger.error(`Error executing backup for schedule ${scheduleId}:`, err);
 					});
 				}
