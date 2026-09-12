@@ -79,6 +79,21 @@ jobs:
         shell: bash
         run: bun run test:client
 
+  test-desktop:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        uses: "./.github/actions/install-dependencies"
+
+      - name: Run desktop tests
+        run: bun run test:desktop
+
   build:
     timeout-minutes: 15
     runs-on: ubuntu-latest

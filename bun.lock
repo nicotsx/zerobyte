@@ -133,6 +133,7 @@
       "name": "@zerobyte/desktop",
       "version": "0.0.0",
       "dependencies": {
+        "@peculiar/x509": "1.14.3",
         "@zerobyte/core": "workspace:*",
       },
       "devDependencies": {

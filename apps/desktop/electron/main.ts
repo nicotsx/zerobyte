@@ -1,4 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, type OpenDialogOptions, type Tray } from "electron";
+import {
+	app,
+	BrowserWindow,
+	dialog,
+	ipcMain,
+	Menu,
+	nativeTheme,
+	session,
+	type OpenDialogOptions,
+	type Tray,
+} from "electron";
 import { toMessage } from "@zerobyte/core/utils";
 import { startDesktopRuntime, type DesktopRuntime } from "./desktop-runtime";
 import { createDesktopSession } from "./desktop-session";
@@ -18,7 +28,6 @@ let mainWindow: BrowserWindow | null = null;
 let trayPopoverWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let runtime: DesktopRuntime | null = null;
-let authCookieHeader: string | null = null;
 let stopAccessingBookmarks: (() => void) | null = null;
 let isQuitting = false;
 let trayStatusTimer: ReturnType<typeof setInterval> | null = null;
@@ -111,15 +120,14 @@ const getTrayPopoverWindow = async () => {
 };
 
 const refreshTrayStatus = async () => {
-	if (!runtime || !tray || !authCookieHeader) {
+	if (!runtime || !tray) {
 		return;
 	}
 
 	try {
-		const response = await fetch(`${runtime.url}/api/v1/backups`, {
-			headers: {
-				cookie: authCookieHeader,
-			},
+		const response = await session.defaultSession.fetch(`${runtime.url}/api/v1/backups`, {
+			redirect: "error",
+			credentials: "include",
 		});
 
 		if (!response.ok) {
@@ -167,7 +175,7 @@ if (!app.requestSingleInstanceLock()) {
 			runtime = await startDesktopRuntime((status) => {
 				dialog.showErrorBox("Zerobyte stopped", `Server process exited with ${status}`);
 			});
-			authCookieHeader = await createDesktopSession(runtime.url, runtime.launchSecret);
+			await createDesktopSession(runtime.url, runtime.launchSecret);
 			setupTray();
 			void refreshTrayStatus();
 			trayStatusTimer = setInterval(() => void refreshTrayStatus(), trayStatusPollMs);
@@ -187,7 +195,6 @@ app.on("before-quit", () => {
 	if (trayStatusTimer) clearInterval(trayStatusTimer);
 	runtime?.stop();
 	runtime = null;
-	authCookieHeader = null;
 	stopAccessingBookmarks?.();
 	stopAccessingBookmarks = null;
 });

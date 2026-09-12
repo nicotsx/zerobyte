@@ -4,8 +4,15 @@ import { inferDateTimePreferences } from "@zerobyte/core/utils";
 export const launchSecretHeader = "X-Zerobyte-Desktop-Launch-Secret";
 
 export const createDesktopSession = async (serverUrl: string, launchSecret: string) => {
-	const response = await fetch(`${serverUrl}/api/v1/desktop/session`, {
+	if (new URL(serverUrl).protocol !== "https:") {
+		throw new Error("Desktop sessions require HTTPS");
+	}
+
+	const response = await session.defaultSession.fetch(`${serverUrl}/api/v1/desktop/session`, {
 		method: "POST",
+		credentials: "include",
+		redirect: "error",
+		signal: AbortSignal.timeout(10_000),
 		headers: {
 			[launchSecretHeader]: launchSecret,
 			"Content-Type": "application/json",
@@ -16,26 +23,4 @@ export const createDesktopSession = async (serverUrl: string, launchSecret: stri
 	if (!response.ok) {
 		throw new Error(`Desktop session failed: ${await response.text()}`);
 	}
-
-	const authCookies = response.headers
-		.getSetCookie()
-		.map((cookie) => cookie.split(";")[0])
-		.filter(Boolean);
-
-	for (const cookie of authCookies) {
-		const [name, ...valueParts] = cookie.split("=");
-		const value = valueParts.join("=");
-		if (name && value) {
-			await session.defaultSession.cookies.set({
-				url: serverUrl,
-				name,
-				value,
-				path: "/",
-				httpOnly: true,
-				sameSite: "lax",
-			});
-		}
-	}
-
-	return authCookies.join("; ");
 };
