@@ -2241,7 +2241,7 @@ export type ListSnapshotsResponses = {
         duration: number;
         tags: Array<string>;
         retentionCategories: Array<string>;
-        hostname?: string;
+        hostname: string;
         summary?: {
             files_new: number;
             files_changed: number;
@@ -2328,7 +2328,7 @@ export type GetSnapshotDetailsResponses = {
         duration: number;
         tags: Array<string>;
         retentionCategories: Array<string>;
-        hostname?: string;
+        hostname: string;
         summary?: {
             files_new: number;
             files_changed: number;

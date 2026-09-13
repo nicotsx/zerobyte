@@ -1,10 +1,23 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { listSnapshotFilesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
+import type { ListSnapshotFilesResponse } from "~/client/api-client";
+import { buildFileEntryMap } from "~/client/components/file-tree-model";
+import { SnapshotEntryDetails } from "./snapshot-entry-details";
+
+function toBrowserFiles(data: ListSnapshotFilesResponse) {
+	return {
+		...data,
+		files: data.files.map(({ mtime, ...file }) => ({
+			...file,
+			modifiedAt: mtime === undefined ? undefined : new Date(mtime).getTime(),
+		})),
+	};
+}
 
 function createPathPrefixFns(basePath: string) {
 	return {
@@ -22,7 +35,17 @@ function createPathPrefixFns(basePath: string) {
 	};
 }
 
-type SnapshotTreeBrowserProps = FileBrowserUiProps & {
+type SnapshotTreeBrowserProps = Omit<
+	FileBrowserUiProps,
+	| "selectableFolders"
+	| "selectedFile"
+	| "selectedFolder"
+	| "onFileSelect"
+	| "onFolderSelect"
+	| "showSelectedPathFooter"
+	| "selectedPath"
+	| "selectedPathLabel"
+> & {
 	repositoryId: string;
 	snapshotId: string;
 	queryBasePath?: string;
@@ -43,8 +66,9 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		...uiProps
 	} = props;
 
-	const { selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
+	const { className, selectedPaths, onSelectionChange, onSingleSelectionKindChange, ...fileBrowserUiProps } = uiProps;
 	const queryClient = useQueryClient();
+	const [selectedEntryPath, setSelectedEntryPath] = useState<string>();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
 	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
 	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
@@ -72,42 +96,25 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		return displayPaths;
 	}, [displayPathFns, selectedPaths]);
 
+	const initialData = useMemo(() => data && toBrowserFiles(data), [data]);
 	const fileBrowser = useFileBrowser({
-		initialData: data,
+		initialData,
 		isLoading,
 		fetchFolder: async (displayPath, offset = 0) => {
-			return await queryClient.ensureQueryData(
-				listSnapshotFilesOptions({
-					path: { shortId: repositoryId, snapshotId },
-					query: { path: displayPath, offset: offset, limit: pageSize },
-				}),
+			return toBrowserFiles(
+				await queryClient.ensureQueryData(
+					listSnapshotFilesOptions({
+						path: { shortId: repositoryId, snapshotId },
+						query: { path: displayPath, offset: offset, limit: pageSize },
+					}),
+				),
 			);
 		},
 		pathTransform: displayPathFns,
 	});
 
-	const displayPathKinds = useMemo(() => {
-		const kinds = new Map<string, "file" | "dir">();
-		for (const entry of fileBrowser.fileArray) {
-			kinds.set(entry.path, entry.type === "file" ? "file" : "dir");
-
-			let parentPath = entry.path;
-			while (true) {
-				const lastSlashIndex = parentPath.lastIndexOf("/");
-				if (lastSlashIndex <= 0) {
-					break;
-				}
-
-				parentPath = parentPath.slice(0, lastSlashIndex);
-				if (kinds.has(parentPath)) {
-					continue;
-				}
-
-				kinds.set(parentPath, "dir");
-			}
-		}
-		return kinds;
-	}, [fileBrowser.fileArray]);
+	const entries = useMemo(() => buildFileEntryMap(fileBrowser.fileArray), [fileBrowser.fileArray]);
+	const selectedEntry = selectedEntryPath === undefined ? undefined : entries.get(selectedEntryPath);
 
 	const handleSelectionChange = useCallback(
 		(nextDisplayPaths: Set<string>) => {
@@ -118,41 +125,41 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 				nextFullPaths.add(displayPathFns.add(displayPath));
 			}
 
-			if (onSingleSelectionKindChange) {
-				if (nextDisplayPaths.size === 1) {
-					const [selectedDisplayPath] = nextDisplayPaths;
-					if (selectedDisplayPath) {
-						onSingleSelectionKindChange(displayPathKinds.get(selectedDisplayPath) ?? null);
-					} else {
-						onSingleSelectionKindChange(null);
-					}
-				} else {
-					onSingleSelectionKindChange(null);
-				}
-			}
+			const [path] = nextDisplayPaths;
+			const entry = nextDisplayPaths.size === 1 && path !== undefined ? entries.get(path) : undefined;
+			onSingleSelectionKindChange?.(entry ? (entry.type === "file" ? "file" : "dir") : null);
 
 			onSelectionChange(nextFullPaths);
 		},
-		[displayPathFns, displayPathKinds, onSelectionChange, onSingleSelectionKindChange],
+		[displayPathFns, entries, onSelectionChange, onSingleSelectionKindChange],
 	);
 
 	return (
-		<FileBrowser
-			{...fileBrowserUiProps}
-			folderErrors={fileBrowser.folderErrors}
-			fileArray={fileBrowser.fileArray}
-			expandedFolders={fileBrowser.expandedFolders}
-			loadingFolders={fileBrowser.loadingFolders}
-			onFolderToggle={fileBrowser.handleFolderToggle}
-			onFolderHover={fileBrowser.handleFolderHover}
-			onLoadMore={fileBrowser.handleLoadMore}
-			getFolderPagination={fileBrowser.getFolderPagination}
-			isLoading={fileBrowser.isLoading}
-			isEmpty={fileBrowser.isEmpty}
-			errorMessage={parseError(error)?.message}
-			loadingMessage={fileBrowserUiProps.loadingMessage ?? "Loading files..."}
-			selectedPaths={displaySelectedPaths}
-			onSelectionChange={onSelectionChange ? handleSelectionChange : undefined}
-		/>
+		<div className={`flex min-h-0 flex-1 flex-col ${className ?? ""}`}>
+			<FileBrowser
+				{...fileBrowserUiProps}
+				className="flex flex-1 min-h-0 flex-col"
+				folderErrors={fileBrowser.folderErrors}
+				fileArray={fileBrowser.fileArray}
+				expandedFolders={fileBrowser.expandedFolders}
+				loadingFolders={fileBrowser.loadingFolders}
+				onFolderToggle={fileBrowser.handleFolderToggle}
+				onFolderHover={fileBrowser.handleFolderHover}
+				onLoadMore={fileBrowser.handleLoadMore}
+				getFolderPagination={fileBrowser.getFolderPagination}
+				isLoading={fileBrowser.isLoading}
+				isEmpty={fileBrowser.isEmpty}
+				errorMessage={parseError(error)?.message}
+				loadingMessage={fileBrowserUiProps.loadingMessage ?? "Loading files..."}
+				selectedPaths={displaySelectedPaths}
+				onSelectionChange={onSelectionChange ? handleSelectionChange : undefined}
+				selectableFolders
+				selectedFile={selectedEntry?.type === "file" ? selectedEntryPath : undefined}
+				selectedFolder={selectedEntry && selectedEntry.type !== "file" ? selectedEntryPath : undefined}
+				onFileSelect={setSelectedEntryPath}
+				onFolderSelect={setSelectedEntryPath}
+			/>
+			{selectedEntry && <SnapshotEntryDetails entry={selectedEntry} />}
+		</div>
 	);
 };

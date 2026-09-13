@@ -1,37 +1,8 @@
 import { RestoreForm } from "~/client/components/restore-form";
-import type { Repository } from "~/client/lib/types";
+import type { ComponentProps } from "react";
 
-type Props = {
-	repository: Repository;
-	snapshotId: string;
-	returnPath: string;
-	queryBasePath?: string;
-	displayBasePath?: string;
-	hasNonPosixSnapshotPaths?: boolean;
-	volumeReadOnly?: boolean;
-};
+type Props = ComponentProps<typeof RestoreForm>;
 
 export function RestoreSnapshotPage(props: Props) {
-	const {
-		returnPath,
-		snapshotId,
-		repository,
-		queryBasePath,
-		displayBasePath,
-		hasNonPosixSnapshotPaths,
-		volumeReadOnly,
-	} = props;
-
-	return (
-		<RestoreForm
-			key={`${repository.shortId}:${snapshotId}`}
-			repository={repository}
-			snapshotId={snapshotId}
-			returnPath={returnPath}
-			queryBasePath={queryBasePath}
-			displayBasePath={displayBasePath}
-			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
-			volumeReadOnly={volumeReadOnly}
-		/>
-	);
+	return <RestoreForm key={`${props.repository.shortId}:${props.snapshot.short_id}`} {...props} />;
 }

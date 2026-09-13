@@ -45,14 +45,14 @@ export const SnapshotFileBrowser = (props: Props) => {
 
 	return (
 		<div className="space-y-4">
-			<Card className="h-150 flex flex-col">
+			<Card className="h-150 flex flex-col pb-0">
 				<CardHeader>
 					<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
 						<div>
 							<CardTitle>File Browser</CardTitle>
 							<CardDescription
 								className={cn({ hidden: !snapshot.time })}
-							>{`Viewing snapshot from ${formatDateTime(snapshot?.time)}`}</CardDescription>
+							>{`Viewing ${snapshot.hostname ? `${snapshot.hostname} from ` : "snapshot from "}${formatDateTime(snapshot.time)}`}</CardDescription>
 						</div>
 						<div className="flex gap-2 flex-wrap sm:flex-nowrap">
 							<Link
