@@ -7,6 +7,7 @@ import { rateLimiter } from "hono-rate-limiter";
 import { apiDocsHandler, createOpenApiHandler } from "./api-docs";
 import { authController } from "./modules/auth/auth.controller";
 import { ssoController } from "./modules/sso/sso.controller";
+import { handleAuthCallbackErrors } from "./modules/sso/middlewares/handle-auth-callback-errors";
 import { conditionalRequireAuth } from "./modules/auth/auth.middleware";
 import { repositoriesController } from "./modules/repositories/repositories.controller";
 import { systemController } from "./modules/system/system.controller";
@@ -82,6 +83,7 @@ export const createApp = () => {
 		.route("/api/v1/desktop", desktopController)
 		.route("/api/v1/events", eventsController);
 
+	app.use("/api/auth/*", handleAuthCallbackErrors);
 	app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 		const pathname = new URL(c.req.url).pathname;
 		if (pathname.startsWith("/api/auth/api-key/")) {
@@ -112,7 +114,7 @@ export const createApp = () => {
 	app.onError((err, c) => {
 		const { status, message, details } = handleServiceError(err);
 
-		logger.error(`${c.req.url}: ${message}`);
+		logger.error(`${c.req.path}: ${message}`);
 
 		if (err.cause instanceof Error) {
 			logger.error(err.cause.message);

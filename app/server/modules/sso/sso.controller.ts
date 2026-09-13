@@ -178,7 +178,7 @@ export const ssoController = new Hono()
 		},
 	)
 	.get("/login-error", async (c) => {
-		const error = c.req.query("error");
-		const errorCode = error ? mapAuthErrorToCode(error) : "SSO_LOGIN_FAILED";
-		return c.redirect(`${config.baseUrl}/login?error=${errorCode}`);
+		const errorCode = mapAuthErrorToCode(c.req.query("error"));
+		c.header("Cache-Control", "no-store");
+		return c.redirect(`${config.baseUrl}/login?error=${errorCode}`, 303);
 	});

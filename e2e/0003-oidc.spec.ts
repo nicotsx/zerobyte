@@ -389,53 +389,16 @@ function isLoginPath(url: string): boolean {
 	return parsedUrl.origin === appOrigin && (parsedUrl.pathname === "/login" || parsedUrl.pathname === "/login/error");
 }
 
-function isSsoCallbackPath(url: string): boolean {
-	const parsedUrl = new URL(url);
-	return parsedUrl.origin === appOrigin && parsedUrl.pathname.startsWith("/api/auth/sso/callback/");
-}
-
 async function expectInviteOnlyLoginError(page: Page) {
-	await expect
-		.poll(
-			() => {
-				const url = page.url();
-				return isLoginPath(url) || isSsoCallbackPath(url);
-			},
-			{ timeout: 30000 },
-		)
-		.toBe(true);
-
-	if (isLoginPath(page.url())) {
-		await waitForAppReady(page);
-		await expect(page.getByText(inviteOnlyMessage)).toBeVisible();
-		return;
-	}
-
-	await expect(page.getByText(/invite-only/i)).toBeVisible();
+	await expect.poll(() => isLoginPath(page.url()), { timeout: 30000 }).toBe(true);
+	await waitForAppReady(page);
+	await expect(page.getByText(inviteOnlyMessage)).toBeVisible();
 }
 
 async function expectAccountLinkRequiredLoginError(page: Page) {
-	await expect
-		.poll(
-			() => {
-				const url = page.url();
-				return isLoginPath(url) || isSsoCallbackPath(url);
-			},
-			{ timeout: 30000 },
-		)
-		.toBe(true);
-
-	if (isLoginPath(page.url())) {
-		await waitForAppReady(page);
-		await expect(page.getByText(accountLinkRequiredMessage)).toBeVisible();
-		return;
-	}
-
-	await expect(
-		page.getByText(
-			/(account not linked|unable to link account|already belongs to another user|outside this organization)/i,
-		),
-	).toBeVisible();
+	await expect.poll(() => isLoginPath(page.url()), { timeout: 30000 }).toBe(true);
+	await waitForAppReady(page);
+	await expect(page.getByText(accountLinkRequiredMessage)).toBeVisible();
 }
 
 test("uninvited OIDC users are blocked", async ({ page, browser }) => {

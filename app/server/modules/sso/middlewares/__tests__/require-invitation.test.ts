@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import type { GenericEndpointContext } from "better-auth";
 import { db } from "~/server/db/db";
 import { account, invitation, member, organization, ssoProvider, usersTable } from "~/server/db/schema";
-import { isSsoCallbackRequest } from "~/server/modules/sso/utils/sso-context";
+import { extractProviderIdFromContext, isSsoCallbackRequest } from "~/server/modules/sso/utils/sso-context";
 import { requireSsoInvitation } from "../require-invitation";
 
 function createMockContext(path: string, params: Record<string, string> = {}): GenericEndpointContext {
@@ -83,14 +83,24 @@ describe("requireSsoInvitation", () => {
 		await expect(requireSsoInvitation("user@example.com", ctx)).rejects.toThrow("Missing providerId");
 	});
 
-	test("detects whether current request is an SSO callback", async () => {
+	test("handles missing callback context", () => {
 		expect(isSsoCallbackRequest(null)).toBe(false);
+	});
 
-		const nonSsoResult = isSsoCallbackRequest(createMockContext("/sign-up/email"));
-		expect(nonSsoResult).toBe(false);
-
-		const ssoResult = isSsoCallbackRequest(createMockSsoCallbackContext("oidc-acme"));
-		expect(ssoResult).toBe(true);
+	test.each([
+		["/sso/callback/oidc-acme", true, "oidc-acme"],
+		["/api/auth/sso/callback/oidc-acme/", true, "oidc-acme"],
+		["/sso/saml2/callback/saml-acme", true, "saml-acme"],
+		["/sso/saml2/sp/acs/saml-acme", true, "saml-acme"],
+		["/sso/callback", true, null],
+		["/sso/callback/", true, null],
+		["/sso/saml2/callback", false, null],
+		["/callback/provider", false, null],
+		["/sign-up/email", false, null],
+	])("recognizes SSO callbacks independently of provider extraction: %s", (path, isCallback, providerId) => {
+		const ctx = createMockContext(path);
+		expect(isSsoCallbackRequest(ctx)).toBe(isCallback);
+		expect(extractProviderIdFromContext(ctx)).toBe(providerId);
 	});
 
 	test("blocks SSO callback when no pending invitation exists", async () => {

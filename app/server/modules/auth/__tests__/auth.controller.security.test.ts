@@ -38,7 +38,7 @@ describe("auth controller security", () => {
 
 		test("GET /api/v1/auth/login-error should be accessible without authentication", async () => {
 			const res = await app.request("/api/v1/auth/login-error?error=test");
-			expect(res.status).toBe(302);
+			expect(res.status).toBe(303);
 		});
 	});
 

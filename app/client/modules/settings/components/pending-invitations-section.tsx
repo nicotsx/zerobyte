@@ -9,10 +9,10 @@ import { Button } from "~/client/components/ui/button";
 import { CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
-import { authClient } from "~/client/lib/auth-client";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import { cn } from "~/client/lib/utils";
+import { startSsoSignIn } from "~/client/modules/sso/start-sso-sign-in";
 
 type UserInvitation = GetUserSsoInvitationsResponse[number];
 type VerifyInvitationVariables = Options<StartInvitationSsoVerificationData>;
@@ -35,23 +35,11 @@ export function PendingInvitationsSection({ initialInvitations, userEmail }: Pro
 		mutationFn: async (variables: VerifyInvitationVariables) => {
 			await startInvitationSsoVerification({ ...variables, throwOnError: true });
 
-			const providerId = variables.body.providerId;
-			const { data, error } = await authClient.signIn.sso({
-				providerId,
+			return startSsoSignIn({
+				providerId: variables.body.providerId,
 				callbackURL: "/settings",
-				errorCallbackURL: "/api/v1/auth/login-error",
 				loginHint: userEmail ?? undefined,
 			});
-
-			if (error) {
-				throw new Error(error.message);
-			}
-
-			if (!data?.url) {
-				throw new Error("SSO verification did not return a redirect URL");
-			}
-
-			return data.url;
 		},
 		onSuccess: (url) => {
 			window.location.href = url;

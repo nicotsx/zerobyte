@@ -1,6 +1,10 @@
 import type { GenericEndpointContext } from "better-auth";
 
-const SSO_CALLBACK_PATH_PATTERN = /\/sso\/(?:callback|saml2\/callback|saml2\/sp\/acs)\/([^/]+)$/;
+const SSO_CALLBACK_PATH_PATTERN = /\/sso\/(?:callback|saml2\/callback|saml2\/sp\/acs)\/([^/]+)\/?$/;
+
+export function isSsoCallbackPath(path: string): boolean {
+	return SSO_CALLBACK_PATH_PATTERN.test(path) || /\/sso\/callback\/?$/.test(path);
+}
 
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
@@ -25,7 +29,7 @@ export function isSsoCallbackRequest(ctx?: GenericEndpointContext | null): boole
 		return false;
 	}
 
-	return extractProviderIdFromUrl(ctx.request.url) !== null;
+	return isSsoCallbackPath(new URL(ctx.request.url).pathname);
 }
 
 export function extractProviderIdFromContext(ctx?: GenericEndpointContext | null) {

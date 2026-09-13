@@ -1,8 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "~/client/components/ui/button";
-import { authClient } from "~/client/lib/auth-client";
-import { logger } from "~/client/lib/logger";
+import { startSsoSignIn } from "../start-sso-sign-in";
 
 type SsoProvider = {
 	providerId: string;
@@ -14,22 +13,11 @@ type SsoLoginButtonsProps = {
 
 export function SsoLoginButtons({ providers }: SsoLoginButtonsProps) {
 	const ssoLoginMutation = useMutation({
-		mutationFn: async (providerId: string) => {
-			const callbackPath = "/login";
-			const { data, error } = await authClient.signIn.sso({
-				providerId: providerId,
-				callbackURL: callbackPath,
-				errorCallbackURL: "/api/v1/auth/login-error",
-			});
-			if (error) throw error;
-
-			return data;
-		},
-		onSuccess: (data) => {
-			window.location.href = data.url;
+		mutationFn: (providerId: string) => startSsoSignIn({ providerId, callbackURL: "/login" }),
+		onSuccess: (url) => {
+			window.location.href = url;
 		},
 		onError: (error) => {
-			logger.error(error);
 			toast.error("SSO Login failed", { description: error.message });
 		},
 	});

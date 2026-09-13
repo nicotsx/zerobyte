@@ -128,6 +128,12 @@ describe("LoginPage", () => {
 		expect(await screen.findByText(getLoginErrorDescription(PASSKEY_LOGIN_FAILED_ERROR))).toBeTruthy();
 	});
 
+	test("shows a safe message for a malformed login error", async () => {
+		mockSsoProvidersRequest();
+		render(<LoginPage error="%" />, { withSuspense: true });
+		expect(await screen.findByText("SSO authentication failed. Please try again.")).toBeTruthy();
+	});
+
 	test("does not show error message for invalid error codes", async () => {
 		mockSsoProvidersRequest();
 

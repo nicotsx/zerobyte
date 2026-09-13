@@ -9,7 +9,12 @@ export function decodeLoginError(error?: string): LoginErrorCode | null {
 		return null;
 	}
 
-	const code = decodeURIComponent(error);
+	let code: string;
+	try {
+		code = decodeURIComponent(error);
+	} catch {
+		return "SSO_LOGIN_FAILED";
+	}
 
 	if (VALID_ERROR_CODES.has(code as LoginErrorCode)) {
 		return code as LoginErrorCode;
