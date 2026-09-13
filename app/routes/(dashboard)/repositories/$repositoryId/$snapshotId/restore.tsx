@@ -79,7 +79,6 @@ function RouteComponent() {
 		<RestoreSnapshotPage
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			repository={repository}
-			snapshotId={snapshotId}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}

@@ -4,7 +4,7 @@ import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, createTestQueryClient, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 import { taskChangedEventName } from "~/schemas/task-events";
 import type { TaskOfKind } from "~/client/hooks/use-active-tasks";
-import type { Repository } from "~/client/lib/types";
+import type { Repository, Snapshot } from "~/client/lib/types";
 import { fromAny } from "@total-typescript/shoehorn";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 
@@ -18,6 +18,17 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 });
 
 import { RestoreForm } from "../restore-form";
+
+const snapshotFixture = (short_id: string): Snapshot => ({
+	short_id,
+	hostname: "backup-host",
+	time: Date.UTC(2026, 8, 9, 13, 30),
+	paths: ["/mnt/project"],
+	size: 0,
+	duration: 0,
+	tags: [],
+	retentionCategories: [],
+});
 
 class MockEventSource {
 	static instances: MockEventSource[] = [];
@@ -119,7 +130,7 @@ const renderRestoreForm = (queryClient = createTestQueryClient()) => {
 	return render(
 		<RestoreForm
 			repository={fromAny({ shortId: repositoryId, name: "Repo 1" })}
-			snapshotId={snapshotId}
+			snapshot={snapshotFixture(snapshotId)}
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			queryBasePath="/mnt/project"
 			displayBasePath="/mnt"
@@ -348,7 +359,11 @@ describe("RestoreForm", () => {
 		server.use(snapshotFilesHandler);
 		const repository: Repository = fromAny({ shortId: repositoryId, name: "Repo 1" });
 		const { rerender } = render(
-			<RestoreSnapshotPage repository={repository} snapshotId="snap-1" returnPath="/repositories/repo-1" />,
+			<RestoreSnapshotPage
+				repository={repository}
+				snapshot={snapshotFixture("snap-1")}
+				returnPath="/repositories/repo-1"
+			/>,
 			{ withSuspense: true },
 		);
 		const firstStreamUrl =
@@ -363,7 +378,13 @@ describe("RestoreForm", () => {
 
 		expect(await screen.findByText("Restore completed")).toBeTruthy();
 
-		rerender(<RestoreSnapshotPage repository={repository} snapshotId="snap-2" returnPath="/repositories/repo-1" />);
+		rerender(
+			<RestoreSnapshotPage
+				repository={repository}
+				snapshot={snapshotFixture("snap-2")}
+				returnPath="/repositories/repo-1"
+			/>,
+		);
 
 		await waitFor(() => {
 			expect(
@@ -403,7 +424,7 @@ describe("RestoreForm", () => {
 		render(
 			<RestoreForm
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
-				snapshotId="snap-1"
+				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project/subdir"
 				displayBasePath="/mnt"
@@ -457,7 +478,7 @@ describe("RestoreForm", () => {
 		render(
 			<RestoreForm
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
-				snapshotId="snap-1"
+				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project"
 				displayBasePath="/other/root"
@@ -523,7 +544,7 @@ describe("RestoreForm", () => {
 		render(
 			<RestoreForm
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
-				snapshotId="snap-1"
+				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project"
 				displayBasePath="/mnt"

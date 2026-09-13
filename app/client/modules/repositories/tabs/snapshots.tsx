@@ -23,7 +23,7 @@ type Props = {
 
 export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, initialBackupSchedules }: Props) => {
 	const [searchQuery, setSearchQuery] = useState("");
-	const [selectedHost, setSelectedHost] = useState("all");
+	const [selectedHost, setSelectedHost] = useState<string | null>(null);
 
 	const { data, isPending, failureReason } = useQuery({
 		...listSnapshotsOptions({ path: { shortId: repository.shortId } }),
@@ -50,12 +50,12 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 	};
 
 	const snapshots = data ?? [];
-	const hosts = Array.from(
-		new Set(snapshots.map((snapshot) => snapshot.hostname).filter((hostname): hostname is string => !!hostname)),
-	).sort((a, b) => a.localeCompare(b));
+	const hosts = Array.from(new Set(snapshots.map((snapshot) => snapshot.hostname))).sort((a, b) =>
+		a.localeCompare(b),
+	);
 
 	const filteredSnapshots = snapshots.filter((snapshot: Snapshot) => {
-		if (selectedHost !== "all" && snapshot.hostname !== selectedHost) return false;
+		if (selectedHost !== null && snapshot.hostname !== selectedHost) return false;
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
 
@@ -152,15 +152,18 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
-						<Select value={selectedHost} onValueChange={setSelectedHost}>
+						<Select
+							value={selectedHost === null ? "all" : `host:${selectedHost}`}
+							onValueChange={(value) => setSelectedHost(value === "all" ? null : value.slice(5))}
+						>
 							<SelectTrigger className="w-full sm:w-48" aria-label="Filter snapshots by host">
 								<SelectValue placeholder="All hosts" />
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All hosts</SelectItem>
 								{hosts.map((host) => (
-									<SelectItem key={host} value={host}>
-										{host}
+									<SelectItem key={host} value={`host:${host}`}>
+										{host || "Unknown"}
 									</SelectItem>
 								))}
 							</SelectContent>
@@ -186,7 +189,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 									<Button
 										onClick={() => {
 											setSearchQuery("");
-											setSelectedHost("all");
+											setSelectedHost(null);
 										}}
 										variant="outline"
 										size="sm"

@@ -328,17 +328,7 @@ const listSnapshotFiles = async (
 	const limit = options?.limit ?? 500;
 
 	const cacheKey = cacheKeys.repository.ls(repository.id, snapshotId, path, offset, limit);
-	type LsResult = {
-		snapshot: {
-			id: string;
-			short_id: string;
-			time: string;
-			hostname: string;
-			paths: string[];
-		} | null;
-		nodes: { name: string; type: string; path: string; size?: number; mode?: number; mtime?: string }[];
-		pagination: { offset: number; limit: number; total: number; hasMore: boolean };
-	};
+	type LsResult = Effect.Effect.Success<ReturnType<typeof restic.ls>>;
 	const cached = cache.get<LsResult>(cacheKey);
 	if (cached?.snapshot) {
 		return {

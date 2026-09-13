@@ -204,7 +204,7 @@ const snapshotSchema = z.object({
 	duration: z.number(),
 	tags: z.array(z.string()),
 	retentionCategories: z.array(z.string()),
-	hostname: z.string().optional(),
+	hostname: z.string(),
 	summary: resticSnapshotSummarySchema.optional(),
 });
 

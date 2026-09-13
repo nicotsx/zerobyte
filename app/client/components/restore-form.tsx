@@ -34,25 +34,24 @@ type RestoreLocation = "original" | "custom";
 
 interface RestoreFormProps {
 	repository: Repository;
-	snapshotId: string;
+	snapshot: Snapshot;
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
-	snapshot?: Snapshot;
 }
 
 export function RestoreForm({
 	repository,
-	snapshotId,
+	snapshot,
 	returnPath,
 	queryBasePath,
 	displayBasePath,
 	hasNonPosixSnapshotPaths = false,
 	volumeReadOnly = false,
-	snapshot,
 }: RestoreFormProps) {
+	const snapshotId = snapshot.short_id;
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
 
@@ -200,8 +199,7 @@ export function RestoreForm({
 					<h1 className="text-2xl font-bold">Restore Snapshot</h1>
 					<p className="text-sm text-muted-foreground">
 						{repository.name} / {snapshotId}
-						{snapshot?.hostname && ` / ${snapshot.hostname}`}
-						{snapshot?.time && ` / ${formatDateTime(snapshot.time)}`}
+						{` / ${snapshot.hostname || "Unknown"} / ${formatDateTime(snapshot.time)}`}
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
@@ -378,7 +376,7 @@ export function RestoreForm({
 						)}
 					</Card>
 				</div>
-				<Card className="lg:col-span-2 flex flex-col">
+				<Card className="lg:col-span-2 flex flex-col pb-0">
 					<CardHeader>
 						<CardTitle>Select Files to Restore</CardTitle>
 						<CardDescription>

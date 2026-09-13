@@ -18,18 +18,10 @@ const snapshotFiles = {
 	],
 };
 
-type SnapshotFilesResponse = {
-	files: Array<{
-		name: string;
-		path: string;
-		type: string;
-		size?: number;
-		mode?: number;
-		mtime?: string;
-	}>;
-};
+type SnapshotFilesResponse = Pick<ListSnapshotFilesResponse, "files">;
 
 import { SnapshotTreeBrowser } from "../snapshot-tree-browser";
+import type { ListSnapshotFilesResponse } from "~/client/api-client";
 
 const mockListSnapshotFiles = (response: SnapshotFilesResponse = snapshotFiles) => {
 	const requests: SnapshotFilesRequest[] = [];
@@ -69,6 +61,34 @@ afterEach(() => {
 });
 
 describe("SnapshotTreeBrowser", () => {
+	test("inspects a synthesized ancestor independently of restore selection", async () => {
+		mockListSnapshotFiles({ files: [{ name: "report.txt", path: "/mnt/project/report.txt", type: "file" }] });
+		renderSnapshotTreeBrowser({
+			queryBasePath: "/mnt/project/report.txt",
+			withCheckboxes: true,
+			selectedPaths: new Set(["/mnt/project"]),
+		});
+		const row = await screen.findByRole("button", { name: "project" });
+		await userEvent.click(row);
+		const details = screen.getByRole("region", { name: "Selected entry details" });
+		expect(within(details).getByText("/project")).toBeTruthy();
+		expect(within(details).getByText("Directory")).toBeTruthy();
+		expect(within(row).getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
+	});
+
+	test("retains metadata for a real directory even when its child appears first", async () => {
+		mockListSnapshotFiles({
+			files: [
+				{ name: "report.txt", path: "/mnt/project/report.txt", type: "file" },
+				{ name: "project", path: "/mnt/project", type: "dir", mode: 0o40750, mtime: "1970-01-01T00:00:00Z" },
+			],
+		});
+		renderSnapshotTreeBrowser();
+		await userEvent.click(await screen.findByRole("button", { name: "project" }));
+		const details = screen.getByRole("region", { name: "Selected entry details" });
+		expect(within(details).getByText("0750")).toBeTruthy();
+		expect(within(details).getByText(/1970/)).toBeTruthy();
+	});
 	test("renders the query root folder when display base path is broader than query base path", async () => {
 		mockListSnapshotFiles();
 
