@@ -21,18 +21,10 @@ import { memo, type ReactNode, useCallback, useMemo } from "react";
 import { cn } from "~/client/lib/utils";
 import { Checkbox } from "~/client/components/ui/checkbox";
 import { ByteSize } from "~/client/components/bytes-size";
+import { buildFileEntryMap, type FileEntry } from "./file-tree-model";
+export type { FileEntry } from "./file-tree-model";
 
 const NODE_PADDING_LEFT = 12;
-
-export interface FileEntry {
-	name: string;
-	path: string;
-	type: string;
-	size?: number;
-	modifiedAt?: number;
-	mode?: number;
-	mtime?: string;
-}
 
 interface PaginationState {
 	hasMore: boolean;
@@ -627,12 +619,9 @@ interface FolderNode extends BaseNode {
 
 function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 	const fileMap = new Map<string, Node>();
+	const entries = buildFileEntryMap(foldersOnly ? files.filter((file) => file.type !== "file") : files);
 
-	for (const file of files) {
-		if (foldersOnly && file.type === "file") {
-			continue;
-		}
-
+	for (const file of entries.values()) {
 		const segments = file.path.split("/").filter((segment) => segment);
 		const depth = segments.length - 1;
 		const name = segments[segments.length - 1];
@@ -650,33 +639,6 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 				fullPath: file.path,
 				depth,
 				size: file.size,
-			});
-		}
-
-		let parentPath = file.path;
-		while (true) {
-			const lastSlashIndex = parentPath.lastIndexOf("/");
-			if (lastSlashIndex <= 0) {
-				break;
-			}
-
-			parentPath = parentPath.slice(0, lastSlashIndex);
-			if (fileMap.has(parentPath)) {
-				continue;
-			}
-
-			const parentSegments = parentPath.split("/").filter((segment) => segment);
-			const parentName = parentSegments[parentSegments.length - 1];
-			if (!parentName) {
-				continue;
-			}
-
-			fileMap.set(parentPath, {
-				kind: "folder",
-				id: fileMap.size,
-				name: parentName,
-				fullPath: parentPath,
-				depth: parentSegments.length - 1,
 			});
 		}
 	}

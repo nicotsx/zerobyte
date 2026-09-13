@@ -67,14 +67,13 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 });
 
 function RouteComponent() {
-	const { backupId, snapshotId } = Route.useParams();
+	const { backupId } = Route.useParams();
 	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
 		Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
 			returnPath={`/backups/${backupId}`}
-			snapshotId={snapshotId}
 			repository={repository}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
