@@ -38,7 +38,7 @@ beforeEach(async () => {
 async function addPassword(session: TestSession, password = "correct-password") {
 	await db.insert(account).values({
 		id: randomId(),
-		accountId: randomSlug("credential"),
+		accountId: session.user.id,
 		providerId: "credential",
 		userId: session.user.id,
 		password: await hashPassword(password),

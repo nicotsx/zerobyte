@@ -183,7 +183,7 @@ describe("auth controller security", () => {
 			const retainedAccountId = Bun.randomUUIDv7();
 			await db.insert(account).values({
 				id: retainedAccountId,
-				accountId: `credential-${retainedAccountId}`,
+				accountId: target.user.id,
 				providerId: "credential",
 				userId: target.user.id,
 				password: "password-hash",

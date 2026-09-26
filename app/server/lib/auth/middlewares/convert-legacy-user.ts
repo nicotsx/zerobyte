@@ -65,7 +65,7 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 					.values({
 						id: accountId,
 						providerId: "credential",
-						accountId: legacyUser.username,
+						accountId: newUserId,
 						userId: newUserId,
 						password: passwordHash,
 						createdAt: new Date(),
