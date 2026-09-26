@@ -46,6 +46,9 @@ jobs:
 
   build-desktop:
     needs: [validate, checks]
+    permissions:
+      actions: read
+      contents: read
     uses: ./.github/workflows/desktop-build.yml
     with:
       version: ${{ needs.validate.outputs.app_version }}
