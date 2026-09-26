@@ -39,7 +39,7 @@ bun run tsc
 bun run test
 
 # Run a specific test file
-bunx dotenv-cli -e .env.test -- bunx --bun vitest run --project server path/to/test.ts
+bunx dotenv run -f .env.test -- bunx --bun vitest run --project server path/to/test.ts
 ```
 
 ### Building
