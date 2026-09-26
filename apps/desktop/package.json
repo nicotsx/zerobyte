@@ -17,8 +17,9 @@
 		"tsc": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@peculiar/x509": "1.14.3",
-		"@zerobyte/core": "workspace:*"
+		"@peculiar/x509": "2.1.0",
+		"@zerobyte/core": "workspace:*",
+		"reflect-metadata": "0.2.2"
 	},
 	"devDependencies": {
 		"electron": "^44.4.4",
