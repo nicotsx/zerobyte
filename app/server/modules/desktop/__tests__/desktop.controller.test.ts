@@ -118,7 +118,7 @@ describe("desktopController", () => {
 			});
 			await db.insert(account).values({
 				id: crypto.randomUUID(),
-				accountId: DESKTOP_USER_EMAIL,
+				accountId: userId,
 				providerId: "credential",
 				userId,
 				password: await hashPassword("wrong-password"),

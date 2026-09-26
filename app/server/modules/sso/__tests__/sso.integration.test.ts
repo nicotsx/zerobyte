@@ -49,7 +49,7 @@ async function createUserWithCredentialAccount(email: string, username: string) 
 
 	await db.insert(account).values({
 		id: randomId(),
-		accountId: username,
+		accountId: userId,
 		providerId: "credential",
 		userId,
 		password: "test-password-hash",
