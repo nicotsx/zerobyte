@@ -84,7 +84,7 @@
 		"cron-parser": "^5.10.0",
 		"date-fns": "^4.4.0",
 		"dither-plugin": "^1.1.1",
-		"dotenv": "^17.4.2",
+		"dotenv": "^18.0.3",
 		"drizzle-orm": "1.0.0-rc.5-ab785fc",
 		"effect": "^3.22.1",
 		"es-toolkit": "^1.52.0",
