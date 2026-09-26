@@ -413,10 +413,10 @@ Contributions by anyone are welcome! If you find a bug or have a feature request
 
 ## Development (no Docker)
 
-After installing Vite+ globally, you can run Zerobyte locally during development without Docker:
+With Bun and Portless installed, you can run Zerobyte locally during development without Docker:
 
 ```bash
-vp install
+bun install
 bun run dev
 ```
 

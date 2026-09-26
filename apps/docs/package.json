@@ -6,10 +6,10 @@
 		"#/*": "./src/*"
 	},
 	"scripts": {
-		"dev": "vp dev",
-		"build": "vp build",
-		"preview": "vp preview",
-		"deploy": "vp run build && wrangler deploy",
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"deploy": "bun run build && wrangler deploy",
 		"cf-typegen": "wrangler types",
 		"tsc": "tsc --noEmit"
 	},
@@ -52,7 +52,6 @@
 		"typescript": "^7.0.2",
 		"vite": "^8.3.0",
 		"vite-plugin-killer-instincts": "^1.1.0",
-		"vite-plus": "0.3.3",
 		"vitest": "^5.0.1",
 		"wrangler": "^4.136.3"
 	},

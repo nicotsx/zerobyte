@@ -19,13 +19,12 @@ runs:
       with:
         bun-version: "1.4.2"
 
-    - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
         node-version: "24"
-        cache: true
 
     - name: Install dependencies
       shell: bash
       run: |
         cd ${{ inputs.workingDirectory }}
-        sfw vp install --frozen-lockfile
+        sfw bun install --frozen-lockfile
