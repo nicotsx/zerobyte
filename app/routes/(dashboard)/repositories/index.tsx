@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteError } from "~/client/components/route-error";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoriesPage } from "~/client/modules/repositories/routes/repositories";
 
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/")({
 			...listRepositoriesOptions(),
 		});
 	},
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	staticData: {
 		breadcrumb: () => [{ label: "Repositories" }],
 	},

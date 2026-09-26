@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteError } from "~/client/components/route-error";
 import { getRepositoryOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { EditRepositoryPage } from "~/client/modules/repositories/routes/edit-repository";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/edit")({
 	component: RouteComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	loader: async ({ params, context }) => {
 		const repository = await context.queryClient.ensureQueryData({
 			...getRepositoryOptions({ path: { shortId: params.repositoryId } }),

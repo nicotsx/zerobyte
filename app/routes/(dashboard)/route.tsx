@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
 import { Layout } from "~/client/components/layout";
+import { RouteError } from "~/client/components/route-error";
 import { authMiddleware } from "~/middleware/auth";
 import { auth } from "~/server/lib/auth";
 import { getCurrentPermissionsOptions } from "~/server/lib/functions/current-permissions";
@@ -32,7 +33,7 @@ export const fetchUser = createServerFn({ method: "GET" }).handler(async () => {
 
 export const Route = createFileRoute("/(dashboard)")({
 	component: PathlessLayoutComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	server: {
 		middleware: [authMiddleware],
 	},
