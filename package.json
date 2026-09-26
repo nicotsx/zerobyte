@@ -69,9 +69,9 @@
 		"@tanstack/react-hotkeys": "^0.11.0",
 		"@tanstack/react-query": "^5.103.2",
 		"@tanstack/react-query-devtools": "^5.103.2",
-		"@tanstack/react-router": "^1.170.38",
+		"@tanstack/react-router": "^1.170.39",
 		"@tanstack/react-router-ssr-query": "^1.167.3",
-		"@tanstack/react-start": "^1.168.57",
+		"@tanstack/react-start": "^1.168.58",
 		"@tanstack/react-table": "^9.2.4",
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
@@ -110,7 +110,7 @@
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
-		"@better-auth/utils": "0.4.2",
+		"@better-auth/utils": "0.5.0",
 		"@effect/language-service": "^0.87.2",
 		"@faker-js/faker": "^10.6.0",
 		"@hey-api/openapi-ts": "^0.99.0",
