@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteError } from "~/client/components/route-error";
 import {
 	getRepositoryOptions,
 	getSnapshotDetailsOptions,
@@ -9,10 +10,12 @@ import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/")({
 	component: RouteComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	loader: async ({ params, context }) => {
 		const [res] = await Promise.all([
-			context.queryClient.ensureQueryData({ ...getRepositoryOptions({ path: { shortId: params.repositoryId } }) }),
+			context.queryClient.ensureQueryData({
+				...getRepositoryOptions({ path: { shortId: params.repositoryId } }),
+			}),
 			context.queryClient.ensureQueryData({ ...listBackupSchedulesOptions() }),
 		]);
 

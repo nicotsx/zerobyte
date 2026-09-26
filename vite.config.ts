@@ -1,5 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite-plus";
+import { defineConfig } from "vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import { nitro } from "nitro/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -46,11 +46,5 @@ export default defineConfig({
 				? { cert: process.env.NITRO_SSL_CERT, key: process.env.NITRO_SSL_KEY }
 				: undefined,
 		allowedHosts: [".ts.net"],
-	},
-	run: {
-		cache: {
-			scripts: true,
-			tasks: true,
-		},
 	},
 });

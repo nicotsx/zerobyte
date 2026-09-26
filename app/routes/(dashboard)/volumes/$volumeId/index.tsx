@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { RouteError } from "~/client/components/route-error";
 import { getVolumeOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { VolumeDetails } from "~/client/modules/volumes/routes/volume-details";
 
 export const Route = createFileRoute("/(dashboard)/volumes/$volumeId/")({
 	component: RouteComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	loader: async ({ params, context }) => {
 		const res = await context.queryClient.ensureQueryData({
 			...getVolumeOptions({ path: { shortId: params.volumeId } }),

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
+import { RouteError } from "~/client/components/route-error";
 import {
 	getRepositoryOptions,
 	getRepositoryStatsOptions,
@@ -14,7 +15,7 @@ import { prefetchOrSkip } from "~/utils/prefetch";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/")({
 	component: RouteComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	loader: async ({ params, context }) => {
 		const snapshotOptions = listSnapshotsOptions({ path: { shortId: params.repositoryId } });
 		const statsOptions = getRepositoryStatsOptions({ path: { shortId: params.repositoryId } });

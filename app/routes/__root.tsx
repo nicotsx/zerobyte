@@ -4,6 +4,7 @@ import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
+import { RouteError } from "~/client/components/route-error";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
 import { DEFAULT_THEME, THEME_COOKIE_NAME, ThemeProvider, type Theme } from "~/client/components/theme-provider";
@@ -26,7 +27,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 		],
 	}),
 	component: RootLayout,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 });
 
 function RootLayout() {

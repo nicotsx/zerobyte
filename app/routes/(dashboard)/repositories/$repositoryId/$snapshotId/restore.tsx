@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { RouteError } from "~/client/components/route-error";
 import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
@@ -8,7 +9,7 @@ import { findCommonAncestor } from "@zerobyte/core/utils";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/restore")({
 	component: RouteComponent,
-	errorComponent: (e) => <div>{e.error.message}</div>,
+	errorComponent: RouteError,
 	loader: async ({ params, context }) => {
 		const activeRestoreTasksOptions = restoreTasksOptions(params.repositoryId, params.snapshotId);
 		const [snapshot, repository] = await Promise.all([
