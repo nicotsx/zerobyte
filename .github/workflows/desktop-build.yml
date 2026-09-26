@@ -6,6 +6,9 @@ on:
       version:
         required: true
         type: string
+      sign_windows:
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -91,6 +94,7 @@ jobs:
         run: bun run make:windows
 
       - name: Upload unsigned Windows installer
+        if: ${{ inputs.sign_windows }}
         id: upload-unsigned-windows
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -101,6 +105,7 @@ jobs:
           compression-level: 0
 
       - name: Sign Windows installer
+        if: ${{ inputs.sign_windows }}
         uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -114,6 +119,7 @@ jobs:
           output-artifact-directory: signed-windows
 
       - name: Verify Windows signature
+        if: ${{ inputs.sign_windows }}
         shell: pwsh
         run: |
           $installer = Get-ChildItem "signed-windows" -Recurse -Filter "*.exe" | Select-Object -First 1
@@ -123,10 +129,21 @@ jobs:
           }
 
       - name: Upload signed Windows installer
+        if: ${{ inputs.sign_windows }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: desktop-windows-release
           path: signed-windows/**/*.exe
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Upload unsigned Windows release installer
+        if: ${{ ! inputs.sign_windows }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: desktop-windows-release
+          path: apps/desktop/dist/*.exe
           if-no-files-found: error
           retention-days: 1
           compression-level: 0

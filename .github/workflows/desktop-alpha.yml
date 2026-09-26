@@ -49,6 +49,7 @@ jobs:
     uses: ./.github/workflows/desktop-build.yml
     with:
       version: ${{ needs.validate.outputs.app_version }}
+      sign_windows: false
     secrets: inherit
 
   publish:
@@ -100,7 +101,7 @@ jobs:
 
             macOS Apple Silicon, Windows x64, and Linux x64. Expect rough edges and verify important restores independently.
 
-            The macOS app is signed with an Apple Developer ID and notarized by Apple. The Windows installer is Authenticode-signed. All three downloads have signed GitHub build-provenance attestations.
+            The macOS app is signed with an Apple Developer ID and notarized by Apple. The Windows installer is unsigned while code signing is being set up. All three downloads have signed GitHub build-provenance attestations.
 
             On Linux, make the AppImage executable before launching it: `chmod +x zerobyte*.AppImage`.
           files: |
