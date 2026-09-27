@@ -41,6 +41,7 @@ export const auth = betterAuth({
 	advanced: {
 		cookiePrefix: "zerobyte",
 		useSecureCookies: config.isSecure,
+		trustedProxyHeaders: config.trustProxy,
 		ipAddress: {
 			disableIpTracking: config.flags.disableRateLimiting,
 		},

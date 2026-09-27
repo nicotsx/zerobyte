@@ -12,8 +12,10 @@ Set the following environment variables in your `compose.yaml`:
 ```yaml compose.yaml
 environment:
   - BASE_URL=https://zerobyte.example.com
-  - TRUST_PROXY=true  # Optional: trust X-Forwarded-For headers from your proxy
+  - TRUST_PROXY=true
 ```
+
+`TRUST_PROXY=true` lets authentication use the public host and protocol from `X-Forwarded-Host` and `X-Forwarded-Proto`. Set it when your HTTPS proxy forwards requests to Zerobyte over HTTP. Only enable it when the proxy controls those headers and clients cannot reach Zerobyte directly.
 
 Restart the container after making changes:
 
@@ -54,8 +56,9 @@ server {
     location / {
         proxy_pass http://localhost:4096;
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }

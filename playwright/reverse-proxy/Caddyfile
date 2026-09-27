@@ -1,0 +1,9 @@
+https://zerobyte.example.com:5558 {
+	tls internal
+
+	reverse_proxy http://zerobyte-e2e-proxied:4096 {
+		header_up Host zerobyte.example.com:5558
+		header_up X-Forwarded-Host zerobyte.example.com:5558
+		header_up X-Forwarded-Proto https
+	}
+}
