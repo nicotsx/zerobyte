@@ -93,6 +93,10 @@ docker compose up -d
 
 Once the container is running, you can access the web interface at `http://<your-server-ip>:4096`.
 
+## ☁️ One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Zerobyte/)
+
 ## Configuration
 
 Zerobyte can be customized using environment variables. Below are the available options:
