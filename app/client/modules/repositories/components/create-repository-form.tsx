@@ -132,7 +132,9 @@ export const CreateRepositoryForm = ({
 	const isExisting = useWatch({ control: form.control, name: "isExistingRepository" });
 	const exactPath = mode === "update" || isExisting === true;
 
-	const [passwordMode, setPasswordMode] = useState<"default" | "custom">("default");
+	const [passwordMode, setPasswordMode] = useState<"default" | "custom">(
+		initialValues?.customPassword ? "custom" : "default",
+	);
 
 	const { capabilities } = useSystemInfo();
 	const isBackendAllowed = (backend: RepositoryBackend) => capabilities.repositoryBackends.includes(backend);
