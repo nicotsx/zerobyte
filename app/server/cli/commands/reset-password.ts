@@ -6,11 +6,28 @@ import { toMessage } from "~/server/utils/errors";
 import { db } from "../../db/db";
 import { account, sessionsTable, usersTable } from "../../db/schema";
 
+const validatePassword = (value: string) => {
+	if (value.length < 8) {
+		return "Password must be at least 8 characters long";
+	}
+	if (value.length > 128) {
+		return "Password must be at most 128 characters long";
+	}
+
+	return true;
+};
+
 const listUsers = () => {
 	return db.select({ id: usersTable.id, username: usersTable.username }).from(usersTable);
 };
 
 export const resetPassword = async (username: string, newPassword: string) => {
+	const validation = validatePassword(newPassword);
+
+	if (validation !== true) {
+		throw new Error(validation);
+	}
+
 	const [user] = await db.select().from(usersTable).where(eq(usersTable.username, username));
 
 	if (!user) {
@@ -95,12 +112,7 @@ export const resetPasswordCommand = new Command("reset-password")
 			newPassword = await password({
 				message: "Enter new password:",
 				mask: "*",
-				validate: (value) => {
-					if (value.length < 8) {
-						return "Password must be at least 8 characters long";
-					}
-					return true;
-				},
+				validate: validatePassword,
 			});
 
 			const confirmPassword = await password({
@@ -112,9 +124,6 @@ export const resetPasswordCommand = new Command("reset-password")
 				console.error("\n❌ Passwords do not match.");
 				process.exit(1);
 			}
-		} else if (newPassword.length < 8) {
-			console.error("\n❌ Password must be at least 8 characters long.");
-			process.exit(1);
 		}
 
 		try {

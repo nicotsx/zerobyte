@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "vitest";
+import { hashPassword } from "better-auth/crypto";
 import { createApp } from "~/server/app";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
@@ -116,8 +117,10 @@ describe("resetPassword", () => {
 		},
 	);
 
-	test("creates a usable credential account when the user has no password account", async () => {
+	test.each([8, 128])("creates a usable credential account with a %i-character password", async (length) => {
+		const password = "a".repeat(length);
 		const userId = Bun.randomUUIDv7();
+
 		await db.insert(usersTable).values({
 			id: userId,
 			username: "sso-user",
@@ -125,7 +128,7 @@ describe("resetPassword", () => {
 			name: "SSO User",
 		});
 
-		await resetPassword("sso-user", "replacement-password");
+		await resetPassword("sso-user", password);
 
 		const response = await app.request("/api/auth/sign-in/username", {
 			method: "POST",
@@ -133,9 +136,55 @@ describe("resetPassword", () => {
 				"Content-Type": "application/json",
 				Origin: config.baseUrl,
 			},
-			body: JSON.stringify({ username: "sso-user", password: "replacement-password" }),
+			body: JSON.stringify({ username: "sso-user", password }),
 		});
 
 		expect(response.status).toBe(200);
+	});
+
+	test.each([
+		[7, "Password must be at least 8 characters long"],
+		[129, "Password must be at most 128 characters long"],
+	] as const)("rejects a %i-character password without changing credentials or sessions", async (length, message) => {
+		const userId = Bun.randomUUIDv7();
+		const oldPassword = "existing-password";
+
+		const [user] = await db
+			.insert(usersTable)
+			.values({
+				id: userId,
+				username: "legacy-user",
+				email: "legacy@example.com",
+				name: "Legacy User",
+				passwordHash: await Bun.password.hash(oldPassword),
+			})
+			.returning();
+
+		const [credential] = await db
+			.insert(account)
+			.values({
+				id: Bun.randomUUIDv7(),
+				accountId: userId,
+				providerId: "credential",
+				userId,
+				password: await hashPassword(oldPassword),
+			})
+			.returning();
+
+		const [session] = await db
+			.insert(sessionsTable)
+			.values({
+				id: Bun.randomUUIDv7(),
+				userId,
+				token: "existing-session",
+				expiresAt: new Date(Date.now() + 60_000),
+			})
+			.returning();
+
+		await expect(resetPassword("legacy-user", "a".repeat(length))).rejects.toThrow(message);
+
+		expect(await db.query.usersTable.findFirst({ where: { id: userId } })).toEqual(user);
+		expect(await db.query.account.findMany({ where: { userId } })).toEqual([credential]);
+		expect(await db.query.sessionsTable.findMany({ where: { userId } })).toEqual([session]);
 	});
 });

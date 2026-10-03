@@ -20,16 +20,28 @@ docker exec -it zerobyte bun run cli reset-password --help
 
 Most commands prompt for missing values when run interactively.
 
+## Password Reset
+
+New passwords must be between 8 and 128 characters long. Invalid passwords are rejected without changing the existing password or invalidating sessions.
+
+After updating, existing passwords longer than 128 characters can no longer be used to sign in. If this affects your account, reset it with the command below and choose a password between 8 and 128 characters long:
+
+```bash
+docker exec -it zerobyte bun run cli reset-password --username admin
+```
+
+Replace `admin` with your username. A successful reset invalidates all existing sessions for that user.
+
 ## Commands
 
-| Command | Useful for |
-|---------|------------|
-| `reset-password` | Reset a user's password when they are locked out or forgot it. Invalidates existing sessions. |
-| `disable-2fa` | Disable two-factor authentication for a user who lost access to their 2FA device. |
-| `change-username` | Rename a user account. Invalidates existing sessions. |
-| `change-email` | Change a user's email address. Removes linked SSO accounts for that user and invalidates sessions. |
-| `rekey-2fa` | Re-encrypt existing 2FA secrets using the current `APP_SECRET`, usually after migrating from an older secret setup. |
-| `assign-organization` | Move a user to another organization by organization slug. Invalidates existing sessions. |
+| Command               | Useful for                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `reset-password`      | Reset a user's password when they are locked out or forgot it. Invalidates existing sessions.                       |
+| `disable-2fa`         | Disable two-factor authentication for a user who lost access to their 2FA device.                                   |
+| `change-username`     | Rename a user account. Invalidates existing sessions.                                                               |
+| `change-email`        | Change a user's email address. Removes linked SSO accounts for that user and invalidates sessions.                  |
+| `rekey-2fa`           | Re-encrypt existing 2FA secrets using the current `APP_SECRET`, usually after migrating from an older secret setup. |
+| `assign-organization` | Move a user to another organization by organization slug. Invalidates existing sessions.                            |
 
 ## Examples
 
