@@ -24,13 +24,7 @@ Most commands prompt for missing values when run interactively.
 
 New passwords must be between 8 and 128 characters long. Invalid passwords are rejected without changing the existing password or invalidating sessions.
 
-After updating, existing passwords longer than 128 characters can no longer be used to sign in. If this affects your account, reset it with the command below and choose a password between 8 and 128 characters long:
-
-```bash
-docker exec -it zerobyte bun run cli reset-password --username admin
-```
-
-Replace `admin` with your username. A successful reset invalidates all existing sessions for that user.
+A successful reset invalidates all existing sessions for that user.
 
 ## Commands
 
