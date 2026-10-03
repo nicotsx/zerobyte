@@ -64,6 +64,13 @@ const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
 	config: await decryptVolumeConfig(volume.config),
 });
 
+const volumeWithStoredConfig = (volume: Volume): AgentVolume => ({
+	...volume,
+	shortId: volume.shortId,
+	config: volume.config,
+	provisioningId: volume.provisioningId ?? null,
+});
+
 const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
 	...volume,
 	shortId: volume.shortId,
@@ -83,7 +90,9 @@ const runVolumeBackendCommand = async (
 	name: "volume.mount" | "volume.unmount" | "volume.checkHealth",
 ) => {
 	if (shouldUseControllerLocalVolumeFallback(volume)) {
-		const backend = createVolumeBackend(await volumeForHost(volume));
+		const backend = createVolumeBackend(
+			name === "volume.mount" ? await volumeForHost(volume) : volumeWithStoredConfig(volume),
+		);
 		switch (name) {
 			case "volume.mount":
 				return backend.mount();
@@ -96,7 +105,7 @@ const runVolumeBackendCommand = async (
 
 	const command = await runVolumeCommand(volume.agentId, {
 		name,
-		volume: await volumeForAgent(volume),
+		volume: name === "volume.mount" ? await volumeForAgent(volume) : volumeWithStoredConfig(volume),
 	});
 	return command.result;
 };
@@ -164,8 +173,9 @@ const mountVolume = async (shortId: ShortId) => {
 		return checkHealth(shortId);
 	}
 
+	const resolvedVolume = await volumeForAgent(volume);
 	await runVolumeBackendCommand(volume, "volume.unmount");
-	const { error, status } = await runVolumeBackendCommand(volume, "volume.mount");
+	const { error, status } = await runVolumeBackendCommand(resolvedVolume, "volume.mount");
 
 	await db
 		.update(volumesTable)
@@ -216,9 +226,9 @@ const getVolume = async (shortId: ShortId) => {
 			shouldRunViaAgent(volume)
 				? runVolumeCommand(volume.agentId, {
 						name: "volume.statfs",
-						volume: await volumeForAgent(volume),
+						volume: volumeWithStoredConfig(volume),
 					}).then((command) => command.result)
-				: volumeForHost(volume).then((hostVolume) => getStatFs(getVolumePath(hostVolume))),
+				: getStatFs(getVolumePath(volumeWithStoredConfig(volume))),
 			1000,
 			"volume.statfs",
 		).catch((error) => {
@@ -244,29 +254,37 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
 
-	const configChanged =
-		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;
+	const existingConfigResult = volumeConfigSchema.safeParse(existing.config);
+	if (!existingConfigResult.success) {
+		throw new InternalServerError("Invalid existing volume configuration");
+	}
+
+	let configChanged = false;
+	let encryptedConfig = existing.config;
+	if (volumeData.config !== undefined) {
+		const newConfigResult = volumeConfigSchema.safeParse(volumeData.config);
+		if (!newConfigResult.success) {
+			throw new BadRequestError("Invalid volume configuration");
+		}
+
+		configChanged = JSON.stringify(existingConfigResult.data) !== JSON.stringify(newConfigResult.data);
+		if (configChanged) {
+			encryptedConfig = await encryptVolumeConfig(newConfigResult.data);
+		}
+	}
 
 	if (configChanged) {
 		logger.debug("Unmounting existing volume before applying new config");
 		await runVolumeBackendCommand(existing, "volume.unmount");
 	}
 
-	const newConfigResult = volumeConfigSchema.safeParse(volumeData.config || existing.config);
-	if (!newConfigResult.success) {
-		throw new BadRequestError("Invalid volume configuration");
-	}
-	const newConfig = newConfigResult.data;
-
-	const encryptedConfig = await encryptVolumeConfig(newConfig);
-
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
 			name: normalizedName,
 			config: encryptedConfig,
-			type: volumeData.config?.backend,
-			autoRemount: volumeData.autoRemount,
+			type: volumeData.config?.backend ?? existing.type,
+			autoRemount: volumeData.autoRemount ?? existing.autoRemount,
 			updatedAt: Date.now(),
 		})
 		.where(and(eq(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)))
@@ -290,11 +308,16 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 };
 
 const testConnection = async (backendConfig: BackendConfig) => {
+	const resolvedConfig = await decryptVolumeConfig(backendConfig);
+
 	if (!config.flags.enableLocalAgent) {
-		return Effect.runPromise(testVolumeConnection(backendConfig));
+		return Effect.runPromise(testVolumeConnection(resolvedConfig));
 	}
 
-	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
+	const command = await runVolumeCommand(LOCAL_AGENT_ID, {
+		name: "volume.testConnection",
+		backendConfig: resolvedConfig,
+	});
 	return command.result;
 };
 
@@ -398,12 +421,12 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 
 	try {
 		if (shouldUseControllerLocalVolumeFallback(volume)) {
-			return await listVolumeFiles(await volumeForHost(volume), subPath, offset, limit);
+			return await listVolumeFiles(volumeWithStoredConfig(volume), subPath, offset, limit);
 		}
 
 		const command = await runVolumeCommand(volume.agentId, {
 			name: "volume.listFiles",
-			volume: await volumeForAgent(volume),
+			volume: volumeWithStoredConfig(volume),
 			subPath,
 			offset,
 			limit,
