@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, sessionsTable, usersTable } from "~/server/db/schema";
-import { changeEmailForUser, getEmailChangeImpact } from "./change-email";
+import { changeEmailForUser, getEmailChangeImpact } from "../change-email";
 
 const randomId = () => Bun.randomUUIDv7();
 const randomSlug = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 8)}`;

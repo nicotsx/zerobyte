@@ -21,7 +21,7 @@ async function createAccount({ userId, providerId }: { userId: string; providerI
 
 	await db.insert(account).values({
 		id,
-		accountId: randomSlug("account"),
+		accountId: providerId === "credential" ? userId : randomSlug("account"),
 		providerId,
 		userId,
 		password: providerId === "credential" ? "password-hash" : null,

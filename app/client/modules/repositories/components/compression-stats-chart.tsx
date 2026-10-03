@@ -67,16 +67,17 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 	const storedPercent = Math.min(100, Math.max(0, uncompressedSize > 0 ? (storedSize / uncompressedSize) * 100 : 0));
 
 	return (
-		<Card className="flex flex-col px-6 py-6">
-			<div className="flex items-start justify-between mb-5">
+		<Card className="flex min-w-0 flex-col px-6 py-6">
+			<div className="flex items-start justify-between gap-3 mb-5">
 				<CardTitle className="flex items-center gap-2">
-					<Archive className="h-4 w-4 text-muted-foreground" />
+					<Archive className="h-4 w-4 shrink-0 text-muted-foreground" />
 					Compression Statistics
 				</CardTitle>
 				<Button
 					type="button"
 					variant="outline"
 					size="sm"
+					className="shrink-0"
 					onClick={() => refreshStats.mutate({ path: { shortId: repositoryShortId } })}
 					disabled={refreshStats.isPending}
 					title="Refresh statistics"
@@ -84,7 +85,9 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 					<RefreshCw className={cn("h-4 w-4", { "animate-spin": refreshStats.isPending })} />
 				</Button>
 			</div>
-			<p className={cn("text-sm text-muted-foreground", { hidden: !isPending })}>Loading compression statistics...</p>
+			<p className={cn("text-sm text-muted-foreground", { hidden: !isPending })}>
+				Loading compression statistics...
+			</p>
 			<div className={cn("space-y-2", { hidden: !error || isPending })}>
 				<p className="text-sm font-medium text-destructive">Failed to load compression statistics</p>
 				<p className="text-sm text-muted-foreground wrap-break-word">{error?.message}</p>
@@ -96,8 +99,13 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 				<div className="mb-6">
 					<div className="flex items-center justify-between text-sm mb-3">
 						<span className="text-muted-foreground">
-							<ByteSize base={1024} bytes={uncompressedSize} className="font-mono font-semibold text-foreground" /> of
-							data across <span className="font-mono font-semibold text-foreground">{snapshotsCount}</span> snapshots
+							<ByteSize
+								base={1024}
+								bytes={uncompressedSize}
+								className="font-mono font-semibold text-foreground"
+							/>{" "}
+							of data across{" "}
+							<span className="font-mono font-semibold text-foreground">{snapshotsCount}</span> snapshots
 						</span>
 					</div>
 					<div className="h-9 rounded overflow-hidden flex">
@@ -124,20 +132,18 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 					</div>
 				</div>
 				<Separator className="mb-4" />
-				<div className="flex items-center gap-6 text-sm">
-					<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+					<div className="flex items-center gap-2 whitespace-nowrap">
 						<span className="text-muted-foreground">Ratio</span>
 						<span className="font-mono font-semibold">
 							{compressionRatio > 0 ? `${compressionRatio.toFixed(2)}x` : "-"}
 						</span>
 					</div>
-					<Separator orientation="vertical" className="h-4" />
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2 whitespace-nowrap">
 						<span className="text-muted-foreground">Snapshots</span>
 						<span className="font-mono font-semibold">{snapshotsCount.toLocaleString(locale)}</span>
 					</div>
-					<Separator orientation="vertical" className="h-4" />
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2 whitespace-nowrap">
 						<span className="text-muted-foreground">Compressed</span>
 						<span className="font-mono font-semibold">{compressionProgressPercent.toFixed(0)}%</span>
 					</div>

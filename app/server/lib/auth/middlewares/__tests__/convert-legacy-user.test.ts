@@ -144,7 +144,7 @@ describe("convertLegacyUserOnFirstLogin", () => {
 		});
 		expect(userAccount).toBeDefined();
 		expect(userAccount?.providerId).toBe("credential");
-		expect(userAccount?.accountId).toBe("legacy-with-org");
+		expect(userAccount?.accountId).toBe(newUser?.id);
 		expect(userAccount?.password).toBeDefined();
 
 		// Verify membership was migrated

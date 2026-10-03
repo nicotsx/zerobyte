@@ -63,6 +63,10 @@ jobs:
         run: |
           timeout 30s bash -c 'until curl -f http://localhost:4096/api/healthcheck; do echo "Waiting for server..." && sleep 2; done'
 
+      - name: Wait for TLS reverse proxy to be ready
+        run: |
+          timeout 30s bash -c 'until curl --noproxy "*" --resolve zerobyte.example.com:5558:127.0.0.1 -skf https://zerobyte.example.com:5558/api/healthcheck; do echo "Waiting for TLS reverse proxy..." && sleep 2; done'
+
       - name: Check CLI version
         run: |
           expected_version=$(docker exec zerobyte-e2e printenv APP_VERSION)
@@ -76,7 +80,7 @@ jobs:
 
       - name: Print docker logs if failed to start
         if: failure()
-        run: docker compose logs zerobyte-e2e tinyauth tinyauth-app || true
+        run: docker compose logs zerobyte-e2e zerobyte-e2e-proxied zerobyte-e2e-https tinyauth tinyauth-app || true
 
       - name: Make playwright directory writable
         run: sudo chmod 777 playwright/data/zerobyte.db
@@ -89,6 +93,7 @@ jobs:
         run: |
           tree playwright || true
           docker compose logs zerobyte-e2e > playwright-report/container-logs.txt || true
+          docker compose logs zerobyte-e2e-proxied zerobyte-e2e-https > playwright-report/proxy-logs.txt || true
           docker compose logs tinyauth tinyauth-app > playwright-report/tinyauth-logs.txt || true
 
       - name: Debug - print content of /test-data in container

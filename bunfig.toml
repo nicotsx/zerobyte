@@ -1,3 +1,3 @@
 [install]
-minimumReleaseAge = 259200
+minimumReleaseAge = 172800
 minimumReleaseAgeExcludes = ["@zerobyte/*"]

@@ -139,7 +139,7 @@ describe("ssoService.deleteSsoProvider", () => {
 
 		await db.insert(account).values({
 			id: randomId(),
-			accountId: randomSlug("credential-acct"),
+			accountId: credentialUser,
 			providerId: "credential",
 			userId: credentialUser,
 		});

@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { session } from "electron";
 import { KeyObject, randomBytes, X509Certificate } from "node:crypto";
 import { SubjectAlternativeNameExtension, X509CertificateGenerator } from "@peculiar/x509";

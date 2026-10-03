@@ -22,6 +22,7 @@ export default defineConfig({
 		},
 		{
 			name: "chromium",
+			testIgnore: /.*\.proxy\.spec\.ts/,
 			use: {
 				...devices["Desktop Chrome"],
 				launchOptions: {
@@ -29,6 +30,17 @@ export default defineConfig({
 				},
 			},
 			dependencies: ["setup"],
+		},
+		{
+			name: "reverse-proxy",
+			testMatch: /.*\.proxy\.spec\.ts/,
+			use: {
+				...devices["Desktop Chrome"],
+				baseURL: "https://zerobyte.example.com:5558",
+				launchOptions: {
+					args: ["--host-rules=MAP zerobyte.example.com 127.0.0.1, MAP tinyauth.example.com 127.0.0.1"],
+				},
+			},
 		},
 
 		// {

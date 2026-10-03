@@ -1,4 +1,5 @@
 import { Settings } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { CardContent, CardDescription, CardTitle } from "~/client/components/ui/card";
 import { Label } from "~/client/components/ui/label";
@@ -14,8 +15,11 @@ import {
 } from "~/client/lib/datetime";
 
 export function DateTimeFormatSection() {
+	const [previewDate] = useState(() => new Date());
+
 	const { dateFormat, timeFormat } = useRootLoaderData();
 	const { formatDateTime } = useTimeFormat();
+
 	const handleDateTimeFormatChange = async (
 		nextDateFormat: DateFormatPreference,
 		nextTimeFormat: TimeFormatPreference,
@@ -103,7 +107,7 @@ export function DateTimeFormatSection() {
 							</Select>
 						</div>
 					</div>
-					<p className="text-sm text-muted-foreground">Preview: {formatDateTime(new Date())}</p>
+					<p className="text-sm text-muted-foreground">Preview: {formatDateTime(previewDate)}</p>
 				</div>
 			</CardContent>
 		</>

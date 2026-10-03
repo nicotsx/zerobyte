@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { sessionsTable, usersTable } from "~/server/db/schema";
-import { changeUsername } from "./change-username";
+import { changeUsername } from "../change-username";
 
 describe("changeUsername", () => {
 	beforeEach(async () => {

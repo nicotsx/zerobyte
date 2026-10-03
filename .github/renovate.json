@@ -2,7 +2,7 @@
 	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
 	"extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
 	"enabledManagers": ["bun", "github-actions", "dockerfile", "custom.regex"],
-	"minimumReleaseAge": "3 days",
+	"minimumReleaseAge": "2 days",
 	"rangeStrategy": "bump",
 	"customManagers": [
 		{

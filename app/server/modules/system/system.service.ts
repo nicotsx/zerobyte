@@ -45,6 +45,7 @@ const getSystemInfo = async () => {
 
 interface GitHubRelease {
 	tag_name: string;
+	prerelease: boolean;
 	html_url: string;
 	published_at: string;
 	body: string;
@@ -76,12 +77,14 @@ const getUpdates = async (): Promise<UpdateInfoDto> => {
 		const releases = (await response.json()) as GitHubRelease[];
 		const currentVersion = config.appVersion;
 
-		const formattedReleases = releases.map((r) => ({
-			version: r.tag_name,
-			url: r.html_url,
-			publishedAt: r.published_at,
-			body: r.body,
-		}));
+		const formattedReleases = releases
+			.filter((r) => !r.prerelease)
+			.map((r) => ({
+				version: r.tag_name,
+				url: r.html_url,
+				publishedAt: r.published_at,
+				body: r.body,
+			}));
 
 		const latestRelease = formattedReleases.find((release) => semver.valid(release.version));
 		const latestVersion = latestRelease?.version ?? currentVersion;
