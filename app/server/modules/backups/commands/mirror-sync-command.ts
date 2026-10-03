@@ -10,6 +10,7 @@ import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
 import { createTaskProgressBuffer } from "../../tasks/progress-buffer";
 import { taskStore } from "../../tasks/tasks.store";
+import { notificationsService } from "../../notifications/notifications.service";
 import { executeForget } from "../helpers/backup-maintenance";
 
 type MirrorSyncPlan = {
@@ -207,7 +208,23 @@ export function createMirrorSyncCommand(plan: MirrorSyncExecutionPlan) {
 					releaseLocks = release;
 					return releaseLocks;
 				},
+
 				run: (signal) => executeMirrorSync(plan, task.id, signal, releaseLocks),
+
+				beforeFail: (error) => {
+					notificationsService
+						.sendMirrorSyncFailureNotification(plan.scheduleId, {
+							scheduleName: plan.targetDisplayName,
+							sourceRepositoryName: plan.sourceRepository.name,
+							mirrorRepositoryName: plan.mirrorRepository.name,
+							error,
+						})
+						.catch((notificationError) => {
+							logger.error(
+								`Failed to send mirror sync failure notification: ${toMessage(notificationError)}`,
+							);
+						});
+				},
 			});
 
 			return { taskId: task.id, status: "started" as const };

@@ -141,13 +141,15 @@ export async function startPostBackupMirrorSyncs(
 	if (mirrors.length === 0) {
 		return;
 	}
-	if (!result?.snapshot_id) {
-		throw new Error("Completed backup did not return a snapshot ID for mirror synchronization");
-	}
-	const snapshotIds: [string] = [result.snapshot_id];
 
 	for (const mirror of mirrors) {
 		try {
+			if (!result?.snapshot_id) {
+				throw new Error("Completed backup did not return a snapshot ID for mirror synchronization");
+			}
+
+			const snapshotIds: [string] = [result.snapshot_id];
+
 			commands
 				.createMirrorSync({
 					organizationId: ctx.organizationId,
@@ -166,6 +168,17 @@ export async function startPostBackupMirrorSyncs(
 			logger.error(
 				`Failed to start mirror sync for schedule ${scheduleId} and repository ${mirror.repository.shortId}: ${toMessage(error)}`,
 			);
+
+			notificationsService
+				.sendMirrorSyncFailureNotification(scheduleId, {
+					scheduleName: schedule.name,
+					sourceRepositoryName: ctx.repository.name,
+					mirrorRepositoryName: mirror.repository.name,
+					error: toMessage(error),
+				})
+				.catch((notificationError) => {
+					logger.error(`Failed to send mirror sync failure notification: ${toMessage(notificationError)}`);
+				});
 		}
 	}
 }

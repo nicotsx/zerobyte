@@ -14,10 +14,28 @@ import type { ShortId } from "~/server/utils/branded";
 import { Effect } from "effect";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
+import { serverEvents } from "~/server/core/events";
 import { repoMutex } from "~/server/core/repository-mutex";
 import { cache, cacheKeys } from "~/server/utils/cache";
 import { db } from "~/server/db/db";
-import { backupSchedulesTable } from "~/server/db/schema";
+import { backupSchedulesTable, backupScheduleNotificationsTable } from "~/server/db/schema";
+import { notificationsService } from "~/server/modules/notifications/notifications.service";
+import * as shoutrrr from "~/server/utils/shoutrrr";
+
+const subscribeToMirrorFailures = async (scheduleId: number) => {
+	const destination = await notificationsService.createDestination("Mirror failures", {
+		type: "custom",
+		shoutrrrUrl: "discord://token@webhookid",
+	});
+
+	await db.insert(backupScheduleNotificationsTable).values({
+		scheduleId,
+		destinationId: destination.id,
+		notifyOnFailure: true,
+	});
+
+	return { destination, send: vi.spyOn(shoutrrr, "sendNotification").mockResolvedValue({ success: true }) };
+};
 
 const setup = () => {
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
@@ -327,6 +345,144 @@ describe("startMirrorStatus", () => {
 });
 
 describe("syncMirror", () => {
+	test.each([
+		{ phase: "copy", deliveryFails: false },
+		{ phase: "preparation", deliveryFails: false },
+		{ phase: "copy", deliveryFails: true },
+	])("notifies manual mirror $phase failures (delivery fails: $deliveryFails)", async ({ phase, deliveryFails }) => {
+		const { mockCopy } = setup();
+		const copyMock = mockCopy();
+		copyMock.mockImplementation(() =>
+			Effect.sync(() => {
+				throw new Error("Cloud connection lost");
+			}),
+		);
+
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = phase === "preparation" ? sourceRepository : await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send, destination } = await subscribeToMirrorFailures(schedule.id);
+		if (deliveryFails) {
+			send.mockRejectedValueOnce(new Error("Notification delivery failed"));
+		}
+
+		const expectedError =
+			phase === "preparation"
+				? `Duplicate repository lock request: ${sourceRepository.id}`
+				: "Cloud connection lost";
+
+		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
+			"snap1",
+		]);
+
+		await waitForExpect(() => {
+			expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId })).toMatchObject({
+				status: "failed",
+				error: expect.stringContaining(expectedError),
+			});
+			expect(send).toHaveBeenCalledExactlyOnceWith({
+				shoutrrrUrl: "discord://token@webhookid",
+				title: `Zerobyte ${schedule.name} mirror sync failed`,
+				body: expect.stringContaining(
+					`Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${mirrorRepository.name}\nError: ${expectedError}`,
+				),
+			});
+		});
+
+		if (phase === "preparation") {
+			expect(copyMock).not.toHaveBeenCalled();
+		}
+
+		if (deliveryFails) {
+			await waitForExpect(async () => {
+				const updatedDestination = await db.query.notificationDestinationsTable.findFirst({
+					where: { id: destination.id },
+				});
+
+				expect(updatedDestination).toMatchObject({
+					status: "error",
+					lastError: "Notification delivery failed",
+				});
+				expect(taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId })?.status).toBe(
+					"failed",
+				);
+			});
+		}
+	});
+
+	test("publishes failed mirror task and history while notification delivery is pending", async () => {
+		const { mockCopy } = setup();
+		mockCopy().mockImplementation(() =>
+			Effect.sync(() => {
+				throw new Error("Cloud connection lost");
+			}),
+		);
+
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const mirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send, destination } = await subscribeToMirrorFailures(schedule.id);
+		const delivery = Promise.withResolvers<Awaited<ReturnType<typeof shoutrrr.sendNotification>>>();
+		const deliveryContext = vi.fn();
+
+		send.mockImplementationOnce(async () => {
+			const result = await delivery.promise;
+
+			deliveryContext(context.getOrganizationId());
+			return result;
+		});
+		vi.mocked(context.getOrganizationId).mockRestore();
+
+		const historyChanged = vi.fn();
+		const taskChanged = vi.fn();
+		serverEvents.on("task:history-changed", historyChanged);
+		const unsubscribe = taskStore.subscribeToAllChanges({ organizationId: TEST_ORG_ID }, taskChanged);
+
+		try {
+			const result = await context.withContext({ organizationId: TEST_ORG_ID }, () =>
+				backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, ["snap1"]),
+			);
+
+			await waitForExpect(() => {
+				expect(send).toHaveBeenCalledOnce();
+				expect(taskChanged).toHaveBeenCalledWith(
+					expect.objectContaining({ id: result.taskId, status: "failed", error: "Cloud connection lost" }),
+				);
+				expect(historyChanged).toHaveBeenCalledWith(
+					expect.objectContaining({
+						organizationId: TEST_ORG_ID,
+						item: expect.objectContaining({ id: result.taskId, status: "failed", outcome: "error" }),
+					}),
+				);
+			});
+			expect(deliveryContext).not.toHaveBeenCalled();
+		} finally {
+			delivery.resolve({ success: true });
+			await delivery.promise;
+			unsubscribe();
+			serverEvents.off("task:history-changed", historyChanged);
+
+			await waitForExpect(async () => {
+				const updatedDestination = await db.query.notificationDestinationsTable.findFirst({
+					where: { id: destination.id },
+				});
+
+				expect(updatedDestination?.status).toBe("healthy");
+				expect(deliveryContext).toHaveBeenCalledExactlyOnceWith(TEST_ORG_ID);
+			});
+		}
+	});
+
 	test("should start a mirror sync task", async () => {
 		const { mockCopy } = setup();
 		mockCopy();
@@ -338,6 +494,7 @@ describe("syncMirror", () => {
 			repositoryId: repository.id,
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send } = await subscribeToMirrorFailures(schedule.id);
 
 		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
@@ -363,6 +520,8 @@ describe("syncMirror", () => {
 				result: { kind: "mirrorSync" },
 			});
 		});
+
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("should pass custom restic params to manual mirror sync", async () => {
@@ -504,6 +663,7 @@ describe("syncMirror", () => {
 			repositoryId: repository.id,
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send } = await subscribeToMirrorFailures(schedule.id);
 
 		const firstSync = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
@@ -539,6 +699,8 @@ describe("syncMirror", () => {
 				error: "Mirror sync was cancelled",
 			});
 		});
+
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("should cancel while applying mirror retention", async () => {
@@ -568,6 +730,7 @@ describe("syncMirror", () => {
 			retentionPolicy: { keepHourly: 1 },
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send } = await subscribeToMirrorFailures(schedule.id);
 
 		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
@@ -588,6 +751,8 @@ describe("syncMirror", () => {
 			const task = taskStore.findById({ organizationId: TEST_ORG_ID, taskId: result.taskId });
 			expect(task?.status).toBe("cancelled");
 		});
+
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("keeps the mirror sync successful when retention maintenance fails", async () => {
@@ -607,6 +772,7 @@ describe("syncMirror", () => {
 			retentionPolicy: { keepHourly: 1 },
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const { send } = await subscribeToMirrorFailures(schedule.id);
 
 		const result = await backupsService.startMirrorSync(schedule.shortId, mirrorRepository.shortId as ShortId, [
 			"snap1",
@@ -618,6 +784,8 @@ describe("syncMirror", () => {
 			expect(task).toMatchObject({ status: "succeeded", error: null });
 			expect(mirrors[0]?.lastSyncTask).toMatchObject({ status: "succeeded", error: null });
 		});
+
+		expect(send).not.toHaveBeenCalled();
 	});
 
 	test("should throw if mirror is not configured for the schedule", async () => {

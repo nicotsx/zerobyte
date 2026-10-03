@@ -339,16 +339,11 @@ const buildBackupNotificationLines = (summary?: ResticBackupRunSummaryDto) => {
 	return lines.filter(Boolean);
 };
 
-const sendBackupNotification = async (
+const sendScheduleNotification = async (
 	scheduleId: number,
 	event: NotificationEvent,
-	context: {
-		volumeName: string;
-		repositoryName: string;
-		scheduleName?: string;
-		error?: string;
-		summary?: ResticBackupRunSummaryDto;
-	},
+	buildMessage: () => { title: string; body: string },
+	operation: "backup" | "mirror sync",
 ) => {
 	try {
 		const organizationId = getOrganizationId();
@@ -379,11 +374,11 @@ const sendBackupNotification = async (
 		});
 
 		if (!relevantAssignments.length) {
-			logger.debug(`No notification destinations configured for backup ${scheduleId} event ${event}`);
+			logger.debug(`No notification destinations configured for ${operation} ${scheduleId} event ${event}`);
 			return;
 		}
 
-		const { title, body } = buildNotificationMessage(event, context);
+		const { title, body } = buildMessage();
 
 		for (const assignment of relevantAssignments) {
 			try {
@@ -396,23 +391,62 @@ const sendBackupNotification = async (
 
 				if (result.success) {
 					logger.info(
-						`Notification sent successfully to ${assignment.destination.name} for backup ${scheduleId} event ${event}`,
+						`Notification sent successfully to ${assignment.destination.name} for ${operation} ${scheduleId} event ${event}`,
 					);
 				} else {
 					logger.error(
-						`Failed to send notification to ${assignment.destination.name} for backup ${scheduleId}: ${result.error}`,
+						`Failed to send notification to ${assignment.destination.name} for ${operation} ${scheduleId}: ${result.error}`,
 					);
 				}
 			} catch (error) {
 				await updateDeliveryStatus(assignment.destination.id, { success: false, error: toMessage(error) });
 				logger.error(
-					`Error sending notification to ${assignment.destination.name} for backup ${scheduleId}: ${toMessage(error)}`,
+					`Error sending notification to ${assignment.destination.name} for ${operation} ${scheduleId}: ${toMessage(error)}`,
 				);
 			}
 		}
 	} catch (error) {
-		logger.error(`Error processing backup notifications for schedule ${scheduleId}: ${toMessage(error)}`);
+		logger.error(`Error processing ${operation} notifications for schedule ${scheduleId}: ${toMessage(error)}`);
 	}
+};
+
+const sendBackupNotification = async (
+	scheduleId: number,
+	event: NotificationEvent,
+	context: {
+		volumeName: string;
+		repositoryName: string;
+		scheduleName?: string;
+		error?: string;
+		summary?: ResticBackupRunSummaryDto;
+	},
+) => {
+	return sendScheduleNotification(scheduleId, event, () => buildNotificationMessage(event, context), "backup");
+};
+
+const sendMirrorSyncFailureNotification = async (
+	scheduleId: number,
+	context: {
+		scheduleName: string;
+		sourceRepositoryName: string;
+		mirrorRepositoryName: string;
+		error: string;
+	},
+) => {
+	return sendScheduleNotification(
+		scheduleId,
+		"failure",
+		() => ({
+			title: `Zerobyte ${context.scheduleName} mirror sync failed`,
+			body: [
+				`Schedule: ${context.scheduleName}`,
+				`Source repository: ${context.sourceRepositoryName}`,
+				`Mirror repository: ${context.mirrorRepositoryName}`,
+				`Error: ${context.error}`,
+			].join("\n"),
+		}),
+		"mirror sync",
+	);
 };
 
 function buildNotificationMessage(
@@ -507,4 +541,5 @@ export const notificationsService = {
 	getScheduleNotifications,
 	updateScheduleNotifications,
 	sendBackupNotification,
+	sendMirrorSyncFailureNotification,
 };

@@ -21,8 +21,25 @@ import { volumeService } from "~/server/modules/volumes/volume.service";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { getScheduleByIdOrShortId } from "../helpers/backup-schedule-lookups";
 import { db } from "~/server/db/db";
-import { backupSchedulesTable } from "~/server/db/schema";
+import { backupSchedulesTable, backupScheduleNotificationsTable } from "~/server/db/schema";
+import { notificationsService } from "~/server/modules/notifications/notifications.service";
+import * as shoutrrr from "~/server/utils/shoutrrr";
 import { NotFoundError } from "http-errors-enhanced";
+
+const subscribeToMirrorFailures = async (scheduleId: number) => {
+	const destination = await notificationsService.createDestination("Mirror failures", {
+		type: "custom",
+		shoutrrrUrl: "discord://token@webhookid",
+	});
+
+	await db.insert(backupScheduleNotificationsTable).values({
+		scheduleId,
+		destinationId: destination.id,
+		notifyOnFailure: true,
+	});
+
+	return vi.spyOn(shoutrrr, "sendNotification").mockResolvedValue({ success: true });
+};
 
 const setup = () => {
 	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
@@ -252,6 +269,7 @@ describe("mirror operations", () => {
 		});
 
 		const mirror = await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const send = await subscribeToMirrorFailures(schedule.id);
 
 		resticCopyMock.mockImplementationOnce(() =>
 			Effect.sync(() => {
@@ -269,7 +287,18 @@ describe("mirror operations", () => {
 			expect(updatedMirror?.lastSyncTask?.status).toBe("failed");
 			expect(updatedMirror?.lastSyncTask?.error).toBe("Copy failed");
 			expect(updatedMirror?.lastSyncTask?.finishedAt).not.toBeNull();
+			expect(send).toHaveBeenCalledExactlyOnceWith({
+				shoutrrrUrl: "discord://token@webhookid",
+				title: `Zerobyte ${schedule.name} mirror sync failed`,
+				body: `Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${mirrorRepository.name}\nError: Copy failed`,
+			});
 		});
+
+		const backupTask = await getBackupTaskForSchedule(schedule.id);
+		const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+
+		expect(backupTask?.status).toBe("succeeded");
+		expect(updatedSchedule.lastBackupStatus).toBe("success");
 	});
 
 	test("should run forget on mirror after successful copy when retention policy exists", async () => {
@@ -370,6 +399,7 @@ describe("mirror operations", () => {
 			repositoryId: sourceRepository.id,
 		});
 		await createTestBackupScheduleMirror(schedule.id, mirrorRepository.id);
+		const send = await subscribeToMirrorFailures(schedule.id);
 		resticBackupMock.mockResolvedValueOnce({ exitCode: 0, summary: "not-json", error: "" });
 
 		await backupsService.executeBackup(schedule.id, true);
@@ -384,6 +414,11 @@ describe("mirror operations", () => {
 		expect(task?.error).toBeNull();
 		expect(updatedSchedule.lastBackupStatus).toBe("success");
 		expect(resticCopyMock).not.toHaveBeenCalled();
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			shoutrrrUrl: "discord://token@webhookid",
+			title: `Zerobyte ${schedule.name} mirror sync failed`,
+			body: `Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${mirrorRepository.name}\nError: Completed backup did not return a snapshot ID for mirror synchronization`,
+		});
 	});
 
 	test("continues enqueueing mirrors when one mirror task cannot be created", async () => {
@@ -398,6 +433,9 @@ describe("mirror operations", () => {
 		});
 		await createTestBackupScheduleMirror(schedule.id, failingMirrorRepository.id);
 		await createTestBackupScheduleMirror(schedule.id, successfulMirrorRepository.id);
+		const send = await subscribeToMirrorFailures(schedule.id);
+		send.mockRejectedValueOnce(new Error("Notification delivery failed"));
+
 		const createMirrorSync = commands.createMirrorSync;
 		vi.spyOn(commands, "createMirrorSync").mockImplementation((plan) => {
 			if (plan.mirrorRepository.id === failingMirrorRepository.id) {
@@ -432,6 +470,78 @@ describe("mirror operations", () => {
 			failingMirrorRepository.config,
 			expect.any(Object),
 		);
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			shoutrrrUrl: "discord://token@webhookid",
+			title: `Zerobyte ${schedule.name} mirror sync failed`,
+			body: `Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${failingMirrorRepository.name}\nError: Task persistence failed`,
+		});
+		await waitForExpect(async () => {
+			const mirrors = await backupsService.getMirrors(schedule.id);
+			expect(
+				mirrors.find((mirror) => mirror.repository.id === successfulMirrorRepository.id)?.lastSyncTask?.status,
+			).toBe("succeeded");
+		});
+	});
+
+	test("starts healthy mirrors while a startup failure notification is pending", async () => {
+		const { resticCopyMock } = setup();
+		const volume = await createTestVolume();
+		const sourceRepository = await createTestRepository();
+		const firstMirrorRepository = await createTestRepository();
+		const secondMirrorRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: sourceRepository.id,
+		});
+		await createTestBackupScheduleMirror(schedule.id, firstMirrorRepository.id);
+		await createTestBackupScheduleMirror(schedule.id, secondMirrorRepository.id);
+		const send = await subscribeToMirrorFailures(schedule.id);
+		const assignment = await db.query.backupScheduleNotificationsTable.findFirst({
+			where: { scheduleId: schedule.id },
+		});
+
+		const delivery = Promise.withResolvers<Awaited<ReturnType<typeof shoutrrr.sendNotification>>>();
+
+		send.mockImplementationOnce(() => delivery.promise);
+
+		vi.spyOn(commands, "createMirrorSync").mockImplementationOnce(() => ({
+			start: () => {
+				throw new Error("Task persistence failed");
+			},
+		}));
+
+		try {
+			await backupsService.executeBackup(schedule.id, true);
+			await waitForExpect(async () => {
+				const task = await getBackupTaskForSchedule(schedule.id);
+				expect(task?.status).toBe("succeeded");
+			});
+
+			const updatedSchedule = await getScheduleByIdOrShortId(schedule.id);
+
+			expect(updatedSchedule.lastBackupStatus).toBe("success");
+			await waitForExpect(async () => {
+				const mirrors = await backupsService.getMirrors(schedule.id);
+
+				expect(mirrors.filter((mirror) => mirror.lastSyncTask?.status === "succeeded")).toHaveLength(1);
+				expect(resticCopyMock).toHaveBeenCalledOnce();
+				expect(send).toHaveBeenCalledExactlyOnceWith({
+					shoutrrrUrl: "discord://token@webhookid",
+					title: `Zerobyte ${schedule.name} mirror sync failed`,
+					body: expect.stringContaining("Error: Task persistence failed"),
+				});
+			});
+		} finally {
+			delivery.resolve({ success: true });
+			await delivery.promise;
+			await waitForExpect(async () => {
+				const destination = await db.query.notificationDestinationsTable.findFirst({
+					where: { id: assignment!.destinationId },
+				});
+
+				expect(destination?.status).toBe("healthy");
+			});
+		}
 	});
 
 	test("mirrors from the repository used by the completed backup", async () => {
