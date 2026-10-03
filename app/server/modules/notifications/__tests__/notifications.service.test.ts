@@ -91,7 +91,9 @@ describe("notificationsService.updateDestination", () => {
 		const { organizationId, user } = await createTestSession();
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			const resolveSecretSpy = vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValue("discord://token@webhookid");
+			const resolveSecretSpy = vi
+				.spyOn(cryptoUtils, "resolveSecret")
+				.mockResolvedValue("discord://token@webhookid");
 
 			const [destination] = await db
 				.insert(notificationDestinationsTable)
@@ -141,6 +143,27 @@ describe("notificationsService.updateDestination", () => {
 				url: "https://hooks.example.com/backup",
 				method: "POST",
 			});
+		});
+	});
+});
+
+test("test notifications escape Telegram destination names with the configured HTML mode", async () => {
+	const { organizationId, user } = await createTestSession();
+
+	await withContext({ organizationId, userId: user.id }, async () => {
+		const destination = await notificationsService.createDestination("<b>Alerts</b> & 📦", {
+			type: "telegram",
+			botToken: "123456:token",
+			chatId: "12345",
+		});
+		const send = vi.spyOn(shoutrrr, "sendNotification").mockResolvedValue({ success: true });
+
+		await expect(notificationsService.testDestination(destination.id)).resolves.toEqual({ success: true });
+
+		expect(send).toHaveBeenCalledExactlyOnceWith({
+			shoutrrrUrl: "telegram://123456:token@telegram?channels=12345&parseMode=HTML",
+			title: "🔔 Test notification · Zerobyte",
+			body: "<b>Destination:</b> &lt;b&gt;Alerts&lt;/b&gt; &amp; 📦\n<b>Result:</b> Notifications are working.",
 		});
 	});
 });

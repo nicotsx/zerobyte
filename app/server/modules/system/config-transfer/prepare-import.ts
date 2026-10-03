@@ -1,4 +1,6 @@
 import { validateCustomResticParams } from "@zerobyte/core/restic/server";
+import { notificationTemplateKeys } from "~/lib/notification-templates/catalog";
+import { validateNotificationTemplate } from "~/lib/notification-templates/evaluate";
 import { config as serverConfig } from "~/server/core/config";
 import { validateScheduleTiming } from "~/server/modules/backups/backup.helpers";
 import { isValidBackupScheduleName } from "~/server/modules/backups/backup-schedule-name";
@@ -16,6 +18,16 @@ import type { ConfigTransferModel } from "./model";
 
 export type PreparedImport = Omit<ConfigTransferModel, "resticPassword"> & {
 	sealedResticPassword: string;
+};
+
+const validateTemplates = (destinations: ConfigTransferModel["notificationDestinations"]) => {
+	for (const destination of destinations) {
+		for (const key of notificationTemplateKeys) {
+			if (validateNotificationTemplate(key, destination.templates[key]).length > 0) {
+				throw new InvalidConfigTransferError();
+			}
+		}
+	}
 };
 
 const validateSchedules = (schedules: ConfigTransferModel["backupSchedules"]) => {
@@ -192,6 +204,7 @@ export const prepareImport = async (
 ): Promise<{ prepared: PreparedImport; warnings: string[] }> => {
 	const normalizedPayload = normalizeImportedNames(payload);
 	validateSchedules(normalizedPayload.backupSchedules);
+	validateTemplates(normalizedPayload.notificationDestinations);
 	await validateMirrors(normalizedPayload);
 	const systemInfo = await systemService.getSystemInfo();
 

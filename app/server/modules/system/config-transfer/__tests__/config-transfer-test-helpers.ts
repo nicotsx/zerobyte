@@ -48,3 +48,9 @@ export const allowConfigExportPassword = () => {
 	vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
 	vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(true);
 };
+
+export const loadPayloadV2 = async () => {
+	return JSON.parse(
+		await readFile(new URL("../../__fixtures__/config-transfer/v2-full.payload.json", import.meta.url), "utf8"),
+	);
+};

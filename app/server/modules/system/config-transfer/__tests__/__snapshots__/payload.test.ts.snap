@@ -1,5 +1,120 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`config transfer payload graph > decodes the historical v1 fixture into the current import model > frozen v1 to v2 defaults 1`] = `
+{
+  "backup_failure": {
+    "body": "{{#schedule}}
+**Schedule:** {{schedule}}
+{{/schedule}}
+**Source:** {{source}}
+**Repository:** {{repository}}
+{{#duration}}
+**Duration:** {{duration}}
+{{/duration}}
+{{#files}}
+**Files:** {{files}}
+{{/files}}
+{{#dataAdded}}
+**Data added:** {{dataAdded}}
+{{/dataAdded}}
+{{#dataStored}}
+**Data stored:** {{dataStored}}
+{{/dataStored}}
+{{#processedSize}}
+**Size:** {{processedSize}}
+{{/processedSize}}
+{{#error}}
+
+**Error:**
+\`\`\`
+{{error}}
+\`\`\`
+{{/error}}",
+    "title": "❌ Backup failed · Zerobyte",
+  },
+  "backup_start": {
+    "body": "{{#schedule}}
+**Schedule:** {{schedule}}
+{{/schedule}}
+**Source:** {{source}}
+**Repository:** {{repository}}",
+    "title": "▶️ Backup started · Zerobyte",
+  },
+  "backup_success": {
+    "body": "{{#schedule}}
+**Schedule:** {{schedule}}
+{{/schedule}}
+**Source:** {{source}}
+**Repository:** {{repository}}
+{{#duration}}
+**Duration:** {{duration}}
+{{/duration}}
+{{#files}}
+**Files:** {{files}}
+{{/files}}
+{{#dataAdded}}
+**Data added:** {{dataAdded}}
+{{/dataAdded}}
+{{#dataStored}}
+**Data stored:** {{dataStored}}
+{{/dataStored}}
+{{#processedSize}}
+**Size:** {{processedSize}}
+{{/processedSize}}
+",
+    "title": "✅ Backup completed · Zerobyte",
+  },
+  "backup_warning": {
+    "body": "{{#schedule}}
+**Schedule:** {{schedule}}
+{{/schedule}}
+**Source:** {{source}}
+**Repository:** {{repository}}
+{{#duration}}
+**Duration:** {{duration}}
+{{/duration}}
+{{#files}}
+**Files:** {{files}}
+{{/files}}
+{{#dataAdded}}
+**Data added:** {{dataAdded}}
+{{/dataAdded}}
+{{#dataStored}}
+**Data stored:** {{dataStored}}
+{{/dataStored}}
+{{#processedSize}}
+**Size:** {{processedSize}}
+{{/processedSize}}
+{{#error}}
+
+**Warning:**
+\`\`\`
+{{error}}
+\`\`\`
+{{/error}}",
+    "title": "⚠️ Backup completed with warnings · Zerobyte",
+  },
+  "mirror_failure": {
+    "body": "**Schedule:** {{schedule}}
+**Source repository:** {{sourceRepository}}
+**Mirror repository:** {{mirrorRepository}}
+{{#error}}
+
+**Error:**
+\`\`\`
+{{error}}
+\`\`\`
+{{/error}}",
+    "title": "❌ Mirror sync failed · Zerobyte",
+  },
+  "test": {
+    "body": "**Destination:** {{destination}}
+**Result:** Notifications are working.",
+    "title": "🔔 Test notification · Zerobyte",
+  },
+}
+`;
+
 exports[`config transfer payload graph > decodes the historical v1 fixture into the current import model 1`] = `
 {
   "backupScheduleMirrors": [

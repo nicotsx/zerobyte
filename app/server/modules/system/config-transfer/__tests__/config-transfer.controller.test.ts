@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
+import { defaultNotificationTemplates } from "~/lib/notification-templates/catalog";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { organization, usersTable } from "~/server/db/schema";
@@ -163,6 +164,7 @@ describe("configuration export", () => {
 					ref: destinationRef,
 					name: "Parity Notification",
 					enabled: false,
+					templates: defaultNotificationTemplates,
 					config: {
 						type: "slack",
 						webhookUrl: "https://hooks.slack.example.test/parity",

@@ -199,7 +199,7 @@ describe("notification shoutrrr URL builders", () => {
 				botToken: "123456:ABCdef",
 				chatId: "chat-id",
 			}),
-		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id");
+		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id&parseMode=HTML");
 
 		expect(
 			buildTelegramShoutrrrUrl({
@@ -208,7 +208,7 @@ describe("notification shoutrrr URL builders", () => {
 				chatId: "chat-id",
 				threadId: "thread-id",
 			}),
-		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id:thread-id");
+		).toBe("telegram://123456:ABCdef@telegram?channels=chat-id:thread-id&parseMode=HTML");
 	});
 
 	test("builds generic URLs with reserved params, transport flags, and headers", () => {

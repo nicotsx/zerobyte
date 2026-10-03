@@ -56,12 +56,12 @@ test("sends an identifiable mirror failure to encrypted schedule destinations an
 	expect(destination.config).toMatchObject({ shoutrrrUrl: expect.stringMatching(/^encv1:/) });
 	expect(send).toHaveBeenCalledExactlyOnceWith({
 		shoutrrrUrl: "discord://token@webhookid",
-		title: "Zerobyte Nightly backup mirror sync failed",
+		title: "❌ Mirror sync failed · Zerobyte",
 		body: [
 			"Schedule: Nightly backup",
 			"Source repository: Primary repository",
 			"Mirror repository: Cloud mirror",
-			"Error: Cloud connection lost",
+			"\nError:\nCloud connection lost",
 		].join("\n"),
 	});
 	await expect(event).resolves.toMatchObject({
@@ -220,11 +220,11 @@ test("blocks disallowed webhook targets and records the delivery error", async (
 });
 
 test.each([
-	{ event: "start", title: "Zerobyte Nightly backup started", detail: "" },
-	{ event: "success", title: "Zerobyte Nightly backup completed successfully", detail: "" },
-	{ event: "warning", title: "Zerobyte Nightly backup completed with warnings", detail: "\nWarning: Backup warning" },
-	{ event: "failure", title: "Zerobyte Nightly backup failed", detail: "\nError: Backup warning" },
-] as const)("preserves the backup $event message", async ({ event, title, detail }) => {
+	{ event: "start", title: "▶️ Backup started · Zerobyte", detail: "" },
+	{ event: "success", title: "✅ Backup completed · Zerobyte", detail: "" },
+	{ event: "warning", title: "⚠️ Backup completed with warnings · Zerobyte", detail: "\n\nWarning:\nBackup warning" },
+	{ event: "failure", title: "❌ Backup failed · Zerobyte", detail: "\n\nError:\nBackup warning" },
+] as const)("sends the compact backup $event message", async ({ event, title, detail }) => {
 	const { schedule, destination, requestContext } = await setup();
 
 	await withContext(requestContext, () =>
@@ -253,6 +253,6 @@ test.each([
 	expect(send).toHaveBeenCalledExactlyOnceWith({
 		shoutrrrUrl: "discord://token@webhookid",
 		title,
-		body: `Volume: Documents\nRepository: Primary repository\nSchedule: Nightly backup${detail}`,
+		body: `Schedule: Nightly backup\nSource: Documents\nRepository: Primary repository${detail}`,
 	});
 });

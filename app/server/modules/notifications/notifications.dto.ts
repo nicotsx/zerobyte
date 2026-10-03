@@ -2,6 +2,8 @@ import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 import { NOTIFICATION_TYPES, notificationConfigSchema } from "~/schemas/notifications";
 
+import { notificationTemplateSetSchema, notificationTemplateDraftSchema } from "~/lib/notification-templates/schema";
+
 const notificationDestinationSchema = z.object({
 	id: z.number(),
 	name: z.string(),
@@ -11,6 +13,7 @@ const notificationDestinationSchema = z.object({
 	lastError: z.string().nullable(),
 	type: z.enum(NOTIFICATION_TYPES),
 	config: notificationConfigSchema,
+	templates: notificationTemplateSetSchema,
 	createdAt: z.number(),
 	updatedAt: z.number(),
 });
@@ -37,6 +40,7 @@ export const listDestinationsDto = describeRoute({
 export const createDestinationBody = z.object({
 	name: z.string(),
 	config: notificationConfigSchema,
+	templates: notificationTemplateSetSchema.optional(),
 });
 
 const createDestinationResponse = notificationDestinationSchema;
@@ -84,6 +88,7 @@ export const updateDestinationBody = z.object({
 	name: z.string().optional(),
 	enabled: z.boolean().optional(),
 	config: notificationConfigSchema.optional(),
+	templates: notificationTemplateSetSchema.optional(),
 });
 
 const updateDestinationResponse = notificationDestinationSchema;
@@ -220,5 +225,21 @@ export const updateScheduleNotificationsDto = describeRoute({
 				},
 			},
 		},
+	},
+});
+
+export const testTemplateBody = notificationTemplateDraftSchema;
+export const testTemplateDto = describeRoute({
+	description: "Send a draft notification template using sample values without saving it",
+	operationId: "testNotificationTemplate",
+	tags: ["Notifications"],
+	responses: {
+		200: {
+			description: "Draft notification sent successfully",
+			content: { "application/json": { schema: resolver(testDestinationResponse) } },
+		},
+		404: { description: "Notification destination not found" },
+		409: { description: "Cannot test disabled destination" },
+		500: { description: "Failed to send test notification" },
 	},
 });

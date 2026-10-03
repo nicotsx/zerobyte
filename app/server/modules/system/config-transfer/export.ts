@@ -116,6 +116,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 				name: destination.name,
 				enabled: destination.enabled,
 				config: await decryptNotificationConfig(destination.config),
+				templates: destination.templates,
 			})),
 		),
 	]);

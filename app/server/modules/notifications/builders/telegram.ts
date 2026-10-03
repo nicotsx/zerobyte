@@ -5,5 +5,5 @@ export const buildTelegramShoutrrrUrl = (config: Extract<NotificationConfig, { t
 	if (config.threadId) {
 		shoutrrrUrl += `:${config.threadId}`;
 	}
-	return shoutrrrUrl;
+	return `${shoutrrrUrl}&parseMode=HTML`;
 };

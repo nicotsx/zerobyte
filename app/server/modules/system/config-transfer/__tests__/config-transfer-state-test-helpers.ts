@@ -84,7 +84,7 @@ const durableAndRuntimeFields = {
 		],
 	},
 	notificationDestination: {
-		durable: ["name", "enabled", "type", "config"],
+		durable: ["name", "enabled", "type", "config", "templates"],
 		runtime: ["id", "status", "lastChecked", "lastError", "createdAt", "updatedAt", "organizationId"],
 	},
 	backupScheduleMirror: {
@@ -221,6 +221,7 @@ export const loadConfigState = async (organizationId: string) => {
 					enabled: destination.enabled,
 					type: destination.type,
 					config: await decryptNotificationConfig(destination.config),
+					templates: destination.templates,
 				})),
 			),
 		),

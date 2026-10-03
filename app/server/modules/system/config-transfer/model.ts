@@ -1,6 +1,7 @@
 import type { CompressionMode, RepositoryConfig } from "@zerobyte/core/restic";
 import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
 import type { BackendConfig } from "@zerobyte/contracts/volumes";
+import type { NotificationTemplateSet } from "~/lib/notification-templates/catalog";
 import type { NotificationConfig } from "~/schemas/notifications";
 import type { RetentionPolicy } from "~/schemas/retention";
 
@@ -45,6 +46,7 @@ export type ConfigTransferModel = {
 		name: string;
 		enabled: boolean;
 		config: NotificationConfig;
+		templates: NotificationTemplateSet;
 	}>;
 	backupScheduleMirrors: Array<{
 		scheduleRef: string;

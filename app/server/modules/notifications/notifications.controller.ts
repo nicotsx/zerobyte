@@ -7,6 +7,8 @@ import {
 	getDestinationDto,
 	listDestinationsDto,
 	testDestinationDto,
+	testTemplateBody,
+	testTemplateDto,
 	updateDestinationBody,
 	updateDestinationDto,
 	type CreateDestinationDto,
@@ -27,7 +29,7 @@ export const notificationsController = new Hono()
 	})
 	.post("/destinations", createDestinationDto, validator("json", createDestinationBody), async (c) => {
 		const body = c.req.valid("json");
-		const destination = await notificationsService.createDestination(body.name, body.config);
+		const destination = await notificationsService.createDestination(body.name, body.config, body.templates);
 		return c.json<CreateDestinationDto>(destination, 201);
 	})
 	.get("/destinations/:id", getDestinationDto, async (c) => {
@@ -45,6 +47,11 @@ export const notificationsController = new Hono()
 		const id = Number.parseInt(c.req.param("id"), 10);
 		await notificationsService.deleteDestination(id);
 		return c.json<DeleteDestinationDto>({ message: "Notification destination deleted" }, 200);
+	})
+	.post("/destinations/:id/test-template", testTemplateDto, validator("json", testTemplateBody), async (c) => {
+		const id = Number.parseInt(c.req.param("id"), 10);
+		const result = await notificationsService.testDestination(id, c.req.valid("json"));
+		return c.json<TestDestinationDto>(result, 200);
 	})
 	.post("/destinations/:id/test", testDestinationDto, async (c) => {
 		const id = Number.parseInt(c.req.param("id"), 10);

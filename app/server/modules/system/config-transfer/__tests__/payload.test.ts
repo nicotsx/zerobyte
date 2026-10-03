@@ -1,6 +1,7 @@
 import type { RepositoryBackend, RepositoryConfig } from "@zerobyte/core/restic";
 import type { BackendConfig, BackendType } from "@zerobyte/contracts/volumes";
 import { describe, expect, expectTypeOf, test } from "vitest";
+import { defaultNotificationTemplates } from "~/lib/notification-templates/catalog";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import { decodeConfigTransferPayloadV1, encodeConfigTransferPayloadV1 } from "../v1/codec";
 import { UnsupportedConfigTransferVersionError } from "../errors";
@@ -11,7 +12,9 @@ import {
 	parseConfigTransferPayload,
 } from "../payload";
 import { configTransferPayloadV1Schema } from "../v1/payload";
-import { loadPayload } from "./config-transfer-test-helpers";
+import { decodeConfigTransferPayloadV2, encodeConfigTransferPayloadV2 } from "../v2/codec";
+import { configTransferPayloadV2Schema } from "../v2/payload";
+import { loadPayload, loadPayloadV2 } from "./config-transfer-test-helpers";
 
 type CurrentEncodedModel = Omit<ReturnType<typeof encodeCurrentConfigTransferPayload>, "version">;
 
@@ -140,6 +143,7 @@ const createVariantCoveragePayload = (): ConfigTransferModel => ({
 		name: `${type} notification`,
 		enabled: true,
 		config,
+		templates: structuredClone(defaultNotificationTemplates),
 	})),
 	backupScheduleMirrors: [],
 	backupScheduleNotifications: [],
@@ -153,7 +157,36 @@ describe("config transfer payload graph", () => {
 	test("decodes the historical v1 fixture into the current import model", async () => {
 		const fixture = await loadPayload();
 
-		expect(parseConfigTransferPayload(fixture)).toMatchSnapshot();
+		const model = parseConfigTransferPayload(fixture);
+		const historicalModel = {
+			...model,
+			notificationDestinations: model.notificationDestinations.map(({ templates, ...destination }) => {
+				expect(templates).toMatchSnapshot("frozen v1 to v2 defaults");
+
+				return destination;
+			}),
+		};
+
+		expect(historicalModel).toMatchSnapshot();
+	});
+
+	test("round-trips the permanent v2 fixture with saved template text", async () => {
+		const fixture = await loadPayloadV2();
+		const model = decodeConfigTransferPayloadV2(configTransferPayloadV2Schema.parse(fixture));
+
+		expect(encodeConfigTransferPayloadV2(model)).toEqual(fixture);
+		expect(encodeCurrentConfigTransferPayload(parseConfigTransferPayload(fixture))).toEqual(fixture);
+		expect(model.notificationDestinations[0].templates.backup_success.title).toBe("Saved backup: {{schedule}}");
+	});
+
+	test.each(["missing", "extra", "null"])("rejects %s template sets in v2", async (variant) => {
+		const fixture = await loadPayloadV2();
+		const templates = fixture.notificationDestinations[0].templates;
+		if (variant === "missing") delete templates.test;
+		if (variant === "extra") templates.unknown = { title: "", body: "" };
+		if (variant === "null") fixture.notificationDestinations[0].templates = null;
+
+		expect(() => parseConfigTransferPayload(fixture)).toThrow();
 	});
 
 	test("directs newer-format imports to update before validating their unknown shape", () => {

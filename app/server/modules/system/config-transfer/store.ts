@@ -173,6 +173,7 @@ const importDestinations = (
 				enabled: destination.enabled,
 				type: destination.config.type,
 				config: destination.config,
+				templates: destination.templates,
 				organizationId,
 			})
 			.returning({ id: notificationDestinationsTable.id })

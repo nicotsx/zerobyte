@@ -15,6 +15,7 @@ import type { NotificationConfig, NotificationType } from "~/schemas/notificatio
 import type { TaskOutcome, TaskPersistenceFormatVersion } from "~/schemas/tasks";
 import type { ShortId } from "~/server/utils/branded";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
+import { defaultNotificationTemplates, type NotificationTemplateSet } from "~/lib/notification-templates/catalog";
 
 type SessionAuthSource = "browser-session" | "desktop-session";
 
@@ -488,6 +489,10 @@ export const notificationDestinationsTable = sqliteTable("notification_destinati
 	lastError: text("last_error"),
 	type: text().$type<NotificationType>().notNull(),
 	config: text("config", { mode: "json" }).$type<NotificationConfig>().notNull(),
+	templates: text("templates", { mode: "json" })
+		.$type<NotificationTemplateSet>()
+		.notNull()
+		.default(defaultNotificationTemplates),
 	createdAt: int("created_at", { mode: "number" })
 		.notNull()
 		.default(sql`(unixepoch() * 1000)`),

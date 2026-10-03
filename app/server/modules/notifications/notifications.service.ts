@@ -1,5 +1,5 @@
 import { eq, and } from "drizzle-orm";
-import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import {
 	notificationDestinationsTable,
@@ -8,18 +8,34 @@ import {
 } from "../../db/schema";
 import { logger, sanitizeSensitiveData } from "@zerobyte/core/node";
 import { sendNotification } from "../../utils/shoutrrr";
-import { formatDuration } from "~/lib/datetime";
 import { buildShoutrrrUrl } from "./builders";
 import { notificationConfigSchema, type NotificationConfig, type NotificationEvent } from "~/schemas/notifications";
 import type { ResticBackupRunSummaryDto } from "@zerobyte/core/restic";
 import { toMessage } from "../../utils/errors";
 import { config as serverConfig } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
-import { formatBytes } from "~/utils/format-bytes";
 import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
 import { serverEvents } from "~/server/core/events";
 import { assertNotificationTargetAllowed } from "./utils/notification-target-policy";
 import { normalizeRequiredName } from "~/server/utils/names";
+import {
+	buildBackupNotificationMessage,
+	renderNotificationMessage,
+	buildMirrorFailureNotificationMessage,
+	buildTestNotificationMessage,
+	type NotificationMessage,
+} from "./notification-message";
+import { defaultNotificationTemplates, type NotificationTemplateSet } from "~/lib/notification-templates/catalog";
+import { notificationTemplateSetSchema, notificationTemplateDraftSchema } from "~/lib/notification-templates/schema";
+import { notificationTemplateSamples } from "~/lib/notification-templates/samples";
+import type { z } from "zod";
+
+const parseTemplates = (templates: NotificationTemplateSet) => {
+	const result = notificationTemplateSetSchema.safeParse(templates);
+	if (!result.success) throw new BadRequestError(result.error.issues.map((issue) => issue.message).join("; "));
+
+	return result.data;
+};
 
 const MAX_DELIVERY_ERROR_LENGTH = 2048;
 
@@ -49,9 +65,14 @@ const getDestination = async (id: number) => {
 	return destination;
 };
 
-const createDestination = async (name: string, config: NotificationConfig) => {
+const createDestination = async (
+	name: string,
+	config: NotificationConfig,
+	templates: NotificationTemplateSet = defaultNotificationTemplates,
+) => {
 	const organizationId = getOrganizationId();
 	const normalizedName = normalizeRequiredName(name);
+	const normalizedTemplates = parseTemplates(templates);
 
 	if (normalizedName === null) {
 		throw new BadRequestError("Name cannot be empty");
@@ -67,6 +88,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 			name: normalizedName,
 			type: config.type,
 			config: encryptedConfig,
+			templates: normalizedTemplates,
 			organizationId,
 		})
 		.returning();
@@ -80,7 +102,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 
 const updateDestination = async (
 	id: number,
-	updates: { name?: string; enabled?: boolean; config?: NotificationConfig },
+	updates: { name?: string; enabled?: boolean; config?: NotificationConfig; templates?: NotificationTemplateSet },
 ) => {
 	const organizationId = getOrganizationId();
 	const existing = await getDestination(id);
@@ -103,6 +125,10 @@ const updateDestination = async (
 
 	if (updates.enabled !== undefined) {
 		updateData.enabled = updates.enabled;
+	}
+
+	if (updates.templates !== undefined) {
+		updateData.templates = parseTemplates(updates.templates);
 	}
 
 	if (updates.config !== undefined) {
@@ -176,8 +202,29 @@ const updateDeliveryStatus = async (destinationId: number, result: { success: bo
 	}
 };
 
-const testDestination = async (id: number) => {
+const testDestination = async (id: number, draft?: z.infer<typeof notificationTemplateDraftSchema>) => {
 	const destination = await getDestination(id);
+	if (!destination.enabled) throw new ConflictError("Cannot test disabled destination");
+
+	const testMessage = buildTestNotificationMessage(destination.name);
+	let message = testMessage;
+	let templates = destination.templates;
+
+	if (draft !== undefined) {
+		const parsedDraft = notificationTemplateDraftSchema.safeParse(draft);
+		if (!parsedDraft.success) {
+			throw new BadRequestError(parsedDraft.error.issues.map((issue) => issue.message).join("; "));
+		}
+
+		const { key, template } = parsedDraft.data;
+
+		message = {
+			key,
+			context: { ...notificationTemplateSamples[key], ...testMessage.context },
+		};
+		templates = { ...destination.templates, [key]: template };
+	}
+
 	let result: Awaited<ReturnType<typeof sendNotification>>;
 
 	try {
@@ -190,8 +237,7 @@ const testDestination = async (id: number) => {
 
 		result = await sendNotification({
 			shoutrrrUrl,
-			title: "Zerobyte Test Notification",
-			body: `This is a test notification from Zerobyte for destination: ${destination.name}`,
+			...renderNotificationMessage(message, shoutrrrUrl, templates),
 		});
 	} catch (error) {
 		await updateDeliveryStatus(destination.id, { success: false, error: toMessage(error) });
@@ -275,74 +321,10 @@ const updateScheduleNotifications = async (
 	return getScheduleNotifications(scheduleId);
 };
 
-const formatBytesText = (bytes: number) => {
-	const { text, unit } = formatBytes(bytes, {
-		base: 1024,
-		locale: "en-US",
-		fallback: "-",
-	});
-
-	return unit ? `${text} ${unit}` : text;
-};
-
-const buildBackupNotificationLines = (summary?: ResticBackupRunSummaryDto) => {
-	if (!summary) return [];
-
-	const safeNumber = (value: number | undefined) => (typeof value === "number" && Number.isFinite(value) ? value : 0);
-	const safeCountText = (value: number | undefined) => safeNumber(value).toLocaleString();
-	const safeBytesText = (value: number | undefined) => formatBytesText(safeNumber(value));
-	const safeDurationText = (value: number | undefined) =>
-		typeof value === "number" && Number.isFinite(value) ? formatDuration(Math.round(value)) : "N/A";
-
-	const hasDetailedStats = summary.files_new || summary.files_changed || summary.dirs_new || summary.data_blobs;
-
-	if (!hasDetailedStats) {
-		const lines: (string | null)[] = [];
-
-		if (summary.total_duration) {
-			lines.push(`Duration: ${Math.round(summary.total_duration)}s`);
-		}
-		if (summary.total_files_processed !== undefined) {
-			lines.push(`Files: ${summary.total_files_processed.toLocaleString()}`);
-		}
-		if (summary.total_bytes_processed !== undefined) {
-			lines.push(`Size: ${safeBytesText(summary.total_bytes_processed)}`);
-		}
-		if (summary.snapshot_id) {
-			lines.push(`Snapshot: ${summary.snapshot_id}`);
-		}
-
-		return lines.filter((line): line is string => Boolean(line));
-	}
-
-	const snapshotText = summary.snapshot_id ?? "N/A";
-
-	const lines = [
-		"Overview:",
-		`- Data added: ${safeBytesText(summary.data_added)}`,
-		summary.data_added_packed !== undefined ? `- Data stored: ${safeBytesText(summary.data_added_packed)}` : null,
-		`- Total files processed: ${safeCountText(summary.total_files_processed)}`,
-		`- Total bytes processed: ${safeBytesText(summary.total_bytes_processed)}`,
-		"Backup Statistics:",
-		`- Files new: ${safeCountText(summary.files_new)}`,
-		`- Files changed: ${safeCountText(summary.files_changed)}`,
-		`- Files unmodified: ${safeCountText(summary.files_unmodified)}`,
-		`- Dirs new: ${safeCountText(summary.dirs_new)}`,
-		`- Dirs changed: ${safeCountText(summary.dirs_changed)}`,
-		`- Dirs unmodified: ${safeCountText(summary.dirs_unmodified)}`,
-		`- Data blobs: ${safeCountText(summary.data_blobs)}`,
-		`- Tree blobs: ${safeCountText(summary.tree_blobs)}`,
-		`- Total duration: ${safeDurationText(summary.total_duration)}`,
-		`- Snapshot: ${snapshotText}`,
-	];
-
-	return lines.filter(Boolean);
-};
-
 const sendScheduleNotification = async (
 	scheduleId: number,
 	event: NotificationEvent,
-	buildMessage: () => { title: string; body: string },
+	buildMessage: () => NotificationMessage,
 	operation: "backup" | "mirror sync",
 ) => {
 	try {
@@ -378,7 +360,7 @@ const sendScheduleNotification = async (
 			return;
 		}
 
-		const { title, body } = buildMessage();
+		const message = buildMessage();
 
 		for (const assignment of relevantAssignments) {
 			try {
@@ -386,7 +368,10 @@ const sendScheduleNotification = async (
 				assertNotificationTargetAllowed(decryptedConfig, serverConfig.webhookAllowedOrigins);
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
-				const result = await sendNotification({ shoutrrrUrl, title, body });
+				const result = await sendNotification({
+					shoutrrrUrl,
+					...renderNotificationMessage(message, shoutrrrUrl, assignment.destination.templates),
+				});
 				await updateDeliveryStatus(assignment.destination.id, result);
 
 				if (result.success) {
@@ -421,7 +406,7 @@ const sendBackupNotification = async (
 		summary?: ResticBackupRunSummaryDto;
 	},
 ) => {
-	return sendScheduleNotification(scheduleId, event, () => buildNotificationMessage(event, context), "backup");
+	return sendScheduleNotification(scheduleId, event, () => buildBackupNotificationMessage(event, context), "backup");
 };
 
 const sendMirrorSyncFailureNotification = async (
@@ -436,100 +421,10 @@ const sendMirrorSyncFailureNotification = async (
 	return sendScheduleNotification(
 		scheduleId,
 		"failure",
-		() => ({
-			title: `Zerobyte ${context.scheduleName} mirror sync failed`,
-			body: [
-				`Schedule: ${context.scheduleName}`,
-				`Source repository: ${context.sourceRepositoryName}`,
-				`Mirror repository: ${context.mirrorRepositoryName}`,
-				`Error: ${context.error}`,
-			].join("\n"),
-		}),
+		() => buildMirrorFailureNotificationMessage(context),
 		"mirror sync",
 	);
 };
-
-function buildNotificationMessage(
-	event: NotificationEvent,
-	context: {
-		volumeName: string;
-		repositoryName: string;
-		scheduleName?: string;
-		error?: string;
-		summary?: ResticBackupRunSummaryDto;
-	},
-) {
-	const backupName = context.scheduleName ?? "backup";
-	const notificationLines = buildBackupNotificationLines(context.summary);
-
-	switch (event) {
-		case "start":
-			return {
-				title: `Zerobyte ${backupName} started`,
-				body: [
-					`Volume: ${context.volumeName}`,
-					`Repository: ${context.repositoryName}`,
-					context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-				]
-					.filter(Boolean)
-					.join("\n"),
-			};
-
-		case "success": {
-			const bodyLines = [
-				`Volume: ${context.volumeName}`,
-				`Repository: ${context.repositoryName}`,
-				context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-				...notificationLines,
-			];
-
-			return {
-				title: `Zerobyte ${backupName} completed successfully`,
-				body: bodyLines.filter(Boolean).join("\n"),
-			};
-		}
-
-		case "warning": {
-			const bodyLines = [
-				`Volume: ${context.volumeName}`,
-				`Repository: ${context.repositoryName}`,
-				context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-				context.error ? `Warning: ${context.error}` : null,
-				...notificationLines,
-			];
-
-			return {
-				title: `Zerobyte ${backupName} completed with warnings`,
-				body: bodyLines.filter(Boolean).join("\n"),
-			};
-		}
-
-		case "failure":
-			return {
-				title: `Zerobyte ${backupName} failed`,
-				body: [
-					`Volume: ${context.volumeName}`,
-					`Repository: ${context.repositoryName}`,
-					context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-					context.error ? `Error: ${context.error}` : null,
-				]
-					.filter(Boolean)
-					.join("\n"),
-			};
-
-		default:
-			return {
-				title: `Zerobyte ${backupName} notification`,
-				body: [
-					`Volume: ${context.volumeName}`,
-					`Repository: ${context.repositoryName}`,
-					context.scheduleName ? `Schedule: ${context.scheduleName}` : null,
-				]
-					.filter(Boolean)
-					.join("\n"),
-			};
-	}
-}
 
 export const notificationsService = {
 	listDestinations,

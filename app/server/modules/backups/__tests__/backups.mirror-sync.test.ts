@@ -359,9 +359,11 @@ describe("syncMirror", () => {
 		);
 
 		const volume = await createTestVolume();
-		const sourceRepository = await createTestRepository();
-		const mirrorRepository = phase === "preparation" ? sourceRepository : await createTestRepository();
+		const sourceRepository = await createTestRepository({ name: "Cloud backup" });
+		const mirrorRepository =
+			phase === "preparation" ? sourceRepository : await createTestRepository({ name: "Offsite mirror" });
 		const schedule = await createTestBackupSchedule({
+			name: "Nightly backup",
 			volumeId: volume.id,
 			repositoryId: sourceRepository.id,
 		});
@@ -387,9 +389,9 @@ describe("syncMirror", () => {
 			});
 			expect(send).toHaveBeenCalledExactlyOnceWith({
 				shoutrrrUrl: "discord://token@webhookid",
-				title: `Zerobyte ${schedule.name} mirror sync failed`,
+				title: "❌ Mirror sync failed · Zerobyte",
 				body: expect.stringContaining(
-					`Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${mirrorRepository.name}\nError: ${expectedError}`,
+					`Schedule: ${schedule.name}\nSource repository: ${sourceRepository.name}\nMirror repository: ${mirrorRepository.name}\n\nError:\n${expectedError}`,
 				),
 			});
 		});

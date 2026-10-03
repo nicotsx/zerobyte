@@ -12,6 +12,7 @@ import {
 	fixturePassphrase,
 	encryptPayload,
 	loadPayload,
+	loadPayloadV2,
 	loadEncryptedConfig,
 	requestConfigExport,
 	requestConfigImport,
@@ -34,6 +35,43 @@ afterEach(() => {
 });
 
 describe("configuration import", () => {
+	test("imports and exports saved templates from the permanent v2 fixture", async () => {
+		const fixture = await loadPayloadV2();
+		const targetSession = await createTestSession();
+		const response = await requestConfigImport(targetSession.headers, await encryptPayload(fixture));
+
+		expect(response.status).toBe(200);
+		const destination = await db.query.notificationDestinationsTable.findFirst({
+			where: { organizationId: targetSession.organizationId },
+		});
+		expect(destination?.templates).toEqual(fixture.notificationDestinations[0].templates);
+
+		allowConfigExportPassword();
+		const exported = await requestConfigExport(targetSession.headers);
+		expect(exported.status).toBe(200);
+		const payload = JSON.parse(await decryptConfigTransferPayload(await exported.text(), fixturePassphrase));
+
+		expect(payload.version).toBe(2);
+		expect(payload.notificationDestinations[0].templates).toEqual(fixture.notificationDestinations[0].templates);
+	});
+
+	test.each([
+		{ title: "{{unknown}}", body: "private imported text" },
+		{ title: "Saved backup", body: "{{#schedule}}private imported text" },
+		{ title: "Saved backup", body: "{{error}}" },
+	])("rejects invalid saved templates before storing any configuration: %j", async (template) => {
+		const fixture = await loadPayloadV2();
+		fixture.notificationDestinations[0].templates.backup_success = template;
+		const targetSession = await createTestSession();
+		const before = await loadConfigState(targetSession.organizationId);
+
+		const response = await requestConfigImport(targetSession.headers, await encryptPayload(fixture));
+
+		expect(response.status).toBe(400);
+		expect(await response.text()).not.toContain("private imported text");
+		expect(await loadConfigState(targetSession.organizationId)).toEqual(before);
+	});
+
 	test("imports the frozen v1 fixture", async () => {
 		config.runtime = "desktop";
 		const encryptedConfig = await loadEncryptedConfig();

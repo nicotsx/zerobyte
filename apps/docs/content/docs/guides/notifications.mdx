@@ -15,29 +15,28 @@ You create destinations under **Notifications**. You route them per backup sched
 - Destinations are organization-scoped.
 - Sensitive destination fields are encrypted before storage.
 - Disabled destinations stay saved, but Zerobyte skips them when sending notifications.
-- The **Test** button sends a generic test message for that destination.
+- The **Test** button sends the saved **Test notification** template using that destination's name.
 - Per-schedule routing supports four events: `start`, `success`, `warning`, and `failure`.
 
-<Callout type="info">
-  Create destinations once, then reuse them across as many backup schedules as you want.
-</Callout>
+<Callout type="info">Create destinations once, then reuse them across as many backup schedules as you want.</Callout>
 
 ## Supported destination types
 
-| Type | Best for | Key fields |
-| --- | --- | --- |
-| `Email (SMTP)` | Existing mail infrastructure, multiple recipients, ticketing aliases | SMTP host, port, sender, recipients, optional auth, TLS |
-| `Slack` | Team chat channels | Webhook URL, optional bot username, optional icon emoji |
-| `Discord` | Server channels or threads | Webhook URL, optional username, optional avatar URL, optional thread ID |
-| `Gotify` | Self-hosted mobile or desktop push | Server URL, app token, priority, optional path |
-| `ntfy` | Lightweight publish-subscribe notifications | Topic, optional server URL, optional auth, priority |
-| `Pushover` | Personal mobile alerts | User key, API token, optional devices, priority |
-| `Telegram` | Group or direct chat notifications | Bot token, chat ID, optional thread ID |
-| `Generic Webhook` | Arbitrary HTTP endpoints and automation systems | URL, method, headers, content type, optional JSON template keys |
-| `Custom (Shoutrrr URL)` | Power users or services not exposed by the built-in forms | Raw Shoutrrr URL |
+| Type                    | Best for                                                             | Key fields                                                              |
+| ----------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `Email (SMTP)`          | Existing mail infrastructure, multiple recipients, ticketing aliases | SMTP host, port, sender, recipients, optional auth, TLS                 |
+| `Slack`                 | Team chat channels                                                   | Webhook URL, optional bot username, optional icon emoji                 |
+| `Discord`               | Server channels or threads                                           | Webhook URL, optional username, optional avatar URL, optional thread ID |
+| `Gotify`                | Self-hosted mobile or desktop push                                   | Server URL, app token, priority, optional path                          |
+| `ntfy`                  | Lightweight publish-subscribe notifications                          | Topic, optional server URL, optional auth, priority                     |
+| `Pushover`              | Personal mobile alerts                                               | User key, API token, optional devices, priority                         |
+| `Telegram`              | Group or direct chat notifications                                   | Bot token, chat ID, optional thread ID                                  |
+| `Generic Webhook`       | Arbitrary HTTP endpoints and automation systems                      | URL, method, headers, content type, optional JSON template keys         |
+| `Custom (Shoutrrr URL)` | Power users or services not exposed by the built-in forms            | Raw Shoutrrr URL                                                        |
 
 <Callout type="warn">
-  Outbound HTTP notification destinations must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. This applies to Generic Webhook, Gotify, self-hosted ntfy servers, and Custom Shoutrrr URLs that resolve to a custom HTTP endpoint.
+	Outbound HTTP notification destinations must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. This applies to
+	Generic Webhook, Gotify, self-hosted ntfy servers, and Custom Shoutrrr URLs that resolve to a custom HTTP endpoint.
 </Callout>
 
 ## Which type should I use?
@@ -72,12 +71,77 @@ Each assignment is independent. One schedule can send failures to Email, warning
 
 ## Backup event meanings
 
-| Event | When Zerobyte sends it | What is included |
-| --- | --- | --- |
-| `start` | The backup begins running | Volume name, repository name, and schedule name |
-| `success` | The backup completes cleanly | Volume, repository, schedule, and backup summary details when available |
-| `warning` | The backup completes with warnings instead of a clean success | Success details plus warning text when available |
-| `failure` | The backup fails validation or execution | Volume, repository, schedule, and the error text |
+| Event     | When Zerobyte sends it                                           | What is included                                                                                                 |
+| --------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `start`   | The backup begins running                                        | Volume name, repository name, and schedule name                                                                  |
+| `success` | The backup completes cleanly                                     | Volume, repository, schedule, and backup summary details when available                                          |
+| `warning` | The backup completes with warnings instead of a clean success    | Success details plus warning text when available                                                                 |
+| `failure` | The backup fails validation or execution, or a mirror sync fails | Backup source, repository, schedule, and error text; mirror failures identify the source and mirror repositories |
+
+Backup and mirror sync results are sent separately. Mirror failures use the `failure` event and the **Mirror sync failed** template.
+
+## Message templates
+
+Open a destination and choose **Edit templates** to change the title and body for each event. The preview and **Send test** use example values.
+
+### Formatting and syntax
+
+Titles are plain text. Bodies support **bold**, _italic_, inline code, code blocks, and lists. Formatting may vary by service.
+
+Use `{{duration}}` to insert the duration. To hide the whole line when the duration is unavailable, wrap it like this:
+
+```text
+{{#duration}}
+**Duration:** {{duration}}
+{{/duration}}
+```
+
+`{{#duration}}` opens the block; `{{/duration}}` closes it. Use `{{^duration}}` instead of `{{#duration}}` to show text when the value is missing.
+
+### Available variables
+
+Use the variables listed for your event. Some backup statistics may be unavailable.
+
+| Variable               | Value                                         | Started | Completed | With warnings | Failed | Mirror failed | Test |
+| ---------------------- | --------------------------------------------- | ------- | --------- | ------------- | ------ | ------------- | ---- |
+| `{{schedule}}`         | Backup schedule name                          | ✓       | ✓         | ✓             | ✓      | ✓             | —    |
+| `{{source}}`           | Backup source name                            | ✓       | ✓         | ✓             | ✓      | —             | —    |
+| `{{repository}}`       | Backup repository name                        | ✓       | ✓         | ✓             | ✓      | —             | —    |
+| `{{duration}}`         | Duration, e.g. `1m 24s`                       | —       | ✓         | ✓             | ✓      | —             | —    |
+| `{{files}}`            | Files processed, e.g. `1,250`                 | —       | ✓         | ✓             | ✓      | —             | —    |
+| `{{dataAdded}}`        | Data added, e.g. `128 MiB`                    | —       | ✓         | ✓             | ✓      | —             | —    |
+| `{{dataStored}}`       | Compressed data stored                        | —       | ✓         | ✓             | ✓      | —             | —    |
+| `{{processedSize}}`    | Processed size when data added is unavailable | —       | ✓         | ✓             | ✓      | —             | —    |
+| `{{error}}`            | Error or warning summary                      | —       | —         | ✓             | ✓      | ✓             | —    |
+| `{{sourceRepository}}` | Mirror source repository                      | —       | —         | —             | —      | ✓             | —    |
+| `{{mirrorRepository}}` | Mirror destination repository                 | —       | —         | —             | —      | ✓             | —    |
+| `{{destination}}`      | Notification destination name                 | —       | —         | —             | —      | —             | ✓    |
+
+### Examples
+
+**Backup completed** title:
+
+```text
+Backup completed: {{schedule}}
+```
+
+Body:
+
+```text
+**Source:** {{source}}
+**Repository:** {{repository}}
+{{#files}}**Files:** {{files}}{{/files}}
+{{#dataAdded}}**Data added:** {{dataAdded}}{{/dataAdded}}
+{{#duration}}**Duration:** {{duration}}{{/duration}}
+```
+
+**Mirror sync failed** body:
+
+```text
+**Schedule:** {{schedule}}
+**Mirror:** {{sourceRepository}} → {{mirrorRepository}}
+{{#error}}**Error:** {{error}}{{/error}}
+```
 
 ## Type reference
 
@@ -126,6 +190,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     To Addresses: ops@example.com, backups@example.com
     Use TLS: On
     ```
+
   </Tab>
 
   <Tab value="Slack">
@@ -145,6 +210,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     Bot Username: Zerobyte
     Icon Emoji: :floppy_disk:
     ```
+
   </Tab>
 
   <Tab value="Discord">
@@ -156,6 +222,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     - `Bot Username` (optional)
     - `Avatar URL` (optional)
     - `Thread ID` (optional)
+
   </Tab>
 
   <Tab value="Gotify">
@@ -171,6 +238,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     **Notes**
 
     - Add the Gotify server origin, such as `https://gotify.example.com`, to `WEBHOOK_ALLOWED_ORIGINS`.
+
   </Tab>
 
   <Tab value="ntfy">
@@ -200,6 +268,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     Access token: <token>
     Priority: high
     ```
+
   </Tab>
 
   <Tab value="Pushover">
@@ -211,6 +280,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     - `API Token`
     - `Devices` (optional)
     - `Priority` as `-1`, `0`, or `1`
+
   </Tab>
 
   <Tab value="Telegram">
@@ -230,6 +300,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     Chat ID: -1231234567890
     Thread ID: 3
     ```
+
   </Tab>
 
   <Tab value="Generic Webhook">
@@ -265,6 +336,7 @@ Each assignment is independent. One schedule can send failures to Email, warning
     Title Key: title
     Message Key: message
     ```
+
   </Tab>
 
   <Tab value="Custom">
@@ -283,18 +355,19 @@ Each assignment is independent. One schedule can send failures to Email, warning
     ```text
     slack://hook:T000-B000-XXX@webhook?username=Zerobyte
     ```
+
   </Tab>
 </Tabs>
 
 ## Practical routing patterns
 
-| Goal | Suggested routing |
-| --- | --- |
-| Only wake someone up for real problems | `failure` to Email or Pushover |
-| Keep the team informed without noise | `warning` and `failure` to Slack or Discord |
-| Audit every run | `start`, `success`, `warning`, and `failure` to Email or Generic Webhook |
-| Mobile-first personal alerting | `failure` to Telegram, ntfy, Gotify, or Pushover |
-| Feed another incident or workflow system | `failure` and optionally `warning` to Generic Webhook |
+| Goal                                     | Suggested routing                                                        |
+| ---------------------------------------- | ------------------------------------------------------------------------ |
+| Only wake someone up for real problems   | `failure` to Email or Pushover                                           |
+| Keep the team informed without noise     | `warning` and `failure` to Slack or Discord                              |
+| Audit every run                          | `start`, `success`, `warning`, and `failure` to Email or Generic Webhook |
+| Mobile-first personal alerting           | `failure` to Telegram, ntfy, Gotify, or Pushover                         |
+| Feed another incident or workflow system | `failure` and optionally `warning` to Generic Webhook                    |
 
 ## Related docs
 
