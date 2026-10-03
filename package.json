@@ -86,7 +86,7 @@
 		"dither-plugin": "^1.1.1",
 		"dotenv": "^18.0.4",
 		"drizzle-orm": "1.0.0-rc.5-ab785fc",
-		"effect": "^3.22.2",
+		"effect": "^4.0.0",
 		"es-toolkit": "^1.52.0",
 		"hono": "^4.13.11",
 		"hono-openapi": "^1.3.3",
