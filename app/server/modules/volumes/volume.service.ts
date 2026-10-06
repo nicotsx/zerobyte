@@ -13,7 +13,7 @@ import type { UpdateVolumeBody } from "./volume.dto";
 import { logger } from "@zerobyte/core/node";
 import { serverEvents } from "../../core/events";
 import type { Volume } from "../../db/schema";
-import { volumeConfigSchema, type BackendConfig, type Volume as AgentVolume } from "@zerobyte/contracts/volumes";
+import { volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
 import { Effect } from "effect";
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
@@ -59,18 +59,6 @@ const runVolumeCommand = async <TCommand extends VolumeCommand>(agentId: string,
 	return result as Extract<VolumeCommandResult, { name: TCommand["name"] }>;
 };
 
-const volumeForAgent = async (volume: Volume): Promise<Volume> => ({
-	...volume,
-	config: await decryptVolumeConfig(volume.config),
-});
-
-const volumeForHost = async (volume: Volume): Promise<AgentVolume> => ({
-	...volume,
-	shortId: volume.shortId,
-	config: await decryptVolumeConfig(volume.config),
-	provisioningId: volume.provisioningId ?? null,
-});
-
 // Transitional fallback: older controller-only installs do not run the supervised local agent.
 // Keep all controller-local host execution behind this predicate so the fallback is easy to delete
 // once volume operations always go through the local agent.
@@ -78,12 +66,14 @@ const shouldRunViaAgent = (volume: Volume) => volume.agentId !== LOCAL_AGENT_ID 
 
 const shouldUseControllerLocalVolumeFallback = (volume: Volume) => !shouldRunViaAgent(volume);
 
+// Never resolves secrets: unmount and health checks only inspect an existing mount. Callers
+// mounting must pass a volume with decrypted config, prepared before any side effects.
 const runVolumeBackendCommand = async (
 	volume: Volume,
 	name: "volume.mount" | "volume.unmount" | "volume.checkHealth",
 ) => {
 	if (shouldUseControllerLocalVolumeFallback(volume)) {
-		const backend = createVolumeBackend(await volumeForHost(volume));
+		const backend = createVolumeBackend(volume);
 		switch (name) {
 			case "volume.mount":
 				return backend.mount();
@@ -94,10 +84,7 @@ const runVolumeBackendCommand = async (
 		}
 	}
 
-	const command = await runVolumeCommand(volume.agentId, {
-		name,
-		volume: await volumeForAgent(volume),
-	});
+	const command = await runVolumeCommand(volume.agentId, { name, volume });
 	return command.result;
 };
 
@@ -128,7 +115,10 @@ const createVolume = async (name: string, backendConfig: BackendConfig) => {
 		throw new InternalServerError("Failed to create volume");
 	}
 
-	const { error, status } = await runVolumeBackendCommand(created, "volume.mount");
+	const { error, status } = await runVolumeBackendCommand(
+		{ ...created, config: await decryptVolumeConfig(created.config) },
+		"volume.mount",
+	);
 
 	await db
 		.update(volumesTable)
@@ -164,8 +154,9 @@ const mountVolume = async (shortId: ShortId) => {
 		return checkHealth(shortId);
 	}
 
+	const resolvedVolume = { ...volume, config: await decryptVolumeConfig(volume.config) };
 	await runVolumeBackendCommand(volume, "volume.unmount");
-	const { error, status } = await runVolumeBackendCommand(volume, "volume.mount");
+	const { error, status } = await runVolumeBackendCommand(resolvedVolume, "volume.mount");
 
 	await db
 		.update(volumesTable)
@@ -216,9 +207,9 @@ const getVolume = async (shortId: ShortId) => {
 			shouldRunViaAgent(volume)
 				? runVolumeCommand(volume.agentId, {
 						name: "volume.statfs",
-						volume: await volumeForAgent(volume),
+						volume,
 					}).then((command) => command.result)
-				: volumeForHost(volume).then((hostVolume) => getStatFs(getVolumePath(hostVolume))),
+				: getStatFs(getVolumePath(volume)),
 			1000,
 			"volume.statfs",
 		).catch((error) => {
@@ -244,29 +235,39 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
 
-	const configChanged =
-		JSON.stringify(existing.config) !== JSON.stringify(volumeData.config) && volumeData.config !== undefined;
+	const existingConfigResult = volumeConfigSchema.safeParse(existing.config);
+	if (!existingConfigResult.success) {
+		throw new InternalServerError("Invalid existing volume configuration");
+	}
+
+	let configChanged = false;
+	let encryptedConfig = existing.config;
+	let resolvedConfig = existing.config;
+	if (volumeData.config !== undefined) {
+		const newConfigResult = volumeConfigSchema.safeParse(volumeData.config);
+		if (!newConfigResult.success) {
+			throw new BadRequestError("Invalid volume configuration");
+		}
+
+		configChanged = JSON.stringify(existingConfigResult.data) !== JSON.stringify(newConfigResult.data);
+		if (configChanged) {
+			encryptedConfig = await encryptVolumeConfig(newConfigResult.data);
+			resolvedConfig = await decryptVolumeConfig(newConfigResult.data);
+		}
+	}
 
 	if (configChanged) {
 		logger.debug("Unmounting existing volume before applying new config");
 		await runVolumeBackendCommand(existing, "volume.unmount");
 	}
 
-	const newConfigResult = volumeConfigSchema.safeParse(volumeData.config || existing.config);
-	if (!newConfigResult.success) {
-		throw new BadRequestError("Invalid volume configuration");
-	}
-	const newConfig = newConfigResult.data;
-
-	const encryptedConfig = await encryptVolumeConfig(newConfig);
-
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
 			name: normalizedName,
 			config: encryptedConfig,
-			type: volumeData.config?.backend,
-			autoRemount: volumeData.autoRemount,
+			type: volumeData.config?.backend ?? existing.type,
+			autoRemount: volumeData.autoRemount ?? existing.autoRemount,
 			updatedAt: Date.now(),
 		})
 		.where(and(eq(volumesTable.id, existing.id), eq(volumesTable.organizationId, organizationId)))
@@ -277,7 +278,7 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	}
 
 	if (configChanged) {
-		const { error, status } = await runVolumeBackendCommand(updated, "volume.mount");
+		const { error, status } = await runVolumeBackendCommand({ ...updated, config: resolvedConfig }, "volume.mount");
 		await db
 			.update(volumesTable)
 			.set({ status, lastError: error ?? null, lastHealthCheck: Date.now() })
@@ -290,11 +291,16 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 };
 
 const testConnection = async (backendConfig: BackendConfig) => {
+	const resolvedConfig = await decryptVolumeConfig(backendConfig);
+
 	if (!config.flags.enableLocalAgent) {
-		return Effect.runPromise(testVolumeConnection(backendConfig));
+		return Effect.runPromise(testVolumeConnection(resolvedConfig));
 	}
 
-	const command = await runVolumeCommand(LOCAL_AGENT_ID, { name: "volume.testConnection", backendConfig });
+	const command = await runVolumeCommand(LOCAL_AGENT_ID, {
+		name: "volume.testConnection",
+		backendConfig: resolvedConfig,
+	});
 	return command.result;
 };
 
@@ -398,12 +404,12 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 
 	try {
 		if (shouldUseControllerLocalVolumeFallback(volume)) {
-			return await listVolumeFiles(await volumeForHost(volume), subPath, offset, limit);
+			return await listVolumeFiles(volume, subPath, offset, limit);
 		}
 
 		const command = await runVolumeCommand(volume.agentId, {
 			name: "volume.listFiles",
-			volume: await volumeForAgent(volume),
+			volume,
 			subPath,
 			offset,
 			limit,
