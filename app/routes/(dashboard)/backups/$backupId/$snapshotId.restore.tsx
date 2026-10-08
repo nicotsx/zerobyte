@@ -5,6 +5,7 @@ import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
 import { findCommonAncestor } from "@zerobyte/core/utils";
+import { getBackupSource } from "~/client/modules/backups/lib/backup-context";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 		]);
 
 		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+		const source = getBackupSource(schedule.data.volume);
 
 		return {
 			snapshot,
@@ -41,7 +43,11 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
 			displayBasePath: getVolumeMountPath(schedule.data.volume),
 			hasNonPosixSnapshotPaths,
-			volumeReadOnly: schedule.data.volume.config.readOnly ?? false,
+			volumeReadOnly: schedule.data.volume.config?.readOnly ?? false,
+			sourceOrigin:
+				source.kind === "agent-filesystem" && source.agentKind === "remote"
+					? ("remote" as const)
+					: ("local" as const),
 		};
 	},
 	head: ({ params }) => ({
@@ -68,8 +74,15 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId } = Route.useParams();
-	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
-		Route.useLoaderData();
+	const {
+		snapshot,
+		repository,
+		queryBasePath,
+		displayBasePath,
+		hasNonPosixSnapshotPaths,
+		volumeReadOnly,
+		sourceOrigin,
+	} = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
@@ -79,6 +92,7 @@ function RouteComponent() {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
+			sourceOrigin={sourceOrigin}
 			snapshot={snapshot}
 		/>
 	);

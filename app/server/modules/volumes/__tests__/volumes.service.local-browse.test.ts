@@ -41,7 +41,7 @@ test.each([false, true])("local browsing requires a worker with runtime present=
 		await expect(volumeService.browseFilesystem("local", "local-filesystem", "../outside")).rejects.toMatchObject({
 			statusCode: 400,
 		});
-		await expect(volumeService.browseFilesystem("local", "local-filesystem", "C:/absolute")).rejects.toMatchObject({
+		await expect(volumeService.browseFilesystem("local", "local-filesystem", "/absolute")).rejects.toMatchObject({
 			statusCode: 400,
 		});
 	});

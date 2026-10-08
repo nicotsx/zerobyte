@@ -6,23 +6,23 @@ import { expect, test } from "vitest";
 import fc from "fast-check";
 import { resolveBackupTargets } from "../backup-selection";
 
-test("anchors literal selections and patterns to the source while keeping glob characters literal in paths", async () => {
+test("anchors selections to the source while keeping exclamation marks and glob characters literal in paths", async () => {
 	const sourcePath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-selection-options-"));
 	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
-	fs.mkdirSync(path.join(sourcePath, "photos [1]"));
+	fs.mkdirSync(path.join(sourcePath, "!photos [1]"));
 	fs.mkdirSync(path.join(sourcePath, "nested"));
 	fs.writeFileSync(path.join(sourcePath, "nested", "report.txt"), "report");
 
 	try {
 		const targets = await resolveBackupTargets(
-			{ includePaths: ["/photos [1]"], includePatterns: ["/nested/*.txt", "!*.log"] },
+			{ includePaths: ["!photos [1]"], includePatterns: ["/nested/*.txt", "!*.log"] },
 			canonicalSourcePath,
 			canonicalSourcePath,
 			new AbortController().signal,
 		);
 
 		expect(targets).toEqual([
-			path.join(canonicalSourcePath, "photos [1]"),
+			path.join(canonicalSourcePath, "!photos [1]"),
 			path.join(canonicalSourcePath, "nested", "report.txt"),
 		]);
 	} finally {

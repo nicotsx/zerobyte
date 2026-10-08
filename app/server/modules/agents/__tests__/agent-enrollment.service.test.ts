@@ -12,7 +12,7 @@ const agent = {
 	name: "Agent 1",
 	kind: "remote" as const,
 	status: "offline" as const,
-	capabilities: {},
+	capabilities: { hostname: null, platform: null, trustedRoots: [] },
 	lastSeenAt: null,
 	lastReadyAt: null,
 	createdAt: 1,

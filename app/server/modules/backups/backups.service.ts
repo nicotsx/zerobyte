@@ -17,7 +17,7 @@ import { createBackupCommand } from "./commands/backup-command";
 import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask } from "~/schemas/tasks";
 import { assertBackupRepositoryCompatibility } from "./backup-context";
-import { toCanonicalVolume } from "../volumes/volume-execution-source";
+import { presentBackupSchedules } from "./backup-presentation";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
@@ -45,8 +45,7 @@ const listSchedules = async () => {
 			repository: NonNullable<typeof schedule.repository>;
 		} => Boolean(schedule.volume && schedule.repository),
 	);
-
-	return completeSchedules.map((schedule) => ({ ...schedule, volume: toCanonicalVolume(schedule.volume) }));
+	return presentBackupSchedules(completeSchedules, organizationId);
 };
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
@@ -273,8 +272,7 @@ const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 	if (!schedule) {
 		return null;
 	}
-
-	return { ...schedule, volume: toCanonicalVolume(schedule.volume) };
+	return presentBackupSchedules([schedule], organizationId).then((presented) => presented[0] ?? null);
 };
 
 const getMirrors = async (scheduleIdOrShortId: number | string) => {

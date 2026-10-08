@@ -15,17 +15,17 @@ export const Route = createFileRoute("/(dashboard)/volumes/$volumeId/edit")({
 	},
 	staticData: {
 		breadcrumb: (match) => [
-			{ label: "Volumes", href: "/volumes" },
-			{ label: match.loaderData?.volume.name || "Volume", href: `/volumes/${match.params.volumeId}` },
+			{ label: "Sources", href: "/volumes" },
+			{ label: match.loaderData?.volume.name || "Source", href: `/volumes/${match.params.volumeId}` },
 			{ label: "Edit" },
 		],
 	},
 	head: ({ loaderData }) => ({
 		meta: [
-			{ title: `Zerobyte - Edit ${loaderData?.volume.name ?? "Volume"}` },
+			{ title: `Zerobyte - Edit ${loaderData?.volume.name ?? "Source"}` },
 			{
 				name: "description",
-				content: "Edit volume configuration.",
+				content: "Edit source configuration.",
 			},
 		],
 	}),

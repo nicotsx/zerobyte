@@ -100,7 +100,7 @@ describe("trusted filesystem source browsing", () => {
 		});
 	});
 
-	test("browses with a root reference instead of an absolute host path", async () => {
+	test("passes raw relative browse paths to the trusted root", async () => {
 		const { organizationId, user } = await createTestSession();
 		const agentId = `agent-${randomUUID()}`;
 		await db.insert(agentsTable).values({
@@ -119,12 +119,20 @@ describe("trusted filesystem source browsing", () => {
 		});
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			await volumeService.browseFilesystem(agentId, "photos", "family");
+			await volumeService.browseFilesystem(agentId, "photos", "trusted-root:photos");
+			await volumeService.browseFilesystem(agentId, "photos", "family//summer/./");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "family/../private")).rejects.toThrow(
+				"cannot traverse outside its root",
+			);
 		});
 
-		expect(agentManagerMock.runFilesystemCommand).toHaveBeenCalledWith(agentId, organizationId, {
+		expect(agentManagerMock.runFilesystemCommand).toHaveBeenNthCalledWith(1, agentId, organizationId, {
 			name: "filesystem.browse",
-			source: { rootId: "photos", relativePath: "family" },
+			source: { rootId: "photos", relativePath: "trusted-root:photos" },
+		});
+		expect(agentManagerMock.runFilesystemCommand).toHaveBeenNthCalledWith(2, agentId, organizationId, {
+			name: "filesystem.browse",
+			source: { rootId: "photos", relativePath: "family/summer" },
 		});
 	});
 
@@ -186,7 +194,7 @@ describe("trusted filesystem source browsing", () => {
 					throw new Error(`Expected root browse result to contain ${firstSegment}`);
 				}
 
-				const directoryResult = await volumeService.browseFilesystem(agentId, rootId, firstDirectory.path);
+				const directoryResult = await volumeService.browseFilesystem(agentId, rootId, firstSegment);
 				expect(directoryResult.path).toBe(firstDirectory.path);
 				const secondDirectory = directoryResult.directories.find(
 					(directory) => directory.name === secondSegment,
@@ -196,7 +204,11 @@ describe("trusted filesystem source browsing", () => {
 					throw new Error(`Expected nested browse result to contain ${secondSegment}`);
 				}
 
-				const childResult = await volumeService.browseFilesystem(agentId, rootId, secondDirectory.path);
+				const childResult = await volumeService.browseFilesystem(
+					agentId,
+					rootId,
+					`${firstSegment}/${secondSegment}`,
+				);
 				expect(childResult.path).toBe(secondDirectory.path);
 			});
 		},

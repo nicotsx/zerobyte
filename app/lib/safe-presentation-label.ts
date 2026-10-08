@@ -32,6 +32,14 @@ export const getSafePresentationLabel = (value: string, fallback: string): strin
 	return isSafe ? normalizedValue : fallback;
 };
 
+export const getSafePresentationText = (value: unknown, maximumLength: number): string | null => {
+	if (typeof value !== "string") return null;
+	const normalizedValue = value.trim();
+	const hasValidLength = normalizedValue.length > 0 && normalizedValue.length <= maximumLength;
+	const hasUnsafeCharacters = UNSAFE_LABEL_CHARACTERS_REGEX.test(value);
+	return hasValidLength && !hasUnsafeCharacters ? normalizedValue : null;
+};
+
 export const getSafeMachinePresentationLabel = (value: string): string =>
 	getSafePresentationLabel(value, UNNAMED_MACHINE_LABEL);
 

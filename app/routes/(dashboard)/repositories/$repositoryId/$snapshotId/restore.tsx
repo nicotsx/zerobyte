@@ -6,6 +6,7 @@ import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 import { getVolumeMountPath } from "~/client/lib/volume-path";
 import { findCommonAncestor } from "@zerobyte/core/utils";
+import { getBackupSource } from "~/client/modules/backups/lib/backup-context";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -26,12 +27,16 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 		let displayBasePath: string | undefined;
 		let volumeReadOnly: boolean | undefined;
+		let sourceOrigin: "local" | "remote" | "unknown" = "unknown";
 		const scheduleShortId = snapshot.tags?.[0];
 		if (scheduleShortId) {
 			const scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
 			if (scheduleRes.data) {
 				displayBasePath = getVolumeMountPath(scheduleRes.data.volume);
-				volumeReadOnly = scheduleRes.data.volume.config.readOnly ?? false;
+				volumeReadOnly = scheduleRes.data.volume.config?.readOnly ?? false;
+				const source = getBackupSource(scheduleRes.data.volume);
+
+				sourceOrigin = source.kind === "agent-filesystem" && source.agentKind === "remote" ? "remote" : "local";
 			}
 		}
 
@@ -44,6 +49,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			displayBasePath,
 			hasNonPosixSnapshotPaths,
 			volumeReadOnly,
+			sourceOrigin,
 		};
 	},
 	staticData: {
@@ -73,8 +79,15 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
-		Route.useLoaderData();
+	const {
+		snapshot,
+		repository,
+		queryBasePath,
+		displayBasePath,
+		hasNonPosixSnapshotPaths,
+		volumeReadOnly,
+		sourceOrigin,
+	} = Route.useLoaderData();
 
 	return (
 		<RestoreSnapshotPage
@@ -84,6 +97,7 @@ function RouteComponent() {
 			displayBasePath={displayBasePath}
 			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
 			volumeReadOnly={volumeReadOnly}
+			sourceOrigin={sourceOrigin}
 			snapshot={snapshot}
 		/>
 	);

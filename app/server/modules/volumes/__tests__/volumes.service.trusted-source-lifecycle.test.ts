@@ -168,11 +168,10 @@ describe("trusted filesystem source lifecycle", () => {
 
 		const beforeCheck = Date.now();
 		await withContext({ organizationId, userId: user.id }, async () => {
-			const result = await volumeService.ensureHealthyVolume(volume.shortId);
+			const result = await volumeService.checkHealth(volume.shortId);
 			expect(result).toEqual({
-				ready: false,
-				volume: expect.objectContaining({ status: "error", lastError: failureMessage }),
-				reason: failureMessage,
+				status: "error",
+				error: failureMessage,
 			});
 		});
 
@@ -192,11 +191,10 @@ describe("trusted filesystem source lifecycle", () => {
 		await withContext({ organizationId, userId: user.id }, async () => {
 			const failed = await volumeService.checkHealth(volume.shortId);
 			expect(failed.status).toBe("error");
-			const recovered = await volumeService.ensureHealthyVolume(volume.shortId);
+			const recovered = await volumeService.checkHealth(volume.shortId);
 			expect(recovered).toEqual({
-				ready: true,
-				volume: expect.objectContaining({ status: "mounted", lastError: null }),
-				remounted: false,
+				status: "mounted",
+				error: undefined,
 			});
 		});
 

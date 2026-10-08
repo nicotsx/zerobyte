@@ -10,14 +10,14 @@ export const Route = createFileRoute("/(dashboard)/volumes/")({
 		await context.queryClient.ensureQueryData(listVolumesOptions());
 	},
 	staticData: {
-		breadcrumb: () => [{ label: "Volumes" }],
+		breadcrumb: () => [{ label: "Sources" }],
 	},
 	head: () => ({
 		meta: [
-			{ title: "Zerobyte - Volumes" },
+			{ title: "Zerobyte - Sources" },
 			{
 				name: "description",
-				content: "Create, manage, monitor, and automate your Docker volumes with ease.",
+				content: "Create, manage, and monitor the files and folders you back up.",
 			},
 		],
 	}),

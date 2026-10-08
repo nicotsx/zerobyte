@@ -8,7 +8,10 @@ import type {
 	ListSnapshotsResponse,
 } from "../api-client";
 
-export type Volume = GetVolumeResponse["volume"];
+export type PresentedVolume = GetVolumeResponse["volume"];
+type ScheduledVolume = GetBackupScheduleResponse["volume"];
+
+export type Volume = PresentedVolume | ScheduledVolume;
 export type StatFs = GetVolumeResponse["statfs"];
 export type VolumeStatus = Volume["status"];
 

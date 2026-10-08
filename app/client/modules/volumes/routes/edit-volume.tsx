@@ -20,11 +20,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui
 import { parseError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { ManagedBadge } from "~/client/components/managed-badge";
+import { usePermissions } from "~/client/hooks/use-permissions";
 import { CreateVolumeForm, formSchema, type FormValues } from "../components/create-volume-form";
+import {
+	EditAgentFilesystemSourceForm,
+	type AgentFilesystemFormValues,
+	type SourceDiscovery,
+} from "../components/agent-filesystem-source-form";
+import { getRemoteSourcePresentation } from "../source-presentation";
+import { useSourceDiscovery } from "./source-discovery";
 
 export function EditVolumePage({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
 	const formId = useId();
+
 	const [open, setOpen] = useState(false);
 	const [pendingValues, setPendingValues] = useState<FormValues | null>(null);
 
@@ -33,17 +42,25 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 	});
 
 	const { volume } = data;
+	const permissions = usePermissions();
+
+	const isRemoteVolume = volume.sourceKind === "agent-filesystem";
+	const supportsRemoteSources = permissions.hasRuntimeFeature("remoteAgents");
+	const canDiscoverRemoteSources = isRemoteVolume && supportsRemoteSources;
+
+	const { isReady: remoteDiscoveryIsReady, sourceDiscovery: discoveredSourceDiscovery } =
+		useSourceDiscovery(canDiscoverRemoteSources);
 
 	const updateVolume = useMutation({
 		...updateVolumeMutation(),
 		onSuccess: (updatedVolume: UpdateVolumeResponse) => {
-			toast.success("Volume updated successfully");
+			toast.success("Source updated successfully");
 			setOpen(false);
 			setPendingValues(null);
 			void navigate({ to: `/volumes/${updatedVolume.shortId}` });
 		},
 		onError: (error) => {
-			toast.error("Failed to update volume", {
+			toast.error("Failed to update source", {
 				description: parseError(error)?.message,
 			});
 			setOpen(false);
@@ -69,6 +86,28 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 		});
 	};
 
+	const updateRemoteLocation = (values: AgentFilesystemFormValues) => {
+		if (!remoteDiscoveryIsReady) {
+			return;
+		}
+
+		updateVolume.mutate({
+			path: { shortId: volume.shortId },
+			body: values,
+		});
+	};
+
+	const updateRemoteName = (name: string) => {
+		updateVolume.mutate({
+			path: { shortId: volume.shortId },
+			body: { name },
+		});
+	};
+
+	let sourceDiscovery: SourceDiscovery = discoveredSourceDiscovery;
+
+	if (isRemoteVolume && !supportsRemoteSources) sourceDiscovery = { status: "unsupported" };
+
 	return (
 		<>
 			<div className="container mx-auto space-y-6">
@@ -79,7 +118,7 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 								<HardDrive className="w-5 h-5 text-primary" />
 							</div>
 							<div className="flex items-center gap-2">
-								<CardTitle>Edit Volume</CardTitle>
+								<CardTitle>Edit Source</CardTitle>
 								{volume.provisioningId && <ManagedBadge />}
 							</div>
 						</div>
@@ -88,21 +127,38 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 						{updateVolume.isError && (
 							<Alert variant="destructive">
 								<AlertDescription>
-									<strong>Failed to update volume:</strong>
+									<strong>Failed to update source:</strong>
 									<br />
 									{parseError(updateVolume.error)?.message}
 								</AlertDescription>
 							</Alert>
 						)}
-						<CreateVolumeForm
-							mode="update"
-							formId={formId}
-							initialValues={{ ...volume, ...volume.config }}
-							onSubmit={handleSubmit}
-							loading={updateVolume.isPending}
-						/>
+						{volume.sourceKind === "managed" && (
+							<CreateVolumeForm
+								mode="update"
+								formId={formId}
+								initialValues={{ ...volume, ...volume.config }}
+								onSubmit={handleSubmit}
+								loading={updateVolume.isPending}
+							/>
+						)}
+						{volume.sourceKind === "agent-filesystem" && (
+							<EditAgentFilesystemSourceForm
+								formId={formId}
+								discovery={sourceDiscovery}
+								initialName={volume.name}
+								loading={updateVolume.isPending}
+								onSubmit={updateRemoteLocation}
+								onRename={updateRemoteName}
+								currentLocation={getRemoteSourcePresentation(volume)}
+							/>
+						)}
 						<div className="flex justify-end gap-2 pt-4 border-t">
-							<Button type="button" variant="secondary" onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}>
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => navigate({ to: `/volumes/${volume.shortId}` })}
+							>
 								Cancel
 							</Button>
 							<Button type="submit" form={formId} loading={updateVolume.isPending}>
@@ -113,24 +169,26 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 					</CardContent>
 				</Card>
 			</div>
-			<AlertDialog open={open} onOpenChange={setOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle>Update Volume Configuration</AlertDialogTitle>
-						<AlertDialogDescription>
-							Editing the volume will remount it with the new config immediately. This may temporarily disrupt access to
-							the volume. Continue?
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={confirmUpdate} disabled={updateVolume.isPending}>
-							<Check className="h-4 w-4" />
-							Update
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
+			{volume.sourceKind === "managed" && (
+				<AlertDialog open={open} onOpenChange={setOpen}>
+					<AlertDialogContent>
+						<AlertDialogHeader>
+							<AlertDialogTitle>Update Source Configuration</AlertDialogTitle>
+							<AlertDialogDescription>
+								Editing the source will remount it with the new config immediately. This may temporarily
+								disrupt access to the source. Continue?
+							</AlertDialogDescription>
+						</AlertDialogHeader>
+						<AlertDialogFooter>
+							<AlertDialogCancel>Cancel</AlertDialogCancel>
+							<AlertDialogAction onClick={confirmUpdate} disabled={updateVolume.isPending}>
+								<Check className="h-4 w-4" />
+								Update
+							</AlertDialogAction>
+						</AlertDialogFooter>
+					</AlertDialogContent>
+				</AlertDialog>
+			)}
 		</>
 	);
 }

@@ -35,9 +35,11 @@ type FolderPaginationState = {
 	isLoadingMore: boolean;
 };
 
+export type FolderFailure = { operation: "expand" | "load-more"; message: string };
+
 export const useFileBrowser = (props: UseFileBrowserOptions) => {
 	const { initialData, isLoading, fetchFolder, prefetchFolder, pathTransform, rootPath = "/" } = props;
-	const [folderErrors, setFolderErrors] = useState<ReadonlyMap<string, string>>(new Map());
+	const [folderErrors, setFolderErrors] = useState<ReadonlyMap<string, FolderFailure>>(new Map());
 	const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 	const [fetchedFolders, setFetchedFolders] = useState<Set<string>>(new Set([rootPath]));
 	const [loadingFolders, setLoadingFolders] = useState<Set<string>>(new Set());
@@ -47,11 +49,11 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 	const stripPath = pathTransform?.strip;
 	const addPath = pathTransform?.add;
 
-	const setFolderError = useCallback((path: string, message?: string) => {
+	const setFolderError = useCallback((path: string, failure?: FolderFailure) => {
 		setFolderErrors((prev) => {
 			const next = new Map(prev);
-			if (message === undefined) next.delete(path);
-			else next.set(path, message);
+			if (failure === undefined) next.delete(path);
+			else next.set(path, failure);
 			return next;
 		});
 	}, []);
@@ -155,7 +157,10 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				setFetchedFolders((prev) => new Set(prev).add(folderPath));
 			} catch (error) {
 				logger.error("Failed to fetch folder contents:", error);
-				setFolderError(folderPath, parseError(error)?.message ?? "Failed to read folder");
+				setFolderError(folderPath, {
+					operation: "expand",
+					message: parseError(error)?.message ?? "Failed to read folder",
+				});
 			} finally {
 				setLoadingFolders((prev) => {
 					const next = new Set(prev);
@@ -211,7 +216,10 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 				}
 			} catch (error) {
 				logger.error("Failed to load more files:", error);
-				setFolderError(folderPath, parseError(error)?.message ?? "Failed to read folder");
+				setFolderError(folderPath, {
+					operation: "load-more",
+					message: parseError(error)?.message ?? "Failed to read folder",
+				});
 				setFolderPagination((prev) => {
 					const next = new Map(prev);
 					next.set(folderPath, { ...pagination, isLoadingMore: false });
@@ -239,6 +247,20 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		[folderPagination],
 	);
 
+	const retryFolder = useCallback(
+		async (folderPath: string) => {
+			const failure = folderErrors.get(folderPath);
+			if (!failure) return;
+
+			if (failure.operation === "expand") {
+				await handleFolderToggle(folderPath, true);
+				return;
+			}
+			await handleLoadMore(folderPath);
+		},
+		[folderErrors, handleFolderToggle, handleLoadMore],
+	);
+
 	return {
 		folderErrors,
 		fileArray,
@@ -248,6 +270,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		handleFolderHover,
 		handleLoadMore,
 		getFolderPagination,
+		retryFolder,
 		isLoading: Boolean(isLoading) && fileArray.length === 0,
 		isEmpty: fileArray.length === 0 && !isLoading,
 	};

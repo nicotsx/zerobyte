@@ -54,6 +54,7 @@ const clearActiveBackupRun = (scheduleId: number) => {
 	const activeBackupsByScheduleId = getActiveBackupsByScheduleId();
 	const activeBackupScheduleIdsByJobId = getActiveBackupScheduleIdsByJobId();
 	const activeBackupRun = activeBackupsByScheduleId.get(scheduleId);
+
 	if (!activeBackupRun) {
 		return null;
 	}
@@ -65,6 +66,7 @@ const clearActiveBackupRun = (scheduleId: number) => {
 
 const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResult) => {
 	const activeBackupRun = clearActiveBackupRun(scheduleId);
+
 	if (!activeBackupRun) {
 		return false;
 	}
@@ -76,6 +78,7 @@ const resolveActiveBackupRun = (scheduleId: number, result: BackupExecutionResul
 const clearActiveRestoreRun = (restoreId: string) => {
 	const activeRestoresByRestoreId = getActiveRestoresByRestoreId();
 	const activeRestoreRun = activeRestoresByRestoreId.get(restoreId);
+
 	if (!activeRestoreRun) {
 		return null;
 	}
@@ -86,6 +89,7 @@ const clearActiveRestoreRun = (restoreId: string) => {
 
 const resolveActiveRestoreRun = (restoreId: string, result: RestoreExecutionResult) => {
 	const activeRestoreRun = clearActiveRestoreRun(restoreId);
+
 	if (!activeRestoreRun) {
 		return false;
 	}
@@ -118,12 +122,14 @@ const cancelActiveRestoreRunsForAgent = (agentId: string, message: string) => {
 
 const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string, agentId: string) => {
 	const trackedScheduleId = getActiveBackupScheduleIdsByJobId().get(jobId);
+
 	if (trackedScheduleId === undefined) {
 		logger.warn(`Received ${eventName} for unknown job ${jobId} from agent ${agentId}`);
 		return null;
 	}
 
 	const activeBackupRun = getActiveBackupsByScheduleId().get(trackedScheduleId);
+
 	if (!activeBackupRun) {
 		logger.warn(`Received ${eventName} for inactive job ${jobId} from agent ${agentId}`);
 		return null;
@@ -146,6 +152,7 @@ const getActiveBackupRun = (jobId: string, scheduleId: string, eventName: string
 
 const getActiveRestoreRun = (restoreId: string, eventName: string, agentId: string) => {
 	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+
 	if (!activeRestoreRun) {
 		logger.warn(`Received ${eventName} for unknown restore ${restoreId} from agent ${agentId}`);
 		return null;
@@ -161,6 +168,7 @@ const getActiveRestoreRun = (restoreId: string, eventName: string, agentId: stri
 
 const requestBackupCancellation = async (agentId: string, scheduleId: number) => {
 	const activeBackupRun = getActiveBackupsByScheduleId().get(scheduleId);
+
 	if (!activeBackupRun) {
 		return false;
 	}
@@ -172,6 +180,7 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 	activeBackupRun.cancellationRequested = true;
 
 	const runtime = getAgentManagerRuntime();
+
 	if (!runtime) {
 		resolveActiveBackupRun(scheduleId, { status: "cancelled" });
 		return true;
@@ -195,6 +204,7 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 
 const requestRestoreCancellation = async (agentId: string, restoreId: string) => {
 	const activeRestoreRun = getActiveRestoresByRestoreId().get(restoreId);
+
 	if (!activeRestoreRun) {
 		return false;
 	}
@@ -206,6 +216,7 @@ const requestRestoreCancellation = async (agentId: string, restoreId: string) =>
 	activeRestoreRun.cancellationRequested = true;
 
 	const runtime = getAgentManagerRuntime();
+
 	if (!runtime) {
 		resolveActiveRestoreRun(restoreId, { status: "cancelled" });
 		return true;
@@ -420,6 +431,7 @@ async function runAgentFilesystemCommand(
 	const response = await Effect.runPromise(runtime.runFilesystemCommand(agentId, organizationId, command));
 	if (!response) throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
 	if (response.status === "error") throw new Error(response.error);
+
 	return response.command;
 }
 
@@ -428,6 +440,7 @@ export const agentManager = {
 		if (agentId !== LOCAL_AGENT_ID && !isRemoteAgentsEnabled()) return false;
 
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) return false;
 		return runtime.waitForAgentReady(agentId, 0);
 	},
@@ -440,6 +453,7 @@ export const agentManager = {
 		}
 
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) {
 			return {
 				status: "unavailable",
@@ -475,11 +489,14 @@ export const agentManager = {
 
 			const cancelOnAbort = () => {
 				const cancellation = requestBackupCancellation(agentId, request.scheduleId);
+
 				void cancellation.catch((error) => {
 					const message = toMessage(error);
+
 					logger.warn(`Failed to request backup cancellation for ${request.payload.jobId}: ${message}`);
 				});
 			};
+
 			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
 				cancelOnAbort();
@@ -501,6 +518,7 @@ export const agentManager = {
 		if (agentId !== LOCAL_AGENT_ID) assertRemoteAgentsEnabled();
 
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) {
 			return {
 				status: "unavailable",
@@ -534,6 +552,7 @@ export const agentManager = {
 			const cancelOnAbort = () => {
 				void requestRestoreCancellation(agentId, request.payload.restoreId);
 			};
+
 			request.signal.addEventListener("abort", cancelOnAbort, { once: true });
 			if (request.signal.aborted) {
 				cancelOnAbort();
@@ -555,6 +574,7 @@ export const agentManager = {
 	},
 	disconnectAgent: async (agentId: string) => {
 		const runtime = getAgentManagerRuntime();
+
 		if (!runtime) return false;
 
 		try {

@@ -29,21 +29,32 @@ type WebFolderBrowser = {
 type Props = {
 	value: string;
 	onChange: (path: string) => void;
+	id?: string;
+	buttonLabel?: string;
+	"aria-describedby"?: string;
+	"aria-invalid"?: boolean;
 	displayValue?: ReactNode;
 	placeholder?: string;
 	webBrowser?: WebFolderBrowser;
+	remote?: { agentId: string; rootId: string };
 };
 
 export const FolderSelector = ({
 	value,
 	onChange,
+	id,
+	buttonLabel,
+	"aria-describedby": describedBy,
+	"aria-invalid": invalid,
 	displayValue,
 	placeholder = "No folder selected",
 	webBrowser,
+	remote,
 }: Props) => {
 	const [showBrowser, setShowBrowser] = useState(false);
 	const [showWarning, setShowWarning] = useState(false);
-	const isDesktop = useIsDesktop();
+	const desktopRuntime = useIsDesktop();
+	const isDesktop = desktopRuntime && !remote;
 	const webBrowserMode = webBrowser?.mode ?? "inline";
 
 	const chooseDesktopFolder = async () => {
@@ -83,23 +94,26 @@ export const FolderSelector = ({
 	return (
 		<div className="space-y-2">
 			<div className="flex items-center gap-2">
-				<div className="flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border break-all">
+				<div className="min-w-0 flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border break-all">
 					{displayValue ?? (value || placeholder)}
 				</div>
 				<Button
+					id={id}
+					aria-describedby={describedBy}
+					aria-invalid={invalid}
 					type="button"
 					variant="outline"
 					onClick={isDesktop ? chooseDesktopFolder : openWebBrowser}
 					size="sm"
 				>
 					{isDesktop && <FolderOpen className="h-4 w-4 mr-2" />}
-					{isDesktop ? "Choose" : "Change"}
+					{buttonLabel ?? (isDesktop ? "Choose" : "Change")}
 				</Button>
 			</div>
 
 			{!isDesktop && webBrowserMode === "inline" && showBrowser && (
 				<>
-					<DirectoryBrowser selectedPath={value} onSelectPath={selectWebFolder} />
+					<DirectoryBrowser remote={remote} selectedPath={value} onSelectPath={selectWebFolder} />
 					<Button type="button" variant="ghost" size="sm" onClick={() => setShowBrowser(false)}>
 						Cancel
 					</Button>
@@ -142,7 +156,7 @@ export const FolderSelector = ({
 							</AlertDialogDescription>
 						</AlertDialogHeader>
 						<div className="py-4">
-							<DirectoryBrowser selectedPath={value} onSelectPath={selectWebFolder} />
+							<DirectoryBrowser remote={remote} selectedPath={value} onSelectPath={selectWebFolder} />
 						</div>
 						<AlertDialogFooter>
 							<AlertDialogCancel>Cancel</AlertDialogCancel>

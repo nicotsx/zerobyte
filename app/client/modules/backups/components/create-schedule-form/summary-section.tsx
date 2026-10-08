@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/cli
 import { cn } from "~/client/lib/utils";
 import type { Volume } from "~/client/lib/types";
 import type { InternalFormValues } from "./types";
+import { getSourceLabel } from "../../lib/backup-context";
 
 type SummarySectionProps = {
 	volume: Volume;
@@ -38,8 +39,8 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 			</CardHeader>
 			<CardContent className="flex flex-col gap-4 text-sm">
 				<div>
-					<p className="text-xs uppercase text-muted-foreground">Volume</p>
-					<p className="font-medium">{volume.name}</p>
+					<p className="text-xs uppercase text-muted-foreground">Source</p>
+					<p className="font-medium [overflow-wrap:anywhere]">{getSourceLabel(volume)}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Schedule</p>

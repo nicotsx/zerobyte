@@ -8,6 +8,13 @@ import babel from "@rolldown/plugin-babel";
 export default defineConfig(({ command }) => {
 	const websocketEnabled = command === "build";
 	const nitroFeatures = { websocket: websocketEnabled };
+	let agentProxyTarget: string | undefined;
+	if (command === "serve") {
+		const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+		process.env.ZEROBYTE_DEV_AGENT_PORT = String(reservation.port);
+		agentProxyTarget = `ws://127.0.0.1:${reservation.port}`;
+		reservation.stop(true);
+	}
 
 	return {
 		clearScreen: false,
@@ -44,6 +51,9 @@ export default defineConfig(({ command }) => {
 		},
 		server: {
 			host: "0.0.0.0",
+			proxy: agentProxyTarget
+				? { "^/api/v1/agents/connect$": { target: agentProxyTarget, ws: true } }
+				: undefined,
 			port: 3000,
 			https:
 				process.env.ZEROBYTE_RUNTIME === "desktop"

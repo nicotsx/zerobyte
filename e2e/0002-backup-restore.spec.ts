@@ -128,15 +128,15 @@ async function createVolume(page: Page, volumeName: string) {
 	await gotoAndWaitForAppReady(page, "/volumes");
 	const volumeNameInput = page.getByRole("textbox", { name: "Name" });
 	await expect(async () => {
-		await page.getByRole("button", { name: "Create Volume" }).click();
+		await page.getByRole("button", { name: "Create Source" }).click();
 		await expect(volumeNameInput).toBeVisible();
 	}).toPass({ timeout: 10000 });
 
 	await page.getByRole("textbox", { name: "Name" }).fill(volumeName);
 	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: "test-data" }).click();
-	await page.getByRole("button", { name: "Create Volume" }).click();
-	await expect(page.getByText("Volume created successfully")).toBeVisible();
+	await page.getByRole("button", { name: "Create Source" }).click();
+	await expect(page.getByText("Source created successfully")).toBeVisible();
 }
 
 async function createRepository(page: Page, repositoryName: string, repositoryBasePath?: string) {
@@ -586,12 +586,12 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 		}
 		await deleteVolumeMenuItem.click({ timeout: 2000 });
 	}).toPass({ timeout: 10000 });
-	await expect(page.getByRole("heading", { name: "Delete volume?" })).toBeVisible({ timeout: 10000 });
+	await expect(page.getByRole("heading", { name: "Delete source?" })).toBeVisible({ timeout: 10000 });
 	await expect(
-		page.getByText("All backup schedules associated with this volume will also be removed."),
+		page.getByText("All backup schedules associated with this source will also be removed."),
 	).toBeVisible();
-	await page.getByRole("button", { name: "Delete volume" }).click();
-	await expect(page.getByText("Volume deleted successfully")).toBeVisible();
+	await page.getByRole("button", { name: "Delete source" }).click();
+	await expect(page.getByText("Source deleted successfully")).toBeVisible();
 
 	await gotoAndWaitForAppReady(page, "/backups");
 	await expect(page.getByText(names.backupName, { exact: true })).toHaveCount(0);

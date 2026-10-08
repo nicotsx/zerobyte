@@ -10,9 +10,10 @@ import { getActiveBackupPercent, hasCoherentBackupEta } from "./backup-progress"
 
 type Props = {
 	progress: NonNullable<BackupTask["progress"]>["progress"] | null;
+	contextLabel: string;
 };
 
-export const BackupProgressCard = ({ progress }: Props) => {
+export const BackupProgressCard = ({ progress, contextLabel }: Props) => {
 	const formatBytes = useFormatBytes();
 	const { locale } = useRootLoaderData();
 	const progressHeadingId = useId();
@@ -46,6 +47,9 @@ export const BackupProgressCard = ({ progress }: Props) => {
 
 	return (
 		<Card className="p-4">
+			<p className="mb-3 truncate text-xs text-muted-foreground" title={contextLabel}>
+				{contextLabel}
+			</p>
 			<div className="flex items-center justify-between">
 				<div className="flex items-center gap-2">
 					<div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />

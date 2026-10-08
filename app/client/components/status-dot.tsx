@@ -1,7 +1,7 @@
 import { cn } from "~/client/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-type StatusVariant = "success" | "neutral" | "error" | "warning" | "info";
+export type StatusVariant = "success" | "neutral" | "error" | "warning" | "info";
 
 interface StatusDotProps {
 	variant: StatusVariant;

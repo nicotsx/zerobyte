@@ -197,7 +197,7 @@ describe("backup execution - validation failures", () => {
 		expect(runBackupMock).not.toHaveBeenCalled();
 	});
 
-	test("does not fail validation when the agent runtime owns volume readiness", async () => {
+	test("defers managed source preparation until backup execution", async () => {
 		// arrange
 		const { resticBackupMock } = setup();
 		const volume = await createTestVolume({ status: "unmounted" });

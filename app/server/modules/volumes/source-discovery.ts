@@ -1,57 +1,29 @@
-import { MAX_AGENT_TRUSTED_ROOTS } from "@zerobyte/contracts/agent-protocol";
 import { and, eq, inArray, isNull, or } from "drizzle-orm";
-import {
-	trustedRootDescriptorSchema,
-	type SourceLocation,
-	type SourceMachine,
-	type SourceTrustedRoot,
-} from "@zerobyte/contracts/volumes";
+import { type SourceLocation, type SourceMachine } from "@zerobyte/contracts/volumes";
 import { ConflictError, NotFoundError, ServiceUnavailableError } from "http-errors-enhanced";
 import {
 	ALLOWED_LOCATION_LABEL,
-	getSafeAllowedLocationLabel,
 	getSafeMachinePresentationLabel,
 	UNAVAILABLE_MACHINE_LABEL,
 } from "~/lib/safe-presentation-label";
 import { db } from "~/server/db/db";
 import { agentsTable, type Agent, type Volume } from "~/server/db/schema";
 import { agentManager } from "../agents/agents-manager";
+import { parseTrustedRootsCompatibility } from "../agents/agent-capability-presentation";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { assertRemoteAgentsEnabled, isRemoteAgentsEnabled } from "../agents/remote-agents-feature";
 
 const getMachineAvailability = (agent: Agent, compatible: boolean, ready: boolean): SourceLocation["availability"] => {
 	if (agent.revokedAt !== null) return "revoked";
-	if (!compatible) return "incompatible";
 	if (agent.status !== "online") return agent.status;
+	if (!compatible) return "incompatible";
 	return ready ? "available" : "not-ready";
 };
 
 const getSafeMachineName = (name: string) => {
 	const safeName = getSafeMachinePresentationLabel(name);
+
 	return safeName.slice(0, 100);
-};
-
-export type TrustedRootsCompatibility =
-	| { compatible: true; trustedRoots: SourceTrustedRoot[] }
-	| { compatible: false; trustedRoots: [] };
-
-export const parseTrustedRootsCompatibility = (capabilities: Record<string, unknown>): TrustedRootsCompatibility => {
-	const rawRoots = capabilities.trustedRoots;
-	if (!Array.isArray(rawRoots) || rawRoots.length > MAX_AGENT_TRUSTED_ROOTS) {
-		return { compatible: false, trustedRoots: [] };
-	}
-
-	const trustedRoots: SourceTrustedRoot[] = [];
-	for (const rawRoot of rawRoots) {
-		const parsedRoot = trustedRootDescriptorSchema.safeParse(rawRoot);
-		if (!parsedRoot.success) {
-			return { compatible: false, trustedRoots: [] };
-		}
-		const label = getSafeAllowedLocationLabel(parsedRoot.data.label);
-		trustedRoots.push({ ...parsedRoot.data, label });
-	}
-
-	return { compatible: true, trustedRoots };
 };
 
 const toSourceMachine = async (agent: Agent): Promise<SourceMachine> => {
@@ -60,6 +32,7 @@ const toSourceMachine = async (agent: Agent): Promise<SourceMachine> => {
 	const trustedRoots = compatibility.trustedRoots;
 	const ready = agent.status === "online" && (await agentManager.isAgentReady(agent.id));
 	const availability = getMachineAvailability(agent, compatibility.compatible, ready);
+
 	return {
 		availability,
 		id: agent.id,
@@ -78,6 +51,7 @@ export const listSourceMachines = async (organizationId: string) => {
 		where: { AND: [{ organizationId: { eq: organizationId } }, { kind: { eq: "remote" } }] },
 		orderBy: { createdAt: "asc" },
 	});
+
 	return Promise.all(agents.map(toSourceMachine));
 };
 
@@ -87,25 +61,33 @@ export const getActionableTrustedRoot = async (agentId: string, rootId: string, 
 	const agent = await db.query.agentsTable.findFirst({
 		where: { AND: [{ id: { eq: agentId } }, { organizationId: { eq: organizationId } }] },
 	});
+
 	if (!agent || agent.kind !== "remote") {
 		throw new NotFoundError("Source machine not found");
 	}
+
 	if (agent.revokedAt !== null) {
 		throw new ConflictError(`Source machine "${getSafeMachineName(agent.name)}" is revoked`);
 	}
 	if (agent.status !== "online") {
 		throw new ServiceUnavailableError(`Source machine "${getSafeMachineName(agent.name)}" is ${agent.status}`);
 	}
+
 	const compatibility = parseTrustedRootsCompatibility(agent.capabilities);
+
 	if (!compatibility.compatible) {
 		throw new ConflictError("Source machine capabilities are incompatible");
 	}
+
 	const isReady = await agentManager.isAgentReady(agent.id);
+
 	if (!isReady) {
 		throw new ServiceUnavailableError(`Source machine "${getSafeMachineName(agent.name)}" is not connected`);
 	}
+
 	const trustedRoots = compatibility.trustedRoots;
 	const root = trustedRoots.find((candidate) => candidate.id === rootId);
+
 	if (!root) {
 		throw new ConflictError(`Trusted root "${rootId}" is not advertised by the source machine`);
 	}
@@ -133,9 +115,11 @@ const needsReadiness = (agent: Agent, rootId: string) => {
 		return false;
 	}
 	const compatibility = parseTrustedRootsCompatibility(agent.capabilities);
+
 	if (!compatibility.compatible) {
 		return false;
 	}
+
 	const root = compatibility.trustedRoots.find((candidate) => candidate.id === rootId);
 	return root?.canBackup === true;
 };
@@ -147,6 +131,7 @@ export const loadSourceLocationPresentationContext = async (
 	const agentIds = [
 		...new Set(volumes.filter((volume) => volume.sourceKind === "filesystem").map((volume) => volume.agentId)),
 	];
+
 	if (agentIds.length === 0) {
 		return { agentsById: new Map(), readinessByAgentId: new Map() };
 	}
@@ -166,7 +151,9 @@ export const loadSourceLocationPresentationContext = async (
 				),
 			),
 		);
+
 	const agentsById = new Map(agents.map((agent) => [agent.id, agent]));
+
 	const relevantAgentIds = [
 		...new Set(
 			volumes.flatMap((volume) => {
@@ -179,13 +166,16 @@ export const loadSourceLocationPresentationContext = async (
 			}),
 		),
 	];
+
 	const readinessEntries = await Promise.all(
 		relevantAgentIds.map(async (agentId) => {
 			const isReady = await agentManager.isAgentReady(agentId);
 			return [agentId, isReady] as const;
 		}),
 	);
+
 	const readinessByAgentId = new Map(readinessEntries);
+
 	return { agentsById, readinessByAgentId };
 };
 
@@ -193,6 +183,7 @@ export const presentSourceLocation = (volume: Volume, context: SourceLocationPre
 	const relativePath = volume.relativePath ?? "";
 	const rootId = volume.trustedRootId ?? "unavailable";
 	const agent = context.agentsById.get(volume.agentId);
+
 	if (!agent || !isPresentableSourceAgent(agent)) {
 		return {
 			machine: {
@@ -213,20 +204,21 @@ export const presentSourceLocation = (volume: Volume, context: SourceLocationPre
 	const root = trustedRoots.find((candidate) => candidate.id === rootId);
 	const missingRoot = { id: rootId, label: ALLOWED_LOCATION_LABEL, canBackup: false };
 	const presentedRoot = root ?? missingRoot;
+
 	let availability: SourceLocation["availability"];
 
 	if (agent.kind === "remote" && !isRemoteAgentsEnabled()) {
 		availability = "disabled";
 	} else if (agent.revokedAt !== null) {
 		availability = "revoked";
+	} else if (agent.status !== "online") {
+		availability = agent.status;
 	} else if (!compatibility.compatible) {
 		availability = "incompatible";
 	} else if (!root) {
 		availability = "root-removed";
 	} else if (!root.canBackup) {
 		availability = "backup-disabled";
-	} else if (agent.status !== "online") {
-		availability = agent.status;
 	} else {
 		const isReady = context.readinessByAgentId.get(agent.id) ?? false;
 		availability = isReady ? "available" : "not-ready";

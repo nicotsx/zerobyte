@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw, Square } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Circle, Download, RotateCcw, Square } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
@@ -40,6 +40,7 @@ interface RestoreFormProps {
 	displayBasePath?: string;
 	hasNonPosixSnapshotPaths?: boolean;
 	volumeReadOnly?: boolean;
+	sourceOrigin?: "local" | "remote" | "unknown";
 }
 
 export function RestoreForm({
@@ -50,6 +51,7 @@ export function RestoreForm({
 	displayBasePath,
 	hasNonPosixSnapshotPaths = false,
 	volumeReadOnly = false,
+	sourceOrigin = "unknown",
 }: RestoreFormProps) {
 	const snapshotId = snapshot.short_id;
 	const navigate = useNavigate();
@@ -58,7 +60,8 @@ export function RestoreForm({
 	const snapshotBasePath = queryBasePath ?? "/";
 	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
 	const hasSourcePathMismatch = hasNonPosixSnapshotPaths || !!hasMismatchedDisplayBasePath;
-	const restoreRequiresCustomTarget = hasSourcePathMismatch || volumeReadOnly;
+	const requiresServerDestination = sourceOrigin !== "local";
+	const restoreRequiresCustomTarget = requiresServerDestination || hasSourcePathMismatch || volumeReadOnly;
 
 	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>(
 		restoreRequiresCustomTarget ? "custom" : "original",
@@ -112,6 +115,8 @@ export function RestoreForm({
 			.filter(Boolean);
 
 		const isCustomLocation = restoreLocation === "custom";
+		if ((isCustomLocation && !hasCustomTargetPath) || (restoreRequiresCustomTarget && !isCustomLocation)) return;
+
 		const targetPath = isCustomLocation && hasCustomTargetPath ? trimmedCustomTargetPath : undefined;
 
 		const includePaths = Array.from(selectedPaths);
@@ -136,6 +141,7 @@ export function RestoreForm({
 		excludeXattr,
 		hasCustomTargetPath,
 		restoreLocation,
+		restoreRequiresCustomTarget,
 		trimmedCustomTargetPath,
 		selectedPaths,
 		selectedPathKind,
@@ -251,7 +257,16 @@ export function RestoreForm({
 					{restoreRequiresCustomTarget && (
 						<Alert variant="warning">
 							<AlertTriangle className="size-4" />
-							{volumeReadOnly && !hasSourcePathMismatch ? (
+							{requiresServerDestination ? (
+								<>
+									<AlertTitle>Choose a destination on this server</AlertTitle>
+									<AlertDescription>
+										{sourceOrigin === "remote"
+											? "This source is on another machine. Restore the files to a folder on this server, or download them. Restoring directly to the remote machine is unavailable."
+											: "This snapshot is not linked to a known source on this server. Choose a destination folder before restoring, or download the files."}
+									</AlertDescription>
+								</>
+							) : volumeReadOnly && !hasSourcePathMismatch ? (
 								<>
 									<AlertTitle>Volume is read-only</AlertTitle>
 									<AlertDescription>
@@ -276,39 +291,59 @@ export function RestoreForm({
 					<Card>
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
-							<CardDescription>Choose where to restore the files</CardDescription>
+							<CardDescription>
+								Destination: This server. Choose a folder on this server to restore the files.
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 gap-2">
+							<fieldset className="min-w-0 grid grid-cols-1 gap-2" aria-label="Restore destination">
 								<Button
 									type="button"
 									variant={restoreLocation === "original" ? "secondary" : "outline"}
 									size="sm"
-									className="flex justify-start gap-2"
+									className={cn(
+										"flex justify-start gap-2",
+										restoreLocation === "original" && "border-primary bg-primary/5",
+									)}
+									aria-pressed={restoreLocation === "original"}
 									onClick={() => setRestoreLocation("original")}
 									disabled={!!restoreRequiresCustomTarget}
 								>
-									<RotateCcw size={16} className="mr-1" />
-									Original location
+									{restoreLocation === "original" ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+									Original path on this server
 								</Button>
 								<Button
 									type="button"
 									variant={restoreLocation === "custom" ? "secondary" : "outline"}
 									size="sm"
-									className="justify-start gap-2"
+									className={cn(
+										"justify-start gap-2",
+										restoreLocation === "custom" && "border-primary bg-primary/5",
+									)}
+									aria-pressed={restoreLocation === "custom"}
 									onClick={() => setRestoreLocation("custom")}
 								>
-									<FolderOpen size={16} className="mr-1" />
+									{restoreLocation === "custom" ? <CheckCircle2 size={16} /> : <Circle size={16} />}
 									Custom location
 								</Button>
-							</div>
+							</fieldset>
 							{restoreLocation === "custom" && (
 								<div className="space-y-2">
-									<FolderSelector value={customTargetPath || "/"} onChange={setCustomTargetPath} />
+									<FolderSelector
+										value={customTargetPath}
+										onChange={setCustomTargetPath}
+										buttonLabel={customTargetPath ? "Change" : "Choose folder"}
+									/>
 									<p className="text-xs text-muted-foreground">
 										Files will be restored directly to this path
 									</p>
 								</div>
+							)}
+							{restoreLocation === "original" && (
+								<p className="text-xs text-muted-foreground break-words">
+									Restore to the original paths on this server, starting at{" "}
+									<code>{snapshotBasePath}</code>.
+								</p>
 							)}
 						</CardContent>
 					</Card>

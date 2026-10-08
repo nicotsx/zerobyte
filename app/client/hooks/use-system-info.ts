@@ -24,7 +24,7 @@ const defaultSystemInfo: SystemInfo = {
 };
 
 export function useSystemInfo() {
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, isSuccess, error, refetch } = useQuery({
 		...getSystemInfoOptions(),
 		staleTime: 5 * 60 * 1000,
 		gcTime: 10 * 60 * 1000,
@@ -36,7 +36,9 @@ export function useSystemInfo() {
 		runtime: systemInfo.runtime,
 		capabilities: systemInfo.capabilities,
 		isLoading,
+		isSuccess,
 		error,
+		refetch,
 		systemInfo,
 	};
 }

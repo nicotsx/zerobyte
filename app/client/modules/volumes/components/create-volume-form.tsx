@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { cn } from "~/client/lib/utils";
@@ -72,6 +72,8 @@ type Props = {
 	loading?: boolean;
 	className?: string;
 	readOnly?: boolean;
+	name?: string;
+	onNameChange?: (name: string) => void;
 };
 
 const defaultValuesForType = {
@@ -90,7 +92,16 @@ const defaultValuesForType = {
 	},
 };
 
-export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, formId, loading, className }: Props) => {
+export const CreateVolumeForm = ({
+	onSubmit,
+	mode = "create",
+	initialValues,
+	formId,
+	loading,
+	className,
+	name,
+	onNameChange,
+}: Props) => {
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema, undefined, { raw: true }),
 		defaultValues: initialValues || {
@@ -103,9 +114,13 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 		},
 	});
 
-	const { getValues } = form;
+	const { getValues, setValue } = form;
 
-	const { capabilities } = useSystemInfo();
+	useEffect(() => {
+		if (name !== undefined) setValue("name", name, { shouldValidate: form.formState.isSubmitted });
+	}, [name, setValue, form.formState.isSubmitted]);
+
+	const { capabilities, runtime } = useSystemInfo();
 	const isBackendAllowed = (backend: BackendType) => capabilities.volumeBackends.includes(backend);
 	const scrollToFirstError = useScrollToFormError();
 	const watchedBackend = useWatch({ control: form.control, name: "backend" });
@@ -165,14 +180,23 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 							<FormItem>
 								<FormLabel>Name</FormLabel>
 								<FormControl>
-									<Input {...field} placeholder="Volume name" maxLength={32} minLength={2} />
+									<Input
+										{...field}
+										onChange={(event) => {
+											field.onChange(event);
+											onNameChange?.(event.target.value);
+										}}
+										placeholder="Source name"
+										maxLength={32}
+										minLength={2}
+									/>
 								</FormControl>
-								<FormDescription>Unique identifier for the volume.</FormDescription>
+								<FormDescription>A unique name for this source.</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
 					/>
-					{capabilities.volumeBackends.length > 1 && (
+					{(runtime === "server" || capabilities.volumeBackends.length > 1) && (
 						<FormField
 							control={form.control}
 							name="backend"
@@ -198,21 +222,32 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{isBackendAllowed("directory") && (
-												<SelectItem value="directory">Directory</SelectItem>
-											)}
-											{isBackendAllowed("nfs") && <SelectItem value="nfs">NFS</SelectItem>}
-											{isBackendAllowed("smb") && <SelectItem value="smb">SMB</SelectItem>}
-											{isBackendAllowed("webdav") && (
-												<SelectItem value="webdav">WebDAV</SelectItem>
-											)}
-											{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
-											{isBackendAllowed("rclone") && (
-												<SelectItem value="rclone">rclone</SelectItem>
-											)}
+											{Object.entries({
+												directory: "Directory",
+												nfs: "NFS",
+												smb: "SMB",
+												webdav: "WebDAV",
+												sftp: "SFTP",
+												rclone: "rclone",
+											}).map(([backend, label]) => (
+												<SelectItem
+													key={backend}
+													value={backend}
+													disabled={!isBackendAllowed(backend as BackendType)}
+												>
+													{label}
+													{!isBackendAllowed(backend as BackendType)
+														? " · unavailable on this server"
+														: ""}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
-									<FormDescription>Choose the storage backend for this volume.</FormDescription>
+									<FormDescription>
+										{runtime === "server" && !capabilities.sysAdmin
+											? "Network sources require a Linux server with mounting enabled. You can also mount a share yourself and select its folder."
+											: "Choose how Zerobyte accesses this source."}
+									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}

@@ -1,6 +1,6 @@
 import type { AgentConnectionData, ControllerTransport } from "./session";
-import { validateAgentToken } from "../helpers/tokens";
 import { config } from "../../../core/config";
+import { validateRemoteAgentToken, validateAgentToken } from "../helpers/tokens";
 import { isRemoteAgentsEnabled, REMOTE_AGENTS_UNAVAILABLE } from "../remote-agents-feature";
 
 type AgentControllerListenerPorts = {
@@ -13,7 +13,7 @@ type AgentControllerListenerPorts = {
 export const createAgentControllerListener = (ports: AgentControllerListenerPorts) =>
 	Bun.serve<AgentConnectionData>({
 		hostname: "127.0.0.1",
-		port: 0,
+		port: config.environment === "development" ? Number(process.env.ZEROBYTE_DEV_AGENT_PORT ?? 0) : 0,
 		async fetch(request, server) {
 			if (!ports.isRunning()) return new Response("Controller is stopping", { status: 503 });
 
@@ -27,7 +27,9 @@ export const createAgentControllerListener = (ports: AgentControllerListenerPort
 			const match = /^Bearer ([^\s]+)$/.exec(authorization);
 			if (!match) return new Response("Missing token", { status: 401 });
 			const token = match[1] ?? "";
-			const authenticated = await validateAgentToken(token);
+			const authenticated = await (remoteDevelopmentConnection ? validateRemoteAgentToken : validateAgentToken)(
+				token,
+			);
 			if (!authenticated) return new Response("Invalid or revoked token", { status: 401 });
 			if (!ports.isRunning()) return new Response("Controller is stopping", { status: 503 });
 			const connectionId = Bun.randomUUIDv7();

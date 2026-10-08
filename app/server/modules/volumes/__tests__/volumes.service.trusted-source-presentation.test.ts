@@ -161,6 +161,37 @@ describe("trusted filesystem source presentation", () => {
 		expect(warn).not.toHaveBeenCalled();
 	});
 
+	test.each(["offline", "connecting", "degraded"] as const)(
+		"reports a %s machine before checking its cached shared locations",
+		async (status) => {
+			const { organizationId, user } = await createTestSession();
+			const { agentId, volume } = await createTrustedFilesystemSource(organizationId, "offline");
+			await db
+				.update(agentsTable)
+				.set({ status, capabilities: { trustedRoots: [] } })
+				.where(eq(agentsTable.id, agentId));
+
+			await withContext({ organizationId, userId: user.id }, async () => {
+				const result = await volumeService.getVolume(volume.shortId);
+
+				expect(result.volume.sourceLocation).toMatchObject({
+					machine: { id: agentId, status },
+					availability: status,
+				});
+			});
+			expect(agentManagerMock.isAgentReady).not.toHaveBeenCalled();
+			expect(agentManagerMock.runFilesystemCommand).not.toHaveBeenCalled();
+
+			await db.update(agentsTable).set({ status: "online" }).where(eq(agentsTable.id, agentId));
+
+			await withContext({ organizationId, userId: user.id }, async () => {
+				const presented = await volumeService.toPresentedVolume(volume);
+
+				expect(presented.sourceLocation?.availability).toBe("root-removed");
+			});
+		},
+	);
+
 	test("passively presents a mounted online source with one readiness lookup and no command", async () => {
 		const { organizationId, user } = await createTestSession();
 		const { agentId, volume } = await createTrustedFilesystemSource(organizationId);

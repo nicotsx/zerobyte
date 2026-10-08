@@ -21,6 +21,9 @@ const volume = {
 	shortId: "vol-1",
 	name: "Volume 1",
 	config: { backend: "directory", path: "/mnt" },
+	sourceKind: "managed",
+	agentId: "local",
+	sourceLocation: null,
 };
 const volumeFilesResponse = {
 	files: [{ name: "project", path: "/project", type: "directory" }],
