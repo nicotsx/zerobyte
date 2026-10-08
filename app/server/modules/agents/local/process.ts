@@ -78,7 +78,7 @@ export const spawnLocalAgentProcess = (runtime: LocalAgentState, controllerUrl: 
 			catch: (error) => (error instanceof Error ? error : new Error(String(error))),
 		});
 		const exited = yield* Deferred.make<void, Error>();
-		const args = config.__prod__ ? ["run", agentEntryPoint] : ["run", "--watch", agentEntryPoint];
+		const args = config.__prod__ ? ["run", agentEntryPoint, "run"] : ["run", "--watch", agentEntryPoint, "run"];
 
 		yield* Effect.acquireRelease(
 			Effect.sync(() => {

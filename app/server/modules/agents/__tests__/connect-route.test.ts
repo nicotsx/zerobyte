@@ -255,11 +255,11 @@ test("valid upgrade context contains authoritative metadata but no credential", 
 	expect(JSON.stringify(upgrade?.context)).not.toContain("secret");
 });
 
-test("rejects spoofed forwarded HTTPS when proxy trust is disabled", async () => {
+test.each(["https", "wss"])("rejects spoofed forwarded %s when proxy trust is disabled", async (protocol) => {
 	const handler = await loadHandler();
 
 	const request = new Request("http://agents.example.com/api/v1/agents/connect", {
-		headers: { "x-forwarded-proto": "https", authorization: "Bearer token" },
+		headers: { "x-forwarded-proto": protocol, authorization: "Bearer token" },
 	});
 
 	await expectRejectedResponse(Promise.resolve(handler.upgrade?.(request)), 426);
@@ -277,7 +277,7 @@ test("rejects plaintext even when BASE_URL and the request use loopback", async 
 	await expectRejectedResponse(Promise.resolve(handler.upgrade?.(request)), 426);
 });
 
-test("accepts forwarded HTTPS only from a trusted proxy", async () => {
+test.each(["https", "wss"])("accepts forwarded %s only from a trusted proxy", async (protocol) => {
 	const handler = await loadHandler();
 
 	mocks.config.trustProxy = true;
@@ -291,12 +291,24 @@ test("accepts forwarded HTTPS only from a trusted proxy", async () => {
 	});
 
 	const request = new Request("http://localhost/api/v1/agents/connect", {
-		headers: { "x-forwarded-proto": "https", authorization: "Bearer token" },
+		headers: { "x-forwarded-proto": protocol, authorization: "Bearer token" },
 	});
 
 	await expect(Promise.resolve(handler.upgrade?.(request))).resolves.toEqual({
 		context: expect.objectContaining({ agentId: "remote-1", organizationId: "org-1" }),
 	});
+});
+
+test.each(["http", "ws"])("rejects forwarded plaintext %s even from a trusted proxy", async (protocol) => {
+	const handler = await loadHandler();
+	mocks.config.trustProxy = true;
+
+	const request = new Request("http://localhost/api/v1/agents/connect", {
+		headers: { "x-forwarded-proto": protocol, authorization: "Bearer token" },
+	});
+
+	await expectRejectedResponse(Promise.resolve(handler.upgrade?.(request)), 426);
+	expect(mocks.validateToken).not.toHaveBeenCalled();
 });
 
 test("a failed registration closes the socket and permits reconnect", async () => {

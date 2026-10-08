@@ -12,7 +12,7 @@ sync:
         - "data"
   zerobyte:
     alpha: "."
-    beta: "nicolas@192.168.2.42:/home/nicolas/zerobyte"
+    beta: "developer@dev-server.example:/home/developer/zerobyte"
     mode: "one-way-replica"
     flushOnCreate: true
     ignore:

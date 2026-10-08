@@ -10,3 +10,9 @@ export const isValidMachineName = (name: string): boolean => {
 	const hasUnsafeCharacters = name.search(UNSAFE_MACHINE_NAME_CHARACTERS_REGEX) !== -1;
 	return hasValidLength && !hasUnsafeCharacters;
 };
+
+export const getMachineDisplayName = (name: string): string => {
+	const sanitizedName = name.replace(UNSAFE_MACHINE_NAME_CHARACTERS_REGEX, "").trim();
+
+	return sanitizedName || "Unnamed machine";
+};

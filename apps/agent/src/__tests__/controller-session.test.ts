@@ -282,6 +282,7 @@ test.each([
 		const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 			trustedRoots,
 			builtinLocal,
+			resticVersion: "0.18.1",
 		});
 
 		try {
@@ -291,6 +292,8 @@ test.each([
 			if (!ready?.success || ready.data.type !== "agent.ready") throw new Error("Expected agent.ready");
 
 			expect(ready.data.payload.capabilities).toEqual({
+				agentVersion: process.env.ZEROBYTE_AGENT_VERSION ?? "dev",
+				resticVersion: "0.18.1",
 				restore: allowRestore,
 				trustedRoots: [...trustedRoots.values()].map((root) => root.descriptor),
 			});

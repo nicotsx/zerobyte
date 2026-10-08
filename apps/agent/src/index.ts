@@ -1,138 +1,228 @@
+import { basename, resolve } from "node:path";
 import { logger } from "@zerobyte/core/node";
-import { createControllerSession, type ControllerSession } from "./controller-session";
-import { createTrustedRootRegistry, type TrustedRootRegistry } from "./trusted-roots";
-import { configureAgent, type AgentConfiguration } from "./enrollment";
+import { Command, InvalidArgumentError } from "commander";
+import { Cause, Console, Data, Effect, Exit } from "effect";
+import { runAgent } from "./agent";
+import { loadConfiguration, readConfiguration, writeConfiguration } from "./config";
+import { enrollMachine, parseControllerUrl } from "./enrollment";
+import { addFolders, chooseFolders, listFolders } from "./folders";
+import * as fs from "./fs";
+import { HostLive, type Host } from "./host";
+import { checkRestic, MIN_RESTIC_VERSION } from "./restic/prerequisites";
+import { controlService, defaultServicePaths, installSystemService, SERVICE_CONFIG, showLogs } from "./system-service";
 
-const INITIAL_RECONNECT_DELAY_MS = 1_000;
-const MAX_RECONNECT_DELAY_MS = 30_000;
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
 
-export class Agent {
-	private ws: WebSocket | null = null;
-	private controllerSession: ControllerSession | null = null;
+class UsageError extends Data.TaggedError("UsageError")<{ message: string }> {}
 
-	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-	private reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-	private stopped = false;
+const runCommand = async <A, E>(program: Effect.Effect<A, E, Host>) => {
+	const exit = await Effect.runPromiseExit(Effect.provide(program, HostLive));
 
-	private trustedRoots: TrustedRootRegistry | null = null;
+	if (Exit.isFailure(exit)) {
+		const failure = Cause.squash(exit.cause);
 
-	constructor(private readonly configuration: AgentConfiguration) {}
+		logger.error(failure instanceof Error ? failure.message : String(failure));
+		process.exitCode = 1;
+	}
+};
 
-	private scheduleReconnect() {
-		if (this.stopped || this.reconnectTimeout) return;
+const requireServiceHost = Effect.suspend(() => {
+	if (process.platform !== "linux")
+		return new UsageError({ message: "System service installation supports Linux only" });
+	if (process.getuid?.() !== 0)
+		return new UsageError({ message: "Run zerobyte-agent install as root (for example, with sudo)" });
 
-		const jitterFactor = 0.8 + Math.random() * 0.4;
-		const delay = Math.round(this.reconnectDelayMs * jitterFactor);
-
-		this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
-		this.reconnectTimeout = setTimeout(() => {
-			this.reconnectTimeout = null;
-			this.connect();
-		}, delay);
+	if (basename(process.execPath) === "bun") {
+		return new UsageError({ message: "System service installation requires a compiled zerobyte-agent executable" });
 	}
 
-	private validateConfiguration() {
-		if (!this.configuration.controllerUrl) {
-			throw new Error("Controller URL is missing. Enroll this machine or set ZEROBYTE_CONTROLLER_URL.");
-		}
-		if (!this.configuration.token) {
-			throw new Error("Agent token is missing. Enroll this machine or set ZEROBYTE_AGENT_TOKEN.");
-		}
+	return Effect.void;
+});
 
-		const url = new URL(this.configuration.controllerUrl);
-		const loopback = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
-		const secureWebSocket = url.protocol === "wss:";
-		const loopbackWebSocket = loopback && url.protocol === "ws:";
+const waitForShutdown = (builtinLocal: boolean) =>
+	Effect.async<void>((resume) => {
+		const stop = () => resume(Effect.void);
 
-		if (!secureWebSocket && !loopbackWebSocket) {
-			throw new Error(
-				"Agent connections require a wss:// controller URL except for explicit loopback ws:// URLs",
-			);
+		process.once("SIGINT", stop);
+		process.once("SIGTERM", stop);
+
+		if (builtinLocal) {
+			process.stdin.once("end", stop);
+			process.stdin.resume();
 		}
 
-		return url;
-	}
+		return Effect.sync(() => {
+			process.off("SIGINT", stop);
+			process.off("SIGTERM", stop);
+			process.stdin.off("end", stop);
+		});
+	});
 
-	connect() {
-		this.stopped = false;
-		const url = this.validateConfiguration();
+export const program = new Command()
+	.name("zerobyte-agent")
+	.description(`Zerobyte backup agent (requires Restic ${MIN_RESTIC_VERSION} or newer)`)
+	.version(process.env.ZEROBYTE_AGENT_VERSION ?? "dev");
+
+program
+	.command("run")
+	.description("Run in the foreground (used by the system service)")
+	.option("--config <file>", "Agent configuration file", SERVICE_CONFIG)
+	.action(async (options: { config: string }) => {
 		const builtinLocal = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
 
-		this.trustedRoots ??= createTrustedRootRegistry({ roots: this.configuration.roots, builtinLocal });
+		await runCommand(
+			Effect.gen(function* () {
+				const resticVersion = yield* checkRestic;
+				const configuration = yield* loadConfiguration(options.config);
 
-		if (this.reconnectTimeout) {
-			clearTimeout(this.reconnectTimeout);
-			this.reconnectTimeout = null;
-		}
+				yield* Effect.raceFirst(
+					runAgent({ configuration, resticVersion, builtinLocal }),
+					waitForShutdown(builtinLocal),
+				).pipe(
+					Effect.ensuring(
+						Effect.sync(() => {
+							setTimeout(() => process.exit(), GRACEFUL_SHUTDOWN_TIMEOUT_MS);
+						}),
+					),
+				);
+			}),
+		);
+	});
 
-		if (this.ws) return;
+program
+	.command("install")
+	.description("Install or upgrade the Linux systemd service")
+	.option("--controller <url>", "HTTPS controller URL (required on first install; updates the address on upgrade)")
+	.option("--code <code>", "Connection code to enroll or reconnect this machine, preserving existing folders")
+	.option("--root <folders...>", "Optional folders for unattended setup")
+	.option("--allow-insecure", "Allow an HTTP development controller")
+	.action((options: { controller?: string; code?: string; root?: string[]; allowInsecure?: boolean }) =>
+		runCommand(
+			Effect.gen(function* () {
+				yield* requireServiceHost;
 
-		const authorization = `Bearer ${this.configuration.token}`;
-		const ws = new WebSocket(url.toString(), { headers: { authorization } });
-		const controllerSession = createControllerSession(ws, {
-			trustedRoots: this.trustedRoots,
-			builtinLocal,
-			excludedPaths: this.configuration.configPath ? [this.configuration.configPath] : [],
-		});
+				let controller: URL | undefined;
+				if (options.controller) {
+					controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
+				}
 
-		this.ws = ws;
-		this.controllerSession = controllerSession;
-		ws.onopen = () => {
-			if (this.ws !== ws) return;
-			this.reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
-			logger.info("Agent connected to controller");
-			controllerSession.onOpen();
-		};
-		ws.onmessage = (event) => {
-			if (this.ws === ws) controllerSession.onMessage(event.data);
-		};
-		ws.onclose = () => {
-			controllerSession.close();
-			if (this.controllerSession === controllerSession) this.controllerSession = null;
-			if (this.ws !== ws) return;
-			this.ws = null;
-			logger.info("Agent disconnected from controller");
-			this.scheduleReconnect();
-		};
-		ws.onerror = () => logger.error("Agent websocket connection failed");
-	}
+				yield* installSystemService({
+					controller,
+					code: options.code,
+					roots: options.root ?? [],
+					sourceBinary: process.execPath,
+					paths: defaultServicePaths,
+				});
 
-	stop() {
-		this.stopped = true;
-		if (this.reconnectTimeout) {
-			clearTimeout(this.reconnectTimeout);
-			this.reconnectTimeout = null;
-		}
-		this.controllerSession?.close();
-		this.controllerSession = null;
-		const ws = this.ws;
-		this.ws = null;
-		ws?.close(1000, "agent_shutdown");
-	}
+				yield* Console.log(
+					"Zerobyte agent installed and running in the background. Choose folders: sudo zerobyte-agent folders add. Logs: sudo zerobyte-agent logs",
+				);
+			}),
+		),
+	);
+
+program
+	.command("enroll")
+	.description("Enroll this machine without installing a service, for manual runs")
+	.requiredOption("--controller <url>", "HTTPS URL of the Zerobyte controller")
+	.requiredOption("--code <code>", "One-time connection code from the dashboard")
+	.requiredOption("--config <file>", "Where to save the agent configuration")
+	.option("--root <folders...>", "Folders to share (can be repeated)")
+	.option("--allow-insecure", "Allow an HTTP development controller")
+	.action((options: { controller: string; code: string; config: string; root?: string[]; allowInsecure?: boolean }) =>
+		runCommand(
+			Effect.gen(function* () {
+				if (yield* fs.exists(options.config)) {
+					return yield* new UsageError({
+						message: `This machine already has an agent configuration at ${resolve(options.config)}. For an installed agent, use install --code to replace its credential and preserve its folders.`,
+					});
+				}
+
+				yield* checkRestic;
+
+				const controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
+				const configuration = yield* enrollMachine(controller, options.code, options.root ?? []);
+
+				yield* writeConfiguration(options.config, configuration);
+				yield* Console.log(`Machine enrolled. Start it with: zerobyte-agent run --config ${options.config}`);
+			}),
+		),
+	);
+
+program
+	.command("check")
+	.description("Verify the Restic prerequisite without enrolling or connecting")
+	.action(() => runCommand(Effect.flatMap(checkRestic, (version) => Console.log(`Restic ${version}: ready`))));
+
+for (const action of ["start", "stop", "restart", "status"] as const) {
+	program
+		.command(action)
+		.description(
+			action === "status"
+				? "Show background agent status"
+				: `${action[0]!.toUpperCase()}${action.slice(1)} the background agent`,
+		)
+		.action(() => runCommand(controlService(action)));
 }
 
-if (import.meta.main) {
-	const configuration = await configureAgent();
+program
+	.command("logs")
+	.description("Show recent agent logs")
+	.option("-f, --follow", "Stream logs until Ctrl+C", false)
+	.option(
+		"-n, --lines <count>",
+		"Number of recent lines",
+		(value: string) => {
+			const lines = Number(value);
+			if (!/^\d+$/.test(value) || !Number.isSafeInteger(lines) || lines < 1) {
+				throw new InvalidArgumentError("Enter a positive whole number.");
+			}
 
-	const agent = new Agent(configuration);
-	let shuttingDown = false;
+			return lines;
+		},
+		30,
+	)
+	.action((options: { lines: number; follow: boolean }) => runCommand(showLogs(options)));
 
-	const stop = () => {
-		if (shuttingDown) return;
-		shuttingDown = true;
+const folders = program.command("folders").description("Choose folders this machine shares with Zerobyte");
 
-		setTimeout(() => process.exit(0), GRACEFUL_SHUTDOWN_TIMEOUT_MS);
-		agent.stop();
-	};
+folders
+	.command("add")
+	.description("Browse and select folders to share")
+	.option("--config <file>", "Agent configuration file", SERVICE_CONFIG)
+	.action((options: { config: string }) =>
+		runCommand(
+			Effect.gen(function* () {
+				yield* readConfiguration(options.config);
 
-	process.once("SIGINT", stop);
-	process.once("SIGTERM", stop);
+				const selected = yield* chooseFolders;
+				if (!selected.length) return;
 
-	if (process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1") {
-		process.stdin.once("end", stop);
-		process.stdin.resume();
-	}
+				const added = yield* addFolders(options.config, selected);
+				if (!added.length) return yield* Console.log("These folders are already shared.");
 
-	agent.connect();
-}
+				yield* Console.log(`Added ${added.length} folder${added.length === 1 ? "" : "s"}.`);
+
+				if (resolve(options.config) === SERVICE_CONFIG) yield* controlService("restart");
+				else yield* Console.log("Restart your agent to share the new folders.");
+			}),
+		),
+	);
+
+folders
+	.command("list")
+	.description("Show shared folders")
+	.option("--config <file>", "Agent configuration file", SERVICE_CONFIG)
+	.action((options: { config: string }) =>
+		runCommand(
+			Effect.flatMap(listFolders(options.config), (roots) =>
+				Console.log(
+					roots.length
+						? roots.map((root) => `${root.label}  ${root.path}`).join("\n")
+						: "No folders shared yet. Run sudo zerobyte-agent folders add.",
+				),
+			),
+		),
+	);
+
+if (import.meta.main) await program.parseAsync(process.argv);

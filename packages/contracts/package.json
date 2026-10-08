@@ -3,6 +3,16 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./agent-connection": {
+			"types": "./src/agent-connection.ts",
+			"import": "./src/agent-connection.ts",
+			"default": "./src/agent-connection.ts"
+		},
+		"./agent-token": {
+			"types": "./src/agent-token.ts",
+			"import": "./src/agent-token.ts",
+			"default": "./src/agent-token.ts"
+		},
 		"./backup-context": {
 			"types": "./src/backup-context.ts",
 			"import": "./src/backup-context.ts",

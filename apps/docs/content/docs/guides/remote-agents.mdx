@@ -90,16 +90,16 @@ If the connection drops, the agent retries automatically. The delay increases be
 
 ## Update the agent
 
-To install the latest stable agent release:
+To install the latest stable agent release, run the installer again without a connection code:
 
 ```bash
-sudo zerobyte-agent update
+curl -fsSL https://zerobyte.app/install.sh | sudo bash
 ```
 
-To install a specific release:
+To install a specific release, set `ZEROBYTE_AGENT_VERSION`:
 
 ```bash
-sudo zerobyte-agent update --version vX.Y.Z
+curl -fsSL https://zerobyte.app/install.sh | sudo env ZEROBYTE_AGENT_VERSION=vX.Y.Z bash
 ```
 
 Updates preserve the machine's connection and allowed locations, then restart the service. Run them between backup runs. Agents don't update automatically.
@@ -108,7 +108,7 @@ If you've downloaded a new agent executable yourself, run its `install` command 
 
 ## Reconnect or revoke a machine
 
-To replace a machine's credential, open its **Actions** menu in Zerobyte and choose **Reconnect machine**. Run the new command on the same machine. It includes `--reconnect` and preserves the allowed locations and existing sources.
+To replace a machine's credential, open its **Actions** menu in Zerobyte and choose **Get connection command**. Run the new command on the same machine. The agent detects its saved identity and reconnects automatically, preserving the allowed locations and existing sources.
 
 Generating that command disconnects the current agent and invalidates its old credential. Do this between backup runs, and keep the saved configuration at `/var/lib/zerobyte-agent/agent.json` so the new command can reconnect the existing installation.
 
@@ -118,9 +118,9 @@ Choose **Revoke connection** to prevent a machine from connecting. Its sources a
 
 ### The installer says the machine is already enrolled
 
-The machine already has a saved identity. For an update, run `sudo zerobyte-agent update` or run the downloaded executable's `install` command without enrollment options.
+The machine already has a saved identity. To update it, run the installer again without a connection code, as described in [Update the agent](#update-the-agent).
 
-If you need to replace the credential, use **Reconnect machine** on the existing machine card and run its new command. Keep `agent.json`; deleting it also loses the saved folder selection.
+If you need to replace the credential, choose **Get connection command** from the existing machine's **Actions** menu and run its new command. Keep `agent.json`; deleting it also loses the saved folder selection.
 
 ### Enrollment fails with “TLS required”
 

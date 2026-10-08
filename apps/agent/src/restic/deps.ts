@@ -4,6 +4,8 @@ import type { ResticDeps } from "@zerobyte/core/restic";
 import { resolveResticHostname } from "@zerobyte/core/node";
 import { unquote } from "@zerobyte/core/utils";
 
+export const getResticCommand = () => unquote(process.env.RESTIC_COMMAND ?? "restic");
+
 export const resticDeps = (password: string): ResticDeps => {
 	const local = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
 	const stateDirectory = local ? "/var/lib/zerobyte" : path.join(homedir(), ".cache", "zerobyte-agent");
@@ -12,7 +14,7 @@ export const resticDeps = (password: string): ResticDeps => {
 	const resticPassFile = process.env.RESTIC_PASS_FILE || path.join(stateDirectory, "data", "restic.pass");
 	const rcloneDirectory = process.env.RCLONE_CONFIG_DIR || "/root/.config/rclone";
 	const rcloneConfigFile = path.join(rcloneDirectory, "rclone.conf");
-	const resticCommand = unquote(process.env.RESTIC_COMMAND ?? "restic");
+	const resticCommand = getResticCommand();
 
 	const defaultExcludes = [resticPassFile, repositoryBase, resticCacheDir];
 

@@ -1,6 +1,7 @@
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { ConflictError, NotFoundError, UnauthorizedError } from "http-errors-enhanced";
+import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
 import { db } from "../../db/db";
 import { agentsTable, volumesTable, type Agent, type AgentCapabilities } from "../../db/schema";
 import { config } from "../../core/config";
@@ -56,12 +57,7 @@ const ensureLocalAgent = async () => {
 	return getAgent(LOCAL_AGENT_ID);
 };
 
-const getControllerUrl = () => {
-	const controllerUrl = new URL("/api/v1/agents/connect", config.baseUrl);
-	controllerUrl.protocol = controllerUrl.protocol === "https:" ? "wss:" : "ws:";
-
-	return controllerUrl.toString();
-};
+const getControllerUrl = () => toAgentConnectionUrl(config.baseUrl).toString();
 
 const createRemoteAgent = async (organizationId: string, name: string) => {
 	const id = Bun.randomUUIDv7();

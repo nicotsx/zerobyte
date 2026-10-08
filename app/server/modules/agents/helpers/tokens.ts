@@ -1,24 +1,16 @@
 import crypto from "node:crypto";
+import { AGENT_TOKEN_PREFIX, parseAgentToken } from "@zerobyte/contracts/agent-token";
 import { db } from "~/server/db/db";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 
-const TOKEN_PREFIX = "zba1";
+export { parseAgentToken } from "@zerobyte/contracts/agent-token";
 
 export type AgentIdentity = {
 	agentId: string;
 	agentName: string;
 	credentialVersion: number;
 } & ({ agentKind: "local"; organizationId: null } | { agentKind: "remote"; organizationId: string });
-
-export const parseAgentToken = (token: string) => {
-	const [prefix, agentId, version, secret, ...rest] = token.split(".");
-
-	if (prefix !== TOKEN_PREFIX || !agentId || !secret || rest.length > 0) return null;
-	if (!version || !/^\d+$/.test(version)) return null;
-
-	return { agentId, credentialVersion: Number(version) };
-};
 
 export const hashAgentToken = async (token: string) => {
 	const key = await cryptoUtils.deriveSecret("zerobyte:remote-agent-enrollment:hmac-sha256:v1");
@@ -28,7 +20,7 @@ export const hashAgentToken = async (token: string) => {
 
 export const createAgentToken = async (agentId: string, credentialVersion: number) => {
 	const secret = crypto.randomBytes(32).toString("base64url");
-	const token = `${TOKEN_PREFIX}.${agentId}.${credentialVersion}.${secret}`;
+	const token = `${AGENT_TOKEN_PREFIX}.${agentId}.${credentialVersion}.${secret}`;
 
 	return { token, credentialHash: await hashAgentToken(token) };
 };

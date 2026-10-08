@@ -6923,6 +6923,8 @@ export type ListAgentsResponses = {
         capabilities: {
             hostname: string | null;
             platform: string | null;
+            agentVersion: string | null;
+            resticVersion: string | null;
             trustedRoots: Array<{
                 id: string;
                 label: string;
@@ -6976,6 +6978,8 @@ export type CreateRemoteAgentResponses = {
             capabilities: {
                 hostname: string | null;
                 platform: string | null;
+                agentVersion: string | null;
+                resticVersion: string | null;
                 trustedRoots: Array<{
                     id: string;
                     label: string;
@@ -7020,6 +7024,8 @@ export type RotateRemoteAgentTokenResponses = {
             capabilities: {
                 hostname: string | null;
                 platform: string | null;
+                agentVersion: string | null;
+                resticVersion: string | null;
                 trustedRoots: Array<{
                     id: string;
                     label: string;
@@ -7063,6 +7069,8 @@ export type RevokeRemoteAgentTokenResponses = {
         capabilities: {
             hostname: string | null;
             platform: string | null;
+            agentVersion: string | null;
+            resticVersion: string | null;
             trustedRoots: Array<{
                 id: string;
                 label: string;

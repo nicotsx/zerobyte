@@ -1,147 +1,136 @@
-import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import * as path from "node:path";
-import { parseArgs } from "node:util";
+import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
+import { parseAgentToken } from "@zerobyte/contracts/agent-token";
+import { toMessage } from "@zerobyte/core/utils";
+import { Data, Effect } from "effect";
 import { z } from "zod";
-import { configuredRootsSchema, createTrustedRootRegistry, parseConfiguredRoots } from "./trusted-roots";
+import type { AgentConfiguration } from "./config";
+import { createTrustedRootRegistry, resolveConfiguredRootPath } from "./trusted-roots";
 
-const agentConfigurationSchema = z.object({
-	controllerUrl: z.string(),
-	token: z.string(),
-	roots: configuredRootsSchema,
-});
+export class EnrollmentError extends Data.TaggedError("EnrollmentError")<{ message: string }> {}
 
 const enrollmentResponseSchema = z.object({ token: z.string() });
+const enrollmentErrorSchema = z.object({ message: z.string().trim().min(1) });
 
-export type AgentConfiguration = z.infer<typeof agentConfigurationSchema> & { configPath?: string };
+const DEFAULT_RECOVERY = "Check the controller URL and the Zerobyte server and reverse proxy logs.";
 
-const defaultConfigPath = () => path.join(homedir(), ".config", "zerobyte-agent", "agent.json");
-
-export const enrollAgent = async (options: {
-	controller: string;
-	code: string;
-	roots: string[];
-	configPath: string;
-}): Promise<AgentConfiguration> => {
-	const controller = new URL(options.controller);
-
-	if (controller.protocol !== "https:" || controller.username || controller.password) {
-		throw new Error("Enrollment requires an HTTPS controller URL without embedded credentials");
-	}
-	if (options.roots.length === 0) throw new Error("Choose at least one folder with --root before enrolling");
-
-	const roots = options.roots.map((root, index) => {
-		const rootPath = root.startsWith("~/") ? path.join(homedir(), root.slice(2)) : path.resolve(root);
-
-		return { id: `files-${index + 1}`, label: `Files ${index + 1}`, path: rootPath, allowBackup: true };
-	});
-
-	createTrustedRootRegistry({ roots });
-
-	const configPath = path.resolve(options.configPath);
-
-	if (existsSync(configPath))
-		throw new Error(`This machine is already enrolled. Delete ${configPath} to enroll it again.`);
-
-	await mkdir(path.dirname(configPath), { recursive: true, mode: 0o700 });
-
-	const response = await fetch(new URL("/api/v1/agents/enroll", controller), {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ code: options.code }),
-		redirect: "error",
-		signal: AbortSignal.timeout(15_000),
-	});
-
-	if (!response.ok) {
-		throw new Error(`Enrollment failed (${response.status}). Generate a new connection code in Zerobyte.`);
-	}
-
-	const credentials = enrollmentResponseSchema.safeParse(await response.json());
-
-	if (!credentials.success) {
-		throw new Error("Zerobyte returned an invalid machine credential. Generate a new connection code in Zerobyte.");
-	}
-
-	const connectionUrl = new URL("/api/v1/agents/connect", controller);
-	connectionUrl.protocol = "wss:";
-
-	const configuration = { controllerUrl: connectionUrl.toString(), token: credentials.data.token, roots };
-
-	await writeFile(configPath, JSON.stringify(configuration, null, 2), { flag: "wx", mode: 0o600 });
-
-	return configuration;
+const RECOVERY_BY_STATUS: Record<number, string> = {
+	401: "The connection code is invalid, expired, already used, or revoked. Get a fresh connection command from this machine's Actions menu in Settings → Machines.",
+	403: "Check the reverse proxy's access rules. The agent must be able to reach /api/v1/agents/enroll.",
+	404: "Check the controller URL and that this Zerobyte server version supports remote agents.",
+	426: "Use HTTPS. If a trusted reverse proxy terminates TLS, set TRUST_PROXY=true on the Zerobyte server and ensure the proxy sends X-Forwarded-Proto: https. This rejection has not consumed your connection code.",
+	429: "Too many enrollment attempts. Wait before retrying.",
+	503: "Check that remote agents are enabled with ENABLE_REMOTE_AGENTS=true on the Zerobyte server. If they are, check the server and reverse proxy logs for an outage.",
 };
 
-const readSavedConfiguration = async (configPath: string) => {
-	let parsed: unknown;
+export const parseControllerUrl = (value: string, allowInsecure = false) =>
+	Effect.try({
+		try: () => new URL(value),
+		catch: () => new EnrollmentError({ message: `Invalid controller URL: ${value}` }),
+	}).pipe(
+		Effect.filterOrFail(
+			(url) =>
+				(url.protocol === "https:" || (allowInsecure && url.protocol === "http:")) &&
+				!url.username &&
+				!url.password,
+			() =>
+				new EnrollmentError({
+					message:
+						"Use an HTTPS controller URL without embedded credentials, or --allow-insecure for an HTTP development controller.",
+				}),
+		),
+	);
 
-	try {
-		parsed = JSON.parse(await readFile(configPath, "utf8"));
-	} catch (error) {
-		if (error instanceof SyntaxError || (error instanceof Error && "code" in error && error.code === "ENOENT")) {
-			throw new Error("Invalid agent configuration. Enroll this machine from the Zerobyte controller.");
+export const exchangeConnectionCode = (controller: URL, code: string) =>
+	Effect.gen(function* () {
+		const redact = (text: string) => text.replaceAll(code, "[redacted]").slice(0, 500);
+
+		const { response, body } = yield* Effect.tryPromise({
+			try: async (signal) => {
+				const response = await fetch(new URL("/api/v1/agents/enroll", controller), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ code }),
+					redirect: "error",
+					signal,
+				});
+				const body = await response.json().catch(() => null);
+
+				return { response, body };
+			},
+			catch: (error) =>
+				new EnrollmentError({
+					message: `Enrollment request to ${controller.origin} failed: ${redact(toMessage(error))}. Check the controller URL, network access, HTTPS certificates, and reverse proxy configuration.`,
+				}),
+		}).pipe(
+			Effect.timeoutFail({
+				duration: "15 seconds",
+				onTimeout: () =>
+					new EnrollmentError({
+						message: `Enrollment request to ${controller.origin} timed out. Check network access.`,
+					}),
+			}),
+		);
+
+		if (!response.ok) {
+			const detail =
+				enrollmentErrorSchema.safeParse(body).data?.message ??
+				(response.statusText || "The controller rejected enrollment.");
+			const recovery = RECOVERY_BY_STATUS[response.status] ?? DEFAULT_RECOVERY;
+
+			return yield* new EnrollmentError({
+				message: `Enrollment failed (${response.status}): ${redact(detail)} ${recovery}`,
+			});
 		}
 
-		throw error;
-	}
+		const credentials = enrollmentResponseSchema.safeParse(body);
 
-	const result = agentConfigurationSchema.safeParse(parsed);
+		if (!credentials.success) {
+			return yield* new EnrollmentError({
+				message: `Zerobyte returned an invalid machine credential from ${controller.origin}. Check the controller URL and server version, and ensure any proxy or authentication gateway allows /api/v1/agents/enroll to return JSON.`,
+			});
+		}
 
-	if (!result.success) {
-		throw new Error("Invalid agent configuration. Enroll this machine from the Zerobyte controller.");
-	}
-
-	return result.data;
-};
-
-export const configureAgent = async (): Promise<AgentConfiguration> => {
-	const rawEnvironmentRoots = process.env.ZEROBYTE_AGENT_ROOTS;
-	const environmentRoots = rawEnvironmentRoots === undefined ? undefined : parseConfiguredRoots(rawEnvironmentRoots);
-
-	const environmentConfiguration = {
-		controllerUrl: process.env.ZEROBYTE_CONTROLLER_URL ?? "",
-		token: process.env.ZEROBYTE_AGENT_TOKEN ?? "",
-		roots: environmentRoots ?? [],
-		configPath: process.env.ZEROBYTE_AGENT_CONFIG_PATH,
-	};
-
-	if (process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1") return environmentConfiguration;
-
-	const { values, positionals } = parseArgs({
-		args: process.argv.slice(2),
-		allowPositionals: true,
-		options: {
-			controller: { type: "string" },
-			code: { type: "string" },
-			root: { type: "string", multiple: true },
-			config: { type: "string" },
-		},
+		return credentials.data.token;
 	});
 
-	const configPath = values.config ?? defaultConfigPath();
+export const enrollMachine = (controller: URL, code: string, folders: ReadonlyArray<string>) =>
+	Effect.gen(function* () {
+		const roots = folders.map((folder, index) => ({
+			id: `files-${index + 1}`,
+			label: `Files ${index + 1}`,
+			path: resolveConfiguredRootPath(folder),
+			allowBackup: true,
+		}));
 
-	let configuration: AgentConfiguration;
+		yield* Effect.try({
+			try: () => createTrustedRootRegistry({ roots }),
+			catch: (error) => new EnrollmentError({ message: toMessage(error) }),
+		});
 
-	if (positionals[0] === "enroll") {
-		if (!values.controller || !values.code)
-			throw new Error("Usage: enroll --controller https://zerobyte.example --code CODE --root /folder");
+		const token = yield* exchangeConnectionCode(controller, code);
 
-		const roots = values.root ?? [];
+		return { controllerUrl: toAgentConnectionUrl(controller).href, token, roots } satisfies AgentConfiguration;
+	});
 
-		configuration = await enrollAgent({ controller: values.controller, code: values.code, roots, configPath });
-		console.info(`Machine enrolled. Configuration saved to ${configPath}. Starting the backup agent.`);
-	} else {
-		if (positionals.length > 0) throw new Error("Unknown agent command");
-		if (environmentConfiguration.token && environmentConfiguration.controllerUrl) return environmentConfiguration;
+export const reconnectMachine = (saved: AgentConfiguration, controller: URL, code: string) =>
+	Effect.gen(function* () {
+		const machineId = parseAgentToken(saved.token)?.agentId;
 
-		configuration = await readSavedConfiguration(configPath);
-	}
+		if (!machineId || parseAgentToken(code)?.agentId !== machineId) {
+			return yield* new EnrollmentError({
+				message:
+					"This connection code belongs to a different machine. In Settings → Machines, use the existing machine row’s Actions menu to reconnect it.",
+			});
+		}
 
-	return {
-		...configuration,
-		roots: environmentRoots ?? configuration.roots,
-		configPath: path.resolve(configPath),
-	};
-};
+		const token = yield* exchangeConnectionCode(controller, code);
+
+		if (parseAgentToken(token)?.agentId !== machineId) {
+			return yield* new EnrollmentError({
+				message:
+					"Controller returned a credential for a different machine. The saved agent configuration was not changed.",
+			});
+		}
+
+		return { ...saved, controllerUrl: toAgentConnectionUrl(controller).href, token } satisfies AgentConfiguration;
+	});

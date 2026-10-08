@@ -90,6 +90,16 @@ test("unavailable machines cannot be chosen", async () => {
 	expect(screen.getByRole("option", { name: "Archive · Offline" }).getAttribute("aria-disabled")).toBe("true");
 });
 
+test("a machine without shared folders shows the agent setup command", async () => {
+	serveMachines([{ ...machine, trustedRoots: [] }]);
+	renderForm();
+
+	await userEvent.click(await screen.findByLabelText("Machine"));
+	await userEvent.click(screen.getByRole("option", { name: "Archive · Online" }));
+
+	expect(screen.getByText("sudo zerobyte-agent folders add")).toBeTruthy();
+});
+
 test("renames a source without relocating it while machines cannot be loaded", async () => {
 	server.use(http.get("/api/v1/volumes/source-machines", () => HttpResponse.json({}, { status: 503 })));
 	const onSubmit = renderForm({

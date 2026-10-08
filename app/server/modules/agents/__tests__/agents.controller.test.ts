@@ -82,6 +82,8 @@ describe("remote agent enrollment API", () => {
 		const capabilities = {
 			hostname: "  archive-node  ",
 			platform: "linux",
+			agentVersion: "v0.30.0",
+			resticVersion: "0.18.1",
 			privatePath: "/srv/private",
 			trustedRoots: [{ id: "documents", label: "~/private", canBackup: true, path: "/srv/documents" }],
 		};
@@ -93,6 +95,8 @@ describe("remote agent enrollment API", () => {
 		const expectedCapabilities = {
 			hostname: "archive-node",
 			platform: "linux",
+			agentVersion: "v0.30.0",
+			resticVersion: "0.18.1",
 			trustedRoots: [{ id: "documents", label: "Allowed location", canBackup: true }],
 		};
 		expect(agent?.capabilities).toEqual(expectedCapabilities);
@@ -106,7 +110,13 @@ describe("remote agent enrollment API", () => {
 		const unenrolledAgent = relistedAgents.find(
 			(candidate: { id: string }) => candidate.id === enrollment.agent.id,
 		);
-		expect(unenrolledAgent?.capabilities).toEqual({ hostname: null, platform: null, trustedRoots: [] });
+		expect(unenrolledAgent?.capabilities).toEqual({
+			hostname: null,
+			platform: null,
+			agentVersion: null,
+			resticVersion: null,
+			trustedRoots: [],
+		});
 	});
 
 	test.each(["line\nbreak", "right-to-left\u202eoverride"])(

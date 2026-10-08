@@ -23,7 +23,12 @@ export type ControllerSession = {
 
 export const createControllerSession = (
 	ws: WebSocket,
-	options: { trustedRoots: TrustedRootRegistry; builtinLocal?: boolean; excludedPaths?: string[] },
+	options: {
+		trustedRoots: TrustedRootRegistry;
+		builtinLocal?: boolean;
+		excludedPaths?: string[];
+		resticVersion?: string;
+	},
 ): ControllerSession => {
 	let isClosed = false;
 
@@ -34,6 +39,8 @@ export const createControllerSession = (
 
 	const { trustedRoots, builtinLocal = false, excludedPaths = [] } = options;
 	const capabilities: AgentCapabilities = {
+		agentVersion: process.env.ZEROBYTE_AGENT_VERSION ?? "dev",
+		resticVersion: options.resticVersion,
 		restore: builtinLocal,
 		trustedRoots: getTrustedRootDescriptors(trustedRoots),
 	};

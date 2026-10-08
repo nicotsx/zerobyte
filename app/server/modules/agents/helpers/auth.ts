@@ -13,8 +13,9 @@ export const isSecureAgentRequest = (request: Request) => {
 
 	const protocol = new URL(request.url).protocol;
 	const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+	const secureForwardedProtocol = forwardedProtocol === "https" || forwardedProtocol === "wss";
 
-	return protocol === "https:" || protocol === "wss:" || (config.trustProxy && forwardedProtocol === "https");
+	return protocol === "https:" || protocol === "wss:" || (config.trustProxy && secureForwardedProtocol);
 };
 
 export const authorizeRemoteAgentUpgrade = async (request: Request): Promise<AgentIdentity | Response> => {

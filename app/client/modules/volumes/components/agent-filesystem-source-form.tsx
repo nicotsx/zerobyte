@@ -125,7 +125,8 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 									No machines are connected yet.
 								</span>
 								<span className={cn({ hidden: machines.length === 0 })}>
-									This machine does not share any folder yet.
+									This machine does not share any folder yet. On {machine?.name}, run{" "}
+									<code>sudo zerobyte-agent folders add</code> to choose folders.
 								</span>{" "}
 								<Link
 									to="/settings"
