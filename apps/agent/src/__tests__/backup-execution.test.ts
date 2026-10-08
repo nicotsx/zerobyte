@@ -7,6 +7,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { prepareBackupExecution } from "../backup-execution";
 import { createTrustedRootRegistry } from "../trusted-roots";
+import { resticDeps } from "../restic/deps";
 import { createRunPayload } from "../commands/__tests__/backup-run.harness";
 
 afterEach(() => vi.restoreAllMocks());
@@ -22,8 +23,8 @@ test.each([false, true])(
 		fs.writeFileSync(path.join(outsidePath, "private.txt"), "outside");
 		fs.symlinkSync(outsidePath, path.join(rootPath, "escape"), "dir");
 
-		const registry = createTrustedRootRegistry({
-			rawRoots: JSON.stringify([{ id: "data", label: "Data", path: rootPath }]),
+		const trustedRoots = createTrustedRootRegistry({
+			roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true }],
 			builtinLocal,
 		});
 		const payload = createRunPayload({
@@ -36,7 +37,7 @@ test.each([false, true])(
 
 		try {
 			const execution = await Effect.runPromise(
-				prepareBackupExecution(registry, payload, new AbortController().signal, () => {}),
+				prepareBackupExecution({ trustedRoots, resticDeps }, payload, new AbortController().signal, () => {}),
 			);
 
 			await expect(Effect.runPromise(execution.runBackup())).rejects.toThrow("Backup failed");

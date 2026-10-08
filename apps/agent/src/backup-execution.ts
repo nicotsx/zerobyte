@@ -6,9 +6,9 @@ import { createRestic, resolveBackupTargets } from "@zerobyte/core/restic/server
 import { isResticError, ResticError } from "@zerobyte/core/restic";
 import { logger } from "@zerobyte/core/node";
 import { toErrorDetails } from "@zerobyte/core/utils";
-import { normalizeTrustedRelativePath, resolveFilesystemSource, type TrustedRootRegistry } from "./trusted-roots";
+import { normalizeTrustedRelativePath, resolveFilesystemSource } from "./trusted-roots";
 import { relativeFilesystemPath } from "./filesystem-paths";
-import { resticDeps } from "./restic/deps";
+import type { ControllerCommandContext } from "./context";
 
 const reportBackupError = (error: unknown) => {
 	logger.error(toErrorDetails(error));
@@ -19,15 +19,15 @@ const reportBackupError = (error: unknown) => {
 };
 
 export const prepareBackupExecution = (
-	trustedRoots: TrustedRootRegistry,
+	context: Pick<ControllerCommandContext, "trustedRoots" | "resticDeps">,
 	payload: BackupRunPayload,
 	signal: AbortSignal,
 	onProgress: (progress: ResticBackupProgressDto) => void,
 ) =>
 	Effect.tryPromise({
 		try: async () => {
-			const source = await resolveFilesystemSource(trustedRoots, payload.source);
-			const restic = createRestic(resticDeps(payload.runtime.password));
+			const source = await resolveFilesystemSource(context.trustedRoots, payload.source);
+			const restic = createRestic(context.resticDeps(payload.runtime.password));
 			const options = createBackupOptions(payload, source.canonicalPath, signal);
 
 			return {

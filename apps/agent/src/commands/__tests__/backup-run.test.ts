@@ -9,6 +9,7 @@ import { handleBackupCancelCommand } from "../backup-cancel";
 import { handleBackupRunCommand } from "../backup-run";
 import type { ControllerCommandContext, RunningJob } from "../../context";
 import { createTrustedRootRegistry } from "../../trusted-roots";
+import { resticDeps } from "../../restic/deps";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -89,8 +90,8 @@ const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 
 test("standalone policy rejects unknown roots but permits configured logical sources", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-policy-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
 
@@ -124,8 +125,8 @@ test("trusted backups pass Go pattern matches as raw targets without matching so
 	fs.writeFileSync(path.join(siblingPath, "marker.txt"), "outside");
 	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
 	const canonicalTrustedMarkerPath = path.join(canonicalSourcePath, "marker.txt");
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: sourcePath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: sourcePath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
@@ -168,8 +169,8 @@ test("includes the first trusted target created by a pre-backup webhook", async 
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-pre-selection-"));
 	const canonicalRootPath = fs.realpathSync.native(rootPath);
 	const createdPath = path.join(canonicalRootPath, "pre-hook-export.txt");
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
 	useWebhookHandlers(
 		webhookRoute("/pre", ({ response }) => {
@@ -217,8 +218,8 @@ test("includes the first trusted target created by a pre-backup webhook", async 
 
 test("reports a failed trusted backup when include patterns select no targets", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-no-match-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
 	const runningJobs = new Map<string, RunningJob>();
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
@@ -252,8 +253,8 @@ test("reports a failed trusted backup when include patterns select no targets", 
 
 test("trusted backup resolution errors do not disclose the configured host root", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-errors-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const payload = createRunPayload({
 		source: { rootId: "data", relativePath: "missing" },
 	});
@@ -273,8 +274,8 @@ test("trusted backup presents only logical paths in progress, warnings, and pre/
 	const sourcePath = path.join(rootPath, "configured source,archive");
 	fs.mkdirSync(sourcePath, { recursive: true });
 	const expectedCanonicalSourcePath = fs.realpathSync.native(sourcePath);
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const webhookBodies: string[] = [];
 	useWebhookHandlers(
 		webhookRoute("/pre", ({ body, response }) => {
@@ -345,8 +346,8 @@ test("explicit filesystem root uses relative paths in progress, warnings, and we
 	const sourcePath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-root-presentation-"));
 	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
 	const relativeSourcePath = canonicalSourcePath.replace(/^\/+/, "");
-	const rawRoots = JSON.stringify([{ id: "filesystem", label: "Filesystem", path: "/" }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "filesystem", label: "Filesystem", path: "/", allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const webhookBodies: string[] = [];
 	useWebhookHandlers(
 		webhookRoute("/pre", ({ body, response }) => {
@@ -408,8 +409,8 @@ test("explicit filesystem root uses relative paths in progress, warnings, and we
 
 test("trusted backup preserves Restic failure summaries without disclosing host paths", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-fatal-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const failures = [
 		{
 			error: new ResticError(12, `fatal read of ${path.join(rootPath, "secret.txt")}`),
@@ -450,8 +451,8 @@ test("trusted backup preserves Restic failure summaries without disclosing host 
 
 test("trusted backup redacts errors thrown after source resolution", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-catch-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	vi.spyOn(resticServer, "createRestic").mockImplementationOnce(() => {
 		throw new Error(`failed to initialize for ${path.join(rootPath, "secret.txt")}`);
 	});
@@ -679,6 +680,7 @@ test("waits for running-job registration before returning to the processor loop"
 	const context: ControllerCommandContext = {
 		allowRestore: true,
 		trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
+		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.async<void, never>((resume) => {

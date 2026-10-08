@@ -23,7 +23,7 @@ test.each([false, true])(
 		fs.writeFileSync(path.join(root, "photos", "picture.txt"), "hello");
 		fs.symlinkSync(outside, path.join(root, "escape"));
 		const registry = createTrustedRootRegistry({
-			rawRoots: JSON.stringify([{ id: "data", label: "Data", path: root }]),
+			roots: [{ id: "data", label: "Data", path: root, allowBackup: true }],
 			builtinLocal,
 		});
 		const messages: AgentWireMessage[] = [];
@@ -129,7 +129,7 @@ test.each([false, true])(
 		fs.mkdirSync(path.join(root, "photos"));
 		fs.writeFileSync(path.join(root, "photos", "picture.txt"), "hello");
 
-		const registry = createTrustedRootRegistry({ rawRoots: "[]", builtinLocal });
+		const registry = createTrustedRootRegistry({ roots: [], builtinLocal });
 		const messages: AgentWireMessage[] = [];
 		const context = fromPartial<ControllerCommandContext>({
 			trustedRoots: registry,

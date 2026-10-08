@@ -1,6 +1,6 @@
+import { Effect } from "effect";
 import { createAgentRuntimeState } from "../helpers/runtime-state";
 import { afterEach, expect, test, vi } from "vitest";
-import { Effect } from "effect";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
 import type { BackupRunPayload, RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import type { AgentManagerEvent } from "../controller/server";
@@ -16,13 +16,12 @@ const controllerMock = vi.hoisted(() => ({
 }));
 
 vi.mock("../controller/server", async () => {
-	const { Effect } = await import("effect");
 	return {
-		createAgentManagerRuntime: vi.fn((onEvent: (event: AgentManagerEvent) => void) => {
+		createAgentController: vi.fn((onEvent: (event: AgentManagerEvent) => void) => {
 			controllerMock.onEvent = onEvent;
 			return {
 				start: Effect.void,
-				stop: Effect.sync(controllerMock.stop),
+				stop: Effect.sync(() => controllerMock.stop()),
 				sendBackup: controllerMock.sendBackup,
 				cancelBackup: controllerMock.cancelBackup,
 				sendRestore: controllerMock.sendRestore,
@@ -37,6 +36,9 @@ const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 const resetAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
 		...createAgentRuntimeState(),
+		activeBackupsByScheduleId: new Map(),
+		activeBackupScheduleIdsByJobId: new Map(),
+		activeRestoresByRestoreId: new Map(),
 	};
 };
 
@@ -269,7 +271,7 @@ test("runBackup waits for a terminal event when cancellation cannot be sent afte
 	resetAgentRuntime();
 	const abortController = new AbortController();
 	controllerMock.sendBackup.mockImplementation(() =>
-		Effect.sync(() => {
+		Effect.promise(async () => {
 			abortController.abort();
 			return true;
 		}),
@@ -316,7 +318,7 @@ test("runBackup waits for a terminal event when cancellation transport rejects a
 	resetAgentRuntime();
 	const abortController = new AbortController();
 	controllerMock.sendBackup.mockImplementation(() => Effect.succeed(true));
-	controllerMock.cancelBackup.mockImplementation(() => Effect.fail(new Error("transport failed")));
+	controllerMock.cancelBackup.mockImplementation(() => Effect.die(new Error("transport failed")));
 	const { agentManager, startAgentController, stopAgentController } = await import("../agents-manager");
 
 	await startAgentController();

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
 	startAgentController: vi.fn(async () => undefined),
@@ -10,16 +10,8 @@ const mocks = vi.hoisted(() => ({
 	stopScheduler: vi.fn(async () => undefined),
 }));
 
-const runtimeProcess = process as typeof process & { __zerobyteApplicationLifecycleRuntime?: unknown };
-
 beforeEach(() => {
-	vi.resetModules();
 	vi.clearAllMocks();
-	delete runtimeProcess.__zerobyteApplicationLifecycleRuntime;
-});
-
-afterEach(() => {
-	delete runtimeProcess.__zerobyteApplicationLifecycleRuntime;
 });
 
 vi.mock("../../../core/scheduler", () => ({ Scheduler: { stop: mocks.stopScheduler } }));

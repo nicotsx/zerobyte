@@ -11,9 +11,8 @@ export const resticDeps = (password: string): ResticDeps => {
 	const resticPassFile = process.env.RESTIC_PASS_FILE || path.join(stateDirectory, "data", "restic.pass");
 	const rcloneDirectory = process.env.RCLONE_CONFIG_DIR || "/root/.config/rclone";
 	const rcloneConfigFile = path.join(rcloneDirectory, "rclone.conf");
-	const credentialFile = process.env.ZEROBYTE_AGENT_CONFIG_PATH;
 	const defaultExcludes = [resticPassFile, repositoryBase, resticCacheDir];
-	if (credentialFile) defaultExcludes.push(credentialFile);
+
 	return {
 		resolveSecret: async (encrypted) => encrypted,
 		getOrganizationResticPassword: async () => password,

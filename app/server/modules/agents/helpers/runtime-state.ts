@@ -6,7 +6,8 @@ import type {
 	RestoreCompletedPayload,
 	RestoreProgressPayload,
 } from "@zerobyte/contracts/agent-protocol";
-import type { AgentManagerRuntime } from "../controller/server";
+import { getProcessSingleton } from "~/server/utils/process-singleton";
+import type { AgentController } from "../controller/server";
 
 export type BackupExecutionProgress = BackupProgressPayload["progress"];
 export type BackupExecutionResult =
@@ -45,7 +46,7 @@ type ActiveRestoreRun = {
 };
 
 export type AgentRuntimeState = {
-	agentManager: AgentManagerRuntime | null;
+	controller: AgentController | null;
 	lifecycleSemaphore: Effect.Semaphore;
 	localAgent: ChildProcess | null;
 	localAgentSupervisor: {
@@ -58,7 +59,7 @@ export type AgentRuntimeState = {
 };
 
 export const createAgentRuntimeState = (): AgentRuntimeState => ({
-	agentManager: null,
+	controller: null,
 	lifecycleSemaphore: Effect.unsafeMakeSemaphore(1),
 	localAgent: null,
 	localAgentSupervisor: null,
@@ -66,3 +67,9 @@ export const createAgentRuntimeState = (): AgentRuntimeState => ({
 	activeBackupScheduleIdsByJobId: new Map(),
 	activeRestoresByRestoreId: new Map(),
 });
+
+export type ProcessWithAgentRuntime = NodeJS.Process & {
+	__zerobyteAgentRuntime?: AgentRuntimeState;
+};
+
+export const getAgentRuntimeState = () => getProcessSingleton("__zerobyteAgentRuntime", createAgentRuntimeState);

@@ -5,13 +5,13 @@ import { runMigrations } from "./migrations";
 import { prepareStartup, activateScheduledJobs } from "./startup";
 import { Scheduler } from "../../core/scheduler";
 
-let bootstrapPromise: Promise<void> | undefined;
-
-const runBootstrap = async () => {
+export const bootstrapApplication = async () => {
 	const bootstrapStartedAt = Date.now();
+
 	await runDbMigrations();
 	await runMigrations();
 	await agentsService.ensureLocalAgent();
+	await agentsService.markStaleRemoteAgentsOffline();
 
 	try {
 		await startAgentController();
@@ -26,27 +26,7 @@ const runBootstrap = async () => {
 		} finally {
 			await stopAgentController();
 		}
+
 		throw error;
-	}
-};
-
-export const bootstrapApplication = async () => {
-	if (!bootstrapPromise) {
-		bootstrapPromise = runBootstrap();
-	}
-
-	try {
-		await bootstrapPromise;
-	} catch (err) {
-		bootstrapPromise = undefined;
-		throw err;
-	}
-};
-
-export const stopApplicationRuntime = async () => {
-	try {
-		await stopAgentController();
-	} finally {
-		bootstrapPromise = undefined;
 	}
 };

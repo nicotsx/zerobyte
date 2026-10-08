@@ -53,7 +53,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 				const runtime = yield* Effect.runtime<never>();
 
 				const execution = yield* prepareBackupExecution(
-					context.trustedRoots,
+					context,
 					payload,
 					abortController.signal,
 					(progress) => {

@@ -12,7 +12,8 @@ import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
 import { resolveResticHostname } from "@zerobyte/core/node";
-import { getDefaultTrustedRootRegistry, getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
+import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
+import { resticDeps } from "./restic/deps";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -22,7 +23,7 @@ export type ControllerSession = {
 
 export const createControllerSession = (
 	ws: WebSocket,
-	options?: { trustedRoots?: TrustedRootRegistry; builtinLocal?: boolean },
+	options: { trustedRoots: TrustedRootRegistry; builtinLocal?: boolean; excludedPaths?: string[] },
 ): ControllerSession => {
 	let isClosed = false;
 
@@ -31,12 +32,10 @@ export const createControllerSession = (
 
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
 
-	const trustedRoots = options?.trustedRoots ?? getDefaultTrustedRootRegistry();
-	const rootDescriptors = getTrustedRootDescriptors(trustedRoots);
-	const builtinLocal = options?.builtinLocal ?? process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
+	const { trustedRoots, builtinLocal = false, excludedPaths = [] } = options;
 	const capabilities: AgentCapabilities = {
 		restore: builtinLocal,
-		trustedRoots: rootDescriptors,
+		trustedRoots: getTrustedRootDescriptors(trustedRoots),
 	};
 
 	const getRunningJob = (jobId: string) => Ref.get(runningJobsRef).pipe(Effect.map((map) => map.get(jobId)));
@@ -77,9 +76,16 @@ export const createControllerSession = (
 		return Queue.offer(inboundQueue, message);
 	};
 
+	const sessionResticDeps = (password: string) => {
+		const deps = resticDeps(password);
+
+		return { ...deps, defaultExcludes: [...deps.defaultExcludes, ...excludedPaths] };
+	};
+
 	const commandContext: ControllerCommandContext = {
 		allowRestore: builtinLocal,
 		trustedRoots,
+		resticDeps: sessionResticDeps,
 		getRunningJob,
 		setRunningJob,
 		deleteRunningJob,

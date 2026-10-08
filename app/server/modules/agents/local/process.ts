@@ -5,6 +5,7 @@ import { Deferred, Effect, Option } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { config } from "../../../core/config";
 import { deriveLocalAgentToken } from "../helpers/tokens";
+import { AGENT_BUNDLE_PATH } from "../constants";
 
 type LocalAgentState = { localAgent: ChildProcess | null };
 
@@ -66,13 +67,12 @@ export const stopLocalAgentProcess = (child: ChildProcess, exited = waitForLocal
 export const spawnLocalAgentProcess = (runtime: LocalAgentState, controllerUrl: string) =>
 	Effect.gen(function* () {
 		const sourceEntryPoint = path.join(process.cwd(), "apps", "agent", "src", "index.ts");
-		const productionEntryPoint = path.join(process.cwd(), ".output", "agent", "index.mjs");
 
-		if (config.__prod__ && !existsSync(productionEntryPoint)) {
-			return yield* Effect.fail(new Error(`Local agent entrypoint not found at ${productionEntryPoint}`));
+		if (config.__prod__ && !existsSync(AGENT_BUNDLE_PATH)) {
+			return yield* Effect.fail(new Error(`Local agent entrypoint not found at ${AGENT_BUNDLE_PATH}`));
 		}
 
-		const agentEntryPoint = config.__prod__ ? productionEntryPoint : sourceEntryPoint;
+		const agentEntryPoint = config.__prod__ ? AGENT_BUNDLE_PATH : sourceEntryPoint;
 		const agentToken = yield* Effect.tryPromise({
 			try: () => deriveLocalAgentToken(),
 			catch: (error) => (error instanceof Error ? error : new Error(String(error))),

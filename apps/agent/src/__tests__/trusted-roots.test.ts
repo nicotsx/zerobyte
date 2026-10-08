@@ -9,6 +9,7 @@ import {
 	createTrustedRootRegistry,
 	getTrustedRootDescriptors,
 	normalizeTrustedRelativePath,
+	parseConfiguredRoots,
 	resolveFilesystemSource,
 } from "../trusted-roots";
 
@@ -23,13 +24,13 @@ const createTemporaryDirectory = () => {
 	return temporaryDirectory;
 };
 
-const createRawRoots = (count: number, rootPath: string) => {
-	const roots = Array.from({ length: count }, (_value, index) => ({
+const createRoots = (count: number, rootPath: string) => {
+	return Array.from({ length: count }, (_value, index) => ({
 		id: `root-${index}`,
 		label: `Root ${index}`,
 		path: rootPath,
+		allowBackup: true,
 	}));
-	return JSON.stringify(roots);
 };
 
 afterEach(() => {
@@ -44,8 +45,8 @@ afterEach(() => {
 describe("trusted root configuration", () => {
 	test("accepts the maximum number of configured roots", () => {
 		const rootPath = createTemporaryDirectory();
-		const rawRoots = createRawRoots(MAX_AGENT_TRUSTED_ROOTS, rootPath);
-		const registry = createTrustedRootRegistry({ rawRoots });
+		const roots = createRoots(MAX_AGENT_TRUSTED_ROOTS, rootPath);
+		const registry = createTrustedRootRegistry({ roots });
 
 		expect(registry.size).toBe(MAX_AGENT_TRUSTED_ROOTS);
 	});
@@ -53,16 +54,29 @@ describe("trusted root configuration", () => {
 	test("rejects configurations above the maximum number of roots", () => {
 		const rootPath = createTemporaryDirectory();
 		const oversizedRootCount = MAX_AGENT_TRUSTED_ROOTS + 1;
-		const rawRoots = createRawRoots(oversizedRootCount, rootPath);
+		const rawRoots = JSON.stringify(createRoots(oversizedRootCount, rootPath));
 		const expectedMessage = `ZEROBYTE_AGENT_ROOTS must contain at most ${MAX_AGENT_TRUSTED_ROOTS} roots`;
 
-		expect(() => createTrustedRootRegistry({ rawRoots })).toThrow(expectedMessage);
+		expect(() => parseConfiguredRoots(rawRoots)).toThrow(expectedMessage);
+	});
+
+	test.each([
+		["malformed JSON", "[", "ZEROBYTE_AGENT_ROOTS must be valid JSON"],
+		["a root without a path", '[{"id":"data","label":"Data"}]', "Invalid ZEROBYTE_AGENT_ROOTS"],
+	])("rejects environment roots with %s", (_name, rawRoots, expectedMessage) => {
+		expect(() => parseConfiguredRoots(rawRoots)).toThrow(expectedMessage);
+	});
+
+	test("defaults environment roots to allow backups", () => {
+		expect(parseConfiguredRoots('[{"id":"data","label":"Data","path":"/"}]')).toEqual([
+			{ id: "data", label: "Data", path: "/", allowBackup: true },
+		]);
 	});
 
 	test("advertises descriptors without revealing canonical host paths", () => {
 		const rootPath = createTemporaryDirectory();
-		const rawRoots = JSON.stringify([{ id: "home", label: "Home", path: rootPath }]);
-		const registry = createTrustedRootRegistry({ rawRoots });
+		const roots = [{ id: "home", label: "Home", path: rootPath, allowBackup: true }];
+		const registry = createTrustedRootRegistry({ roots });
 
 		expect(getTrustedRootDescriptors(registry)).toEqual([{ id: "home", label: "Home", canBackup: true }]);
 		expect(JSON.stringify(getTrustedRootDescriptors(registry))).not.toContain(rootPath);
@@ -71,44 +85,50 @@ describe("trusted root configuration", () => {
 	test.each([
 		[
 			"duplicate ID",
-			'[{"id":"data","label":"One","path":"/"},{"id":"data","label":"Two","path":"/"}]',
+			[
+				{ id: "data", label: "One", path: "/", allowBackup: true },
+				{ id: "data", label: "Two", path: "/", allowBackup: true },
+			],
 			"duplicate id",
 		],
 		[
 			"duplicate label",
-			'[{"id":"one","label":"Data","path":"/"},{"id":"two","label":"data","path":"/"}]',
+			[
+				{ id: "one", label: "Data", path: "/", allowBackup: true },
+				{ id: "two", label: "data", path: "/", allowBackup: true },
+			],
 			"duplicate label",
 		],
-	])("rejects %s", (_name, rawRoots, expectedMessage) => {
-		expect(() => createTrustedRootRegistry({ rawRoots })).toThrow(expectedMessage);
+	])("rejects %s", (_name, roots, expectedMessage) => {
+		expect(() => createTrustedRootRegistry({ roots })).toThrow(expectedMessage);
 	});
 
 	test.each([
 		["standalone without configuration", undefined, false, []],
-		["standalone with an empty configuration", "[]", false, []],
+		["standalone with an empty configuration", [], false, []],
 		["built-in without configuration", undefined, true, [LOCAL_FILESYSTEM_ROOT_ID]],
-		["built-in with an empty configuration", "[]", true, [LOCAL_FILESYSTEM_ROOT_ID]],
-	])("models %s", (_name, rawRoots, builtinLocal, expectedIds) => {
-		const registry = createTrustedRootRegistry({ rawRoots, builtinLocal });
+		["built-in with an empty configuration", [], true, [LOCAL_FILESYSTEM_ROOT_ID]],
+	])("models %s", (_name, roots, builtinLocal, expectedIds) => {
+		const registry = createTrustedRootRegistry({ roots, builtinLocal });
 		const rootIds = getTrustedRootDescriptors(registry).map((root) => root.id);
 
 		expect(rootIds).toEqual(expectedIds);
 	});
 
 	test("configured roots cannot replace the built-in filesystem root", () => {
-		const rawRoots = JSON.stringify([{ id: LOCAL_FILESYSTEM_ROOT_ID, label: "Replacement", path: "/" }]);
+		const roots = [{ id: LOCAL_FILESYSTEM_ROOT_ID, label: "Replacement", path: "/", allowBackup: true }];
 
-		expect(() => createTrustedRootRegistry({ rawRoots, builtinLocal: true })).toThrow("duplicate id");
+		expect(() => createTrustedRootRegistry({ roots, builtinLocal: true })).toThrow("duplicate id");
 	});
 
 	test("counts the built-in root toward the advertised root limit", () => {
 		const rootPath = createTemporaryDirectory();
-		const rawRoots = createRawRoots(MAX_AGENT_TRUSTED_ROOTS - 1, rootPath);
+		const roots = createRoots(MAX_AGENT_TRUSTED_ROOTS - 1, rootPath);
 
-		expect(createTrustedRootRegistry({ rawRoots, builtinLocal: true }).size).toBe(MAX_AGENT_TRUSTED_ROOTS);
+		expect(createTrustedRootRegistry({ roots, builtinLocal: true }).size).toBe(MAX_AGENT_TRUSTED_ROOTS);
 		expect(() =>
 			createTrustedRootRegistry({
-				rawRoots: createRawRoots(MAX_AGENT_TRUSTED_ROOTS, rootPath),
+				roots: createRoots(MAX_AGENT_TRUSTED_ROOTS, rootPath),
 				builtinLocal: true,
 			}),
 		).toThrow("including its built-in root");
@@ -161,7 +181,7 @@ describe("trusted root configuration", () => {
 			expect(() =>
 				createTrustedRootRegistry({
 					builtinLocal: true,
-					rawRoots: JSON.stringify([{ id: "required", label: "Required data", path: "D:\\" }]),
+					roots: [{ id: "required", label: "Required data", path: "D:\\", allowBackup: true }],
 				}),
 			).toThrow("Drive unavailable");
 		},
@@ -181,16 +201,16 @@ describe("trusted root configuration", () => {
 
 	test("extra built-in roots preserve the local filesystem root for managed volumes", () => {
 		const rootPath = createTemporaryDirectory();
-		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-		const registry = createTrustedRootRegistry({ rawRoots, builtinLocal: true });
+		const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+		const registry = createTrustedRootRegistry({ roots, builtinLocal: true });
 		const descriptors = getTrustedRootDescriptors(registry);
 		expect(descriptors.map((root) => root.id)).toEqual([LOCAL_FILESYSTEM_ROOT_ID, "data"]);
 	});
 
 	test.each([false, true])("disabled roots cannot resolve sources, builtinLocal=%s", async (builtinLocal) => {
 		const rootPath = createTemporaryDirectory();
-		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath, allowBackup: false }]);
-		const registry = createTrustedRootRegistry({ rawRoots, builtinLocal });
+		const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: false }];
+		const registry = createTrustedRootRegistry({ roots, builtinLocal });
 
 		expect(getTrustedRootDescriptors(registry)).toContainEqual({ id: "data", label: "Data", canBackup: false });
 		await expect(resolveFilesystemSource(registry, { rootId: "data", relativePath: "" })).rejects.toThrow(
@@ -204,8 +224,8 @@ describe("trusted source resolution", () => {
 		const rootPath = createTemporaryDirectory();
 		const nestedPath = path.join(rootPath, "photos", "2026");
 		fs.mkdirSync(nestedPath, { recursive: true });
-		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-		const registry = createTrustedRootRegistry({ rawRoots });
+		const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+		const registry = createTrustedRootRegistry({ roots });
 
 		const resolved = await resolveFilesystemSource(registry, { rootId: "data", relativePath: "photos/2026" });
 		expect(resolved.canonicalPath).toBe(fs.realpathSync.native(nestedPath));
@@ -229,8 +249,8 @@ describe("trusted source resolution", () => {
 		const rootPath = createTemporaryDirectory();
 		const outsidePath = createTemporaryDirectory();
 		fs.symlinkSync(outsidePath, path.join(rootPath, "escape"));
-		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
-		const registry = createTrustedRootRegistry({ rawRoots });
+		const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+		const registry = createTrustedRootRegistry({ roots });
 
 		await expect(resolveFilesystemSource(registry, { rootId: "data", relativePath: "escape" })).rejects.toThrow(
 			"through a symlink",

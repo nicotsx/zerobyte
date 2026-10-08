@@ -1,15 +1,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
 	evaluatePermission,
-	hasRuntimeFeature,
 	PERMISSION_KEYS,
-	RUNTIME_FEATURE_KEYS,
 	type Permission,
 	type PermissionContext,
 	type PermissionResult,
 	type RuntimeFeature,
 } from "~/lib/permission-policy";
-import { config } from "./config";
+import { getInstanceFeatures } from "~/server/lib/permission-service";
 
 export type PermissionSnapshot = {
 	permissions: Record<Permission, boolean>;
@@ -28,21 +26,20 @@ const requestContextStorage = new AsyncLocalStorage<RequestContext>();
 export function withContext<T>(context: RequestContext, fn: () => T): T {
 	const { instanceRole, orgRole, authSource, ...baseContext } = context;
 	const nextContext = { ...baseContext, ...resolvePermissions({ instanceRole, orgRole, authSource }) };
+
 	return requestContextStorage.run(nextContext, fn);
 }
 
 export function resolvePermissions(context: PermissionContext): PermissionSnapshot {
+	const features = getInstanceFeatures();
 	const permissionResults = {} as Record<Permission, PermissionResult>;
 	const permissions = {} as Record<Permission, boolean>;
+
 	for (const permission of PERMISSION_KEYS) {
-		const result = evaluatePermission(permission, { ...context, runtime: config.runtime });
+		const result = evaluatePermission(permission, { ...context, features });
+
 		permissionResults[permission] = result;
 		permissions[permission] = result.allowed;
-	}
-
-	const features = {} as Record<RuntimeFeature, boolean>;
-	for (const feature of RUNTIME_FEATURE_KEYS) {
-		features[feature] = hasRuntimeFeature(config.runtime, feature);
 	}
 
 	return { permissions, features, permissionResults };

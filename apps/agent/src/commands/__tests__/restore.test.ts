@@ -8,6 +8,7 @@ import { handleRestoreCancelCommand } from "../restore-cancel";
 import { handleControllerCommand } from "../index";
 import { handleRestoreRunCommand } from "../restore";
 import type { ControllerCommandContext, RunningJob } from "../../context";
+import { resticDeps } from "../../restic/deps";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -33,6 +34,7 @@ const createContext = (allowRestore = true) => {
 	const context: ControllerCommandContext = {
 		allowRestore,
 		trustedRoots: new Map(),
+		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.sync(() => {

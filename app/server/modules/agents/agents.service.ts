@@ -1,45 +1,45 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
+import { ConflictError, NotFoundError, UnauthorizedError } from "http-errors-enhanced";
 import { db } from "../../db/db";
-import { agentsTable, type Agent, type AgentCapabilities, type AgentKind } from "../../db/schema";
+import { agentsTable, type Agent, type AgentCapabilities } from "../../db/schema";
+import { config } from "../../core/config";
 import { LOCAL_AGENT_CAPABILITIES, LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "./constants";
+import { createAgentToken, hashAgentToken, parseAgentToken, type AgentIdentity } from "./helpers/tokens";
+import { publicAgentSchema } from "./agents.dto";
 
-type AgentConnectionRegistration = {
-	agentId: string;
-	organizationId: string | null;
-	agentName: string;
-	agentKind: AgentKind;
-	capabilities?: AgentCapabilities;
-	connectedAt?: number;
-};
+const ENROLLMENT_LIFETIME_MS = 15 * 60 * 1000;
 
-const listAgents = async (organizationId?: string | null) => {
-	if (organizationId === undefined) {
-		return db.query.agentsTable.findMany({ orderBy: { createdAt: "asc" } });
-	}
+type AgentCredential = Pick<AgentIdentity, "agentId" | "credentialVersion">;
+type AgentRuntimeUpdate = Partial<Pick<Agent, "status" | "capabilities" | "lastSeenAt" | "lastReadyAt" | "updatedAt">>;
 
-	if (organizationId === null) {
-		return db.query.agentsTable.findMany({
-			where: { organizationId: { isNull: true } },
-			orderBy: { createdAt: "asc" },
-		});
-	}
+const presentAgent = (agent: Agent) => publicAgentSchema.parse(agent);
 
-	return db.query.agentsTable.findMany({
-		where: { organizationId },
+const listOrganizationAgents = async (organizationId: string) => {
+	const rows = await db.query.agentsTable.findMany({
+		where: { OR: [{ kind: "local" }, { AND: [{ organizationId }, { kind: "remote" }] }] },
 		orderBy: { createdAt: "asc" },
 	});
+
+	return rows.map(presentAgent);
 };
 
-const getAgent = async (agentId: string) => {
-	return db.query.agentsTable.findFirst({ where: { id: agentId } });
+const getAgent = async (agentId: string) => db.query.agentsTable.findFirst({ where: { id: agentId } });
+
+const getOrganizationRemoteAgent = async (organizationId: string, agentId: string) => {
+	const agent = await db.query.agentsTable.findFirst({
+		where: { AND: [{ id: agentId }, { organizationId }, { kind: "remote" }] },
+	});
+
+	if (!agent) throw new NotFoundError("Remote agent not found");
+
+	return agent;
 };
 
 const ensureLocalAgent = async () => {
 	const existing = await getAgent(LOCAL_AGENT_ID);
 
-	if (existing) {
-		return existing;
-	}
+	if (existing) return existing;
 
 	await db.insert(agentsTable).values({
 		id: LOCAL_AGENT_ID,
@@ -54,77 +54,196 @@ const ensureLocalAgent = async () => {
 	return getAgent(LOCAL_AGENT_ID);
 };
 
-const markAgentConnecting = async (params: AgentConnectionRegistration) => {
-	const { agentId, organizationId, agentName, agentKind, capabilities, connectedAt = Date.now() } = params;
+const createRemoteAgent = async (organizationId: string, name: string) => {
+	const id = Bun.randomUUIDv7();
+	const credentialVersion = 1;
+	const credentials = await createAgentToken(id, credentialVersion);
 
-	await db
+	const now = Date.now();
+	const expiresAt = now + ENROLLMENT_LIFETIME_MS;
+
+	const [agent] = await db
 		.insert(agentsTable)
 		.values({
-			id: agentId,
+			id,
 			organizationId,
-			name: agentName,
-			kind: agentKind,
-			status: "connecting",
-			capabilities: capabilities ?? {},
-			lastSeenAt: connectedAt,
-			updatedAt: connectedAt,
+			name: name.trim(),
+			kind: "remote",
+			status: "offline",
+			capabilities: {},
+			credentialHash: credentials.credentialHash,
+			enrollmentExpiresAt: expiresAt,
+			credentialVersion,
+			revokedAt: null,
+			updatedAt: now,
 		})
-		.onConflictDoUpdate({
-			target: agentsTable.id,
-			set: {
-				organizationId,
-				name: agentName,
-				kind: agentKind,
-				status: "connecting",
-				lastSeenAt: connectedAt,
-				updatedAt: connectedAt,
-				capabilities: capabilities ?? {},
-			},
-		});
+		.returning();
 
-	return getAgent(agentId);
+	if (!agent) throw new Error("Failed to create remote agent");
+
+	const controllerUrl = new URL("/api/v1/agents/connect", config.baseUrl);
+	controllerUrl.protocol = controllerUrl.protocol === "https:" ? "wss:" : "ws:";
+
+	return { agent: presentAgent(agent), controllerUrl: controllerUrl.toString(), token: credentials.token, expiresAt };
 };
 
-const updateAgentRuntime = async (agentId: string, values: Partial<Agent>) => {
-	const [updatedAgent] = await db.update(agentsTable).set(values).where(eq(agentsTable.id, agentId)).returning();
+const updateRemoteAgent = async (
+	organizationId: string,
+	agentId: string,
+	values: SQLiteUpdateSetSource<typeof agentsTable>,
+	expectedCredentialVersion?: number,
+) => {
+	const [updated] = await db
+		.update(agentsTable)
+		.set(values)
+		.where(
+			and(
+				eq(agentsTable.id, agentId),
+				eq(agentsTable.organizationId, organizationId),
+				eq(agentsTable.kind, "remote"),
+				expectedCredentialVersion === undefined
+					? undefined
+					: eq(agentsTable.credentialVersion, expectedCredentialVersion),
+			),
+		)
+		.returning();
 
-	if (!updatedAgent) {
-		throw new Error(`Agent ${agentId} not found`);
-	}
-
-	return updatedAgent;
+	return updated && presentAgent(updated);
 };
 
-const markAgentOnline = async (agentId: string, readyAt = Date.now(), metadata?: AgentCapabilities) => {
-	return updateAgentRuntime(agentId, {
+const rotateRemoteAgentToken = async (organizationId: string, agentId: string) => {
+	const agent = await getOrganizationRemoteAgent(organizationId, agentId);
+	const credentialVersion = agent.credentialVersion + 1;
+	const credentials = await createAgentToken(agent.id, credentialVersion);
+
+	const now = Date.now();
+	const expiresAt = now + ENROLLMENT_LIFETIME_MS;
+
+	// The version fences live connections, so a stale rotation must never move it backwards.
+	const updated = await updateRemoteAgent(
+		organizationId,
+		agentId,
+		{
+			credentialHash: credentials.credentialHash,
+			enrollmentExpiresAt: expiresAt,
+			credentialVersion,
+			revokedAt: null,
+			status: "offline",
+			updatedAt: now,
+		},
+		agent.credentialVersion,
+	);
+
+	if (!updated) throw new ConflictError("The agent credential changed during rotation. Try again.");
+
+	return { agent: updated, token: credentials.token, expiresAt };
+};
+
+const revokeRemoteAgentToken = async (organizationId: string, agentId: string) => {
+	const now = Date.now();
+
+	const revoked = await updateRemoteAgent(organizationId, agentId, {
+		credentialHash: null,
+		enrollmentExpiresAt: null,
+		credentialVersion: sql`${agentsTable.credentialVersion} + 1`,
+		revokedAt: now,
+		status: "offline",
+		updatedAt: now,
+	});
+
+	if (!revoked) throw new NotFoundError("Remote agent not found");
+
+	return revoked;
+};
+
+const exchangeEnrollmentToken = async (token: string) => {
+	const parsed = parseAgentToken(token);
+
+	if (!parsed) throw new UnauthorizedError("Invalid or expired enrollment code");
+
+	const providedHash = await hashAgentToken(token);
+	const credentialVersion = parsed.credentialVersion + 1;
+	const credential = await createAgentToken(parsed.agentId, credentialVersion);
+	const now = Date.now();
+
+	const [agent] = await db
+		.update(agentsTable)
+		.set({
+			credentialHash: credential.credentialHash,
+			credentialVersion,
+			enrollmentExpiresAt: null,
+			updatedAt: now,
+		})
+		.where(
+			and(
+				eq(agentsTable.id, parsed.agentId),
+				eq(agentsTable.kind, "remote"),
+				isNotNull(agentsTable.organizationId),
+				isNull(agentsTable.revokedAt),
+				eq(agentsTable.credentialVersion, parsed.credentialVersion),
+				eq(agentsTable.credentialHash, providedHash),
+				gt(agentsTable.enrollmentExpiresAt, now),
+			),
+		)
+		.returning();
+
+	if (!agent) throw new UnauthorizedError("Invalid or expired enrollment code");
+
+	return { token: credential.token };
+};
+
+const updateAgentRuntime = async ({ agentId, credentialVersion }: AgentCredential, values: AgentRuntimeUpdate) => {
+	const [agent] = await db
+		.update(agentsTable)
+		.set(values)
+		.where(and(eq(agentsTable.id, agentId), eq(agentsTable.credentialVersion, credentialVersion)))
+		.returning();
+
+	return agent;
+};
+
+const markAgentConnecting = async (credential: AgentCredential) => {
+	const now = Date.now();
+
+	return updateAgentRuntime(credential, { status: "connecting", lastSeenAt: now, updatedAt: now });
+};
+
+const markAgentOnline = async (credential: AgentCredential, capabilities: AgentCapabilities, readyAt = Date.now()) =>
+	updateAgentRuntime(credential, {
 		status: "online",
-		capabilities: metadata,
+		capabilities,
 		lastSeenAt: readyAt,
 		lastReadyAt: readyAt,
 		updatedAt: readyAt,
 	});
-};
 
-const markAgentSeen = async (agentId: string, seenAt = Date.now()) => {
-	return updateAgentRuntime(agentId, {
-		lastSeenAt: seenAt,
-		updatedAt: seenAt,
-	});
-};
+const markAgentSeen = async (credential: AgentCredential, seenAt = Date.now()) =>
+	updateAgentRuntime(credential, { lastSeenAt: seenAt, updatedAt: seenAt });
 
-const markAgentOffline = async (agentId: string, disconnectedAt = Date.now()) => {
-	return updateAgentRuntime(agentId, {
-		status: "offline",
-		updatedAt: disconnectedAt,
-	});
+const markAgentOffline = async (credential: AgentCredential, disconnectedAt = Date.now()) =>
+	updateAgentRuntime(credential, { status: "offline", updatedAt: disconnectedAt });
+
+const markStaleRemoteAgentsOffline = async () => {
+	const now = Date.now();
+
+	return db
+		.update(agentsTable)
+		.set({ status: "offline", updatedAt: now })
+		.where(and(eq(agentsTable.kind, "remote"), inArray(agentsTable.status, ["online", "connecting"])))
+		.returning();
 };
 
 export const agentsService = {
-	listAgents,
+	exchangeEnrollmentToken,
+	listOrganizationAgents,
 	getAgent,
 	ensureLocalAgent,
+	createRemoteAgent,
+	rotateRemoteAgentToken,
+	revokeRemoteAgentToken,
 	markAgentConnecting,
 	markAgentOnline,
 	markAgentSeen,
 	markAgentOffline,
+	markStaleRemoteAgentsOffline,
 };

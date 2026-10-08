@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { PermissionsProvider } from "~/client/hooks/use-permissions";
 import {
 	PERMISSION_KEYS,
+	RUNTIME_FEATURES,
 	RUNTIME_FEATURE_KEYS,
 	evaluatePermission,
 	hasRuntimeFeature,
@@ -53,7 +54,7 @@ test.each([
 	const authSource = runtime === "desktop" ? "desktop-session" : "browser-session";
 	const passwordAuthSupported = runtime === "server";
 	const ownerContext: PermissionPolicyContext = {
-		runtime,
+		features: RUNTIME_FEATURES[runtime],
 		instanceRole: null,
 		orgRole: "owner",
 		authSource,

@@ -6,6 +6,7 @@ import { parseAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/ag
 import { handleBackupRunCommand } from "../backup-run";
 import type { ControllerCommandContext, RunningJob } from "../../context";
 import { createTrustedRootRegistry } from "../../trusted-roots";
+import { resticDeps } from "../../restic/deps";
 
 export const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 	fromPartial<BackupRunPayload>({
@@ -47,6 +48,7 @@ export const runBackupCommand = async (
 	const context: ControllerCommandContext = {
 		allowRestore: true,
 		trustedRoots,
+		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.sync(() => {

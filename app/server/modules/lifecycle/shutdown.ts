@@ -6,11 +6,14 @@ import { LOCAL_AGENT_ID } from "../agents/constants";
 import { volumeService } from "../volumes/volume.service";
 import { toMessage } from "../../utils/errors";
 import { cleanupDanglingVolumeMountDirectories } from "../volumes/volume-host/cleanup";
-import { stopApplicationRuntime } from "./bootstrap";
+import { stopAgentController } from "../agents/agents-manager";
 
 export const shutdown = async () => {
-	await Scheduler.stop();
-	await stopApplicationRuntime();
+	try {
+		await Scheduler.stop();
+	} finally {
+		await stopAgentController();
+	}
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: {
@@ -23,7 +26,9 @@ export const shutdown = async () => {
 			const result = await withContext({ organizationId: volume.organizationId }, () =>
 				volumeService.unmountVolume(volume.shortId, { persistStatus: false }),
 			);
+
 			const errorSuffix = result.error ? `, error: ${result.error}` : "";
+
 			logger.info(`Volume ${volume.name} unmount status: ${result.status}${errorSuffix}`);
 		} catch (error) {
 			logger.error(`Error unmounting volume ${volume.name} on shutdown: ${toMessage(error)}`);

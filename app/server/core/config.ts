@@ -30,6 +30,7 @@ const envSchema = z
 		APP_SECRET_FILE: z.string().optional(),
 		BASE_URL: z.string(),
 		ENABLE_DEV_PANEL: z.string().default("false"),
+		ENABLE_REMOTE_AGENTS: z.string().default("false"),
 		WEBHOOK_ALLOWED_ORIGINS: z.string().optional(),
 		PROVISIONING_PATH: z.string().optional(),
 		RESTIC_COMMAND: z.string().default("restic"),
@@ -147,6 +148,7 @@ const envSchema = z
 			flags: {
 				disableRateLimiting: s.DISABLE_RATE_LIMITING === "true" || s.NODE_ENV === "test",
 				enableDevPanel: s.ENABLE_DEV_PANEL === "true",
+				enableRemoteAgents: s.ENABLE_REMOTE_AGENTS === "true",
 			},
 			provisioningPath: s.PROVISIONING_PATH,
 			allowedHosts,

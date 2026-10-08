@@ -1,434 +1,244 @@
-import { Data, Effect, Exit, Fiber, Scope } from "effect";
+import { Cause, Effect, Stream, SubscriptionRef, type Duration } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
-import type {
-	AgentMessage,
-	AgentProtocolRejection,
-	BackupCancelPayload,
-	BackupRunPayload,
-	RestoreCancelPayload,
-	RestoreRunPayload,
-	FilesystemCommand,
-	FilesystemCommandResponsePayload,
-} from "@zerobyte/contracts/agent-protocol";
 import {
-	createControllerAgentSession,
-	type AgentConnectionData,
-	type ControllerAgentSession,
-	type ControllerAgentSessionEvent,
-} from "./session";
+	createControllerMessage,
+	type BackupCancelPayload,
+	type ControllerWireMessage,
+	type BackupRunPayload,
+	type FilesystemCommand,
+	type RestoreCancelPayload,
+	type RestoreRunPayload,
+} from "@zerobyte/contracts/agent-protocol";
 import { agentsService } from "../agents.service";
-import { validateAgentToken } from "../helpers/tokens";
+import {
+	createAgentConnection,
+	type AgentConnection,
+	type AgentConnectionData,
+	type ConnectionEvent,
+	type ControllerTransport,
+} from "./connection";
+import { createAgentControllerListener } from "./listener";
 
-type AgentEventContext = {
-	agentId: string;
-	agentName: string;
-};
+type AgentEventContext = { agentId: string; agentName: string };
 
 export type AgentManagerEvent =
 	| (AgentEventContext & { type: "agent.disconnected" })
-	| (AgentEventContext & { type: "agent.protocolRejected"; payload: AgentProtocolRejection })
-	| (AgentEventContext & AgentMessage);
+	| (AgentEventContext & ConnectionEvent);
 
-type ControllerAgentSessionHandle = {
-	agentId: string;
-	session: ControllerAgentSession;
-	scope: Scope.CloseableScope;
+const closeTransport = (transport: ControllerTransport, code: number, reason: string) => {
+	try {
+		transport.close(code, reason);
+	} catch (error) {
+		logger.warn(`Failed to close agent socket: ${toMessage(error)}`);
+	}
 };
 
-class StopAgentManagerServerError extends Data.TaggedError("StopAgentManagerServerError")<{
-	cause: unknown;
-}> {}
+export const createAgentController = (onEvent: (event: AgentManagerEvent) => void | Promise<void>) => {
+	const connections = new Map<string, AgentConnection>();
+	const readiness = Effect.runSync(SubscriptionRef.make(0));
 
-export function createAgentManagerRuntime(onEvent: (event: AgentManagerEvent) => void) {
-	let sessions = new Map<string, ControllerAgentSessionHandle>();
-	let runtimeScope: Scope.CloseableScope | null = null;
-	let controllerUrl: string | null = null;
-	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+	let listener: ReturnType<typeof createAgentControllerListener> | null = null;
+	let running = false;
 
-	const closeSession = (sessionHandle: ControllerAgentSessionHandle) =>
-		Effect.gen(function* () {
-			yield* Scope.close(sessionHandle.scope, Exit.succeed(undefined));
-			yield* Effect.sync(() => {
-				if (sessions.get(sessionHandle.agentId) === sessionHandle) {
-					sessions.delete(sessionHandle.agentId);
-				}
-			});
-		});
+	const signalReadiness = SubscriptionRef.update(readiness, (version) => version + 1);
 
-	const markAgentOfflineForShutdown = (agentId: string) =>
+	const emit = (event: AgentManagerEvent) =>
 		Effect.tryPromise({
-			try: () => agentsService.markAgentOffline(agentId),
-			catch: (error) => new StopAgentManagerServerError({ cause: error }),
-		}).pipe(
-			Effect.catchAll((error) =>
-				logger.effect.error(`Failed to mark agent ${agentId} offline during shutdown: ${toMessage(error)}`),
-			),
-		);
+			try: async () => onEvent(event),
+			catch: (error) => new Error(`Agent event ${event.type} failed: ${toMessage(error)}`),
+		});
 
-	const closeAllSessions = Effect.gen(function* () {
-		const currentSessions = [...sessions.entries()];
-		for (const [agentId, sessionHandle] of currentSessions) {
-			yield* markAgentOfflineForShutdown(agentId);
-			yield* closeSession(sessionHandle);
-		}
-		sessions = new Map();
-	});
+	const retire = (connection: AgentConnection) =>
+		Effect.gen(function* () {
+			const { agentId, agentName } = connection.data;
 
-	const getSessionHandle = (agentId: string) => sessions.get(agentId);
-	const getSession = (agentId: string) => getSessionHandle(agentId)?.session;
+			if (connections.get(agentId) === connection) {
+				connections.delete(agentId);
 
-	const isAgentReady = (agentId: string) => {
-		const session = getSession(agentId);
-		return !!session && Effect.runSync(session.isReady());
+				yield* Effect.tryPromise(() => agentsService.markAgentOffline(connection.data)).pipe(
+					Effect.catchAll((error) =>
+						logger.effect.error(`Failed to mark agent ${agentId} offline: ${toMessage(error)}`),
+					),
+				);
+			}
+
+			yield* emit({ type: "agent.disconnected", agentId, agentName }).pipe(
+				Effect.catchAll((error) => logger.effect.error(toMessage(error))),
+			);
+			yield* signalReadiness;
+		});
+
+	const findConnection = (data: AgentConnectionData) => {
+		const connection = connections.get(data.agentId);
+
+		return connection?.data.id === data.id ? connection : undefined;
 	};
 
-	const handleSessionEvent = (params: { agentId: string; agentName: string }) => {
-		const { agentId, agentName } = params;
+	const isReady = (agentId: string) => connections.get(agentId)?.isReady() ?? false;
 
-		return (event: ControllerAgentSessionEvent) => {
-			switch (event.type) {
-				case "agent.ready": {
-					const at = Date.now();
-					return Effect.promise(async () => {
-						await agentsService.markAgentOnline(agentId, at, {
-							...event.payload.capabilities,
-							protocolVersion: event.payload.protocolVersion,
-							protocolCompatible: true,
-							hostname: event.payload.hostname,
-							platform: event.payload.platform,
-						});
-					});
-				}
-				case "agent.protocolRejected": {
-					return Effect.sync(() =>
-						onEvent({ type: "agent.protocolRejected", agentId, agentName, payload: event.payload }),
-					);
-				}
-				case "heartbeat.pong": {
-					const at = Date.now();
-					return Effect.promise(() => agentsService.markAgentSeen(agentId, at));
-				}
-				case "agent.disconnected": {
-					return Effect.sync(() => onEvent({ type: "agent.disconnected", agentId, agentName }));
-				}
-				default: {
-					return Effect.sync(() => onEvent({ ...event, agentId, agentName }));
-				}
-			}
-		};
-	};
-
-	const createSession = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
+	const open = (data: AgentConnectionData, transport: ControllerTransport) =>
 		Effect.gen(function* () {
-			const scope = yield* Scope.make();
+			if (!running) return closeTransport(transport, 1008, "controller_stopping");
 
-			const session = yield* Scope.extend(
-				createControllerAgentSession(
-					ws,
-					handleSessionEvent({
-						agentId: ws.data.agentId,
-						agentName: ws.data.agentName,
-					}),
-				),
-				scope,
-			);
-			const runFiber = yield* Effect.forkDaemon(Scope.extend(session.run, scope));
-			yield* Scope.addFinalizer(scope, Fiber.interrupt(runFiber));
+			const connection: AgentConnection = createAgentConnection(data, transport, {
+				onEvent: (event) => emit({ ...event, agentId: data.agentId, agentName: data.agentName }),
+				onReady: signalReadiness,
+				onClosed: Effect.suspend(() => retire(connection)),
+			});
 
-			return { agentId: ws.data.agentId, session, scope };
+			const previous = connections.get(data.agentId);
+
+			connections.set(data.agentId, connection);
+
+			if (previous) yield* previous.close("connection_replaced");
+
+			yield* connection.start;
 		});
 
-	const setSession = (sessionHandle: ControllerAgentSessionHandle) =>
-		Effect.gen(function* () {
-			const existingSession = sessions.get(sessionHandle.agentId);
-			sessions.set(sessionHandle.agentId, sessionHandle);
+	const disconnect = (agentId: string) =>
+		Effect.suspend(() => {
+			const connection = connections.get(agentId);
 
-			if (existingSession) {
-				yield* closeSession(existingSession);
-			}
+			if (!connection) return Effect.succeed(false);
+
+			return connection.close("disconnected_by_controller").pipe(Effect.as(true));
 		});
 
-	const removeSession = (agentId: string, connectionId: string) =>
-		Effect.gen(function* () {
-			const handle = sessions.get(agentId);
-			if (!handle || handle.session.connectionId !== connectionId) {
-				return false;
-			}
-
-			yield* closeSession(handle);
-
-			yield* Effect.promise(() => agentsService.markAgentOffline(agentId));
-			return true;
-		});
-
-	const handleMessage = (ws: Bun.ServerWebSocket<AgentConnectionData>, data: unknown) =>
-		Effect.gen(function* () {
-			if (typeof data !== "string") {
-				yield* logger.effect.warn(`Ignoring non-text message from agent ${ws.data.agentId}`);
-				return;
-			}
-
-			const session = getSession(ws.data.agentId);
-			if (!session || session.connectionId !== ws.data.id) {
-				yield* logger.effect.warn(`No active session for agent ${ws.data.agentId} on ${ws.data.id}`);
-				return;
-			}
-
-			yield* session.handleMessage(data);
-		});
-
-	const handleOpen = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
-		Effect.gen(function* () {
-			yield* Effect.promise(() =>
-				agentsService.markAgentConnecting({
-					agentId: ws.data.agentId,
-					organizationId: ws.data.organizationId,
-					agentName: ws.data.agentName,
-					agentKind: ws.data.agentKind,
-				}),
-			);
-
-			const sessionHandle = yield* createSession(ws);
-			yield* setSession(sessionHandle);
-			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) connected on ${ws.data.id}`);
-		});
-
-	const handleClose = (ws: Bun.ServerWebSocket<AgentConnectionData>) =>
-		Effect.gen(function* () {
-			yield* removeSession(ws.data.agentId, ws.data.id);
-			yield* logger.effect.info(`Agent "${ws.data.agentName}" (${ws.data.agentId}) disconnected`);
-		});
-
-	const runWebSocketHandler = (
-		ws: Bun.ServerWebSocket<AgentConnectionData>,
-		event: string,
-		effect: Effect.Effect<void>,
+	const dispatch = (
+		agentId: string,
+		admits: (connection: AgentConnection) => boolean,
+		createMessage: () => ControllerWireMessage,
 	) =>
+		Effect.suspend(() => {
+			const connection = connections.get(agentId);
+
+			return connection && admits(connection) ? connection.send(createMessage()) : Effect.succeed(false);
+		});
+
+	const runSocketEffect = (data: AgentConnectionData, effect: Effect.Effect<void>) =>
 		Effect.runPromise(
 			effect.pipe(
 				Effect.catchAllCause((cause) =>
 					logger.effect.error(
-						`Agent websocket ${event} failed for ${ws.data.agentId} on ${ws.data.id}: ${toMessage(cause)}`,
+						`Agent connection ${data.id} for ${data.agentId} failed: ${Cause.pretty(cause)}`,
 					),
 				),
 			),
 		);
 
-	const acquireServer = Effect.acquireRelease(
-		Effect.sync(() =>
-			Bun.serve<AgentConnectionData>({
-				hostname: "127.0.0.1",
-				port: 0,
-				async fetch(req, srv) {
-					const authorizationHeader = req.headers.get("authorization");
-					const token = authorizationHeader?.slice("Bearer ".length);
+	const socket = {
+		open: (data: AgentConnectionData, transport: ControllerTransport) =>
+			runSocketEffect(data, open(data, transport)),
 
-					if (!token) {
-						return new Response("Missing token", { status: 401 });
-					}
+		message: (data: AgentConnectionData, transport: ControllerTransport, text: string | null) => {
+			if (text === null) {
+				closeTransport(transport, 1003, "text_messages_only");
+				return Promise.resolve();
+			}
 
-					const result = await validateAgentToken(token);
-					if (!result) {
-						return new Response("Invalid or revoked token", { status: 401 });
-					}
+			return runSocketEffect(
+				data,
+				Effect.suspend(() => findConnection(data)?.receive(text) ?? Effect.void),
+			);
+		},
 
-					const upgraded = srv.upgrade(req, {
-						data: {
-							id: Bun.randomUUIDv7(),
-							agentId: result.agentId,
-							organizationId: result.organizationId,
-							agentName: result.agentName,
-							agentKind: result.agentKind,
-						},
-					});
-					if (upgraded) return undefined;
-					return new Response("WebSocket upgrade failed", { status: 400 });
-				},
-				websocket: {
-					open: async (ws) => {
-						await runWebSocketHandler(ws, "open", handleOpen(ws));
-						if (getSession(ws.data.agentId)?.connectionId !== ws.data.id) {
-							ws.close();
-						}
-					},
-					message: async (ws, data) => {
-						await runWebSocketHandler(ws, "message", handleMessage(ws, data));
-					},
-					close: async (ws) => {
-						await runWebSocketHandler(ws, "close", handleClose(ws));
-					},
-				},
-			}),
-		),
-		(server) =>
-			closeAllSessions.pipe(
-				Effect.andThen(
-					Effect.tryPromise({
-						try: () => server.stop(true),
-						catch: (error) => new StopAgentManagerServerError({ cause: error }),
-					}),
-				),
-				Effect.catchAll((error) => {
-					return logger.effect.error(`Failed to stop Agent Manager server: ${toMessage(error.cause)}`);
-				}),
+		close: (data: AgentConnectionData) =>
+			runSocketEffect(
+				data,
+				Effect.suspend(() => findConnection(data)?.close("connection_closed") ?? Effect.void),
 			),
-	);
+	};
 
-	const stop = Effect.gen(function* () {
-		if (!runtimeScope) {
-			return;
-		}
+	const start = Effect.suspend(() => {
+		if (listener) return Effect.void;
 
-		logger.info("Stopping Agent Manager...");
-		const scope = runtimeScope;
-		runtimeScope = null;
-		controllerUrl = null;
-		yield* Scope.close(scope, Exit.succeed(undefined));
+		return Effect.try({
+			try: () => createAgentControllerListener({ isRunning: () => running, socket }),
+			catch: (error) => (error instanceof Error ? error : new Error(toMessage(error))),
+		}).pipe(
+			Effect.tap((created) => {
+				listener = created;
+				running = true;
+			}),
+			Effect.asVoid,
+		);
 	});
 
-	const start = Effect.gen(function* () {
-		if (runtimeScope) {
-			yield* stop;
+	const stop = Effect.gen(function* () {
+		const stoppingListener = listener;
+
+		running = false;
+		listener = null;
+
+		yield* Effect.forEach([...connections.values()], (connection) => connection.close("controller_shutdown"), {
+			concurrency: "unbounded",
+			discard: true,
+		});
+
+		if (stoppingListener) {
+			yield* Effect.tryPromise(() => stoppingListener.stop(false)).pipe(
+				Effect.catchAll((error) => logger.effect.error(`Failed to stop agent listener: ${toMessage(error)}`)),
+			);
 		}
 
-		logger.info("Starting Agent Manager...");
-		const scope = yield* Scope.make();
-
-		const server = yield* Scope.extend(acquireServer, scope).pipe(
-			Effect.catchAllCause((cause) =>
-				Scope.close(scope, Exit.failCause(cause)).pipe(Effect.andThen(Effect.failCause(cause))),
-			),
-		);
-		runtimeScope = scope;
-		controllerUrl = `ws://127.0.0.1:${server.port}`;
-		logger.info(`Agent Manager listening on port ${server.port}`);
+		yield* signalReadiness;
 	});
 
 	return {
 		start,
-		getControllerUrl: () => controllerUrl,
-		waitForAgentReady: async (agentId: string, timeoutMs = 10_000) => {
-			const deadline = Date.now() + timeoutMs;
-
-			while (Date.now() < deadline) {
-				if (isAgentReady(agentId)) {
-					return true;
-				}
-
-				await sleep(50);
-			}
-
-			return isAgentReady(agentId);
-		},
-		sendBackup: (agentId: string, payload: BackupRunPayload) =>
-			Effect.gen(function* () {
-				const session = getSession(agentId);
-
-				if (!session) {
-					logger.warn(`Cannot send backup command. Agent ${agentId} is not connected.`);
-					return false;
-				}
-
-				if (!(yield* session.isReady())) {
-					logger.warn(`Cannot send backup command. Agent ${agentId} is not ready.`);
-					return false;
-				}
-
-				if (!(yield* session.sendBackup(payload))) {
-					logger.warn(`Cannot send backup command. Agent ${agentId} is no longer accepting commands.`);
-					return false;
-				}
-
-				logger.info(
-					`Sent backup command ${payload.jobId} to agent ${agentId} for schedule ${payload.scheduleId}`,
-				);
-				return true;
-			}),
-		cancelBackup: (agentId: string, payload: BackupCancelPayload) =>
-			Effect.gen(function* () {
-				const session = getSession(agentId);
-
-				if (!session) {
-					logger.warn(`Cannot cancel backup command. Agent ${agentId} is not connected.`);
-					return false;
-				}
-
-				if (!(yield* session.sendBackupCancel(payload))) {
-					logger.warn(`Cannot cancel backup command. Agent ${agentId} is no longer accepting commands.`);
-					return false;
-				}
-				logger.info(`Sent backup cancel for command ${payload.jobId} to agent ${agentId}`);
-				return true;
-			}),
-		sendRestore: (agentId: string, payload: RestoreRunPayload) =>
-			Effect.gen(function* () {
-				const session = getSession(agentId);
-
-				if (!session) {
-					logger.warn(`Cannot send restore command. Agent ${agentId} is not connected.`);
-					return false;
-				}
-
-				if (!(yield* session.isReady())) {
-					logger.warn(`Cannot send restore command. Agent ${agentId} is not ready.`);
-					return false;
-				}
-
-				if (!(yield* session.sendRestore(payload))) {
-					logger.warn(`Cannot send restore command. Agent ${agentId} is no longer accepting commands.`);
-					return false;
-				}
-
-				logger.info(
-					`Sent restore command ${payload.restoreId} to agent ${agentId} for snapshot ${payload.snapshotId}`,
-				);
-				return true;
-			}),
-		cancelRestore: (agentId: string, payload: RestoreCancelPayload) =>
-			Effect.gen(function* () {
-				const session = getSession(agentId);
-
-				if (!session) {
-					logger.warn(`Cannot cancel restore command. Agent ${agentId} is not connected.`);
-					return false;
-				}
-
-				if (!(yield* session.sendRestoreCancel(payload))) {
-					logger.warn(`Cannot cancel restore command. Agent ${agentId} is no longer accepting commands.`);
-					return false;
-				}
-
-				logger.info(`Sent restore cancel for command ${payload.restoreId} to agent ${agentId}`);
-				return true;
-			}),
-		runFilesystemCommand: (
-			agentId: string,
-			command: FilesystemCommand,
-		): Effect.Effect<FilesystemCommandResponsePayload | null, Error> =>
-			Effect.gen(function* () {
-				const session = getSession(agentId);
-
-				if (!session) {
-					yield* logger.effect.warn(
-						`Cannot send filesystem command ${command.name}. Agent ${agentId} is not connected.`,
-					);
-					return null;
-				}
-
-				if (!(yield* session.isReady())) {
-					yield* logger.effect.warn(
-						`Cannot send filesystem command ${command.name}. Agent ${agentId} is not ready.`,
-					);
-					return null;
-				}
-
-				const result = yield* session.runFilesystemCommand(command);
-				yield* logger.effect.info(`Completed filesystem command ${command.name} on agent ${agentId}`);
-				return result;
-			}),
 		stop,
-	};
-}
+		isRunning: () => running,
+		getControllerUrl: () => (listener ? `ws://127.0.0.1:${listener.port}` : null),
+		socket,
+		disconnect,
+		isReady,
 
-export type AgentManagerRuntime = ReturnType<typeof createAgentManagerRuntime>;
+		waitForReady: (agentId: string, timeout: Duration.DurationInput) =>
+			readiness.changes.pipe(
+				Stream.filter(() => !running || isReady(agentId)),
+				Stream.runHead,
+				Effect.timeoutOption(timeout),
+				Effect.map(() => isReady(agentId)),
+			),
+
+		sendBackup: (agentId: string, payload: BackupRunPayload) =>
+			dispatch(
+				agentId,
+				(connection) => connection.canBackup(payload.organizationId),
+				() => createControllerMessage("backup.run", payload),
+			),
+
+		cancelBackup: (agentId: string, payload: BackupCancelPayload) =>
+			dispatch(
+				agentId,
+				(connection) => connection.isReady(),
+				() => createControllerMessage("backup.cancel", payload),
+			),
+
+		sendRestore: (agentId: string, payload: RestoreRunPayload) =>
+			dispatch(
+				agentId,
+				(connection) => connection.canRestore(payload.organizationId),
+				() => createControllerMessage("restore.run", payload),
+			),
+
+		cancelRestore: (agentId: string, payload: RestoreCancelPayload) =>
+			dispatch(
+				agentId,
+				(connection) => connection.isReady(),
+				() => createControllerMessage("restore.cancel", payload),
+			),
+
+		runFilesystemCommand: (agentId: string, organizationId: string, command: FilesystemCommand) =>
+			Effect.suspend(() => {
+				const connection = connections.get(agentId);
+
+				if (!connection?.canAccessRoot(command.source.rootId, organizationId)) return Effect.succeed(null);
+
+				return connection.runFilesystemCommand(command);
+			}),
+	};
+};
+
+export type AgentController = ReturnType<typeof createAgentController>;

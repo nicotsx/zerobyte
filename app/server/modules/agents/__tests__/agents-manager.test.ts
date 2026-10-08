@@ -1,10 +1,10 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
-import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
+import { Effect } from "effect";
 import { createAgentRuntimeState } from "../helpers/runtime-state";
-import type { ProcessWithAgentRuntime } from "../helpers/runtime-state.dev";
+import type { ProcessWithAgentRuntime } from "../helpers/runtime-state";
 
 const spawnMock = vi.fn();
 const deriveLocalAgentTokenMock = vi.fn(async () => "local-agent-token");
@@ -43,18 +43,23 @@ const createFakeChild = () => {
 	return child;
 };
 
-const controller = () => processWithAgentRuntime.__zerobyteAgentRuntime!.agentManager!;
+const waitForAgentReady = vi.fn(async (): Promise<boolean> => true);
+const getControllerUrl = vi.fn((): string | null => "ws://127.0.0.1:4567");
+const stopController = vi.fn(async () => undefined);
 
 beforeEach(async () => {
 	vi.resetModules();
 	deriveLocalAgentTokenMock.mockReset();
 	deriveLocalAgentTokenMock.mockResolvedValue("local-agent-token");
+	waitForAgentReady.mockReset().mockResolvedValue(true);
+	getControllerUrl.mockReset().mockReturnValue("ws://127.0.0.1:4567");
+	stopController.mockReset().mockResolvedValue(undefined);
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
 		...createAgentRuntimeState(),
-		agentManager: fromPartial({
-			stop: Effect.void,
-			getControllerUrl: vi.fn(() => "ws://127.0.0.1:4567"),
-			waitForAgentReady: vi.fn(async () => true),
+		controller: fromPartial({
+			stop: Effect.promise(() => stopController()),
+			getControllerUrl,
+			waitForReady: () => Effect.promise(() => waitForAgentReady()),
 		}),
 	};
 	({ startLocalAgent, stopAgentController, stopLocalAgent } = await import("../agents-manager"));
@@ -101,10 +106,7 @@ test("retries automatic replacements after readiness and spawn failures", async 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
 	const thirdChild = createFakeChild();
-	vi.mocked(controller().waitForAgentReady)
-		.mockResolvedValueOnce(true)
-		.mockResolvedValueOnce(false)
-		.mockResolvedValueOnce(true);
+	waitForAgentReady.mockResolvedValueOnce(true).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 	spawnMock
 		.mockReturnValueOnce(firstChild)
 		.mockReturnValueOnce(secondChild)
@@ -250,11 +252,10 @@ test.each([false, true])(
 test.each(["not-ready", "readiness-error", "exit"])("cleans up failed initial startup: %s", async (mode) => {
 	const child = createFakeChild();
 	spawnMock.mockReturnValue(child);
-	if (mode === "not-ready") vi.mocked(controller().waitForAgentReady).mockResolvedValueOnce(false);
-	if (mode === "readiness-error")
-		vi.mocked(controller().waitForAgentReady).mockRejectedValueOnce(new Error("readiness failed"));
+	if (mode === "not-ready") waitForAgentReady.mockResolvedValueOnce(false);
+	if (mode === "readiness-error") waitForAgentReady.mockRejectedValueOnce(new Error("readiness failed"));
 	if (mode === "exit") {
-		vi.mocked(controller().waitForAgentReady).mockImplementationOnce(async () => {
+		waitForAgentReady.mockImplementationOnce(async () => {
 			child.exitCode = 1;
 			child.emit("exit", 1, null);
 			return false;
@@ -271,7 +272,7 @@ test("shutdown interrupts readiness and terminates the worker", async () => {
 	const readiness = deferred<boolean>();
 	const child = createFakeChild();
 	spawnMock.mockReturnValue(child);
-	vi.mocked(controller().waitForAgentReady).mockReturnValueOnce(readiness.promise);
+	waitForAgentReady.mockReturnValueOnce(readiness.promise);
 
 	const starting = expect(startLocalAgent()).rejects.toThrow("startup was interrupted by shutdown");
 	await vi.waitFor(() => expect(spawnMock).toHaveBeenCalledOnce());
@@ -327,11 +328,7 @@ test("controller shutdown cancels startup and a later controller uses its curren
 	await starting;
 	token.resolve("local-agent-token");
 
-	processWithAgentRuntime.__zerobyteAgentRuntime!.agentManager = fromPartial({
-		stop: Effect.void,
-		getControllerUrl: () => "ws://127.0.0.1:5678",
-		waitForAgentReady: async () => true,
-	});
+	getControllerUrl.mockReturnValue("ws://127.0.0.1:5678");
 	await startLocalAgent();
 
 	expect(spawnMock).toHaveBeenCalledOnce();
@@ -344,12 +341,8 @@ test("controller shutdown cancels startup and a later controller uses its curren
 	);
 });
 
-test.each(["controller", "url"])("rejects startup without a running %s", async (missing) => {
-	if (missing === "controller") {
-		processWithAgentRuntime.__zerobyteAgentRuntime!.agentManager = null;
-	} else {
-		vi.mocked(controller().getControllerUrl).mockReturnValue(null);
-	}
+test("rejects startup without a running controller", async () => {
+	getControllerUrl.mockReturnValue(null);
 
 	await expect(startLocalAgent()).rejects.toThrow("startLocalAgent cannot spawn");
 	expect(spawnMock).not.toHaveBeenCalled();
@@ -360,8 +353,6 @@ test("controller shutdown still closes the controller when worker termination ti
 
 	const child = createFakeChild();
 	child.kill.mockImplementation(() => true);
-	const stoppedController = vi.fn();
-	controller().stop = Effect.sync(stoppedController);
 	spawnMock.mockReturnValue(child);
 	await startLocalAgent();
 
@@ -369,34 +360,11 @@ test("controller shutdown still closes the controller when worker termination ti
 	await vi.advanceTimersByTimeAsync(10_000);
 	await stopping;
 
-	expect(stoppedController).toHaveBeenCalledOnce();
+	expect(stopController).toHaveBeenCalledOnce();
 	child.exitCode = 137;
 	child.emit("exit", 137, "SIGKILL");
 	await vi.advanceTimersByTimeAsync(2_000);
 	expect(spawnMock).toHaveBeenCalledOnce();
-});
-
-test("reports both worker and controller shutdown failures", async () => {
-	vi.useFakeTimers();
-
-	const child = createFakeChild();
-	child.kill.mockImplementation(() => true);
-	controller().stop = Effect.die(new Error("controller stop failed"));
-	spawnMock.mockReturnValue(child);
-	await startLocalAgent();
-
-	const stopping = expect(stopAgentController()).rejects.toMatchObject({
-		name: "AggregateError",
-		errors: [
-			expect.objectContaining({ message: "Local agent termination was not confirmed after SIGKILL" }),
-			expect.objectContaining({ message: "controller stop failed" }),
-		],
-	});
-	await vi.advanceTimersByTimeAsync(10_000);
-	await stopping;
-
-	child.exitCode = 137;
-	child.emit("exit", 137, "SIGKILL");
 });
 
 test("handles an asynchronous spawn error and permits a later startup", async () => {
@@ -426,7 +394,7 @@ test("shutdown terminates an automatic replacement whose readiness is pending", 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
 	const readiness = deferred<boolean>();
-	vi.mocked(controller().waitForAgentReady).mockResolvedValueOnce(true).mockReturnValueOnce(readiness.promise);
+	waitForAgentReady.mockResolvedValueOnce(true).mockReturnValueOnce(readiness.promise);
 	spawnMock.mockReturnValueOnce(firstChild).mockReturnValueOnce(secondChild);
 	await startLocalAgent();
 	firstChild.exitCode = 1;
@@ -447,7 +415,7 @@ test("an ensure call waits for a restarting worker to become ready", async () =>
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
 	const readiness = deferred<boolean>();
-	vi.mocked(controller().waitForAgentReady).mockResolvedValueOnce(true).mockReturnValueOnce(readiness.promise);
+	waitForAgentReady.mockResolvedValueOnce(true).mockReturnValueOnce(readiness.promise);
 	spawnMock.mockReturnValueOnce(firstChild).mockReturnValueOnce(secondChild);
 	await startLocalAgent();
 	firstChild.exitCode = 1;

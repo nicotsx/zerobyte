@@ -172,7 +172,7 @@ const getVolume = async (shortId: ShortId) => {
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
 		const statfsCommand = agentManager
-			.runFilesystemCommand(volume.agentId, {
+			.runFilesystemCommand(volume.agentId, getOrganizationId(), {
 				name: "filesystem.statfs",
 				source: getLocalFilesystemSource(getVolumePath(volume)),
 			})
@@ -360,7 +360,7 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 	}
 
 	try {
-		const response = await agentManager.runFilesystemCommand(volume.agentId, {
+		const response = await agentManager.runFilesystemCommand(volume.agentId, getOrganizationId(), {
 			name: "filesystem.listFiles",
 			source: getLocalFilesystemSource(getVolumePath(volume)),
 			subPath,
@@ -377,7 +377,7 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 
 const browseFilesystem = async (browsePath: string) => {
 	try {
-		const response = await agentManager.runFilesystemCommand(LOCAL_AGENT_ID, {
+		const response = await agentManager.runFilesystemCommand(LOCAL_AGENT_ID, getOrganizationId(), {
 			name: "filesystem.browse",
 			source: getLocalFilesystemSource(browsePath),
 		});

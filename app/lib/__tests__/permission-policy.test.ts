@@ -1,25 +1,25 @@
 import { describe, expect, test } from "vitest";
-import { evaluatePermission, hasRuntimeFeature } from "../permission-policy";
+import { evaluatePermission, hasRuntimeFeature, RUNTIME_FEATURES } from "../permission-policy";
 
 describe("permissions", () => {
 	test("allows organization settings only for org admins in runtimes that support organization administration", () => {
 		expect(
 			evaluatePermission("organizationSettings.view", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "admin",
 			}).allowed,
 		).toBe(true);
 
 		expect(
 			evaluatePermission("organizationSettings.view", {
-				runtime: "desktop",
+				features: RUNTIME_FEATURES.desktop,
 				orgRole: "admin",
 			}),
 		).toEqual({ allowed: false, reason: "runtime" });
 
 		expect(
 			evaluatePermission("organizationSettings.view", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "member",
 			}),
 		).toEqual({ allowed: false, reason: "orgRole" });
@@ -28,7 +28,7 @@ describe("permissions", () => {
 	test("keeps SSO provider creation owner-only and browser-session-only", () => {
 		expect(
 			evaluatePermission("ssoProvider.create", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "owner",
 				authSource: "browser-session",
 			}).allowed,
@@ -36,7 +36,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("ssoProvider.create", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "admin",
 				authSource: "browser-session",
 			}),
@@ -44,7 +44,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("ssoProvider.create", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "owner",
 				authSource: "desktop-session",
 			}),
@@ -52,7 +52,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("ssoProvider.create", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "owner",
 				authSource: "api-key",
 			}),
@@ -62,7 +62,7 @@ describe("permissions", () => {
 	test("allows recovery-key download for browser and desktop sessions but not API keys", () => {
 		expect(
 			evaluatePermission("recoveryKey.download", {
-				runtime: "desktop",
+				features: RUNTIME_FEATURES.desktop,
 				orgRole: "owner",
 				authSource: "desktop-session",
 			}).allowed,
@@ -70,7 +70,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("recoveryKey.download", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				orgRole: "owner",
 				authSource: "browser-session",
 			}).allowed,
@@ -78,17 +78,61 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("recoveryKey.download", {
-				runtime: "desktop",
+				features: RUNTIME_FEATURES.desktop,
 				orgRole: "owner",
 				authSource: "api-key",
 			}),
 		).toEqual({ allowed: false, reason: "authSource" });
 	});
 
+	test("allows remote-agent management only for browser-session organization owners and admins", () => {
+		for (const orgRole of ["owner", "admin"] as const) {
+			expect(
+				evaluatePermission("agents.manage", {
+					features: RUNTIME_FEATURES.server,
+					orgRole,
+					authSource: "browser-session",
+				}).allowed,
+			).toBe(true);
+		}
+
+		expect(
+			evaluatePermission("agents.manage", {
+				features: RUNTIME_FEATURES.server,
+				orgRole: "member",
+				authSource: "browser-session",
+			}),
+		).toEqual({ allowed: false, reason: "orgRole" });
+
+		expect(
+			evaluatePermission("agents.manage", {
+				features: RUNTIME_FEATURES.server,
+				orgRole: "admin",
+				authSource: "api-key",
+			}),
+		).toEqual({ allowed: false, reason: "authSource" });
+
+		expect(
+			evaluatePermission("agents.manage", {
+				features: RUNTIME_FEATURES.desktop,
+				orgRole: "owner",
+				authSource: "browser-session",
+			}),
+		).toEqual({ allowed: false, reason: "runtime" });
+
+		expect(
+			evaluatePermission("agents.manage", {
+				features: { ...RUNTIME_FEATURES.server, remoteAgents: false },
+				orgRole: "owner",
+				authSource: "browser-session",
+			}),
+		).toEqual({ allowed: false, reason: "runtime" });
+	});
+
 	test("requires desktop-sensitive instance administration to pass runtime, role, and auth source", () => {
 		expect(
 			evaluatePermission("instanceAdministration.view", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				instanceRole: "admin",
 				authSource: "browser-session",
 			}).allowed,
@@ -96,7 +140,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("instanceAdministration.view", {
-				runtime: "desktop",
+				features: RUNTIME_FEATURES.desktop,
 				instanceRole: "admin",
 				authSource: "browser-session",
 			}),
@@ -104,7 +148,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("instanceAdministration.view", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				instanceRole: "user",
 				authSource: "browser-session",
 			}),
@@ -112,7 +156,7 @@ describe("permissions", () => {
 
 		expect(
 			evaluatePermission("passwordLogin.manage", {
-				runtime: "server",
+				features: RUNTIME_FEATURES.server,
 				instanceRole: "admin",
 				authSource: "browser-session",
 			}).allowed,
@@ -126,5 +170,7 @@ describe("permissions", () => {
 		expect(hasRuntimeFeature("desktop", "apiKeys")).toBe(false);
 		expect(hasRuntimeFeature("server", "passwordAuthentication")).toBe(true);
 		expect(hasRuntimeFeature("desktop", "passwordAuthentication")).toBe(false);
+		expect(hasRuntimeFeature("server", "remoteAgents")).toBe(true);
+		expect(hasRuntimeFeature("desktop", "remoteAgents")).toBe(false);
 	});
 });

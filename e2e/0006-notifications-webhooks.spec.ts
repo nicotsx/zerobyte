@@ -138,7 +138,7 @@ test("delivers notification destinations and backup lifecycle webhooks", async (
 			phase: "pre",
 			event: "backup.pre",
 			scheduleId: schedule.shortId,
-			sourcePath,
+			sourcePath: `test-data/${runId}`,
 		});
 
 		const postWebhook = await receiver.waitFor((request) => request.path === "/backup/post");
@@ -148,7 +148,7 @@ test("delivers notification destinations and backup lifecycle webhooks", async (
 			phase: "post",
 			event: "backup.post",
 			scheduleId: schedule.shortId,
-			sourcePath,
+			sourcePath: `test-data/${runId}`,
 			status: "success",
 		});
 

@@ -6,31 +6,25 @@ import type {
 	FilesystemCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
 import { Cause, Deferred, Effect, Exit, Fiber, Option } from "effect";
-import { config } from "../../core/config";
 import { runEffectPromise, toMessage } from "../../utils/errors";
-import { createAgentManagerRuntime, type AgentManagerEvent, type AgentManagerRuntime } from "./controller/server";
+import { createAgentController, type AgentController, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess, waitForLocalAgentExit } from "./local/process";
 import {
-	createAgentRuntimeState,
 	type AgentRuntimeState,
 	type BackupExecutionProgress,
 	type BackupExecutionResult,
 	type RestoreExecutionProgress,
 	type RestoreExecutionResult,
 } from "./helpers/runtime-state";
-import { getDevAgentRuntimeState } from "./helpers/runtime-state.dev";
+import { getAgentRuntimeState } from "./helpers/runtime-state";
 export type {
 	BackupExecutionProgress,
 	BackupExecutionResult,
 	RestoreExecutionProgress,
 	RestoreExecutionResult,
 } from "./helpers/runtime-state";
-export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
-
-type ProcessWithProductionAgentRuntime = NodeJS.Process & {
-	__zerobyteProductionAgentRuntime?: AgentRuntimeState;
-};
+export type { ProcessWithAgentRuntime } from "./helpers/runtime-state";
 
 type AgentRunBackupRequest = {
 	scheduleId: number;
@@ -49,19 +43,6 @@ type AgentRestoreStartResult =
 	| { status: "started"; result: Promise<RestoreExecutionResult> }
 	| { status: "unavailable"; error: Error };
 
-const getProductionAgentRuntimeState = () => {
-	// Nitro production builds can bundle startup plugins and API handlers into separate chunks.
-	// Keep the live controller on process so both chunks see the same agent sessions.
-	const runtimeProcess = process as ProcessWithProductionAgentRuntime;
-	if (!runtimeProcess.__zerobyteProductionAgentRuntime) {
-		runtimeProcess.__zerobyteProductionAgentRuntime = createAgentRuntimeState();
-	}
-
-	return runtimeProcess.__zerobyteProductionAgentRuntime;
-};
-
-const getAgentRuntimeState = () => (config.__prod__ ? getProductionAgentRuntimeState() : getDevAgentRuntimeState());
-const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
 const getActiveRestoresByRestoreId = () => getAgentRuntimeState().activeRestoresByRestoreId;
@@ -187,14 +168,8 @@ const requestBackupCancellation = async (agentId: string, scheduleId: number) =>
 
 	activeBackupRun.cancellationRequested = true;
 
-	const runtime = getAgentManagerRuntime();
-	if (!runtime) {
-		resolveActiveBackupRun(scheduleId, { status: "cancelled" });
-		return true;
-	}
-
 	const cancelResult = await Effect.runPromise(
-		runtime.cancelBackup(agentId, {
+		getAgentController().cancelBackup(agentId, {
 			jobId: activeBackupRun.jobId,
 			scheduleId: activeBackupRun.scheduleShortId,
 		}),
@@ -221,24 +196,9 @@ const requestRestoreCancellation = async (agentId: string, restoreId: string) =>
 
 	activeRestoreRun.cancellationRequested = true;
 
-	const runtime = getAgentManagerRuntime();
-	if (!runtime) {
-		resolveActiveRestoreRun(restoreId, { status: "cancelled" });
-		return true;
-	}
+	if (await Effect.runPromise(getAgentController().cancelRestore(agentId, { restoreId }))) return true;
 
-	try {
-		if (await Effect.runPromise(runtime.cancelRestore(agentId, { restoreId }))) {
-			return true;
-		}
-
-		logger.warn(
-			`Failed to send restore cancellation for ${restoreId}; waiting for the agent to report its outcome`,
-		);
-	} catch (error) {
-		logger.warn(`Failed to send restore cancellation for ${restoreId}: ${toMessage(error)}`);
-	}
-
+	logger.warn(`Failed to send restore cancellation for ${restoreId}; waiting for the agent to report its outcome`);
 	return false;
 };
 
@@ -382,21 +342,15 @@ const handleAgentManagerEvent = (event: AgentManagerEvent) => {
 	}
 };
 
-export const startAgentController = () => {
+export const getAgentController = (): AgentController => {
 	const runtime = getAgentRuntimeState();
 
-	return runEffectPromise(
-		runtime.lifecycleSemaphore.withPermits(1)(
-			Effect.gen(function* () {
-				if (runtime.agentManager) return;
-
-				const nextAgentManager = createAgentManagerRuntime(handleAgentManagerEvent);
-				yield* nextAgentManager.start;
-				runtime.agentManager = nextAgentManager;
-			}),
-		),
-	);
+	runtime.controller ??= createAgentController(handleAgentManagerEvent);
+	return runtime.controller;
 };
+
+export const startAgentController = () =>
+	runEffectPromise(getAgentRuntimeState().lifecycleSemaphore.withPermits(1)(getAgentController().start));
 
 export const stopAgentController = () => {
 	const runtime = getAgentRuntimeState();
@@ -405,35 +359,33 @@ export const stopAgentController = () => {
 		runtime.lifecycleSemaphore.withPermits(1)(
 			Effect.gen(function* () {
 				const localStop = yield* Effect.exit(stopLocalAgentRuntime(runtime));
-				const agentManagerRuntime = runtime.agentManager;
-				runtime.agentManager = null;
-				const controllerStop = yield* Effect.exit(agentManagerRuntime?.stop ?? Effect.void);
 
-				if (Exit.isFailure(localStop) && Exit.isFailure(controllerStop)) {
-					return yield* Effect.fail(
-						new AggregateError(
-							[Cause.squash(localStop.cause), Cause.squash(controllerStop.cause)],
-							"Failed to stop the local agent and agent controller",
-						),
-					);
-				}
+				yield* getAgentController().stop;
+
 				if (Exit.isFailure(localStop)) return yield* Effect.failCause(localStop.cause);
-				if (Exit.isFailure(controllerStop)) return yield* Effect.failCause(controllerStop.cause);
 			}),
 		),
 	);
 };
 
-export const agentManager = {
-	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			return {
-				status: "unavailable",
-				error: new Error(`Backup agent ${agentId} is not connected`),
-			} satisfies BackupExecutionResult;
-		}
+async function runAgentFilesystemCommand(
+	agentId: string,
+	organizationId: string,
+	command: FilesystemCommand,
+): Promise<FilesystemCommandResult> {
+	const response = await runEffectPromise(
+		getAgentController().runFilesystemCommand(agentId, organizationId, command),
+	);
 
+	if (!response) throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
+	if (response.status === "error") throw new Error(response.error);
+
+	return response.command;
+}
+
+export const agentManager = {
+	isAgentReady: (agentId: string) => getAgentController().isReady(agentId),
+	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
@@ -452,7 +404,7 @@ export const agentManager = {
 		});
 
 		try {
-			if (!(await Effect.runPromise(runtime.sendBackup(agentId, request.payload)))) {
+			if (!(await Effect.runPromise(getAgentController().sendBackup(agentId, request.payload)))) {
 				clearActiveBackupRun(request.scheduleId);
 				return {
 					status: "unavailable",
@@ -483,32 +435,8 @@ export const agentManager = {
 	cancelBackup: async (agentId: string, scheduleId: number) => {
 		return requestBackupCancellation(agentId, scheduleId);
 	},
-	runFilesystemCommand: async (agentId: string, command: FilesystemCommand): Promise<FilesystemCommandResult> => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			throw new Error(`Filesystem agent ${agentId} is not connected`);
-		}
-
-		const response = await Effect.runPromise(runtime.runFilesystemCommand(agentId, command));
-		if (!response) {
-			throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
-		}
-
-		if (response.status === "error") {
-			throw new Error(response.error);
-		}
-
-		return response.command;
-	},
+	runFilesystemCommand: runAgentFilesystemCommand,
 	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			return {
-				status: "unavailable",
-				error: new Error(`Restore agent ${agentId} is not connected`),
-			};
-		}
-
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");
 		}
@@ -524,7 +452,7 @@ export const agentManager = {
 		});
 
 		try {
-			if (!(await Effect.runPromise(runtime.sendRestore(agentId, request.payload)))) {
+			if (!(await Effect.runPromise(getAgentController().sendRestore(agentId, request.payload)))) {
 				clearActiveRestoreRun(request.payload.restoreId);
 				return {
 					status: "unavailable",
@@ -554,24 +482,16 @@ export const agentManager = {
 	cancelRestore: async (agentId: string, restoreId: string) => {
 		return requestRestoreCancellation(agentId, restoreId);
 	},
+	disconnectAgent: (agentId: string) => Effect.runPromise(getAgentController().disconnect(agentId)),
 };
 
-const runLocalAgent = (
-	runtime: AgentRuntimeState,
-	manager: AgentManagerRuntime,
-	controllerUrl: string,
-	ready: Deferred.Deferred<void, Error>,
-) =>
+const runLocalAgent = (runtime: AgentRuntimeState, controllerUrl: string, ready: Deferred.Deferred<void, Error>) =>
 	Effect.scoped(
 		Effect.gen(function* () {
 			const agentProcess = yield* spawnLocalAgentProcess(runtime, controllerUrl);
 
-			const checkReadiness = Effect.tryPromise({
-				try: () => manager.waitForAgentReady(LOCAL_AGENT_ID),
-				catch: (error) => (error instanceof Error ? error : new Error(String(error))),
-			});
 			const isReady = yield* Effect.raceFirst(
-				checkReadiness,
+				getAgentController().waitForReady(LOCAL_AGENT_ID, "10 seconds"),
 				agentProcess.exited.pipe(
 					Effect.andThen(Effect.fail(new Error("Local agent exited before becoming ready"))),
 				),
@@ -630,18 +550,12 @@ export const startLocalAgent = () => {
 			}
 
 			yield* stopLocalAgentRuntime(runtime);
-			const manager = runtime.agentManager;
-			if (!manager) {
-				return yield* Effect.fail(
-					new Error(`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller is not running`),
-				);
-			}
-			const controllerUrl = manager.getControllerUrl();
+
+			const controllerUrl = getAgentController().getControllerUrl();
+
 			if (!controllerUrl) {
 				return yield* Effect.fail(
-					new Error(
-						`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller URL is not available`,
-					),
+					new Error(`startLocalAgent cannot spawn ${LOCAL_AGENT_ID} because the controller is not running`),
 				);
 			}
 
@@ -650,7 +564,7 @@ export const startLocalAgent = () => {
 				const ready = yield* runtime.lifecycleSemaphore.withPermits(1)(refreshLocalAgentReadiness(readiness));
 
 				yield* Effect.sleep(1_000);
-				yield* runLocalAgent(runtime, manager, controllerUrl, ready);
+				yield* runLocalAgent(runtime, controllerUrl, ready);
 			}).pipe(
 				Effect.catchAllCause((cause) => {
 					if (Cause.isInterruptedOnly(cause)) return Effect.failCause(cause);
@@ -666,7 +580,7 @@ export const startLocalAgent = () => {
 				}),
 			);
 			const fiber = yield* Effect.forkDaemon(
-				runLocalAgent(runtime, manager, controllerUrl, readiness.current).pipe(
+				runLocalAgent(runtime, controllerUrl, readiness.current).pipe(
 					Effect.andThen(Effect.forever(restart)),
 					Effect.onExit((exit) => {
 						if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) {

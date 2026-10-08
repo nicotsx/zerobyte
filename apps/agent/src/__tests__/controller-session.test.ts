@@ -9,9 +9,44 @@ import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/
 import * as resticServer from "@zerobyte/core/restic/server";
 import { createControllerSession } from "../controller-session";
 import { createTrustedRootRegistry } from "../trusted-roots";
+import { createRunPayload } from "../commands/__tests__/backup-run.harness";
 
 afterEach(() => {
 	vi.restoreAllMocks();
+});
+
+test("excludes the saved machine credential from backups without environment configuration", async () => {
+	const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-credentials-"));
+	const configPath = path.join(directory, "agent.json");
+	const trustedRoots = createTrustedRootRegistry({
+		roots: [{ id: "data", label: "Data", path: directory, allowBackup: true }],
+	});
+	const restic = vi
+		.spyOn(resticServer, "createRestic")
+		.mockReturnValue(
+			fromPartial({ backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }) }),
+		);
+	const session = createControllerSession(fromPartial({ send: vi.fn() }), {
+		trustedRoots,
+		excludedPaths: [configPath],
+	});
+
+	try {
+		await fs.writeFile(configPath, JSON.stringify({ token: "machine-credential" }));
+		session.onOpen();
+		session.onMessage(
+			createControllerMessage("backup.run", createRunPayload({ source: { rootId: "data", relativePath: "" } })),
+		);
+
+		await waitForExpect(() => {
+			expect(restic).toHaveBeenCalledWith(
+				expect.objectContaining({ defaultExcludes: expect.arrayContaining([configPath]) }),
+			);
+		});
+	} finally {
+		session.close();
+		await fs.rm(directory, { recursive: true, force: true });
+	}
 });
 
 test("emits backup.failed when a backup command hits a restic error", async () => {
@@ -93,6 +128,7 @@ test("closes the websocket when an outbound send throws", async () => {
 			},
 			close,
 		}),
+		{ trustedRoots: createTrustedRootRegistry() },
 	);
 
 	try {
@@ -108,8 +144,8 @@ test("closes the websocket when an outbound send throws", async () => {
 
 test("continues processing inbound messages after a filesystem command fails", async () => {
 	const trustedRootPath = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-root-"));
-	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: trustedRootPath }]);
-	const registry = createTrustedRootRegistry({ rawRoots });
+	const roots = [{ id: "data", label: "Data", path: trustedRootPath, allowBackup: true }];
+	const registry = createTrustedRootRegistry({ roots });
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
 		fromPartial({
@@ -240,10 +276,8 @@ test.each([
 ] as const)(
 	"advertises capabilities from its configured roots, builtinLocal=%s, allowBackup=%s",
 	async (builtinLocal, allowBackup, allowRestore) => {
-		const rawRoots = JSON.stringify(
-			allowBackup === undefined ? [] : [{ id: "data", label: "Data", path: os.tmpdir(), allowBackup }],
-		);
-		const trustedRoots = createTrustedRootRegistry({ rawRoots, builtinLocal });
+		const roots = allowBackup === undefined ? [] : [{ id: "data", label: "Data", path: os.tmpdir(), allowBackup }];
+		const trustedRoots = createTrustedRootRegistry({ roots, builtinLocal });
 		const messages: string[] = [];
 		const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 			trustedRoots,

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { createTrustedRootRegistry } from "../trusted-roots";
+import { createControllerSession } from "../controller-session";
 
 const mocks = vi.hoisted(() => ({
 	closeSession: vi.fn(),
@@ -14,7 +16,10 @@ vi.mock("../controller-session", () => ({
 		onMessage: mocks.onMessage,
 	})),
 }));
-vi.mock("../trusted-roots", () => ({ getDefaultTrustedRootRegistry: vi.fn(() => new Map()) }));
+vi.mock("../trusted-roots", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../trusted-roots")>()),
+	createTrustedRootRegistry: vi.fn(() => new Map()),
+}));
 vi.mock("@zerobyte/core/node", () => ({
 	logger: { info: vi.fn(), error: mocks.loggerError },
 }));
@@ -59,7 +64,7 @@ afterEach(() => {
 test("uses an authorization header and never places the enrollment token in the URL", async () => {
 	const { Agent } = await import("../index");
 	const token = "zba1.secret-material";
-	const agent = new Agent("ws://127.0.0.1:4096/api/v1/agents/connect", token);
+	const agent = new Agent({ controllerUrl: "ws://127.0.0.1:4096/api/v1/agents/connect", token: token, roots: [] });
 	agent.connect();
 
 	const socket = TestWebSocket.instances[0];
@@ -72,6 +77,34 @@ test("uses an authorization header and never places the enrollment token in the 
 	agent.stop();
 });
 
+test("passes configured roots into the session and reuses them when reconnecting", async () => {
+	const { Agent } = await import("../index");
+	const configuration = {
+		controllerUrl: "wss://controller.example",
+		token: "token",
+		roots: [{ id: "data", label: "Data", path: "/data", allowBackup: true }],
+		configPath: "/config/agent.json",
+	};
+	const roots = new Map();
+
+	vi.mocked(createTrustedRootRegistry).mockClear().mockReturnValueOnce(roots);
+
+	const agent = new Agent(configuration);
+
+	agent.connect();
+	TestWebSocket.instances[0]?.onclose?.();
+	await vi.advanceTimersByTimeAsync(1_000);
+
+	expect(createTrustedRootRegistry).toHaveBeenCalledOnce();
+	expect(createTrustedRootRegistry).toHaveBeenCalledWith({ roots: configuration.roots, builtinLocal: false });
+	expect(createControllerSession).toHaveBeenLastCalledWith(expect.any(TestWebSocket), {
+		trustedRoots: roots,
+		builtinLocal: false,
+		excludedPaths: [configuration.configPath],
+	});
+	agent.stop();
+});
+
 test.each([
 	"ws://remote.example/api/v1/agents/connect",
 	"http://remote.example/api/v1/agents/connect",
@@ -80,7 +113,7 @@ test.each([
 	"ws://[::2]/api/v1/agents/connect",
 ])("rejects insecure non-loopback controller URL %s before sending credentials", async (controllerUrl) => {
 	const { Agent } = await import("../index");
-	const agent = new Agent(controllerUrl, "secret-token");
+	const agent = new Agent({ controllerUrl: controllerUrl, token: "secret-token", roots: [] });
 
 	expect(() => agent.connect()).toThrow("require a wss:// controller URL");
 	expect(TestWebSocket.instances).toHaveLength(0);
@@ -93,7 +126,7 @@ test.each([
 	"wss://remote.example/api/v1/agents/connect",
 ])("allows secure or exact loopback controller URL %s without NODE_ENV", async (controllerUrl) => {
 	const { Agent } = await import("../index");
-	const agent = new Agent(controllerUrl, "token");
+	const agent = new Agent({ controllerUrl: controllerUrl, token: "token", roots: [] });
 
 	agent.connect();
 
@@ -103,7 +136,11 @@ test.each([
 
 test("reconnects with one exponential timer, resets after open, and stops cleanly", async () => {
 	const { Agent } = await import("../index");
-	const agent = new Agent("ws://127.0.0.1:4096/api/v1/agents/connect", "token");
+	const agent = new Agent({
+		controllerUrl: "ws://127.0.0.1:4096/api/v1/agents/connect",
+		token: "token",
+		roots: [],
+	});
 	agent.connect();
 	const first = TestWebSocket.instances[0];
 	first?.onclose?.();
@@ -130,7 +167,11 @@ test("reconnects with one exponential timer, resets after open, and stops cleanl
 
 test("ignores stale callbacks from a socket closed during an immediate restart", async () => {
 	const { Agent } = await import("../index");
-	const agent = new Agent("ws://127.0.0.1:4096/api/v1/agents/connect", "token");
+	const agent = new Agent({
+		controllerUrl: "ws://127.0.0.1:4096/api/v1/agents/connect",
+		token: "token",
+		roots: [],
+	});
 	agent.connect();
 	const first = TestWebSocket.instances[0];
 

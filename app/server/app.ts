@@ -18,6 +18,7 @@ import { notificationsController } from "./modules/notifications/notifications.c
 import { apiKeysController } from "./modules/api-keys/api-keys.controller";
 import { desktopController } from "./modules/desktop/desktop.controller";
 import { tasksController } from "./modules/tasks/tasks.controller";
+import { agentsController } from "./modules/agents/agents.controller";
 import { handleServiceError } from "./utils/errors";
 import { logger } from "@zerobyte/core/node";
 import { config } from "./core/config";
@@ -82,6 +83,7 @@ export const createApp = () => {
 		.route("/api/v1/tasks", tasksController)
 		.route("/api/v1/desktop", desktopController)
 		.route("/api/v1/events", eventsController);
+	app.route("/api/v1/agents", agentsController);
 
 	app.use("/api/auth/*", handleAuthCallbackErrors);
 	app.on(["POST", "GET"], "/api/auth/*", async (c) => {

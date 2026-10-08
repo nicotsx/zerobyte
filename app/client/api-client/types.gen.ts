@@ -6228,3 +6228,144 @@ export type CreateDesktopSessionResponses = {
      */
     200: unknown;
 };
+
+
+export type PostApiV1AgentsEnrollData = {
+    body: {
+        code: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents/enroll';
+};
+
+export type PostApiV1AgentsEnrollResponses = {
+    200: unknown;
+};
+
+export type ListAgentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents';
+};
+
+export type ListAgentsResponses = {
+    200: Array<{
+        id: string;
+        organizationId: string | null;
+        name: string;
+        kind: 'local' | 'remote';
+        status: 'offline' | 'connecting' | 'online' | 'degraded';
+        capabilities: {
+            [key: string]: unknown;
+        };
+        lastSeenAt: number | null;
+        lastReadyAt: number | null;
+        createdAt: number;
+        updatedAt: number;
+        revokedAt: number | null;
+        credentialVersion: number;
+    }>;
+};
+
+export type ListAgentsResponse = ListAgentsResponses[keyof ListAgentsResponses];
+
+export type CreateRemoteAgentData = {
+    body: {
+        name: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents';
+};
+
+export type CreateRemoteAgentResponses = {
+    201: {
+        agent: {
+            id: string;
+            organizationId: string | null;
+            name: string;
+            kind: 'local' | 'remote';
+            status: 'offline' | 'connecting' | 'online' | 'degraded';
+            capabilities: {
+                [key: string]: unknown;
+            };
+            lastSeenAt: number | null;
+            lastReadyAt: number | null;
+            createdAt: number;
+            updatedAt: number;
+            revokedAt: number | null;
+            credentialVersion: number;
+        };
+        controllerUrl: string;
+        token: string;
+        expiresAt: number;
+    };
+};
+
+export type CreateRemoteAgentResponse = CreateRemoteAgentResponses[keyof CreateRemoteAgentResponses];
+
+export type RotateRemoteAgentTokenData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agentId}/token/rotate';
+};
+
+export type RotateRemoteAgentTokenResponses = {
+    200: {
+        agent: {
+            id: string;
+            organizationId: string | null;
+            name: string;
+            kind: 'local' | 'remote';
+            status: 'offline' | 'connecting' | 'online' | 'degraded';
+            capabilities: {
+                [key: string]: unknown;
+            };
+            lastSeenAt: number | null;
+            lastReadyAt: number | null;
+            createdAt: number;
+            updatedAt: number;
+            revokedAt: number | null;
+            credentialVersion: number;
+        };
+        token: string;
+        expiresAt: number;
+    };
+};
+
+export type RotateRemoteAgentTokenResponse = RotateRemoteAgentTokenResponses[keyof RotateRemoteAgentTokenResponses];
+
+export type RevokeRemoteAgentTokenData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agentId}/token';
+};
+
+export type RevokeRemoteAgentTokenResponses = {
+    200: {
+        id: string;
+        organizationId: string | null;
+        name: string;
+        kind: 'local' | 'remote';
+        status: 'offline' | 'connecting' | 'online' | 'degraded';
+        capabilities: {
+            [key: string]: unknown;
+        };
+        lastSeenAt: number | null;
+        lastReadyAt: number | null;
+        createdAt: number;
+        updatedAt: number;
+        revokedAt: number | null;
+        credentialVersion: number;
+    };
+};
+
+export type RevokeRemoteAgentTokenResponse = RevokeRemoteAgentTokenResponses[keyof RevokeRemoteAgentTokenResponses];

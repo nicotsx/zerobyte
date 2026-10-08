@@ -1,6 +1,7 @@
 import { logger } from "@zerobyte/core/node";
 import { createControllerSession, type ControllerSession } from "./controller-session";
-import { getDefaultTrustedRootRegistry } from "./trusted-roots";
+import { createTrustedRootRegistry, type TrustedRootRegistry } from "./trusted-roots";
+import { configureAgent, type AgentConfiguration } from "./enrollment";
 
 const INITIAL_RECONNECT_DELAY_MS = 1_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
@@ -9,19 +10,21 @@ const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
 export class Agent {
 	private ws: WebSocket | null = null;
 	private controllerSession: ControllerSession | null = null;
+
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private reconnectDelayMs = INITIAL_RECONNECT_DELAY_MS;
 	private stopped = false;
 
-	constructor(
-		private readonly controllerUrl = process.env.ZEROBYTE_CONTROLLER_URL,
-		private readonly agentToken = process.env.ZEROBYTE_AGENT_TOKEN,
-	) {}
+	private trustedRoots: TrustedRootRegistry | null = null;
+
+	constructor(private readonly configuration: AgentConfiguration) {}
 
 	private scheduleReconnect() {
 		if (this.stopped || this.reconnectTimeout) return;
+
 		const jitterFactor = 0.8 + Math.random() * 0.4;
 		const delay = Math.round(this.reconnectDelayMs * jitterFactor);
+
 		this.reconnectDelayMs = Math.min(this.reconnectDelayMs * 2, MAX_RECONNECT_DELAY_MS);
 		this.reconnectTimeout = setTimeout(() => {
 			this.reconnectTimeout = null;
@@ -30,32 +33,49 @@ export class Agent {
 	}
 
 	private validateConfiguration() {
-		if (!this.controllerUrl) throw new Error("Env variable ZEROBYTE_CONTROLLER_URL is not set");
-		if (!this.agentToken) throw new Error("Env variable ZEROBYTE_AGENT_TOKEN is not set");
-		const url = new URL(this.controllerUrl);
+		if (!this.configuration.controllerUrl) {
+			throw new Error("Controller URL is missing. Enroll this machine or set ZEROBYTE_CONTROLLER_URL.");
+		}
+		if (!this.configuration.token) {
+			throw new Error("Agent token is missing. Enroll this machine or set ZEROBYTE_AGENT_TOKEN.");
+		}
+
+		const url = new URL(this.configuration.controllerUrl);
 		const loopback = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
 		const secureWebSocket = url.protocol === "wss:";
 		const loopbackWebSocket = loopback && url.protocol === "ws:";
+
 		if (!secureWebSocket && !loopbackWebSocket) {
 			throw new Error(
 				"Agent connections require a wss:// controller URL except for explicit loopback ws:// URLs",
 			);
 		}
+
 		return url;
 	}
 
 	connect() {
 		this.stopped = false;
 		const url = this.validateConfiguration();
-		getDefaultTrustedRootRegistry();
+		const builtinLocal = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
+
+		this.trustedRoots ??= createTrustedRootRegistry({ roots: this.configuration.roots, builtinLocal });
+
 		if (this.reconnectTimeout) {
 			clearTimeout(this.reconnectTimeout);
 			this.reconnectTimeout = null;
 		}
+
 		if (this.ws) return;
-		const authorization = `Bearer ${this.agentToken}`;
+
+		const authorization = `Bearer ${this.configuration.token}`;
 		const ws = new WebSocket(url.toString(), { headers: { authorization } });
-		const controllerSession = createControllerSession(ws);
+		const controllerSession = createControllerSession(ws, {
+			trustedRoots: this.trustedRoots,
+			builtinLocal,
+			excludedPaths: this.configuration.configPath ? [this.configuration.configPath] : [],
+		});
+
 		this.ws = ws;
 		this.controllerSession = controllerSession;
 		ws.onopen = () => {
@@ -93,7 +113,9 @@ export class Agent {
 }
 
 if (import.meta.main) {
-	const agent = new Agent();
+	const configuration = await configureAgent();
+
+	const agent = new Agent(configuration);
 	let shuttingDown = false;
 
 	const stop = () => {

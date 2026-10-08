@@ -21,11 +21,11 @@ const configuredRootSchema = z.object({
 	allowBackup: z.boolean().default(true),
 });
 
-const configuredRootsSchema = z
+export const configuredRootsSchema = z
 	.array(configuredRootSchema)
 	.max(MAX_AGENT_TRUSTED_ROOTS, `ZEROBYTE_AGENT_ROOTS must contain at most ${MAX_AGENT_TRUSTED_ROOTS} roots`);
 
-type ConfiguredRoot = z.infer<typeof configuredRootSchema>;
+export type ConfiguredRoot = z.infer<typeof configuredRootSchema>;
 
 type TrustedRoot = {
 	descriptor: TrustedRootDescriptor;
@@ -50,7 +50,7 @@ const expandHome = (configuredPath: string) => {
 	return configuredPath;
 };
 
-const parseConfiguredRoots = (rawValue: string): ConfiguredRoot[] => {
+export const parseConfiguredRoots = (rawValue: string): ConfiguredRoot[] => {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(rawValue);
@@ -115,10 +115,10 @@ const canonicalizeRoot = (root: ConfiguredRoot): TrustedRoot => {
 };
 
 export const createTrustedRootRegistry = (options?: {
-	rawRoots?: string;
+	roots?: ConfiguredRoot[];
 	builtinLocal?: boolean;
 }): TrustedRootRegistry => {
-	const configuredRoots = options?.rawRoots === undefined ? [] : parseConfiguredRoots(options.rawRoots);
+	const configuredRoots = [...(options?.roots ?? [])];
 	const builtinRootIds = new Set<string>();
 
 	if (options?.builtinLocal) {
@@ -215,19 +215,4 @@ export const resolveFilesystemSource = async (registry: TrustedRootRegistry, ref
 		canonicalPath,
 		containmentRootPath: root.canonicalPath,
 	};
-};
-
-let defaultRegistry: TrustedRootRegistry | null = null;
-
-export const getDefaultTrustedRootRegistry = () => {
-	if (!defaultRegistry) {
-		const builtinLocal = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
-
-		defaultRegistry = createTrustedRootRegistry({
-			rawRoots: process.env.ZEROBYTE_AGENT_ROOTS,
-			builtinLocal,
-		});
-	}
-
-	return defaultRegistry;
 };

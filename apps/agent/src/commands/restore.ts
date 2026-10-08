@@ -6,7 +6,6 @@ import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
 import type { ControllerCommandContext } from "../context";
-import { resticDeps } from "../restic/deps";
 
 const REPOSITORY_BASE = process.env.ZEROBYTE_REPOSITORIES_DIR || "/var/lib/zerobyte/repositories";
 const RESTIC_PASS_FILE = process.env.RESTIC_PASS_FILE || "/var/lib/zerobyte/data/restic.pass";
@@ -55,7 +54,7 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 				assertAllowedRestoreTarget(payload.target);
 
 				const runtime = yield* Effect.runtime<never>();
-				const restic = createRestic(resticDeps(payload.runtime.password));
+				const restic = createRestic(context.resticDeps(payload.runtime.password));
 
 				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
 

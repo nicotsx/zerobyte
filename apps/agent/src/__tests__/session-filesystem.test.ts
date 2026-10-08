@@ -20,7 +20,7 @@ test("the local session returns filesystem listing, browse and stats through the
 	await fs.writeFile(path.join(root, "photos", "picture.txt"), "hello");
 
 	const messages: string[] = [];
-	const trustedRoots = createTrustedRootRegistry({ rawRoots: "[]", builtinLocal: true });
+	const trustedRoots = createTrustedRootRegistry({ roots: [], builtinLocal: true });
 	const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 		trustedRoots,
 		builtinLocal: true,
@@ -136,7 +136,7 @@ test.each(["source resolution", "filesystem read"])(
 		);
 
 		const messages: string[] = [];
-		const trustedRoots = createTrustedRootRegistry({ rawRoots: "[]", builtinLocal: true });
+		const trustedRoots = createTrustedRootRegistry({ roots: [], builtinLocal: true });
 		const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 			trustedRoots,
 			builtinLocal: true,
@@ -241,7 +241,7 @@ test("a pending backup source resolution permits heartbeat and cancellation befo
 	const messages: string[] = [];
 	const root = os.tmpdir();
 	const trustedRoots = createTrustedRootRegistry({
-		rawRoots: JSON.stringify([{ id: "data", label: "Data", path: root }]),
+		roots: [{ id: "data", label: "Data", path: root, allowBackup: true }],
 	});
 	const canonicalRoot = trustedRoots.get("data")!.canonicalPath;
 	const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
