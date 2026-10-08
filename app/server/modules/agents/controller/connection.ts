@@ -16,6 +16,7 @@ import {
 } from "@zerobyte/contracts/agent-protocol";
 import { agentsService } from "../agents.service";
 import type { AgentIdentity } from "../helpers/tokens";
+import { serverHasRuntimeFeature } from "../../../lib/permission-service";
 
 const MAX_QUEUED_MESSAGES = 64;
 const MAX_QUEUED_BYTES = 1024 * 1024;
@@ -256,7 +257,9 @@ export const createAgentConnection = (
 
 	const isReady = () => closeReason === null && capabilities !== null;
 
-	const ownedBy = (organizationId: string) => data.agentKind === "local" || data.organizationId === organizationId;
+	const ownedBy = (organizationId: string) =>
+		data.agentKind === "local" ||
+		(serverHasRuntimeFeature("remoteAgents") && data.organizationId === organizationId);
 
 	return {
 		data,

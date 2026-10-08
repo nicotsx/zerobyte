@@ -24,6 +24,17 @@ test("unmounts saved local managed volumes after stopping their agent without ch
 		agentId: "remote-agent",
 		status: "mounted",
 	});
+	const remoteFilesystem = await createTestVolume({
+		name: "Shutdown remote filesystem",
+		agentId: "remote-agent",
+		sourceKind: "filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "photos",
+		relativePath: "",
+		autoRemount: false,
+		status: "mounted",
+	});
 
 	vi.spyOn(Scheduler, "stop").mockImplementation(async () => {
 		events.push("scheduler.stop");
@@ -45,6 +56,7 @@ test("unmounts saved local managed volumes after stopping their agent without ch
 	expect(events).toEqual(["scheduler.stop", "agents.stop", `volume.unmount:${localManaged.shortId}`]);
 	expect(unmountVolume).toHaveBeenCalledWith(localManaged.shortId, { persistStatus: false });
 	expect(unmountVolume).not.toHaveBeenCalledWith(remoteManaged.shortId, expect.anything());
+	expect(unmountVolume).not.toHaveBeenCalledWith(remoteFilesystem.shortId, expect.anything());
 
 	const updated = await db.query.volumesTable.findFirst({ where: { id: localManaged.id } });
 

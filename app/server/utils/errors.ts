@@ -50,8 +50,10 @@ export const toErrorDetails = (err: unknown): string => {
 	return sanitizeSensitiveData(getErrorDetails(err));
 };
 
-export const runEffectPromise = <A, E>(effect: Effect.Effect<A, E, never>) => {
-	return Effect.runPromiseExit(effect).then((exit) => {
+export const runEffectPromise = <A, E>(effect: Effect.Effect<A, E, never>, options?: { signal?: AbortSignal }) => {
+	return Effect.runPromiseExit(effect, options).then((exit) => {
+		options?.signal?.throwIfAborted();
+
 		if (Exit.isSuccess(exit)) {
 			return exit.value;
 		}

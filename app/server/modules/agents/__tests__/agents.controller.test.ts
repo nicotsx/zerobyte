@@ -1,5 +1,5 @@
 import { config } from "~/server/core/config";
-import { resolvePermissions } from "~/server/core/request-context";
+import { resolvePermissions, withContext } from "~/server/core/request-context";
 import { agentManager } from "../agents-manager";
 import { createAgentControllerListener } from "../controller/listener";
 import { deriveLocalAgentToken } from "../helpers/tokens";
@@ -17,6 +17,10 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { Effect } from "effect";
 import { getAgentRuntimeState } from "../helpers/runtime-state";
 import { validateRemoteAgentToken } from "../helpers/tokens";
+
+import { createTestVolume } from "~/test/helpers/volume";
+import { createTrustedFilesystemSource } from "../../volumes/__tests__/trusted-filesystem-source.fixture";
+import { volumeService } from "../../volumes/volume.service";
 
 const app = createApp();
 
@@ -246,6 +250,19 @@ describe("Remote-agent feature flag", () => {
 			{ path: `/api/v1/agents/${enrollment.agent.id}`, method: "DELETE" },
 			{ path: "/api/v1/agents/enroll", method: "POST", body: { code: enrollment.token } },
 			{ path: "/api/v1/agents/download", method: "GET" },
+			{ path: "/api/v1/volumes/source-machines", method: "GET" },
+			{ path: `/api/v1/volumes/filesystem/browse?agentId=${enrollment.agent.id}&rootId=photos`, method: "GET" },
+			{
+				path: "/api/v1/volumes",
+				method: "POST",
+				body: {
+					name: "Blocked source",
+					sourceKind: "filesystem",
+					agentId: enrollment.agent.id,
+					trustedRootId: "photos",
+					relativePath: "",
+				},
+			},
 		];
 
 		for (const request of requests) {
@@ -260,6 +277,31 @@ describe("Remote-agent feature flag", () => {
 		}
 
 		expect(await agentsService.getAgent(enrollment.agent.id)).toEqual(original);
+	});
+
+	test("disabled remote sources remain readable while local sources remain usable", async () => {
+		const session = await createTestSession();
+		const { volume } = await createTrustedFilesystemSource(session.organizationId);
+		const localVolume = await createTestVolume({ organizationId: session.organizationId });
+		config.flags.enableRemoteAgents = false;
+
+		await withContext({ organizationId: session.organizationId }, async () => {
+			const { volume: remote } = await volumeService.getVolume(volume.shortId);
+			expect(remote.trustedRootId).toBe(volume.trustedRootId);
+			expect(remote.relativePath).toBe(volume.relativePath);
+		});
+
+		const response = await app.request("/api/v1/volumes", { headers: session.headers });
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: volume.id,
+					sourceKind: "filesystem",
+				}),
+				expect.objectContaining({ id: localVolume.id, sourceKind: "managed" }),
+			]),
+		);
 	});
 
 	test("disabled remote dispatch refuses saved sources before attempting a connection", async () => {
@@ -280,10 +322,12 @@ describe("Remote-agent feature flag", () => {
 		});
 
 		await expect(
-			agentManager.runFilesystemCommand("remote-machine", "org", {
-				name: "filesystem.browse",
-				source: { rootId: "photos", relativePath: "" },
-			}),
+			Effect.runPromise(
+				agentManager.runFilesystemCommand("remote-machine", "org", {
+					name: "filesystem.browse",
+					source: { rootId: "photos", relativePath: "" },
+				}),
+			),
 		).rejects.toThrow("Failed to send filesystem command filesystem.browse to agent remote-machine");
 	});
 

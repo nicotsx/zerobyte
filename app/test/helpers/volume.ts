@@ -1,6 +1,7 @@
 import { db } from "~/server/db/db";
 import { faker } from "@faker-js/faker";
 import { volumesTable, type VolumeInsert } from "~/server/db/schema";
+import { readVolume } from "~/server/db/volume";
 import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { ensureTestOrganization, TEST_ORG_ID } from "./organization";
 import { generateShortId } from "~/server/utils/id";
@@ -23,6 +24,8 @@ export const createTestVolume = async (overrides: Partial<VolumeInsert> = {}) =>
 		...overrides,
 	};
 
-	const data = await db.insert(volumesTable).values(volume).returning();
-	return data[0];
+	const [created] = await db.insert(volumesTable).values(volume).returning();
+	if (!created) throw new Error("Failed to create test volume");
+
+	return readVolume(created);
 };

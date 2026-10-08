@@ -1,15 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/db";
 import { backupSchedulesTable } from "../../db/schema";
+import { readVolume } from "../../db/volume";
 
 type BackupStatusType = "in_progress" | "success" | "warning" | "error";
 
 export const scheduleQueries = {
 	findById: async (scheduleId: number, organizationId: string) => {
-		return db.query.backupSchedulesTable.findFirst({
+		const schedule = await db.query.backupSchedulesTable.findFirst({
 			where: { AND: [{ id: scheduleId }, { organizationId }] },
 			with: { volume: true, repository: true },
 		});
+		if (!schedule) return undefined;
+
+		return { ...schedule, volume: schedule.volume ? readVolume(schedule.volume) : null };
 	},
 
 	findExecutable: async (organizationId: string) => {

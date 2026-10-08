@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { index, int, integer, sqliteTable, text, real, primaryKey, unique, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+	check,
+	index,
+	int,
+	integer,
+	sqliteTable,
+	text,
+	real,
+	primaryKey,
+	unique,
+	uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import type {
 	CompressionMode,
 	RepositoryBackend,
@@ -10,10 +21,11 @@ import type {
 	ResticStatsDto,
 } from "@zerobyte/core/restic";
 import type { BackupWebhooks } from "@zerobyte/core/backup-hooks";
-import type { BackendConfig, BackendStatus, BackendType } from "@zerobyte/contracts/volumes";
+import type { Volume as ContractVolume, BackendConfig, BackendStatus, BackendType } from "@zerobyte/contracts/volumes";
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { TaskOutcome, TaskPersistenceFormatVersion } from "~/schemas/tasks";
 import type { ShortId } from "~/server/utils/branded";
+import type { AgentCapabilities } from "@zerobyte/contracts/agent-protocol";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
 
 type SessionAuthSource = "browser-session" | "desktop-session";
@@ -206,7 +218,8 @@ export const ssoProvider = sqliteTable("sso_provider", {
 
 export type AgentKind = "local" | "remote";
 export type AgentStatus = "offline" | "connecting" | "online" | "degraded";
-export type AgentCapabilities = Record<string, unknown>;
+export type { AgentCapabilities } from "@zerobyte/contracts/agent-protocol";
+export type VolumeSourceKind = "managed" | "filesystem";
 
 export const agentsTable = sqliteTable(
 	"agents_table",
@@ -249,7 +262,7 @@ export const volumesTable = sqliteTable(
 		shortId: text("short_id").$type<ShortId>().notNull().unique(),
 		provisioningId: text("provisioning_id"),
 		name: text().notNull(),
-		type: text().$type<BackendType>().notNull(),
+		type: text().$type<BackendType>(),
 		status: text().$type<BackendStatus>().notNull().default("unmounted"),
 		lastError: text("last_error"),
 		lastHealthCheck: integer("last_health_check", { mode: "number" })
@@ -262,9 +275,12 @@ export const volumesTable = sqliteTable(
 			.notNull()
 			.$onUpdate(() => Date.now())
 			.default(sql`(unixepoch() * 1000)`),
-		config: text("config", { mode: "json" }).$type<BackendConfig>().notNull(),
+		config: text("config", { mode: "json" }).$type<BackendConfig>(),
 		autoRemount: int("auto_remount", { mode: "boolean" }).notNull().default(true),
 		agentId: text("agent_id").notNull().default(LOCAL_AGENT_ID),
+		sourceKind: text("source_kind").$type<VolumeSourceKind>().notNull().default("managed"),
+		trustedRootId: text("trusted_root_id"),
+		relativePath: text("relative_path"),
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
@@ -272,10 +288,15 @@ export const volumesTable = sqliteTable(
 	(table) => [
 		unique().on(table.name, table.organizationId),
 		index("volumes_table_agent_id_idx").on(table.agentId),
+		check(
+			"volumes_table_source_fields_check",
+			sql`(${table.sourceKind} = 'managed' AND ${table.config} IS NOT NULL AND ${table.type} IS NOT NULL AND ${table.trustedRootId} IS NULL AND ${table.relativePath} IS NULL) OR (${table.sourceKind} = 'filesystem' AND ${table.config} IS NULL AND ${table.type} IS NULL AND ${table.trustedRootId} IS NOT NULL AND ${table.relativePath} IS NOT NULL)`,
+		),
 		uniqueIndex("volumes_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
 	],
 );
-export type Volume = typeof volumesTable.$inferSelect;
+export type VolumeRow = typeof volumesTable.$inferSelect;
+export type Volume = VolumeRow & ContractVolume;
 export type VolumeInsert = typeof volumesTable.$inferInsert;
 
 /**

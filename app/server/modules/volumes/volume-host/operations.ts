@@ -51,6 +51,9 @@ export const testVolumeConnection = (backendConfig: BackendConfig) =>
 				autoRemount: true,
 				agentId: "local",
 				organizationId: "test-org",
+				sourceKind: "managed",
+				trustedRootId: null,
+				relativePath: null,
 			};
 
 			const backend = createVolumeBackend(mockVolume, tempDir);

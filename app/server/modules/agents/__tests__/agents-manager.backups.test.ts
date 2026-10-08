@@ -64,11 +64,31 @@ test("runFilesystemCommand sends the command to the selected agent", async () =>
 		source: { rootId: "root", relativePath: "" },
 	});
 
-	await expect(agentManager.runFilesystemCommand("agent-1", "org-1", command)).resolves.toEqual({
+	await expect(Effect.runPromise(agentManager.runFilesystemCommand("agent-1", "org-1", command))).resolves.toEqual({
 		name: "filesystem.statfs",
 		result: { total: 1, used: 0, free: 1 },
 	});
 	expect(runFilesystemCommand).toHaveBeenCalledWith("agent-1", "org-1", command);
+});
+
+test("runFilesystemCommand rejects a response for a different operation", async () => {
+	setAgentController({
+		runFilesystemCommand: () =>
+			Effect.succeed({
+				commandId: "command-1",
+				status: "success",
+				command: { name: "filesystem.browse", result: { directories: [], path: "" } },
+			}),
+	});
+
+	await expect(
+		Effect.runPromise(
+			agentManager.runFilesystemCommand("agent-1", "org-1", {
+				name: "filesystem.statfs",
+				source: { rootId: "root", relativePath: "" },
+			}),
+		),
+	).rejects.toThrow("Unexpected agent response for filesystem.statfs");
 });
 
 test("runFilesystemCommand fails when the selected agent is unavailable", async () => {
@@ -79,7 +99,7 @@ test("runFilesystemCommand fails when the selected agent is unavailable", async 
 		source: { rootId: "root", relativePath: "" },
 	});
 
-	await expect(agentManager.runFilesystemCommand("agent-1", "org-1", command)).rejects.toThrow(
+	await expect(Effect.runPromise(agentManager.runFilesystemCommand("agent-1", "org-1", command))).rejects.toThrow(
 		"Failed to send filesystem command filesystem.statfs to agent agent-1",
 	);
 });

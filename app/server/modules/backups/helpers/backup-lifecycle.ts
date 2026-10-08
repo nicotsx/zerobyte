@@ -1,4 +1,4 @@
-import { NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, NotFoundError } from "http-errors-enhanced";
 import { logger } from "@zerobyte/core/node";
 import type { ResticBackupOutputDto } from "@zerobyte/core/restic";
 import type { BackupSchedule, Repository, Volume } from "../../../db/schema";
@@ -9,6 +9,8 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
 import { commands } from "../commands";
+import { getBackupSource } from "../backup-context";
+import { getBackupRepositoryCompatibility } from "@zerobyte/contracts/backup-context";
 
 export interface BackupContext {
 	schedule: BackupSchedule;
@@ -63,6 +65,15 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 			type: "failure",
 			error: new NotFoundError("Repository not found"),
 			partialContext: { schedule, volume },
+		};
+	}
+
+	const compatibility = getBackupRepositoryCompatibility(getBackupSource(volume), repository.type);
+	if (!compatibility.compatible) {
+		return {
+			type: "failure",
+			error: new BadRequestError(compatibility.reason),
+			partialContext: { schedule, volume, repository },
 		};
 	}
 
@@ -211,31 +222,31 @@ export async function handleBackupFailure(
 ) {
 	const errorMessage = toMessage(error);
 	const errorDetails = toErrorDetails(error);
-
+	const failedAt = Date.now();
+	const schedule = partialContext?.schedule;
+	const currentRetryCount = schedule?.failureRetryCount ?? 0;
+	const maxRetries = schedule?.maxRetries ?? 0;
+	const nextRetryBackupAt = schedule ? failedAt + schedule.retryDelay : null;
+	const nextScheduledBackupAt = schedule?.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
+	const hasRetryRemaining = currentRetryCount < maxRetries;
+	const retryPrecedesNextSchedule =
+		nextRetryBackupAt !== null && nextScheduledBackupAt !== null && nextRetryBackupAt < nextScheduledBackupAt;
+	const shouldRetry = !manual && hasRetryRemaining && retryPrecedesNextSchedule;
+	const nextBackupAt = shouldRetry ? nextRetryBackupAt : nextScheduledBackupAt;
+	const failureRetryCount = shouldRetry ? currentRetryCount + 1 : 0;
 	await scheduleQueries.updateStatus(scheduleId, organizationId, {
-		lastBackupAt: Date.now(),
+		lastBackupAt: failedAt,
 		lastBackupStatus: "error",
 		lastBackupError: errorDetails,
+		nextBackupAt: schedule && !manual ? nextBackupAt : undefined,
+		failureRetryCount: schedule ? failureRetryCount : undefined,
 	});
 
-	if (!partialContext?.schedule || !partialContext?.volume || !partialContext?.repository) {
+	if (!schedule || !partialContext?.volume || !partialContext?.repository) {
 		return;
 	}
 
-	// Determine if the backup should be retried
-	const schedule = partialContext.schedule;
-	const currentRetryCount = schedule.failureRetryCount;
-	const maxRetries = schedule.maxRetries;
-	const shouldRetry = currentRetryCount < maxRetries;
-	const nextRetryBackupAt = Date.now() + schedule.retryDelay;
-	const nextScheduledBackupAt = schedule.cronExpression ? calculateNextRun(schedule.cronExpression) : null;
-
-	if (!manual && shouldRetry && nextScheduledBackupAt && nextRetryBackupAt < nextScheduledBackupAt) {
-		await scheduleQueries.updateStatus(scheduleId, organizationId, {
-			nextBackupAt: nextRetryBackupAt,
-			failureRetryCount: currentRetryCount + 1,
-		});
-
+	if (shouldRetry) {
 		const delayMinutes = Math.round((schedule.retryDelay / (60 * 1000)) * 10) / 10;
 
 		logger.error(
@@ -257,10 +268,6 @@ export async function handleBackupFailure(
 
 		return;
 	}
-
-	await scheduleQueries.updateStatus(scheduleId, organizationId, {
-		failureRetryCount: 0,
-	});
 
 	const { volume, repository } = partialContext;
 

@@ -199,16 +199,15 @@ export type BackendStatus = keyof typeof BACKEND_STATUS;
 
 export const backendStatusSchema = z.enum(BACKEND_STATUS);
 
-export const volumeSchema = z.object({
+const volumeBaseSchema = z.object({
 	id: z.number(),
 	shortId: z.string(),
 	name: z.string(),
-	path: z.string().nullable().optional(),
-	config: volumeConfigSchema,
+	config: volumeConfigSchema.nullable(),
 	createdAt: z.number(),
 	updatedAt: z.number(),
 	lastHealthCheck: z.number(),
-	type: z.enum(BACKEND_TYPES),
+	type: z.enum(BACKEND_TYPES).nullable(),
 	status: backendStatusSchema,
 	lastError: z.string().nullable(),
 	provisioningId: z.string().nullable().optional(),
@@ -217,13 +216,46 @@ export const volumeSchema = z.object({
 	organizationId: z.string(),
 });
 
+export const managedVolumeSchema = volumeBaseSchema.extend({
+	sourceKind: z.literal("managed"),
+	config: volumeConfigSchema,
+	type: z.enum(BACKEND_TYPES),
+	trustedRootId: z.null(),
+	relativePath: z.null(),
+});
+
+export const filesystemVolumeSchema = volumeBaseSchema.extend({
+	sourceKind: z.literal("filesystem"),
+	config: z.null(),
+	type: z.null(),
+	trustedRootId: trustedRootIdSchema,
+	relativePath: z.string(),
+});
+
+export const volumeSchema = z.discriminatedUnion("sourceKind", [managedVolumeSchema, filesystemVolumeSchema]);
+
 export type Volume = z.infer<typeof volumeSchema>;
 
-export const publicVolumeSchema = volumeSchema.omit({
-	agentId: true,
-	organizationId: true,
-	path: true,
+export const sourceMachineStatusSchema = z.enum(["offline", "connecting", "online", "degraded"]);
+
+export const sourceMachineSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	status: sourceMachineStatusSchema,
+	lastSeenAt: z.number().nullable(),
+	revokedAt: z.number().nullable(),
+	trustedRoots: z.array(trustedRootDescriptorSchema),
 });
+
+export type SourceMachine = z.infer<typeof sourceMachineSchema>;
+
+const publicManagedVolumeSchema = managedVolumeSchema.omit({ organizationId: true });
+const publicFilesystemVolumeSchema = filesystemVolumeSchema.omit({ organizationId: true });
+
+export const publicVolumeSchema = z.discriminatedUnion("sourceKind", [
+	publicManagedVolumeSchema,
+	publicFilesystemVolumeSchema,
+]);
 
 export type PublicVolume = z.infer<typeof publicVolumeSchema>;
 

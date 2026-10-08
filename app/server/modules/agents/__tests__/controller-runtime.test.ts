@@ -544,6 +544,30 @@ describe("Dispatch", () => {
 		credentialVersion: 1,
 	} satisfies AgentConnectionData;
 
+	test("disabling remote agents blocks dispatch on an existing connection", async () => {
+		mockServe();
+		const { controller } = await startController();
+		const { config } = await import("../../../core/config");
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+		const enabled = config.flags.enableRemoteAgents;
+
+		try {
+			await connect(controller, socket, remoteData);
+			await markReady(controller, socket);
+			config.flags.enableRemoteAgents = false;
+
+			await expect(run(controller.sendBackup(remoteData.agentId, backupPayload))).resolves.toBe(false);
+			await expect(
+				run(controller.runFilesystemCommand(remoteData.agentId, "org-1", statfsCommand)),
+			).resolves.toBeNull();
+			expect(sentFilesystemCommands(socket)).toEqual([]);
+			expect(sentMessages(socket).some((message) => message.type === "backup.run")).toBe(false);
+		} finally {
+			config.flags.enableRemoteAgents = enabled;
+			await run(controller.stop);
+		}
+	});
+
 	test("dispatches filesystem commands for advertised remote roots", async () => {
 		mockServe();
 

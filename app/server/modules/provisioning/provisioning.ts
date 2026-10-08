@@ -11,11 +11,16 @@ import { logger } from "@zerobyte/core/node";
 import { z } from "zod";
 import { restic } from "~/server/core/restic";
 import { db } from "~/server/db/db";
-import { repositoriesTable, volumesTable } from "~/server/db/schema";
+import { repositoriesTable, volumesTable, type VolumeInsert } from "~/server/db/schema";
 import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
-import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
+import {
+	BACKEND_TYPES,
+	trustedSourceInputSchema,
+	volumeConfigSchema,
+	type BackendConfig,
+} from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
@@ -35,7 +40,7 @@ const provisionedRepositorySchema = z.object({
 });
 type ProvisionedRepository = z.infer<typeof provisionedRepositorySchema>;
 
-const provisionedVolumeSchema = z.object({
+const provisionedManagedVolumeSchema = z.object({
 	id: z.string().min(1),
 	organizationId: z.string().min(1),
 	name: z.string().min(1),
@@ -43,7 +48,15 @@ const provisionedVolumeSchema = z.object({
 	config: volumeConfigSchema,
 	delete: z.boolean().default(false),
 	backend: z.enum(BACKEND_TYPES),
+	sourceKind: z.literal("managed").optional(),
 });
+const provisionedTrustedVolumeSchema = trustedSourceInputSchema.extend({
+	id: z.string().min(1),
+	organizationId: z.string().min(1),
+	name: z.string().min(1),
+	delete: z.boolean().default(false),
+});
+const provisionedVolumeSchema = z.union([provisionedManagedVolumeSchema, provisionedTrustedVolumeSchema]);
 type ProvisionedVolume = z.infer<typeof provisionedVolumeSchema>;
 
 export const provisionedResourcesSchema = z
@@ -225,33 +238,43 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 		}
 
 		const existing = existingVolumes.find((v) => v.provisioningId === provisioningId);
-
-		if (!existing) {
-			await db.insert(volumesTable).values({
-				shortId: generateShortId(),
-				provisioningId: provisioningId,
-				name: volume.name,
-				type: volume.backend,
-				config: await encryptProvisionedVolumeConfig(volume.config),
-				autoRemount: volume.autoRemount,
-				agentId: LOCAL_AGENT_ID,
-				status: volume.autoRemount ? "mounted" : "unmounted",
-				organizationId: volume.organizationId,
-			});
-			continue;
-		}
-
-		const updatePayload = {
+		const values: Omit<VolumeInsert, "shortId"> = {
 			name: volume.name,
-			type: volume.backend,
-			config: await encryptProvisionedVolumeConfig(volume.config),
-			autoRemount: volume.autoRemount,
-			agentId: LOCAL_AGENT_ID,
 			organizationId: volume.organizationId,
 			updatedAt: Date.now(),
+			...(volume.sourceKind === "filesystem"
+				? {
+						sourceKind: "filesystem",
+						type: null,
+						config: null,
+						autoRemount: false,
+						agentId: volume.agentId,
+						trustedRootId: volume.trustedRootId,
+						relativePath: volume.relativePath,
+						status: "mounted",
+					}
+				: {
+						sourceKind: "managed",
+						type: volume.backend,
+						config: await encryptProvisionedVolumeConfig(volume.config),
+						autoRemount: volume.autoRemount,
+						agentId: LOCAL_AGENT_ID,
+						trustedRootId: null,
+						relativePath: null,
+						status:
+							existing?.sourceKind === "managed"
+								? existing.status
+								: volume.autoRemount
+									? "mounted"
+									: "unmounted",
+					}),
 		};
 
-		await db.update(volumesTable).set(updatePayload).where(eq(volumesTable.id, existing.id));
+		if (existing) {
+			await db.update(volumesTable).set(values).where(eq(volumesTable.id, existing.id));
+		} else {
+			await db.insert(volumesTable).values({ ...values, shortId: generateShortId(), provisioningId });
+		}
 	}
 };
 

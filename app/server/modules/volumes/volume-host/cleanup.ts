@@ -30,7 +30,7 @@ const resolveSavedPath = async (savedPath: string): Promise<string> => {
 };
 
 const hasSavedSource = async (fullPath: string) => {
-	const volumes = await db.query.volumesTable.findMany({ where: { agentId: LOCAL_AGENT_ID } });
+	const volumes = await db.query.volumesTable.findMany({ where: { agentId: LOCAL_AGENT_ID, sourceKind: "managed" } });
 	const savedPaths = volumes.map((volume) => getVolumePath(volume));
 
 	if (

@@ -15,6 +15,8 @@ import { createTestVolume } from "~/test/helpers/volume";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import { backupSchedulesTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import { fromPartial } from "@total-typescript/shoehorn";
+import type { BackendConfig } from "@zerobyte/contracts/volumes";
 
 const loadStartupModule = async () => {
 	const moduleUrl = new URL("../startup.ts", import.meta.url);
@@ -38,6 +40,29 @@ beforeEach(async () => {
 afterEach(() => {
 	vi.useRealTimers();
 	vi.restoreAllMocks();
+});
+
+test("applies current config defaults to stored managed volumes during startup", async () => {
+	vi.mocked(volumeService.updateVolume).mockRestore();
+	const volume = await createTestVolume({
+		type: "smb",
+		status: "unmounted",
+		autoRemount: false,
+		config: fromPartial<BackendConfig>({ backend: "smb", server: "nas.example", share: "archive" }),
+	});
+	const { prepareStartup: startup } = await loadStartupModule();
+
+	await startup();
+
+	const updated = await db.query.volumesTable.findFirst({ where: { id: volume.id } });
+	expect(updated?.config).toEqual({
+		backend: "smb",
+		server: "nas.example",
+		share: "archive",
+		port: 445,
+		vers: "auto",
+		mapToContainerUidGid: false,
+	});
 });
 
 test("marks active scheduled backup tasks stale and makes them executable again", async () => {
@@ -382,6 +407,27 @@ test("remounts saved local managed volumes without retrying other source states"
 		agentId: "remote-agent",
 		status: "mounted",
 	});
+	const remoteFilesystem = await createTestVolume({
+		name: "Startup remote filesystem",
+		agentId: "remote-agent",
+		sourceKind: "filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "photos",
+		relativePath: "",
+		autoRemount: false,
+		status: "mounted",
+	});
+	const localFilesystem = await createTestVolume({
+		name: "Startup local filesystem",
+		sourceKind: "filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "photos",
+		relativePath: "",
+		autoRemount: false,
+		status: "mounted",
+	});
 	const mountVolume = vi.mocked(volumeService.mountVolume);
 	mountVolume.mockRejectedValueOnce(new Error("mount failed"));
 
@@ -395,6 +441,8 @@ test("remounts saved local managed volumes without retrying other source states"
 	expect(mountVolume).not.toHaveBeenCalledWith(nonRetryableError.shortId);
 	expect(mountVolume).not.toHaveBeenCalledWith(unmounted.shortId);
 	expect(mountVolume).not.toHaveBeenCalledWith(remoteManaged.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(remoteFilesystem.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(localFilesystem.shortId);
 });
 
 test.each(["mounted", "unmounted", "error"] as const)(

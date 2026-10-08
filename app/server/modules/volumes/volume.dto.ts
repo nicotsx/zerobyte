@@ -6,13 +6,13 @@ import {
 	publicVolumeSchema,
 	statfsSchema,
 	testVolumeConnectionResponseSchema,
+	sourceMachineSchema,
 	volumeConfigSchema,
 	volumeOperationResultSchema,
+	trustedSourceInputSchema,
 } from "@zerobyte/contracts/volumes";
 
-const volumeSchema = publicVolumeSchema;
-
-const listVolumesResponse = volumeSchema.array();
+const listVolumesResponse = publicVolumeSchema.array();
 export type ListVolumesDto = z.infer<typeof listVolumesResponse>;
 
 export const listVolumesDto = describeRoute({
@@ -31,12 +31,32 @@ export const listVolumesDto = describeRoute({
 	},
 });
 
-export const createVolumeBody = z.object({
-	name: z.string(),
-	config: volumeConfigSchema,
+const listSourceMachinesResponse = z.array(sourceMachineSchema);
+export type ListSourceMachinesDto = z.infer<typeof listSourceMachinesResponse>;
+
+export const listSourceMachinesDto = describeRoute({
+	description: "List organization-scoped machines and trusted roots available for filesystem sources",
+	tags: ["Volumes"],
+	operationId: "listSourceMachines",
+	responses: {
+		200: {
+			description: "Source machines",
+			content: { "application/json": { schema: resolver(listSourceMachinesResponse) } },
+		},
+	},
 });
 
-const createVolumeResponse = volumeSchema;
+export const createVolumeBody = z.discriminatedUnion("sourceKind", [
+	z.strictObject({
+		sourceKind: z.literal("managed"),
+		name: z.string(),
+		config: volumeConfigSchema,
+	}),
+	trustedSourceInputSchema.extend({ name: z.string() }).strict(),
+]);
+export type CreateVolumeBody = z.infer<typeof createVolumeBody>;
+
+const createVolumeResponse = publicVolumeSchema;
 export type CreateVolumeDto = z.infer<typeof createVolumeResponse>;
 
 export const createVolumeDto = describeRoute({
@@ -76,7 +96,7 @@ export const deleteVolumeDto = describeRoute({
 });
 
 const getVolumeResponse = z.object({
-	volume: volumeSchema,
+	volume: publicVolumeSchema,
 	statfs: statfsSchema,
 });
 
@@ -101,15 +121,18 @@ export const getVolumeDto = describeRoute({
 	},
 });
 
-export const updateVolumeBody = z.object({
+export const updateVolumeBody = z.strictObject({
 	name: z.string().optional(),
 	autoRemount: z.boolean().optional(),
 	config: volumeConfigSchema.optional(),
+	agentId: trustedSourceInputSchema.shape.agentId.optional(),
+	trustedRootId: trustedSourceInputSchema.shape.trustedRootId.optional(),
+	relativePath: z.string().optional(),
 });
 
 export type UpdateVolumeBody = z.infer<typeof updateVolumeBody>;
 
-const updateVolumeResponse = volumeSchema;
+const updateVolumeResponse = publicVolumeSchema;
 export type UpdateVolumeDto = z.infer<typeof updateVolumeResponse>;
 
 export const updateVolumeDto = describeRoute({
@@ -245,12 +268,26 @@ export const browseFilesystemDto = describeRoute({
 	parameters: [
 		{
 			in: "query",
+			name: "agentId",
+			required: false,
+			schema: { type: "string" },
+			description: "Agent that owns the trusted root (defaults to the built-in local agent)",
+		},
+		{
+			in: "query",
+			name: "rootId",
+			required: false,
+			schema: { type: "string" },
+			description: "Stable trusted root ID (defaults to the built-in compatibility root)",
+		},
+		{
+			in: "query",
 			name: "path",
 			required: false,
 			schema: {
 				type: "string",
 			},
-			description: "Directory path to browse (absolute path, defaults to /)",
+			description: "Path relative to the trusted root (defaults to /)",
 		},
 	],
 	responses: {

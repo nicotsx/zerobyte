@@ -121,6 +121,7 @@ const notificationConfigs = {
 
 const createVariantCoveragePayload = (): ConfigTransferModel => ({
 	resticPassword: "restic-password",
+	machines: [],
 	repositories: Object.entries(repositoryConfigs).map(([backend, config]) => ({
 		ref: `repository:${backend}`,
 		name: `${backend} repository`,
@@ -131,6 +132,8 @@ const createVariantCoveragePayload = (): ConfigTransferModel => ({
 	volumes: Object.entries(volumeConfigs).map(([backend, config]) => ({
 		ref: `volume:${backend}`,
 		name: `${backend} volume`,
+		sourceKind: "managed",
+		machineRef: null,
 		config,
 		autoRemount: true,
 	})),
@@ -153,7 +156,12 @@ describe("config transfer payload graph", () => {
 	test("decodes the historical v1 fixture into the current import model", async () => {
 		const fixture = await loadPayload();
 
-		expect(parseConfigTransferPayload(fixture)).toMatchSnapshot();
+		expect(decodeConfigTransferPayloadV1(configTransferPayloadV1Schema.parse(fixture))).toMatchSnapshot();
+		expect(parseConfigTransferPayload(fixture)).toEqual({
+			...decodeConfigTransferPayloadV1(configTransferPayloadV1Schema.parse(fixture)),
+			machines: [],
+			volumes: fixture.volumes.map((volume: object) => ({ ...volume, sourceKind: "managed", machineRef: null })),
+		});
 	});
 
 	test("directs newer-format imports to update before validating their unknown shape", () => {
@@ -176,11 +184,20 @@ describe("config transfer payload graph", () => {
 		expect(encoded.repositories.map(({ config }) => config.backend).sort()).toEqual(
 			Object.keys(repositoryConfigs).sort(),
 		);
-		expect(encoded.volumes.map(({ config }) => config.backend).sort()).toEqual(Object.keys(volumeConfigs).sort());
+		expect(
+			encoded.volumes
+				.filter((volume) => volume.sourceKind === "managed")
+				.map(({ config }) => config.backend)
+				.sort(),
+		).toEqual(Object.keys(volumeConfigs).sort());
 		expect(encoded.notificationDestinations.map(({ config }) => config.type).sort()).toEqual(
 			Object.keys(notificationConfigs).sort(),
 		);
-		expect(encoded.volumes.find(({ config }) => config.backend === "sftp")?.config).toMatchObject({
+		expect(
+			encoded.volumes
+				.filter((volume) => volume.sourceKind === "managed")
+				.find(({ config }) => config.backend === "sftp")?.config,
+		).toMatchObject({
 			allowUnsafeSymlinkTargets: true,
 		});
 	});

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import * as nodeRuntime from "@zerobyte/core/node";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
+import { validateBackupExecution } from "../helpers/backup-lifecycle";
 import { backupExecutor } from "../backup-executor";
 import { agentManager } from "../../agents/agents-manager";
 import { createTestSession } from "~/test/helpers/auth";
@@ -20,20 +21,19 @@ vi.mock("node:os", async (original) => ({ ...(await original<typeof os>()) }));
 vi.mock("@zerobyte/core/node", async (original) => ({ ...(await original<typeof nodeRuntime>()) }));
 afterEach(() => vi.restoreAllMocks());
 
-test("rejects non-local volumes before controller filesystem preparation or dispatch", async () => {
+test("rejects incompatible local repositories before controller filesystem preparation or dispatch", async () => {
 	const { organizationId } = await createTestSession();
-	const volume = await createTestVolume({ organizationId, agentId: "remote-agent", status: "error" });
-	const repository = await createTestRepository({
+	const volume = await createTestVolume({
 		organizationId,
-		type: "s3",
-		config: {
-			backend: "s3",
-			endpoint: "https://storage.example.test",
-			bucket: "backups",
-			accessKeyId: "test-access-key",
-			secretAccessKey: "test-secret-key",
-		},
+		agentId: "remote-agent",
+		status: "error",
+		sourceKind: "filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "root-1",
+		relativePath: "source",
 	});
+	const repository = await createTestRepository({ organizationId });
 	const schedule = await createTestBackupSchedule({
 		organizationId,
 		volumeId: volume.id,
@@ -42,20 +42,12 @@ test("rejects non-local volumes before controller filesystem preparation or disp
 	const stat = vi.spyOn(fs, "stat");
 	const dispatch = vi.spyOn(agentManager, "runBackup");
 
-	await expect(
-		withContext({ organizationId }, () =>
-			backupExecutor.execute({
-				jobId: "unsupported-agent",
-				scheduleId: schedule.id,
-				schedule,
-				volume,
-				repository,
-				organizationId,
-				signal: new AbortController().signal,
-				onProgress: () => {},
-			}),
-		),
-	).rejects.toThrow("Backups can only run on the local agent");
+	const result = await withContext({ organizationId }, () => validateBackupExecution(schedule.id, true));
+
+	expect(result).toMatchObject({
+		type: "failure",
+		error: { message: "Local repositories are only available to sources on this server." },
+	});
 
 	expect(stat).not.toHaveBeenCalled();
 	expect(dispatch).not.toHaveBeenCalled();

@@ -63,6 +63,7 @@ describe("configuration export", () => {
 
 		expect({ ...payload, repositories }).toEqual({
 			resticPassword: "test-restic-password",
+			machines: [],
 			repositories: [
 				{
 					ref: mirrorRepositoryRef,
@@ -101,6 +102,8 @@ describe("configuration export", () => {
 			volumes: [
 				{
 					ref: volumeRef,
+					sourceKind: "managed",
+					machineRef: null,
 					name: "Parity Volume",
 					config: {
 						backend: "sftp",

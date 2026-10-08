@@ -24,7 +24,6 @@ import { db } from "~/server/db/db";
 import { backupSchedulesTable, backupScheduleNotificationsTable } from "~/server/db/schema";
 import { notificationsService } from "~/server/modules/notifications/notifications.service";
 import * as shoutrrr from "~/server/utils/shoutrrr";
-import { NotFoundError } from "http-errors-enhanced";
 
 const subscribeToMirrorFailures = async (scheduleId: number) => {
 	const destination = await notificationsService.createDestination("Mirror failures", {
@@ -65,20 +64,9 @@ const setup = () => {
 	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
 	vi.spyOn(agentManager, "runBackup").mockImplementation(runBackupMock);
 	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
-	vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async (shortId) => {
-		const volume = await db.query.volumesTable.findFirst({
-			where: {
-				AND: [{ shortId: { eq: shortId } }, { organizationId: TEST_ORG_ID }],
-			},
-		});
-
-		if (!volume) {
-			throw new NotFoundError("Volume not found");
-		}
-
+	vi.spyOn(volumeService, "ensureHealthyVolume").mockImplementation(async () => {
 		return {
 			ready: true as const,
-			volume,
 			remounted: false,
 		};
 	});

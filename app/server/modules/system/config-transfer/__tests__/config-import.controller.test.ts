@@ -163,8 +163,8 @@ describe("configuration import", () => {
 		});
 		expect(storedRepository?.config.customPassword).toMatch(/^encv1:/);
 		expect(storedRepository?.config.backend === "s3" && storedRepository.config.secretAccessKey).toMatch(/^encv1:/);
-		expect(storedVolume?.config.backend === "sftp" && storedVolume.config.password).toMatch(/^encv1:/);
-		expect(storedVolume?.config.backend === "sftp" && storedVolume.config.privateKey).toMatch(/^encv1:/);
+		expect(storedVolume?.config?.backend === "sftp" && storedVolume.config.password).toMatch(/^encv1:/);
+		expect(storedVolume?.config?.backend === "sftp" && storedVolume.config.privateKey).toMatch(/^encv1:/);
 		expect(storedSchedule?.shortId).toBe(sourceSchedule.shortId);
 		expect(storedDestination?.config.type === "slack" && storedDestination.config.webhookUrl).toMatch(/^encv1:/);
 	});

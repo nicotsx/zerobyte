@@ -551,6 +551,7 @@ export type ListVolumesResponse = ListVolumesResponses[keyof ListVolumesResponse
 
 export type CreateVolumeData = {
     body: {
+        sourceKind: 'managed';
         name: string;
         config: {
             backend: 'nfs';
@@ -603,6 +604,12 @@ export type CreateVolumeData = {
             allowLegacySshRsa?: boolean;
             allowUnsafeSymlinkTargets?: boolean;
         };
+    } | {
+        sourceKind: 'filesystem';
+        agentId: string;
+        trustedRootId: string;
+        relativePath?: string;
+        name: string;
     };
     path?: never;
     query?: never;
@@ -922,6 +929,9 @@ export type UpdateVolumeData = {
             allowLegacySshRsa?: boolean;
             allowUnsafeSymlinkTargets?: boolean;
         };
+        agentId?: string;
+        trustedRootId?: string;
+        relativePath?: string;
     };
     path: {
         shortId: string;

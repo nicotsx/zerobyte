@@ -5,7 +5,7 @@ import type {
 	FilesystemCommand,
 	FilesystemCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
-import { Cause, Deferred, Effect, Exit, Fiber, Option } from "effect";
+import { Cause, Data, Deferred, Effect, Exit, Fiber, Option } from "effect";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { createAgentController, type AgentController, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
@@ -368,20 +368,40 @@ export const stopAgentController = () => {
 	);
 };
 
-async function runAgentFilesystemCommand(
+export class AgentUnavailable extends Data.TaggedError("AgentUnavailable")<{ message: string }> {}
+export class AgentCommandFailed extends Data.TaggedError("AgentCommandFailed")<{ message: string }> {}
+
+const isFilesystemCommandResult = <TName extends FilesystemCommand["name"]>(
+	result: FilesystemCommandResult,
+	name: TName,
+): result is Extract<FilesystemCommandResult, { name: TName }> => result.name === name;
+
+const runAgentFilesystemCommand = <TCommand extends FilesystemCommand>(
 	agentId: string,
 	organizationId: string,
-	command: FilesystemCommand,
-): Promise<FilesystemCommandResult> {
-	const response = await runEffectPromise(
-		getAgentController().runFilesystemCommand(agentId, organizationId, command),
-	);
+	command: TCommand,
+) =>
+	Effect.gen(function* () {
+		const response = yield* getAgentController()
+			.runFilesystemCommand(agentId, organizationId, command)
+			.pipe(Effect.mapError((error) => new AgentCommandFailed({ message: toMessage(error) })));
 
-	if (!response) throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
-	if (response.status === "error") throw new Error(response.error);
+		if (!response) {
+			return yield* Effect.fail(
+				new AgentUnavailable({
+					message: `Failed to send filesystem command ${command.name} to agent ${agentId}`,
+				}),
+			);
+		}
+		if (response.status === "error") return yield* Effect.fail(new AgentCommandFailed({ message: response.error }));
+		if (!isFilesystemCommandResult<TCommand["name"]>(response.command, command.name)) {
+			return yield* Effect.fail(
+				new AgentCommandFailed({ message: `Unexpected agent response for ${command.name}` }),
+			);
+		}
 
-	return response.command;
-}
+		return response.command;
+	});
 
 export const agentManager = {
 	isAgentReady: (agentId: string) => getAgentController().isReady(agentId),

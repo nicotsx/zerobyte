@@ -1,6 +1,7 @@
 import { Job } from "../core/scheduler";
 import { volumeService } from "../modules/volumes/volume.service";
 import { logger } from "@zerobyte/core/node";
+import { readVolume } from "../db/volume";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
 
@@ -17,7 +18,7 @@ export class VolumeHealthCheckJob extends Job {
 		for (const volume of volumes) {
 			try {
 				await withContext({ organizationId: volume.organizationId }, async () => {
-					await volumeService.ensureHealthyVolume(volume.shortId);
+					await volumeService.ensureHealthyVolume(readVolume(volume));
 				});
 			} catch (error) {
 				logger.error(`Health check failed for volume ${volume.name}:`, error);

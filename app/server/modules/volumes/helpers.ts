@@ -7,10 +7,9 @@ import {
 	type Volume,
 } from "@zerobyte/contracts/volumes";
 
-export const getVolumePath = (volume: Volume) => {
-	if (volume.config.backend === "directory") {
-		return volume.config.path;
-	}
+export const getVolumePath = (volume: Pick<Volume, "config" | "shortId">) => {
+	if (!volume.config) throw new Error("Filesystem sources have no controller path");
+	if (volume.config.backend === "directory") return volume.config.path;
 
 	return `${VOLUME_MOUNT_BASE}/${volume.shortId}/_data`;
 };
