@@ -7,6 +7,7 @@ export type RuntimeFeature =
 	| "ssoManagement"
 	| "remoteVolumeBackends"
 	| "apiKeys"
+	| "remoteAgents"
 	| "passwordAuthentication";
 
 export const RUNTIME_FEATURES = {
@@ -17,6 +18,7 @@ export const RUNTIME_FEATURES = {
 		remoteVolumeBackends: true,
 		apiKeys: true,
 		passwordAuthentication: true,
+		remoteAgents: true,
 	},
 	desktop: {
 		instanceAdministration: false,
@@ -25,6 +27,7 @@ export const RUNTIME_FEATURES = {
 		remoteVolumeBackends: false,
 		apiKeys: false,
 		passwordAuthentication: false,
+		remoteAgents: false,
 	},
 } as const satisfies Record<Runtime, Record<RuntimeFeature, boolean>>;
 
@@ -78,6 +81,11 @@ const PERMISSIONS = {
 		orgRoles: ["owner", "admin"],
 		authSources: ["browser-session", "desktop-session"],
 	},
+	"agents.manage": {
+		feature: "remoteAgents",
+		orgRoles: ["owner", "admin"],
+		authSources: ["browser-session"],
+	},
 } as const satisfies Record<string, PermissionPolicy>;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -92,6 +100,7 @@ export type PermissionContext = {
 
 export type PermissionPolicyContext = PermissionContext & {
 	runtime: Runtime;
+	features?: Partial<Record<RuntimeFeature, boolean>>;
 };
 
 export type PermissionDenyReason = "runtime" | "authSource" | "instanceRole" | "orgRole";
@@ -109,7 +118,10 @@ const includesValue = (values: readonly string[] | undefined, value: string | nu
 export function evaluatePermission(permission: Permission, context: PermissionPolicyContext): PermissionResult {
 	const policy: PermissionPolicy = PERMISSIONS[permission];
 
-	if (policy.feature && !hasRuntimeFeature(context.runtime, policy.feature)) {
+	if (
+		policy.feature &&
+		(!hasRuntimeFeature(context.runtime, policy.feature) || context.features?.[policy.feature] === false)
+	) {
 		return { allowed: false, reason: "runtime" };
 	}
 

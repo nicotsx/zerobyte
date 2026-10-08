@@ -217,6 +217,10 @@ export const agentsTable = sqliteTable(
 		kind: text("kind").$type<AgentKind>().notNull(),
 		status: text("status").$type<AgentStatus>().notNull().default("offline"),
 		capabilities: text("capabilities", { mode: "json" }).$type<AgentCapabilities>().notNull().default({}),
+		credentialHash: text("credential_hash"),
+		enrollmentExpiresAt: int("enrollment_expires_at", { mode: "number" }),
+		credentialVersion: int("credential_version", { mode: "number" }).notNull().default(0),
+		revokedAt: int("revoked_at", { mode: "number" }),
 		lastSeenAt: int("last_seen_at", { mode: "number" }),
 		lastReadyAt: int("last_ready_at", { mode: "number" }),
 		createdAt: int("created_at", { mode: "number" })

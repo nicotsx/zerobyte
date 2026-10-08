@@ -6,13 +6,12 @@ import type {
 	FilesystemCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
 import { Cause, Deferred, Effect, Exit, Fiber, Option } from "effect";
-import { config } from "../../core/config";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { createAgentManagerRuntime, type AgentManagerEvent, type AgentManagerRuntime } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
+import { assertRemoteAgentsEnabled, isRemoteAgentsEnabled, REMOTE_AGENTS_UNAVAILABLE } from "./remote-agents-feature";
 import { spawnLocalAgentProcess, stopLocalAgentProcess, waitForLocalAgentExit } from "./local/process";
 import {
-	createAgentRuntimeState,
 	type AgentRuntimeState,
 	type BackupExecutionProgress,
 	type BackupExecutionResult,
@@ -27,10 +26,6 @@ export type {
 	RestoreExecutionResult,
 } from "./helpers/runtime-state";
 export type { ProcessWithAgentRuntime } from "./helpers/runtime-state.dev";
-
-type ProcessWithProductionAgentRuntime = NodeJS.Process & {
-	__zerobyteProductionAgentRuntime?: AgentRuntimeState;
-};
 
 type AgentRunBackupRequest = {
 	scheduleId: number;
@@ -49,19 +44,8 @@ type AgentRestoreStartResult =
 	| { status: "started"; result: Promise<RestoreExecutionResult> }
 	| { status: "unavailable"; error: Error };
 
-const getProductionAgentRuntimeState = () => {
-	// Nitro production builds can bundle startup plugins and API handlers into separate chunks.
-	// Keep the live controller on process so both chunks see the same agent sessions.
-	const runtimeProcess = process as ProcessWithProductionAgentRuntime;
-	if (!runtimeProcess.__zerobyteProductionAgentRuntime) {
-		runtimeProcess.__zerobyteProductionAgentRuntime = createAgentRuntimeState();
-	}
-
-	return runtimeProcess.__zerobyteProductionAgentRuntime;
-};
-
-const getAgentRuntimeState = () => (config.__prod__ ? getProductionAgentRuntimeState() : getDevAgentRuntimeState());
-const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
+const getAgentRuntimeState = getDevAgentRuntimeState;
+export const getAgentManagerRuntime = () => getAgentRuntimeState().agentManager;
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
 const getActiveRestoresByRestoreId = () => getAgentRuntimeState().activeRestoresByRestoreId;
@@ -424,8 +408,37 @@ export const stopAgentController = () => {
 	);
 };
 
+async function runAgentFilesystemCommand(
+	agentId: string,
+	organizationId: string,
+	command: FilesystemCommand,
+): Promise<FilesystemCommandResult> {
+	if (agentId !== LOCAL_AGENT_ID) assertRemoteAgentsEnabled();
+
+	const runtime = getAgentManagerRuntime();
+	if (!runtime) throw new Error(`Filesystem agent ${agentId} is not connected`);
+	const response = await Effect.runPromise(runtime.runFilesystemCommand(agentId, organizationId, command));
+	if (!response) throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
+	if (response.status === "error") throw new Error(response.error);
+	return response.command;
+}
+
 export const agentManager = {
+	isAgentReady: async (agentId: string) => {
+		if (agentId !== LOCAL_AGENT_ID && !isRemoteAgentsEnabled()) return false;
+
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) return false;
+		return runtime.waitForAgentReady(agentId, 0);
+	},
 	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
+		if (agentId !== LOCAL_AGENT_ID && !isRemoteAgentsEnabled()) {
+			return {
+				status: "unavailable",
+				error: new Error(REMOTE_AGENTS_UNAVAILABLE),
+			} satisfies BackupExecutionResult;
+		}
+
 		const runtime = getAgentManagerRuntime();
 		if (!runtime) {
 			return {
@@ -483,24 +496,10 @@ export const agentManager = {
 	cancelBackup: async (agentId: string, scheduleId: number) => {
 		return requestBackupCancellation(agentId, scheduleId);
 	},
-	runFilesystemCommand: async (agentId: string, command: FilesystemCommand): Promise<FilesystemCommandResult> => {
-		const runtime = getAgentManagerRuntime();
-		if (!runtime) {
-			throw new Error(`Filesystem agent ${agentId} is not connected`);
-		}
-
-		const response = await Effect.runPromise(runtime.runFilesystemCommand(agentId, command));
-		if (!response) {
-			throw new Error(`Failed to send filesystem command ${command.name} to agent ${agentId}`);
-		}
-
-		if (response.status === "error") {
-			throw new Error(response.error);
-		}
-
-		return response.command;
-	},
+	runFilesystemCommand: runAgentFilesystemCommand,
 	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
+		if (agentId !== LOCAL_AGENT_ID) assertRemoteAgentsEnabled();
+
 		const runtime = getAgentManagerRuntime();
 		if (!runtime) {
 			return {
@@ -553,6 +552,17 @@ export const agentManager = {
 	},
 	cancelRestore: async (agentId: string, restoreId: string) => {
 		return requestRestoreCancellation(agentId, restoreId);
+	},
+	disconnectAgent: async (agentId: string) => {
+		const runtime = getAgentManagerRuntime();
+		if (!runtime) return false;
+
+		try {
+			return await runtime.disconnectAgent(agentId);
+		} catch {
+			logger.warn(`Failed to disconnect agent ${agentId}`);
+			return false;
+		}
 	},
 };
 

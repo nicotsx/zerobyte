@@ -1,6 +1,7 @@
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { Scheduler } from "../../../core/scheduler";
-import * as bootstrapModule from "../bootstrap";
+import * as agentsModule from "../../agents/agents-manager";
+import type { ProcessWithApplicationLifecycleRuntime } from "../bootstrap-runtime";
 import { createTestVolume } from "~/test/helpers/volume";
 import { db } from "~/server/db/db";
 import { volumeService } from "~/server/modules/volumes/volume.service";
@@ -11,7 +12,14 @@ const loadShutdownModule = async () => {
 	return import(moduleUrl.href);
 };
 
+const runtimeProcess = process as ProcessWithApplicationLifecycleRuntime;
+
+beforeEach(() => {
+	delete runtimeProcess.__zerobyteApplicationLifecycleRuntime;
+});
+
 afterEach(() => {
+	delete runtimeProcess.__zerobyteApplicationLifecycleRuntime;
 	vi.restoreAllMocks();
 });
 
@@ -26,7 +34,7 @@ test("unmounts saved local managed volumes after stopping their agent without ch
 	vi.spyOn(Scheduler, "stop").mockImplementation(async () => {
 		events.push("scheduler.stop");
 	});
-	vi.spyOn(bootstrapModule, "stopApplicationRuntime").mockImplementation(async () => {
+	vi.spyOn(agentsModule, "stopAgentController").mockImplementation(async () => {
 		events.push("agents.stop");
 	});
 	const unmountVolume = vi.spyOn(volumeService, "unmountVolume").mockImplementation(async (shortId) => {

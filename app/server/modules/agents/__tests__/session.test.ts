@@ -12,7 +12,11 @@ import {
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
 import { createControllerAgentSession } from "../controller/session";
 
-const createSocket = (overrides: Partial<Parameters<typeof createControllerAgentSession>[0]> = {}) => {
+const createSocket = (overrides: Partial<ReturnType<typeof createSocketBase>> = {}) => {
+	return { ...createSocketBase(), ...overrides };
+};
+
+const createSocketBase = () => {
 	return {
 		data: {
 			id: "connection-1",
@@ -20,21 +24,25 @@ const createSocket = (overrides: Partial<Parameters<typeof createControllerAgent
 			organizationId: null,
 			agentName: LOCAL_AGENT_NAME,
 			agentKind: LOCAL_AGENT_KIND,
+			credentialVersion: 0,
 		},
 		send: vi.fn(() => 1),
 		close: vi.fn(),
-		...overrides,
 	};
 };
 
 const createSession = (
-	onEvent: Parameters<typeof createControllerAgentSession>[1] = () => Effect.void,
+	onEvent: Parameters<typeof createControllerAgentSession>[2] = () => Effect.void,
 	socket = createSocket(),
+	options: Parameters<typeof createControllerAgentSession>[3] = {},
 ) => {
 	const scope = Effect.runSync(Scope.make());
 
 	try {
-		const session = Effect.runSync(Scope.extend(createControllerAgentSession(fromPartial(socket), onEvent), scope));
+		const transport = { send: socket.send, close: socket.close };
+		const session = Effect.runSync(
+			Scope.extend(createControllerAgentSession(fromPartial(socket.data), transport, onEvent, options), scope),
+		);
 
 		return {
 			session,
@@ -67,18 +75,13 @@ test("closing the session scope interrupts the session runner", async () => {
 	expect(Exit.isInterrupted(exit)).toBe(true);
 });
 
-test("close reports a transport disconnect", () => {
+test("closing an externally owned session scope does not emit a terminal signal", () => {
 	const onEvent = vi.fn(() => Effect.void);
 	const { close } = createSession(onEvent);
 
 	close();
 
-	expect(onEvent).toHaveBeenCalledTimes(1);
-	expect(onEvent).toHaveBeenCalledWith(
-		expect.objectContaining({
-			type: "agent.disconnected",
-		}),
-	);
+	expect(onEvent).not.toHaveBeenCalled();
 });
 
 test("sendBackup only queues the transport message", () => {
@@ -330,7 +333,7 @@ test("pre-ready non-ready messages reject startup and close the session", () => 
 	expect(socket.close).toHaveBeenCalledWith(1002, "unexpected_startup_message");
 });
 
-test("a dropped backup.cancel closes the session and reports a transport disconnect", async () => {
+test("a dropped backup.cancel emits one terminal signal", async () => {
 	const send = vi.fn(() => 0);
 	const socket = createSocket({ send, close: vi.fn() });
 	const onEvent = vi.fn(() => Effect.void);
@@ -351,9 +354,85 @@ test("a dropped backup.cancel closes the session and reports a transport disconn
 			expect(onEvent).toHaveBeenCalledTimes(1);
 			expect(onEvent).toHaveBeenCalledWith(
 				expect.objectContaining({
-					type: "agent.disconnected",
+					type: "session.terminal",
+					payload: { code: undefined, reason: "transport_send_failed" },
 				}),
 			);
+		});
+	} finally {
+		await closeAsync();
+	}
+});
+
+test("send and transport close throws still emit one terminal signal and reject later messages", async () => {
+	const send = vi.fn(() => {
+		throw new Error("send failed");
+	});
+	const close = vi.fn(() => {
+		throw new Error("close failed");
+	});
+	const socket = createSocket({ send, close });
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, run, closeAsync } = createSession(onEvent, socket);
+
+	try {
+		run();
+		Effect.runSync(session.sendBackupCancel({ jobId: "job-1", scheduleId: "schedule-1" }));
+		await waitForExpect(() => {
+			expect(onEvent).toHaveBeenCalledTimes(1);
+			expect(onEvent).toHaveBeenCalledWith({
+				type: "session.terminal",
+				payload: { code: undefined, reason: "transport_send_failed" },
+			});
+		});
+		Effect.runSync(
+			session.handleMessage(
+				createAgentMessage("agent.ready", {
+					agentId: LOCAL_AGENT_ID,
+					protocolVersion: AGENT_PROTOCOL_VERSION,
+					hostname: "late",
+					platform: "linux",
+					capabilities: {},
+				}),
+			),
+		);
+		expect(onEvent).toHaveBeenCalledTimes(1);
+	} finally {
+		await closeAsync();
+	}
+});
+
+test("heartbeat timeout emits one terminal signal", async () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const socket = createSocket();
+	const options = {
+		startupTimeoutMs: 20,
+		livenessTimeoutMs: 20,
+		livenessCheckIntervalMs: 5,
+		heartbeatIntervalMs: 1_000,
+	};
+	const { session, run, closeAsync } = createSession(onEvent, socket, options);
+
+	try {
+		Effect.runSync(
+			session.handleMessage(
+				createAgentMessage("agent.ready", {
+					agentId: LOCAL_AGENT_ID,
+					protocolVersion: AGENT_PROTOCOL_VERSION,
+					hostname: "host",
+					platform: "linux",
+					capabilities: {},
+				}),
+			),
+		);
+		onEvent.mockClear();
+		run();
+		await waitForExpect(() => {
+			expect(socket.close).toHaveBeenCalledWith(1001, "heartbeat_timeout");
+			expect(onEvent).toHaveBeenCalledWith({
+				type: "session.terminal",
+				payload: { code: 1001, reason: "heartbeat_timeout" },
+			});
 		});
 	} finally {
 		await closeAsync();

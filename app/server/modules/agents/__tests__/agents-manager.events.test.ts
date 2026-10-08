@@ -37,6 +37,10 @@ const processWithAgentRuntime = process as ProcessWithAgentRuntime;
 const resetAgentRuntime = () => {
 	processWithAgentRuntime.__zerobyteAgentRuntime = {
 		...createAgentRuntimeState(),
+		agentManager: null,
+		activeBackupsByScheduleId: new Map(),
+		activeBackupScheduleIdsByJobId: new Map(),
+		activeRestoresByRestoreId: new Map(),
 	};
 };
 

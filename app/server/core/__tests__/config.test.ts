@@ -78,11 +78,25 @@ describe("parseConfig", () => {
 			flags: {
 				disableRateLimiting: true,
 				enableDevPanel: true,
+				enableRemoteAgents: false,
 			},
 			provisioningPath: "/tmp/provisioning",
 			allowedHosts: ["example.com", "admin.example.com", "localhost:3000"],
 			webhookAllowedOrigins: [],
 		});
+	});
+
+	test.each([
+		[undefined, false],
+		["false", false],
+		["", false],
+		["1", false],
+		["TRUE", false],
+		["true", true],
+	])("enables remote agents only with ENABLE_REMOTE_AGENTS=true (%s)", (value, expected) => {
+		const config = parseConfig(createEnv({ ENABLE_REMOTE_AGENTS: value }));
+
+		expect(config.flags.enableRemoteAgents).toBe(expected);
 	});
 
 	test("uses the configured RESTIC_HOSTNAME when present", () => {

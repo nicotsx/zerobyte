@@ -1,6 +1,7 @@
 import { logger } from "@zerobyte/core/node";
 import { createControllerSession, type ControllerSession } from "./controller-session";
 import { getDefaultTrustedRootRegistry } from "./trusted-roots";
+import { configureAgent } from "./enrollment";
 
 const INITIAL_RECONNECT_DELAY_MS = 1_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
@@ -93,6 +94,7 @@ export class Agent {
 }
 
 if (import.meta.main) {
+	await configureAgent();
 	const agent = new Agent();
 	let shuttingDown = false;
 

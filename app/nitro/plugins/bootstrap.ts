@@ -1,10 +1,11 @@
 import { definePlugin } from "nitro";
-import { bootstrapApplication, stopApplicationRuntime } from "../modules/lifecycle/bootstrap";
+import { bootstrapApplication } from "../../server/modules/lifecycle/bootstrap";
+import { shutdown } from "../../server/modules/lifecycle/shutdown";
 import { logger } from "@zerobyte/core/node";
-import { toMessage } from "../utils/errors";
+import { toMessage } from "../../server/utils/errors";
 
 export default definePlugin(async (nitroApp) => {
-	nitroApp.hooks.hook("close", stopApplicationRuntime);
+	nitroApp.hooks.hook("close", shutdown);
 
 	await bootstrapApplication().catch((err) => {
 		logger.error(`Bootstrap failed: ${toMessage(err)}`);

@@ -6,11 +6,15 @@ import { LOCAL_AGENT_ID } from "../agents/constants";
 import { volumeService } from "../volumes/volume.service";
 import { toMessage } from "../../utils/errors";
 import { cleanupDanglingVolumeMountDirectories } from "../volumes/volume-host/cleanup";
-import { stopApplicationRuntime } from "./bootstrap";
+import { stopAgentController } from "../agents/agents-manager";
+import { enqueueApplicationLifecycleTransition, getApplicationLifecycleRuntime } from "./bootstrap-runtime";
 
-export const shutdown = async () => {
-	await Scheduler.stop();
-	await stopApplicationRuntime();
+const stopSchedulerAndUnmountVolumes = async () => {
+	try {
+		await Scheduler.stop();
+	} finally {
+		await stopAgentController();
+	}
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: {
@@ -29,6 +33,24 @@ export const shutdown = async () => {
 			logger.error(`Error unmounting volume ${volume.name} on shutdown: ${toMessage(error)}`);
 		}
 	}
-
 	await cleanupDanglingVolumeMountDirectories().catch((error) => logger.warn("Volume cleanup failed:", error));
+};
+
+export const shutdown = () => {
+	const runtime = getApplicationLifecycleRuntime();
+	if (runtime.shutdownPromise) return runtime.shutdownPromise;
+
+	const operation = enqueueApplicationLifecycleTransition(async (runtime, generation) => {
+		runtime.status = "stopping";
+
+		try {
+			await stopSchedulerAndUnmountVolumes();
+		} finally {
+			runtime.status = "stopped";
+			runtime.completedGeneration = generation;
+		}
+	});
+
+	runtime.shutdownPromise = operation;
+	return operation;
 };

@@ -10,6 +10,7 @@ import {
 	type RuntimeFeature,
 } from "~/lib/permission-policy";
 import { config } from "./config";
+import { isRemoteAgentsEnabled } from "../modules/agents/remote-agents-feature";
 
 export type PermissionSnapshot = {
 	permissions: Record<Permission, boolean>;
@@ -32,17 +33,18 @@ export function withContext<T>(context: RequestContext, fn: () => T): T {
 }
 
 export function resolvePermissions(context: PermissionContext): PermissionSnapshot {
+	const features = {} as Record<RuntimeFeature, boolean>;
+	for (const feature of RUNTIME_FEATURE_KEYS) {
+		features[feature] =
+			hasRuntimeFeature(config.runtime, feature) && (feature !== "remoteAgents" || isRemoteAgentsEnabled());
+	}
+
 	const permissionResults = {} as Record<Permission, PermissionResult>;
 	const permissions = {} as Record<Permission, boolean>;
 	for (const permission of PERMISSION_KEYS) {
-		const result = evaluatePermission(permission, { ...context, runtime: config.runtime });
+		const result = evaluatePermission(permission, { ...context, runtime: config.runtime, features });
 		permissionResults[permission] = result;
 		permissions[permission] = result.allowed;
-	}
-
-	const features = {} as Record<RuntimeFeature, boolean>;
-	for (const feature of RUNTIME_FEATURE_KEYS) {
-		features[feature] = hasRuntimeFeature(config.runtime, feature);
 	}
 
 	return { permissions, features, permissionResults };
