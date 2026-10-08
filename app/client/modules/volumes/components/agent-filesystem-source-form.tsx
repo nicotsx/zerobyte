@@ -264,7 +264,10 @@ function RemoteLocationPicker({
 							) : !hasAvailableMachines ? (
 								"No machines are available for backups. Bring a machine online or resolve its connection status."
 							) : machine?.trustedRoots.length === 0 ? (
-								<>No folders shared yet. Share a folder on {machine.name}, then refresh.</>
+								<>
+									No folders shared yet. On {machine.name}, run{" "}
+									<code>sudo zerobyte-agent folders add</code> to choose folders, then refresh.
+								</>
 							) : (
 								"Backups are disabled for every allowed location on this machine. Allow backups for a location or choose another machine."
 							)}

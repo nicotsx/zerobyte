@@ -185,7 +185,7 @@ test("a machine without shared folders gives the setup command and refresh actio
 
 	await userEvent.click(screen.getByLabelText("Remote machine"));
 	await userEvent.click(screen.getByRole("option", { name: "Archive · Available" }));
-	expect(screen.getByText(/No folders shared yet/)).toBeTruthy();
+	expect(screen.getByText("sudo zerobyte-agent folders add")).toBeTruthy();
 	await userEvent.click(screen.getByRole("button", { name: "Refresh locations" }));
 	expect(refresh).toHaveBeenCalledOnce();
 });

@@ -1,3 +1,4 @@
+import type { ConnectionPurpose } from "./connection-command";
 import type { ListAgentsResponse } from "~/client/api-client/types.gen";
 
 type Agent = ListAgentsResponse[number];
@@ -12,3 +13,8 @@ export const getControllerUrlForOrigin = (origin: string) => {
 	controllerUrl.protocol = controllerUrl.protocol === "https:" ? "wss:" : "ws:";
 	return controllerUrl.toString();
 };
+
+export const connectionPurpose = (agent: Agent): ConnectionPurpose =>
+	agent.lastSeenAt !== null || agent.lastReadyAt !== null || agent.capabilities.hostname !== null
+		? "reconnect"
+		: "connect";

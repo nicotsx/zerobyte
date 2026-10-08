@@ -115,21 +115,25 @@ Zerobyte can be customized using environment variables. Below are the available 
 | `LOG_LEVEL`               | Logging verbosity. Options: `debug`, `info`, `warn`, `error`.                                                                             | `info`                 |
 | `RCLONE_CONFIG_DIR`       | Path to the directory containing `rclone.conf` inside the container. Change this if running as a non-root user.                           | `/root/.config/rclone` |
 | `PROVISIONING_PATH`       | Path to a JSON file with operator-managed repositories and volumes to sync at startup.                                                    | (none)                 |
+| `ENABLE_REMOTE_AGENTS`    | Enable remote machine enrollment, connections, sources, and backups on the server. Requires a restart.                                    | `false`                |
 
 ### Remote machines
 
 Local installations need no new configuration. The controller manages local volumes and network mounts, including connection tests, health checks, and mount cleanup. Zerobyte starts its built-in agent automatically to execute backups and restores. `ZEROBYTE_AGENT_ROOTS` configures the folders advertised for trusted-root browsing; managed sources use paths prepared by the controller.
 
+Remote machines are an opt-in feature. Set `ENABLE_REMOTE_AGENTS=true` on the Zerobyte server and restart it before connecting another machine. With the flag off, Machines and “Another machine” are hidden; enrollment, remote connections, discovery, and execution are unavailable. Saved remote configuration is preserved, and local operations continue. The flag does not enable remote agents in the desktop app.
+
 To connect another machine:
 
 1. Open organization settings → Machines → Connect machine.
-2. Name the machine and choose the folder to allow on it.
-3. Copy the generated command onto that machine. Bun and Restic must already be installed. The command downloads the agent from your controller, exchanges a single-use code (valid for 15 minutes), and starts the agent.
-4. Create a Source on “Another machine”, select an allowed folder, then configure its backup destination and schedule as usual.
+2. Name the machine and review the installation requirements.
+3. Copy the generated command onto that machine. Restic 0.18.0 or newer must already be installed; Bun is included in the native agent executable. The command downloads the agent, exchanges a single-use code (valid for 15 minutes), installs its systemd service, and starts it.
+4. Run `sudo zerobyte-agent folders add` on that machine to choose the folders to allow.
+5. Create a Source on “Another machine”, select an allowed folder, then configure its backup destination and schedule as usual.
 
-Remote agents expose only folders explicitly allowed on that machine. Repeat `--root /another/folder` during enrollment to share more folders. NFS, SMB, or other network shares must be mounted by the remote machine's operator first; Zerobyte does not send mount credentials or manage remote mounts. The controller schedules backups, and the machine executes them and reports progress. Restores target the Zerobyte server, not a remote machine. Backup destinations must be reachable from the machine running the backup; local-directory repositories on the controller cannot be used by remote agents.
+Remote agents expose only folders explicitly allowed on that machine. After connecting, run `sudo zerobyte-agent folders add` to browse and select one or more folders. Repeat it any time to add more. Use `sudo zerobyte-agent logs` for recent logs or `sudo zerobyte-agent logs --follow` to follow them. NFS, SMB, or other network shares must be mounted by the remote machine's operator first; Zerobyte does not send mount credentials or manage remote mounts. The controller schedules backups, and the machine executes them and reports progress. Restores target the Zerobyte server, not a remote machine. Backup destinations must be reachable from the machine running the backup; local-directory repositories on the controller cannot be used by remote agents.
 
-The agent stores its revocable machine credential and allowed roots in `~/.config/zerobyte-agent/agent.json` (owner-only permissions). The enrollment code cannot reconnect an agent or be reused. Restart with `bun ./zerobyte-agent.mjs`; use your operating system's service manager to keep it running. Use `--config /path/to/agent.json` for a different configuration location. To change allowed folders, edit the roots in this file and restart the agent. Revoking a machine in settings disconnects it immediately. Re-enrollment never overwrites an existing identity: after rotating a credential, move the old configuration file aside before running the new connection command.
+The installed service stores its revocable machine credential and allowed roots in `/var/lib/zerobyte-agent/agent.json` with owner-only permissions. The enrollment code cannot reconnect an agent or be reused. The native CLI owns installation and systemd lifecycle changes; run `sudo zerobyte-agent update` to install the latest stable release. Revoking a machine in settings disconnects it immediately. Use the machine’s Reconnect action to renew its credential. The reconnect command preserves the saved machine identity and allowed folders; it rejects codes for a different machine.
 
 Enrollment requires verified HTTPS; remote connections use WSS. Production builds require verified HTTPS/WSS on the public connection endpoint even when `BASE_URL` points at localhost or another loopback address. Plain HTTP/WS requests receive status 426.
 

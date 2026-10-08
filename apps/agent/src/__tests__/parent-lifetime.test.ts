@@ -5,6 +5,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test, vi } from "vitest";
 
+const createResticStub = async () => {
+	const directory = await mkdtemp(path.join(tmpdir(), "zerobyte-parent-lifetime-"));
+	const command = path.join(directory, "restic");
+	await writeFile(command, "#!/bin/sh\nprintf 'restic 0.18.0\\n'\n", { mode: 0o755 });
+
+	return { command, cleanup: () => rm(directory, { recursive: true, force: true }) };
+};
+
 const isAlive = (pid: number) => {
 	try {
 		process.kill(pid, 0);
@@ -15,9 +23,10 @@ const isAlive = (pid: number) => {
 	}
 };
 
-test.each([false, true])(
+test.skipIf(process.platform === "win32").each([false, true])(
 	"local agent exits after its controller dies (watch: %s)",
 	async (watch) => {
+		const restic = await createResticStub();
 		let connections = 0;
 		let ready = false;
 		const server = Bun.serve({
@@ -51,6 +60,7 @@ test.each([false, true])(
 		const parent = spawn(process.execPath, ["-e", parentSource], {
 			env: {
 				...process.env,
+				RESTIC_COMMAND: restic.command,
 				ZEROBYTE_CONTROLLER_URL: `ws://127.0.0.1:${server.port}/agents/connect`,
 				ZEROBYTE_AGENT_TOKEN: "test-token",
 			},
@@ -77,53 +87,62 @@ test.each([false, true])(
 				process.kill(process.platform === "win32" ? childPid : -childPid, "SIGKILL");
 			}
 			await server.stop(true);
+			await restic.cleanup();
 		}
 	},
 	20_000,
 );
 
-test("standalone agent keeps running with closed stdin", async () => {
-	let ready = false;
-	const server = Bun.serve({
-		hostname: "127.0.0.1",
-		port: 0,
-		fetch(request, server) {
-			if (server.upgrade(request)) return;
-			return new Response(null, { status: 400 });
-		},
-		websocket: {
-			message(_socket, message) {
-				if (JSON.parse(String(message)).type === "agent.ready") ready = true;
+test.skipIf(process.platform === "win32")(
+	"standalone agent keeps running with closed stdin",
+	async () => {
+		const restic = await createResticStub();
+		let ready = false;
+		const server = Bun.serve({
+			hostname: "127.0.0.1",
+			port: 0,
+			fetch(request, server) {
+				if (server.upgrade(request)) return;
+				return new Response(null, { status: 400 });
 			},
-		},
-	});
-	const agent = spawn(process.execPath, ["run", path.resolve(import.meta.dirname, "../index.ts")], {
-		env: {
-			...process.env,
-			ZEROBYTE_BUILTIN_LOCAL_AGENT: "0",
-			ZEROBYTE_CONTROLLER_URL: `ws://127.0.0.1:${server.port}/agents/connect`,
-			ZEROBYTE_AGENT_TOKEN: "test-token",
-		},
-		stdio: ["pipe", "ignore", "ignore"],
-	});
+			websocket: {
+				message(_socket, message) {
+					if (JSON.parse(String(message)).type === "agent.ready") ready = true;
+				},
+			},
+		});
+		const agent = spawn(process.execPath, ["run", path.resolve(import.meta.dirname, "../index.ts"), "run"], {
+			env: {
+				...process.env,
+				RESTIC_COMMAND: restic.command,
+				ZEROBYTE_BUILTIN_LOCAL_AGENT: "0",
+				ZEROBYTE_CONTROLLER_URL: `ws://127.0.0.1:${server.port}/agents/connect`,
+				ZEROBYTE_AGENT_TOKEN: "test-token",
+			},
+			stdio: ["pipe", "ignore", "ignore"],
+		});
 
-	try {
-		agent.stdin.end();
-		await vi.waitFor(() => expect(ready).toBe(true), { timeout: 10_000 });
-		await new Promise((resolve) => setTimeout(resolve, 1_100));
-		expect(agent.exitCode).toBeNull();
-		expect(agent.signalCode).toBeNull();
-	} finally {
-		const exited = once(agent, "exit");
-		agent.kill("SIGKILL");
-		await exited;
-		await server.stop(true);
-	}
-}, 15_000);
+		try {
+			agent.stdin.end();
+			await vi.waitFor(() => expect(ready).toBe(true), { timeout: 10_000 });
+			await new Promise((resolve) => setTimeout(resolve, 1_100));
+			expect(agent.exitCode).toBeNull();
+			expect(agent.signalCode).toBeNull();
+		} finally {
+			const exited = once(agent, "exit");
+			agent.kill("SIGKILL");
+			await exited;
+			await server.stop(true);
+			await restic.cleanup();
+		}
+	},
+	15_000,
+);
 
 test.skipIf(process.platform === "win32").each(["SIGINT", "SIGTERM"] as const)(
 	"%s closes the controller connection and bounds shutdown despite a retained handle",
 	async (signal) => {
+		const restic = await createResticStub();
 		const directory = await mkdtemp(path.join(tmpdir(), "zerobyte-agent-shutdown-"));
 		const preload = path.join(directory, "retained-handle.ts");
 		await writeFile(preload, "setInterval(() => {}, 1000);");
@@ -148,10 +167,11 @@ test.skipIf(process.platform === "win32").each(["SIGINT", "SIGTERM"] as const)(
 		});
 		const agent = spawn(
 			process.execPath,
-			["run", "--preload", preload, path.resolve(import.meta.dirname, "../index.ts")],
+			["run", "--preload", preload, path.resolve(import.meta.dirname, "../index.ts"), "run"],
 			{
 				env: {
 					...process.env,
+					RESTIC_COMMAND: restic.command,
 					ZEROBYTE_BUILTIN_LOCAL_AGENT: "0",
 					ZEROBYTE_CONTROLLER_URL: `ws://127.0.0.1:${server.port}/agents/connect`,
 					ZEROBYTE_AGENT_TOKEN: "test-token",
@@ -189,6 +209,7 @@ test.skipIf(process.platform === "win32").each(["SIGINT", "SIGTERM"] as const)(
 			}
 			await server.stop(true);
 			await rm(directory, { recursive: true, force: true });
+			await restic.cleanup();
 		}
 	},
 	20_000,

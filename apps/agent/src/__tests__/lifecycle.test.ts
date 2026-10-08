@@ -41,6 +41,7 @@ beforeEach(() => {
 	vi.useFakeTimers();
 	vi.spyOn(Math, "random").mockReturnValue(0.5);
 	vi.stubEnv("ZEROBYTE_BUILTIN_LOCAL_AGENT", "0");
+	vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE", undefined);
 	vi.stubGlobal("WebSocket", TestWebSocket);
 	TestWebSocket.instances = [];
 	mocks.closeSession.mockReset();
@@ -142,5 +143,14 @@ test("ignores stale callbacks from a socket closed during an immediate restart",
 
 	expect(mocks.onOpen).toHaveBeenCalledTimes(1);
 	expect(TestWebSocket.instances).toHaveLength(2);
+	agent.stop();
+});
+
+test("explicit development permission allows remote plaintext WebSockets", async () => {
+	vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE", "1");
+	const { Agent } = await import("../index");
+	const agent = new Agent("ws://192.168.1.10:8080/api/v1/agents/connect", "token");
+	agent.connect();
+	expect(TestWebSocket.instances[0]?.url).toBe("ws://192.168.1.10:8080/api/v1/agents/connect");
 	agent.stop();
 });

@@ -50,7 +50,9 @@ const expandHome = (configuredPath: string) => {
 	return configuredPath;
 };
 
-const parseConfiguredRoots = (rawValue: string): ConfiguredRoot[] => {
+export const resolveConfiguredRootPath = (configuredPath: string) => path.resolve(expandHome(configuredPath));
+
+export const parseConfiguredRoots = (rawValue: string): ConfiguredRoot[] => {
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(rawValue);
@@ -64,6 +66,8 @@ const parseConfiguredRoots = (rawValue: string): ConfiguredRoot[] => {
 	if (!result.success) {
 		throw new Error(`Invalid ZEROBYTE_AGENT_ROOTS: ${result.error.message}`);
 	}
+
+	assertUniqueRootFields(result.data);
 
 	return result.data;
 };
@@ -87,8 +91,7 @@ const assertUniqueRootFields = (roots: ConfiguredRoot[]) => {
 };
 
 const canonicalizeRoot = (root: ConfiguredRoot): TrustedRoot => {
-	const expandedPath = expandHome(root.path);
-	const absolutePath = path.resolve(expandedPath);
+	const absolutePath = resolveConfiguredRootPath(root.path);
 
 	let canonicalPath: string;
 
