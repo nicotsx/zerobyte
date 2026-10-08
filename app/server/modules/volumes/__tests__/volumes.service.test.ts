@@ -44,7 +44,6 @@ test.each(["unmounted", "error", "mounted"] as const)(
 				await fs.writeFile(join(root, "file.txt"), "backup data");
 
 				await expect(volumeService.listFiles(volume.shortId)).rejects.toThrow("agent");
-				await expect(volumeService.browseFilesystem(root)).rejects.toThrow("agent");
 				await expect(volumeService.unmountVolume(volume.shortId)).resolves.toMatchObject({ status: "mounted" });
 				await fs.rm(root, { recursive: true });
 				await fs.writeFile(root, "not a directory");

@@ -18,7 +18,7 @@ const stopSchedulerAndUnmountVolumes = async () => {
 
 	const volumes = await db.query.volumesTable.findMany({
 		where: {
-			AND: [{ agentId: LOCAL_AGENT_ID }, { status: "mounted" }],
+			AND: [{ agentId: LOCAL_AGENT_ID }, { sourceKind: "managed" }, { status: "mounted" }],
 		},
 	});
 

@@ -327,6 +327,67 @@ describe("getScheduleByIdOrShortId", () => {
 });
 
 describe("manual only schedules", () => {
+	test("rejects an incompatible remote source before creating a schedule", async () => {
+		setup();
+		const volume = await createTestVolume({
+			agentId: "agent-remote",
+			sourceKind: "agent-filesystem",
+			config: null,
+			type: null,
+			trustedRootId: "root-1",
+			relativePath: "source",
+		});
+		const repository = await createTestRepository();
+
+		await expect(
+			backupsService.createSchedule({
+				name: "remote-to-local",
+				volumeId: volume.shortId,
+				repositoryId: repository.shortId,
+				enabled: false,
+				cronExpression: "",
+				retryDelay: 0,
+				maxRetries: 0,
+			}),
+		).rejects.toThrow("Local repositories are only available to sources on this server.");
+
+		const persisted = await db.query.backupSchedulesTable.findFirst({ where: { name: "remote-to-local" } });
+		expect(persisted).toBeUndefined();
+	});
+
+	test("rejects an incompatible update without changing the existing repository", async () => {
+		setup();
+		const volume = await createTestVolume({
+			agentId: "agent-remote",
+			sourceKind: "agent-filesystem",
+			config: null,
+			type: null,
+			trustedRootId: "root-1",
+			relativePath: "source",
+		});
+		const compatibleRepository = await createTestRepository({
+			type: "rest",
+			config: { backend: "rest", url: "https://backup.example.test" },
+		});
+		const incompatibleRepository = await createTestRepository();
+		const schedule = await createTestBackupSchedule({
+			volumeId: volume.id,
+			repositoryId: compatibleRepository.id,
+		});
+
+		await expect(
+			backupsService.updateSchedule(schedule.id, {
+				repositoryId: incompatibleRepository.shortId,
+				cronExpression: schedule.cronExpression,
+				retryDelay: 0,
+				maxRetries: 0,
+			}),
+		).rejects.toThrow("Local repositories are only available to sources on this server.");
+
+		const persisted = await db.query.backupSchedulesTable.findFirst({ where: { id: schedule.id } });
+		expect(persisted?.repositoryId).toBe(compatibleRepository.id);
+	});
+
 	test("should create a manual-only schedule without a next backup time", async () => {
 		setup();
 		const volume = await createTestVolume();

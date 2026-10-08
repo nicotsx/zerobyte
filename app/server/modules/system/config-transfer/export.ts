@@ -1,3 +1,5 @@
+import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
+import type { ConfigTransferModel } from "./model";
 import { db } from "~/server/db/db";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { decryptNotificationConfig } from "~/server/modules/notifications/notification-config-secrets";
@@ -37,6 +39,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 	const {
 		resticPasswordCiphertext,
 		repositories,
+		machines,
 		volumes,
 		backupSchedules,
 		notificationDestinations,
@@ -45,6 +48,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 	} = db.transaction((tx) => {
 		const organization = tx.query.organization.findFirst({ where: { id: organizationId } }).sync();
 		const repositories = tx.query.repositoriesTable.findMany({ where: { organizationId } }).sync();
+		const machines = tx.query.agentsTable.findMany({ where: { organizationId, kind: "remote" } }).sync();
 		const volumes = tx.query.volumesTable.findMany({ where: { organizationId } }).sync();
 		const backupSchedules = tx.query.backupSchedulesTable.findMany({ where: { organizationId } }).sync();
 		const notificationDestinations = tx.query.notificationDestinationsTable
@@ -62,6 +66,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		return {
 			resticPasswordCiphertext: organization?.metadata?.resticPassword,
 			repositories,
+			machines,
 			volumes,
 			backupSchedules,
 			notificationDestinations,
@@ -79,6 +84,23 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 	const repositoryRefs = new Map(
 		repositories.map((repository, index) => [repository.id, createTransferRef("repository", index)]),
 	);
+	const machineRefs = new Map(machines.map((machine, index) => [machine.id, createTransferRef("machine", index)]));
+
+	const exportedMachines = machines.map((machine) => ({
+		ref: getRequiredRef(machineRefs, machine.id, "machine"),
+		name: machine.name,
+	}));
+
+	let missingMachineCount = 0;
+
+	for (const volume of volumes) {
+		if (volume.agentId === LOCAL_AGENT_ID || machineRefs.has(volume.agentId)) continue;
+
+		const ref = createTransferRef("machine", exportedMachines.length);
+		machineRefs.set(volume.agentId, ref);
+		exportedMachines.push({ ref, name: `Missing machine ${++missingMachineCount}` });
+	}
+
 	const volumeRefs = new Map(volumes.map((volume, index) => [volume.id, createTransferRef("volume", index)]));
 	const scheduleRefs = new Map(
 		backupSchedules.map((schedule, index) => [schedule.id, createTransferRef("schedule", index)]),
@@ -103,12 +125,35 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 			}),
 		),
 		Promise.all(
-			volumes.map(async (volume) => ({
-				ref: getRequiredRef(volumeRefs, volume.id, "volume"),
-				name: volume.name,
-				config: await decryptVolumeConfig(volume.config),
-				autoRemount: volume.autoRemount,
-			})),
+			volumes.map(async (volume): Promise<ConfigTransferModel["volumes"][number]> => {
+				const common = {
+					ref: getRequiredRef(volumeRefs, volume.id, "volume"),
+					name: volume.name,
+					machineRef:
+						volume.agentId === LOCAL_AGENT_ID
+							? null
+							: getRequiredRef(machineRefs, volume.agentId, "machine"),
+					autoRemount: volume.autoRemount,
+				};
+
+				if (volume.sourceKind === "agent-filesystem") {
+					if (volume.trustedRootId === null || volume.relativePath === null) {
+						throw new Error(`Invalid filesystem source "${volume.name}"`);
+					}
+
+					return {
+						...common,
+						sourceKind: "agent-filesystem",
+						trustedRootId: volume.trustedRootId,
+						relativePath: volume.relativePath,
+					};
+				}
+				if (!volume.config) {
+					throw new Error(`Missing managed volume configuration "${volume.name}"`);
+				}
+
+				return { ...common, sourceKind: "managed", config: await decryptVolumeConfig(volume.config) };
+			}),
 		),
 		Promise.all(
 			notificationDestinations.map(async (destination) => ({
@@ -122,6 +167,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 
 	const payload = encodeCurrentConfigTransferPayload({
 		resticPassword,
+		machines: exportedMachines,
 		repositories: exportedRepositories,
 		volumes: exportedVolumes,
 		backupSchedules: backupSchedules.map((schedule) => ({

@@ -2,9 +2,12 @@ import { afterEach, expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { config } from "~/server/core/config";
-import { resolvePermissions } from "~/server/core/request-context";
+import { resolvePermissions, withContext } from "~/server/core/request-context";
 import { createApp } from "~/server/app";
 import { createTestSession } from "~/test/helpers/auth";
+import { createTestVolume } from "~/test/helpers/volume";
+import { createTrustedFilesystemSource } from "../../volumes/__tests__/trusted-filesystem-source.fixture";
+import { volumeService } from "../../volumes/volume.service";
 import { agentsService } from "../agents.service";
 import { agentManager } from "../agents-manager";
 import { createAgentControllerListener } from "../controller/listener";
@@ -51,6 +54,19 @@ test("disabled remote APIs preserve enrollment and machine configuration", async
 		{ path: `/api/v1/agents/${enrollment.agent.id}`, method: "DELETE" },
 		{ path: "/api/v1/agents/enroll", method: "POST", body: { code: enrollment.token } },
 		{ path: "/api/v1/agents/download", method: "GET" },
+		{ path: "/api/v1/volumes/source-machines", method: "GET" },
+		{ path: `/api/v1/volumes/filesystem/browse?agentId=${enrollment.agent.id}&rootId=photos`, method: "GET" },
+		{
+			path: "/api/v1/volumes",
+			method: "POST",
+			body: {
+				name: "Blocked source",
+				sourceKind: "agent-filesystem",
+				agentId: enrollment.agent.id,
+				trustedRootId: "photos",
+				relativePath: "",
+			},
+		},
 	];
 
 	for (const request of requests) {
@@ -65,6 +81,32 @@ test("disabled remote APIs preserve enrollment and machine configuration", async
 	}
 
 	expect(await agentsService.getAgent(enrollment.agent.id)).toEqual(original);
+});
+
+test("disabled remote sources remain readable while local sources remain usable", async () => {
+	const session = await createTestSession();
+	const { volume } = await createTrustedFilesystemSource(session.organizationId);
+	const localVolume = await createTestVolume({ organizationId: session.organizationId });
+	config.flags.enableRemoteAgents = false;
+
+	await withContext({ organizationId: session.organizationId }, async () => {
+		const remote = await volumeService.toPresentedVolume(volume);
+		expect(remote.sourceLocation?.availability).toBe("disabled");
+		expect(remote.sourceLocation?.root.id).toBe(volume.trustedRootId);
+		expect(remote.sourceLocation?.relativePath).toBe(volume.relativePath);
+	});
+
+	const response = await app.request("/api/v1/volumes", { headers: session.headers });
+	expect(response.status).toBe(200);
+	expect(await response.json()).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({
+				id: volume.id,
+				sourceLocation: expect.objectContaining({ availability: "disabled" }),
+			}),
+			expect.objectContaining({ id: localVolume.id, sourceKind: "managed" }),
+		]),
+	);
 });
 
 test("disabled remote dispatch refuses saved sources before attempting a connection", async () => {

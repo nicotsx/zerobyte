@@ -200,6 +200,23 @@ test.each([
 	await expect(fs.access(path.join(volumeDir, "_data"))).resolves.toBeNull();
 });
 
+test("trusted-root records do not claim managed controller directories", async () => {
+	const { volumeRoot, createTestVolume, cleanupDanglingVolumeMountDirectories } = await loadCleanup();
+	const volume = await createTestVolume({
+		sourceKind: "agent-filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "local",
+		relativePath: "photos",
+	});
+	const volumeDir = path.join(volumeRoot, volume.shortId);
+	await fs.mkdir(path.join(volumeDir, "_data"), { recursive: true });
+
+	await cleanupDanglingVolumeMountDirectories();
+
+	await expect(fs.access(volumeDir)).rejects.toThrow();
+});
+
 test("reclaims a canonical live orphan after a confirmed unmount", async () => {
 	const mounts: { mountPoint: string; fstype: string }[] = [];
 	const { volumeRoot, cleanupDanglingVolumeMountDirectories, unmountedPaths } = await loadCleanup(

@@ -36,9 +36,8 @@ const durableAndRuntimeFields = {
 		],
 	},
 	volume: {
-		durable: ["name", "type", "config", "autoRemount"],
+		durable: ["name", "type", "config", "autoRemount", "sourceKind", "trustedRootId", "relativePath", "agentId"],
 		runtime: [
-			"agentId",
 			"id",
 			"shortId",
 			"provisioningId",
@@ -188,7 +187,14 @@ export const loadConfigState = async (organizationId: string) => {
 				volumes.map(async (volume) => ({
 					name: volume.name,
 					type: volume.type,
-					config: await decryptVolumeConfig(volume.config),
+					config: volume.config ? await decryptVolumeConfig(volume.config) : null,
+					sourceKind: volume.sourceKind,
+					trustedRootId: volume.trustedRootId,
+					relativePath: volume.relativePath,
+					machine:
+						volume.agentId === "local"
+							? "local"
+							: (await db.query.agentsTable.findFirst({ where: { id: volume.agentId } }))?.name,
 					autoRemount: volume.autoRemount,
 				})),
 			),

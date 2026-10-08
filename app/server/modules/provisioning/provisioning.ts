@@ -15,7 +15,12 @@ import { repositoriesTable, volumesTable } from "~/server/db/schema";
 import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
 import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
-import { BACKEND_TYPES, volumeConfigSchema, type BackendConfig } from "@zerobyte/contracts/volumes";
+import {
+	BACKEND_TYPES,
+	trustedSourceInputSchema,
+	volumeConfigSchema,
+	type BackendConfig,
+} from "@zerobyte/contracts/volumes";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { runEffectPromise, toMessage } from "~/server/utils/errors";
 import { generateShortId } from "~/server/utils/id";
@@ -35,7 +40,7 @@ const provisionedRepositorySchema = z.object({
 });
 type ProvisionedRepository = z.infer<typeof provisionedRepositorySchema>;
 
-const provisionedVolumeSchema = z.object({
+const provisionedManagedVolumeSchema = z.object({
 	id: z.string().min(1),
 	organizationId: z.string().min(1),
 	name: z.string().min(1),
@@ -43,7 +48,15 @@ const provisionedVolumeSchema = z.object({
 	config: volumeConfigSchema,
 	delete: z.boolean().default(false),
 	backend: z.enum(BACKEND_TYPES),
+	sourceKind: z.literal("managed").optional(),
 });
+const provisionedTrustedVolumeSchema = trustedSourceInputSchema.extend({
+	id: z.string().min(1),
+	organizationId: z.string().min(1),
+	name: z.string().min(1),
+	delete: z.boolean().default(false),
+});
+const provisionedVolumeSchema = z.union([provisionedManagedVolumeSchema, provisionedTrustedVolumeSchema]);
 type ProvisionedVolume = z.infer<typeof provisionedVolumeSchema>;
 
 export const provisionedResourcesSchema = z
@@ -227,6 +240,24 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 		const existing = existingVolumes.find((v) => v.provisioningId === provisioningId);
 
 		if (!existing) {
+			if (volume.sourceKind === "agent-filesystem") {
+				await db.insert(volumesTable).values({
+					shortId: generateShortId(),
+					provisioningId,
+					name: volume.name,
+					type: null,
+					config: null,
+					autoRemount: false,
+					agentId: volume.agentId,
+					sourceKind: "agent-filesystem",
+					trustedRootId: volume.trustedRootId,
+					relativePath: volume.relativePath,
+					status: "mounted",
+					organizationId: volume.organizationId,
+				});
+				continue;
+			}
+
 			await db.insert(volumesTable).values({
 				shortId: generateShortId(),
 				provisioningId: provisioningId,
@@ -237,7 +268,26 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 				agentId: LOCAL_AGENT_ID,
 				status: volume.autoRemount ? "mounted" : "unmounted",
 				organizationId: volume.organizationId,
+				sourceKind: "managed",
 			});
+			continue;
+		}
+
+		if (volume.sourceKind === "agent-filesystem") {
+			const updatePayload = {
+				name: volume.name,
+				type: null,
+				config: null,
+				autoRemount: false,
+				agentId: volume.agentId,
+				sourceKind: "agent-filesystem" as const,
+				trustedRootId: volume.trustedRootId,
+				relativePath: volume.relativePath,
+				status: "mounted" as const,
+				organizationId: volume.organizationId,
+				updatedAt: Date.now(),
+			};
+			await db.update(volumesTable).set(updatePayload).where(eq(volumesTable.id, existing.id));
 			continue;
 		}
 
@@ -247,6 +297,9 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 			config: await encryptProvisionedVolumeConfig(volume.config),
 			autoRemount: volume.autoRemount,
 			agentId: LOCAL_AGENT_ID,
+			sourceKind: "managed" as const,
+			trustedRootId: null,
+			relativePath: null,
 			organizationId: volume.organizationId,
 			updatedAt: Date.now(),
 		};

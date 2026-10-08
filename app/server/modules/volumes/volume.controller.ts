@@ -22,9 +22,10 @@ import {
 	browseFilesystemDto,
 	type BrowseFilesystemDto,
 	listFilesQuery,
+	listSourceMachinesDto,
+	type ListSourceMachinesDto,
 } from "./volume.dto";
 import { volumeService } from "./volume.service";
-import { getVolumePath } from "./helpers";
 import { requireAuth } from "../auth/auth.middleware";
 import { asShortId } from "~/server/utils/branded";
 
@@ -32,17 +33,19 @@ export const volumeController = new Hono()
 	.use(requireAuth)
 	.get("/", listVolumesDto, async (c) => {
 		const volumes = await volumeService.listVolumes();
+		const response = await volumeService.toPresentedVolumes(volumes);
 
-		return c.json<ListVolumesDto>(volumes, 200);
+		return c.json<ListVolumesDto>(response, 200);
+	})
+	.get("/source-machines", listSourceMachinesDto, async (c) => {
+		const machines = await volumeService.listSourceMachines();
+		return c.json<ListSourceMachinesDto>(machines, 200);
 	})
 	.post("/", createVolumeDto, validator("json", createVolumeBody), async (c) => {
 		const body = c.req.valid("json");
-		const res = await volumeService.createVolume(body.name, body.config);
+		const res = await volumeService.createVolume(body);
 
-		const response = {
-			...res.volume,
-			path: getVolumePath(res.volume),
-		};
+		const response = await volumeService.toPresentedVolumeDetail(res.volume);
 
 		return c.json<CreateVolumeDto>(response, 201);
 	})
@@ -63,10 +66,7 @@ export const volumeController = new Hono()
 		const res = await volumeService.getVolume(shortId);
 
 		const response = {
-			volume: {
-				...res.volume,
-				path: getVolumePath(res.volume),
-			},
+			volume: res.volume,
 			statfs: {
 				total: res.statfs.total ?? 0,
 				used: res.statfs.used ?? 0,
@@ -81,10 +81,7 @@ export const volumeController = new Hono()
 		const body = c.req.valid("json");
 		const res = await volumeService.updateVolume(shortId, body);
 
-		const response = {
-			...res.volume,
-			path: getVolumePath(res.volume),
-		};
+		const response = await volumeService.toPresentedVolumeDetail(res.volume);
 
 		return c.json<UpdateVolumeDto>(response, 200);
 	})
@@ -129,8 +126,10 @@ export const volumeController = new Hono()
 		return c.json<ListFilesDto>(response, 200);
 	})
 	.get("/filesystem/browse", browseFilesystemDto, async (c) => {
-		const path = c.req.query("path") || "/";
-		const result = await volumeService.browseFilesystem(path);
+		const browsePath = c.req.query("path") || "/";
+		const agentId = c.req.query("agentId") || "local";
+		const rootId = c.req.query("rootId") || "local-filesystem";
+		const result = await volumeService.browseFilesystem(agentId, rootId, browsePath);
 
 		const response = {
 			directories: result.directories,

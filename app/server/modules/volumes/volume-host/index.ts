@@ -5,10 +5,14 @@ import { makeSftpBackend } from "./backends/sftp";
 import { makeSmbBackend } from "./backends/smb";
 import { makeWebdavBackend } from "./backends/webdav";
 import { getVolumePath } from "../helpers";
-import type { Volume as AgentVolume } from "@zerobyte/contracts/volumes";
+import type { Volume } from "@zerobyte/contracts/volumes";
 import type { VolumeBackend } from "./types";
 
-export const createVolumeBackend = (volume: AgentVolume, mountPath = getVolumePath(volume)): VolumeBackend => {
+export const createVolumeBackend = (volume: Volume, mountPath = getVolumePath(volume)): VolumeBackend => {
+	if (volume.sourceKind === "agent-filesystem" || !volume.config) {
+		throw new Error("Managed volume configuration is missing");
+	}
+
 	switch (volume.config.backend) {
 		case "directory":
 			return makeDirectoryBackend(volume.config, mountPath);

@@ -146,6 +146,184 @@ describe("provisioning", () => {
 		expect(volume?.provisioningId).toBeDefined();
 	});
 
+	test("round-trips trusted filesystem source fields while preserving version 1", async () => {
+		const { organizationId } = session;
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
+		const provisioningPath = path.join(tempDir, "provisioning.json");
+		const input = {
+			version: 1 as const,
+			repositories: [],
+			volumes: [
+				{
+					id: "remote-photos",
+					organizationId,
+					name: "Remote photos",
+					sourceKind: "agent-filesystem" as const,
+					agentId: "agent-nas",
+					trustedRootId: "photos",
+					relativePath: "family/2026",
+				},
+			],
+		};
+		await fs.writeFile(provisioningPath, JSON.stringify(input));
+
+		const parsed = await readProvisionedResourcesFile(provisioningPath);
+		expect(parsed).toMatchObject(input);
+		await syncProvisionedResources(provisioningPath);
+
+		const volume = await db.query.volumesTable.findFirst({ where: { organizationId, name: "Remote photos" } });
+		expect(volume).toMatchObject({
+			sourceKind: "agent-filesystem",
+			agentId: "agent-nas",
+			trustedRootId: "photos",
+			relativePath: "family/2026",
+			config: null,
+			type: null,
+		});
+	});
+
+	test.each(["photos/archive", "bad root", "a".repeat(65), "   "])(
+		"rejects invalid trusted root ID %j during document validation",
+		(trustedRootId) => {
+			const result = provisionedResourcesSchema.safeParse({
+				volumes: [
+					{
+						id: "remote-photos",
+						organizationId: session.organizationId,
+						name: "Remote photos",
+						sourceKind: "agent-filesystem",
+						agentId: "not-enrolled",
+						trustedRootId,
+					},
+				],
+			});
+
+			expect(result.success).toBe(false);
+		},
+	);
+
+	test.each([
+		{ relativePath: "../outside" },
+		{ relativePath: "/absolute" },
+		{ relativePath: "C:/absolute" },
+		{ relativePath: "nested\\outside" },
+		{ relativePath: "nested\0outside" },
+		{ trustedRootId: "bad/root" },
+	])("leaves earlier resources unchanged when a later trusted volume is invalid: %j", async (invalidLocation) => {
+		const { organizationId } = session;
+		const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
+		const provisioningPath = path.join(tempDir, "provisioning.json");
+		const repository = {
+			id: "existing-repository",
+			organizationId,
+			name: "Original repository",
+			backend: "local",
+			config: { backend: "local", path: tempDir, isExistingRepository: true },
+		};
+		const volume = {
+			id: "existing-volume",
+			organizationId,
+			name: "Original volume",
+			backend: "directory",
+			config: { backend: "directory", path: tempDir },
+		};
+
+		try {
+			await fs.writeFile(provisioningPath, JSON.stringify({ repositories: [repository], volumes: [volume] }));
+			await syncProvisionedResources(provisioningPath);
+
+			const repositoriesBefore = await db.query.repositoriesTable.findMany({ where: { organizationId } });
+			const volumesBefore = await db.query.volumesTable.findMany({ where: { organizationId } });
+
+			await fs.writeFile(
+				provisioningPath,
+				JSON.stringify({
+					repositories: [
+						{ ...repository, name: "Changed repository" },
+						{
+							...repository,
+							id: "new-repository",
+							config: { ...repository.config, isExistingRepository: false },
+						},
+					],
+					volumes: [
+						{ ...volume, name: "Changed volume" },
+						{ ...volume, id: "new-volume" },
+						{
+							id: "invalid-later-volume",
+							organizationId,
+							name: "Invalid source",
+							sourceKind: "agent-filesystem",
+							agentId: "not-enrolled",
+							trustedRootId: "photos",
+							relativePath: "",
+							...invalidLocation,
+						},
+					],
+				}),
+			);
+
+			await expect(syncProvisionedResources(provisioningPath)).rejects.toThrow();
+			expect(await db.query.repositoriesTable.findMany({ where: { organizationId } })).toEqual(
+				repositoriesBefore,
+			);
+			expect(await db.query.volumesTable.findMany({ where: { organizationId } })).toEqual(volumesBefore);
+			expect(restic.init).not.toHaveBeenCalled();
+		} finally {
+			await fs.rm(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test.each([
+		["family//./2026/", "family/2026"],
+		["./", ""],
+		[undefined, ""],
+	])(
+		"normalizes trusted locations before inserting and updating without a live agent: %j",
+		async (relativePath, expectedPath) => {
+			const { organizationId } = session;
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-provisioning-"));
+			const provisioningPath = path.join(tempDir, "provisioning.json");
+			const volume = {
+				id: "normalized-source",
+				organizationId,
+				name: "Normalized source",
+				sourceKind: "agent-filesystem",
+				agentId: "not-enrolled",
+				trustedRootId: " photos ",
+				relativePath,
+			};
+
+			try {
+				await fs.writeFile(provisioningPath, JSON.stringify({ volumes: [volume] }));
+				const parsed = await readProvisionedResourcesFile(provisioningPath);
+				expect(parsed.volumes[0]).toMatchObject({ trustedRootId: "photos", relativePath: expectedPath });
+
+				await syncProvisionedResources(provisioningPath);
+				const inserted = await db.query.volumesTable.findFirst({
+					where: { organizationId, name: volume.name },
+				});
+				expect(inserted).toMatchObject({ trustedRootId: "photos", relativePath: expectedPath });
+
+				await fs.writeFile(
+					provisioningPath,
+					JSON.stringify({
+						volumes: [{ ...volume, trustedRootId: " archive ", relativePath: "next//./year/" }],
+					}),
+				);
+				await syncProvisionedResources(provisioningPath);
+				const updated = await db.query.volumesTable.findFirst({ where: { organizationId, name: volume.name } });
+				expect(updated).toMatchObject({
+					id: inserted?.id,
+					trustedRootId: "archive",
+					relativePath: "next/year",
+				});
+			} finally {
+				await fs.rm(tempDir, { recursive: true, force: true });
+			}
+		},
+	);
+
 	test("removes managed resources when delete is set", async () => {
 		const { organizationId } = session;
 

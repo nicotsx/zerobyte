@@ -35,6 +35,7 @@ const assertUniqueAssignments = (assignments: ReadonlyArray<readonly [string, st
 };
 
 export const validateConfigTransferGraph = (payload: ConfigTransferModel) => {
+	const machineRefs = assertUniqueRefs(payload.machines, "machine");
 	const repositoryRefs = assertUniqueRefs(payload.repositories, "repository");
 	const volumeRefs = assertUniqueRefs(payload.volumes, "volume");
 	const scheduleRefs = assertUniqueRefs(payload.backupSchedules, "backup schedule");
@@ -42,6 +43,15 @@ export const validateConfigTransferGraph = (payload: ConfigTransferModel) => {
 	const primaryRepositoryRefsByScheduleRef = new Map(
 		payload.backupSchedules.map((schedule) => [schedule.ref, schedule.repositoryRef]),
 	);
+
+	for (const volume of payload.volumes) {
+		if (volume.machineRef !== null) {
+			assertReferenceExists(machineRefs, volume.machineRef, "machine");
+		}
+		if (volume.sourceKind === "managed" && volume.machineRef !== null) {
+			throw new Error("Managed volumes must belong to the local machine");
+		}
+	}
 
 	for (const schedule of payload.backupSchedules) {
 		assertReferenceExists(volumeRefs, schedule.volumeRef, "volume");

@@ -13,12 +13,26 @@ export type ConfigTransferModel = {
 		compressionMode: CompressionMode;
 		autoCheckEnabled: boolean;
 	}>;
-	volumes: Array<{
-		ref: string;
-		name: string;
-		config: BackendConfig;
-		autoRemount: boolean;
-	}>;
+	machines: Array<{ ref: string; name: string }>;
+	volumes: Array<
+		| {
+				ref: string;
+				name: string;
+				machineRef: string | null;
+				autoRemount: boolean;
+				sourceKind: "managed";
+				config: BackendConfig;
+		  }
+		| {
+				ref: string;
+				name: string;
+				machineRef: string | null;
+				autoRemount: boolean;
+				sourceKind: "agent-filesystem";
+				trustedRootId: string;
+				relativePath: string;
+		  }
+	>;
 	backupSchedules: Array<{
 		ref: string;
 		shortId: string;

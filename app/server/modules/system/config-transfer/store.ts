@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { ConflictError } from "http-errors-enhanced";
 import { db } from "~/server/db/db";
 import {
+	agentsTable,
 	backupScheduleMirrorsTable,
 	backupScheduleNotificationsTable,
 	backupSchedulesTable,
@@ -11,6 +12,7 @@ import {
 	usersTable,
 	volumesTable,
 } from "~/server/db/schema";
+import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { calculateNextRun } from "~/server/modules/backups/backup.helpers";
 import { bandwidthFields } from "~/server/modules/repositories/repository-bandwidth-fields";
 import { asShortId } from "~/server/utils/branded";
@@ -83,7 +85,38 @@ const importRepositories = (tx: Transaction, organizationId: string, repositorie
 	return ids;
 };
 
-const importVolumes = (tx: Transaction, organizationId: string, volumes: PreparedImport["volumes"]) => {
+const importMachines = (tx: Transaction, organizationId: string, machines: PreparedImport["machines"]) => {
+	const ids = new Map<string, string>();
+
+	for (const machine of machines) {
+		const id = Bun.randomUUIDv7();
+
+		tx.insert(agentsTable)
+			.values({
+				id,
+				organizationId,
+				name: machine.name,
+				kind: "remote",
+				status: "offline",
+				capabilities: {},
+				credentialHash: null,
+				enrollmentExpiresAt: null,
+				credentialVersion: 0,
+				revokedAt: Date.now(),
+			})
+			.run();
+		ids.set(machine.ref, id);
+	}
+
+	return ids;
+};
+
+const importVolumes = (
+	tx: Transaction,
+	organizationId: string,
+	volumes: PreparedImport["volumes"],
+	machineIds: Map<string, string>,
+) => {
 	const ids = new Map<string, number>();
 
 	for (const volume of volumes) {
@@ -92,9 +125,16 @@ const importVolumes = (tx: Transaction, organizationId: string, volumes: Prepare
 			.values({
 				shortId: generateShortId(),
 				name: volume.name,
-				type: volume.config.backend,
+				type: volume.sourceKind === "managed" ? volume.config.backend : null,
 				status: "unmounted",
-				config: volume.config,
+				config: volume.sourceKind === "managed" ? volume.config : null,
+				sourceKind: volume.sourceKind,
+				agentId:
+					volume.machineRef === null
+						? LOCAL_AGENT_ID
+						: getRequiredId(machineIds, volume.machineRef, "machine"),
+				trustedRootId: volume.sourceKind === "agent-filesystem" ? volume.trustedRootId : null,
+				relativePath: volume.sourceKind === "agent-filesystem" ? volume.relativePath : null,
 				autoRemount: volume.autoRemount,
 				organizationId,
 			})
@@ -199,7 +239,8 @@ export const storeImport = (organizationId: string, userId: string, prepared: Pr
 		}
 
 		const repositoryIds = importRepositories(tx, organizationId, prepared.repositories);
-		const volumeIds = importVolumes(tx, organizationId, prepared.volumes);
+		const machineIds = importMachines(tx, organizationId, prepared.machines);
+		const volumeIds = importVolumes(tx, organizationId, prepared.volumes, machineIds);
 		const scheduleIds = importSchedules(tx, organizationId, prepared.backupSchedules, volumeIds, repositoryIds);
 		const destinationIds = importDestinations(tx, organizationId, prepared.notificationDestinations);
 

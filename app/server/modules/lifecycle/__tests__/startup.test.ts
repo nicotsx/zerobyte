@@ -382,6 +382,27 @@ test("remounts saved local managed volumes without retrying other source states"
 		agentId: "remote-agent",
 		status: "mounted",
 	});
+	const remoteFilesystem = await createTestVolume({
+		name: "Startup remote filesystem",
+		agentId: "remote-agent",
+		sourceKind: "agent-filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "photos",
+		relativePath: "",
+		autoRemount: false,
+		status: "mounted",
+	});
+	const localFilesystem = await createTestVolume({
+		name: "Startup local filesystem",
+		sourceKind: "agent-filesystem",
+		config: null,
+		type: null,
+		trustedRootId: "photos",
+		relativePath: "",
+		autoRemount: false,
+		status: "mounted",
+	});
 	const mountVolume = vi.mocked(volumeService.mountVolume);
 	mountVolume.mockRejectedValueOnce(new Error("mount failed"));
 
@@ -395,6 +416,8 @@ test("remounts saved local managed volumes without retrying other source states"
 	expect(mountVolume).not.toHaveBeenCalledWith(nonRetryableError.shortId);
 	expect(mountVolume).not.toHaveBeenCalledWith(unmounted.shortId);
 	expect(mountVolume).not.toHaveBeenCalledWith(remoteManaged.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(remoteFilesystem.shortId);
+	expect(mountVolume).not.toHaveBeenCalledWith(localFilesystem.shortId);
 });
 
 test.each(["mounted", "unmounted", "error"] as const)(

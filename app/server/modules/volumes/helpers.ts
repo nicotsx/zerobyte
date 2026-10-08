@@ -5,10 +5,16 @@ import {
 	getLocalFilesystemRootId,
 	type FilesystemSource,
 	type Volume,
+	type PresentedVolume,
 } from "@zerobyte/contracts/volumes";
 
-export const getVolumePath = (volume: Volume) => {
-	if (volume.config.backend === "directory") {
+export const getVolumePath = (
+	volume: Pick<Volume | PresentedVolume, "sourceKind" | "config" | "relativePath" | "shortId">,
+) => {
+	if (volume.sourceKind === "agent-filesystem") {
+		return volume.relativePath ? `/${volume.relativePath}` : "/";
+	}
+	if (volume.config?.backend === "directory") {
 		return volume.config.path;
 	}
 

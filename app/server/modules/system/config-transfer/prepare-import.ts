@@ -69,9 +69,10 @@ const normalizeImportedNames = (payload: ConfigTransferModel): ConfigTransferMod
 	const repositories = normalizeNames(payload.repositories);
 	const volumes = normalizeNames(payload.volumes);
 	const notificationDestinations = normalizeNames(payload.notificationDestinations);
+	const machines = normalizeNames(payload.machines);
 	validateUniqueVolumeNames(volumes);
 
-	return { ...payload, repositories, volumes, notificationDestinations };
+	return { ...payload, machines, repositories, volumes, notificationDestinations };
 };
 
 const validateMirrors = async (payload: ConfigTransferModel) => {
@@ -115,8 +116,21 @@ const createWarnings = (payload: ConfigTransferModel, capabilities: SystemInfoDt
 	const volumeBackends = new Set(capabilities.volumeBackends);
 	const repositoryBackends = new Set(capabilities.repositoryBackends);
 
+	for (const machine of payload.machines) {
+		warnings.push(
+			`Machine "${machine.name}" was imported offline without credentials. Rotate its enrollment token and reconnect it before using its sources.`,
+		);
+	}
+
 	for (const volume of payload.volumes) {
 		volumeRequirements.set(volume.ref, `volume "${volume.name}"`);
+
+		if (volume.sourceKind === "agent-filesystem") {
+			warnings.push(
+				`Source "${volume.name}" requires review of trusted root "${volume.trustedRootId}" on its machine before using it.`,
+			);
+			continue;
+		}
 
 		if (volume.config.backend === "directory") {
 			warnings.push(
@@ -216,10 +230,11 @@ export const prepareImport = async (
 				})),
 			),
 			Promise.all(
-				normalizedPayload.volumes.map(async (volume) => ({
-					...volume,
-					config: await encryptVolumeConfig(volume.config),
-				})),
+				normalizedPayload.volumes.map(async (volume) => {
+					if (volume.sourceKind === "agent-filesystem") return volume;
+
+					return { ...volume, config: await encryptVolumeConfig(volume.config) };
+				}),
 			),
 			Promise.all(
 				normalizedPayload.notificationDestinations.map(async (destination) => ({

@@ -12,7 +12,7 @@ const execute = async () => {
 	for (const volume of volumes) {
 		if (
 			volume.type !== "smb" ||
-			volume.config.backend !== "smb" ||
+			volume.config?.backend !== "smb" ||
 			volume.config.mapToContainerUidGid !== undefined
 		) {
 			continue;

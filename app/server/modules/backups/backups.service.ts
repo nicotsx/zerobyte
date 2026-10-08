@@ -16,6 +16,8 @@ import { commands } from "./commands";
 import { createBackupCommand } from "./commands/backup-command";
 import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask } from "~/schemas/tasks";
+import { assertBackupRepositoryCompatibility } from "./backup-context";
+import { toCanonicalVolume } from "../volumes/volume-execution-source";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
@@ -35,7 +37,16 @@ const listSchedules = async () => {
 		with: { volume: true, repository: true },
 		orderBy: { sortOrder: "asc", id: "asc" },
 	});
-	return schedules.filter((schedule) => schedule.volume && schedule.repository);
+	const completeSchedules = schedules.filter(
+		(
+			schedule,
+		): schedule is typeof schedule & {
+			volume: NonNullable<typeof schedule.volume>;
+			repository: NonNullable<typeof schedule.repository>;
+		} => Boolean(schedule.volume && schedule.repository),
+	);
+
+	return completeSchedules.map((schedule) => ({ ...schedule, volume: toCanonicalVolume(schedule.volume) }));
 };
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
@@ -84,6 +95,7 @@ const createSchedule = async (data: CreateBackupScheduleBody) => {
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
+	assertBackupRepositoryCompatibility(volume, repository);
 
 	if (data.customResticParams && data.customResticParams.length > 0) {
 		const paramError = validateCustomResticParams(data.customResticParams);
@@ -171,6 +183,13 @@ const updateSchedule = async (scheduleIdOrShortId: number | string, data: Update
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
+	const volume = await db.query.volumesTable.findFirst({
+		where: { AND: [{ id: schedule.volumeId }, { organizationId }] },
+	});
+	if (!volume) {
+		throw new NotFoundError("Volume not found");
+	}
+	assertBackupRepositoryCompatibility(volume, repository);
 
 	const cronExpression = data.cronExpression ?? schedule.cronExpression;
 	let nextBackupAt = schedule.nextBackupAt;
@@ -251,7 +270,11 @@ const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 		return null;
 	}
 
-	return schedule ?? null;
+	if (!schedule) {
+		return null;
+	}
+
+	return { ...schedule, volume: toCanonicalVolume(schedule.volume) };
 };
 
 const getMirrors = async (scheduleIdOrShortId: number | string) => {
@@ -434,6 +457,14 @@ const cleanupOrphanedSchedules = async () => {
 	return { deletedSchedules: orphanScheduleIds.length };
 };
 const executeBackup = async (scheduleId: number, manual = false) => {
+	const organizationId = getOrganizationId();
+	const activeBackup = taskStore
+		.listActive({ organizationId, kind: "backup", resourceType: BACKUP_TASK_RESOURCE_TYPE })
+		.find((task) => task.input.kind === "backup" && task.input.scheduleId === scheduleId);
+	if (activeBackup) {
+		throw new ConflictError("Backup is already running for this schedule");
+	}
+
 	const result = await validateBackupExecution(scheduleId, manual);
 
 	if (result.type !== "success") {
