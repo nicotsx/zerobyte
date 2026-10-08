@@ -7,7 +7,9 @@ import { generateShortId } from "../../utils/id";
 import { withTimeout } from "../../utils/timeout";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { createVolumeBackend } from "./volume-host";
-import { getVolumePath } from "./helpers";
+import { findVolume } from "./volume-queries";
+import * as path from "node:path";
+import { getLocalFilesystemSource, getVolumePath } from "./helpers";
 import type { StatFs } from "@zerobyte/core/filesystem";
 import { agentManager } from "../agents/agents-manager";
 import { testVolumeConnection } from "./volume-host/operations";
@@ -34,15 +36,6 @@ const listVolumes = async () => {
 	});
 
 	return volumes;
-};
-
-const findVolume = async (shortId: ShortId) => {
-	const organizationId = getOrganizationId();
-	return await db.query.volumesTable.findFirst({
-		where: {
-			AND: [{ shortId: { eq: shortId } }, { organizationId: organizationId }],
-		},
-	});
 };
 
 const runVolumeBackendOperation = async (volume: Volume, operation: "mount" | "unmount" | "checkHealth") => {
@@ -179,7 +172,10 @@ const getVolume = async (shortId: ShortId) => {
 	let statfs: Partial<StatFs> = {};
 	if (volume.status === "mounted") {
 		const statfsCommand = agentManager
-			.runFilesystemCommand(volume.agentId, { name: "filesystem.statfs", path: getVolumePath(volume) })
+			.runFilesystemCommand(volume.agentId, {
+				name: "filesystem.statfs",
+				source: getLocalFilesystemSource(getVolumePath(volume)),
+			})
 			.then((response) => {
 				if (response.name !== "filesystem.statfs") throw new Error("Unexpected filesystem response");
 
@@ -366,7 +362,7 @@ const listFiles = async (shortId: ShortId, subPath?: string, offset: number = 0,
 	try {
 		const response = await agentManager.runFilesystemCommand(volume.agentId, {
 			name: "filesystem.listFiles",
-			path: getVolumePath(volume),
+			source: getLocalFilesystemSource(getVolumePath(volume)),
 			subPath,
 			offset,
 			limit,
@@ -383,11 +379,18 @@ const browseFilesystem = async (browsePath: string) => {
 	try {
 		const response = await agentManager.runFilesystemCommand(LOCAL_AGENT_ID, {
 			name: "filesystem.browse",
-			path: browsePath,
+			source: getLocalFilesystemSource(browsePath),
 		});
 		if (response.name !== "filesystem.browse") throw new Error("Unexpected filesystem response");
 
-		return response.result;
+		return {
+			...response.result,
+			path: path.resolve(path.parse(process.cwd()).root, response.result.path),
+			directories: response.result.directories.map((directory) => ({
+				...directory,
+				path: path.resolve(path.parse(process.cwd()).root, directory.path),
+			})),
+		};
 	} catch (error) {
 		throw new InternalServerError(`Failed to browse filesystem: ${toMessage(error)}`);
 	}

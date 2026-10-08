@@ -7,6 +7,11 @@ import { logger } from "~/client/lib/logger";
 import { useIsDesktop } from "~/client/hooks/use-is-desktop";
 import { FolderAccessError } from "./folder-access-error";
 
+const volumePathTransform = {
+	strip: (relativePath: string) => `/${relativePath}`,
+	add: (displayPath: string) => displayPath.replace(/^\/+/, ""),
+};
+
 type VolumeFileBrowserProps = FileBrowserUiProps & {
 	volumeId: string;
 	enabled?: boolean;
@@ -24,6 +29,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 	const fileBrowser = useFileBrowser({
 		initialData: data,
 		isLoading,
+		pathTransform: volumePathTransform,
 		fetchFolder: async (path, offset): Promise<FetchFolderResult> => {
 			return await queryClient.ensureQueryData(
 				listFilesOptions({

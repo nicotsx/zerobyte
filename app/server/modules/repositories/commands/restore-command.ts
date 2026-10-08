@@ -1,3 +1,4 @@
+import { LOCAL_AGENT_ID } from "../../agents/constants";
 import type { RepositoryConfig } from "@zerobyte/core/restic";
 import type { RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import type { TaskResult } from "~/schemas/tasks";
@@ -9,8 +10,6 @@ import { taskStore } from "../../tasks/tasks.store";
 
 type RestoreExecutionOptions = Omit<RestoreRunPayload["options"], "organizationId">;
 
-type RestoreExecutionTarget = { kind: "agent"; agentId: string };
-
 type RestoreCommandParams = {
 	organizationId: string;
 	repositoryId: string;
@@ -19,7 +18,6 @@ type RestoreCommandParams = {
 	repositoryConfig: RepositoryConfig;
 	snapshotId: string;
 	target: string;
-	executionTarget: RestoreExecutionTarget;
 	options: RestoreExecutionOptions;
 };
 
@@ -50,9 +48,9 @@ const createRestoreRunPayload = async (request: RestoreExecutionRequest): Promis
 	};
 };
 
-const executeAgentRestore = async (request: RestoreExecutionRequest, agentId: string) => {
+const executeAgentRestore = async (request: RestoreExecutionRequest) => {
 	const payload = await createRestoreRunPayload(request);
-	const started = await agentManager.startRestore(agentId, {
+	const started = await agentManager.startRestore(LOCAL_AGENT_ID, {
 		payload,
 		signal: request.signal,
 		onProgress: request.onProgress,
@@ -83,7 +81,7 @@ const executeRestore = async (request: RestoreExecutionRequest) => {
 	);
 
 	try {
-		return await executeAgentRestore(request, request.executionTarget.agentId);
+		return await executeAgentRestore(request);
 	} finally {
 		releaseLock();
 	}
@@ -113,7 +111,7 @@ export const createRestoreCommand = (params: RestoreCommandParams) => {
 				resourceId: params.repositoryShortId,
 				operationKey: params.snapshotId,
 				targetDisplayName: params.repositoryName,
-				targetAgentId: params.executionTarget.agentId,
+				targetAgentId: LOCAL_AGENT_ID,
 				input: {
 					kind: "restore",
 					repositoryId: params.repositoryShortId,

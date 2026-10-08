@@ -3,6 +3,7 @@ import {
 	AGENT_PROTOCOL_VERSION,
 	createAgentMessage,
 	parseControllerMessage,
+	type AgentCapabilities,
 	type AgentWireMessage,
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
@@ -11,6 +12,7 @@ import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
 import { resolveResticHostname } from "@zerobyte/core/node";
+import { getDefaultTrustedRootRegistry, getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -18,17 +20,31 @@ export type ControllerSession = {
 	close: () => void;
 };
 
-export const createControllerSession = (ws: WebSocket): ControllerSession => {
+export const createControllerSession = (
+	ws: WebSocket,
+	options?: { trustedRoots?: TrustedRootRegistry; builtinLocal?: boolean },
+): ControllerSession => {
 	let isClosed = false;
+
 	const outboundQueue = Effect.runSync(Queue.bounded<AgentWireMessage>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
+
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
+
+	const trustedRoots = options?.trustedRoots ?? getDefaultTrustedRootRegistry();
+	const rootDescriptors = getTrustedRootDescriptors(trustedRoots);
+	const builtinLocal = options?.builtinLocal ?? process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
+	const capabilities: AgentCapabilities = {
+		restore: builtinLocal,
+		trustedRoots: rootDescriptors,
+	};
 
 	const getRunningJob = (jobId: string) => Ref.get(runningJobsRef).pipe(Effect.map((map) => map.get(jobId)));
 
 	const setRunningJob = (jobId: string, job: RunningJob) => {
 		return Ref.update(runningJobsRef, (current) => {
 			const next = new Map(current);
+
 			next.set(jobId, job);
 			return next;
 		});
@@ -36,6 +52,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 
 	const abortRunningJobs = Effect.gen(function* () {
 		const runningJobs = yield* Ref.modify(runningJobsRef, (current) => [current, new Map()]);
+
 		yield* Effect.sync(() => {
 			for (const runningJob of runningJobs.values()) {
 				runningJob.abortController.abort();
@@ -46,6 +63,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 	const deleteRunningJob = (jobId: string) => {
 		return Ref.update(runningJobsRef, (current) => {
 			const next = new Map(current);
+
 			next.delete(jobId);
 			return next;
 		});
@@ -60,6 +78,8 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 	};
 
 	const commandContext: ControllerCommandContext = {
+		allowRestore: builtinLocal,
+		trustedRoots,
 		getRunningJob,
 		setRunningJob,
 		deleteRunningJob,
@@ -122,14 +142,10 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 					return;
 				}
 
-				const commandEffect: Effect.Effect<unknown, unknown, never> = handleControllerCommand(
-					commandContext,
-					parsed.data,
-				);
-
+				const commandEffect = Effect.suspend(() => handleControllerCommand(commandContext, parsed.data));
 				const handledCommand = commandEffect.pipe(
-					Effect.catchAll((error) =>
-						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(error)}`)),
+					Effect.catchAllCause((cause) =>
+						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(cause)}`)),
 					),
 				);
 
@@ -153,7 +169,7 @@ export const createControllerSession = (ws: WebSocket): ControllerSession => {
 						protocolVersion: AGENT_PROTOCOL_VERSION,
 						hostname: resolveResticHostname(),
 						platform: process.platform,
-						capabilities: { backup: true, restore: true, filesystem: true, restic: true },
+						capabilities,
 					}),
 				),
 			).catch((error) => {

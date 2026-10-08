@@ -10,7 +10,11 @@ const execute = async () => {
 	let migratedCount = 0;
 
 	for (const volume of volumes) {
-		if (volume.type !== "smb" || volume.config.backend !== "smb" || volume.config.mapToContainerUidGid !== undefined) {
+		if (
+			volume.type !== "smb" ||
+			volume.config.backend !== "smb" ||
+			volume.config.mapToContainerUidGid !== undefined
+		) {
 			continue;
 		}
 

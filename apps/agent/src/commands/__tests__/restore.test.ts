@@ -5,6 +5,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { parseAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { handleRestoreCancelCommand } from "../restore-cancel";
+import { handleControllerCommand } from "../index";
 import { handleRestoreRunCommand } from "../restore";
 import type { ControllerCommandContext, RunningJob } from "../../context";
 
@@ -25,11 +26,13 @@ const createRunPayload = (overrides: Partial<RestoreRunPayload> = {}) =>
 		...overrides,
 	});
 
-const createContext = () => {
+const createContext = (allowRestore = true) => {
 	const outboundMessages: string[] = [];
 	const runningJobs = new Map<string, RunningJob>();
 
 	const context: ControllerCommandContext = {
+		allowRestore,
+		trustedRoots: new Map(),
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.sync(() => {
@@ -119,4 +122,29 @@ test("cancels a running restore with the shared running job registry", async () 
 			);
 		}),
 	);
+});
+
+test("refuses restore when permission is disabled", async () => {
+	const restic = vi.spyOn(resticServer, "createRestic");
+	const payload = createRunPayload();
+	const { context, messages } = createContext(false);
+
+	await Effect.runPromise(handleControllerCommand(context, { type: "restore.run", payload }));
+
+	expect(restic).not.toHaveBeenCalled();
+	expect(messages()).toEqual([
+		expect.objectContaining({
+			success: true,
+			data: {
+				type: "restore.failed",
+				payload: {
+					restoreId: payload.restoreId,
+					organizationId: payload.organizationId,
+					repositoryId: payload.repositoryId,
+					snapshotId: payload.snapshotId,
+					error: "Restore is not allowed on this agent",
+				},
+			},
+		}),
+	]);
 });

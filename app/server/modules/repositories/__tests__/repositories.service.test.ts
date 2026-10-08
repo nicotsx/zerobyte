@@ -2,6 +2,7 @@ import waitForExpect from "wait-for-expect";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import nodePath from "node:path";
+import { restoreSnapshotBody } from "../repositories.dto";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { Effect } from "effect";
@@ -10,7 +11,7 @@ import type { RepositoryConfig } from "@zerobyte/core/restic";
 import { REPOSITORY_BASE } from "~/server/core/constants";
 import { withContext } from "~/server/core/request-context";
 import { db } from "~/server/db/db";
-import { agentsTable, repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
+import { repositoriesTable, type RepositoryInsert } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
 import { restic } from "~/server/core/restic";
 import { agentManager, type RestoreExecutionResult } from "~/server/modules/agents/agents-manager";
@@ -940,113 +941,8 @@ describe("repositoriesService.restoreSnapshot", () => {
 		});
 	});
 
-	test("routes restore to the requested target agent", async () => {
-		const organizationId = session.organizationId;
-		const agentId = `agent-${randomUUID()}`;
-		const repository = await createTestRepository(organizationId, {
-			type: "s3",
-			config: {
-				backend: "s3",
-				endpoint: "https://s3.example.com",
-				bucket: "bucket",
-				accessKeyId: "access-key",
-				secretAccessKey: "secret-key",
-			},
-		});
-		await db.insert(agentsTable).values({
-			id: agentId,
-			organizationId,
-			name: "Remote Agent",
-			kind: "remote",
-			status: "online",
-			capabilities: {},
-			updatedAt: Date.now(),
-		});
-		vi.spyOn(restic, "snapshots").mockReturnValue(
-			Effect.succeed([
-				{
-					id: "snapshot-restore",
-					short_id: "snapshot-restore",
-					time: new Date().toISOString(),
-					paths: ["/var/lib/zerobyte/volumes/vol123/_data"],
-					hostname: "host",
-				},
-			]),
-		);
-		const restoreMock = vi.fn(() => Promise.resolve(createPendingRestoreStart()));
-		vi.spyOn(agentManager, "startRestore").mockImplementation(restoreMock);
-		const targetPath = await fs.mkdtemp(nodePath.join(process.cwd(), "restore-target-"));
-
-		try {
-			await withContext({ organizationId, userId: session.user.id }, () =>
-				repositoriesService.restoreSnapshot(repository.shortId, "snapshot-restore", {
-					targetPath,
-					targetAgentId: agentId,
-				}),
-			);
-		} finally {
-			await fs.rm(targetPath, { recursive: true, force: true });
-		}
-
-		await waitForExpect(() => {
-			expect(restoreMock).toHaveBeenCalledWith(
-				agentId,
-				expect.objectContaining({
-					payload: expect.objectContaining({
-						target: targetPath,
-					}),
-				}),
-			);
-		});
-	});
-
-	test("rejects a target agent outside the current organization", async () => {
-		const organizationId = session.organizationId;
-		const otherSession = await createTestSession();
-		const otherAgentId = `agent-${randomUUID()}`;
-		const repository = await createTestRepository(organizationId, {
-			type: "s3",
-			config: {
-				backend: "s3",
-				endpoint: "https://s3.example.com",
-				bucket: "bucket",
-				accessKeyId: "access-key",
-				secretAccessKey: "secret-key",
-			},
-		});
-
-		await db.insert(agentsTable).values({
-			id: otherAgentId,
-			organizationId: otherSession.organizationId,
-			name: "Other Org Agent",
-			kind: "remote",
-			status: "online",
-			capabilities: {},
-			updatedAt: Date.now(),
-		});
-		vi.spyOn(restic, "snapshots").mockReturnValue(
-			Effect.succeed([
-				{
-					id: "snapshot-restore",
-					short_id: "snapshot-restore",
-					time: new Date().toISOString(),
-					paths: ["/var/lib/zerobyte/volumes/vol123/_data"],
-					hostname: "host",
-				},
-			]),
-		);
-		const restoreMock = vi.fn(() => Promise.resolve(createPendingRestoreStart()));
-		vi.spyOn(agentManager, "startRestore").mockImplementation(restoreMock);
-
-		await expect(
-			withContext({ organizationId, userId: session.user.id }, () =>
-				repositoriesService.restoreSnapshot(repository.shortId, "snapshot-restore", {
-					targetAgentId: otherAgentId,
-				}),
-			),
-		).rejects.toThrow("Restore target agent not found");
-
-		expect(restoreMock).not.toHaveBeenCalled();
+	test("remote restore targets are rejected by the API contract", () => {
+		expect(restoreSnapshotBody.safeParse({ snapshotId: "snapshot", targetAgentId: "remote" }).success).toBe(false);
 	});
 
 	test("rejects original-location restore for snapshots with non-posix source paths", async () => {

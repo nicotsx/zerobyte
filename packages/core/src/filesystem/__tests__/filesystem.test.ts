@@ -34,14 +34,14 @@ test("listFiles returns sorted paginated entries inside the volume", async () =>
 	const result = await listFiles(volume, undefined, 1, 2);
 
 	expect(result).toMatchObject({
-		path: "/",
+		path: "",
 		offset: 1,
 		limit: 2,
 		total: 3,
 		hasMore: false,
 	});
 	expect(result.files.map((entry) => entry.name)).toEqual(["z-dir", "b-file.txt"]);
-	expect(result.files[1]).toMatchObject({ path: "/b-file.txt", type: "file", size: 5 });
+	expect(result.files[1]).toMatchObject({ path: "b-file.txt", type: "file", size: 5 });
 });
 
 test("listFiles rejects traversal outside the volume", async () => {
@@ -68,13 +68,13 @@ test("listFiles returns slash-separated paths when expanding nested folders", as
 	await fs.mkdir(path.join(tempRoot!, "Default", "AppData", "Local"), { recursive: true });
 	await fs.writeFile(path.join(tempRoot!, "Default", "AppData", "Local", "example.txt"), "hello");
 
-	const folders = await listFiles(volume, "/Default/AppData");
+	const folders = await listFiles(volume, "Default/AppData");
 	expect(folders.files).toEqual([
-		expect.objectContaining({ name: "Local", path: "/Default/AppData/Local", type: "directory" }),
+		expect.objectContaining({ name: "Local", path: "Default/AppData/Local", type: "directory" }),
 	]);
 	const files = await listFiles(volume, folders.files[0]!.path);
 	expect(files.files).toEqual([
-		expect.objectContaining({ name: "example.txt", path: "/Default/AppData/Local/example.txt", type: "file" }),
+		expect.objectContaining({ name: "example.txt", path: "Default/AppData/Local/example.txt", type: "file" }),
 	]);
 });
 

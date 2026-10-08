@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, test, vi } from "vitest";
 
@@ -118,3 +120,76 @@ test("standalone agent keeps running with closed stdin", async () => {
 		await server.stop(true);
 	}
 }, 15_000);
+
+test.skipIf(process.platform === "win32").each(["SIGINT", "SIGTERM"] as const)(
+	"%s closes the controller connection and bounds shutdown despite a retained handle",
+	async (signal) => {
+		const directory = await mkdtemp(path.join(tmpdir(), "zerobyte-agent-shutdown-"));
+		const preload = path.join(directory, "retained-handle.ts");
+		await writeFile(preload, "setInterval(() => {}, 1000);");
+
+		let ready = false;
+		let disconnected = false;
+		const server = Bun.serve({
+			hostname: "127.0.0.1",
+			port: 0,
+			fetch(request, server) {
+				if (server.upgrade(request)) return;
+				return new Response(null, { status: 400 });
+			},
+			websocket: {
+				message(_socket, message) {
+					if (JSON.parse(String(message)).type === "agent.ready") ready = true;
+				},
+				close() {
+					disconnected = true;
+				},
+			},
+		});
+		const agent = spawn(
+			process.execPath,
+			["run", "--preload", preload, path.resolve(import.meta.dirname, "../index.ts")],
+			{
+				env: {
+					...process.env,
+					ZEROBYTE_BUILTIN_LOCAL_AGENT: "0",
+					ZEROBYTE_CONTROLLER_URL: `ws://127.0.0.1:${server.port}/agents/connect`,
+					ZEROBYTE_AGENT_TOKEN: "test-token",
+				},
+				stdio: ["ignore", "ignore", "pipe"],
+			},
+		);
+		let stderr = "";
+		agent.stderr.on("data", (data: Buffer) => {
+			stderr += data.toString();
+		});
+
+		try {
+			await vi.waitFor(
+				() => {
+					expect(agent.exitCode, stderr).toBeNull();
+					expect(ready, stderr).toBe(true);
+				},
+				{ timeout: 10_000 },
+			);
+			const exited = once(agent, "exit");
+			const startedAt = Date.now();
+			agent.kill(signal);
+
+			await vi.waitFor(() => expect(disconnected).toBe(true), { timeout: 1_000 });
+			expect(agent.exitCode).toBeNull();
+			await vi.waitFor(() => expect(agent.exitCode).toBe(0), { timeout: 6_000 });
+			await exited;
+			expect(Date.now() - startedAt).toBeLessThan(6_000);
+		} finally {
+			if (agent.exitCode === null && agent.signalCode === null) {
+				const exited = once(agent, "exit");
+				agent.kill("SIGKILL");
+				await exited;
+			}
+			await server.stop(true);
+			await rm(directory, { recursive: true, force: true });
+		}
+	},
+	20_000,
+);

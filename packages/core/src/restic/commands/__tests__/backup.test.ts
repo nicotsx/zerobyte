@@ -125,21 +125,15 @@ describe("backup command", () => {
 			expect(getArgs().at(-1)).toBe(source);
 		});
 
-		test("writes include paths and patterns to separate files instead of passing the source path directly", async () => {
+		test("writes literal include paths to a raw file instead of passing the source path directly", async () => {
 			const literalDir = "/mnt/data/movies [1]";
 			let rawIncludeContent = "";
-			let patternIncludeContent = "";
 			const { getArgs, hasFlag } = setup({
 				onSpawnCall: async (params) => {
 					const rawIncludeIndex = params.args.indexOf("--files-from-raw");
-					const patternIncludeIndex = params.args.indexOf("--files-from");
 
 					if (rawIncludeIndex > -1) {
 						rawIncludeContent = await Bun.file(params.args[rawIncludeIndex + 1]!).text();
-					}
-
-					if (patternIncludeIndex > -1) {
-						patternIncludeContent = await Bun.file(params.args[patternIncludeIndex + 1]!).text();
 					}
 				},
 			});
@@ -150,16 +144,14 @@ describe("backup command", () => {
 				{
 					organizationId: "org-1",
 					includePaths: [literalDir],
-					includePatterns: ["/mnt/data/**/*.zip"],
 				},
 				mockDeps,
 			);
 
 			expect(hasFlag("--files-from-raw")).toBe(true);
-			expect(hasFlag("--files-from")).toBe(true);
+			expect(hasFlag("--files-from")).toBe(false);
 			expect(getArgs()).not.toContain("/mnt/data");
 			expect(rawIncludeContent).toBe(`${literalDir}\0`);
-			expect(patternIncludeContent).toBe("/mnt/data/**/*.zip");
 		});
 
 		test("writes raw include paths containing line breaks as single entries", async () => {
@@ -198,36 +190,12 @@ describe("backup command", () => {
 				{
 					organizationId: "org-1",
 					includePaths: ["/mnt/data/safe\0/etc/passwd"],
-					includePatterns: ["/mnt/data/**/*.zip"],
 				},
 				mockDeps,
 			);
 
 			expect(String(error.message)).toContain("includePaths contains an unsupported path character");
 			expect(getArgs()).toEqual([]);
-		});
-
-		test("rejects unsupported characters before writing include pattern files", async () => {
-			const { getArgs } = setup();
-
-			for (const includePattern of [
-				"/mnt/data/safe\0/etc/passwd",
-				"/mnt/data/safe\n/etc/passwd",
-				"/mnt/data/safe\r/etc/passwd",
-			]) {
-				const error = await runBackupError(
-					config,
-					"/mnt/data",
-					{
-						organizationId: "org-1",
-						includePatterns: [includePattern],
-					},
-					mockDeps,
-				);
-
-				expect(String(error.message)).toContain("includePatterns contains an unsupported path character");
-				expect(getArgs()).toEqual([]);
-			}
 		});
 
 		test("always includes DEFAULT_EXCLUDES as --exclude args", async () => {
