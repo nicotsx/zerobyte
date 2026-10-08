@@ -287,7 +287,7 @@ export const browseFilesystemDto = describeRoute({
 			schema: {
 				type: "string",
 			},
-			description: "Path relative to the trusted root (defaults to /)",
+			description: "Path relative to the trusted root (defaults to the root)",
 		},
 	],
 	responses: {

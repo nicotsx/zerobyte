@@ -27,16 +27,14 @@ import {
 } from "./volume.dto";
 import { volumeService } from "./volume.service";
 import { requireAuth } from "../auth/auth.middleware";
-import type { Volume } from "../../db/schema";
 import { asShortId } from "~/server/utils/branded";
-
-const toPublicVolume = ({ organizationId: _organizationId, ...volume }: Volume) => volume;
+import { presentVolume, presentVolumes } from "./volume-presentation";
 
 export const volumeController = new Hono()
 	.use(requireAuth)
 	.get("/", listVolumesDto, async (c) => {
 		const volumes = await volumeService.listVolumes();
-		const response = volumes.map(toPublicVolume);
+		const response = await presentVolumes(volumes);
 
 		return c.json<ListVolumesDto>(response, 200);
 	})
@@ -48,7 +46,7 @@ export const volumeController = new Hono()
 		const body = c.req.valid("json");
 		const res = await volumeService.createVolume(body, c.req.raw.signal);
 
-		const response = toPublicVolume(res.volume);
+		const response = await presentVolume(res.volume);
 
 		return c.json<CreateVolumeDto>(response, 201);
 	})
@@ -69,7 +67,7 @@ export const volumeController = new Hono()
 		const res = await volumeService.getVolume(shortId, c.req.raw.signal);
 
 		const response = {
-			volume: toPublicVolume(res.volume),
+			volume: await presentVolume(res.volume),
 			statfs: {
 				total: res.statfs.total ?? 0,
 				used: res.statfs.used ?? 0,
@@ -84,7 +82,7 @@ export const volumeController = new Hono()
 		const body = c.req.valid("json");
 		const res = await volumeService.updateVolume(shortId, body, c.req.raw.signal);
 
-		const response = toPublicVolume(res.volume);
+		const response = await presentVolume(res.volume);
 
 		return c.json<UpdateVolumeDto>(response, 200);
 	})

@@ -69,6 +69,7 @@ describe("parseConfig", () => {
 			appSecret: validAppSecret,
 			baseUrl: "https://example.com",
 			runtime: "server",
+			devAgentPort: 0,
 			desktop: {
 				resourcesDir: undefined,
 				launchSecret: undefined,

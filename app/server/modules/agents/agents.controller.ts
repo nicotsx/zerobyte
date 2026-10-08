@@ -9,6 +9,7 @@ import { isSecureAgentRequest } from "./helpers/auth";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 import { AGENT_BUNDLE_PATH, REMOTE_AGENTS_UNAVAILABLE } from "./constants";
 import {
+	deleteAgentDto,
 	createAgentBody,
 	createAgentDto,
 	listAgentsDto,
@@ -50,6 +51,12 @@ export const agentsController = new Hono()
 	})
 	.use(requireAuth)
 	.use(requirePermission("agents.manage"))
+	.delete("/:agentId", deleteAgentDto, async (c) => {
+		const agentId = c.req.param("agentId");
+
+		await agentManager.deleteRemoteAgent(c.get("organizationId"), agentId);
+		return c.json({ success: true });
+	})
 	.get("/", listAgentsDto, async (c) => {
 		const organizationId = c.get("organizationId");
 		const agents = await agentsService.listOrganizationAgents(organizationId);
@@ -68,17 +75,13 @@ export const agentsController = new Hono()
 		const organizationId = c.get("organizationId");
 		const agentId = c.req.param("agentId");
 
-		const rotation = await agentsService.rotateRemoteAgentToken(organizationId, agentId);
-
-		await agentManager.disconnectAgent(agentId);
+		const rotation = await agentManager.rotateRemoteAgentToken(organizationId, agentId);
 		return c.json<RotateAgentTokenDto>(rotation, 200);
 	})
 	.delete("/:agentId/token", revokeAgentTokenDto, async (c) => {
 		const organizationId = c.get("organizationId");
 		const agentId = c.req.param("agentId");
 
-		const agent = await agentsService.revokeRemoteAgentToken(organizationId, agentId);
-
-		await agentManager.disconnectAgent(agentId);
+		const agent = await agentManager.revokeRemoteAgentToken(organizationId, agentId);
 		return c.json<RevokeAgentTokenDto>(agent, 200);
 	});

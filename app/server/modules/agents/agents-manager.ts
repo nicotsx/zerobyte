@@ -18,6 +18,7 @@ import {
 	type RestoreExecutionResult,
 } from "./helpers/runtime-state";
 import { getAgentRuntimeState } from "./helpers/runtime-state";
+import { agentsService } from "./agents.service";
 export type {
 	BackupExecutionProgress,
 	BackupExecutionResult,
@@ -42,6 +43,14 @@ type AgentStartRestoreRequest = {
 type AgentRestoreStartResult =
 	| { status: "started"; result: Promise<RestoreExecutionResult> }
 	| { status: "unavailable"; error: Error };
+
+const mutateRemoteAgent = <A>(agentId: string, mutate: () => A | Promise<A>) =>
+	runEffectPromise(
+		Effect.tryPromise({ try: async () => mutate(), catch: (error) => error }).pipe(
+			Effect.tap(() => agentManager.disconnectAgent(agentId)),
+			Effect.uninterruptible,
+		),
+	);
 
 const getActiveBackupsByScheduleId = () => getAgentRuntimeState().activeBackupsByScheduleId;
 const getActiveBackupScheduleIdsByJobId = () => getAgentRuntimeState().activeBackupScheduleIdsByJobId;
@@ -502,7 +511,13 @@ export const agentManager = {
 	cancelRestore: async (agentId: string, restoreId: string) => {
 		return requestRestoreCancellation(agentId, restoreId);
 	},
-	disconnectAgent: (agentId: string) => Effect.runPromise(getAgentController().disconnect(agentId)),
+	disconnectAgent: (agentId: string) => getAgentController().disconnect(agentId),
+	deleteRemoteAgent: (organizationId: string, agentId: string) =>
+		mutateRemoteAgent(agentId, () => agentsService.deleteRemoteAgent(organizationId, agentId)),
+	rotateRemoteAgentToken: (organizationId: string, agentId: string) =>
+		mutateRemoteAgent(agentId, () => agentsService.rotateRemoteAgentToken(organizationId, agentId)),
+	revokeRemoteAgentToken: (organizationId: string, agentId: string) =>
+		mutateRemoteAgent(agentId, () => agentsService.revokeRemoteAgentToken(organizationId, agentId)),
 };
 
 const runLocalAgent = (runtime: AgentRuntimeState, controllerUrl: string, ready: Deferred.Deferred<void, Error>) =>

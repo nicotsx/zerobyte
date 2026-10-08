@@ -22,6 +22,10 @@ client.setConfig({
 });
 
 beforeAll(() => {
+	const visibilityStyles = document.createElement("style");
+	visibilityStyles.textContent = ".hidden { display: none; }";
+	document.head.append(visibilityStyles);
+
 	server.listen({ onUnhandledRequest: "error" });
 });
 

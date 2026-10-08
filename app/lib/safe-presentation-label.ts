@@ -5,7 +5,6 @@ const POSIX_DOT_DIRECTORY_REGEX = /^\.{1,2}$/u;
 const POSIX_TILDE_PATH_REGEX = /^~[\p{L}\p{N}._-]*$/u;
 
 export const UNNAMED_MACHINE_LABEL = "Unnamed machine";
-export const UNAVAILABLE_MACHINE_LABEL = "Unavailable machine";
 export const ALLOWED_LOCATION_LABEL = "Allowed location";
 
 export const isSafePresentationLabel = (value: string): boolean => {
@@ -30,6 +29,14 @@ export const getSafePresentationLabel = (value: string, fallback: string): strin
 	const normalizedValue = value.trim();
 	const isSafe = isSafePresentationLabel(value);
 	return isSafe ? normalizedValue : fallback;
+};
+
+export const getSafePresentationText = (value: string | undefined, maximumLength: number): string | null => {
+	if (value === undefined) return null;
+	const normalizedValue = value.trim();
+	const hasValidLength = normalizedValue.length > 0 && normalizedValue.length <= maximumLength;
+	const hasUnsafeCharacters = UNSAFE_LABEL_CHARACTERS_REGEX.test(value);
+	return hasValidLength && !hasUnsafeCharacters ? normalizedValue : null;
 };
 
 export const getSafeMachinePresentationLabel = (value: string): string =>

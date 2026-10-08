@@ -1,3 +1,4 @@
+import { parseError } from "~/client/lib/errors";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Database, X, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -13,6 +14,7 @@ import { Input } from "~/client/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Table, TableBody, TableCell, TableRow } from "~/client/components/ui/table";
 import type { BackupSchedule, Repository, Snapshot } from "~/client/lib/types";
+import { cn } from "~/client/lib/utils";
 import { toast } from "sonner";
 
 type Props = {
@@ -41,7 +43,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 			toast.success(`Snapshot cache refreshed. Found ${data.count} snapshots.`);
 		},
 		onError: (error) => {
-			toast.error(`Failed to refresh snapshots: ${error.message}`);
+			toast.error("Failed to refresh snapshots", { description: parseError(error)?.message });
 		},
 	});
 
@@ -96,7 +98,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 				<CardContent className="flex flex-col items-center justify-center text-center py-12">
 					<Database className="mb-4 h-12 w-12 text-destructive" />
 					<p className="text-destructive font-semibold">Failed to Load Snapshots</p>
-					<p className="text-sm text-muted-foreground mt-2">{failureReason.message}</p>
+					<p className="text-sm text-muted-foreground mt-2">{parseError(failureReason)?.message}</p>
 				</CardContent>
 			</Card>
 		);
@@ -179,7 +181,7 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 					</div>
 				</div>
 			</CardHeader>
-			{hasNoFilteredSnapshots ? (
+			{hasNoFilteredSnapshots && (
 				<Table className="border-t">
 					<TableBody>
 						<TableRow>
@@ -202,7 +204,8 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 						</TableRow>
 					</TableBody>
 				</Table>
-			) : (
+			)}
+			{!hasNoFilteredSnapshots && (
 				<SnapshotsTable
 					snapshots={filteredSnapshots}
 					repositoryId={repository.shortId}
@@ -210,10 +213,9 @@ export const RepositorySnapshotsTabContent = ({ repository, initialSnapshots, in
 				/>
 			)}
 			<div className="px-4 py-2 text-sm text-muted-foreground bg-card-header flex justify-between border-t">
-				<span>
-					{hasNoFilteredSnapshots
-						? "No snapshots match filters."
-						: `Showing ${filteredSnapshots.length} of ${snapshots.length}`}
+				<span className={cn({ hidden: !hasNoFilteredSnapshots })}>No snapshots match filters.</span>
+				<span className={cn({ hidden: hasNoFilteredSnapshots })}>
+					Showing {filteredSnapshots.length} of {snapshots.length}
 				</span>
 			</div>
 		</Card>

@@ -3,6 +3,7 @@ import {
 	ALLOWED_LOCATION_LABEL,
 	getSafeAllowedLocationLabel,
 	getSafeMachinePresentationLabel,
+	getSafePresentationText,
 	isSafePresentationLabel,
 	UNNAMED_MACHINE_LABEL,
 } from "../safe-presentation-label";
@@ -55,5 +56,12 @@ describe("safe presentation labels", () => {
 	test("uses stable fallbacks for empty labels", () => {
 		expect(getSafeMachinePresentationLabel("   ")).toBe(UNNAMED_MACHINE_LABEL);
 		expect(getSafeAllowedLocationLabel("   ")).toBe(ALLOWED_LOCATION_LABEL);
+	});
+
+	test("keeps bounded metadata text while rejecting unsafe values", () => {
+		expect(getSafePresentationText("  archive-node  ", 255)).toBe("archive-node");
+		expect(getSafePresentationText("archive\u202enode", 255)).toBeNull();
+		expect(getSafePresentationText("a".repeat(129), 128)).toBeNull();
+		expect(getSafePresentationText(undefined, 128)).toBeNull();
 	});
 });

@@ -52,25 +52,30 @@ import { notificationsService } from "../notifications/notifications.service";
 import { requireAuth } from "../auth/auth.middleware";
 import { asShortId } from "~/server/utils/branded";
 import { getScheduleByIdOrShortId } from "./helpers/backup-schedule-lookups";
+import { presentVolume, presentVolumes } from "../volumes/volume-presentation";
 
 export const backupScheduleController = new Hono()
 	.use(requireAuth)
 	.get("/", listBackupSchedulesDto, async (c) => {
 		const schedules = await backupsService.listSchedules();
+		const volumes = await presentVolumes(schedules.map((schedule) => schedule.volume));
+		const response = schedules.map((schedule, index) => ({ ...schedule, volume: volumes[index] }));
 
-		return c.json<ListBackupSchedulesResponseDto>(listBackupSchedulesResponse.parse(schedules), 200);
+		return c.json<ListBackupSchedulesResponseDto>(listBackupSchedulesResponse.parse(response), 200);
 	})
 	.get("/:shortId", getBackupScheduleDto, async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));
 		const schedule = await getScheduleByIdOrShortId(shortId);
+		const response = { ...schedule, volume: await presentVolume(schedule.volume) };
 
-		return c.json<GetBackupScheduleDto>(getBackupScheduleResponse.parse(schedule), 200);
+		return c.json<GetBackupScheduleDto>(getBackupScheduleResponse.parse(response), 200);
 	})
 	.get("/volume/:volumeShortId", getBackupScheduleForVolumeDto, async (c) => {
 		const volumeShortId = asShortId(c.req.param("volumeShortId"));
 		const schedule = await backupsService.getScheduleForVolume(volumeShortId);
+		const response = schedule ? { ...schedule, volume: await presentVolume(schedule.volume) } : null;
 
-		return c.json<GetBackupScheduleForVolumeResponseDto>(getBackupScheduleForVolumeResponse.parse(schedule), 200);
+		return c.json<GetBackupScheduleForVolumeResponseDto>(getBackupScheduleForVolumeResponse.parse(response), 200);
 	})
 	.post("/", createBackupScheduleDto, validator("json", createBackupScheduleBody), async (c) => {
 		const body = c.req.valid("json");

@@ -40,6 +40,7 @@ import { cn } from "~/client/lib/utils";
 import { VolumeInfoTabContent } from "../tabs/info";
 import { FilesTabContent } from "../tabs/files";
 import { useTimeFormat } from "~/client/lib/datetime";
+import { getVolumeStatusLabel } from "../source-presentation";
 
 export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
@@ -66,11 +67,11 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const deleteVol = useMutation({
 		...deleteVolumeMutation(),
 		onSuccess: () => {
-			toast.success("Volume deleted successfully");
+			toast.success("Source deleted successfully");
 			void navigate({ to: "/volumes" });
 		},
 		onError: (error) => {
-			toast.error("Failed to delete volume", {
+			toast.error("Failed to delete source", {
 				description: parseError(error)?.message,
 			});
 		},
@@ -83,22 +84,22 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 				toast.error("Health check failed", { description: d.error });
 				return;
 			}
-			toast.success("Health check completed", { description: "The volume is healthy." });
+			toast.success("Health check completed", { description: "The source is healthy." });
 		},
 		onError: (error) => {
-			toast.error("Health check failed", { description: error.message });
+			toast.error("Health check failed", { description: parseError(error)?.message });
 		},
 	});
 
 	const toggleAutoRemount = useMutation({
 		...updateVolumeMutation(),
 		onSuccess: (d) => {
-			toast.success("Volume updated", {
+			toast.success("Source updated", {
 				description: `Auto remount is now ${d.autoRemount ? "enabled" : "paused"}.`,
 			});
 		},
 		onError: (error) => {
-			toast.error("Update failed", { description: error.message });
+			toast.error("Update failed", { description: parseError(error)?.message });
 		},
 	});
 
@@ -107,7 +108,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 		deleteVol.mutate({ path: { shortId: volume.shortId } });
 	};
 
-	const isDirectory = volume.type === "directory";
+	const canMount = volume.sourceKind === "managed" && volume.type !== "directory";
 	const isMounted = volume.status === "mounted";
 	const isError = volume.status === "error";
 
@@ -116,25 +117,25 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 			<div className="flex flex-col gap-6 @container">
 				<Card className="px-6 py-5">
 					<div className="flex flex-col @wide:flex-row @wide:items-center justify-between gap-4">
-						<div className="flex items-center gap-4">
+						<div className="flex min-w-0 items-center gap-4">
 							<div className="hidden @medium:flex items-center justify-center w-10 h-10 shrink-0 rounded-lg bg-muted/50 border border-border/50">
 								<HardDrive className="h-5 w-5 text-muted-foreground" />
 							</div>
-							<div>
-								<div className="flex items-center gap-2">
-									<h2 className="text-lg font-semibold tracking-tight">{volume.name}</h2>
+							<div className="min-w-0">
+								<div className="flex flex-wrap items-center gap-2">
+									<h2 className="text-balance text-lg font-semibold tracking-tight">{volume.name}</h2>
 									<Separator orientation="vertical" className="h-4 mx-1" />
 									<Badge variant="outline" className="capitalize gap-1.5">
 										<span
 											className={cn("w-2 h-2 rounded-full shrink-0", {
-												"bg-success": volume.status === "mounted",
-												"bg-red-500": volume.status === "error",
+												"bg-success": isMounted,
+												"bg-red-500": isError,
 												"bg-amber-500": volume.status === "unmounted",
 											})}
 										/>
-										{volume.status}
+										{getVolumeStatusLabel(volume)}
 									</Badge>
-									<Badge variant="secondary">{volume.type}</Badge>
+									<Badge variant="secondary">{volume.type ?? "filesystem"}</Badge>
 									{volume.provisioningId && <ManagedBadge />}
 								</div>
 								<p className="text-sm text-muted-foreground mt-0.5">
@@ -142,15 +143,15 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								</p>
 							</div>
 						</div>
-						<div className="flex items-center gap-2">
+						<div className="flex flex-wrap items-center gap-2">
 							<Button
-								className={cn({ hidden: isDirectory || !isMounted })}
+								className={cn({ hidden: !canMount || !isMounted })}
 								variant="secondary"
 								onClick={() =>
 									toast.promise(unmountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
-										loading: "Unmounting volume...",
-										success: "Volume unmounted successfully",
-										error: (error) => parseError(error)?.message || "Failed to unmount volume",
+										loading: "Unmounting source...",
+										success: "Source unmounted successfully",
+										error: (error) => parseError(error)?.message || "Failed to unmount source",
 									})
 								}
 								loading={unmountVol.isPending}
@@ -159,12 +160,12 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 								Unmount
 							</Button>
 							<Button
-								className={cn({ hidden: isDirectory || isMounted })}
+								className={cn({ hidden: !canMount || isMounted })}
 								onClick={() =>
 									toast.promise(mountVol.mutateAsync({ path: { shortId: volume.shortId } }), {
-										loading: "Mounting volume...",
-										success: "Volume mounted successfully",
-										error: (error) => parseError(error)?.message || "Failed to mount volume",
+										loading: "Mounting source...",
+										success: "Source mounted successfully",
+										error: (error) => parseError(error)?.message || "Failed to mount source",
 									})
 								}
 								loading={mountVol.isPending}
@@ -226,7 +227,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							<span className="text-sm text-muted-foreground">
 								Checked {formatTimeAgo(volume.lastHealthCheck)}
 							</span>
-							{!isDirectory && (
+							{canMount && (
 								<>
 									<Separator orientation="vertical" className="h-4 hidden @lg:block" />
 									<div className="flex items-center gap-2">
@@ -249,7 +250,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							variant="outline"
 							size="sm"
 							className="shrink-0"
-							disabled={!isDirectory && volume.status === "unmounted"}
+							disabled={canMount && volume.status === "unmounted"}
 							loading={healthcheck.isPending}
 							onClick={() => healthcheck.mutate({ path: { shortId: volume.shortId } })}
 						>
@@ -286,13 +287,13 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete volume?</AlertDialogTitle>
+						<AlertDialogTitle>Delete source?</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete the volume <strong>{volume.name}</strong>? This action
+							Are you sure you want to delete the source <strong>{volume.name}</strong>? This action
 							cannot be undone.
 							<br />
 							<br />
-							All backup schedules associated with this volume will also be removed.
+							All backup schedules associated with this source will also be removed.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
@@ -303,7 +304,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							disabled={deleteVol.isPending}
 						>
 							<Trash2 className="h-4 w-4 mr-2" />
-							Delete volume
+							Delete source
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

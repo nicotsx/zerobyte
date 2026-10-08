@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, Download, FolderOpen, RotateCcw, Square } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Circle, Download, RotateCcw, Square } from "lucide-react";
 import { Button } from "~/client/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
@@ -23,7 +23,6 @@ import { RestoreProgress } from "~/client/components/restore-progress";
 import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useRestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
-import { isPathWithin } from "@zerobyte/core/utils";
 import type { Repository, Snapshot } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
@@ -38,8 +37,7 @@ interface RestoreFormProps {
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
-	hasNonPosixSnapshotPaths?: boolean;
-	volumeReadOnly?: boolean;
+	originalLocationUnavailableReason: string | null;
 }
 
 export function RestoreForm({
@@ -48,19 +46,16 @@ export function RestoreForm({
 	returnPath,
 	queryBasePath,
 	displayBasePath,
-	hasNonPosixSnapshotPaths = false,
-	volumeReadOnly = false,
+	originalLocationUnavailableReason,
 }: RestoreFormProps) {
 	const snapshotId = snapshot.short_id;
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
 
 	const snapshotBasePath = queryBasePath ?? "/";
-	const hasMismatchedDisplayBasePath = displayBasePath && !isPathWithin(displayBasePath, snapshotBasePath);
-	const hasSourcePathMismatch = hasNonPosixSnapshotPaths || !!hasMismatchedDisplayBasePath;
-	const restoreRequiresCustomTarget = hasSourcePathMismatch || volumeReadOnly;
+	const restoreRequiresCustomTarget = originalLocationUnavailableReason !== null;
 
-	const [restoreLocation, setRestoreLocation] = useState<RestoreLocation>(
+	const [requestedRestoreLocation, setRestoreLocation] = useState<RestoreLocation>(
 		restoreRequiresCustomTarget ? "custom" : "original",
 	);
 	const [customTargetPath, setCustomTargetPath] = useState("");
@@ -70,13 +65,12 @@ export function RestoreForm({
 
 	const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
 	const [selectedPathKind, setSelectedPathKind] = useState<"file" | "dir" | null>(null);
+
 	const trimmedCustomTargetPath = customTargetPath.trim();
 	const hasCustomTargetPath = trimmedCustomTargetPath !== "";
 	const selectedPathCount = selectedPaths.size;
-
-	if (restoreRequiresCustomTarget && restoreLocation !== "custom") {
-		setRestoreLocation("custom");
-	}
+	const restoreLocation = restoreRequiresCustomTarget ? "custom" : requestedRestoreLocation;
+	const canRestore = restoreLocation === "original" || hasCustomTargetPath;
 
 	const {
 		data: restoreStart,
@@ -106,13 +100,14 @@ export function RestoreForm({
 	});
 
 	const handleRestore = useCallback(() => {
+		if (!canRestore) return;
+
 		const excludeXattrValues = excludeXattr
 			.split(",")
 			.map((value) => value.trim())
 			.filter(Boolean);
 
-		const isCustomLocation = restoreLocation === "custom";
-		const targetPath = isCustomLocation && hasCustomTargetPath ? trimmedCustomTargetPath : undefined;
+		const targetPath = restoreLocation === "custom" ? trimmedCustomTargetPath : undefined;
 
 		const includePaths = Array.from(selectedPaths);
 
@@ -134,7 +129,7 @@ export function RestoreForm({
 		repository.shortId,
 		snapshotId,
 		excludeXattr,
-		hasCustomTargetPath,
+		canRestore,
 		restoreLocation,
 		trimmedCustomTargetPath,
 		selectedPaths,
@@ -169,11 +164,10 @@ export function RestoreForm({
 		resetRestoreMutation();
 	}, [clearFinishedRestoreTask, resetRestoreMutation]);
 
-	const canRestore = restoreRequiresCustomTarget
-		? hasCustomTargetPath
-		: restoreLocation === "original" || hasCustomTargetPath;
 	const canDownload = selectedPathCount <= 1;
 	const isRestoreRunning = isRestoring || isRestoreTaskRunning;
+	const restoreSucceeded = finishedRestoreTask?.status === "succeeded";
+	const restoreCancelled = finishedRestoreTask?.status === "cancelled";
 
 	function getDownloadButtonText(): string {
 		if (selectedPathCount > 0) {
@@ -222,25 +216,29 @@ export function RestoreForm({
 							</p>
 						</TooltipContent>
 					</Tooltip>
-					{activeRestoreTaskId ? (
-						<Button
-							variant="destructive"
-							loading={cancelRestore.isPending}
-							onClick={() =>
-								cancelRestore.mutate({
-									path: { taskId: activeRestoreTaskId },
-								})
-							}
-						>
-							<Square className="h-4 w-4 mr-2" />
-							Cancel restore
-						</Button>
-					) : (
-						<Button variant="primary" onClick={handleRestore} disabled={isRestoreRunning || !canRestore}>
-							<RotateCcw className="h-4 w-4 mr-2" />
-							{getRestoreButtonText()}
-						</Button>
-					)}
+					<Button
+						variant="destructive"
+						className={cn({ hidden: !activeRestoreTaskId })}
+						loading={cancelRestore.isPending}
+						onClick={() =>
+							activeRestoreTaskId &&
+							cancelRestore.mutate({
+								path: { taskId: activeRestoreTaskId },
+							})
+						}
+					>
+						<Square className="h-4 w-4 mr-2" />
+						Cancel restore
+					</Button>
+					<Button
+						variant="primary"
+						className={cn({ hidden: !!activeRestoreTaskId })}
+						onClick={handleRestore}
+						disabled={isRestoreRunning || !canRestore}
+					>
+						<RotateCcw className="h-4 w-4 mr-2" />
+						{getRestoreButtonText()}
+					</Button>
 				</div>
 			</div>
 
@@ -251,64 +249,68 @@ export function RestoreForm({
 					{restoreRequiresCustomTarget && (
 						<Alert variant="warning">
 							<AlertTriangle className="size-4" />
-							{volumeReadOnly && !hasSourcePathMismatch ? (
-								<>
-									<AlertTitle>Volume is read-only</AlertTitle>
-									<AlertDescription>
-										The volume backing this backup is mounted read-only. Restoring to the original
-										location is unavailable. Restore it to a custom location, or download it
-										instead.
-									</AlertDescription>
-								</>
-							) : (
-								<>
-									<AlertTitle>Source paths do not match</AlertTitle>
-									<AlertDescription>
-										This snapshot was created from source paths that do not match this Zerobyte
-										server or the current linked volume. Restoring to the original location is
-										unavailable. Restore it to a custom location, or download it instead.
-									</AlertDescription>
-								</>
-							)}
+							<AlertTitle>Choose a destination on this server</AlertTitle>
+							<AlertDescription>{originalLocationUnavailableReason}</AlertDescription>
 						</Alert>
 					)}
 
 					<Card>
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
-							<CardDescription>Choose where to restore the files</CardDescription>
+							<CardDescription>
+								Destination: This server. Choose a folder on this server to restore the files.
+							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
-							<div className="grid grid-cols-1 gap-2">
+							<fieldset className="min-w-0 grid grid-cols-1 gap-2" aria-label="Restore destination">
 								<Button
 									type="button"
 									variant={restoreLocation === "original" ? "secondary" : "outline"}
 									size="sm"
-									className="flex justify-start gap-2"
+									className={cn(
+										"flex justify-start gap-2",
+										restoreLocation === "original" && "border-primary bg-primary/5",
+									)}
+									aria-pressed={restoreLocation === "original"}
 									onClick={() => setRestoreLocation("original")}
 									disabled={!!restoreRequiresCustomTarget}
 								>
-									<RotateCcw size={16} className="mr-1" />
-									Original location
+									<CheckCircle2
+										size={16}
+										className={cn({ hidden: restoreLocation !== "original" })}
+									/>
+									<Circle size={16} className={cn({ hidden: restoreLocation === "original" })} />
+									Original path on this server
 								</Button>
 								<Button
 									type="button"
 									variant={restoreLocation === "custom" ? "secondary" : "outline"}
 									size="sm"
-									className="justify-start gap-2"
+									className={cn(
+										"justify-start gap-2",
+										restoreLocation === "custom" && "border-primary bg-primary/5",
+									)}
+									aria-pressed={restoreLocation === "custom"}
 									onClick={() => setRestoreLocation("custom")}
 								>
-									<FolderOpen size={16} className="mr-1" />
+									<CheckCircle2 size={16} className={cn({ hidden: restoreLocation !== "custom" })} />
+									<Circle size={16} className={cn({ hidden: restoreLocation === "custom" })} />
 									Custom location
 								</Button>
-							</div>
+							</fieldset>
 							{restoreLocation === "custom" && (
 								<div className="space-y-2">
-									<FolderSelector value={customTargetPath || "/"} onChange={setCustomTargetPath} />
+									<FolderSelector value={customTargetPath} onChange={setCustomTargetPath} />
 									<p className="text-xs text-muted-foreground">
 										Files will be restored directly to this path
 									</p>
 								</div>
+							)}
+							{restoreLocation === "original" && (
+								<p className="text-xs text-muted-foreground break-words">
+									Restore to the original paths on this server, starting at{" "}
+									<code>{snapshotBasePath}</code>.
+								</p>
 							)}
 						</CardContent>
 					</Card>
@@ -380,9 +382,12 @@ export function RestoreForm({
 					<CardHeader>
 						<CardTitle>Select Files to Restore</CardTitle>
 						<CardDescription>
-							{selectedPaths.size > 0
-								? `${selectedPaths.size} ${selectedPaths.size === 1 ? "item" : "items"} selected`
-								: "Select specific files or folders, or leave empty to restore everything"}
+							<span className={cn({ hidden: selectedPaths.size === 0 })}>
+								{selectedPaths.size} {selectedPaths.size === 1 ? "item" : "items"} selected
+							</span>
+							<span className={cn({ hidden: selectedPaths.size > 0 })}>
+								Select specific files or folders, or leave empty to restore everything
+							</span>
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex-1 overflow-hidden flex flex-col p-0">
@@ -411,18 +416,20 @@ export function RestoreForm({
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle>
-							{finishedRestoreTask?.status === "succeeded"
-								? "Restore completed"
-								: finishedRestoreTask?.status === "cancelled"
-									? "Restore cancelled"
-									: "Restore failed"}
+							<span className={cn({ hidden: !restoreSucceeded })}>Restore completed</span>
+							<span className={cn({ hidden: !restoreCancelled })}>Restore cancelled</span>
+							<span className={cn({ hidden: restoreSucceeded || restoreCancelled })}>Restore failed</span>
 						</AlertDialogTitle>
 						<AlertDialogDescription>
-							{finishedRestoreTask?.status === "succeeded"
-								? `Snapshot ${snapshotId} was restored successfully.`
-								: finishedRestoreTask?.status === "cancelled"
-									? finishedRestoreTask.error || `Restore of snapshot ${snapshotId} was cancelled.`
-									: finishedRestoreTask?.error || `Snapshot ${snapshotId} could not be restored.`}
+							<span className={cn({ hidden: !restoreSucceeded })}>
+								Snapshot {snapshotId} was restored successfully.
+							</span>
+							<span className={cn({ hidden: !restoreCancelled })}>
+								{finishedRestoreTask?.error || `Restore of snapshot ${snapshotId} was cancelled.`}
+							</span>
+							<span className={cn({ hidden: restoreSucceeded || restoreCancelled })}>
+								{finishedRestoreTask?.error || `Snapshot ${snapshotId} could not be restored.`}
+							</span>
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

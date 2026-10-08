@@ -61,14 +61,14 @@ async function createVolume(page: Page, name: string) {
 	await gotoAndWaitForAppReady(page, "/volumes");
 	const volumeNameInput = page.getByRole("textbox", { name: "Name" });
 	await expect(async () => {
-		await page.getByRole("button", { name: "Create Volume" }).click();
+		await page.getByRole("button", { name: "Create Source" }).click();
 		await expect(volumeNameInput).toBeVisible();
 	}).toPass({ timeout: 10000 });
 	await volumeNameInput.fill(name);
 	await page.getByRole("button", { name: "Change", exact: true }).click();
 	await page.getByRole("button", { name: "test-data" }).click();
-	await page.getByRole("button", { name: "Create Volume" }).click();
-	await expect(page.getByText("Volume created successfully")).toBeVisible();
+	await page.getByRole("button", { name: "Create Source" }).click();
+	await expect(page.getByText("Source created successfully")).toBeVisible();
 }
 
 async function createBackupJob(page: Page, backupName: string, volumeName: string, repositoryName: string) {
@@ -79,7 +79,7 @@ async function createBackupJob(page: Page, backupName: string, volumeName: strin
 	} else {
 		await page.getByRole("link", { name: "Create a backup job" }).first().click();
 	}
-	const volumeSelect = page.getByRole("combobox").filter({ hasText: "Choose a volume to backup" });
+	const volumeSelect = page.getByRole("combobox", { name: "Source", exact: true });
 	const volumeOption = page.getByRole("option", { name: volumeName });
 	await expect(async () => {
 		await volumeSelect.click();

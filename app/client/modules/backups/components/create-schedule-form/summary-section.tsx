@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/cli
 import { cn } from "~/client/lib/utils";
 import type { Volume } from "~/client/lib/types";
 import type { InternalFormValues } from "./types";
+import { getSourceLabel } from "~/client/modules/volumes/source-presentation";
 
 type SummarySectionProps = {
 	volume: Volume;
@@ -16,6 +17,7 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 	const { data: repositoriesData } = useQuery({
 		...listRepositoriesOptions(),
 	});
+
 	const retentionSummary = [
 		["last", formValues.keepLast],
 		["hourly", formValues.keepHourly],
@@ -38,8 +40,8 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 			</CardHeader>
 			<CardContent className="flex flex-col gap-4 text-sm">
 				<div>
-					<p className="text-xs uppercase text-muted-foreground">Volume</p>
-					<p className="font-medium">{volume.name}</p>
+					<p className="text-xs uppercase text-muted-foreground">Source</p>
+					<p className="font-medium [overflow-wrap:anywhere]">{getSourceLabel(volume)}</p>
 				</div>
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Schedule</p>
@@ -57,32 +59,30 @@ export const SummarySection = ({ volume, frequency, formValues }: SummarySection
 						{repositoriesData?.find((r) => r.shortId === formValues.repositoryId)?.name || "—"}
 					</p>
 				</div>
-				{(formValues.includePaths && formValues.includePaths.length > 0) || formValues.includePatterns ? (
-					<div>
-						<p className="text-xs uppercase text-muted-foreground">Include paths/patterns</p>
-						<div className="flex flex-col gap-1">
-							{formValues.includePaths?.slice(0, 20).map((path) => (
-								<span key={path} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
-									{path}
+				<div className={cn({ hidden: !formValues.includePaths?.length && !formValues.includePatterns })}>
+					<p className="text-xs uppercase text-muted-foreground">Include paths/patterns</p>
+					<div className="flex flex-col gap-1">
+						{formValues.includePaths?.slice(0, 20).map((path) => (
+							<span key={path} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
+								{path}
+							</span>
+						))}
+						{formValues.includePaths && formValues.includePaths.length > 20 && (
+							<span className="text-xs text-muted-foreground">
+								+ {formValues.includePaths.length - 20} more
+							</span>
+						)}
+						{formValues.includePatterns
+							?.split("\n")
+							.filter(Boolean)
+							.slice(0, 20 - (formValues.includePaths?.length || 0))
+							.map((pattern) => (
+								<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
+									{pattern.trim()}
 								</span>
 							))}
-							{formValues.includePaths && formValues.includePaths.length > 20 && (
-								<span className="text-xs text-muted-foreground">
-									+ {formValues.includePaths.length - 20} more
-								</span>
-							)}
-							{formValues.includePatterns
-								?.split("\n")
-								.filter(Boolean)
-								.slice(0, 20 - (formValues.includePaths?.length || 0))
-								.map((pattern) => (
-									<span key={pattern} className="text-xs font-mono bg-accent px-1.5 py-0.5 rounded">
-										{pattern.trim()}
-									</span>
-								))}
-						</div>
 					</div>
-				) : null}
+				</div>
 				{formValues.excludePatternsText && (
 					<div>
 						<p className="text-xs uppercase text-muted-foreground">Exclude patterns</p>

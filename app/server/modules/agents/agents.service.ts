@@ -2,18 +2,20 @@ import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { ConflictError, NotFoundError, UnauthorizedError } from "http-errors-enhanced";
 import { db } from "../../db/db";
-import { agentsTable, type Agent, type AgentCapabilities } from "../../db/schema";
+import { agentsTable, volumesTable, type Agent, type AgentCapabilities } from "../../db/schema";
 import { config } from "../../core/config";
 import { LOCAL_AGENT_CAPABILITIES, LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "./constants";
 import { createAgentToken, hashAgentToken, parseAgentToken, type AgentIdentity } from "./helpers/tokens";
 import { publicAgentSchema } from "./agents.dto";
+import { presentAgentCapabilities } from "./agent-capability-presentation";
 
 const ENROLLMENT_LIFETIME_MS = 15 * 60 * 1000;
 
 type AgentCredential = Pick<AgentIdentity, "agentId" | "credentialVersion">;
 type AgentRuntimeUpdate = Partial<Pick<Agent, "status" | "capabilities" | "lastSeenAt" | "lastReadyAt" | "updatedAt">>;
 
-const presentAgent = (agent: Agent) => publicAgentSchema.parse(agent);
+const presentAgent = (agent: Agent) =>
+	publicAgentSchema.parse({ ...agent, capabilities: presentAgentCapabilities(agent.capabilities) });
 
 const listOrganizationAgents = async (organizationId: string) => {
 	const rows = await db.query.agentsTable.findMany({
@@ -54,6 +56,13 @@ const ensureLocalAgent = async () => {
 	return getAgent(LOCAL_AGENT_ID);
 };
 
+const getControllerUrl = () => {
+	const controllerUrl = new URL("/api/v1/agents/connect", config.baseUrl);
+	controllerUrl.protocol = controllerUrl.protocol === "https:" ? "wss:" : "ws:";
+
+	return controllerUrl.toString();
+};
+
 const createRemoteAgent = async (organizationId: string, name: string) => {
 	const id = Bun.randomUUIDv7();
 	const credentialVersion = 1;
@@ -81,10 +90,7 @@ const createRemoteAgent = async (organizationId: string, name: string) => {
 
 	if (!agent) throw new Error("Failed to create remote agent");
 
-	const controllerUrl = new URL("/api/v1/agents/connect", config.baseUrl);
-	controllerUrl.protocol = controllerUrl.protocol === "https:" ? "wss:" : "ws:";
-
-	return { agent: presentAgent(agent), controllerUrl: controllerUrl.toString(), token: credentials.token, expiresAt };
+	return { agent: presentAgent(agent), controllerUrl: getControllerUrl(), token: credentials.token, expiresAt };
 };
 
 const updateRemoteAgent = async (
@@ -93,6 +99,11 @@ const updateRemoteAgent = async (
 	values: SQLiteUpdateSetSource<typeof agentsTable>,
 	expectedCredentialVersion?: number,
 ) => {
+	let credentialVersionCondition;
+	if (expectedCredentialVersion !== undefined) {
+		credentialVersionCondition = eq(agentsTable.credentialVersion, expectedCredentialVersion);
+	}
+
 	const [updated] = await db
 		.update(agentsTable)
 		.set(values)
@@ -101,9 +112,7 @@ const updateRemoteAgent = async (
 				eq(agentsTable.id, agentId),
 				eq(agentsTable.organizationId, organizationId),
 				eq(agentsTable.kind, "remote"),
-				expectedCredentialVersion === undefined
-					? undefined
-					: eq(agentsTable.credentialVersion, expectedCredentialVersion),
+				credentialVersionCondition,
 			),
 		)
 		.returning();
@@ -136,7 +145,7 @@ const rotateRemoteAgentToken = async (organizationId: string, agentId: string) =
 
 	if (!updated) throw new ConflictError("The agent credential changed during rotation. Try again.");
 
-	return { agent: updated, token: credentials.token, expiresAt };
+	return { agent: updated, controllerUrl: getControllerUrl(), token: credentials.token, expiresAt };
 };
 
 const revokeRemoteAgentToken = async (organizationId: string, agentId: string) => {
@@ -155,6 +164,31 @@ const revokeRemoteAgentToken = async (organizationId: string, agentId: string) =
 
 	return revoked;
 };
+
+const deleteRemoteAgent = (organizationId: string, agentId: string) =>
+	db.transaction((tx) => {
+		const source = tx
+			.select({ id: volumesTable.id })
+			.from(volumesTable)
+			.where(and(eq(volumesTable.agentId, agentId), eq(volumesTable.organizationId, organizationId)))
+			.get();
+
+		if (source) throw new ConflictError("Delete this machine's sources before deleting the machine.");
+
+		const deleted = tx
+			.delete(agentsTable)
+			.where(
+				and(
+					eq(agentsTable.id, agentId),
+					eq(agentsTable.organizationId, organizationId),
+					eq(agentsTable.kind, "remote"),
+				),
+			)
+			.returning({ id: agentsTable.id })
+			.get();
+
+		if (!deleted) throw new NotFoundError("Remote agent not found");
+	});
 
 const exchangeEnrollmentToken = async (token: string) => {
 	const parsed = parseAgentToken(token);
@@ -234,6 +268,7 @@ const markStaleRemoteAgentsOffline = async () => {
 };
 
 export const agentsService = {
+	deleteRemoteAgent,
 	exchangeEnrollmentToken,
 	listOrganizationAgents,
 	getAgent,

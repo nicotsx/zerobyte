@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { FolderOpen, HardDrive, Settings, Unplug } from "lucide-react";
+import { FolderOpen, HardDrive, Laptop, Settings, Unplug } from "lucide-react";
 import { Label, Pie, PieChart } from "recharts";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Card, CardTitle } from "~/client/components/ui/card";
@@ -12,7 +12,7 @@ type Props = {
 	statfs: StatFs;
 };
 
-const backendLabels: Record<Volume["type"], string> = {
+const backendLabels: Record<Exclude<Volume["type"], null>, string> = {
 	directory: "Directory",
 	nfs: "NFS",
 	smb: "SMB",
@@ -30,10 +30,10 @@ type ConfigRowProps = {
 
 function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 	return (
-		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+		<div className="flex flex-wrap items-start gap-3 py-3 first:pt-0 last:pb-0 sm:flex-nowrap sm:items-center">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
-			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
-			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
+			<span className="w-[calc(100%-1.75rem)] shrink-0 text-sm text-muted-foreground sm:w-40">{label}</span>
+			<span className={cn("min-w-0 text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
 				{value}
 			</span>
 		</div>
@@ -41,6 +41,24 @@ function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 }
 
 function BackendConfigRows({ volume }: { volume: Volume }) {
+	if (volume.sourceKind === "filesystem") {
+		return (
+			<>
+				<ConfigRow
+					icon={<Laptop className="h-4 w-4" />}
+					label="Machine"
+					value={volume.sourceLocation.machine}
+				/>
+				<ConfigRow
+					icon={<FolderOpen className="h-4 w-4" />}
+					label="Folder"
+					value={volume.sourceLocation.path}
+					mono
+				/>
+			</>
+		);
+	}
+
 	const config = volume.config;
 
 	switch (config.backend) {
@@ -154,10 +172,16 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const { total = 0, used = 0, free = 0 } = statfs;
 
 	const hasStorage = total > 0;
+	const backendLabel = volume.type === null ? "Filesystem" : backendLabels[volume.type];
 
 	return (
 		<Card className="px-6 py-6 @container/inner">
-			<div className="grid grid-cols-1 @3xl/inner:grid-cols-[1fr_280px] gap-8">
+			<div
+				className={cn(
+					"grid grid-cols-1 gap-8",
+					volume.sourceKind === "managed" && "@3xl/inner:grid-cols-[1fr_280px]",
+				)}
+			>
 				<div>
 					<CardTitle className="flex items-center gap-2 mb-5">
 						<Settings className="h-4 w-4 text-muted-foreground" />
@@ -165,16 +189,12 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 					</CardTitle>
 					<div className="space-y-0 divide-y divide-border/50">
 						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Name" value={volume.name} />
-						<ConfigRow
-							icon={<HardDrive className="h-4 w-4" />}
-							label="Backend"
-							value={backendLabels[volume.type]}
-						/>
+						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={backendLabel} />
 						<BackendConfigRows volume={volume} />
 					</div>
 				</div>
 
-				{hasStorage ? (
+				{volume.sourceKind === "managed" && hasStorage && (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8">
 						<CardTitle className="flex items-center gap-2 mb-2 text-center @3xl/inner:text-left">
 							<HardDrive className="h-4 w-4" />
@@ -205,13 +225,14 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							</div>
 						</div>
 					</div>
-				) : (
+				)}
+				{volume.sourceKind === "managed" && !hasStorage && (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8 flex flex-col items-center justify-center text-center py-8">
 						<Unplug className="mb-4 h-5 w-5 text-muted-foreground" />
 						<p className="text-sm text-muted-foreground">
 							No storage data available.
 							<br />
-							Mount the volume to see usage.
+							Mount the source to see usage.
 						</p>
 					</div>
 				)}

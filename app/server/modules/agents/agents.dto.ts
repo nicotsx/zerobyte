@@ -1,6 +1,7 @@
 import { describeRoute, resolver } from "hono-openapi";
 import { z } from "zod";
 import { isValidMachineName, MACHINE_NAME_MAX_LENGTH } from "~/lib/machine-name";
+import { publicAgentCapabilitiesSchema } from "./agent-capability-presentation";
 
 export const publicAgentSchema = z.object({
 	id: z.string(),
@@ -8,7 +9,7 @@ export const publicAgentSchema = z.object({
 	name: z.string(),
 	kind: z.enum(["local", "remote"]),
 	status: z.enum(["offline", "connecting", "online", "degraded"]),
-	capabilities: z.record(z.string(), z.unknown()),
+	capabilities: publicAgentCapabilitiesSchema,
 	lastSeenAt: z.number().nullable(),
 	lastReadyAt: z.number().nullable(),
 	createdAt: z.number(),
@@ -28,11 +29,9 @@ const enrollmentResponseSchema = z.object({
 	expiresAt: z.number(),
 });
 
-const rotationResponseSchema = z.object({ agent: publicAgentSchema, token: z.string(), expiresAt: z.number() });
-
 export type ListAgentsDto = z.infer<typeof publicAgentSchema>[];
 export type CreateAgentDto = z.infer<typeof enrollmentResponseSchema>;
-export type RotateAgentTokenDto = z.infer<typeof rotationResponseSchema>;
+export type RotateAgentTokenDto = z.infer<typeof enrollmentResponseSchema>;
 export type RevokeAgentTokenDto = z.infer<typeof publicAgentSchema>;
 
 const response = (schema: z.ZodType, description: string) => ({
@@ -55,11 +54,17 @@ export const createAgentDto = describeRoute({
 export const rotateAgentTokenDto = describeRoute({
 	operationId: "rotateRemoteAgentToken",
 	tags: ["Agents"],
-	responses: { 200: response(rotationResponseSchema, "Enrollment token rotated") },
+	responses: { 200: response(enrollmentResponseSchema, "Enrollment token rotated") },
 });
 
 export const revokeAgentTokenDto = describeRoute({
 	operationId: "revokeRemoteAgentToken",
 	tags: ["Agents"],
 	responses: { 200: response(publicAgentSchema, "Enrollment token revoked") },
+});
+
+export const deleteAgentDto = describeRoute({
+	operationId: "deleteRemoteAgent",
+	tags: ["Agents"],
+	responses: { 200: response(z.object({ success: z.boolean() }), "Remote machine deleted") },
 });

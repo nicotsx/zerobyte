@@ -44,7 +44,7 @@ import { OrganizationSwitcher } from "./organization-switcher";
 import { ReleaseNotesDialog } from "./release-notes-dialog";
 
 const items = [
-	{ title: "Volumes", url: "/volumes", icon: HardDrive },
+	{ title: "Sources", url: "/volumes", icon: HardDrive },
 	{ title: "Repositories", url: "/repositories", icon: Database },
 	{ title: "Backups", url: "/backups", icon: CalendarClock },
 	{ title: "Notifications", url: "/notifications", icon: Bell },
@@ -83,11 +83,20 @@ export function AppSidebar() {
 	const activeSettingsScope = getActiveSettingsScope(location.search, scopeAvailability);
 	const visibleSettingsItems = getVisibleSettingsScopeNavigationItems(scopeAvailability);
 
-	const displayVersion = APP_VERSION.startsWith("v") || APP_VERSION === "dev" ? APP_VERSION : `v${APP_VERSION}`;
-	const releaseUrl =
-		APP_VERSION === "dev"
-			? "https://github.com/nicotsx/zerobyte"
-			: `https://github.com/nicotsx/zerobyte/releases/tag/${displayVersion}`;
+	let displayVersion;
+	if (APP_VERSION.startsWith("v") || APP_VERSION === "dev") {
+		displayVersion = APP_VERSION;
+	} else {
+		displayVersion = `v${APP_VERSION}`;
+	}
+
+	let releaseUrl;
+	if (APP_VERSION === "dev") {
+		releaseUrl = "https://github.com/nicotsx/zerobyte";
+	} else {
+		releaseUrl = `https://github.com/nicotsx/zerobyte/releases/tag/${displayVersion}`;
+	}
+
 	const availableVersion = updates?.latestVersion ?? "New version";
 	const versionStatus = hasUpdate ? `${availableVersion} available` : "Up to date";
 	const versionCheckStatus = updatesError ? "Last check failed" : versionStatus;
@@ -226,9 +235,8 @@ export function AppSidebar() {
 								</TooltipTrigger>
 								<TooltipContent side={footerOverlaySide}>Settings</TooltipContent>
 							</Tooltip>
-							{isMobile ? (
-								versionButton
-							) : (
+							{isMobile && versionButton}
+							{!isMobile && (
 								<HoverCard openDelay={200}>
 									<HoverCardTrigger asChild>{versionButton}</HoverCardTrigger>
 									<HoverCardContent side={footerOverlaySide} align="end" className="w-fit p-3">

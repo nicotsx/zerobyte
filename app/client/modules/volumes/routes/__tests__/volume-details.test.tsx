@@ -40,6 +40,6 @@ test("Check Now makes a previously unmounted folder browsable", async () => {
 	const checkNow = screen.getByRole<HTMLButtonElement>("button", { name: "Check Now" });
 	expect(checkNow.disabled).toBe(false);
 	await userEvent.click(checkNow);
-	expect(await screen.findByText("This volume is empty.")).toBeTruthy();
+	expect(await screen.findByText("This source is empty.")).toBeTruthy();
 	expect(screen.queryByText("Directory is not accessible.")).toBeNull();
 });

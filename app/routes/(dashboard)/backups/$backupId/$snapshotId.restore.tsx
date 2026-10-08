@@ -3,8 +3,7 @@ import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
-import { getVolumeMountPath } from "~/client/lib/volume-path";
-import { findCommonAncestor } from "@zerobyte/core/utils";
+import { getRestoreContext } from "~/client/lib/restore-context";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -32,16 +31,11 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			context.queryClient.ensureQueryData(activeRestoreTasksOptions),
 		]);
 
-		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
-
 		return {
 			snapshot,
 			repository,
 			schedule: schedule.data,
-			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
-			displayBasePath: getVolumeMountPath(schedule.data.volume),
-			hasNonPosixSnapshotPaths,
-			volumeReadOnly: schedule.data.volume.config.readOnly ?? false,
+			...getRestoreContext(snapshot, schedule.data.volume),
 		};
 	},
 	head: ({ params }) => ({
@@ -68,7 +62,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId } = Route.useParams();
-	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
+	const { snapshot, repository, queryBasePath, displayBasePath, originalLocationUnavailableReason } =
 		Route.useLoaderData();
 
 	return (
@@ -77,8 +71,7 @@ function RouteComponent() {
 			repository={repository}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
-			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
-			volumeReadOnly={volumeReadOnly}
+			originalLocationUnavailableReason={originalLocationUnavailableReason}
 			snapshot={snapshot}
 		/>
 	);

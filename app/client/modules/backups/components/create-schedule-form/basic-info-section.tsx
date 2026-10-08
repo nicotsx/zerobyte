@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import type { Volume } from "~/client/lib/types";
 import type { UseFormReturn } from "react-hook-form";
 import type { InternalFormValues } from "./types";
+import { getBackupRepositoryCompatibility } from "@zerobyte/contracts/backup-context";
+import { cn } from "~/client/lib/utils";
 
 type BasicInfoSectionProps = {
 	form: UseFormReturn<InternalFormValues>;
@@ -47,14 +49,29 @@ export const BasicInfoSection = ({ form, volume }: BasicInfoSectionProps) => {
 									<SelectValue placeholder="Select a repository" />
 								</SelectTrigger>
 								<SelectContent>
-									{repositoriesData?.map((repo) => (
-										<SelectItem key={repo.shortId} value={repo.shortId}>
-											<span className="flex items-center gap-2">
-												<RepositoryIcon backend={repo.type} />
-												{repo.name}
-											</span>
-										</SelectItem>
-									))}
+									{repositoriesData?.map((repo) => {
+										const compatibility = getBackupRepositoryCompatibility(volume, repo.type);
+										const disabled = !compatibility.compatible;
+
+										return (
+											<SelectItem key={repo.shortId} value={repo.shortId} disabled={disabled}>
+												<span className="flex min-w-0 items-start gap-2 py-0.5">
+													<RepositoryIcon backend={repo.type} />
+													<span className="min-w-0">
+														<span className="block truncate">{repo.name}</span>
+														<span
+															className={cn(
+																"block text-xs text-muted-foreground text-pretty",
+																{ hidden: !compatibility.reason },
+															)}
+														>
+															{compatibility.reason}
+														</span>
+													</span>
+												</span>
+											</SelectItem>
+										);
+									})}
 								</SelectContent>
 							</Select>
 						</FormControl>

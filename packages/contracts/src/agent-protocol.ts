@@ -179,6 +179,8 @@ const heartbeatPingSchema = z.object({
 
 export const agentCapabilitiesSchema = z
 	.object({
+		hostname: z.string().optional(),
+		platform: z.string().optional(),
 		restore: z.boolean().optional(),
 		trustedRoots: z.array(trustedRootDescriptorSchema).max(MAX_AGENT_TRUSTED_ROOTS).optional(),
 	})

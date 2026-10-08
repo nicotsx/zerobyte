@@ -110,7 +110,7 @@ test("can login after initial setup", async ({ page }) => {
 	await page.getByRole("button", { name: "Login" }).click();
 
 	await expect(page).toHaveURL("/volumes");
-	await expect(page.getByRole("heading", { name: "No volume" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "No sources" })).toBeVisible();
 
 	await enableRegistrations();
 

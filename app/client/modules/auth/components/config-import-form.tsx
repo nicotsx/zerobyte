@@ -1,3 +1,4 @@
+import { parseError } from "~/client/lib/errors";
 import { useMutation } from "@tanstack/react-query";
 import { Upload } from "lucide-react";
 import { useState } from "react";
@@ -26,7 +27,7 @@ export function ConfigImportForm({ onSuccess }: ConfigImportFormProps) {
 			onSuccess(data.warnings);
 		},
 		onError: (error) => {
-			toast.error("Failed to import configuration", { description: error.message });
+			toast.error("Failed to import configuration", { description: parseError(error)?.message });
 		},
 	});
 

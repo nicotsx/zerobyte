@@ -5,9 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/cli
 import { useTimeFormat } from "~/client/lib/datetime";
 import type { BackupSchedule } from "~/client/lib/types";
 import { BackupStatusDot } from "./backup-status-dot";
+import { getSourceLabel } from "~/client/modules/volumes/source-presentation";
 
 export const BackupCard = ({ schedule, isRunning }: { schedule: BackupSchedule; isRunning: boolean }) => {
 	const { formatShortDateTime } = useTimeFormat();
+	const sourceLabel = getSourceLabel(schedule.volume);
 
 	return (
 		<Link
@@ -30,9 +32,12 @@ export const BackupCard = ({ schedule, isRunning }: { schedule: BackupSchedule; 
 							isInProgress={isRunning}
 						/>
 					</div>
-					<CardDescription className="ml-0.5 flex items-center gap-2 text-xs min-w-0">
+					<CardDescription
+						className="ml-0.5 flex items-center gap-2 text-xs min-w-0"
+						title={`${sourceLabel} → ${schedule.repository.name}`}
+					>
 						<HardDrive className="h-3.5 w-3.5 shrink-0" />
-						<span className="truncate font-mono">{schedule.volume.name}</span>
+						<span className="truncate font-mono">{sourceLabel}</span>
 						<span className="text-muted-foreground shrink-0">→</span>
 						<Database className="h-3.5 w-3.5 text-strong-accent shrink-0" />
 						<span className="truncate text-strong-accent font-mono">{schedule.repository.name}</span>

@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
+import { parseError } from "~/client/lib/errors";
 
 type Props = {
 	passwordAuthSupported: boolean;
@@ -75,7 +76,7 @@ export function ApiKeysSection({ passwordAuthSupported, hasPassword }: Props) {
 			setPassword("");
 		},
 		onError: (error) => {
-			toast.error("Failed to create API key", { description: error.message });
+			toast.error("Failed to create API key", { description: parseError(error)?.message });
 		},
 	});
 
@@ -171,9 +172,10 @@ export function ApiKeysSection({ passwordAuthSupported, hasPassword }: Props) {
 										{apiKey.expiresAt ? formatDateTime(new Date(apiKey.expiresAt)) : "Never"}
 									</TableCell>
 									<TableCell>
-										{apiKey.lastRequestAt
-											? formatDateTime(new Date(apiKey.lastRequestAt))
-											: "Never"}
+										<span className={cn({ hidden: !apiKey.lastRequestAt })}>
+											{apiKey.lastRequestAt && formatDateTime(new Date(apiKey.lastRequestAt))}
+										</span>
+										<span className={cn({ hidden: !!apiKey.lastRequestAt })}>Never</span>
 									</TableCell>
 									<TableCell className="text-right">
 										<Button
@@ -205,9 +207,12 @@ export function ApiKeysSection({ passwordAuthSupported, hasPassword }: Props) {
 						<DialogHeader>
 							<DialogTitle>{createdKey ? "API key created" : "Create API key"}</DialogTitle>
 							<DialogDescription>
-								{createdKey
-									? "Save this key now. For security reasons it will not be shown again."
-									: "The key is shown once after creation and cannot be revealed later."}
+								<span className={cn({ hidden: !createdKey })}>
+									Save this key now. For security reasons it will not be shown again.
+								</span>
+								<span className={cn({ hidden: !!createdKey })}>
+									The key is shown once after creation and cannot be revealed later.
+								</span>
 							</DialogDescription>
 						</DialogHeader>
 						<div className="space-y-4 py-4">

@@ -295,7 +295,11 @@ describe("volumes security", () => {
 					trustedRootId: LOCAL_FILESYSTEM_ROOT_ID,
 					relativePath: "tmp",
 				});
-				expect(created).not.toHaveProperty("sourceLocation");
+				expect(created.sourceLocation).toEqual({
+					machine: "This server",
+					location: "Local filesystem",
+					path: "Local filesystem/tmp",
+				});
 				expect(created).not.toHaveProperty("organizationId");
 
 				const getResponse = await app.request(`/api/v1/volumes/${created.shortId}`, {
@@ -310,7 +314,7 @@ describe("volumes security", () => {
 					trustedRootId: LOCAL_FILESYSTEM_ROOT_ID,
 					relativePath: "tmp",
 				});
-				expect(detail.volume).not.toHaveProperty("sourceLocation");
+				expect(detail.volume.sourceLocation).toEqual(created.sourceLocation);
 				expect(detail.volume).not.toHaveProperty("organizationId");
 
 				const listResponse = await app.request("/api/v1/volumes", { headers: session.headers });
@@ -343,7 +347,7 @@ describe("volumes security", () => {
 					trustedRootId: LOCAL_FILESYSTEM_ROOT_ID,
 					relativePath: "tmp",
 				});
-				expect(updated).not.toHaveProperty("sourceLocation");
+				expect(updated.sourceLocation).toEqual(created.sourceLocation);
 				expect(updated).not.toHaveProperty("organizationId");
 
 				const explicitRoot = { id: "data", label: "Data", canBackup: true };
@@ -399,7 +403,7 @@ describe("volumes security", () => {
 			expect(res.status).toBe(200);
 			const body = await res.json();
 			expect(body.volume.provisioningId).toBeDefined();
-			expect(body.volume).not.toHaveProperty("sourceLocation");
+			expect(body.volume.sourceLocation).toBeNull();
 			expect(publicVolumeSchema.safeParse(body.volume).success).toBe(true);
 		});
 
@@ -433,6 +437,11 @@ describe("volumes security", () => {
 					relativePath: "family",
 				});
 				expect(publicVolumeSchema.safeParse(offlineBody.volume).success).toBe(true);
+				expect(offlineBody.volume.sourceLocation).toEqual({
+					machine: "Offline NAS",
+					location: "Photos",
+					path: "Photos/family",
+				});
 
 				const missingResponse = await app.request(`/api/v1/volumes/${missingVolume.shortId}`, {
 					headers: session.headers,
@@ -445,6 +454,11 @@ describe("volumes security", () => {
 					relativePath: "family",
 				});
 				expect(publicVolumeSchema.safeParse(missingBody.volume).success).toBe(true);
+				expect(missingBody.volume.sourceLocation).toEqual({
+					machine: "Unknown machine",
+					location: "photos",
+					path: "photos/family",
+				});
 				expect(readinessSpy).not.toHaveBeenCalled();
 				expect(commandSpy).not.toHaveBeenCalled();
 			} finally {
@@ -470,7 +484,7 @@ describe("volumes security", () => {
 			expect(res.status).toBe(200);
 			const body = await res.json();
 			expect(body.name).toBe("Updated volume");
-			expect(body).not.toHaveProperty("sourceLocation");
+			expect(body.sourceLocation).toBeNull();
 		});
 
 		test("resets stale source health when a changed location passes preflight", async () => {

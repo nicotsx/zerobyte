@@ -2,8 +2,6 @@ import type { RepositoryBackend } from "@zerobyte/core/restic";
 
 export const BUILT_IN_LOCAL_AGENT_ID = "local";
 
-export type BackupSource = { kind: "managed" } | { kind: "filesystem"; agentKind: "local" | "remote" };
-
 export type BackupRepositoryCompatibility = { compatible: true; reason: null } | { compatible: false; reason: string };
 
 const REMOTE_REPOSITORY_REASONS: Partial<Record<RepositoryBackend, string>> = {
@@ -11,19 +9,13 @@ const REMOTE_REPOSITORY_REASONS: Partial<Record<RepositoryBackend, string>> = {
 	rclone: "Rclone repositories use configuration on this server and are unavailable to remote sources.",
 };
 
+export const isRemoteSource = (volume: { agentId: string }) => volume.agentId !== BUILT_IN_LOCAL_AGENT_ID;
+
 export const getBackupRepositoryCompatibility = (
-	source: BackupSource,
+	volume: { agentId: string },
 	repositoryType: RepositoryBackend,
 ): BackupRepositoryCompatibility => {
-	const isLocalSource = source.kind === "managed" || source.agentKind === "local";
-	if (isLocalSource) {
-		return { compatible: true, reason: null };
-	}
+	const reason = isRemoteSource(volume) ? REMOTE_REPOSITORY_REASONS[repositoryType] : undefined;
 
-	const reason = REMOTE_REPOSITORY_REASONS[repositoryType];
-	if (reason) {
-		return { compatible: false, reason };
-	}
-
-	return { compatible: true, reason: null };
+	return reason ? { compatible: false, reason } : { compatible: true, reason: null };
 };

@@ -204,7 +204,7 @@ export function ScheduleDetailsPage(props: Props) {
 				snapshots={snapshots ?? []}
 				snapshotId={selectedSnapshot?.short_id}
 				deletingSnapshotIds={deletingSnapshotIds}
-				error={failureReason?.message}
+				error={parseError(failureReason)?.message}
 				onSnapshotSelect={handleSnapshotSelect}
 			/>
 			<BackupSummaryCard summary={selectedSnapshot?.summary} />

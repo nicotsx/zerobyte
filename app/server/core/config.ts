@@ -3,9 +3,7 @@ import { prettifyError, z } from "zod";
 import "dotenv/config";
 import { resolveResticHostname } from "@zerobyte/core/node";
 import { buildAllowedHosts } from "../lib/auth/base-url";
-import { toMessage } from "@zerobyte/core/utils";
-
-const unquote = (str: string) => str.trim().replace(/^(['"])(.*)\1$/, "$2");
+import { toMessage, unquote } from "@zerobyte/core/utils";
 
 const envSchema = z
 	.object({
@@ -35,6 +33,7 @@ const envSchema = z
 		PROVISIONING_PATH: z.string().optional(),
 		RESTIC_COMMAND: z.string().default("restic"),
 		ZEROBYTE_RUNTIME: z.enum(["server", "desktop"]).default("server"),
+		ZEROBYTE_DEV_AGENT_PORT: z.coerce.number().int().default(0),
 		ZEROBYTE_DESKTOP_RESOURCES_DIR: z.string().optional(),
 		ZEROBYTE_DESKTOP_LAUNCH_SECRET: z.preprocess(
 			(value) => (value === "" ? undefined : value),
@@ -154,6 +153,7 @@ const envSchema = z
 			allowedHosts,
 			webhookAllowedOrigins,
 			runtime: s.ZEROBYTE_RUNTIME,
+			devAgentPort: s.NODE_ENV === "development" ? s.ZEROBYTE_DEV_AGENT_PORT : 0,
 			desktop: {
 				resourcesDir: s.ZEROBYTE_DESKTOP_RESOURCES_DIR,
 				launchSecret: s.ZEROBYTE_DESKTOP_LAUNCH_SECRET,

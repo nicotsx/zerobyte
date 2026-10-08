@@ -6,6 +6,21 @@ import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
 
 export default defineConfig(({ command }) => {
+	let agentProxy;
+	if (command === "serve") {
+		const reservation = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+		process.env.ZEROBYTE_DEV_AGENT_PORT = String(reservation.port);
+		agentProxy = {
+			"^/api/v1/agents/connect$": { target: `ws://127.0.0.1:${reservation.port}`, ws: true },
+		};
+		reservation.stop(true);
+	}
+
+	let https;
+	if (process.env.ZEROBYTE_RUNTIME === "desktop") {
+		https = { cert: process.env.NITRO_SSL_CERT, key: process.env.NITRO_SSL_KEY };
+	}
+
 	return {
 		clearScreen: false,
 		plugins: [
@@ -47,11 +62,9 @@ export default defineConfig(({ command }) => {
 		},
 		server: {
 			host: "0.0.0.0",
+			proxy: agentProxy,
 			port: 3000,
-			https:
-				process.env.ZEROBYTE_RUNTIME === "desktop"
-					? { cert: process.env.NITRO_SSL_CERT, key: process.env.NITRO_SSL_KEY }
-					: undefined,
+			https,
 			allowedHosts: [".ts.net"],
 		},
 	};

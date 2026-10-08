@@ -62,7 +62,7 @@ describe("volumeSchema", () => {
 });
 
 describe("public volume schema", () => {
-	test("returns the saved location without organization or presentation fields", () => {
+	test("returns saved references and presentation labels without the organization", () => {
 		const volume = publicVolumeSchema.parse({
 			...baseVolume,
 			sourceKind: "filesystem",
@@ -70,11 +70,12 @@ describe("public volume schema", () => {
 			config: null,
 			trustedRootId: "data",
 			relativePath: "photos",
+			sourceLocation: { machine: "Archive", location: "Data", path: "Data/photos" },
 		});
 
 		expect(volume).toMatchObject({ agentId: "agent-1", trustedRootId: "data", relativePath: "photos" });
 		expect(volume).not.toHaveProperty("organizationId");
 		expect(volume).not.toHaveProperty("path");
-		expect(volume).not.toHaveProperty("sourceLocation");
+		expect(volume.sourceLocation).toEqual({ machine: "Archive", location: "Data", path: "Data/photos" });
 	});
 });

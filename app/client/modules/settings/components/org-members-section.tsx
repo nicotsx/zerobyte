@@ -24,6 +24,7 @@ import { Button } from "~/client/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { cn } from "~/client/lib/utils";
+import { parseError } from "~/client/lib/errors";
 
 type Props = {
 	initialMembers?: GetOrgMembersResponse;
@@ -43,7 +44,7 @@ export function OrgMembersSection({ initialMembers }: Props) {
 			toast.success("Member role updated");
 		},
 		onError: (error) => {
-			toast.error("Failed to update role", { description: error.message });
+			toast.error("Failed to update role", { description: parseError(error)?.message });
 		},
 	});
 
@@ -147,8 +148,10 @@ export function OrgMembersSection({ initialMembers }: Props) {
 													<AlertDialogHeader>
 														<AlertDialogTitle>Remove member</AlertDialogTitle>
 														<AlertDialogDescription>
-															Are you sure you want to remove <strong>{memberToRemove?.name}</strong> from this
-															organization? They will lose access to all organization resources.
+															Are you sure you want to remove{" "}
+															<strong>{memberToRemove?.name}</strong> from this
+															organization? They will lose access to all organization
+															resources.
 														</AlertDialogDescription>
 													</AlertDialogHeader>
 													<AlertDialogFooter>
@@ -156,7 +159,11 @@ export function OrgMembersSection({ initialMembers }: Props) {
 														<AlertDialogAction
 															className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 															disabled={removeMember.isPending}
-															onClick={() => removeMember.mutate({ path: { memberId: memberToRemove!.id } })}
+															onClick={() =>
+																removeMember.mutate({
+																	path: { memberId: memberToRemove!.id },
+																})
+															}
 														>
 															Remove
 														</AlertDialogAction>

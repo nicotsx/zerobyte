@@ -1,13 +1,15 @@
-import { LocalFileBrowser } from "./local-file-browser";
+import { LocalFileBrowser, type TrustedRootRef } from "./local-file-browser";
 
 type Props = {
 	onSelectPath: (path: string) => void;
 	selectedPath?: string;
+	trustedRoot?: TrustedRootRef;
 };
 
-export const DirectoryBrowser = ({ onSelectPath, selectedPath }: Props) => {
+export const DirectoryBrowser = ({ onSelectPath, selectedPath, trustedRoot }: Props) => {
 	return (
 		<LocalFileBrowser
+			trustedRoot={trustedRoot}
 			className="border rounded-lg overflow-hidden"
 			useScrollArea
 			scrollAreaClassName="h-64"

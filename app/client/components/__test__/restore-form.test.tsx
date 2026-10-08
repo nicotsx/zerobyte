@@ -4,8 +4,9 @@ import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, createTestQueryClient, render, screen, userEvent, waitFor, within } from "~/test/test-utils";
 import { taskChangedEventName } from "~/schemas/task-events";
 import type { TaskOfKind } from "~/client/hooks/use-active-tasks";
-import type { Repository, Snapshot } from "~/client/lib/types";
-import { fromAny } from "@total-typescript/shoehorn";
+import type { Repository, Snapshot, Volume } from "~/client/lib/types";
+import { fromAny, fromPartial } from "@total-typescript/shoehorn";
+import { getRestoreContext } from "~/client/lib/restore-context";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -134,6 +135,7 @@ const renderRestoreForm = (queryClient = createTestQueryClient()) => {
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			queryBasePath="/mnt/project"
 			displayBasePath="/mnt"
+			originalLocationUnavailableReason={null}
 		/>,
 		{ queryClient },
 	);
@@ -168,6 +170,66 @@ afterEach(() => {
 });
 
 describe("RestoreForm", () => {
+	test("requires a chosen server folder when the snapshot source is not on this server", async () => {
+		let restoreBody: unknown;
+		server.use(
+			snapshotFilesHandler,
+			http.get("/api/v1/volumes/filesystem/browse", () =>
+				HttpResponse.json({
+					path: "/",
+					directories: [{ name: "restore-target", path: "/restore-target", type: "dir" }],
+				}),
+			),
+			http.post("/api/v1/repositories/:shortId/restore", async ({ request }) => {
+				restoreBody = await request.json();
+				return HttpResponse.json({ restoreId: "task-restore", status: "started" }, { status: 202 });
+			}),
+		);
+		render(
+			<RestoreForm
+				repository={fromAny({ shortId: repositoryId, name: "Repo 1" })}
+				snapshot={snapshotFixture(snapshotId)}
+				returnPath="/repositories/repo-1"
+				queryBasePath="/mnt/project"
+				displayBasePath="/"
+				originalLocationUnavailableReason={
+					getRestoreContext(snapshotFixture(snapshotId)).originalLocationUnavailableReason
+				}
+			/>,
+		);
+
+		expect(
+			(await screen.findByRole("button", { name: "Original path on this server" })).hasAttribute("disabled"),
+		).toBe(true);
+		expect(screen.getByRole("button", { name: "Custom location" }).getAttribute("aria-pressed")).toBe("true");
+		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Download All" }).hasAttribute("disabled")).toBe(false);
+		expect(screen.getByText("No folder selected")).toBeTruthy();
+
+		await userEvent.click(screen.getByRole("button", { name: "Change" }));
+		await userEvent.click(await screen.findByRole("button", { name: "restore-target" }));
+		await userEvent.click(screen.getByRole("button", { name: "Restore All" }));
+		await waitFor(() =>
+			expect(restoreBody).toEqual({
+				snapshotId,
+				targetPath: "/restore-target",
+				overwrite: "always",
+			}),
+		);
+	});
+
+	test("exposes the selected restore destination for a known local source", async () => {
+		server.use(snapshotFilesHandler);
+		renderRestoreForm();
+
+		const original = screen.getByRole("button", { name: "Original path on this server" });
+		const custom = screen.getByRole("button", { name: "Custom location" });
+		expect(original.getAttribute("aria-pressed")).toBe("true");
+		await userEvent.click(custom);
+		expect(custom.getAttribute("aria-pressed")).toBe("true");
+		expect(original.getAttribute("aria-pressed")).toBe("false");
+	});
+
 	test("recovers the active restore from the cached exact filtered collection", async () => {
 		const taskStream = await renderRestoreFormWithPrefetchedTask(createRestoreTask());
 
@@ -345,8 +407,7 @@ describe("RestoreForm", () => {
 				}),
 			);
 
-			expect(await screen.findByText(title)).toBeTruthy();
-			expect(screen.getByText(description)).toBeTruthy();
+			expect(await screen.findByRole("alertdialog", { name: title, description })).toBeTruthy();
 			expect(screen.queryByText("Restore in progress")).toBeNull();
 
 			await userEvent.click(screen.getByRole("button", { name: "OK" }));
@@ -363,6 +424,7 @@ describe("RestoreForm", () => {
 				repository={repository}
 				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1"
+				originalLocationUnavailableReason={null}
 			/>,
 			{ withSuspense: true },
 		);
@@ -383,6 +445,7 @@ describe("RestoreForm", () => {
 				repository={repository}
 				snapshot={snapshotFixture("snap-2")}
 				returnPath="/repositories/repo-1"
+				originalLocationUnavailableReason={null}
 			/>,
 		);
 
@@ -428,6 +491,7 @@ describe("RestoreForm", () => {
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project/subdir"
 				displayBasePath="/mnt"
+				originalLocationUnavailableReason={null}
 			/>,
 			{ withSuspense: true },
 		);
@@ -480,8 +544,14 @@ describe("RestoreForm", () => {
 				repository={fromAny({ shortId: "repo-1", name: "Repo 1" })}
 				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1/snap-1"
-				queryBasePath="/mnt/project"
-				displayBasePath="/other/root"
+				{...getRestoreContext(
+					snapshotFixture("snap-1"),
+					fromPartial<Volume>({
+						sourceKind: "managed",
+						agentId: "local",
+						config: { backend: "directory", path: "/other/root" },
+					}),
+				)}
 			/>,
 			{ withSuspense: true },
 		);
@@ -491,7 +561,9 @@ describe("RestoreForm", () => {
 				"This snapshot was created from source paths that do not match this Zerobyte server or the current linked volume. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
 			),
 		).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Original path on this server" }).hasAttribute("disabled")).toBe(
+			true,
+		);
 		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
 
 		await userEvent.click(screen.getByRole("button", { name: "Change" }));
@@ -548,7 +620,7 @@ describe("RestoreForm", () => {
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project"
 				displayBasePath="/mnt"
-				volumeReadOnly
+				originalLocationUnavailableReason="The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead."
 			/>,
 			{ withSuspense: true },
 		);
@@ -558,7 +630,9 @@ describe("RestoreForm", () => {
 				"The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead.",
 			),
 		).toBeTruthy();
-		expect(screen.getByRole("button", { name: "Original location" }).hasAttribute("disabled")).toBe(true);
+		expect(screen.getByRole("button", { name: "Original path on this server" }).hasAttribute("disabled")).toBe(
+			true,
+		);
 		expect(screen.getByRole("button", { name: "Restore All" }).hasAttribute("disabled")).toBe(true);
 
 		await userEvent.click(screen.getByRole("button", { name: "Change" }));

@@ -9,7 +9,6 @@ import { getOrganizationId } from "~/server/core/request-context";
 import { calculateNextRun } from "../backup.helpers";
 import { mirrorQueries, scheduleQueries } from "../backups.queries";
 import { commands } from "../commands";
-import { getBackupSource } from "../backup-context";
 import { getBackupRepositoryCompatibility } from "@zerobyte/contracts/backup-context";
 
 export interface BackupContext {
@@ -68,7 +67,7 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 		};
 	}
 
-	const compatibility = getBackupRepositoryCompatibility(getBackupSource(volume), repository.type);
+	const compatibility = getBackupRepositoryCompatibility(volume, repository.type);
 	if (!compatibility.compatible) {
 		return {
 			type: "failure",
@@ -182,11 +181,14 @@ export async function finalizeSuccessfulBackup(
 
 	cache.delByPrefix(cacheKeys.repository.all(ctx.repository.id));
 
+	let nextBackupAt = null;
+	if (ctx.schedule.cronExpression) nextBackupAt = calculateNextRun(ctx.schedule.cronExpression);
+
 	await scheduleQueries.updateStatus(scheduleId, ctx.organizationId, {
 		lastBackupAt: Date.now(),
 		lastBackupStatus: finalStatus,
 		lastBackupError: finalStatus === "warning" ? warningDetails : null,
-		nextBackupAt: ctx.schedule.cronExpression ? calculateNextRun(ctx.schedule.cronExpression) : null,
+		nextBackupAt,
 		failureRetryCount: 0,
 	});
 

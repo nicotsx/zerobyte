@@ -11,6 +11,7 @@ import {
 	getAdminUsersOptions,
 	getPasswordLoginStatusOptions,
 	getRegistrationStatusOptions,
+	listAgentsOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { getOrigin } from "~/client/functions/get-origin";
 import { getActiveSettingsScope, getSettingsScopeAvailability } from "~/client/modules/settings/settings-scope";
@@ -48,17 +49,28 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 				queryFn: () => getOrganizationContext(),
 			});
 
-			const membersPromise = canManageOrganizationMembers
-				? context.queryClient.ensureQueryData({ ...getOrgMembersOptions() })
-				: Promise.resolve(undefined);
+			let membersPromise;
+			if (canManageOrganizationMembers) {
+				membersPromise = context.queryClient.ensureQueryData({ ...getOrgMembersOptions() });
+			}
 
-			const ssoSettingsPromise = canManageSso
-				? context.queryClient.ensureQueryData({ ...getSsoSettingsOptions() })
-				: Promise.resolve(undefined);
+			let machinesPromise;
+			if (context.permissions["agents.manage"] && context.features.remoteAgents) {
+				machinesPromise = context.queryClient.ensureQueryData(listAgentsOptions());
+			}
 
-			const appOriginPromise = canManageSso
-				? context.queryClient.ensureQueryData({ queryKey: ["app-origin"], queryFn: () => getOrigin() })
-				: Promise.resolve(undefined);
+			let ssoSettingsPromise;
+			if (canManageSso) {
+				ssoSettingsPromise = context.queryClient.ensureQueryData({ ...getSsoSettingsOptions() });
+			}
+
+			let appOriginPromise;
+			if (canManageSso) {
+				appOriginPromise = context.queryClient.ensureQueryData({
+					queryKey: ["app-origin"],
+					queryFn: () => getOrigin(),
+				});
+			}
 
 			const [authContext, members, org, appOrigin] = await Promise.all([
 				authContextPromise,
@@ -66,6 +78,7 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 				ssoSettingsPromise,
 				appOriginPromise,
 				organizationContextPromise,
+				machinesPromise,
 			]);
 
 			return {
@@ -82,17 +95,22 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 			const canManageRegistration = context.permissions["registration.manage"];
 			const canManagePasswordLogin = context.permissions["passwordLogin.manage"];
 
-			const adminUsersPromise = canManageInstanceUsers
-				? context.queryClient.ensureQueryData({ ...getAdminUsersOptions() })
-				: Promise.resolve(undefined);
+			let adminUsersPromise;
+			if (canManageInstanceUsers) {
+				adminUsersPromise = context.queryClient.ensureQueryData({ ...getAdminUsersOptions() });
+			}
 
-			const registrationStatusPromise = canManageRegistration
-				? context.queryClient.ensureQueryData({ ...getRegistrationStatusOptions() })
-				: Promise.resolve(undefined);
+			let registrationStatusPromise;
+			if (canManageRegistration) {
+				registrationStatusPromise = context.queryClient.ensureQueryData({ ...getRegistrationStatusOptions() });
+			}
 
-			const passwordLoginStatusPromise = canManagePasswordLogin
-				? context.queryClient.ensureQueryData({ ...getPasswordLoginStatusOptions() })
-				: Promise.resolve(undefined);
+			let passwordLoginStatusPromise;
+			if (canManagePasswordLogin) {
+				passwordLoginStatusPromise = context.queryClient.ensureQueryData({
+					...getPasswordLoginStatusOptions(),
+				});
+			}
 
 			const [authContext] = await Promise.all([
 				authContextPromise,
@@ -105,9 +123,12 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 		}
 
 		const shouldFetchInvitations = context.features.ssoManagement;
-		const userInvitationsPromise = shouldFetchInvitations
-			? context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() })
-			: Promise.resolve([]);
+		let userInvitationsPromise;
+		if (shouldFetchInvitations) {
+			userInvitationsPromise = context.queryClient.ensureQueryData({ ...getUserSsoInvitationsOptions() });
+		} else {
+			userInvitationsPromise = Promise.resolve([]);
+		}
 
 		const [authContext, userInvitations] = await Promise.all([authContextPromise, userInvitationsPromise]);
 

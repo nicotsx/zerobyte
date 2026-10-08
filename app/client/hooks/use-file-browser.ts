@@ -239,6 +239,17 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		[folderPagination],
 	);
 
+	const retryFolder = useCallback(
+		async (folderPath: string) => {
+			if (fetchedFolders.has(folderPath)) {
+				await handleLoadMore(folderPath);
+				return;
+			}
+			await handleFolderToggle(folderPath, true);
+		},
+		[fetchedFolders, handleFolderToggle, handleLoadMore],
+	);
+
 	return {
 		folderErrors,
 		fileArray,
@@ -248,6 +259,7 @@ export const useFileBrowser = (props: UseFileBrowserOptions) => {
 		handleFolderHover,
 		handleLoadMore,
 		getFolderPagination,
+		retryFolder,
 		isLoading: Boolean(isLoading) && fileArray.length === 0,
 		isEmpty: fileArray.length === 0 && !isLoading,
 	};

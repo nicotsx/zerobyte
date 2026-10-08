@@ -1,9 +1,10 @@
 import type { SourceMachine } from "@zerobyte/contracts/volumes";
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from "http-errors-enhanced";
-import { getSafeAllowedLocationLabel, getSafeMachinePresentationLabel } from "~/lib/safe-presentation-label";
+import { getSafeMachinePresentationLabel } from "~/lib/safe-presentation-label";
 import { db } from "~/server/db/db";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
+import { presentAgentCapabilities } from "../agents/agent-capability-presentation";
 
 export const listSourceMachines = async (organizationId: string): Promise<SourceMachine[]> => {
 	if (!serverHasRuntimeFeature("remoteAgents"))
@@ -20,11 +21,7 @@ export const listSourceMachines = async (organizationId: string): Promise<Source
 		status: agent.status,
 		lastSeenAt: agent.lastSeenAt,
 		revokedAt: agent.revokedAt,
-		trustedRoots: (agent.capabilities.trustedRoots ?? []).map((root) => ({
-			id: root.id,
-			label: getSafeAllowedLocationLabel(root.label),
-			canBackup: root.canBackup,
-		})),
+		trustedRoots: presentAgentCapabilities(agent.capabilities).trustedRoots,
 	}));
 };
 
@@ -33,11 +30,17 @@ export const validateTrustedRoot = async (agentId: string, rootId: string, organ
 	if (!local && !serverHasRuntimeFeature("remoteAgents"))
 		throw new ServiceUnavailableError("Remote agents are disabled on this instance.");
 
-	const agent = await db.query.agentsTable.findFirst({
-		where: local
-			? { AND: [{ id: LOCAL_AGENT_ID }, { kind: "local" }, { organizationId: { isNull: true } }] }
-			: { AND: [{ id: agentId }, { kind: "remote" }, { organizationId }] },
-	});
+	let agent;
+	if (local) {
+		agent = await db.query.agentsTable.findFirst({
+			where: { AND: [{ id: LOCAL_AGENT_ID }, { kind: "local" }, { organizationId: { isNull: true } }] },
+		});
+	} else {
+		agent = await db.query.agentsTable.findFirst({
+			where: { AND: [{ id: agentId }, { kind: "remote" }, { organizationId }] },
+		});
+	}
+
 	if (!agent) throw new NotFoundError("Source machine not found");
 	if (agent.revokedAt !== null) throw new BadRequestError("Source machine is revoked");
 

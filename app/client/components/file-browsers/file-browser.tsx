@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { FolderOpen } from "lucide-react";
 import { FileTree, type FileEntry } from "~/client/components/file-tree";
 import { ScrollArea } from "~/client/components/ui/scroll-area";
+import { Button } from "~/client/components/ui/button";
 import { cn } from "~/client/lib/utils";
 
 type PaginationState = {
@@ -40,6 +41,8 @@ type FileBrowserProps = FileBrowserUiProps & {
 	errorMessage?: string;
 	folderErrors: ReadonlyMap<string, string>;
 	renderError?: (message: string) => ReactNode;
+	onRetry?: () => void | Promise<void>;
+	onFolderRetry: (path: string) => void | Promise<void>;
 	fileArray: FileEntry[];
 	expandedFolders: Set<string>;
 	loadingFolders: Set<string>;
@@ -84,6 +87,8 @@ export const FileBrowser = (props: FileBrowserProps) => {
 		errorMessage,
 		folderErrors,
 		renderError = renderDefaultError,
+		onRetry,
+		onFolderRetry,
 		fileArray,
 		expandedFolders,
 		loadingFolders,
@@ -94,38 +99,66 @@ export const FileBrowser = (props: FileBrowserProps) => {
 	} = props;
 
 	const resolvedSelectedPath = selectedPath ?? selectedFolder;
-	const resolvedEmptyIcon =
-		emptyIcon === undefined ? <FolderOpen className="mb-2 h-12 w-12 text-muted-foreground" /> : emptyIcon;
 
-	let body: ReactNode;
-
-	if (isLoading) {
-		body = (
-			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
+	const body = (
+		<>
+			<output
+				className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName, {
+					hidden: !isLoading,
+				})}
+				aria-live="polite"
+			>
 				<p className="text-muted-foreground">{loadingMessage}</p>
+			</output>
+			<div
+				className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName, {
+					hidden: isLoading || !errorMessage,
+				})}
+			>
+				{!isLoading && errorMessage && renderError(errorMessage)}
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					className={cn("mt-4", { hidden: !onRetry })}
+					onClick={onRetry}
+				>
+					Retry
+				</Button>
 			</div>
-		);
-	} else if (errorMessage) {
-		body = (
-			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
-				{renderError(errorMessage)}
-			</div>
-		);
-	} else if (isEmpty) {
-		body = (
-			<div className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName)}>
-				{resolvedEmptyIcon}
+			<output
+				className={cn("flex min-h-50 flex-col items-center justify-center p-6 text-center", stateClassName, {
+					hidden: isLoading || !!errorMessage || !isEmpty,
+				})}
+			>
+				<FolderOpen
+					className={cn("mb-2 h-12 w-12 text-muted-foreground", { hidden: emptyIcon !== undefined })}
+				/>
+				{emptyIcon}
 				<p className="text-muted-foreground">{emptyMessage}</p>
-				{emptyDescription && <p className="mt-2 text-sm text-muted-foreground">{emptyDescription}</p>}
-			</div>
-		);
-	} else {
-		body = (
+				<p className={cn("mt-2 text-sm text-muted-foreground", { hidden: !emptyDescription })}>
+					{emptyDescription}
+				</p>
+			</output>
 			<FileTree
 				files={fileArray}
 				renderFolderError={(path) => {
 					const message = folderErrors.get(path);
-					return message ? renderError(message) : null;
+					if (!message) return null;
+
+					return (
+						<div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+							{renderError(message)}
+							<button
+								type="button"
+								aria-label={`Retry ${path}`}
+								className="cursor-pointer text-xs text-destructive underline underline-offset-2 normal-case"
+								onClick={() => void onFolderRetry(path)}
+							>
+								Retry
+							</button>
+						</div>
+					);
 				}}
 				onFolderToggle={onFolderToggle}
 				onFolderHover={onFolderHover}
@@ -133,7 +166,7 @@ export const FileBrowser = (props: FileBrowserProps) => {
 				getFolderPagination={getFolderPagination}
 				expandedFolders={expandedFolders}
 				loadingFolders={loadingFolders}
-				className={treeClassName}
+				className={cn(treeClassName, { hidden: isLoading || !!errorMessage || isEmpty })}
 				withCheckboxes={withCheckboxes}
 				selectedPaths={selectedPaths}
 				onSelectionChange={onSelectionChange}
@@ -144,20 +177,23 @@ export const FileBrowser = (props: FileBrowserProps) => {
 				onFileSelect={onFileSelect}
 				selectedFile={selectedFile}
 			/>
-		);
-	}
-
-	const bodyWithScroll = useScrollArea ? <ScrollArea className={scrollAreaClassName}>{body}</ScrollArea> : body;
+		</>
+	);
 
 	return (
 		<div className={className}>
-			<div className={treeContainerClassName}>{bodyWithScroll}</div>
-			{showSelectedPathFooter && resolvedSelectedPath && (
-				<div className="bg-muted/50 border-t p-2 text-sm">
-					<div className="font-medium text-muted-foreground">{selectedPathLabel}</div>
-					<div className="font-mono text-xs break-all">{resolvedSelectedPath}</div>
-				</div>
-			)}
+			<div className={treeContainerClassName}>
+				{useScrollArea && <ScrollArea className={scrollAreaClassName}>{body}</ScrollArea>}
+				{!useScrollArea && body}
+			</div>
+			<div
+				className={cn("bg-muted/50 border-t p-2 text-sm", {
+					hidden: !showSelectedPathFooter || !resolvedSelectedPath,
+				})}
+			>
+				<div className="font-medium text-muted-foreground">{selectedPathLabel}</div>
+				<div className="font-mono text-xs break-all">{resolvedSelectedPath}</div>
+			</div>
 		</div>
 	);
 };

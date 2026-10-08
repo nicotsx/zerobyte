@@ -249,8 +249,19 @@ export const sourceMachineSchema = z.object({
 
 export type SourceMachine = z.infer<typeof sourceMachineSchema>;
 
-const publicManagedVolumeSchema = managedVolumeSchema.omit({ organizationId: true });
-const publicFilesystemVolumeSchema = filesystemVolumeSchema.omit({ organizationId: true });
+const sourceLocationSchema = z.object({
+	machine: z.string(),
+	location: z.string(),
+	path: z.string(),
+});
+
+const publicManagedVolumeSchema = managedVolumeSchema.omit({ organizationId: true }).extend({
+	sourceLocation: z.null(),
+});
+
+const publicFilesystemVolumeSchema = filesystemVolumeSchema.omit({ organizationId: true }).extend({
+	sourceLocation: sourceLocationSchema,
+});
 
 export const publicVolumeSchema = z.discriminatedUnion("sourceKind", [
 	publicManagedVolumeSchema,

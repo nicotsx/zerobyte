@@ -8,15 +8,18 @@ import { logger } from "~/client/lib/logger";
 import { useIsDesktop } from "~/client/hooks/use-is-desktop";
 import { FolderAccessError } from "./folder-access-error";
 
+export type TrustedRootRef = { agentId: string; rootId: string };
+
 type LocalFileBrowserProps = FileBrowserUiProps & {
 	initialPath?: string;
 	enabled?: boolean;
+	trustedRoot?: TrustedRootRef;
 };
 
 const toLocalBrowserPath = (relativePath: string) => `/${relativePath.replace(/^\/+/, "")}`;
 
-const browseFilesystemAtLocalPath = (localPath: string) =>
-	browseFilesystemOptions({ query: { path: localPath.slice(1) } });
+const browseFilesystemAtLocalPath = (localPath: string, trustedRoot?: TrustedRootRef) =>
+	browseFilesystemOptions({ query: { path: localPath.slice(1), ...trustedRoot } });
 
 const toLocalBrowserResult = (result: BrowseFilesystemResponse) => ({
 	...result,
@@ -24,13 +27,18 @@ const toLocalBrowserResult = (result: BrowseFilesystemResponse) => ({
 	directories: result.directories.map((directory) => ({ ...directory, path: toLocalBrowserPath(directory.path) })),
 });
 
-export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps }: LocalFileBrowserProps) => {
+export const LocalFileBrowser = ({
+	initialPath = "/",
+	enabled = true,
+	trustedRoot,
+	...uiProps
+}: LocalFileBrowserProps) => {
 	const queryClient = useQueryClient();
 	const isDesktop = useIsDesktop();
 	const initialLocalPath = toLocalBrowserPath(initialPath);
 
-	const { data, isLoading, error } = useQuery({
-		...browseFilesystemAtLocalPath(initialLocalPath),
+	const { data, isLoading, error, refetch } = useQuery({
+		...browseFilesystemAtLocalPath(initialLocalPath, trustedRoot),
 		enabled,
 		select: toLocalBrowserResult,
 	});
@@ -39,21 +47,25 @@ export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps
 		initialData: data,
 		isLoading,
 		fetchFolder: async (path) => {
-			const result = await queryClient.ensureQueryData(browseFilesystemAtLocalPath(path));
+			const result = await queryClient.ensureQueryData(browseFilesystemAtLocalPath(path, trustedRoot));
 
 			return toLocalBrowserResult(result);
 		},
-		prefetchFolder: isDesktop
-			? undefined
-			: (path) => {
-					void queryClient.prefetchQuery(browseFilesystemAtLocalPath(path)).catch((e) => logger.error(e));
-				},
+		prefetchFolder: (path) => {
+			if (isDesktop) return;
+
+			void queryClient
+				.prefetchQuery(browseFilesystemAtLocalPath(path, trustedRoot))
+				.catch((e) => logger.error(e));
+		},
 	});
 
 	return (
 		<FileBrowser
 			{...uiProps}
 			folderErrors={fileBrowser.folderErrors}
+			onRetry={() => void refetch()}
+			onFolderRetry={fileBrowser.retryFolder}
 			renderError={(message) => (
 				<FolderAccessError
 					message={message}

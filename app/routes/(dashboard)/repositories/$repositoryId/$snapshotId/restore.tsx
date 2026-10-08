@@ -4,8 +4,7 @@ import { getBackupSchedule } from "~/client/api-client";
 import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
-import { getVolumeMountPath } from "~/client/lib/volume-path";
-import { findCommonAncestor } from "@zerobyte/core/utils";
+import { getRestoreContext } from "~/client/lib/restore-context";
 
 export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -24,26 +23,16 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 			context.queryClient.ensureQueryData(activeRestoreTasksOptions),
 		]);
 
-		let displayBasePath: string | undefined;
-		let volumeReadOnly: boolean | undefined;
 		const scheduleShortId = snapshot.tags?.[0];
+		let scheduleRes;
 		if (scheduleShortId) {
-			const scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
-			if (scheduleRes.data) {
-				displayBasePath = getVolumeMountPath(scheduleRes.data.volume);
-				volumeReadOnly = scheduleRes.data.volume.config.readOnly ?? false;
-			}
+			scheduleRes = await getBackupSchedule({ path: { shortId: scheduleShortId } });
 		}
-
-		const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
 
 		return {
 			snapshot,
 			repository,
-			queryBasePath: hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths),
-			displayBasePath,
-			hasNonPosixSnapshotPaths,
-			volumeReadOnly,
+			...getRestoreContext(snapshot, scheduleRes?.data?.volume),
 		};
 	},
 	staticData: {
@@ -73,7 +62,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 
 function RouteComponent() {
 	const { repositoryId, snapshotId } = Route.useParams();
-	const { snapshot, repository, queryBasePath, displayBasePath, hasNonPosixSnapshotPaths, volumeReadOnly } =
+	const { snapshot, repository, queryBasePath, displayBasePath, originalLocationUnavailableReason } =
 		Route.useLoaderData();
 
 	return (
@@ -82,8 +71,7 @@ function RouteComponent() {
 			repository={repository}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
-			hasNonPosixSnapshotPaths={hasNonPosixSnapshotPaths}
-			volumeReadOnly={volumeReadOnly}
+			originalLocationUnavailableReason={originalLocationUnavailableReason}
 			snapshot={snapshot}
 		/>
 	);

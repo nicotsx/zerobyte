@@ -21,7 +21,7 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 	const queryClient = useQueryClient();
 	const isDesktop = useIsDesktop();
 
-	const { data, isLoading, error } = useQuery({
+	const { data, isLoading, error, refetch } = useQuery({
 		...listFilesOptions({ path: { shortId: volumeId } }),
 		enabled,
 	});
@@ -38,24 +38,20 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 				}),
 			);
 		},
-		prefetchFolder: isDesktop
-			? undefined
-			: (path) => {
-					void queryClient
-						.prefetchQuery(
-							listFilesOptions({
-								path: { shortId: volumeId },
-								query: { path },
-							}),
-						)
-						.catch((e) => logger.error(e));
-				},
+		prefetchFolder: (path) => {
+			if (isDesktop) return;
+
+			void queryClient
+				.prefetchQuery(listFilesOptions({ path: { shortId: volumeId }, query: { path } }))
+				.catch((e) => logger.error(e));
+		},
 	});
 
 	return (
 		<FileBrowser
 			{...uiProps}
 			folderErrors={fileBrowser.folderErrors}
+			onFolderRetry={fileBrowser.retryFolder}
 			renderError={(message) => (
 				<FolderAccessError
 					message={message}
@@ -72,8 +68,9 @@ export const VolumeFileBrowser = ({ volumeId, enabled = true, ...uiProps }: Volu
 			isLoading={fileBrowser.isLoading}
 			isEmpty={fileBrowser.isEmpty}
 			errorMessage={parseError(error)?.message}
+			onRetry={() => void refetch()}
 			loadingMessage={uiProps.loadingMessage ?? "Loading files..."}
-			emptyMessage={uiProps.emptyMessage ?? "This volume appears to be empty."}
+			emptyMessage={uiProps.emptyMessage ?? "This source appears to be empty."}
 		/>
 	);
 };

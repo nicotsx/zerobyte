@@ -31,6 +31,8 @@ import { TimeAgo } from "~/client/components/time-ago";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
 import { useBackupTask } from "../backup-tasks";
+import { getBackupRepositoryCompatibility } from "@zerobyte/contracts/backup-context";
+import { getSourceLabel } from "~/client/modules/volumes/source-presentation";
 
 type Props = {
 	schedule: BackupSchedule;
@@ -43,10 +45,15 @@ export const ScheduleSummary = (props: Props) => {
 	const { schedule, handleToggleEnabled, handleRunBackupNow, handleDeleteSchedule } = props;
 	const { formatShortDateTime } = useTimeFormat();
 	const navigate = useNavigate();
+
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [showForgetConfirm, setShowForgetConfirm] = useState(false);
 	const [showStopConfirm, setShowStopConfirm] = useState(false);
+
 	const { activeBackupTask, backupProgress, isBackupRunning } = useBackupTask(schedule.shortId);
+
+	const sourceLabel = getSourceLabel(schedule.volume);
+	const runBlockReason = getBackupRepositoryCompatibility(schedule.volume, schedule.repository.type).reason;
 
 	const cancelBackup = useMutation({
 		...cancelTaskMutation(),
@@ -114,16 +121,19 @@ export const ScheduleSummary = (props: Props) => {
 			<Card className="@container">
 				<CardHeader className="space-y-4">
 					<div className="flex flex-col @medium:flex-row @medium:items-center @medium:justify-between gap-4">
-						<div>
+						<div className="min-w-0">
 							<CardTitle>{schedule.name}</CardTitle>
-							<CardDescription className="mt-1">
+							<CardDescription
+								className="mt-1 [overflow-wrap:anywhere]"
+								title={`${sourceLabel} → ${schedule.repository.name}`}
+							>
 								<Link
 									to="/volumes/$volumeId"
 									className="hover:underline"
 									params={{ volumeId: schedule.volume.shortId }}
 								>
 									<HardDrive className="inline h-4 w-4 mr-2" />
-									<span>{schedule.volume.name}</span>
+									<span>{sourceLabel}</span>
 								</Link>
 								<span className="mx-2">→</span>
 								<Link
@@ -150,23 +160,28 @@ export const ScheduleSummary = (props: Props) => {
 						</div>
 					</div>
 					<div className="flex items-center gap-2">
-						{isBackupRunning ? (
-							<Button
-								variant="destructive"
-								size="sm"
-								loading={cancelBackup.isPending}
-								disabled={isBackupCancelling}
-								onClick={() => setShowStopConfirm(true)}
-							>
-								<Square className="h-4 w-4 mr-2" />
-								<span>{stopBackupLabel}</span>
-							</Button>
-						) : (
-							<Button variant="default" size="sm" onClick={handleRunBackupNow}>
-								<Play className="h-4 w-4 mr-2" />
-								<span>Backup now</span>
-							</Button>
-						)}
+						<Button
+							variant="destructive"
+							className={cn({ hidden: !isBackupRunning })}
+							size="sm"
+							loading={cancelBackup.isPending}
+							disabled={isBackupCancelling}
+							onClick={() => setShowStopConfirm(true)}
+						>
+							<Square className="h-4 w-4 mr-2" />
+							<span>{stopBackupLabel}</span>
+						</Button>
+						<Button
+							variant="default"
+							className={cn({ hidden: isBackupRunning })}
+							size="sm"
+							onClick={handleRunBackupNow}
+							disabled={runBlockReason !== null}
+							title={runBlockReason ?? undefined}
+						>
+							<Play className="h-4 w-4 mr-2" />
+							<span>Backup now</span>
+						</Button>
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<Button variant="outline" size="sm">
@@ -203,6 +218,7 @@ export const ScheduleSummary = (props: Props) => {
 							</DropdownMenuContent>
 						</DropdownMenu>
 					</div>
+					{runBlockReason && <p className="text-sm text-muted-foreground text-pretty">{runBlockReason}</p>}
 				</CardHeader>
 				<CardContent className="grid min-w-0 gap-4 grid-cols-1 @medium:grid-cols-2 @wide:grid-cols-4">
 					<div className="min-w-0">
@@ -250,10 +266,11 @@ export const ScheduleSummary = (props: Props) => {
 											"hover:bg-red-500/10": schedule.lastBackupStatus === "error",
 										})}
 									>
-										<span>
-											{schedule.lastBackupStatus === "warning"
-												? "Warning details"
-												: "Error details"}
+										<span className={cn({ hidden: schedule.lastBackupStatus !== "warning" })}>
+											Warning details
+										</span>
+										<span className={cn({ hidden: schedule.lastBackupStatus === "warning" })}>
+											Error details
 										</span>
 									</CollapsibleTrigger>
 									<CollapsibleContent

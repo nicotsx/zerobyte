@@ -7,7 +7,7 @@ import {
 	listRepositoriesOptions,
 	listVolumesOptions,
 } from "~/client/api-client/@tanstack/react-query.gen";
-import { Button } from "~/client/components/ui/button";
+import { Button, buttonVariants } from "~/client/components/ui/button";
 import { Card, CardContent } from "~/client/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { parseError } from "~/client/lib/errors";
@@ -15,6 +15,8 @@ import { EmptyState } from "~/client/components/empty-state";
 import { getCronExpression } from "~/utils/utils";
 import { CreateScheduleForm, type BackupScheduleFormValues } from "../components/create-schedule-form";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { getBackupRepositoryCompatibility } from "@zerobyte/contracts/backup-context";
+import { getSourceLabel } from "~/client/modules/volumes/source-presentation";
 
 export function CreateBackupPage() {
 	const navigate = useNavigate();
@@ -84,17 +86,22 @@ export function CreateBackupPage() {
 	};
 
 	const selectedVolume = volumesData.find((v) => v.shortId === selectedVolumeShortId);
+	const hasCompatibleRepository =
+		selectedVolume &&
+		repositoriesData.some(
+			(repository) => getBackupRepositoryCompatibility(selectedVolume, repository.type).compatible,
+		);
 
 	if (!volumesData.length) {
 		return (
 			<EmptyState
 				icon={HardDrive}
-				title="No volume to backup"
-				description="To create a backup job, you need to create a volume first. Volumes are the data sources that will be backed up."
+				title="No source to back up"
+				description="Create a source to choose the files you want to back up."
 				button={
-					<Button>
-						<Link to="/volumes">Go to volumes</Link>
-					</Button>
+					<Link to="/volumes" className={buttonVariants({ variant: "primary" })}>
+						Go to sources
+					</Link>
 				}
 			/>
 		);
@@ -107,9 +114,9 @@ export function CreateBackupPage() {
 				title="No repository"
 				description="To create a backup job, you need to set up a backup repository first. Backup repositories are the destinations where your backups will be stored."
 				button={
-					<Button>
-						<Link to="/repositories">Go to repositories</Link>
-					</Button>
+					<Link to="/repositories" className={buttonVariants({ variant: "primary" })}>
+						Go to repositories
+					</Link>
 				}
 			/>
 		);
@@ -120,15 +127,15 @@ export function CreateBackupPage() {
 			<Card>
 				<CardContent>
 					<Select value={selectedVolumeShortId} onValueChange={setSelectedVolumeShortId}>
-						<SelectTrigger id="volume-select">
-							<SelectValue placeholder="Choose a volume to backup" />
+						<SelectTrigger id="volume-select" aria-label="Source" className="w-full">
+							<SelectValue className="min-w-0 flex-1" placeholder="Choose a source to back up" />
 						</SelectTrigger>
 						<SelectContent>
 							{volumesData.map((volume) => (
 								<SelectItem key={volume.shortId} value={volume.shortId}>
-									<span className="flex items-center gap-2">
-										<HardDrive className="h-4 w-4" />
-										{volume.name}
+									<span className="flex min-w-0 items-center gap-2">
+										<HardDrive className="h-4 w-4 shrink-0" />
+										<span className="min-w-0 truncate">{getSourceLabel(volume)}</span>
 									</span>
 								</SelectItem>
 							))}
@@ -136,9 +143,26 @@ export function CreateBackupPage() {
 					</Select>
 				</CardContent>
 			</Card>
-			{selectedVolume ? (
+			{selectedVolume && !hasCompatibleRepository && (
+				<EmptyState
+					icon={Database}
+					title="No compatible repository"
+					description="Sources on another machine need a repository it can reach directly, such as S3, Azure or Google Cloud Storage. Local and rclone repositories only work for sources on this server."
+					button={
+						<Link to="/repositories/create" className={buttonVariants({ variant: "primary" })}>
+							Create repository
+						</Link>
+					}
+				/>
+			)}
+			{selectedVolume && hasCompatibleRepository && (
 				<>
-					<CreateScheduleForm volume={selectedVolume} onSubmit={handleSubmit} formId={formId} />
+					<CreateScheduleForm
+						key={selectedVolume.shortId}
+						volume={selectedVolume}
+						onSubmit={handleSubmit}
+						formId={formId}
+					/>
 					<div className="flex justify-end mt-4 gap-2">
 						<Button type="submit" variant="primary" form={formId} loading={createSchedule.isPending}>
 							<Plus className="h-4 w-4 mr-2" />
@@ -146,7 +170,8 @@ export function CreateBackupPage() {
 						</Button>
 					</div>
 				</>
-			) : (
+			)}
+			{!selectedVolume && (
 				<Card>
 					<CardContent className="py-16">
 						<div className="flex flex-col items-center justify-center text-center">
@@ -158,9 +183,9 @@ export function CreateBackupPage() {
 									<Database className="w-12 h-12 text-primary/70" strokeWidth={1.5} />
 								</div>
 							</div>
-							<h3 className="text-xl font-semibold mb-2">Select a volume</h3>
+							<h3 className="text-xl font-semibold mb-2">Select a source</h3>
 							<p className="text-muted-foreground text-sm max-w-md">
-								Choose a volume from the dropdown above to configure its backup schedule.
+								Choose a source from the dropdown above to configure its backup schedule.
 							</p>
 						</div>
 					</CardContent>

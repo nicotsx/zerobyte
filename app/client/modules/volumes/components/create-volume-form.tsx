@@ -1,3 +1,4 @@
+import { parseError } from "~/client/lib/errors";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
@@ -74,6 +75,15 @@ type Props = {
 	readOnly?: boolean;
 };
 
+const backendOptions: { value: BackendType; label: string }[] = [
+	{ value: "directory", label: "Directory" },
+	{ value: "nfs", label: "NFS" },
+	{ value: "smb", label: "SMB" },
+	{ value: "webdav", label: "WebDAV" },
+	{ value: "sftp", label: "SFTP" },
+	{ value: "rclone", label: "rclone" },
+];
+
 const defaultValuesForType = {
 	directory: { backend: "directory" as const, path: "/" },
 	nfs: { backend: "nfs" as const, port: 2049, version: "4.1" as const },
@@ -105,7 +115,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 
 	const { getValues } = form;
 
-	const { capabilities } = useSystemInfo();
+	const { capabilities, runtime } = useSystemInfo();
 	const isBackendAllowed = (backend: BackendType) => capabilities.volumeBackends.includes(backend);
 	const scrollToFirstError = useScrollToFormError();
 	const watchedBackend = useWatch({ control: form.control, name: "backend" });
@@ -120,7 +130,7 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 		onError: (error) => {
 			setTestMessage({
 				success: false,
-				message: error?.message || "Failed to test connection. Please try again.",
+				message: parseError(error)?.message || "Failed to test connection. Please try again.",
 			});
 		},
 		onSuccess: (data) => {
@@ -165,14 +175,14 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 							<FormItem>
 								<FormLabel>Name</FormLabel>
 								<FormControl>
-									<Input {...field} placeholder="Volume name" maxLength={32} minLength={2} />
+									<Input {...field} placeholder="Source name" maxLength={32} minLength={2} />
 								</FormControl>
-								<FormDescription>Unique identifier for the volume.</FormDescription>
+								<FormDescription>A unique name for this source.</FormDescription>
 								<FormMessage />
 							</FormItem>
 						)}
 					/>
-					{capabilities.volumeBackends.length > 1 && (
+					{(runtime === "server" || capabilities.volumeBackends.length > 1) && (
 						<FormField
 							control={form.control}
 							name="backend"
@@ -198,21 +208,29 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											{isBackendAllowed("directory") && (
-												<SelectItem value="directory">Directory</SelectItem>
-											)}
-											{isBackendAllowed("nfs") && <SelectItem value="nfs">NFS</SelectItem>}
-											{isBackendAllowed("smb") && <SelectItem value="smb">SMB</SelectItem>}
-											{isBackendAllowed("webdav") && (
-												<SelectItem value="webdav">WebDAV</SelectItem>
-											)}
-											{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
-											{isBackendAllowed("rclone") && (
-												<SelectItem value="rclone">rclone</SelectItem>
-											)}
+											{backendOptions.map(({ value, label }) => (
+												<SelectItem
+													key={value}
+													value={value}
+													disabled={!isBackendAllowed(value)}
+												>
+													{label}
+													{!isBackendAllowed(value) && " · unavailable on this server"}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
-									<FormDescription>Choose the storage backend for this volume.</FormDescription>
+									<FormDescription>
+										<span className={cn({ hidden: runtime !== "server" || capabilities.sysAdmin })}>
+											Network sources require a Linux server with mounting enabled. You can also
+											mount a share yourself and select its folder.
+										</span>
+										<span
+											className={cn({ hidden: runtime === "server" && !capabilities.sysAdmin })}
+										>
+											Choose how Zerobyte accesses this source.
+										</span>
+									</FormDescription>
 									<FormMessage />
 								</FormItem>
 							)}
@@ -235,21 +253,34 @@ export const CreateVolumeForm = ({ onSubmit, mode = "create", initialValues, for
 								disabled={testBackendConnection.isPending}
 								className="flex-1"
 							>
-								{testBackendConnection.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-								{!testBackendConnection.isPending && testMessage?.success && (
+								<span className={cn("flex items-center", { hidden: !testBackendConnection.isPending })}>
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									Testing...
+								</span>
+								<span
+									className={cn("flex items-center", {
+										hidden: testBackendConnection.isPending || !testMessage?.success,
+									})}
+								>
 									<CheckCircle className="mr-2 h-4 w-4 text-success" />
-								)}
-								{!testBackendConnection.isPending && testMessage && !testMessage.success && (
+									Connection Successful
+								</span>
+								<span
+									className={cn("flex items-center", {
+										hidden: testBackendConnection.isPending || !testMessage || testMessage.success,
+									})}
+								>
 									<XCircle className="mr-2 h-4 w-4 text-red-500" />
-								)}
-								{!testBackendConnection.isPending && !testMessage && <Plug className="mr-2 h-4 w-4" />}
-								{testBackendConnection.isPending
-									? "Testing..."
-									: testMessage
-										? testMessage.success
-											? "Connection Successful"
-											: "Test Failed"
-										: "Test Connection"}
+									Test Failed
+								</span>
+								<span
+									className={cn("flex items-center", {
+										hidden: testBackendConnection.isPending || !!testMessage,
+									})}
+								>
+									<Plug className="mr-2 h-4 w-4" />
+									Test Connection
+								</span>
 							</Button>
 						</div>
 						{testMessage && (

@@ -71,9 +71,10 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 	const [selectedEntryPath, setSelectedEntryPath] = useState<string>();
 	const normalizedQueryBasePath = normalizeAbsolutePath(queryBasePath);
 	const normalizedDisplayBasePath = normalizeAbsolutePath(displayBasePath ?? "/");
-	const effectiveDisplayBasePath = isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)
-		? normalizedDisplayBasePath
-		: "/";
+	let effectiveDisplayBasePath = "/";
+	if (isPathWithin(normalizedDisplayBasePath, normalizedQueryBasePath)) {
+		effectiveDisplayBasePath = normalizedDisplayBasePath;
+	}
 
 	const { data, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
@@ -126,8 +127,15 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 			}
 
 			const [path] = nextDisplayPaths;
-			const entry = nextDisplayPaths.size === 1 && path !== undefined ? entries.get(path) : undefined;
-			onSingleSelectionKindChange?.(entry ? (entry.type === "file" ? "file" : "dir") : null);
+			let entry;
+			if (nextDisplayPaths.size === 1 && path !== undefined) {
+				entry = entries.get(path);
+			}
+
+			let selectionKind: "file" | "dir" | null = null;
+			if (entry) selectionKind = entry.type === "file" ? "file" : "dir";
+
+			onSingleSelectionKindChange?.(selectionKind);
 
 			onSelectionChange(nextFullPaths);
 		},
@@ -140,6 +148,7 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 				{...fileBrowserUiProps}
 				className="flex flex-1 min-h-0 flex-col"
 				folderErrors={fileBrowser.folderErrors}
+				onFolderRetry={fileBrowser.retryFolder}
 				fileArray={fileBrowser.fileArray}
 				expandedFolders={fileBrowser.expandedFolders}
 				loadingFolders={fileBrowser.loadingFolders}
