@@ -11,8 +11,7 @@ import {
 	type FilesystemCommandPayload,
 	type FilesystemCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
-import { createAgentExecutionPolicy } from "../../../../../apps/agent/src/execution-policy";
-import { createTrustedRootRegistry } from "../../../../../apps/agent/src/trusted-roots";
+import { createTrustedRootRegistry, getTrustedRootDescriptors } from "../../../../../apps/agent/src/trusted-roots";
 import type { AgentConnectionData } from "../controller/session";
 import { createSocket, readyPayload, startRuntime } from "./controller-runtime.test-utils";
 
@@ -25,18 +24,14 @@ const data = {
 	credentialVersion: 1,
 } satisfies AgentConnectionData;
 
-test("dispatches trusted filesystem commands from a remote policy without enabling managed volumes", async () => {
+test("dispatches filesystem commands for advertised remote roots", async () => {
 	vi.spyOn(Bun, "serve").mockReturnValue(fromPartial({ port: 3001, stop: vi.fn(() => Promise.resolve()) }));
 	const { runtime } = await startRuntime();
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-runtime-dispatch-"));
 	try {
 		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
 		const trustedRootRegistry = createTrustedRootRegistry({ rawRoots });
-		const executionPolicy = createAgentExecutionPolicy({
-			builtinLocal: false,
-			registry: trustedRootRegistry,
-		});
-		const capabilities = executionPolicy.capabilities;
+		const capabilities = { filesystem: true, trustedRoots: getTrustedRootDescriptors(trustedRootRegistry) };
 		const socket = createSocket(data.id, data.agentId);
 		const sentCommands: FilesystemCommandPayload[] = [];
 		socket.send.mockImplementation((text) => {
@@ -65,7 +60,6 @@ test("dispatches trusted filesystem commands from a remote policy without enabli
 			source: { rootId: "unadvertised", relativePath: "" },
 		} satisfies FilesystemCommand;
 
-		expect(capabilities.filesystem).toBe(true);
 		for (const command of trustedCommands) {
 			const expectedCount = sentCommands.length + 1;
 			const result = Effect.runPromise(runtime.runFilesystemCommand(data.agentId, "org-1", command));
