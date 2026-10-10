@@ -63,7 +63,7 @@ jobs:
         run: rm -f "$RUNNER_TEMP/apple-api-key.p8"
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: desktop-macos-release
           path: apps/desktop/dist/*.dmg
@@ -97,7 +97,7 @@ jobs:
       - name: Upload unsigned Windows installer
         if: ${{ inputs.sign_windows }}
         id: upload-unsigned-windows
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: desktop-windows-unsigned
           path: apps/desktop/dist/*.exe
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload signed Windows installer
         if: ${{ inputs.sign_windows }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: desktop-windows-release
           path: signed-windows/**/*.exe
@@ -141,7 +141,7 @@ jobs:
 
       - name: Upload unsigned Windows release installer
         if: ${{ ! inputs.sign_windows }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: desktop-windows-release
           path: apps/desktop/dist/*.exe
@@ -172,7 +172,7 @@ jobs:
         run: bun run make:linux
 
       - name: Upload Linux AppImage artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: desktop-linux-release
           path: apps/desktop/dist/*.AppImage
