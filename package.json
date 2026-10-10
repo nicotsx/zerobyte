@@ -91,7 +91,7 @@
 		"hono": "^4.13.11",
 		"hono-openapi": "^1.3.3",
 		"hono-rate-limiter": "^0.5.4",
-		"http-errors-enhanced": "^4.0.2",
+		"http-errors-enhanced": "^5.0.1",
 		"input-otp": "^1.5.0",
 		"ipaddr.js": "^2.5.0",
 		"lucide-react": "^1.49.0",
