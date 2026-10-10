@@ -20,10 +20,10 @@ describe("VolumeFileBrowser request errors", () => {
 			server.use(
 				http.get("/api/v1/volumes/source-1/files", ({ request }) => {
 					const requestedPath = new URL(request.url).searchParams.get("path");
-					if (requestedPath === "/docs" && nestedRequestShouldFail) {
+					if (requestedPath === "docs" && nestedRequestShouldFail) {
 						return HttpResponse.json({ message: "/private/agent/docs could not be read" }, { status: 503 });
 					}
-					if (requestedPath === "/docs") {
+					if (requestedPath === "docs") {
 						return HttpResponse.json({
 							files: [{ name: "notes.txt", path: "docs/notes.txt", type: "file" }],
 							offset: 0,
@@ -114,7 +114,7 @@ describe("VolumeFileBrowser request errors", () => {
 	])(
 		"retries A's $operation after B fails (C loaded: $loadUnrelatedFolder)",
 		async ({ operation, loadUnrelatedFolder }) => {
-			const failingFolders = new Set(["/A", "/B"]);
+			const failingFolders = new Set(["A", "B"]);
 			server.use(
 				http.get("/api/v1/volumes/source-1/files", ({ request }) => {
 					const params = new URL(request.url).searchParams;
@@ -128,14 +128,14 @@ describe("VolumeFileBrowser request errors", () => {
 						});
 					}
 
-					const isFirstPageOfA = path === "/A" && operation === "load-more" && offset === 0;
+					const isFirstPageOfA = path === "A" && operation === "load-more" && offset === 0;
 					if (failingFolders.has(path) && !isFirstPageOfA) {
-						return HttpResponse.json({ message: `/private/agent${path} failed` }, { status: 503 });
+						return HttpResponse.json({ message: `/private/agent/${path} failed` }, { status: 503 });
 					}
 
-					const name = isFirstPageOfA ? "first-A.txt" : `loaded-${path.slice(1)}.txt`;
+					const name = isFirstPageOfA ? "first-A.txt" : `loaded-${path}.txt`;
 					return HttpResponse.json({
-						files: [{ name, path: `${path.slice(1)}/${name}`, type: "file" }],
+						files: [{ name, path: `${path}/${name}`, type: "file" }],
 						offset,
 						limit: 1,
 						hasMore: isFirstPageOfA,
