@@ -127,8 +127,7 @@ test.each([
 				}),
 			);
 
-			const blockedWebhookError =
-				"The agent could not complete the filesystem operation. Check the agent logs for details.";
+			const blockedWebhookError = `${pre ? "pre" : "post"} webhook URL origin is not allowed. Add ${origin} to WEBHOOK_ALLOWED_ORIGINS.`;
 
 			expect(result.status).toBe(completed ? "completed" : "failed");
 			if (completed) {
