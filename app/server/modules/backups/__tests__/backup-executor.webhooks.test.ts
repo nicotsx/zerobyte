@@ -14,7 +14,6 @@ import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { generateBackupOutput } from "~/test/helpers/restic";
 import { TEST_ORG_ID } from "~/test/helpers/organization";
 import { handleBackupRunCommand } from "../../../../../apps/agent/src/commands/backup-run";
-import { createAgentExecutionPolicy } from "../../../../../apps/agent/src/execution-policy";
 import { createTrustedRootRegistry } from "../../../../../apps/agent/src/trusted-roots";
 import type { ControllerCommandContext, RunningJob } from "../../../../../apps/agent/src/context";
 import { backupExecutor } from "../backup-executor";
@@ -59,10 +58,8 @@ test.each([
 			const jobs = new Map<string, RunningJob>();
 			let result: BackupExecutionResult | undefined;
 			const context: ControllerCommandContext = {
-				executionPolicy: createAgentExecutionPolicy({
-					builtinLocal: true,
-					registry: createTrustedRootRegistry({ builtinLocal: true }),
-				}),
+				capabilities: { restore: true },
+				trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 				getRunningJob: (jobId) => Effect.succeed(jobs.get(jobId)),
 				setRunningJob: (jobId, job) =>
 					Effect.sync(() => {
@@ -130,14 +127,17 @@ test.each([
 				}),
 			);
 
+			const blockedWebhookError =
+				"The agent could not complete the filesystem operation. Check the agent logs for details.";
+
 			expect(result.status).toBe(completed ? "completed" : "failed");
 			if (completed) {
 				expect(result).toMatchObject({
-					warningDetails: runtime === "server" && !allowed ? expect.stringContaining("not allowed") : null,
+					warningDetails: runtime === "server" && !allowed ? blockedWebhookError : null,
 				});
 				expect(actions).toEqual(pre ? ["/pre", "backup", "/post"] : ["backup"]);
 			} else {
-				expect(result).toMatchObject({ error: expect.stringContaining("not allowed") });
+				expect(result).toMatchObject({ error: blockedWebhookError });
 				expect(actions).toEqual([]);
 			}
 		} finally {

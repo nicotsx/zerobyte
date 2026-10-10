@@ -14,8 +14,7 @@ import { withContext } from "~/server/core/request-context";
 import { createTestSession } from "~/test/helpers/auth";
 import { handleFilesystemCommand } from "../../../../../apps/agent/src/commands/filesystem";
 import type { ControllerCommandContext } from "../../../../../apps/agent/src/context";
-import { createAgentExecutionPolicy } from "../../../../../apps/agent/src/execution-policy";
-import { createTrustedRootRegistry } from "../../../../../apps/agent/src/trusted-roots";
+import { createTrustedRootRegistry, getTrustedRootDescriptors } from "../../../../../apps/agent/src/trusted-roots";
 import { createTrustedFilesystemSource } from "./trusted-filesystem-source.fixture";
 
 const agentManagerMock = vi.hoisted(() => ({
@@ -137,20 +136,19 @@ describe("trusted filesystem source browsing", () => {
 			const rootId = builtinLocal ? LOCAL_FILESYSTEM_ROOT_ID : "filesystem";
 			const rawRoots = JSON.stringify([{ id: "filesystem", label: "Filesystem", path: "/" }]);
 			const registry = createTrustedRootRegistry({ rawRoots, builtinLocal });
-			const executionPolicy = createAgentExecutionPolicy({ builtinLocal, registry });
 			await db.insert(agentsTable).values({
 				id: agentId,
 				organizationId: builtinLocal ? null : organizationId,
 				name: "Filesystem agent",
 				kind: builtinLocal ? "local" : "remote",
 				status: "online",
-				capabilities: executionPolicy.capabilities,
+				capabilities: { filesystem: true, trustedRoots: getTrustedRootDescriptors(registry) },
 			});
 			agentManagerMock.runFilesystemCommand.mockImplementation(
 				async (_agentId: string, _organizationId: string, command: FilesystemCommand) => {
 					const outboundMessages: AgentWireMessage[] = [];
 					const context = fromPartial<ControllerCommandContext>({
-						executionPolicy,
+						trustedRoots: registry,
 						offerOutbound: (message: AgentWireMessage) =>
 							Effect.sync(() => {
 								outboundMessages.push(message);
