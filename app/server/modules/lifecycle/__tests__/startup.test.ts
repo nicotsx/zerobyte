@@ -385,7 +385,7 @@ test("remounts saved local managed volumes without retrying other source states"
 	const remoteFilesystem = await createTestVolume({
 		name: "Startup remote filesystem",
 		agentId: "remote-agent",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "photos",
@@ -395,7 +395,7 @@ test("remounts saved local managed volumes without retrying other source states"
 	});
 	const localFilesystem = await createTestVolume({
 		name: "Startup local filesystem",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "photos",

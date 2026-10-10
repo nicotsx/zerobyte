@@ -218,7 +218,7 @@ export const ssoProvider = sqliteTable("sso_provider", {
 export type AgentKind = "local" | "remote";
 export type AgentStatus = "offline" | "connecting" | "online" | "degraded";
 export type AgentCapabilities = Record<string, unknown>;
-export type VolumeSourceKind = "managed" | "agent-filesystem";
+export type VolumeSourceKind = "managed" | "filesystem";
 
 export const agentsTable = sqliteTable(
 	"agents_table",
@@ -288,7 +288,7 @@ export const volumesTable = sqliteTable(
 		index("volumes_table_agent_id_idx").on(table.agentId),
 		check(
 			"volumes_table_source_fields_check",
-			sql`(${table.sourceKind} = 'managed' AND ${table.config} IS NOT NULL AND ${table.type} IS NOT NULL AND ${table.trustedRootId} IS NULL AND ${table.relativePath} IS NULL) OR (${table.sourceKind} = 'agent-filesystem' AND ${table.config} IS NULL AND ${table.type} IS NULL AND ${table.trustedRootId} IS NOT NULL AND ${table.relativePath} IS NOT NULL)`,
+			sql`(${table.sourceKind} = 'managed' AND ${table.config} IS NOT NULL AND ${table.type} IS NOT NULL AND ${table.trustedRootId} IS NULL AND ${table.relativePath} IS NULL) OR (${table.sourceKind} = 'filesystem' AND ${table.config} IS NULL AND ${table.type} IS NULL AND ${table.trustedRootId} IS NOT NULL AND ${table.relativePath} IS NOT NULL)`,
 		),
 		uniqueIndex("volumes_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
 	],

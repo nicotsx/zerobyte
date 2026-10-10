@@ -24,7 +24,7 @@ const ensureLatestConfigurationSchema = async () => {
 
 	for (const volume of volumes) {
 		await withContext({ organizationId: volume.organizationId }, async () => {
-			const update = volume.sourceKind === "agent-filesystem" ? {} : { config: volume.config ?? undefined };
+			const update = volume.sourceKind === "filesystem" ? {} : { config: volume.config ?? undefined };
 			await volumeService.updateVolume(volume.shortId, update).catch((err) => {
 				logger.error(`Failed to update volume ${volume.name}: ${err}`);
 			});

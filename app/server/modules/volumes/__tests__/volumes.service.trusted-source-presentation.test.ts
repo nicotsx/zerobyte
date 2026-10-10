@@ -38,7 +38,7 @@ describe("trusted filesystem source presentation", () => {
 		const secondVolume = await createTestVolume({
 			organizationId,
 			agentId,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			trustedRootId: "photos",
 			relativePath: "documents",
 			type: null,

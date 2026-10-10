@@ -11,7 +11,7 @@ import {
 export const getVolumePath = (
 	volume: Pick<Volume | PresentedVolume, "sourceKind" | "config" | "relativePath" | "shortId">,
 ) => {
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		return volume.relativePath ? `/${volume.relativePath}` : "/";
 	}
 	if (volume.config?.backend === "directory") {

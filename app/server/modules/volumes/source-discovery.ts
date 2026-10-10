@@ -145,9 +145,7 @@ export const loadSourceLocationPresentationContext = async (
 	organizationId: string,
 ): Promise<SourceLocationPresentationContext> => {
 	const agentIds = [
-		...new Set(
-			volumes.filter((volume) => volume.sourceKind === "agent-filesystem").map((volume) => volume.agentId),
-		),
+		...new Set(volumes.filter((volume) => volume.sourceKind === "filesystem").map((volume) => volume.agentId)),
 	];
 	if (agentIds.length === 0) {
 		return { agentsById: new Map(), readinessByAgentId: new Map() };
@@ -172,7 +170,7 @@ export const loadSourceLocationPresentationContext = async (
 	const relevantAgentIds = [
 		...new Set(
 			volumes.flatMap((volume) => {
-				if (volume.sourceKind !== "agent-filesystem") {
+				if (volume.sourceKind !== "filesystem") {
 					return [];
 				}
 				const agent = agentsById.get(volume.agentId);

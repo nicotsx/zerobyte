@@ -71,7 +71,7 @@ test("imports filesystem ownership and schedules with safe remote reconnection d
 	expect(machines[0]?.revokedAt).toEqual(expect.any(Number));
 	expect(remote).toMatchObject({
 		agentId: machines[0]?.id,
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "documents",
@@ -79,7 +79,7 @@ test("imports filesystem ownership and schedules with safe remote reconnection d
 	});
 	expect(local).toMatchObject({
 		agentId: "local",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		trustedRootId: "photos",
 		relativePath: "",
 	});
@@ -116,7 +116,7 @@ test("exports mixed sources without remote credentials, capabilities or absolute
 			shortId: generateShortId(),
 			name: "Remote source",
 			organizationId: session.organizationId,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: remoteId,
 			trustedRootId: "documents",
 			relativePath: "work",
@@ -164,7 +164,7 @@ test("recovers provisioned sources with missing owners as shared portable offlin
 		},
 		{ id: "photos", name: "Photos", agentId: "not-enrolled", trustedRootId: "photos", relativePath: "family" },
 		{ id: "archive", name: "Archive", agentId: unrelatedOwnerId, trustedRootId: "archive", relativePath: "" },
-	].map((source) => ({ ...source, organizationId: session.organizationId, sourceKind: "agent-filesystem" }));
+	].map((source) => ({ ...source, organizationId: session.organizationId, sourceKind: "filesystem" }));
 	const tempDir = await mkdtemp(join(tmpdir(), "zerobyte-transfer-provisioning-"));
 	const provisioningPath = join(tempDir, "provisioning.json");
 
@@ -187,7 +187,7 @@ test("recovers provisioned sources with missing owners as shared portable offlin
 	const provisioned = await db.query.volumesTable.findMany({ where: { organizationId: session.organizationId } });
 	const documents = provisioned.find((volume) => volume.name === "Documents");
 
-	expect(documents).toMatchObject({ agentId: "not-enrolled", sourceKind: "agent-filesystem" });
+	expect(documents).toMatchObject({ agentId: "not-enrolled", sourceKind: "filesystem" });
 	expect(await db.query.agentsTable.findMany({ where: { organizationId: session.organizationId } })).toEqual([]);
 
 	await db
@@ -259,7 +259,7 @@ test("recovers provisioned sources with missing owners as shared portable offlin
 	}
 	for (const source of sources) {
 		expect(recoveredSources.find((volume) => volume.name === source.name)).toMatchObject({
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			trustedRootId: source.trustedRootId,
 			relativePath: source.relativePath,
 			config: null,

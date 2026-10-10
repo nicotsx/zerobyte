@@ -53,7 +53,7 @@ const createAgentFilesystemVolumeRecord = async (
 			config: null,
 			autoRemount: false,
 			agentId: `agent-${crypto.randomUUID()}`,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			trustedRootId: "photos",
 			relativePath: "family",
 			organizationId,
@@ -292,7 +292,7 @@ describe("volumes security", () => {
 					headers,
 					body: JSON.stringify({
 						name,
-						sourceKind: "agent-filesystem",
+						sourceKind: "filesystem",
 						agentId: LOCAL_AGENT_ID,
 						trustedRootId: LOCAL_FILESYSTEM_ROOT_ID,
 						relativePath: "tmp",
@@ -599,7 +599,7 @@ describe("volumes security", () => {
 		test.each([
 			["config", { config: { backend: "directory", path: "/tmp" } }],
 			["autoRemount", { autoRemount: true }],
-		])("rejects the inapplicable agent-filesystem %s field", async (_field, patch) => {
+		])("rejects the inapplicable filesystem %s field", async (_field, patch) => {
 			const volume = await createAgentFilesystemVolumeRecord(session.organizationId);
 			const res = await app.request(`/api/v1/volumes/${volume.shortId}`, {
 				method: "PUT",

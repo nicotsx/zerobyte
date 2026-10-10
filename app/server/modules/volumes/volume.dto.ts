@@ -56,7 +56,7 @@ export const createVolumeBody = z
 	.or(
 		z.object({
 			name: z.string(),
-			sourceKind: z.literal("agent-filesystem"),
+			sourceKind: z.literal("filesystem"),
 			agentId: z.string().min(1),
 			trustedRootId: z.string().min(1),
 			relativePath: z.string().default(""),
@@ -130,7 +130,7 @@ export const getVolumeDto = describeRoute({
 });
 
 export const updateVolumeBody = z.object({
-	sourceKind: z.enum(["managed", "agent-filesystem"]).optional(),
+	sourceKind: z.enum(["managed", "filesystem"]).optional(),
 	name: z.string().optional(),
 	autoRemount: z.boolean().optional(),
 	config: volumeConfigSchema.optional(),

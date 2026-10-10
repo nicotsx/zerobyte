@@ -34,7 +34,7 @@ test("unmounts saved local managed volumes after stopping their agent without ch
 	const remoteFilesystem = await createTestVolume({
 		name: "Shutdown remote filesystem",
 		agentId: "remote-agent",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "photos",

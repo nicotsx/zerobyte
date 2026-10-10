@@ -26,7 +26,7 @@ test("rejects incompatible local repositories before controller filesystem prepa
 		organizationId,
 		agentId: "remote-agent",
 		status: "error",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "root-1",

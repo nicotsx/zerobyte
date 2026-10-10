@@ -48,7 +48,7 @@ describe("trusted filesystem source lifecycle", () => {
 		await withContext({ organizationId, userId: user.id }, async () => {
 			const result = await volumeService.createVolume({
 				name: "All photos",
-				sourceKind: "agent-filesystem",
+				sourceKind: "filesystem",
 				agentId,
 				trustedRootId: "photos",
 				relativePath: "",
@@ -78,7 +78,7 @@ describe("trusted filesystem source lifecycle", () => {
 			await expect(
 				volumeService.createVolume({
 					name: "Missing photos",
-					sourceKind: "agent-filesystem",
+					sourceKind: "filesystem",
 					agentId,
 					trustedRootId: "photos",
 					relativePath: "missing",
@@ -100,7 +100,7 @@ describe("trusted filesystem source lifecycle", () => {
 
 		await withContext({ organizationId, userId: user.id }, async () => {
 			const renamed = await volumeService.updateVolume(volume.shortId, {
-				sourceKind: "agent-filesystem",
+				sourceKind: "filesystem",
 				name: "Renamed offline",
 			});
 			expect(renamed.volume.name).toBe("Renamed offline");

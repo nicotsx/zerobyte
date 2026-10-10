@@ -104,7 +104,7 @@ const checkHealth = async (shortId: ShortId) => {
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
 	}
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		const checkedAt = Date.now();
 		try {
 			const source = await assembleVolumeExecutionSource(volume, organizationId);
@@ -149,7 +149,7 @@ const ensureHealthyVolume = async (shortId: ShortId, signal?: AbortSignal): Prom
 	if (!volume) {
 		throw new NotFoundError("Volume not found");
 	}
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		const health = await checkHealth(shortId);
 		signal?.throwIfAborted();
 		if (health.status === "mounted") {

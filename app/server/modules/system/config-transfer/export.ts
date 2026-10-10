@@ -136,7 +136,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 					autoRemount: volume.autoRemount,
 				};
 
-				if (volume.sourceKind === "agent-filesystem") {
+				if (volume.sourceKind === "filesystem") {
 					if (volume.trustedRootId === null || volume.relativePath === null) {
 						throw new Error(`Invalid filesystem source "${volume.name}"`);
 					}

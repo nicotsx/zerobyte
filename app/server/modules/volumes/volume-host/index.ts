@@ -9,7 +9,7 @@ import type { Volume } from "@zerobyte/contracts/volumes";
 import type { VolumeBackend } from "./types";
 
 export const createVolumeBackend = (volume: Volume, mountPath = getVolumePath(volume)): VolumeBackend => {
-	if (volume.sourceKind === "agent-filesystem" || !volume.config) {
+	if (volume.sourceKind === "filesystem" || !volume.config) {
 		throw new Error("Managed volume configuration is missing");
 	}
 

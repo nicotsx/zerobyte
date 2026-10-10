@@ -9,7 +9,7 @@ export const getBackupSource = (volume: Pick<Volume, "sourceKind" | "agentId">):
 	}
 
 	const agentKind = volume.agentId === LOCAL_AGENT_ID ? "local" : "remote";
-	return { kind: "agent-filesystem", agentKind };
+	return { kind: "filesystem", agentKind };
 };
 
 export const assertBackupRepositoryCompatibility = (

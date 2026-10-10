@@ -128,7 +128,7 @@ const importVolumes = (
 				type: volume.sourceKind === "managed" ? volume.config.backend : null,
 				status: "unmounted",
 				config: volume.sourceKind === "managed" ? volume.config : null,
-				sourceKind: volume.sourceKind,
+				sourceKind: volume.sourceKind === "managed" ? "managed" : "filesystem",
 				agentId:
 					volume.machineRef === null
 						? LOCAL_AGENT_ID

@@ -226,7 +226,7 @@ export const managedVolumeSchema = volumeBaseSchema.extend({
 });
 
 export const agentFilesystemVolumeSchema = volumeBaseSchema.extend({
-	sourceKind: z.literal("agent-filesystem"),
+	sourceKind: z.literal("filesystem"),
 	config: z.null(),
 	type: z.null(),
 	trustedRootId: trustedRootIdSchema,

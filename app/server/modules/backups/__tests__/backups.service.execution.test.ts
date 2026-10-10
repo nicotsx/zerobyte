@@ -164,7 +164,7 @@ describe("backup execution - validation failures", () => {
 		const notificationSpy = vi.spyOn(notificationsService, "sendBackupNotification").mockResolvedValue();
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: "root-1",
@@ -819,7 +819,7 @@ describe("backup execution - routing", () => {
 		const { runBackupMock } = setup();
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: "root-1",
@@ -846,7 +846,7 @@ describe("backup execution - routing", () => {
 		const decryptRepositoryConfig = vi.spyOn(repositorySecrets, "decryptRepositoryConfig");
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: "root-1",
@@ -886,7 +886,7 @@ describe("backup execution - routing", () => {
 		});
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			trustedRootId: "photos",
 			relativePath: "family/2026",
 			type: null,

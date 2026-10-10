@@ -94,7 +94,7 @@ const createVolume = async (body: CreateVolumeBody) => {
 	}
 
 	const shortId = generateShortId();
-	if (body.sourceKind === "agent-filesystem") {
+	if (body.sourceKind === "filesystem") {
 		const relativePath = normalizeRelativePath(body.relativePath);
 		await preflightTrustedFilesystemSource(body.agentId, body.trustedRootId, relativePath, organizationId);
 		const [created] = await db
@@ -105,7 +105,7 @@ const createVolume = async (body: CreateVolumeBody) => {
 				config: null,
 				type: null,
 				agentId: body.agentId,
-				sourceKind: "agent-filesystem",
+				sourceKind: "filesystem",
 				trustedRootId: body.trustedRootId,
 				relativePath,
 				status: "mounted",
@@ -162,7 +162,7 @@ const deleteVolume = async (shortId: ShortId) => {
 		throw new NotFoundError("Volume not found");
 	}
 
-	if (volume.sourceKind !== "agent-filesystem") {
+	if (volume.sourceKind !== "filesystem") {
 		await runVolumeBackendOperation(volume, "unmount");
 	}
 	await db
@@ -202,7 +202,7 @@ const validateUpdateFieldsForSourceKind = (volume: CanonicalVolume, volumeData: 
 	if (volumeData.sourceKind !== undefined && volumeData.sourceKind !== volume.sourceKind) {
 		throw new BadRequestError("Volume source kind cannot be changed");
 	}
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		if (volumeData.config !== undefined || volumeData.autoRemount !== undefined) {
 			throw new BadRequestError("Trusted filesystem sources cannot have managed backend fields");
 		}
@@ -236,13 +236,11 @@ const updateVolume = async (shortId: ShortId, volumeData: UpdateVolumeBody) => {
 	validateUpdateFieldsForSourceKind(existingVolume, volumeData);
 	const name = getUpdatedVolumeName(existingVolume.name, volumeData.name);
 	const updateErrorMessage =
-		existingVolume.sourceKind === "agent-filesystem"
-			? "Failed to update filesystem source"
-			: "Failed to update volume";
+		existingVolume.sourceKind === "filesystem" ? "Failed to update filesystem source" : "Failed to update volume";
 	let updateValues: Partial<typeof volumesTable.$inferInsert>;
 	let configChanged = false;
 
-	if (existingVolume.sourceKind === "agent-filesystem") {
+	if (existingVolume.sourceKind === "filesystem") {
 		const agentChanged = volumeData.agentId !== undefined && volumeData.agentId !== existingVolume.agentId;
 		const rootChanged =
 			volumeData.trustedRootId !== undefined && volumeData.trustedRootId !== existingVolume.trustedRootId;

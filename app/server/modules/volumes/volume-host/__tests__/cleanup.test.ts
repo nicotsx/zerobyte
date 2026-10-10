@@ -203,7 +203,7 @@ test.each([
 test("trusted-root records do not claim managed controller directories", async () => {
 	const { volumeRoot, createTestVolume, cleanupDanglingVolumeMountDirectories } = await loadCleanup();
 	const volume = await createTestVolume({
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		config: null,
 		type: null,
 		trustedRootId: "local",

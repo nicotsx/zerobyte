@@ -21,7 +21,7 @@ export const createTrustedFilesystemSource = async (
 	const volume = await createTestVolume({
 		organizationId,
 		agentId,
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		trustedRootId: "photos",
 		relativePath: "family",
 		type: null,

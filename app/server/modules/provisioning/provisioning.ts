@@ -240,7 +240,7 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 		const existing = existingVolumes.find((v) => v.provisioningId === provisioningId);
 
 		if (!existing) {
-			if (volume.sourceKind === "agent-filesystem") {
+			if (volume.sourceKind === "filesystem") {
 				await db.insert(volumesTable).values({
 					shortId: generateShortId(),
 					provisioningId,
@@ -249,7 +249,7 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 					config: null,
 					autoRemount: false,
 					agentId: volume.agentId,
-					sourceKind: "agent-filesystem",
+					sourceKind: "filesystem",
 					trustedRootId: volume.trustedRootId,
 					relativePath: volume.relativePath,
 					status: "mounted",
@@ -273,14 +273,14 @@ const syncProvisionedVolumes = async (volumes: ProvisionedVolume[]) => {
 			continue;
 		}
 
-		if (volume.sourceKind === "agent-filesystem") {
+		if (volume.sourceKind === "filesystem") {
 			const updatePayload = {
 				name: volume.name,
 				type: null,
 				config: null,
 				autoRemount: false,
 				agentId: volume.agentId,
-				sourceKind: "agent-filesystem" as const,
+				sourceKind: "filesystem" as const,
 				trustedRootId: volume.trustedRootId,
 				relativePath: volume.relativePath,
 				status: "mounted" as const,

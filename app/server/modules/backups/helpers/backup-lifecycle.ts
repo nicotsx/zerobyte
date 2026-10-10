@@ -71,7 +71,7 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 
 	try {
 		assertBackupRepositoryCompatibility(volume, repository);
-		if (volume.sourceKind === "agent-filesystem" && volume.agentId !== LOCAL_AGENT_ID) {
+		if (volume.sourceKind === "filesystem" && volume.agentId !== LOCAL_AGENT_ID) {
 			const trustedRootId = volume.trustedRootId;
 			if (!trustedRootId) {
 				throw new Error("Backup source location is incomplete");

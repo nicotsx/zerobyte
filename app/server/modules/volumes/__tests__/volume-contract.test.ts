@@ -33,7 +33,7 @@ describe("volumeSchema", () => {
 		});
 		const trusted = volumeSchema.parse({
 			...baseVolume,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			type: null,
 			config: null,
 			trustedRootId: "data",
@@ -41,7 +41,7 @@ describe("volumeSchema", () => {
 		});
 
 		expect(managed.sourceKind).toBe("managed");
-		expect(trusted.sourceKind).toBe("agent-filesystem");
+		expect(trusted.sourceKind).toBe("filesystem");
 	});
 
 	test.each([
@@ -55,7 +55,7 @@ describe("volumeSchema", () => {
 		},
 		{
 			...baseVolume,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			type: "directory",
 			config: { backend: "directory", path: "/data" },
 			trustedRootId: null,
@@ -70,7 +70,7 @@ describe("public volume presentation schemas", () => {
 	test("keeps presentation data out of canonical public volumes", () => {
 		const canonical = publicVolumeSchema.parse({
 			...baseVolume,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			type: null,
 			config: null,
 			trustedRootId: "data",
@@ -92,7 +92,7 @@ describe("public volume presentation schemas", () => {
 		};
 		const trusted = {
 			...baseVolume,
-			sourceKind: "agent-filesystem" as const,
+			sourceKind: "filesystem" as const,
 			type: null,
 			config: null,
 			trustedRootId: "data",

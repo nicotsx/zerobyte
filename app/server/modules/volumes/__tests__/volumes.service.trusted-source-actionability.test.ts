@@ -37,7 +37,7 @@ describe("trusted filesystem source actionability", () => {
 			await expect(
 				volumeService.createVolume({
 					name: "Traversal",
-					sourceKind: "agent-filesystem",
+					sourceKind: "filesystem",
 					agentId: "agent-any",
 					trustedRootId: "photos",
 					relativePath: "../secret",
@@ -137,7 +137,7 @@ describe("trusted filesystem source actionability", () => {
 			await expect(
 				volumeService.createVolume({
 					name: "Family photos",
-					sourceKind: "agent-filesystem",
+					sourceKind: "filesystem",
 					agentId,
 					trustedRootId: "photos",
 					relativePath: "family/./2026",
@@ -162,7 +162,7 @@ describe("trusted filesystem source actionability", () => {
 			await expect(
 				volumeService.createVolume({
 					name: "Secrets",
-					sourceKind: "agent-filesystem",
+					sourceKind: "filesystem",
 					agentId,
 					trustedRootId: "missing",
 					relativePath: "",

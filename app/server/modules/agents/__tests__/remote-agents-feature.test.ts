@@ -61,7 +61,7 @@ test("disabled remote APIs preserve enrollment and machine configuration", async
 			method: "POST",
 			body: {
 				name: "Blocked source",
-				sourceKind: "agent-filesystem",
+				sourceKind: "filesystem",
 				agentId: enrollment.agent.id,
 				trustedRootId: "photos",
 				relativePath: "",

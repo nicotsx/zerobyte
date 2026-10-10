@@ -46,7 +46,7 @@ describe("trusted filesystem source browsing", () => {
 			const { agentId } = await createTrustedFilesystemSource(organizationId, "online");
 			await db.update(agentsTable).set({ status }).where(eq(agentsTable.id, agentId));
 			await withContext({ organizationId, userId: user.id }, async () => {
-				await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow(`is ${status}`);
+				await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow(`is ${status}`);
 			});
 		},
 	);
@@ -57,13 +57,13 @@ describe("trusted filesystem source browsing", () => {
 
 		await withContext({ organizationId, userId: user.id }, async () => {
 			await db.update(agentsTable).set({ revokedAt: Date.now() }).where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("is revoked");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("is revoked");
 
 			await db
 				.update(agentsTable)
 				.set({ revokedAt: null, capabilities: { trustedRoots: [] } })
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("not advertised");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("not advertised");
 
 			await db
 				.update(agentsTable)
@@ -73,7 +73,7 @@ describe("trusted filesystem source browsing", () => {
 					},
 				})
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow(
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow(
 				"does not allow backups",
 			);
 
@@ -81,9 +81,9 @@ describe("trusted filesystem source browsing", () => {
 				.update(agentsTable)
 				.set({ capabilities: { trustedRoots: "invalid" } })
 				.where(eq(agentsTable.id, agentId));
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("incompatible");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("incompatible");
 
-			await expect(volumeService.browseFilesystem("missing-agent", "photos", "/")).rejects.toThrow(
+			await expect(volumeService.browseFilesystem("missing-agent", "photos", "")).rejects.toThrow(
 				"Source machine not found",
 			);
 
@@ -96,7 +96,7 @@ describe("trusted filesystem source browsing", () => {
 				})
 				.where(eq(agentsTable.id, agentId));
 			agentManagerMock.isAgentReady.mockResolvedValue(false);
-			await expect(volumeService.browseFilesystem(agentId, "photos", "/")).rejects.toThrow("is not connected");
+			await expect(volumeService.browseFilesystem(agentId, "photos", "")).rejects.toThrow("is not connected");
 		});
 	});
 
@@ -119,7 +119,7 @@ describe("trusted filesystem source browsing", () => {
 		});
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			await volumeService.browseFilesystem(agentId, "photos", "/family");
+			await volumeService.browseFilesystem(agentId, "photos", "family");
 		});
 
 		expect(agentManagerMock.runFilesystemCommand).toHaveBeenCalledWith(agentId, organizationId, {
@@ -142,7 +142,7 @@ describe("trusted filesystem source browsing", () => {
 				name: "Filesystem agent",
 				kind: builtinLocal ? "local" : "remote",
 				status: "online",
-				capabilities: { filesystem: true, trustedRoots: getTrustedRootDescriptors(registry) },
+				capabilities: { trustedRoots: getTrustedRootDescriptors(registry) },
 			});
 			agentManagerMock.runFilesystemCommand.mockImplementation(
 				async (_agentId: string, _organizationId: string, command: FilesystemCommand) => {
@@ -178,10 +178,10 @@ describe("trusted filesystem source browsing", () => {
 			}
 
 			await withContext({ organizationId, userId: user.id }, async () => {
-				const rootResult = await volumeService.browseFilesystem(agentId, rootId, "/");
-				expect(rootResult.path).toBe("trusted-root:");
+				const rootResult = await volumeService.browseFilesystem(agentId, rootId, "");
+				expect(rootResult.path).toBe("");
 				const firstDirectory = rootResult.directories.find((directory) => directory.name === firstSegment);
-				expect(firstDirectory?.path).toBe(`trusted-root:${firstSegment}`);
+				expect(firstDirectory?.path).toBe(firstSegment);
 				if (!firstDirectory) {
 					throw new Error(`Expected root browse result to contain ${firstSegment}`);
 				}
@@ -191,7 +191,7 @@ describe("trusted filesystem source browsing", () => {
 				const secondDirectory = directoryResult.directories.find(
 					(directory) => directory.name === secondSegment,
 				);
-				expect(secondDirectory?.path).toBe(`trusted-root:${firstSegment}/${secondSegment}`);
+				expect(secondDirectory?.path).toBe(`${firstSegment}/${secondSegment}`);
 				if (!secondDirectory) {
 					throw new Error(`Expected nested browse result to contain ${secondSegment}`);
 				}

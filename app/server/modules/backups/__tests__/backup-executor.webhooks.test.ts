@@ -58,7 +58,7 @@ test.each([
 			const jobs = new Map<string, RunningJob>();
 			let result: BackupExecutionResult | undefined;
 			const context: ControllerCommandContext = {
-				capabilities: { restore: true },
+				allowRestore: true,
 				trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 				getRunningJob: (jobId) => Effect.succeed(jobs.get(jobId)),
 				setRunningJob: (jobId, job) =>

@@ -331,7 +331,7 @@ describe("manual only schedules", () => {
 		setup();
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: "root-1",
@@ -359,7 +359,7 @@ describe("manual only schedules", () => {
 		setup();
 		const volume = await createTestVolume({
 			agentId: "agent-remote",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: "root-1",

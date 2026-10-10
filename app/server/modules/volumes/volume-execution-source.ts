@@ -53,14 +53,14 @@ export const assembleTrustedFilesystemExecutionSource = async (
 };
 
 export const toCanonicalVolume = (volume: Volume): CanonicalVolume => {
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		if (volume.trustedRootId === null || volume.relativePath === null) {
 			throw new InternalServerError("Trusted filesystem source is incomplete");
 		}
 
 		return volumeSchema.parse({
 			...volume,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			config: null,
 			type: null,
 			trustedRootId: volume.trustedRootId,
@@ -88,7 +88,7 @@ export const assembleVolumeExecutionSource = async (
 ): Promise<FilesystemSource> => {
 	const canonicalVolume = toCanonicalVolume(volume);
 
-	if (canonicalVolume.sourceKind === "agent-filesystem") {
+	if (canonicalVolume.sourceKind === "filesystem") {
 		return assembleTrustedFilesystemExecutionSource(
 			canonicalVolume.agentId,
 			canonicalVolume.trustedRootId,
