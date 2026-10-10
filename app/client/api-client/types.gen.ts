@@ -148,6 +148,14 @@ export type UpdateMemberRoleData = {
 
 export type UpdateMemberRoleErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Forbidden
      */
     403: unknown;
@@ -156,6 +164,8 @@ export type UpdateMemberRoleErrors = {
      */
     404: unknown;
 };
+
+export type UpdateMemberRoleError = UpdateMemberRoleErrors[keyof UpdateMemberRoleErrors];
 
 export type UpdateMemberRoleResponses = {
     /**
@@ -229,6 +239,14 @@ export type CreateApiKeyData = {
 
 export type CreateApiKeyErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Invalid password
      */
     401: unknown;
@@ -241,6 +259,8 @@ export type CreateApiKeyErrors = {
      */
     409: unknown;
 };
+
+export type CreateApiKeyError = CreateApiKeyErrors[keyof CreateApiKeyErrors];
 
 export type CreateApiKeyResponses = {
     /**
@@ -431,6 +451,14 @@ export type UpdateSsoProviderAutoLinkingData = {
 
 export type UpdateSsoProviderAutoLinkingErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Forbidden
      */
     403: unknown;
@@ -439,6 +467,8 @@ export type UpdateSsoProviderAutoLinkingErrors = {
      */
     404: unknown;
 };
+
+export type UpdateSsoProviderAutoLinkingError = UpdateSsoProviderAutoLinkingErrors[keyof UpdateSsoProviderAutoLinkingErrors];
 
 export type UpdateSsoProviderAutoLinkingResponses = {
     /**
@@ -563,7 +593,7 @@ export type ListVolumesResponses = {
         provisioningId?: string | null;
         autoRemount: boolean;
         agentId: string;
-        sourceKind: 'agent-filesystem';
+        sourceKind: 'filesystem';
         trustedRootId: string;
         relativePath: string;
         sourceLocation: {
@@ -645,7 +675,7 @@ export type CreateVolumeData = {
         agentId?: string;
     } | {
         name: string;
-        sourceKind: 'agent-filesystem';
+        sourceKind: 'filesystem';
         agentId: string;
         trustedRootId: string;
         relativePath?: string;
@@ -654,6 +684,19 @@ export type CreateVolumeData = {
     query?: never;
     url: '/api/v1/volumes';
 };
+
+export type CreateVolumeErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateVolumeError = CreateVolumeErrors[keyof CreateVolumeErrors];
 
 export type CreateVolumeResponses = {
     /**
@@ -742,7 +785,7 @@ export type CreateVolumeResponses = {
         provisioningId?: string | null;
         autoRemount: boolean;
         agentId: string;
-        sourceKind: 'agent-filesystem';
+        sourceKind: 'filesystem';
         trustedRootId: string;
         relativePath: string;
         sourceLocation: {
@@ -775,6 +818,9 @@ export type ListSourceMachinesData = {
 };
 
 export type ListSourceMachinesResponses = {
+    /**
+     * Source machines
+     */
     200: Array<{
         id: string;
         name: string;
@@ -850,6 +896,19 @@ export type TestConnectionData = {
     query?: never;
     url: '/api/v1/volumes/test-connection';
 };
+
+export type TestConnectionErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type TestConnectionError = TestConnectionErrors[keyof TestConnectionErrors];
 
 export type TestConnectionResponses = {
     /**
@@ -987,7 +1046,7 @@ export type GetVolumeResponses = {
             provisioningId?: string | null;
             autoRemount: boolean;
             agentId: string;
-            sourceKind: 'agent-filesystem';
+            sourceKind: 'filesystem';
             trustedRootId: string;
             relativePath: string;
             sourceLocation: {
@@ -1020,7 +1079,7 @@ export type GetVolumeResponse = GetVolumeResponses[keyof GetVolumeResponses];
 
 export type UpdateVolumeData = {
     body: {
-        sourceKind?: 'managed' | 'agent-filesystem';
+        sourceKind?: 'managed' | 'filesystem';
         name?: string;
         autoRemount?: boolean;
         config?: {
@@ -1087,10 +1146,20 @@ export type UpdateVolumeData = {
 
 export type UpdateVolumeErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Volume not found
      */
     404: unknown;
 };
+
+export type UpdateVolumeError = UpdateVolumeErrors[keyof UpdateVolumeErrors];
 
 export type UpdateVolumeResponses = {
     /**
@@ -1179,7 +1248,7 @@ export type UpdateVolumeResponses = {
         provisioningId?: string | null;
         autoRemount: boolean;
         agentId: string;
-        sourceKind: 'agent-filesystem';
+        sourceKind: 'filesystem';
         trustedRootId: string;
         relativePath: string;
         sourceLocation: {
@@ -1287,6 +1356,19 @@ export type ListFilesData = {
     url: '/api/v1/volumes/{shortId}/files';
 };
 
+export type ListFilesErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ListFilesError = ListFilesErrors[keyof ListFilesErrors];
+
 export type ListFilesResponses = {
     /**
      * List of files in the volume
@@ -1313,8 +1395,17 @@ export type BrowseFilesystemData = {
     body?: never;
     path?: never;
     query?: {
+        /**
+         * Agent that owns the trusted root (defaults to the built-in local agent)
+         */
         agentId?: string;
+        /**
+         * Stable trusted root ID (defaults to the built-in compatibility root)
+         */
         rootId?: string;
+        /**
+         * Path relative to the trusted root (defaults to the root)
+         */
         path?: string;
     };
     url: '/api/v1/volumes/filesystem/browse';
@@ -1705,6 +1796,19 @@ export type CreateRepositoryData = {
     query?: never;
     url: '/api/v1/repositories';
 };
+
+export type CreateRepositoryErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateRepositoryError = CreateRepositoryErrors[keyof CreateRepositoryErrors];
 
 export type CreateRepositoryResponses = {
     /**
@@ -2400,6 +2504,19 @@ export type DeleteSnapshotsData = {
     url: '/api/v1/repositories/{shortId}/snapshots';
 };
 
+export type DeleteSnapshotsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type DeleteSnapshotsError = DeleteSnapshotsErrors[keyof DeleteSnapshotsErrors];
+
 export type DeleteSnapshotsResponses = {
     /**
      * Snapshot deletion started
@@ -2422,6 +2539,19 @@ export type ListSnapshotsData = {
     };
     url: '/api/v1/repositories/{shortId}/snapshots';
 };
+
+export type ListSnapshotsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ListSnapshotsError = ListSnapshotsErrors[keyof ListSnapshotsErrors];
 
 export type ListSnapshotsResponses = {
     /**
@@ -2558,6 +2688,19 @@ export type ListSnapshotFilesData = {
     url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files';
 };
 
+export type ListSnapshotFilesErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ListSnapshotFilesError = ListSnapshotFilesErrors[keyof ListSnapshotFilesErrors];
+
 export type ListSnapshotFilesResponses = {
     /**
      * List of files and directories in the snapshot
@@ -2604,6 +2747,19 @@ export type DumpSnapshotData = {
     url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump';
 };
 
+export type DumpSnapshotErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type DumpSnapshotError = DumpSnapshotErrors[keyof DumpSnapshotErrors];
+
 export type DumpSnapshotResponses = {
     /**
      * Snapshot content stream
@@ -2630,6 +2786,19 @@ export type RestoreSnapshotData = {
     query?: never;
     url: '/api/v1/repositories/{shortId}/restore';
 };
+
+export type RestoreSnapshotErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type RestoreSnapshotError = RestoreSnapshotErrors[keyof RestoreSnapshotErrors];
 
 export type RestoreSnapshotResponses = {
     /**
@@ -2706,6 +2875,19 @@ export type TagSnapshotsData = {
     url: '/api/v1/repositories/{shortId}/snapshots/tag';
 };
 
+export type TagSnapshotsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type TagSnapshotsError = TagSnapshotsErrors[keyof TagSnapshotsErrors];
+
 export type TagSnapshotsResponses = {
     /**
      * Snapshot tagging started
@@ -2732,10 +2914,20 @@ export type DevPanelExecData = {
 
 export type DevPanelExecErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Dev panel not enabled
      */
     403: unknown;
 };
+
+export type DevPanelExecError = DevPanelExecErrors[keyof DevPanelExecErrors];
 
 export type DevPanelExecResponses = {
     /**
@@ -2885,7 +3077,7 @@ export type ListBackupSchedulesResponses = {
             provisioningId?: string | null;
             autoRemount: boolean;
             agentId: string;
-            sourceKind: 'agent-filesystem';
+            sourceKind: 'filesystem';
             trustedRootId: string;
             relativePath: string;
             sourceLocation: {
@@ -3139,6 +3331,19 @@ export type CreateBackupScheduleData = {
     url: '/api/v1/backups';
 };
 
+export type CreateBackupScheduleErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateBackupScheduleError = CreateBackupScheduleErrors[keyof CreateBackupScheduleErrors];
+
 export type CreateBackupScheduleResponses = {
     /**
      * Backup schedule created successfully
@@ -3355,7 +3560,7 @@ export type GetBackupScheduleResponses = {
             provisioningId?: string | null;
             autoRemount: boolean;
             agentId: string;
-            sourceKind: 'agent-filesystem';
+            sourceKind: 'filesystem';
             trustedRootId: string;
             relativePath: string;
             sourceLocation: {
@@ -3610,6 +3815,19 @@ export type UpdateBackupScheduleData = {
     url: '/api/v1/backups/{shortId}';
 };
 
+export type UpdateBackupScheduleErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type UpdateBackupScheduleError = UpdateBackupScheduleErrors[keyof UpdateBackupScheduleErrors];
+
 export type UpdateBackupScheduleResponses = {
     /**
      * Backup schedule updated successfully
@@ -3806,7 +4024,7 @@ export type GetBackupScheduleForVolumeResponses = {
             provisioningId?: string | null;
             autoRemount: boolean;
             agentId: string;
-            sourceKind: 'agent-filesystem';
+            sourceKind: 'filesystem';
             trustedRootId: string;
             relativePath: string;
             sourceLocation: {
@@ -4183,6 +4401,19 @@ export type UpdateScheduleNotificationsData = {
     url: '/api/v1/backups/{shortId}/notifications';
 };
 
+export type UpdateScheduleNotificationsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type UpdateScheduleNotificationsError = UpdateScheduleNotificationsErrors[keyof UpdateScheduleNotificationsErrors];
+
 export type UpdateScheduleNotificationsResponses = {
     /**
      * Notification assignments updated successfully
@@ -4496,6 +4727,19 @@ export type UpdateScheduleMirrorsData = {
     url: '/api/v1/backups/{shortId}/mirrors';
 };
 
+export type UpdateScheduleMirrorsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type UpdateScheduleMirrorsError = UpdateScheduleMirrorsErrors[keyof UpdateScheduleMirrorsErrors];
+
 export type UpdateScheduleMirrorsResponses = {
     /**
      * Mirror assignments updated successfully
@@ -4735,10 +4979,20 @@ export type SyncMirrorData = {
 
 export type SyncMirrorErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Mirror is already syncing
      */
     409: unknown;
 };
+
+export type SyncMirrorError = SyncMirrorErrors[keyof SyncMirrorErrors];
 
 export type SyncMirrorResponses = {
     /**
@@ -4782,6 +5036,19 @@ export type ReorderBackupSchedulesData = {
     query?: never;
     url: '/api/v1/backups/reorder';
 };
+
+export type ReorderBackupSchedulesErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ReorderBackupSchedulesError = ReorderBackupSchedulesErrors[keyof ReorderBackupSchedulesErrors];
 
 export type ReorderBackupSchedulesResponses = {
     /**
@@ -4946,6 +5213,19 @@ export type CreateNotificationDestinationData = {
     query?: never;
     url: '/api/v1/notifications/destinations';
 };
+
+export type CreateNotificationDestinationErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateNotificationDestinationError = CreateNotificationDestinationErrors[keyof CreateNotificationDestinationErrors];
 
 export type CreateNotificationDestinationResponses = {
     /**
@@ -5219,10 +5499,20 @@ export type UpdateNotificationDestinationData = {
 
 export type UpdateNotificationDestinationErrors = {
     /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
      * Notification destination not found
      */
     404: unknown;
 };
+
+export type UpdateNotificationDestinationError = UpdateNotificationDestinationErrors[keyof UpdateNotificationDestinationErrors];
 
 export type UpdateNotificationDestinationResponses = {
     /**
@@ -5414,6 +5704,19 @@ export type SetRegistrationStatusData = {
     url: '/api/v1/system/registration-status';
 };
 
+export type SetRegistrationStatusErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type SetRegistrationStatusError = SetRegistrationStatusErrors[keyof SetRegistrationStatusErrors];
+
 export type SetRegistrationStatusResponses = {
     /**
      * Registration status updated
@@ -5433,6 +5736,19 @@ export type DownloadResticPasswordData = {
     query?: never;
     url: '/api/v1/system/restic-password';
 };
+
+export type DownloadResticPasswordErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type DownloadResticPasswordError = DownloadResticPasswordErrors[keyof DownloadResticPasswordErrors];
 
 export type DownloadResticPasswordResponses = {
     /**
@@ -5470,6 +5786,19 @@ export type SetPasswordLoginStatusData = {
     url: '/api/v1/system/password-login-status';
 };
 
+export type SetPasswordLoginStatusErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type SetPasswordLoginStatusError = SetPasswordLoginStatusErrors[keyof SetPasswordLoginStatusErrors];
+
 export type SetPasswordLoginStatusResponses = {
     /**
      * Password login status updated
@@ -5491,6 +5820,19 @@ export type ExportConfigData = {
     url: '/api/v1/system/config-export';
 };
 
+export type ExportConfigErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ExportConfigError = ExportConfigErrors[keyof ExportConfigErrors];
+
 export type ExportConfigResponses = {
     /**
      * Encrypted configuration export
@@ -5509,6 +5851,19 @@ export type ImportConfigData = {
     query?: never;
     url: '/api/v1/system/config-import';
 };
+
+export type ImportConfigErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ImportConfigError = ImportConfigErrors[keyof ImportConfigErrors];
 
 export type ImportConfigResponses = {
     /**
@@ -5558,6 +5913,19 @@ export type ListTasksData = {
     };
     url: '/api/v1/tasks';
 };
+
+export type ListTasksErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ListTasksError = ListTasksErrors[keyof ListTasksErrors];
 
 export type ListTasksResponses = {
     /**
@@ -5742,6 +6110,19 @@ export type StreamTasksEventsData = {
     };
     url: '/api/v1/tasks/events';
 };
+
+export type StreamTasksEventsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type StreamTasksEventsError = StreamTasksEventsErrors[keyof StreamTasksEventsErrors];
 
 export type StreamTasksEventsResponses = {
     /**
@@ -6088,6 +6469,19 @@ export type ListTaskHistoryData = {
     };
     url: '/api/v1/tasks/history';
 };
+
+export type ListTaskHistoryErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type ListTaskHistoryError = ListTaskHistoryErrors[keyof ListTaskHistoryErrors];
 
 export type ListTaskHistoryResponses = {
     /**
@@ -6529,6 +6923,19 @@ export type CreateDesktopSessionData = {
     url: '/api/v1/desktop/session';
 };
 
+export type CreateDesktopSessionErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateDesktopSessionError = CreateDesktopSessionErrors[keyof CreateDesktopSessionErrors];
+
 export type CreateDesktopSessionResponses = {
     /**
      * Desktop session created successfully
@@ -6545,9 +6952,42 @@ export type PostApiV1AgentsEnrollData = {
     url: '/api/v1/agents/enroll';
 };
 
+export type PostApiV1AgentsEnrollErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type PostApiV1AgentsEnrollError = PostApiV1AgentsEnrollErrors[keyof PostApiV1AgentsEnrollErrors];
+
 export type PostApiV1AgentsEnrollResponses = {
     200: unknown;
 };
+
+export type DeleteRemoteAgentData = {
+    body?: never;
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agentId}';
+};
+
+export type DeleteRemoteAgentResponses = {
+    /**
+     * Remote machine deleted
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type DeleteRemoteAgentResponse = DeleteRemoteAgentResponses[keyof DeleteRemoteAgentResponses];
 
 export type ListAgentsData = {
     body?: never;
@@ -6557,6 +6997,9 @@ export type ListAgentsData = {
 };
 
 export type ListAgentsResponses = {
+    /**
+     * Agents
+     */
     200: Array<{
         id: string;
         organizationId: string | null;
@@ -6592,7 +7035,23 @@ export type CreateRemoteAgentData = {
     url: '/api/v1/agents';
 };
 
+export type CreateRemoteAgentErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type CreateRemoteAgentError = CreateRemoteAgentErrors[keyof CreateRemoteAgentErrors];
+
 export type CreateRemoteAgentResponses = {
+    /**
+     * Remote agent enrollment created
+     */
     201: {
         agent: {
             id: string;
@@ -6634,6 +7093,9 @@ export type RotateRemoteAgentTokenData = {
 };
 
 export type RotateRemoteAgentTokenResponses = {
+    /**
+     * Enrollment token rotated
+     */
     200: {
         agent: {
             id: string;
@@ -6674,6 +7136,9 @@ export type RevokeRemoteAgentTokenData = {
 };
 
 export type RevokeRemoteAgentTokenResponses = {
+    /**
+     * Enrollment token revoked
+     */
     200: {
         id: string;
         organizationId: string | null;
@@ -6699,12 +7164,3 @@ export type RevokeRemoteAgentTokenResponses = {
 };
 
 export type RevokeRemoteAgentTokenResponse = RevokeRemoteAgentTokenResponses[keyof RevokeRemoteAgentTokenResponses];
-
-export type DeleteRemoteAgentData = {
-    body?: never;
-    path: { agentId: string };
-    query?: never;
-    url: '/api/v1/agents/{agentId}';
-};
-export type DeleteRemoteAgentResponses = { 200: { success: boolean } };
-export type DeleteRemoteAgentResponse = DeleteRemoteAgentResponses[keyof DeleteRemoteAgentResponses];

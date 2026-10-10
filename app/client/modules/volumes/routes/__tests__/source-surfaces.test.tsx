@@ -61,7 +61,7 @@ const remoteVolume = {
 	type: null,
 	status: "mounted" as const,
 	agentId: "remote-machine-id",
-	sourceKind: "agent-filesystem" as const,
+	sourceKind: "filesystem" as const,
 	trustedRootId: "work-id",
 	relativePath: "client/launch",
 	sourceLocation: {
@@ -107,13 +107,13 @@ describe("source list", () => {
 		expect(screen.getByText("Backup workstation")).toBeTruthy();
 		expect(screen.queryByText(/client\/launch/)).toBeNull();
 		expect(screen.getByLabelText("Available")).toBeTruthy();
-		expect(screen.getByText("Remote files")).toBeTruthy();
+		expect(screen.getByText("Filesystem")).toBeTruthy();
 		expect(screen.queryByText("remote-machine-id")).toBeNull();
 		expect(screen.queryByText("work-id")).toBeNull();
 	});
 
 	test.each([
-		["Remote files", "Design files", "Archive"],
+		["Filesystem", "Design files", "Archive"],
 		["Directory", "Archive", "Design files"],
 	] as const)("filters the mixed list by the visible %s backend", async (backend, visibleName, hiddenName) => {
 		server.use(http.get("/api/v1/volumes", () => HttpResponse.json([managedVolume, remoteVolume])));
@@ -143,7 +143,7 @@ describe("source list", () => {
 		expect(dataRows[0]?.textContent).toContain("Archive");
 		expect(dataRows[0]?.textContent).toContain("Directory");
 		expect(dataRows[1]?.textContent).toContain("Design files");
-		expect(dataRows[1]?.textContent).toContain("Remote files");
+		expect(dataRows[1]?.textContent).toContain("Filesystem");
 	});
 
 	test("uses Source terminology while preserving the volumes route", async () => {

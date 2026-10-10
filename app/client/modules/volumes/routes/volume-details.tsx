@@ -40,7 +40,7 @@ import { cn } from "~/client/lib/utils";
 import { VolumeInfoTabContent } from "../tabs/info";
 import { FilesTabContent } from "../tabs/files";
 import { useTimeFormat } from "~/client/lib/datetime";
-import { getRemoteSourcePresentation } from "../source-presentation";
+import { getFilesystemSourcePresentation } from "../source-presentation";
 
 export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
@@ -53,11 +53,11 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	});
 
 	const { volume, statfs } = data;
-	const isRemoteSource = volume.sourceKind === "agent-filesystem";
-	const remotePresentation = isRemoteSource ? getRemoteSourcePresentation(volume) : null;
-	const showSourceRecovery = remotePresentation && remotePresentation.status !== "Available";
+	const isFilesystemSource = volume.sourceKind === "filesystem";
+	const sourcePresentation = isFilesystemSource ? getFilesystemSourcePresentation(volume) : null;
+	const showSourceRecovery = sourcePresentation && sourcePresentation.status !== "Available";
 	const canRepairSourceLocation =
-		isRemoteSource &&
+		isFilesystemSource &&
 		["revoked", "missing-agent", "root-removed", "backup-disabled", "incompatible"].includes(
 			volume.sourceLocation.availability,
 		);
@@ -89,23 +89,23 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 		...healthCheckVolumeMutation(),
 		onSuccess: (d) => {
 			if (d.error) {
-				const description = isRemoteSource
+				const description = isFilesystemSource
 					? "The source could not be reached. Review its availability details."
 					: d.error;
-				toast.error(isRemoteSource ? "Source unavailable" : "Health check failed", { description });
+				toast.error(isFilesystemSource ? "Source unavailable" : "Health check failed", { description });
 				return;
 			}
-			if (isRemoteSource) {
+			if (isFilesystemSource) {
 				toast.success("Availability checked", { description: "The source is available." });
 				return;
 			}
 			toast.success("Health check completed", { description: "The source is healthy." });
 		},
 		onError: (error) => {
-			const description = isRemoteSource
+			const description = isFilesystemSource
 				? "The source could not be reached. Review its availability details."
 				: error.message;
-			toast.error(isRemoteSource ? "Availability check failed" : "Health check failed", { description });
+			toast.error(isFilesystemSource ? "Availability check failed" : "Health check failed", { description });
 		},
 	});
 
@@ -117,7 +117,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 			});
 		},
 		onError: (error) => {
-			toast.error("Update failed", { description: error.message });
+			toast.error("Update failed", { description: parseError(error)?.message });
 		},
 	});
 
@@ -130,8 +130,8 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const isMounted = volume.status === "mounted";
 	const isError = volume.status === "error";
 	const isUnmounted = volume.status === "unmounted";
-	const displayStatus = remotePresentation?.status ?? volume.status;
-	const informationTabLabel = isRemoteSource ? "Information" : "Configuration";
+	const displayStatus = sourcePresentation?.status ?? volume.status;
+	const informationTabLabel = isFilesystemSource ? "Information" : "Configuration";
 
 	return (
 		<>
@@ -149,29 +149,29 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									<Badge variant="outline" className="capitalize gap-1.5">
 										<span
 											className={cn("w-2 h-2 rounded-full shrink-0", {
-												"bg-success": remotePresentation
-													? remotePresentation.statusVariant === "success"
+												"bg-success": sourcePresentation
+													? sourcePresentation.statusVariant === "success"
 													: isMounted,
-												"bg-red-500": remotePresentation
-													? remotePresentation.statusVariant === "error"
+												"bg-red-500": sourcePresentation
+													? sourcePresentation.statusVariant === "error"
 													: isError,
-												"bg-amber-500": remotePresentation
-													? remotePresentation.statusVariant === "warning"
+												"bg-amber-500": sourcePresentation
+													? sourcePresentation.statusVariant === "warning"
 													: isUnmounted,
-												"bg-gray-500": remotePresentation?.statusVariant === "neutral",
+												"bg-gray-500": sourcePresentation?.statusVariant === "neutral",
 											})}
 										/>
 										{displayStatus}
 									</Badge>
-									{!isRemoteSource && <Badge variant="secondary">{volume.type}</Badge>}
+									{!isFilesystemSource && <Badge variant="secondary">{volume.type}</Badge>}
 									{volume.provisioningId && <ManagedBadge />}
 								</div>
-								{remotePresentation && (
+								{sourcePresentation && (
 									<p
 										className="mt-0.5 max-w-[60ch] line-clamp-2 break-all text-sm text-muted-foreground"
-										title={remotePresentation.context}
+										title={sourcePresentation.context}
 									>
-										{remotePresentation.context}
+										{sourcePresentation.context}
 									</p>
 								)}
 								<p className="text-sm text-muted-foreground mt-0.5">
@@ -180,7 +180,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							</div>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
-							{!isRemoteSource && !isDirectory && (
+							{!isFilesystemSource && !isDirectory && (
 								<Button
 									className={cn({ hidden: !isMounted })}
 									variant="secondary"
@@ -197,7 +197,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									Unmount
 								</Button>
 							)}
-							{!isRemoteSource && !isDirectory && (
+							{!isFilesystemSource && !isDirectory && (
 								<Button
 									className={cn({ hidden: isMounted })}
 									onClick={() =>
@@ -243,7 +243,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 				</Card>
 
 				<Card className="px-6 py-4">
-					{remotePresentation ? (
+					{sourcePresentation ? (
 						<div className="flex flex-col justify-between gap-3 @lg:flex-row @lg:items-center">
 							<div className="min-w-0 space-y-1">
 								<div className="flex flex-wrap items-center gap-2">
@@ -251,29 +251,29 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 									<span className="text-sm font-medium">Availability</span>
 									<Badge
 										variant={
-											remotePresentation.statusVariant === "error"
+											sourcePresentation.statusVariant === "error"
 												? "destructive"
-												: remotePresentation.statusVariant === "neutral"
+												: sourcePresentation.statusVariant === "neutral"
 													? "secondary"
 													: "outline"
 										}
 										className={cn("ml-1", {
 											"text-success border-success/30 bg-success/10":
-												remotePresentation.statusVariant === "success",
+												sourcePresentation.statusVariant === "success",
 											"text-amber-500 border-amber-500/30 bg-amber-500/10":
-												remotePresentation.statusVariant === "warning",
+												sourcePresentation.statusVariant === "warning",
 										})}
 									>
-										{remotePresentation.status}
+										{sourcePresentation.status}
 									</Badge>
 								</div>
 								<p className="text-pretty text-sm text-muted-foreground">
-									{remotePresentation.explanation}
+									{sourcePresentation.explanation}
 								</p>
 								{showSourceRecovery && (
 									<div className="space-y-2">
 										<p className="text-pretty text-sm text-muted-foreground">
-											{remotePresentation.guidance}
+											{sourcePresentation.guidance}
 										</p>
 										<div className="flex flex-wrap gap-4 text-sm">
 											{canRepairSourceLocation && (
@@ -370,7 +370,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 					)}
 				</Card>
 
-				{!isRemoteSource && volume.lastError && (
+				{!isFilesystemSource && volume.lastError && (
 					<Card className="px-6 py-6">
 						<div className="space-y-2">
 							<p className="text-sm font-medium text-destructive">Last Error</p>

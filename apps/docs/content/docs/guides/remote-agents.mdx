@@ -24,6 +24,8 @@ bun run .output/agent/index.mjs
 
 Pass `--root` for every directory to expose. The CLI resolves each root to an absolute path and grants backup access only; files outside those roots and remote restores are unavailable. Commands identify a trusted root and a relative path. Do not set `ZEROBYTE_BUILTIN_LOCAL_AGENT`; that marker is reserved for Zerobyte's supervised loopback agent.
 
+The built-in local agent uses the same commands and path format. It exposes a root named `local-filesystem`, starting at the filesystem root. Remote agents expose the folders selected with `--root`. Paths are ordinary folder names relative to the selected root, such as `photos/2026`; an empty path selects the whole root. Sharing a root enables browsing and backups. Restore has a separate permission, enabled only for the built-in local agent.
+
 The public endpoint must be served over TLS and your reverse proxy must forward WebSocket upgrades. The enrollment code is sent in the HTTPS enrollment request; the saved machine credential is sent only in the WebSocket `Authorization` header, never in the URL.
 
 For local development, start the server with `bun run dev` and get its worktree-specific URL with `portless get zerobyte`. Remote agents can connect to that server: Vite forwards agent WebSocket upgrades to the controller's authenticated Bun listener. Use a hostname reachable from the remote machine, such as the Tailscale URL printed at startup.

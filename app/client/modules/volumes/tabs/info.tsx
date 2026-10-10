@@ -6,7 +6,7 @@ import { Card, CardTitle } from "~/client/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "~/client/components/ui/chart";
 import type { PresentedVolume, StatFs } from "~/client/lib/types";
 import { cn } from "~/client/lib/utils";
-import { getRemoteSourcePresentation } from "../source-presentation";
+import { getFilesystemSourcePresentation } from "../source-presentation";
 
 type Props = {
 	volume: PresentedVolume;
@@ -44,7 +44,7 @@ function ConfigRow({ icon, label, value, mono }: ConfigRowProps) {
 function BackendConfigRows({ volume }: { volume: PresentedVolume }) {
 	const config = volume.config;
 	if (!config) {
-		const presentation = getRemoteSourcePresentation(volume);
+		const presentation = getFilesystemSourcePresentation(volume);
 		return (
 			<>
 				<ConfigRow icon={<Laptop className="h-4 w-4" />} label="Machine" value={presentation.machine} />
@@ -174,14 +174,14 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 	const { total = 0, used = 0, free = 0 } = statfs;
 
 	const hasStorage = total > 0;
-	const backendLabel = volume.type === null ? "Agent filesystem" : backendLabels[volume.type];
-	const remotePresentation = volume.sourceKind === "agent-filesystem" ? getRemoteSourcePresentation(volume) : null;
-	const informationTitle = remotePresentation ? "Source information" : "Configuration";
+	const backendLabel = volume.type === null ? "Filesystem" : backendLabels[volume.type];
+	const sourcePresentation = volume.sourceKind === "filesystem" ? getFilesystemSourcePresentation(volume) : null;
+	const informationTitle = sourcePresentation ? "Source information" : "Configuration";
 	const noStorageMessage = "Mount the source to see usage.";
 
 	return (
 		<Card className="px-6 py-6 @container/inner">
-			<div className={cn("grid grid-cols-1 gap-8", !remotePresentation && "@3xl/inner:grid-cols-[1fr_280px]")}>
+			<div className={cn("grid grid-cols-1 gap-8", !sourcePresentation && "@3xl/inner:grid-cols-[1fr_280px]")}>
 				<div>
 					<CardTitle className="flex items-center gap-2 mb-5">
 						<Settings className="h-4 w-4 text-muted-foreground" />
@@ -189,19 +189,19 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 					</CardTitle>
 					<div className="space-y-0 divide-y divide-border/50">
 						<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Name" value={volume.name} />
-						{!remotePresentation && (
+						{!sourcePresentation && (
 							<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={backendLabel} />
 						)}
 						<BackendConfigRows volume={volume} />
-						{remotePresentation && (
+						{sourcePresentation && (
 							<p className="pt-3 text-pretty text-sm text-muted-foreground">
-								{remotePresentation.explanation}
+								{sourcePresentation.explanation}
 							</p>
 						)}
 					</div>
 				</div>
 
-				{!remotePresentation && hasStorage ? (
+				{!sourcePresentation && hasStorage ? (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8">
 						<CardTitle className="flex items-center gap-2 mb-2 text-center @3xl/inner:text-left">
 							<HardDrive className="h-4 w-4" />
@@ -232,7 +232,7 @@ export const VolumeInfoTabContent = ({ volume, statfs }: Props) => {
 							</div>
 						</div>
 					</div>
-				) : !remotePresentation ? (
+				) : !sourcePresentation ? (
 					<div className="@3xl/inner:border-l @3xl/inner:border-border/50 @3xl/inner:pl-8 flex flex-col items-center justify-center text-center py-8">
 						<Unplug className="mb-4 h-5 w-5 text-muted-foreground" />
 						<p className="text-sm text-muted-foreground">

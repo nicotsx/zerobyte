@@ -1,3 +1,4 @@
+import { parseError } from "~/client/lib/errors";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Users, Settings as SettingsIcon } from "lucide-react";
 import { useState } from "react";
@@ -99,7 +100,7 @@ function RegistrationSettingsSection() {
 		},
 		onError: (error) => {
 			toast.error("Failed to update registration settings", {
-				description: error.message,
+				description: parseError(error)?.message,
 			});
 		},
 	});
@@ -139,7 +140,7 @@ function PasswordLoginSettingsSection({ showDivider }: { showDivider: boolean })
 		},
 		onError: (error) => {
 			toast.error("Failed to update login settings", {
-				description: error.message,
+				description: parseError(error)?.message,
 			});
 		},
 	});

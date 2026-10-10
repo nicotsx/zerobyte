@@ -169,9 +169,7 @@ describe("CreateVolumePage source selection", () => {
 		let submittedBody: CreateVolumeBody | undefined;
 		server.use(
 			http.get("/api/v1/volumes/source-machines", () => HttpResponse.json([remoteMachine])),
-			http.get("/api/v1/volumes/filesystem/browse", () =>
-				HttpResponse.json({ directories: [], path: "trusted-root:" }),
-			),
+			http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ directories: [], path: "" })),
 			http.post("/api/v1/volumes", async ({ request }) => {
 				submittedBody = (await request.json()) as CreateVolumeBody;
 				return HttpResponse.json({ shortId: "created-source" }, { status: 201 });
@@ -192,7 +190,7 @@ describe("CreateVolumePage source selection", () => {
 		await waitFor(() => expect(submittedBody).toBeDefined());
 		expect(submittedBody).toEqual({
 			name: "Remote archive",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: "archive-node",
 			trustedRootId: "photos",
 			relativePath: "",
@@ -215,12 +213,12 @@ describe("CreateVolumePage source selection", () => {
 				const path = new URL(request.url).searchParams.get("path");
 				if (path === "")
 					return HttpResponse.json({
-						path: "trusted-root:",
-						directories: [{ name: "albums", path: "trusted-root:albums", type: "directory" }],
+						path: "",
+						directories: [{ name: "albums", path: "albums", type: "directory" }],
 					});
 				if (!selectedFolderIsAvailable)
 					return HttpResponse.json({ message: "Folder unavailable" }, { status: 503 });
-				return HttpResponse.json({ path: "trusted-root:albums", directories: [] });
+				return HttpResponse.json({ path: "albums", directories: [] });
 			}),
 			http.post("/api/v1/volumes", async ({ request }) => {
 				submittedBody = (await request.json()) as CreateVolumeBody;
@@ -263,7 +261,7 @@ describe("CreateVolumePage source selection", () => {
 		await waitFor(() =>
 			expect(submittedBody).toEqual({
 				name: "Remote archive",
-				sourceKind: "agent-filesystem",
+				sourceKind: "filesystem",
 				agentId: "archive-node",
 				trustedRootId: "photos",
 				relativePath: "albums",
@@ -314,11 +312,11 @@ test("preserves the remote folder draft while rechecking it after a host switch"
 			const path = new URL(request.url).searchParams.get("path");
 			if (path === "")
 				return HttpResponse.json({
-					path: "trusted-root:",
-					directories: [{ name: "albums", path: "trusted-root:albums", type: "directory" }],
+					path: "",
+					directories: [{ name: "albums", path: "albums", type: "directory" }],
 				});
 			if (!folderIsAvailable) return HttpResponse.json({ message: "Folder unavailable" }, { status: 503 });
-			return HttpResponse.json({ path: "trusted-root:albums", directories: [] });
+			return HttpResponse.json({ path: "albums", directories: [] });
 		}),
 		http.post("/api/v1/volumes", async ({ request }) => {
 			submittedBody = (await request.json()) as CreateVolumeBody;
@@ -350,7 +348,5 @@ test("preserves the remote folder draft while rechecking it after a host switch"
 	await userEvent.click(screen.getByRole("button", { name: "Retry loading folder" }));
 	await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
 	await userEvent.click(screen.getByRole("button", { name: "Create Source" }));
-	await waitFor(() =>
-		expect(submittedBody).toMatchObject({ sourceKind: "agent-filesystem", relativePath: "albums" }),
-	);
+	await waitFor(() => expect(submittedBody).toMatchObject({ sourceKind: "filesystem", relativePath: "albums" }));
 });

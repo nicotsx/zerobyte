@@ -46,8 +46,8 @@ test("shows denied expansion beside the tree and allows a subsequent successful 
 				return HttpResponse.json({ message: "EPERM: operation not permitted" }, { status: 500 });
 			return HttpResponse.json({
 				files: path
-					? [{ name: "example.txt", path: "/Downloads/example.txt", type: "file" }]
-					: [{ name: "Downloads", path: "/Downloads", type: "directory" }],
+					? [{ name: "example.txt", path: "Downloads/example.txt", type: "file" }]
+					: [{ name: "Downloads", path: "Downloads", type: "directory" }],
 				hasMore: false,
 			});
 		}),
@@ -69,7 +69,7 @@ test.each([true, false])("folder hover prefetch respects desktop=%s", async (des
 	server.use(
 		http.get("/api/v1/volumes/:shortId/files", () =>
 			HttpResponse.json({
-				files: [{ name: "Downloads", path: "/Downloads", type: "directory" }],
+				files: [{ name: "Downloads", path: "Downloads", type: "directory" }],
 				hasMore: false,
 			}),
 		),
@@ -116,7 +116,7 @@ test.each(["/", "/Folder"])("shows pagination failure for %s and clears it after
 			const query = new URL(request.url).searchParams;
 			if (folderPath !== "/" && !query.has("path")) {
 				return HttpResponse.json({
-					files: [{ name: "Folder", path: folderPath, type: "directory" }],
+					files: [{ name: "Folder", path: folderPath.slice(1), type: "directory" }],
 					hasMore: false,
 				});
 			}
@@ -125,7 +125,7 @@ test.each(["/", "/Folder"])("shows pagination failure for %s and clears it after
 			}
 			const name = query.has("offset") ? "second.txt" : "first.txt";
 			return HttpResponse.json({
-				files: [{ name, path: `${folderPath === "/" ? "" : folderPath}/${name}`, type: "file" }],
+				files: [{ name, path: `${folderPath === "/" ? "" : `${folderPath.slice(1)}/`}${name}`, type: "file" }],
 				offset: query.has("offset") ? 1 : 0,
 				limit: 1,
 				hasMore: !query.has("offset"),

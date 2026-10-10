@@ -1,6 +1,5 @@
 import { Button } from "~/client/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { decodeTrustedPathPresentation } from "@zerobyte/contracts/volumes";
 import { browseFilesystemOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import type { BrowseFilesystemResponse } from "~/client/api-client/types.gen";
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
@@ -16,11 +15,7 @@ type LocalFileBrowserProps = FileBrowserUiProps & {
 	remote?: { agentId: string; rootId: string };
 };
 
-const toLocalBrowserPath = (presentedPath: string) => {
-	const logicalPath = decodeTrustedPathPresentation(presentedPath);
-
-	return `/${logicalPath}`;
-};
+const toLocalBrowserPath = (relativePath: string) => `/${relativePath.replace(/^\/+/, "")}`;
 
 const browseFilesystemAtLocalPath = (localPath: string, remote?: { agentId: string; rootId: string }) => {
 	const path = localPath.slice(1);

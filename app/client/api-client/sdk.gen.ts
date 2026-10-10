@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponses, CancelTaskData, CancelTaskErrors, CancelTaskResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateBackupScheduleData, CreateBackupScheduleResponses, CreateDesktopSessionData, CreateDesktopSessionResponses, CreateNotificationDestinationData, CreateNotificationDestinationResponses, CreateRemoteAgentData, CreateRemoteAgentResponses, CreateRepositoryData, CreateRepositoryResponses, CreateVolumeData, CreateVolumeResponses, DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteSnapshotsData, DeleteSnapshotsResponses, DeleteSsoInvitationData, DeleteSsoInvitationErrors, DeleteSsoInvitationResponses, DeleteSsoProviderData, DeleteSsoProviderErrors, DeleteSsoProviderResponses, DeleteUserAccountData, DeleteUserAccountErrors, DeleteUserAccountResponses, DeleteVolumeData, DeleteVolumeResponses, DevPanelExecData, DevPanelExecErrors, DevPanelExecResponse, DevPanelExecResponses, DownloadResticPasswordData, DownloadResticPasswordResponses, DumpSnapshotData, DumpSnapshotResponses, ExportConfigData, ExportConfigResponses, GetAdminUsersData, GetAdminUsersResponses, GetApiKeysData, GetApiKeysResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetDevPanelData, GetDevPanelResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetOrgMembersData, GetOrgMembersResponses, GetPasswordLoginStatusData, GetPasswordLoginStatusResponses, GetPublicSsoProvidersData, GetPublicSsoProvidersResponses, GetRegistrationStatusData, GetRegistrationStatusResponses, GetRepositoryData, GetRepositoryResponses, GetRepositoryStatsData, GetRepositoryStatsResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetSsoSettingsData, GetSsoSettingsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetTaskData, GetTaskResponses, GetUpdatesData, GetUpdatesResponses, GetUserDeletionImpactData, GetUserDeletionImpactResponses, GetUserSsoInvitationsData, GetUserSsoInvitationsResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ImportConfigData, ImportConfigResponses, ListAgentsData, ListAgentsResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsResponses, ListSourceMachinesData, ListSourceMachinesResponses, ListTaskHistoryData, ListTaskHistoryResponses, ListTasksData, ListTasksResponses, ListVolumesData, ListVolumesResponses, MountVolumeData, MountVolumeResponses, PostApiV1AgentsEnrollData, PostApiV1AgentsEnrollResponses, RefreshRepositoryStatsData, RefreshRepositoryStatsResponses, RefreshSnapshotsData, RefreshSnapshotsResponses, RemoveOrgMemberData, RemoveOrgMemberErrors, RemoveOrgMemberResponses, ReorderBackupSchedulesData, ReorderBackupSchedulesResponses, RestoreSnapshotData, RestoreSnapshotResponses, RevokeRemoteAgentTokenData, RevokeRemoteAgentTokenResponses, RotateRemoteAgentTokenData, RotateRemoteAgentTokenResponses, RunBackupNowData, RunBackupNowErrors, RunBackupNowResponses, RunForgetData, RunForgetErrors, RunForgetResponses, SetPasswordLoginStatusData, SetPasswordLoginStatusResponses, SetRegistrationStatusData, SetRegistrationStatusResponses, StartDoctorData, StartDoctorErrors, StartDoctorResponses, StartInvitationSsoVerificationData, StartInvitationSsoVerificationErrors, StartInvitationSsoVerificationResponses, StartMirrorStatusData, StartMirrorStatusResponses, StreamTaskEventsData, StreamTaskEventsResponse, StreamTaskEventsResponses, StreamTasksEventsData, StreamTasksEventsResponse, StreamTasksEventsResponses, SyncMirrorData, SyncMirrorErrors, SyncMirrorResponses, TagSnapshotsData, TagSnapshotsResponses, TestConnectionData, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnlockRepositoryData, UnlockRepositoryResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleResponses, UpdateMemberRoleData, UpdateMemberRoleErrors, UpdateMemberRoleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponses, UpdateSsoProviderAutoLinkingData, UpdateSsoProviderAutoLinkingErrors, UpdateSsoProviderAutoLinkingResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponses, CancelTaskData, CancelTaskErrors, CancelTaskResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateBackupScheduleData, CreateBackupScheduleErrors, CreateBackupScheduleResponses, CreateDesktopSessionData, CreateDesktopSessionErrors, CreateDesktopSessionResponses, CreateNotificationDestinationData, CreateNotificationDestinationErrors, CreateNotificationDestinationResponses, CreateRemoteAgentData, CreateRemoteAgentErrors, CreateRemoteAgentResponses, CreateRepositoryData, CreateRepositoryErrors, CreateRepositoryResponses, CreateVolumeData, CreateVolumeErrors, CreateVolumeResponses, DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeleteBackupScheduleData, DeleteBackupScheduleResponses, DeleteNotificationDestinationData, DeleteNotificationDestinationErrors, DeleteNotificationDestinationResponses, DeleteRemoteAgentData, DeleteRemoteAgentResponses, DeleteRepositoryData, DeleteRepositoryResponses, DeleteSnapshotData, DeleteSnapshotResponses, DeleteSnapshotsData, DeleteSnapshotsErrors, DeleteSnapshotsResponses, DeleteSsoInvitationData, DeleteSsoInvitationErrors, DeleteSsoInvitationResponses, DeleteSsoProviderData, DeleteSsoProviderErrors, DeleteSsoProviderResponses, DeleteUserAccountData, DeleteUserAccountErrors, DeleteUserAccountResponses, DeleteVolumeData, DeleteVolumeResponses, DevPanelExecData, DevPanelExecErrors, DevPanelExecResponse, DevPanelExecResponses, DownloadResticPasswordData, DownloadResticPasswordErrors, DownloadResticPasswordResponses, DumpSnapshotData, DumpSnapshotErrors, DumpSnapshotResponses, ExportConfigData, ExportConfigErrors, ExportConfigResponses, GetAdminUsersData, GetAdminUsersResponses, GetApiKeysData, GetApiKeysResponses, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponses, GetBackupScheduleResponses, GetDevPanelData, GetDevPanelResponses, GetMirrorCompatibilityData, GetMirrorCompatibilityResponses, GetNotificationDestinationData, GetNotificationDestinationErrors, GetNotificationDestinationResponses, GetOrgMembersData, GetOrgMembersResponses, GetPasswordLoginStatusData, GetPasswordLoginStatusResponses, GetPublicSsoProvidersData, GetPublicSsoProvidersResponses, GetRegistrationStatusData, GetRegistrationStatusResponses, GetRepositoryData, GetRepositoryResponses, GetRepositoryStatsData, GetRepositoryStatsResponses, GetScheduleMirrorsData, GetScheduleMirrorsResponses, GetScheduleNotificationsData, GetScheduleNotificationsResponses, GetSnapshotDetailsData, GetSnapshotDetailsResponses, GetSsoSettingsData, GetSsoSettingsResponses, GetStatusData, GetStatusResponses, GetSystemInfoData, GetSystemInfoResponses, GetTaskData, GetTaskResponses, GetUpdatesData, GetUpdatesResponses, GetUserDeletionImpactData, GetUserDeletionImpactResponses, GetUserSsoInvitationsData, GetUserSsoInvitationsResponses, GetVolumeData, GetVolumeErrors, GetVolumeResponses, HealthCheckVolumeData, HealthCheckVolumeErrors, HealthCheckVolumeResponses, ImportConfigData, ImportConfigErrors, ImportConfigResponses, ListAgentsData, ListAgentsResponses, ListBackupSchedulesData, ListBackupSchedulesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListNotificationDestinationsData, ListNotificationDestinationsResponses, ListRcloneRemotesData, ListRcloneRemotesResponses, ListRepositoriesData, ListRepositoriesResponses, ListSnapshotFilesData, ListSnapshotFilesErrors, ListSnapshotFilesResponses, ListSnapshotsData, ListSnapshotsErrors, ListSnapshotsResponses, ListSourceMachinesData, ListSourceMachinesResponses, ListTaskHistoryData, ListTaskHistoryErrors, ListTaskHistoryResponses, ListTasksData, ListTasksErrors, ListTasksResponses, ListVolumesData, ListVolumesResponses, MountVolumeData, MountVolumeResponses, PostApiV1AgentsEnrollData, PostApiV1AgentsEnrollErrors, PostApiV1AgentsEnrollResponses, RefreshRepositoryStatsData, RefreshRepositoryStatsResponses, RefreshSnapshotsData, RefreshSnapshotsResponses, RemoveOrgMemberData, RemoveOrgMemberErrors, RemoveOrgMemberResponses, ReorderBackupSchedulesData, ReorderBackupSchedulesErrors, ReorderBackupSchedulesResponses, RestoreSnapshotData, RestoreSnapshotErrors, RestoreSnapshotResponses, RevokeRemoteAgentTokenData, RevokeRemoteAgentTokenResponses, RotateRemoteAgentTokenData, RotateRemoteAgentTokenResponses, RunBackupNowData, RunBackupNowErrors, RunBackupNowResponses, RunForgetData, RunForgetErrors, RunForgetResponses, SetPasswordLoginStatusData, SetPasswordLoginStatusErrors, SetPasswordLoginStatusResponses, SetRegistrationStatusData, SetRegistrationStatusErrors, SetRegistrationStatusResponses, StartDoctorData, StartDoctorErrors, StartDoctorResponses, StartInvitationSsoVerificationData, StartInvitationSsoVerificationErrors, StartInvitationSsoVerificationResponses, StartMirrorStatusData, StartMirrorStatusResponses, StreamTaskEventsData, StreamTaskEventsResponse, StreamTaskEventsResponses, StreamTasksEventsData, StreamTasksEventsErrors, StreamTasksEventsResponse, StreamTasksEventsResponses, SyncMirrorData, SyncMirrorErrors, SyncMirrorResponses, TagSnapshotsData, TagSnapshotsErrors, TagSnapshotsResponses, TestConnectionData, TestConnectionErrors, TestConnectionResponses, TestNotificationDestinationData, TestNotificationDestinationErrors, TestNotificationDestinationResponses, UnlockRepositoryData, UnlockRepositoryResponses, UnmountVolumeData, UnmountVolumeResponses, UpdateBackupScheduleData, UpdateBackupScheduleErrors, UpdateBackupScheduleResponses, UpdateMemberRoleData, UpdateMemberRoleErrors, UpdateMemberRoleResponses, UpdateNotificationDestinationData, UpdateNotificationDestinationErrors, UpdateNotificationDestinationResponses, UpdateRepositoryData, UpdateRepositoryErrors, UpdateRepositoryResponses, UpdateScheduleMirrorsData, UpdateScheduleMirrorsErrors, UpdateScheduleMirrorsResponses, UpdateScheduleNotificationsData, UpdateScheduleNotificationsErrors, UpdateScheduleNotificationsResponses, UpdateSsoProviderAutoLinkingData, UpdateSsoProviderAutoLinkingErrors, UpdateSsoProviderAutoLinkingResponses, UpdateVolumeData, UpdateVolumeErrors, UpdateVolumeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -140,7 +140,7 @@ export const listVolumes = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * Create a new volume
  */
-export const createVolume = <ThrowOnError extends boolean = false>(options: Options<CreateVolumeData, ThrowOnError>): RequestResult<CreateVolumeResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateVolumeResponses, unknown, ThrowOnError>({
+export const createVolume = <ThrowOnError extends boolean = false>(options: Options<CreateVolumeData, ThrowOnError>): RequestResult<CreateVolumeResponses, CreateVolumeErrors, ThrowOnError> => (options.client ?? client).post<CreateVolumeResponses, CreateVolumeErrors, ThrowOnError>({
     url: '/api/v1/volumes',
     ...options,
     headers: {
@@ -149,12 +149,15 @@ export const createVolume = <ThrowOnError extends boolean = false>(options: Opti
     }
 });
 
+/**
+ * List organization-scoped machines and trusted roots available for filesystem sources
+ */
 export const listSourceMachines = <ThrowOnError extends boolean = false>(options?: Options<ListSourceMachinesData, ThrowOnError>): RequestResult<ListSourceMachinesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListSourceMachinesResponses, unknown, ThrowOnError>({ url: '/api/v1/volumes/source-machines', ...options });
 
 /**
  * Test connection to backend
  */
-export const testConnection = <ThrowOnError extends boolean = false>(options: Options<TestConnectionData, ThrowOnError>): RequestResult<TestConnectionResponses, unknown, ThrowOnError> => (options.client ?? client).post<TestConnectionResponses, unknown, ThrowOnError>({
+export const testConnection = <ThrowOnError extends boolean = false>(options: Options<TestConnectionData, ThrowOnError>): RequestResult<TestConnectionResponses, TestConnectionErrors, ThrowOnError> => (options.client ?? client).post<TestConnectionResponses, TestConnectionErrors, ThrowOnError>({
     url: '/api/v1/volumes/test-connection',
     ...options,
     headers: {
@@ -203,7 +206,7 @@ export const healthCheckVolume = <ThrowOnError extends boolean = false>(options:
 /**
  * List files in a volume directory
  */
-export const listFiles = <ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>): RequestResult<ListFilesResponses, unknown, ThrowOnError> => (options.client ?? client).get<ListFilesResponses, unknown, ThrowOnError>({ url: '/api/v1/volumes/{shortId}/files', ...options });
+export const listFiles = <ThrowOnError extends boolean = false>(options: Options<ListFilesData, ThrowOnError>): RequestResult<ListFilesResponses, ListFilesErrors, ThrowOnError> => (options.client ?? client).get<ListFilesResponses, ListFilesErrors, ThrowOnError>({ url: '/api/v1/volumes/{shortId}/files', ...options });
 
 /**
  * Browse directories on the host filesystem
@@ -218,7 +221,7 @@ export const listRepositories = <ThrowOnError extends boolean = false>(options?:
 /**
  * Create a new restic repository
  */
-export const createRepository = <ThrowOnError extends boolean = false>(options: Options<CreateRepositoryData, ThrowOnError>): RequestResult<CreateRepositoryResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateRepositoryResponses, unknown, ThrowOnError>({
+export const createRepository = <ThrowOnError extends boolean = false>(options: Options<CreateRepositoryData, ThrowOnError>): RequestResult<CreateRepositoryResponses, CreateRepositoryErrors, ThrowOnError> => (options.client ?? client).post<CreateRepositoryResponses, CreateRepositoryErrors, ThrowOnError>({
     url: '/api/v1/repositories',
     ...options,
     headers: {
@@ -267,7 +270,7 @@ export const refreshRepositoryStats = <ThrowOnError extends boolean = false>(opt
 /**
  * Delete multiple snapshots from a repository
  */
-export const deleteSnapshots = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotsData, ThrowOnError>): RequestResult<DeleteSnapshotsResponses, unknown, ThrowOnError> => (options.client ?? client).delete<DeleteSnapshotsResponses, unknown, ThrowOnError>({
+export const deleteSnapshots = <ThrowOnError extends boolean = false>(options: Options<DeleteSnapshotsData, ThrowOnError>): RequestResult<DeleteSnapshotsResponses, DeleteSnapshotsErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSnapshotsResponses, DeleteSnapshotsErrors, ThrowOnError>({
     url: '/api/v1/repositories/{shortId}/snapshots',
     ...options,
     headers: {
@@ -279,7 +282,7 @@ export const deleteSnapshots = <ThrowOnError extends boolean = false>(options: O
 /**
  * List all snapshots in a repository
  */
-export const listSnapshots = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotsData, ThrowOnError>): RequestResult<ListSnapshotsResponses, unknown, ThrowOnError> => (options.client ?? client).get<ListSnapshotsResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots', ...options });
+export const listSnapshots = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotsData, ThrowOnError>): RequestResult<ListSnapshotsResponses, ListSnapshotsErrors, ThrowOnError> => (options.client ?? client).get<ListSnapshotsResponses, ListSnapshotsErrors, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots', ...options });
 
 /**
  * Clear snapshot cache and force refresh from repository
@@ -299,17 +302,17 @@ export const getSnapshotDetails = <ThrowOnError extends boolean = false>(options
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFiles = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotFilesData, ThrowOnError>): RequestResult<ListSnapshotFilesResponses, unknown, ThrowOnError> => (options.client ?? client).get<ListSnapshotFilesResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files', ...options });
+export const listSnapshotFiles = <ThrowOnError extends boolean = false>(options: Options<ListSnapshotFilesData, ThrowOnError>): RequestResult<ListSnapshotFilesResponses, ListSnapshotFilesErrors, ThrowOnError> => (options.client ?? client).get<ListSnapshotFilesResponses, ListSnapshotFilesErrors, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/files', ...options });
 
 /**
  * Download a snapshot path as a tar archive (folders) or raw file stream (single files)
  */
-export const dumpSnapshot = <ThrowOnError extends boolean = false>(options: Options<DumpSnapshotData, ThrowOnError>): RequestResult<DumpSnapshotResponses, unknown, ThrowOnError> => (options.client ?? client).get<DumpSnapshotResponses, unknown, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump', ...options });
+export const dumpSnapshot = <ThrowOnError extends boolean = false>(options: Options<DumpSnapshotData, ThrowOnError>): RequestResult<DumpSnapshotResponses, DumpSnapshotErrors, ThrowOnError> => (options.client ?? client).get<DumpSnapshotResponses, DumpSnapshotErrors, ThrowOnError>({ url: '/api/v1/repositories/{shortId}/snapshots/{snapshotId}/dump', ...options });
 
 /**
  * Restore a snapshot to a target path on the filesystem
  */
-export const restoreSnapshot = <ThrowOnError extends boolean = false>(options: Options<RestoreSnapshotData, ThrowOnError>): RequestResult<RestoreSnapshotResponses, unknown, ThrowOnError> => (options.client ?? client).post<RestoreSnapshotResponses, unknown, ThrowOnError>({
+export const restoreSnapshot = <ThrowOnError extends boolean = false>(options: Options<RestoreSnapshotData, ThrowOnError>): RequestResult<RestoreSnapshotResponses, RestoreSnapshotErrors, ThrowOnError> => (options.client ?? client).post<RestoreSnapshotResponses, RestoreSnapshotErrors, ThrowOnError>({
     url: '/api/v1/repositories/{shortId}/restore',
     ...options,
     headers: {
@@ -331,7 +334,7 @@ export const unlockRepository = <ThrowOnError extends boolean = false>(options: 
 /**
  * Tag multiple snapshots in a repository
  */
-export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Options<TagSnapshotsData, ThrowOnError>): RequestResult<TagSnapshotsResponses, unknown, ThrowOnError> => (options.client ?? client).post<TagSnapshotsResponses, unknown, ThrowOnError>({
+export const tagSnapshots = <ThrowOnError extends boolean = false>(options: Options<TagSnapshotsData, ThrowOnError>): RequestResult<TagSnapshotsResponses, TagSnapshotsErrors, ThrowOnError> => (options.client ?? client).post<TagSnapshotsResponses, TagSnapshotsErrors, ThrowOnError>({
     url: '/api/v1/repositories/{shortId}/snapshots/tag',
     ...options,
     headers: {
@@ -360,7 +363,7 @@ export const listBackupSchedules = <ThrowOnError extends boolean = false>(option
 /**
  * Create a new backup schedule for a volume
  */
-export const createBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<CreateBackupScheduleData, ThrowOnError>): RequestResult<CreateBackupScheduleResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateBackupScheduleResponses, unknown, ThrowOnError>({
+export const createBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<CreateBackupScheduleData, ThrowOnError>): RequestResult<CreateBackupScheduleResponses, CreateBackupScheduleErrors, ThrowOnError> => (options.client ?? client).post<CreateBackupScheduleResponses, CreateBackupScheduleErrors, ThrowOnError>({
     url: '/api/v1/backups',
     ...options,
     headers: {
@@ -382,7 +385,7 @@ export const getBackupSchedule = <ThrowOnError extends boolean = false>(options:
 /**
  * Update a backup schedule
  */
-export const updateBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<UpdateBackupScheduleData, ThrowOnError>): RequestResult<UpdateBackupScheduleResponses, unknown, ThrowOnError> => (options.client ?? client).patch<UpdateBackupScheduleResponses, unknown, ThrowOnError>({
+export const updateBackupSchedule = <ThrowOnError extends boolean = false>(options: Options<UpdateBackupScheduleData, ThrowOnError>): RequestResult<UpdateBackupScheduleResponses, UpdateBackupScheduleErrors, ThrowOnError> => (options.client ?? client).patch<UpdateBackupScheduleResponses, UpdateBackupScheduleErrors, ThrowOnError>({
     url: '/api/v1/backups/{shortId}',
     ...options,
     headers: {
@@ -414,7 +417,7 @@ export const getScheduleNotifications = <ThrowOnError extends boolean = false>(o
 /**
  * Update notification assignments for a backup schedule
  */
-export const updateScheduleNotifications = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleNotificationsData, ThrowOnError>): RequestResult<UpdateScheduleNotificationsResponses, unknown, ThrowOnError> => (options.client ?? client).put<UpdateScheduleNotificationsResponses, unknown, ThrowOnError>({
+export const updateScheduleNotifications = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleNotificationsData, ThrowOnError>): RequestResult<UpdateScheduleNotificationsResponses, UpdateScheduleNotificationsErrors, ThrowOnError> => (options.client ?? client).put<UpdateScheduleNotificationsResponses, UpdateScheduleNotificationsErrors, ThrowOnError>({
     url: '/api/v1/backups/{shortId}/notifications',
     ...options,
     headers: {
@@ -431,7 +434,7 @@ export const getScheduleMirrors = <ThrowOnError extends boolean = false>(options
 /**
  * Update mirror repository assignments for a backup schedule
  */
-export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleMirrorsData, ThrowOnError>): RequestResult<UpdateScheduleMirrorsResponses, unknown, ThrowOnError> => (options.client ?? client).put<UpdateScheduleMirrorsResponses, unknown, ThrowOnError>({
+export const updateScheduleMirrors = <ThrowOnError extends boolean = false>(options: Options<UpdateScheduleMirrorsData, ThrowOnError>): RequestResult<UpdateScheduleMirrorsResponses, UpdateScheduleMirrorsErrors, ThrowOnError> => (options.client ?? client).put<UpdateScheduleMirrorsResponses, UpdateScheduleMirrorsErrors, ThrowOnError>({
     url: '/api/v1/backups/{shortId}/mirrors',
     ...options,
     headers: {
@@ -465,7 +468,7 @@ export const getMirrorCompatibility = <ThrowOnError extends boolean = false>(opt
 /**
  * Reorder backup schedules by providing an array of schedule short IDs in the desired order
  */
-export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(options: Options<ReorderBackupSchedulesData, ThrowOnError>): RequestResult<ReorderBackupSchedulesResponses, unknown, ThrowOnError> => (options.client ?? client).post<ReorderBackupSchedulesResponses, unknown, ThrowOnError>({
+export const reorderBackupSchedules = <ThrowOnError extends boolean = false>(options: Options<ReorderBackupSchedulesData, ThrowOnError>): RequestResult<ReorderBackupSchedulesResponses, ReorderBackupSchedulesErrors, ThrowOnError> => (options.client ?? client).post<ReorderBackupSchedulesResponses, ReorderBackupSchedulesErrors, ThrowOnError>({
     url: '/api/v1/backups/reorder',
     ...options,
     headers: {
@@ -482,7 +485,7 @@ export const listNotificationDestinations = <ThrowOnError extends boolean = fals
 /**
  * Create a new notification destination
  */
-export const createNotificationDestination = <ThrowOnError extends boolean = false>(options: Options<CreateNotificationDestinationData, ThrowOnError>): RequestResult<CreateNotificationDestinationResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateNotificationDestinationResponses, unknown, ThrowOnError>({
+export const createNotificationDestination = <ThrowOnError extends boolean = false>(options: Options<CreateNotificationDestinationData, ThrowOnError>): RequestResult<CreateNotificationDestinationResponses, CreateNotificationDestinationErrors, ThrowOnError> => (options.client ?? client).post<CreateNotificationDestinationResponses, CreateNotificationDestinationErrors, ThrowOnError>({
     url: '/api/v1/notifications/destinations',
     ...options,
     headers: {
@@ -536,7 +539,7 @@ export const getRegistrationStatus = <ThrowOnError extends boolean = false>(opti
 /**
  * Update the registration status for new users. Requires global admin role.
  */
-export const setRegistrationStatus = <ThrowOnError extends boolean = false>(options: Options<SetRegistrationStatusData, ThrowOnError>): RequestResult<SetRegistrationStatusResponses, unknown, ThrowOnError> => (options.client ?? client).put<SetRegistrationStatusResponses, unknown, ThrowOnError>({
+export const setRegistrationStatus = <ThrowOnError extends boolean = false>(options: Options<SetRegistrationStatusData, ThrowOnError>): RequestResult<SetRegistrationStatusResponses, SetRegistrationStatusErrors, ThrowOnError> => (options.client ?? client).put<SetRegistrationStatusResponses, SetRegistrationStatusErrors, ThrowOnError>({
     url: '/api/v1/system/registration-status',
     ...options,
     headers: {
@@ -548,7 +551,7 @@ export const setRegistrationStatus = <ThrowOnError extends boolean = false>(opti
 /**
  * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and may require password re-authentication.
  */
-export const downloadResticPassword = <ThrowOnError extends boolean = false>(options: Options<DownloadResticPasswordData, ThrowOnError>): RequestResult<DownloadResticPasswordResponses, unknown, ThrowOnError> => (options.client ?? client).post<DownloadResticPasswordResponses, unknown, ThrowOnError>({
+export const downloadResticPassword = <ThrowOnError extends boolean = false>(options: Options<DownloadResticPasswordData, ThrowOnError>): RequestResult<DownloadResticPasswordResponses, DownloadResticPasswordErrors, ThrowOnError> => (options.client ?? client).post<DownloadResticPasswordResponses, DownloadResticPasswordErrors, ThrowOnError>({
     url: '/api/v1/system/restic-password',
     ...options,
     headers: {
@@ -565,7 +568,7 @@ export const getPasswordLoginStatus = <ThrowOnError extends boolean = false>(opt
 /**
  * Disable or re-enable password-based login. Requires global admin role.
  */
-export const setPasswordLoginStatus = <ThrowOnError extends boolean = false>(options: Options<SetPasswordLoginStatusData, ThrowOnError>): RequestResult<SetPasswordLoginStatusResponses, unknown, ThrowOnError> => (options.client ?? client).put<SetPasswordLoginStatusResponses, unknown, ThrowOnError>({
+export const setPasswordLoginStatus = <ThrowOnError extends boolean = false>(options: Options<SetPasswordLoginStatusData, ThrowOnError>): RequestResult<SetPasswordLoginStatusResponses, SetPasswordLoginStatusErrors, ThrowOnError> => (options.client ?? client).put<SetPasswordLoginStatusResponses, SetPasswordLoginStatusErrors, ThrowOnError>({
     url: '/api/v1/system/password-login-status',
     ...options,
     headers: {
@@ -577,7 +580,7 @@ export const setPasswordLoginStatus = <ThrowOnError extends boolean = false>(opt
 /**
  * Export organization configuration encrypted with a dedicated export passphrase. Requires the recovery key download permission and may require password re-authentication.
  */
-export const exportConfig = <ThrowOnError extends boolean = false>(options: Options<ExportConfigData, ThrowOnError>): RequestResult<ExportConfigResponses, unknown, ThrowOnError> => (options.client ?? client).post<ExportConfigResponses, unknown, ThrowOnError>({
+export const exportConfig = <ThrowOnError extends boolean = false>(options: Options<ExportConfigData, ThrowOnError>): RequestResult<ExportConfigResponses, ExportConfigErrors, ThrowOnError> => (options.client ?? client).post<ExportConfigResponses, ExportConfigErrors, ThrowOnError>({
     url: '/api/v1/system/config-export',
     ...options,
     headers: {
@@ -589,7 +592,7 @@ export const exportConfig = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Import a passphrase-protected organization configuration during onboarding
  */
-export const importConfig = <ThrowOnError extends boolean = false>(options: Options<ImportConfigData, ThrowOnError>): RequestResult<ImportConfigResponses, unknown, ThrowOnError> => (options.client ?? client).post<ImportConfigResponses, unknown, ThrowOnError>({
+export const importConfig = <ThrowOnError extends boolean = false>(options: Options<ImportConfigData, ThrowOnError>): RequestResult<ImportConfigResponses, ImportConfigErrors, ThrowOnError> => (options.client ?? client).post<ImportConfigResponses, ImportConfigErrors, ThrowOnError>({
     url: '/api/v1/system/config-import',
     ...options,
     headers: {
@@ -606,17 +609,17 @@ export const getDevPanel = <ThrowOnError extends boolean = false>(options?: Opti
 /**
  * List active tasks
  */
-export const listTasks = <ThrowOnError extends boolean = false>(options?: Options<ListTasksData, ThrowOnError>): RequestResult<ListTasksResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListTasksResponses, unknown, ThrowOnError>({ url: '/api/v1/tasks', ...options });
+export const listTasks = <ThrowOnError extends boolean = false>(options?: Options<ListTasksData, ThrowOnError>): RequestResult<ListTasksResponses, ListTasksErrors, ThrowOnError> => (options?.client ?? client).get<ListTasksResponses, ListTasksErrors, ThrowOnError>({ url: '/api/v1/tasks', ...options });
 
 /**
  * Subscribe to lifecycle events for active tasks matching a filter
  */
-export const streamTasksEvents = <ThrowOnError extends boolean = false>(options?: Options<StreamTasksEventsData, ThrowOnError, StreamTasksEventsResponse>): Promise<ServerSentEventsResult<StreamTasksEventsResponses>> => (options?.client ?? client).sse.get<StreamTasksEventsResponses, unknown, ThrowOnError>({ url: '/api/v1/tasks/events', ...options });
+export const streamTasksEvents = <ThrowOnError extends boolean = false>(options?: Options<StreamTasksEventsData, ThrowOnError, StreamTasksEventsResponse>): Promise<ServerSentEventsResult<StreamTasksEventsResponses>> => (options?.client ?? client).sse.get<StreamTasksEventsResponses, StreamTasksEventsErrors, ThrowOnError>({ url: '/api/v1/tasks/events', ...options });
 
 /**
  * List persisted task history for the current organization
  */
-export const listTaskHistory = <ThrowOnError extends boolean = false>(options?: Options<ListTaskHistoryData, ThrowOnError>): RequestResult<ListTaskHistoryResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListTaskHistoryResponses, unknown, ThrowOnError>({ url: '/api/v1/tasks/history', ...options });
+export const listTaskHistory = <ThrowOnError extends boolean = false>(options?: Options<ListTaskHistoryData, ThrowOnError>): RequestResult<ListTaskHistoryResponses, ListTaskHistoryErrors, ThrowOnError> => (options?.client ?? client).get<ListTaskHistoryResponses, ListTaskHistoryErrors, ThrowOnError>({ url: '/api/v1/tasks/history', ...options });
 
 /**
  * Subscribe to lifecycle events for one task
@@ -636,7 +639,7 @@ export const cancelTask = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Create an authenticated desktop session
  */
-export const createDesktopSession = <ThrowOnError extends boolean = false>(options: Options<CreateDesktopSessionData, ThrowOnError>): RequestResult<CreateDesktopSessionResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateDesktopSessionResponses, unknown, ThrowOnError>({
+export const createDesktopSession = <ThrowOnError extends boolean = false>(options: Options<CreateDesktopSessionData, ThrowOnError>): RequestResult<CreateDesktopSessionResponses, CreateDesktopSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateDesktopSessionResponses, CreateDesktopSessionErrors, ThrowOnError>({
     url: '/api/v1/desktop/session',
     ...options,
     headers: {
@@ -645,7 +648,7 @@ export const createDesktopSession = <ThrowOnError extends boolean = false>(optio
     }
 });
 
-export const postApiV1AgentsEnroll = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgentsEnrollData, ThrowOnError>): RequestResult<PostApiV1AgentsEnrollResponses, unknown, ThrowOnError> => (options.client ?? client).post<PostApiV1AgentsEnrollResponses, unknown, ThrowOnError>({
+export const postApiV1AgentsEnroll = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgentsEnrollData, ThrowOnError>): RequestResult<PostApiV1AgentsEnrollResponses, PostApiV1AgentsEnrollErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgentsEnrollResponses, PostApiV1AgentsEnrollErrors, ThrowOnError>({
     url: '/api/v1/agents/enroll',
     ...options,
     headers: {
@@ -654,9 +657,11 @@ export const postApiV1AgentsEnroll = <ThrowOnError extends boolean = false>(opti
     }
 });
 
+export const deleteRemoteAgent = <ThrowOnError extends boolean = false>(options: Options<DeleteRemoteAgentData, ThrowOnError>): RequestResult<DeleteRemoteAgentResponses, unknown, ThrowOnError> => (options.client ?? client).delete<DeleteRemoteAgentResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}', ...options });
+
 export const listAgents = <ThrowOnError extends boolean = false>(options?: Options<ListAgentsData, ThrowOnError>): RequestResult<ListAgentsResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListAgentsResponses, unknown, ThrowOnError>({ url: '/api/v1/agents', ...options });
 
-export const createRemoteAgent = <ThrowOnError extends boolean = false>(options: Options<CreateRemoteAgentData, ThrowOnError>): RequestResult<CreateRemoteAgentResponses, unknown, ThrowOnError> => (options.client ?? client).post<CreateRemoteAgentResponses, unknown, ThrowOnError>({
+export const createRemoteAgent = <ThrowOnError extends boolean = false>(options: Options<CreateRemoteAgentData, ThrowOnError>): RequestResult<CreateRemoteAgentResponses, CreateRemoteAgentErrors, ThrowOnError> => (options.client ?? client).post<CreateRemoteAgentResponses, CreateRemoteAgentErrors, ThrowOnError>({
     url: '/api/v1/agents',
     ...options,
     headers: {
@@ -668,7 +673,3 @@ export const createRemoteAgent = <ThrowOnError extends boolean = false>(options:
 export const rotateRemoteAgentToken = <ThrowOnError extends boolean = false>(options: Options<RotateRemoteAgentTokenData, ThrowOnError>): RequestResult<RotateRemoteAgentTokenResponses, unknown, ThrowOnError> => (options.client ?? client).post<RotateRemoteAgentTokenResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}/token/rotate', ...options });
 
 export const revokeRemoteAgentToken = <ThrowOnError extends boolean = false>(options: Options<RevokeRemoteAgentTokenData, ThrowOnError>): RequestResult<RevokeRemoteAgentTokenResponses, unknown, ThrowOnError> => (options.client ?? client).delete<RevokeRemoteAgentTokenResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}/token', ...options });
-
-import type { DeleteRemoteAgentData, DeleteRemoteAgentResponses } from './types.gen';
-
-export const deleteRemoteAgent = <ThrowOnError extends boolean = false>(options: Options<DeleteRemoteAgentData, ThrowOnError>): RequestResult<DeleteRemoteAgentResponses, unknown, ThrowOnError> => (options.client ?? client).delete<DeleteRemoteAgentResponses, unknown, ThrowOnError>({ url: '/api/v1/agents/{agentId}', ...options });

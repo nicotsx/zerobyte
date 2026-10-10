@@ -40,10 +40,7 @@ const managedVolume = {
 	sourceLocation: null,
 } satisfies PresentedVolume;
 
-type RemoteAvailability = Extract<
-	PresentedVolume,
-	{ sourceKind: "agent-filesystem" }
->["sourceLocation"]["availability"];
+type RemoteAvailability = Extract<PresentedVolume, { sourceKind: "filesystem" }>["sourceLocation"]["availability"];
 
 const unavailableCases = [
 	["offline", "The machine is offline.", "Bring the machine online"],
@@ -59,7 +56,7 @@ const remoteVolume = (availability: RemoteAvailability, relativePath = "family")
 		config: null,
 		type: null,
 		agentId: "archive-node-id",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		trustedRootId: "photos-id",
 		relativePath,
 		sourceLocation: {

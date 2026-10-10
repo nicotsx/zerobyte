@@ -26,8 +26,8 @@ beforeEach(() => vi.clearAllMocks());
 
 test.each([
 	["managed", "local", "local"],
-	["agent-filesystem", "local", "local"],
-	["agent-filesystem", "remote-machine", "remote"],
+	["filesystem", "local", "local"],
+	["filesystem", "remote-machine", "remote"],
 ])("both restore entry points recognize %s on %s as %s", async (sourceKind, agentId, sourceOrigin) => {
 	vi.mocked(getBackupSchedule).mockResolvedValue(
 		fromAny({

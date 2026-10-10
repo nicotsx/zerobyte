@@ -34,7 +34,7 @@ const remoteVolume = {
 	...volumeBase,
 	name: "Photos",
 	shortId: "source-2",
-	sourceKind: "agent-filesystem",
+	sourceKind: "filesystem",
 	agentId: "remote-machine-id",
 	config: null,
 	type: null,
@@ -87,7 +87,7 @@ test("changing the source clears paths from the previous machine", async () => {
 		http.get("/api/v1/repositories", () => HttpResponse.json([{ shortId: "repo-1", name: "Archive", type: "s3" }])),
 		http.get("/api/v1/volumes/:shortId/files", () =>
 			HttpResponse.json({
-				files: [{ name: "shared", path: "/shared", type: "folder" }],
+				files: [{ name: "shared", path: "shared", type: "folder" }],
 				offset: 0,
 				limit: 100,
 				hasMore: false,

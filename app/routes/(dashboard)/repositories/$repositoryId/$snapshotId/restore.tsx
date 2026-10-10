@@ -36,7 +36,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 				volumeReadOnly = scheduleRes.data.volume.config?.readOnly ?? false;
 				const source = getBackupSource(scheduleRes.data.volume);
 
-				sourceOrigin = source.kind === "agent-filesystem" && source.agentKind === "remote" ? "remote" : "local";
+				sourceOrigin = source.kind === "filesystem" && source.agentKind === "remote" ? "remote" : "local";
 			}
 		}
 

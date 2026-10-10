@@ -1,3 +1,4 @@
+import { parseError } from "~/client/lib/errors";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { CheckCircle, Loader2, Plug, Save, XCircle } from "lucide-react";
@@ -135,7 +136,7 @@ export const CreateVolumeForm = ({
 		onError: (error) => {
 			setTestMessage({
 				success: false,
-				message: error?.message || "Failed to test connection. Please try again.",
+				message: parseError(error)?.message || "Failed to test connection. Please try again.",
 			});
 		},
 		onSuccess: (data) => {

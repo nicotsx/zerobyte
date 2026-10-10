@@ -25,14 +25,14 @@ describe("VolumeFileBrowser request errors", () => {
 					}
 					if (requestedPath === "/docs") {
 						return HttpResponse.json({
-							files: [{ name: "notes.txt", path: "/docs/notes.txt", type: "file" }],
+							files: [{ name: "notes.txt", path: "docs/notes.txt", type: "file" }],
 							offset: 0,
 							limit: 100,
 							hasMore: false,
 						});
 					}
 					return HttpResponse.json({
-						files: [{ name: "docs", path: "/docs", type: "folder" }],
+						files: [{ name: "docs", path: "docs", type: "folder" }],
 						offset: 0,
 						limit: 100,
 						hasMore: false,
@@ -78,14 +78,14 @@ describe("VolumeFileBrowser request errors", () => {
 					}
 					if (offset === "1") {
 						return HttpResponse.json({
-							files: [{ name: "second.txt", path: "/second.txt", type: "file" }],
+							files: [{ name: "second.txt", path: "second.txt", type: "file" }],
 							offset: 1,
 							limit: 1,
 							hasMore: false,
 						});
 					}
 					return HttpResponse.json({
-						files: [{ name: "first.txt", path: "/first.txt", type: "file" }],
+						files: [{ name: "first.txt", path: "first.txt", type: "file" }],
 						offset: 0,
 						limit: 1,
 						hasMore: true,
@@ -123,7 +123,7 @@ describe("VolumeFileBrowser request errors", () => {
 
 					if (!path) {
 						return HttpResponse.json({
-							files: ["A", "B", "C"].map((name) => ({ name, path: `/${name}`, type: "folder" })),
+							files: ["A", "B", "C"].map((name) => ({ name, path: name, type: "folder" })),
 							hasMore: false,
 						});
 					}
@@ -135,7 +135,7 @@ describe("VolumeFileBrowser request errors", () => {
 
 					const name = isFirstPageOfA ? "first-A.txt" : `loaded-${path.slice(1)}.txt`;
 					return HttpResponse.json({
-						files: [{ name, path: `${path}/${name}`, type: "file" }],
+						files: [{ name, path: `${path.slice(1)}/${name}`, type: "file" }],
 						offset,
 						limit: 1,
 						hasMore: isFirstPageOfA,
@@ -188,7 +188,7 @@ describe("VolumeFileBrowser request errors", () => {
 				if (unavailable || new URL(request.url).searchParams.has("path")) {
 					return HttpResponse.json({ message: "Listing unavailable" }, { status: 503 });
 				}
-				return HttpResponse.json({ files: [{ name: "root.txt", path: "/root.txt", type: "file" }] });
+				return HttpResponse.json({ files: [{ name: "root.txt", path: "root.txt", type: "file" }] });
 			}),
 		);
 

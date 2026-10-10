@@ -6,7 +6,7 @@ import { getBackupContextLabel, getBackupRunBlockReason, getRepositoryCompatibil
 const remoteVolume = (availability: string, status = "mounted"): Volume =>
 	fromAny({
 		name: "Family photos",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		agentId: "agent-1",
 		status,
 		sourceLocation: {

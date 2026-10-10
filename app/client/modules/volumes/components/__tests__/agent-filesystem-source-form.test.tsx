@@ -3,7 +3,7 @@ import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
 import type { SourceMachine } from "@zerobyte/contracts/volumes";
 import { AgentFilesystemSourceForm, EditAgentFilesystemSourceForm } from "../agent-filesystem-source-form";
-import { getRemoteSourcePresentation } from "../../source-presentation";
+import { getFilesystemSourcePresentation } from "../../source-presentation";
 import { fromPartial } from "@total-typescript/shoehorn";
 
 const machine: SourceMachine = {
@@ -18,11 +18,7 @@ const machine: SourceMachine = {
 afterEach(cleanup);
 
 test("a selected trusted root produces a folder source", async () => {
-	server.use(
-		http.get("/api/v1/volumes/filesystem/browse", () =>
-			HttpResponse.json({ path: "trusted-root:", directories: [] }),
-		),
-	);
+	server.use(http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ path: "", directories: [] })));
 	const onSubmit = vi.fn();
 	render(
 		<>
@@ -48,7 +44,7 @@ test("a selected trusted root produces a folder source", async () => {
 	await userEvent.click(screen.getByText("Save"));
 	expect(onSubmit).toHaveBeenCalledWith({
 		name: "Family archive",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		agentId: "archive",
 		trustedRootId: "photos",
 		relativePath: "",
@@ -63,11 +59,7 @@ test("online but unready machines cannot be selected", async () => {
 });
 
 test("a source cannot be saved without selecting a folder", async () => {
-	server.use(
-		http.get("/api/v1/volumes/filesystem/browse", () =>
-			HttpResponse.json({ path: "trusted-root:", directories: [] }),
-		),
-	);
+	server.use(http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ path: "", directories: [] })));
 	const onSubmit = vi.fn();
 	render(
 		<>
@@ -100,7 +92,7 @@ test("a source cannot be saved without selecting a folder", async () => {
 
 test("rename works while discovery is unavailable without relocating the source", async () => {
 	const onRename = vi.fn();
-	const presentation = getRemoteSourcePresentation(
+	const presentation = getFilesystemSourcePresentation(
 		fromPartial({
 			sourceLocation: {
 				machine: { name: "Archive" },
@@ -205,11 +197,11 @@ test("failed selected-folder verification retains the folder, blocks save, and r
 			const path = new URL(request.url).searchParams.get("path");
 			if (path === "")
 				return HttpResponse.json({
-					path: "trusted-root:",
-					directories: [{ name: "albums", path: "trusted-root:albums", type: "directory" }],
+					path: "",
+					directories: [{ name: "albums", path: "albums", type: "directory" }],
 				});
 			if (!folderIsAvailable) return HttpResponse.json({ message: "/private/files failed" }, { status: 503 });
-			return HttpResponse.json({ path: "trusted-root:albums", directories: [] });
+			return HttpResponse.json({ path: "albums", directories: [] });
 		}),
 	);
 	const onSubmit = vi.fn();
@@ -248,7 +240,7 @@ test("failed selected-folder verification retains the folder, blocks save, and r
 	await userEvent.click(screen.getByText("Save"));
 	expect(onSubmit).toHaveBeenCalledWith({
 		name: "Family archive",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		agentId: "archive",
 		trustedRootId: "photos",
 		relativePath: "albums",
@@ -262,9 +254,8 @@ test.each(["loading", "error"] as const)(
 			http.get("/api/v1/volumes/filesystem/browse", ({ request }) => {
 				const path = new URL(request.url).searchParams.get("path");
 				return HttpResponse.json({
-					path: `trusted-root:${path}`,
-					directories:
-						path === "" ? [{ name: "albums", path: "trusted-root:albums", type: "directory" }] : [],
+					path: `${path}`,
+					directories: path === "" ? [{ name: "albums", path: "albums", type: "directory" }] : [],
 				});
 			}),
 		);
@@ -296,7 +287,7 @@ test.each(["loading", "error"] as const)(
 		await userEvent.click(screen.getByText("Save"));
 		expect(onSubmit).toHaveBeenCalledWith({
 			name: "Family archive",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: "archive",
 			trustedRootId: "photos",
 			relativePath: "albums",
@@ -333,9 +324,8 @@ test.each(["root-removed", "backup-disabled"] as const)(
 			http.get("/api/v1/volumes/filesystem/browse", ({ request }) => {
 				const path = new URL(request.url).searchParams.get("path");
 				return HttpResponse.json({
-					path: `trusted-root:${path}`,
-					directories:
-						path === "" ? [{ name: "albums", path: "trusted-root:albums", type: "directory" }] : [],
+					path: `${path}`,
+					directories: path === "" ? [{ name: "albums", path: "albums", type: "directory" }] : [],
 				});
 			}),
 		);
@@ -386,8 +376,8 @@ test.each(["offline", "connecting", "degraded", "not-ready"] as const)(
 		const browse = vi.fn(({ request }: { request: Request }) => {
 			const path = new URL(request.url).searchParams.get("path");
 			return HttpResponse.json({
-				path: `trusted-root:${path}`,
-				directories: path === "" ? [{ name: "albums", path: "trusted-root:albums", type: "directory" }] : [],
+				path: `${path}`,
+				directories: path === "" ? [{ name: "albums", path: "albums", type: "directory" }] : [],
 			});
 		});
 		server.use(http.get("/api/v1/volumes/filesystem/browse", browse));
@@ -434,7 +424,7 @@ test.each(["offline", "connecting", "degraded", "not-ready"] as const)(
 		await userEvent.click(screen.getByText("Save"));
 		expect(onSubmit).toHaveBeenCalledWith({
 			name: "Family archive",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: "archive",
 			trustedRootId: "photos",
 			relativePath: "albums",

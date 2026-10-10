@@ -24,7 +24,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { dataTableFeatures } from "~/client/lib/data-table";
 import { cn } from "~/client/lib/utils";
 import { useCookieState } from "~/client/hooks/use-cookie-state";
-import { getRemoteSourcePresentation, type RemoteSourcePresentation } from "../source-presentation";
+import { getFilesystemSourcePresentation, type FilesystemSourcePresentation } from "../source-presentation";
 
 const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "error" | "warning" => {
 	const statusMap = {
@@ -37,9 +37,9 @@ const getVolumeStatusVariant = (status: VolumeStatus): "success" | "neutral" | "
 };
 
 type VolumeRow = ListVolumesResponse[number] & {
-	effectiveBackendType: Exclude<ListVolumesResponse[number]["type"], null> | "remote-files";
+	effectiveBackendType: Exclude<ListVolumesResponse[number]["type"], null> | "filesystem";
 	effectiveStatus: string;
-	remotePresentation: RemoteSourcePresentation | null;
+	sourcePresentation: FilesystemSourcePresentation | null;
 };
 
 const volumeColumnHelper = createColumnHelper<typeof dataTableFeatures, VolumeRow>();
@@ -53,9 +53,9 @@ const volumeColumns = volumeColumnHelper.columns([
 				<span className="block truncate" title={row.original.name}>
 					{row.original.name}
 				</span>
-				{row.original.remotePresentation && (
+				{row.original.sourcePresentation && (
 					<span className="block truncate font-sans text-xs text-muted-foreground">
-						{row.original.remotePresentation.machine}
+						{row.original.sourcePresentation.machine}
 					</span>
 				)}
 			</div>
@@ -66,8 +66,8 @@ const volumeColumns = volumeColumnHelper.columns([
 			<DataTableSortHeader column={column} title="Backend" sortDirection={column.getIsSorted()} />
 		),
 		cell: ({ row }) => {
-			if (row.original.effectiveBackendType === "remote-files") {
-				return <span className="font-sans text-sm">Remote files</span>;
+			if (row.original.effectiveBackendType === "filesystem") {
+				return <span className="font-sans text-sm">Filesystem</span>;
 			}
 			return <VolumeIcon backend={row.original.effectiveBackendType} />;
 		},
@@ -78,8 +78,8 @@ const volumeColumns = volumeColumnHelper.columns([
 			<DataTableSortHeader column={column} title="Status" sortDirection={column.getIsSorted()} center />
 		),
 		cell: ({ row }) => {
-			if (row.original.remotePresentation) {
-				const presentation = row.original.remotePresentation;
+			if (row.original.sourcePresentation) {
+				const presentation = row.original.sourcePresentation;
 				return <StatusDot variant={presentation.statusVariant} label={presentation.status} />;
 			}
 			return <StatusDot variant={getVolumeStatusVariant(row.original.status)} label={row.original.status} />;
@@ -95,11 +95,10 @@ export function VolumesPage() {
 	const navigate = useNavigate();
 	const { data } = useSuspenseQuery({ ...listVolumesOptions() });
 	const tableData: VolumeRow[] = data.map((volume) => {
-		const remotePresentation =
-			volume.sourceKind === "agent-filesystem" ? getRemoteSourcePresentation(volume) : null;
-		const effectiveStatus = remotePresentation ? remotePresentation.status.toLowerCase() : volume.status;
-		const effectiveBackendType = volume.sourceKind === "agent-filesystem" ? "remote-files" : volume.type;
-		return { ...volume, effectiveBackendType, effectiveStatus, remotePresentation };
+		const sourcePresentation = volume.sourceKind === "filesystem" ? getFilesystemSourcePresentation(volume) : null;
+		const effectiveStatus = sourcePresentation ? sourcePresentation.status.toLowerCase() : volume.status;
+		const effectiveBackendType = volume.sourceKind === "filesystem" ? "filesystem" : volume.type;
+		return { ...volume, effectiveBackendType, effectiveStatus, sourcePresentation };
 	});
 
 	const table = useTable({
@@ -179,7 +178,7 @@ export function VolumesPage() {
 							<SelectItem value="webdav">WebDAV</SelectItem>
 							<SelectItem value="sftp">SFTP</SelectItem>
 							<SelectItem value="rclone">rclone</SelectItem>
-							<SelectItem value="remote-files">Remote files</SelectItem>
+							<SelectItem value="filesystem">Filesystem</SelectItem>
 						</SelectContent>
 					</Select>
 					{hasFilters && (

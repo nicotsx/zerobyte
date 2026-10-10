@@ -2,7 +2,7 @@ import { FolderOpen } from "lucide-react";
 import { VolumeFileBrowser } from "~/client/components/file-browsers/volume-file-browser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/client/components/ui/card";
 import type { PresentedVolume } from "~/client/lib/types";
-import { getRemoteSourcePresentation } from "../source-presentation";
+import { getFilesystemSourcePresentation } from "../source-presentation";
 
 type Props = {
 	volume: PresentedVolume;
@@ -10,20 +10,20 @@ type Props = {
 
 export const FilesTabContent = ({ volume }: Props) => {
 	const isDirectory = volume.type === "directory";
-	const remotePresentation = volume.sourceKind === "agent-filesystem" ? getRemoteSourcePresentation(volume) : null;
-	const sourceIsBrowsable = remotePresentation ? remotePresentation.isActionable : volume.status === "mounted";
-	const requestErrorMessage = remotePresentation
+	const sourcePresentation = volume.sourceKind === "filesystem" ? getFilesystemSourcePresentation(volume) : null;
+	const sourceIsBrowsable = sourcePresentation ? sourcePresentation.isActionable : volume.status === "mounted";
+	const requestErrorMessage = sourcePresentation
 		? "Files could not be loaded. Check the source availability and try again."
 		: undefined;
 
 	if (!sourceIsBrowsable) {
-		const blockedMessage = remotePresentation
-			? remotePresentation.explanation
+		const blockedMessage = sourcePresentation
+			? sourcePresentation.explanation
 			: isDirectory
 				? "Directory is not accessible."
 				: "Source must be mounted to browse files.";
-		const blockedGuidance = remotePresentation
-			? remotePresentation.guidance
+		const blockedGuidance = sourcePresentation
+			? sourcePresentation.guidance
 			: isDirectory
 				? "Make sure the folder exists and is accessible, then run Check Now."
 				: "Mount the source to explore its contents.";

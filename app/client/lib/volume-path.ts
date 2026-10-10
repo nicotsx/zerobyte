@@ -3,7 +3,7 @@ import type { Volume } from "./types";
 const VOLUME_MOUNT_BASE = "/var/lib/zerobyte/volumes";
 
 export const getVolumeMountPath = (volume: Volume): string => {
-	if (volume.sourceKind === "agent-filesystem") {
+	if (volume.sourceKind === "filesystem") {
 		return volume.relativePath ? `/${volume.relativePath}` : "/";
 	}
 	if (volume.config?.backend === "directory") {

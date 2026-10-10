@@ -5,7 +5,7 @@ import { LocalFileBrowser } from "./local-file-browser";
 
 afterEach(cleanup);
 
-const literalPathCases = ["space%20name", "encoded%2Fslash", "double%2520encoded"];
+const literalPathCases = ["space%20name", "encoded%2Fslash", "double%2520encoded", "trusted-root:photos"];
 
 test("renders trusted browse results and expands them through local browser paths", async () => {
 	const requestedPaths: Array<string | null> = [];
@@ -17,14 +17,14 @@ test("renders trusted browse results and expands them through local browser path
 
 			if (requestedPath === "") {
 				return HttpResponse.json({
-					path: "trusted-root:",
-					directories: [{ name: "albums", path: "trusted-root:albums", type: "directory" }],
+					path: "",
+					directories: [{ name: "albums", path: "albums", type: "directory" }],
 				});
 			}
 			if (requestedPath === "albums") {
 				return HttpResponse.json({
-					path: "trusted-root:albums",
-					directories: [{ name: "summer", path: "trusted-root:albums/summer", type: "directory" }],
+					path: "albums",
+					directories: [{ name: "summer", path: "albums/summer", type: "directory" }],
 				});
 			}
 
@@ -32,7 +32,7 @@ test("renders trusted browse results and expands them through local browser path
 		}),
 	);
 
-	render(<LocalFileBrowser initialPath="trusted-root:" />);
+	render(<LocalFileBrowser initialPath="" />);
 	const albums = await screen.findByRole("button", { name: "albums" });
 	const expandIcon = await waitFor(() => {
 		const collapsedIcon = albums.querySelector("svg.lucide-chevron-right");
@@ -47,12 +47,10 @@ test("renders trusted browse results and expands them through local browser path
 	await waitFor(() => {
 		expect(requestedPaths[0]).toBe("");
 		expect(requestedPaths).toContain("albums");
-		expect(requestedPaths).not.toContain("trusted-root:");
-		expect(requestedPaths).not.toContain("trusted-root:albums");
 	});
 });
 
-test.each(literalPathCases)("preserves literal percent sequences in %s", async (directoryPath) => {
+test.each(literalPathCases)("preserves literal folder names in %s", async (directoryPath) => {
 	const requestedPaths: Array<string | null> = [];
 	server.use(
 		http.get("/api/v1/volumes/filesystem/browse", ({ request }) => {
@@ -62,19 +60,19 @@ test.each(literalPathCases)("preserves literal percent sequences in %s", async (
 
 			if (requestedPath === "") {
 				return HttpResponse.json({
-					path: "trusted-root:",
-					directories: [{ name: directoryPath, path: `trusted-root:${directoryPath}`, type: "directory" }],
+					path: "",
+					directories: [{ name: directoryPath, path: `${directoryPath}`, type: "directory" }],
 				});
 			}
 			if (requestedPath === directoryPath) {
-				return HttpResponse.json({ path: `trusted-root:${directoryPath}`, directories: [] });
+				return HttpResponse.json({ path: `${directoryPath}`, directories: [] });
 			}
 
 			return new HttpResponse(null, { status: 404 });
 		}),
 	);
 
-	render(<LocalFileBrowser initialPath="trusted-root:" />);
+	render(<LocalFileBrowser initialPath="" />);
 	const directory = await screen.findByRole("button", { name: directoryPath });
 	const expandIcon = await waitFor(() => {
 		const collapsedIcon = directory.querySelector("svg.lucide-chevron-right");
@@ -96,8 +94,8 @@ test("retries the initial remote folder load without exposing server paths", asy
 		http.get("/api/v1/volumes/filesystem/browse", () =>
 			canBrowse
 				? HttpResponse.json({
-						path: "trusted-root:",
-						directories: [{ name: "albums", path: "trusted-root:albums", type: "directory" }],
+						path: "",
+						directories: [{ name: "albums", path: "albums", type: "directory" }],
 					})
 				: HttpResponse.json({ message: "/private/files EACCES" }, { status: 503 }),
 		),

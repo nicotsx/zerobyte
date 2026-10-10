@@ -35,6 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { cn } from "~/client/lib/utils";
+import { parseError } from "~/client/lib/errors";
 
 type Props = {
 	passwordAuthSupported: boolean;
@@ -75,7 +76,7 @@ export function ApiKeysSection({ passwordAuthSupported, hasPassword }: Props) {
 			setPassword("");
 		},
 		onError: (error) => {
-			toast.error("Failed to create API key", { description: error.message });
+			toast.error("Failed to create API key", { description: parseError(error)?.message });
 		},
 	});
 

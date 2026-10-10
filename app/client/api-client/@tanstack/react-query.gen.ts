@@ -4,8 +4,8 @@
 import { type DefaultError, type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { browseFilesystem, cancelTask, createApiKey, createBackupSchedule, createDesktopSession, createNotificationDestination, createRemoteAgent, createRepository, createVolume, deleteApiKey, deleteBackupSchedule, deleteNotificationDestination, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, downloadResticPassword, dumpSnapshot, exportConfig, getAdminUsers, getApiKeys, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getNotificationDestination, getOrgMembers, getPasswordLoginStatus, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getTask, getUpdates, getUserDeletionImpact, getUserSsoInvitations, getVolume, healthCheckVolume, importConfig, listAgents, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listSourceMachines, listTaskHistory, listTasks, listVolumes, mountVolume, type Options, postApiV1AgentsEnroll, refreshRepositoryStats, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, revokeRemoteAgentToken, rotateRemoteAgentToken, runBackupNow, runForget, setPasswordLoginStatus, setRegistrationStatus, startDoctor, startInvitationSsoVerification, startMirrorStatus, syncMirror, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
-import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelTaskData, CancelTaskResponse, CreateApiKeyData, CreateApiKeyResponse, CreateBackupScheduleData, CreateBackupScheduleResponse, CreateDesktopSessionData, CreateNotificationDestinationData, CreateNotificationDestinationResponse, CreateRemoteAgentData, CreateRemoteAgentResponse, CreateRepositoryData, CreateRepositoryResponse, CreateVolumeData, CreateVolumeResponse, DeleteApiKeyData, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DownloadResticPasswordData, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotResponse, ExportConfigData, ExportConfigResponse, GetAdminUsersData, GetAdminUsersResponse, GetApiKeysData, GetApiKeysResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPasswordLoginStatusData, GetPasswordLoginStatusResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetTaskData, GetTaskResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetUserSsoInvitationsData, GetUserSsoInvitationsResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ImportConfigData, ImportConfigResponse, ListAgentsData, ListAgentsResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsResponse, ListSourceMachinesData, ListSourceMachinesResponse, ListTaskHistoryData, ListTaskHistoryResponse, ListTasksData, ListTasksResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, PostApiV1AgentsEnrollData, RefreshRepositoryStatsData, RefreshRepositoryStatsResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotResponse, RevokeRemoteAgentTokenData, RevokeRemoteAgentTokenResponse, RotateRemoteAgentTokenData, RotateRemoteAgentTokenResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetPasswordLoginStatusData, SetPasswordLoginStatusResponse, SetRegistrationStatusData, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StartInvitationSsoVerificationData, StartMirrorStatusData, StartMirrorStatusResponse, SyncMirrorData, SyncMirrorResponse, TagSnapshotsData, TagSnapshotsResponse, TestConnectionData, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateNotificationDestinationData, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateVolumeData, UpdateVolumeResponse } from '../types.gen';
+import { browseFilesystem, cancelTask, createApiKey, createBackupSchedule, createDesktopSession, createNotificationDestination, createRemoteAgent, createRepository, createVolume, deleteApiKey, deleteBackupSchedule, deleteNotificationDestination, deleteRemoteAgent, deleteRepository, deleteSnapshot, deleteSnapshots, deleteSsoInvitation, deleteSsoProvider, deleteUserAccount, deleteVolume, downloadResticPassword, dumpSnapshot, exportConfig, getAdminUsers, getApiKeys, getBackupSchedule, getBackupScheduleForVolume, getDevPanel, getMirrorCompatibility, getNotificationDestination, getOrgMembers, getPasswordLoginStatus, getPublicSsoProviders, getRegistrationStatus, getRepository, getRepositoryStats, getScheduleMirrors, getScheduleNotifications, getSnapshotDetails, getSsoSettings, getStatus, getSystemInfo, getTask, getUpdates, getUserDeletionImpact, getUserSsoInvitations, getVolume, healthCheckVolume, importConfig, listAgents, listBackupSchedules, listFiles, listNotificationDestinations, listRcloneRemotes, listRepositories, listSnapshotFiles, listSnapshots, listSourceMachines, listTaskHistory, listTasks, listVolumes, mountVolume, type Options, postApiV1AgentsEnroll, refreshRepositoryStats, refreshSnapshots, removeOrgMember, reorderBackupSchedules, restoreSnapshot, revokeRemoteAgentToken, rotateRemoteAgentToken, runBackupNow, runForget, setPasswordLoginStatus, setRegistrationStatus, startDoctor, startInvitationSsoVerification, startMirrorStatus, syncMirror, tagSnapshots, testConnection, testNotificationDestination, unlockRepository, unmountVolume, updateBackupSchedule, updateMemberRole, updateNotificationDestination, updateRepository, updateScheduleMirrors, updateScheduleNotifications, updateSsoProviderAutoLinking, updateVolume } from '../sdk.gen';
+import type { BrowseFilesystemData, BrowseFilesystemResponse, CancelTaskData, CancelTaskResponse, CreateApiKeyData, CreateApiKeyError, CreateApiKeyResponse, CreateBackupScheduleData, CreateBackupScheduleError, CreateBackupScheduleResponse, CreateDesktopSessionData, CreateDesktopSessionError, CreateNotificationDestinationData, CreateNotificationDestinationError, CreateNotificationDestinationResponse, CreateRemoteAgentData, CreateRemoteAgentError, CreateRemoteAgentResponse, CreateRepositoryData, CreateRepositoryError, CreateRepositoryResponse, CreateVolumeData, CreateVolumeError, CreateVolumeResponse, DeleteApiKeyData, DeleteBackupScheduleData, DeleteBackupScheduleResponse, DeleteNotificationDestinationData, DeleteNotificationDestinationResponse, DeleteRemoteAgentData, DeleteRemoteAgentResponse, DeleteRepositoryData, DeleteRepositoryResponse, DeleteSnapshotData, DeleteSnapshotResponse, DeleteSnapshotsData, DeleteSnapshotsError, DeleteSnapshotsResponse, DeleteSsoInvitationData, DeleteSsoProviderData, DeleteUserAccountData, DeleteVolumeData, DeleteVolumeResponse, DownloadResticPasswordData, DownloadResticPasswordError, DownloadResticPasswordResponse, DumpSnapshotData, DumpSnapshotError, DumpSnapshotResponse, ExportConfigData, ExportConfigError, ExportConfigResponse, GetAdminUsersData, GetAdminUsersResponse, GetApiKeysData, GetApiKeysResponse, GetBackupScheduleData, GetBackupScheduleForVolumeData, GetBackupScheduleForVolumeResponse, GetBackupScheduleResponse, GetDevPanelData, GetDevPanelResponse, GetMirrorCompatibilityData, GetMirrorCompatibilityResponse, GetNotificationDestinationData, GetNotificationDestinationResponse, GetOrgMembersData, GetOrgMembersResponse, GetPasswordLoginStatusData, GetPasswordLoginStatusResponse, GetPublicSsoProvidersData, GetPublicSsoProvidersResponse, GetRegistrationStatusData, GetRegistrationStatusResponse, GetRepositoryData, GetRepositoryResponse, GetRepositoryStatsData, GetRepositoryStatsResponse, GetScheduleMirrorsData, GetScheduleMirrorsResponse, GetScheduleNotificationsData, GetScheduleNotificationsResponse, GetSnapshotDetailsData, GetSnapshotDetailsResponse, GetSsoSettingsData, GetSsoSettingsResponse, GetStatusData, GetStatusResponse, GetSystemInfoData, GetSystemInfoResponse, GetTaskData, GetTaskResponse, GetUpdatesData, GetUpdatesResponse, GetUserDeletionImpactData, GetUserDeletionImpactResponse, GetUserSsoInvitationsData, GetUserSsoInvitationsResponse, GetVolumeData, GetVolumeResponse, HealthCheckVolumeData, HealthCheckVolumeResponse, ImportConfigData, ImportConfigError, ImportConfigResponse, ListAgentsData, ListAgentsResponse, ListBackupSchedulesData, ListBackupSchedulesResponse, ListFilesData, ListFilesError, ListFilesResponse, ListNotificationDestinationsData, ListNotificationDestinationsResponse, ListRcloneRemotesData, ListRcloneRemotesResponse, ListRepositoriesData, ListRepositoriesResponse, ListSnapshotFilesData, ListSnapshotFilesError, ListSnapshotFilesResponse, ListSnapshotsData, ListSnapshotsError, ListSnapshotsResponse, ListSourceMachinesData, ListSourceMachinesResponse, ListTaskHistoryData, ListTaskHistoryError, ListTaskHistoryResponse, ListTasksData, ListTasksError, ListTasksResponse, ListVolumesData, ListVolumesResponse, MountVolumeData, MountVolumeResponse, PostApiV1AgentsEnrollData, PostApiV1AgentsEnrollError, RefreshRepositoryStatsData, RefreshRepositoryStatsResponse, RefreshSnapshotsData, RefreshSnapshotsResponse, RemoveOrgMemberData, ReorderBackupSchedulesData, ReorderBackupSchedulesError, ReorderBackupSchedulesResponse, RestoreSnapshotData, RestoreSnapshotError, RestoreSnapshotResponse, RevokeRemoteAgentTokenData, RevokeRemoteAgentTokenResponse, RotateRemoteAgentTokenData, RotateRemoteAgentTokenResponse, RunBackupNowData, RunBackupNowResponse, RunForgetData, RunForgetResponse, SetPasswordLoginStatusData, SetPasswordLoginStatusError, SetPasswordLoginStatusResponse, SetRegistrationStatusData, SetRegistrationStatusError, SetRegistrationStatusResponse, StartDoctorData, StartDoctorResponse, StartInvitationSsoVerificationData, StartMirrorStatusData, StartMirrorStatusResponse, SyncMirrorData, SyncMirrorError, SyncMirrorResponse, TagSnapshotsData, TagSnapshotsError, TagSnapshotsResponse, TestConnectionData, TestConnectionError, TestConnectionResponse, TestNotificationDestinationData, TestNotificationDestinationResponse, UnlockRepositoryData, UnlockRepositoryResponse, UnmountVolumeData, UnmountVolumeResponse, UpdateBackupScheduleData, UpdateBackupScheduleError, UpdateBackupScheduleResponse, UpdateMemberRoleData, UpdateMemberRoleError, UpdateNotificationDestinationData, UpdateNotificationDestinationError, UpdateNotificationDestinationResponse, UpdateRepositoryData, UpdateRepositoryResponse, UpdateScheduleMirrorsData, UpdateScheduleMirrorsError, UpdateScheduleMirrorsResponse, UpdateScheduleNotificationsData, UpdateScheduleNotificationsError, UpdateScheduleNotificationsResponse, UpdateSsoProviderAutoLinkingData, UpdateSsoProviderAutoLinkingError, UpdateVolumeData, UpdateVolumeError, UpdateVolumeResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -132,8 +132,8 @@ export const getOrgMembersOptions = (options?: Options<GetOrgMembersData>) => qu
 /**
  * Update a member's role in the active organization
  */
-export const updateMemberRoleMutation = (options?: Partial<Options<UpdateMemberRoleData>>): UseMutationOptions<unknown, DefaultError, Options<UpdateMemberRoleData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<UpdateMemberRoleData>> = {
+export const updateMemberRoleMutation = (options?: Partial<Options<UpdateMemberRoleData>>): UseMutationOptions<unknown, UpdateMemberRoleError, Options<UpdateMemberRoleData>> => {
+    const mutationOptions: UseMutationOptions<unknown, UpdateMemberRoleError, Options<UpdateMemberRoleData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateMemberRole({
                 ...options,
@@ -184,8 +184,8 @@ export const getApiKeysOptions = (options?: Options<GetApiKeysData>) => queryOpt
 /**
  * Create an API key for the current user in the active organization
  */
-export const createApiKeyMutation = (options?: Partial<Options<CreateApiKeyData>>): UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> => {
-    const mutationOptions: UseMutationOptions<CreateApiKeyResponse, DefaultError, Options<CreateApiKeyData>> = {
+export const createApiKeyMutation = (options?: Partial<Options<CreateApiKeyData>>): UseMutationOptions<CreateApiKeyResponse, CreateApiKeyError, Options<CreateApiKeyData>> => {
+    const mutationOptions: UseMutationOptions<CreateApiKeyResponse, CreateApiKeyError, Options<CreateApiKeyData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createApiKey({
                 ...options,
@@ -306,8 +306,8 @@ export const deleteSsoProviderMutation = (options?: Partial<Options<DeleteSsoPro
 /**
  * Update whether SSO sign-in can auto-link existing accounts by email
  */
-export const updateSsoProviderAutoLinkingMutation = (options?: Partial<Options<UpdateSsoProviderAutoLinkingData>>): UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<UpdateSsoProviderAutoLinkingData>> = {
+export const updateSsoProviderAutoLinkingMutation = (options?: Partial<Options<UpdateSsoProviderAutoLinkingData>>): UseMutationOptions<unknown, UpdateSsoProviderAutoLinkingError, Options<UpdateSsoProviderAutoLinkingData>> => {
+    const mutationOptions: UseMutationOptions<unknown, UpdateSsoProviderAutoLinkingError, Options<UpdateSsoProviderAutoLinkingData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateSsoProviderAutoLinking({
                 ...options,
@@ -358,8 +358,8 @@ export const listVolumesOptions = (options?: Options<ListVolumesData>) => queryO
 /**
  * Create a new volume
  */
-export const createVolumeMutation = (options?: Partial<Options<CreateVolumeData>>): UseMutationOptions<CreateVolumeResponse, DefaultError, Options<CreateVolumeData>> => {
-    const mutationOptions: UseMutationOptions<CreateVolumeResponse, DefaultError, Options<CreateVolumeData>> = {
+export const createVolumeMutation = (options?: Partial<Options<CreateVolumeData>>): UseMutationOptions<CreateVolumeResponse, CreateVolumeError, Options<CreateVolumeData>> => {
+    const mutationOptions: UseMutationOptions<CreateVolumeResponse, CreateVolumeError, Options<CreateVolumeData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createVolume({
                 ...options,
@@ -374,6 +374,9 @@ export const createVolumeMutation = (options?: Partial<Options<CreateVolumeData>
 
 export const listSourceMachinesQueryKey = (options?: Options<ListSourceMachinesData>) => createQueryKey('listSourceMachines', options);
 
+/**
+ * List organization-scoped machines and trusted roots available for filesystem sources
+ */
 export const listSourceMachinesOptions = (options?: Options<ListSourceMachinesData>) => queryOptions<ListSourceMachinesResponse, DefaultError, ListSourceMachinesResponse, ReturnType<typeof listSourceMachinesQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listSourceMachines({
@@ -390,8 +393,8 @@ export const listSourceMachinesOptions = (options?: Options<ListSourceMachinesDa
 /**
  * Test connection to backend
  */
-export const testConnectionMutation = (options?: Partial<Options<TestConnectionData>>): UseMutationOptions<TestConnectionResponse, DefaultError, Options<TestConnectionData>> => {
-    const mutationOptions: UseMutationOptions<TestConnectionResponse, DefaultError, Options<TestConnectionData>> = {
+export const testConnectionMutation = (options?: Partial<Options<TestConnectionData>>): UseMutationOptions<TestConnectionResponse, TestConnectionError, Options<TestConnectionData>> => {
+    const mutationOptions: UseMutationOptions<TestConnectionResponse, TestConnectionError, Options<TestConnectionData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await testConnection({
                 ...options,
@@ -442,8 +445,8 @@ export const getVolumeOptions = (options: Options<GetVolumeData>) => queryOption
 /**
  * Update a volume's configuration
  */
-export const updateVolumeMutation = (options?: Partial<Options<UpdateVolumeData>>): UseMutationOptions<UpdateVolumeResponse, DefaultError, Options<UpdateVolumeData>> => {
-    const mutationOptions: UseMutationOptions<UpdateVolumeResponse, DefaultError, Options<UpdateVolumeData>> = {
+export const updateVolumeMutation = (options?: Partial<Options<UpdateVolumeData>>): UseMutationOptions<UpdateVolumeResponse, UpdateVolumeError, Options<UpdateVolumeData>> => {
+    const mutationOptions: UseMutationOptions<UpdateVolumeResponse, UpdateVolumeError, Options<UpdateVolumeData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateVolume({
                 ...options,
@@ -512,7 +515,7 @@ export const listFilesQueryKey = (options: Options<ListFilesData>) => createQuer
 /**
  * List files in a volume directory
  */
-export const listFilesOptions = (options: Options<ListFilesData>) => queryOptions<ListFilesResponse, DefaultError, ListFilesResponse, ReturnType<typeof listFilesQueryKey>>({
+export const listFilesOptions = (options: Options<ListFilesData>) => queryOptions<ListFilesResponse, ListFilesError, ListFilesResponse, ReturnType<typeof listFilesQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listFiles({
             ...options,
@@ -560,7 +563,7 @@ export const listFilesInfiniteQueryKey = (options: Options<ListFilesData>): Quer
  * List files in a volume directory
  */
 export const listFilesInfiniteOptions = (options: Options<ListFilesData>) => {
-    const opts = infiniteQueryOptions<ListFilesResponse, DefaultError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    const opts = infiniteQueryOptions<ListFilesResponse, ListFilesError, InfiniteData<ListFilesResponse>, QueryKey<Options<ListFilesData>>, number | Pick<QueryKey<Options<ListFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
     // @ts-ignore
     {
         queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -623,8 +626,8 @@ export const listRepositoriesOptions = (options?: Options<ListRepositoriesData>)
 /**
  * Create a new restic repository
  */
-export const createRepositoryMutation = (options?: Partial<Options<CreateRepositoryData>>): UseMutationOptions<CreateRepositoryResponse, DefaultError, Options<CreateRepositoryData>> => {
-    const mutationOptions: UseMutationOptions<CreateRepositoryResponse, DefaultError, Options<CreateRepositoryData>> = {
+export const createRepositoryMutation = (options?: Partial<Options<CreateRepositoryData>>): UseMutationOptions<CreateRepositoryResponse, CreateRepositoryError, Options<CreateRepositoryData>> => {
+    const mutationOptions: UseMutationOptions<CreateRepositoryResponse, CreateRepositoryError, Options<CreateRepositoryData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createRepository({
                 ...options,
@@ -745,8 +748,8 @@ export const refreshRepositoryStatsMutation = (options?: Partial<Options<Refresh
 /**
  * Delete multiple snapshots from a repository
  */
-export const deleteSnapshotsMutation = (options?: Partial<Options<DeleteSnapshotsData>>): UseMutationOptions<DeleteSnapshotsResponse, DefaultError, Options<DeleteSnapshotsData>> => {
-    const mutationOptions: UseMutationOptions<DeleteSnapshotsResponse, DefaultError, Options<DeleteSnapshotsData>> = {
+export const deleteSnapshotsMutation = (options?: Partial<Options<DeleteSnapshotsData>>): UseMutationOptions<DeleteSnapshotsResponse, DeleteSnapshotsError, Options<DeleteSnapshotsData>> => {
+    const mutationOptions: UseMutationOptions<DeleteSnapshotsResponse, DeleteSnapshotsError, Options<DeleteSnapshotsData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await deleteSnapshots({
                 ...options,
@@ -764,7 +767,7 @@ export const listSnapshotsQueryKey = (options: Options<ListSnapshotsData>) => cr
 /**
  * List all snapshots in a repository
  */
-export const listSnapshotsOptions = (options: Options<ListSnapshotsData>) => queryOptions<ListSnapshotsResponse, DefaultError, ListSnapshotsResponse, ReturnType<typeof listSnapshotsQueryKey>>({
+export const listSnapshotsOptions = (options: Options<ListSnapshotsData>) => queryOptions<ListSnapshotsResponse, ListSnapshotsError, ListSnapshotsResponse, ReturnType<typeof listSnapshotsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listSnapshots({
             ...options,
@@ -834,7 +837,7 @@ export const listSnapshotFilesQueryKey = (options: Options<ListSnapshotFilesData
 /**
  * List files and directories in a snapshot
  */
-export const listSnapshotFilesOptions = (options: Options<ListSnapshotFilesData>) => queryOptions<ListSnapshotFilesResponse, DefaultError, ListSnapshotFilesResponse, ReturnType<typeof listSnapshotFilesQueryKey>>({
+export const listSnapshotFilesOptions = (options: Options<ListSnapshotFilesData>) => queryOptions<ListSnapshotFilesResponse, ListSnapshotFilesError, ListSnapshotFilesResponse, ReturnType<typeof listSnapshotFilesQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listSnapshotFiles({
             ...options,
@@ -853,7 +856,7 @@ export const listSnapshotFilesInfiniteQueryKey = (options: Options<ListSnapshotF
  * List files and directories in a snapshot
  */
 export const listSnapshotFilesInfiniteOptions = (options: Options<ListSnapshotFilesData>) => {
-    const opts = infiniteQueryOptions<ListSnapshotFilesResponse, DefaultError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    const opts = infiniteQueryOptions<ListSnapshotFilesResponse, ListSnapshotFilesError, InfiniteData<ListSnapshotFilesResponse>, QueryKey<Options<ListSnapshotFilesData>>, number | Pick<QueryKey<Options<ListSnapshotFilesData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
     // @ts-ignore
     {
         queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -882,7 +885,7 @@ export const dumpSnapshotQueryKey = (options: Options<DumpSnapshotData>) => crea
 /**
  * Download a snapshot path as a tar archive (folders) or raw file stream (single files)
  */
-export const dumpSnapshotOptions = (options: Options<DumpSnapshotData>) => queryOptions<DumpSnapshotResponse, DefaultError, DumpSnapshotResponse, ReturnType<typeof dumpSnapshotQueryKey>>({
+export const dumpSnapshotOptions = (options: Options<DumpSnapshotData>) => queryOptions<DumpSnapshotResponse, DumpSnapshotError, DumpSnapshotResponse, ReturnType<typeof dumpSnapshotQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await dumpSnapshot({
             ...options,
@@ -898,8 +901,8 @@ export const dumpSnapshotOptions = (options: Options<DumpSnapshotData>) => query
 /**
  * Restore a snapshot to a target path on the filesystem
  */
-export const restoreSnapshotMutation = (options?: Partial<Options<RestoreSnapshotData>>): UseMutationOptions<RestoreSnapshotResponse, DefaultError, Options<RestoreSnapshotData>> => {
-    const mutationOptions: UseMutationOptions<RestoreSnapshotResponse, DefaultError, Options<RestoreSnapshotData>> = {
+export const restoreSnapshotMutation = (options?: Partial<Options<RestoreSnapshotData>>): UseMutationOptions<RestoreSnapshotResponse, RestoreSnapshotError, Options<RestoreSnapshotData>> => {
+    const mutationOptions: UseMutationOptions<RestoreSnapshotResponse, RestoreSnapshotError, Options<RestoreSnapshotData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await restoreSnapshot({
                 ...options,
@@ -949,8 +952,8 @@ export const unlockRepositoryMutation = (options?: Partial<Options<UnlockReposit
 /**
  * Tag multiple snapshots in a repository
  */
-export const tagSnapshotsMutation = (options?: Partial<Options<TagSnapshotsData>>): UseMutationOptions<TagSnapshotsResponse, DefaultError, Options<TagSnapshotsData>> => {
-    const mutationOptions: UseMutationOptions<TagSnapshotsResponse, DefaultError, Options<TagSnapshotsData>> = {
+export const tagSnapshotsMutation = (options?: Partial<Options<TagSnapshotsData>>): UseMutationOptions<TagSnapshotsResponse, TagSnapshotsError, Options<TagSnapshotsData>> => {
+    const mutationOptions: UseMutationOptions<TagSnapshotsResponse, TagSnapshotsError, Options<TagSnapshotsData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await tagSnapshots({
                 ...options,
@@ -984,8 +987,8 @@ export const listBackupSchedulesOptions = (options?: Options<ListBackupSchedules
 /**
  * Create a new backup schedule for a volume
  */
-export const createBackupScheduleMutation = (options?: Partial<Options<CreateBackupScheduleData>>): UseMutationOptions<CreateBackupScheduleResponse, DefaultError, Options<CreateBackupScheduleData>> => {
-    const mutationOptions: UseMutationOptions<CreateBackupScheduleResponse, DefaultError, Options<CreateBackupScheduleData>> = {
+export const createBackupScheduleMutation = (options?: Partial<Options<CreateBackupScheduleData>>): UseMutationOptions<CreateBackupScheduleResponse, CreateBackupScheduleError, Options<CreateBackupScheduleData>> => {
+    const mutationOptions: UseMutationOptions<CreateBackupScheduleResponse, CreateBackupScheduleError, Options<CreateBackupScheduleData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createBackupSchedule({
                 ...options,
@@ -1036,8 +1039,8 @@ export const getBackupScheduleOptions = (options: Options<GetBackupScheduleData>
 /**
  * Update a backup schedule
  */
-export const updateBackupScheduleMutation = (options?: Partial<Options<UpdateBackupScheduleData>>): UseMutationOptions<UpdateBackupScheduleResponse, DefaultError, Options<UpdateBackupScheduleData>> => {
-    const mutationOptions: UseMutationOptions<UpdateBackupScheduleResponse, DefaultError, Options<UpdateBackupScheduleData>> = {
+export const updateBackupScheduleMutation = (options?: Partial<Options<UpdateBackupScheduleData>>): UseMutationOptions<UpdateBackupScheduleResponse, UpdateBackupScheduleError, Options<UpdateBackupScheduleData>> => {
+    const mutationOptions: UseMutationOptions<UpdateBackupScheduleResponse, UpdateBackupScheduleError, Options<UpdateBackupScheduleData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateBackupSchedule({
                 ...options,
@@ -1123,8 +1126,8 @@ export const getScheduleNotificationsOptions = (options: Options<GetScheduleNoti
 /**
  * Update notification assignments for a backup schedule
  */
-export const updateScheduleNotificationsMutation = (options?: Partial<Options<UpdateScheduleNotificationsData>>): UseMutationOptions<UpdateScheduleNotificationsResponse, DefaultError, Options<UpdateScheduleNotificationsData>> => {
-    const mutationOptions: UseMutationOptions<UpdateScheduleNotificationsResponse, DefaultError, Options<UpdateScheduleNotificationsData>> = {
+export const updateScheduleNotificationsMutation = (options?: Partial<Options<UpdateScheduleNotificationsData>>): UseMutationOptions<UpdateScheduleNotificationsResponse, UpdateScheduleNotificationsError, Options<UpdateScheduleNotificationsData>> => {
+    const mutationOptions: UseMutationOptions<UpdateScheduleNotificationsResponse, UpdateScheduleNotificationsError, Options<UpdateScheduleNotificationsData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateScheduleNotifications({
                 ...options,
@@ -1158,8 +1161,8 @@ export const getScheduleMirrorsOptions = (options: Options<GetScheduleMirrorsDat
 /**
  * Update mirror repository assignments for a backup schedule
  */
-export const updateScheduleMirrorsMutation = (options?: Partial<Options<UpdateScheduleMirrorsData>>): UseMutationOptions<UpdateScheduleMirrorsResponse, DefaultError, Options<UpdateScheduleMirrorsData>> => {
-    const mutationOptions: UseMutationOptions<UpdateScheduleMirrorsResponse, DefaultError, Options<UpdateScheduleMirrorsData>> = {
+export const updateScheduleMirrorsMutation = (options?: Partial<Options<UpdateScheduleMirrorsData>>): UseMutationOptions<UpdateScheduleMirrorsResponse, UpdateScheduleMirrorsError, Options<UpdateScheduleMirrorsData>> => {
+    const mutationOptions: UseMutationOptions<UpdateScheduleMirrorsResponse, UpdateScheduleMirrorsError, Options<UpdateScheduleMirrorsData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateScheduleMirrors({
                 ...options,
@@ -1192,8 +1195,8 @@ export const startMirrorStatusMutation = (options?: Partial<Options<StartMirrorS
 /**
  * Sync selected snapshots to a specific mirror repository
  */
-export const syncMirrorMutation = (options?: Partial<Options<SyncMirrorData>>): UseMutationOptions<SyncMirrorResponse, DefaultError, Options<SyncMirrorData>> => {
-    const mutationOptions: UseMutationOptions<SyncMirrorResponse, DefaultError, Options<SyncMirrorData>> = {
+export const syncMirrorMutation = (options?: Partial<Options<SyncMirrorData>>): UseMutationOptions<SyncMirrorResponse, SyncMirrorError, Options<SyncMirrorData>> => {
+    const mutationOptions: UseMutationOptions<SyncMirrorResponse, SyncMirrorError, Options<SyncMirrorData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await syncMirror({
                 ...options,
@@ -1227,8 +1230,8 @@ export const getMirrorCompatibilityOptions = (options: Options<GetMirrorCompatib
 /**
  * Reorder backup schedules by providing an array of schedule short IDs in the desired order
  */
-export const reorderBackupSchedulesMutation = (options?: Partial<Options<ReorderBackupSchedulesData>>): UseMutationOptions<ReorderBackupSchedulesResponse, DefaultError, Options<ReorderBackupSchedulesData>> => {
-    const mutationOptions: UseMutationOptions<ReorderBackupSchedulesResponse, DefaultError, Options<ReorderBackupSchedulesData>> = {
+export const reorderBackupSchedulesMutation = (options?: Partial<Options<ReorderBackupSchedulesData>>): UseMutationOptions<ReorderBackupSchedulesResponse, ReorderBackupSchedulesError, Options<ReorderBackupSchedulesData>> => {
+    const mutationOptions: UseMutationOptions<ReorderBackupSchedulesResponse, ReorderBackupSchedulesError, Options<ReorderBackupSchedulesData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await reorderBackupSchedules({
                 ...options,
@@ -1262,8 +1265,8 @@ export const listNotificationDestinationsOptions = (options?: Options<ListNotifi
 /**
  * Create a new notification destination
  */
-export const createNotificationDestinationMutation = (options?: Partial<Options<CreateNotificationDestinationData>>): UseMutationOptions<CreateNotificationDestinationResponse, DefaultError, Options<CreateNotificationDestinationData>> => {
-    const mutationOptions: UseMutationOptions<CreateNotificationDestinationResponse, DefaultError, Options<CreateNotificationDestinationData>> = {
+export const createNotificationDestinationMutation = (options?: Partial<Options<CreateNotificationDestinationData>>): UseMutationOptions<CreateNotificationDestinationResponse, CreateNotificationDestinationError, Options<CreateNotificationDestinationData>> => {
+    const mutationOptions: UseMutationOptions<CreateNotificationDestinationResponse, CreateNotificationDestinationError, Options<CreateNotificationDestinationData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createNotificationDestination({
                 ...options,
@@ -1314,8 +1317,8 @@ export const getNotificationDestinationOptions = (options: Options<GetNotificati
 /**
  * Update a notification destination
  */
-export const updateNotificationDestinationMutation = (options?: Partial<Options<UpdateNotificationDestinationData>>): UseMutationOptions<UpdateNotificationDestinationResponse, DefaultError, Options<UpdateNotificationDestinationData>> => {
-    const mutationOptions: UseMutationOptions<UpdateNotificationDestinationResponse, DefaultError, Options<UpdateNotificationDestinationData>> = {
+export const updateNotificationDestinationMutation = (options?: Partial<Options<UpdateNotificationDestinationData>>): UseMutationOptions<UpdateNotificationDestinationResponse, UpdateNotificationDestinationError, Options<UpdateNotificationDestinationData>> => {
+    const mutationOptions: UseMutationOptions<UpdateNotificationDestinationResponse, UpdateNotificationDestinationError, Options<UpdateNotificationDestinationData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await updateNotificationDestination({
                 ...options,
@@ -1402,8 +1405,8 @@ export const getRegistrationStatusOptions = (options?: Options<GetRegistrationSt
 /**
  * Update the registration status for new users. Requires global admin role.
  */
-export const setRegistrationStatusMutation = (options?: Partial<Options<SetRegistrationStatusData>>): UseMutationOptions<SetRegistrationStatusResponse, DefaultError, Options<SetRegistrationStatusData>> => {
-    const mutationOptions: UseMutationOptions<SetRegistrationStatusResponse, DefaultError, Options<SetRegistrationStatusData>> = {
+export const setRegistrationStatusMutation = (options?: Partial<Options<SetRegistrationStatusData>>): UseMutationOptions<SetRegistrationStatusResponse, SetRegistrationStatusError, Options<SetRegistrationStatusData>> => {
+    const mutationOptions: UseMutationOptions<SetRegistrationStatusResponse, SetRegistrationStatusError, Options<SetRegistrationStatusData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await setRegistrationStatus({
                 ...options,
@@ -1419,8 +1422,8 @@ export const setRegistrationStatusMutation = (options?: Partial<Options<SetRegis
 /**
  * Download the organization's Restic password for backup recovery. Requires organization owner or admin role and may require password re-authentication.
  */
-export const downloadResticPasswordMutation = (options?: Partial<Options<DownloadResticPasswordData>>): UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> => {
-    const mutationOptions: UseMutationOptions<DownloadResticPasswordResponse, DefaultError, Options<DownloadResticPasswordData>> = {
+export const downloadResticPasswordMutation = (options?: Partial<Options<DownloadResticPasswordData>>): UseMutationOptions<DownloadResticPasswordResponse, DownloadResticPasswordError, Options<DownloadResticPasswordData>> => {
+    const mutationOptions: UseMutationOptions<DownloadResticPasswordResponse, DownloadResticPasswordError, Options<DownloadResticPasswordData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await downloadResticPassword({
                 ...options,
@@ -1454,8 +1457,8 @@ export const getPasswordLoginStatusOptions = (options?: Options<GetPasswordLogin
 /**
  * Disable or re-enable password-based login. Requires global admin role.
  */
-export const setPasswordLoginStatusMutation = (options?: Partial<Options<SetPasswordLoginStatusData>>): UseMutationOptions<SetPasswordLoginStatusResponse, DefaultError, Options<SetPasswordLoginStatusData>> => {
-    const mutationOptions: UseMutationOptions<SetPasswordLoginStatusResponse, DefaultError, Options<SetPasswordLoginStatusData>> = {
+export const setPasswordLoginStatusMutation = (options?: Partial<Options<SetPasswordLoginStatusData>>): UseMutationOptions<SetPasswordLoginStatusResponse, SetPasswordLoginStatusError, Options<SetPasswordLoginStatusData>> => {
+    const mutationOptions: UseMutationOptions<SetPasswordLoginStatusResponse, SetPasswordLoginStatusError, Options<SetPasswordLoginStatusData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await setPasswordLoginStatus({
                 ...options,
@@ -1471,8 +1474,8 @@ export const setPasswordLoginStatusMutation = (options?: Partial<Options<SetPass
 /**
  * Export organization configuration encrypted with a dedicated export passphrase. Requires the recovery key download permission and may require password re-authentication.
  */
-export const exportConfigMutation = (options?: Partial<Options<ExportConfigData>>): UseMutationOptions<ExportConfigResponse, DefaultError, Options<ExportConfigData>> => {
-    const mutationOptions: UseMutationOptions<ExportConfigResponse, DefaultError, Options<ExportConfigData>> = {
+export const exportConfigMutation = (options?: Partial<Options<ExportConfigData>>): UseMutationOptions<ExportConfigResponse, ExportConfigError, Options<ExportConfigData>> => {
+    const mutationOptions: UseMutationOptions<ExportConfigResponse, ExportConfigError, Options<ExportConfigData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await exportConfig({
                 ...options,
@@ -1488,8 +1491,8 @@ export const exportConfigMutation = (options?: Partial<Options<ExportConfigData>
 /**
  * Import a passphrase-protected organization configuration during onboarding
  */
-export const importConfigMutation = (options?: Partial<Options<ImportConfigData>>): UseMutationOptions<ImportConfigResponse, DefaultError, Options<ImportConfigData>> => {
-    const mutationOptions: UseMutationOptions<ImportConfigResponse, DefaultError, Options<ImportConfigData>> = {
+export const importConfigMutation = (options?: Partial<Options<ImportConfigData>>): UseMutationOptions<ImportConfigResponse, ImportConfigError, Options<ImportConfigData>> => {
+    const mutationOptions: UseMutationOptions<ImportConfigResponse, ImportConfigError, Options<ImportConfigData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await importConfig({
                 ...options,
@@ -1525,7 +1528,7 @@ export const listTasksQueryKey = (options?: Options<ListTasksData>) => createQue
 /**
  * List active tasks
  */
-export const listTasksOptions = (options?: Options<ListTasksData>) => queryOptions<ListTasksResponse, DefaultError, ListTasksResponse, ReturnType<typeof listTasksQueryKey>>({
+export const listTasksOptions = (options?: Options<ListTasksData>) => queryOptions<ListTasksResponse, ListTasksError, ListTasksResponse, ReturnType<typeof listTasksQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listTasks({
             ...options,
@@ -1543,7 +1546,7 @@ export const listTaskHistoryQueryKey = (options?: Options<ListTaskHistoryData>) 
 /**
  * List persisted task history for the current organization
  */
-export const listTaskHistoryOptions = (options?: Options<ListTaskHistoryData>) => queryOptions<ListTaskHistoryResponse, DefaultError, ListTaskHistoryResponse, ReturnType<typeof listTaskHistoryQueryKey>>({
+export const listTaskHistoryOptions = (options?: Options<ListTaskHistoryData>) => queryOptions<ListTaskHistoryResponse, ListTaskHistoryError, ListTaskHistoryResponse, ReturnType<typeof listTaskHistoryQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
         const { data } = await listTaskHistory({
             ...options,
@@ -1562,7 +1565,7 @@ export const listTaskHistoryInfiniteQueryKey = (options?: Options<ListTaskHistor
  * List persisted task history for the current organization
  */
 export const listTaskHistoryInfiniteOptions = (options?: Options<ListTaskHistoryData>) => {
-    const opts = infiniteQueryOptions<ListTaskHistoryResponse, DefaultError, InfiniteData<ListTaskHistoryResponse>, QueryKey<Options<ListTaskHistoryData>>, number | Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    const opts = infiniteQueryOptions<ListTaskHistoryResponse, ListTaskHistoryError, InfiniteData<ListTaskHistoryResponse>, QueryKey<Options<ListTaskHistoryData>>, number | Pick<QueryKey<Options<ListTaskHistoryData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
     // @ts-ignore
     {
         queryFn: async ({ pageParam, queryKey, signal }) => {
@@ -1624,8 +1627,8 @@ export const cancelTaskMutation = (options?: Partial<Options<CancelTaskData>>): 
 /**
  * Create an authenticated desktop session
  */
-export const createDesktopSessionMutation = (options?: Partial<Options<CreateDesktopSessionData>>): UseMutationOptions<unknown, DefaultError, Options<CreateDesktopSessionData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<CreateDesktopSessionData>> = {
+export const createDesktopSessionMutation = (options?: Partial<Options<CreateDesktopSessionData>>): UseMutationOptions<unknown, CreateDesktopSessionError, Options<CreateDesktopSessionData>> => {
+    const mutationOptions: UseMutationOptions<unknown, CreateDesktopSessionError, Options<CreateDesktopSessionData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createDesktopSession({
                 ...options,
@@ -1638,10 +1641,24 @@ export const createDesktopSessionMutation = (options?: Partial<Options<CreateDes
     return mutationOptions;
 };
 
-export const postApiV1AgentsEnrollMutation = (options?: Partial<Options<PostApiV1AgentsEnrollData>>): UseMutationOptions<unknown, DefaultError, Options<PostApiV1AgentsEnrollData>> => {
-    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<PostApiV1AgentsEnrollData>> = {
+export const postApiV1AgentsEnrollMutation = (options?: Partial<Options<PostApiV1AgentsEnrollData>>): UseMutationOptions<unknown, PostApiV1AgentsEnrollError, Options<PostApiV1AgentsEnrollData>> => {
+    const mutationOptions: UseMutationOptions<unknown, PostApiV1AgentsEnrollError, Options<PostApiV1AgentsEnrollData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await postApiV1AgentsEnroll({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const deleteRemoteAgentMutation = (options?: Partial<Options<DeleteRemoteAgentData>>): UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> => {
+    const mutationOptions: UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteRemoteAgent({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
@@ -1667,8 +1684,8 @@ export const listAgentsOptions = (options?: Options<ListAgentsData>) => queryOpt
     queryKey: listAgentsQueryKey(options)
 });
 
-export const createRemoteAgentMutation = (options?: Partial<Options<CreateRemoteAgentData>>): UseMutationOptions<CreateRemoteAgentResponse, DefaultError, Options<CreateRemoteAgentData>> => {
-    const mutationOptions: UseMutationOptions<CreateRemoteAgentResponse, DefaultError, Options<CreateRemoteAgentData>> = {
+export const createRemoteAgentMutation = (options?: Partial<Options<CreateRemoteAgentData>>): UseMutationOptions<CreateRemoteAgentResponse, CreateRemoteAgentError, Options<CreateRemoteAgentData>> => {
+    const mutationOptions: UseMutationOptions<CreateRemoteAgentResponse, CreateRemoteAgentError, Options<CreateRemoteAgentData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await createRemoteAgent({
                 ...options,
@@ -1699,23 +1716,6 @@ export const revokeRemoteAgentTokenMutation = (options?: Partial<Options<RevokeR
     const mutationOptions: UseMutationOptions<RevokeRemoteAgentTokenResponse, DefaultError, Options<RevokeRemoteAgentTokenData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await revokeRemoteAgentToken({
-                ...options,
-                ...fnOptions,
-                throwOnError: true
-            });
-            return data;
-        }
-    };
-    return mutationOptions;
-};
-
-import { deleteRemoteAgent } from '../sdk.gen';
-import type { DeleteRemoteAgentData, DeleteRemoteAgentResponse } from '../types.gen';
-
-export const deleteRemoteAgentMutation = (options?: Partial<Options<DeleteRemoteAgentData>>): UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> => {
-    const mutationOptions: UseMutationOptions<DeleteRemoteAgentResponse, DefaultError, Options<DeleteRemoteAgentData>> = {
-        mutationFn: async (fnOptions) => {
-            const { data } = await deleteRemoteAgent({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

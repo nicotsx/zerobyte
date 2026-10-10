@@ -7,11 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { Label } from "~/client/components/ui/label";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { TrustedRootBrowser } from "./trusted-root-browser";
-import type { RemoteSourcePresentation } from "../source-presentation";
+import type { FilesystemSourcePresentation } from "../source-presentation";
 
 export type AgentFilesystemFormValues = {
 	name: string;
-	sourceKind: "agent-filesystem";
+	sourceKind: "filesystem";
 	agentId: string;
 	trustedRootId: string;
 	relativePath: string;
@@ -39,7 +39,7 @@ type Props = {
 
 type EditProps = Props & {
 	initialName: string;
-	currentLocation: RemoteSourcePresentation;
+	currentLocation: FilesystemSourcePresentation;
 	onRename: (name: string) => void;
 };
 
@@ -405,7 +405,7 @@ function SourceForm({
 
 		onSubmit({
 			name: trimmedName,
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: location.agentId,
 			trustedRootId: location.rootId,
 			relativePath: location.relativePath,

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { TRUSTED_ROOT_PATH_PREFIX } from "@zerobyte/contracts/volumes";
 import { browseFilesystemOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { FolderSelector } from "~/client/components/folder-selector";
 import { Label } from "~/client/components/ui/label";
@@ -37,12 +36,7 @@ export const TrustedRootBrowser = ({
 		refetchOnMount: "always",
 	});
 
-	const verified =
-		active &&
-		query.isSuccess &&
-		!query.isError &&
-		!query.isFetching &&
-		query.data.path === `${TRUSTED_ROOT_PATH_PREFIX}${path}`;
+	const verified = active && query.isSuccess && !query.isError && !query.isFetching && query.data.path === path;
 	const verificationFailed = query.isError || (query.isSuccess && !query.isFetching && !verified && active);
 	const message = verificationFailed
 		? "Could not load folders from this location. Retry or choose another folder."

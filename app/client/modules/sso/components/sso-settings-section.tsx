@@ -33,6 +33,7 @@ import { useTimeFormat } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
 import { cn } from "~/client/lib/utils";
+import { parseError } from "~/client/lib/errors";
 import { useServerFn } from "@tanstack/react-start";
 
 type InvitationRole = "member" | "admin" | "owner";
@@ -60,7 +61,7 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 			toast.success(v.body?.enabled ? "Automatic account linking enabled" : "Automatic account linking disabled");
 		},
 		onError: (error) => {
-			toast.error("Failed to update provider", { description: error.message });
+			toast.error("Failed to update provider", { description: parseError(error)?.message });
 		},
 	});
 
@@ -139,7 +140,9 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 				<div className="flex items-center justify-between gap-3">
 					<div className="space-y-1">
 						<p className="text-sm font-medium">Registered providers</p>
-						<p className="text-xs text-muted-foreground">Manage identity providers used for organization sign-in.</p>
+						<p className="text-xs text-muted-foreground">
+							Manage identity providers used for organization sign-in.
+						</p>
 					</div>
 
 					<Button
@@ -153,8 +156,8 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 
 				<Alert variant="warning">
 					<AlertDescription>
-						Only enable automatic account linking for identity providers you trust. You can change this per provider at
-						any time.
+						Only enable automatic account linking for identity providers you trust. You can change this per
+						provider at any time.
 					</AlertDescription>
 				</Alert>
 
@@ -179,7 +182,9 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 									<TableCell className="break-all">{provider.issuer}</TableCell>
 									<TableCell>
 										<div className="flex items-center gap-2">
-											<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">{provider.type}</span>
+											<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">
+												{provider.type}
+											</span>
 										</div>
 									</TableCell>
 									<TableCell>
@@ -226,15 +231,20 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 												<AlertDialogHeader>
 													<AlertDialogTitle>Delete SSO provider</AlertDialogTitle>
 													<AlertDialogDescription>
-														Are you sure you want to delete the SSO provider <strong>{provider.providerId}</strong>?
-														This action cannot be undone.
+														Are you sure you want to delete the SSO provider{" "}
+														<strong>{provider.providerId}</strong>? This action cannot be
+														undone.
 													</AlertDialogDescription>
 												</AlertDialogHeader>
 												<AlertDialogFooter>
 													<AlertDialogCancel>Cancel</AlertDialogCancel>
 													<AlertDialogAction
 														className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-														onClick={() => deleteProviderMutation.mutate({ path: { providerId: provider.providerId } })}
+														onClick={() =>
+															deleteProviderMutation.mutate({
+																path: { providerId: provider.providerId },
+															})
+														}
 													>
 														Delete
 													</AlertDialogAction>
@@ -352,7 +362,11 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 											title="Delete invitation"
 											loading={deleteInvitationMutation.isPending}
 											disabled={deleteInvitationMutation.isPending}
-											onClick={() => deleteInvitationMutation.mutate({ path: { invitationId: invitation.id } })}
+											onClick={() =>
+												deleteInvitationMutation.mutate({
+													path: { invitationId: invitation.id },
+												})
+											}
 											className={cn({ hidden: invitation.status === "pending" })}
 										>
 											<Trash2 className="h-4 w-4 text-destructive" />

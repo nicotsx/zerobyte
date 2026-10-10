@@ -24,7 +24,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
 	};
 });
 
-const createSchedule = (sourceKind: "managed" | "agent-filesystem", availability = "available", status = "mounted") => {
+const createSchedule = (sourceKind: "managed" | "filesystem", availability = "available", status = "mounted") => {
 	const volume =
 		sourceKind === "managed"
 			? { name: "Documents", shortId: "volume-1", sourceKind, agentId: "local", sourceLocation: null }
@@ -76,7 +76,7 @@ afterEach(() => {
 
 describe("schedule source context", () => {
 	test("shows remote machine, source, and repository and gates an offline run", async () => {
-		renderSummary(createSchedule("agent-filesystem", "offline"));
+		renderSummary(createSchedule("filesystem", "offline"));
 
 		expect(await screen.findByText("Backup NAS · Family photos")).toBeTruthy();
 		expect(screen.getAllByText("Cloud archive")).toHaveLength(2);
@@ -98,7 +98,7 @@ describe("schedule source context", () => {
 	});
 
 	test("allows retrying a ready source after a cached health failure", async () => {
-		renderSummary(createSchedule("agent-filesystem", "available", "error"));
+		renderSummary(createSchedule("filesystem", "available", "error"));
 
 		const runButton = await screen.findByRole("button", { name: "Backup now" });
 		expect(runButton.hasAttribute("disabled")).toBe(false);
@@ -107,7 +107,7 @@ describe("schedule source context", () => {
 	test.each(["local", "rclone"] as const)(
 		"disables manual runs for legacy remote schedules using a %s repository",
 		async (type) => {
-			const schedule = createSchedule("agent-filesystem");
+			const schedule = createSchedule("filesystem");
 			schedule.repository.type = type;
 			renderSummary(schedule);
 
@@ -117,7 +117,7 @@ describe("schedule source context", () => {
 	);
 
 	test("renders source names containing the context delimiter without splitting them", () => {
-		const schedule = createSchedule("agent-filesystem");
+		const schedule = createSchedule("filesystem");
 		schedule.volume.name = "Family → photos";
 		const sourceLocation = schedule.volume.sourceLocation;
 		if (!sourceLocation) {

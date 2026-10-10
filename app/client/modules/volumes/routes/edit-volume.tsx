@@ -27,7 +27,7 @@ import {
 	type AgentFilesystemFormValues,
 	type SourceDiscovery,
 } from "../components/agent-filesystem-source-form";
-import { getRemoteSourcePresentation } from "../source-presentation";
+import { getFilesystemSourcePresentation } from "../source-presentation";
 import { useSourceDiscovery } from "./source-discovery";
 
 export function EditVolumePage({ volumeId }: { volumeId: string }) {
@@ -44,9 +44,9 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 	const { volume } = data;
 	const permissions = usePermissions();
 
-	const isRemoteVolume = volume.sourceKind === "agent-filesystem";
+	const isFilesystemVolume = volume.sourceKind === "filesystem";
 	const supportsRemoteSources = permissions.hasRuntimeFeature("remoteAgents");
-	const canDiscoverRemoteSources = isRemoteVolume && supportsRemoteSources;
+	const canDiscoverRemoteSources = isFilesystemVolume && supportsRemoteSources;
 
 	const { isReady: remoteDiscoveryIsReady, sourceDiscovery: discoveredSourceDiscovery } =
 		useSourceDiscovery(canDiscoverRemoteSources);
@@ -106,7 +106,7 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 
 	let sourceDiscovery: SourceDiscovery = discoveredSourceDiscovery;
 
-	if (isRemoteVolume && !supportsRemoteSources) sourceDiscovery = { status: "unsupported" };
+	if (isFilesystemVolume && !supportsRemoteSources) sourceDiscovery = { status: "unsupported" };
 
 	return (
 		<>
@@ -142,7 +142,7 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 								loading={updateVolume.isPending}
 							/>
 						)}
-						{volume.sourceKind === "agent-filesystem" && (
+						{volume.sourceKind === "filesystem" && (
 							<EditAgentFilesystemSourceForm
 								formId={formId}
 								discovery={sourceDiscovery}
@@ -150,7 +150,7 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 								loading={updateVolume.isPending}
 								onSubmit={updateRemoteLocation}
 								onRename={updateRemoteName}
-								currentLocation={getRemoteSourcePresentation(volume)}
+								currentLocation={getFilesystemSourcePresentation(volume)}
 							/>
 						)}
 						<div className="flex justify-end gap-2 pt-4 border-t">

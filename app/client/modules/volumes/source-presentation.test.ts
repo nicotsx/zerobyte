@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { getRemoteSourcePresentation } from "./source-presentation";
+import { getFilesystemSourcePresentation } from "./source-presentation";
 
-type RemoteVolumeState = Parameters<typeof getRemoteSourcePresentation>[0];
-type SourceLocation = RemoteVolumeState["sourceLocation"];
+type FilesystemVolumeState = Parameters<typeof getFilesystemSourcePresentation>[0];
+type SourceLocation = FilesystemVolumeState["sourceLocation"];
 
 const availabilityCases = [
 	["disabled", "Unavailable", "neutral"],
@@ -17,13 +17,17 @@ const availabilityCases = [
 	["root-removed", "Needs attention", "error"],
 	["backup-disabled", "Needs attention", "warning"],
 ] satisfies ReadonlyArray<
-	readonly [SourceLocation["availability"], string, ReturnType<typeof getRemoteSourcePresentation>["statusVariant"]]
+	readonly [
+		SourceLocation["availability"],
+		string,
+		ReturnType<typeof getFilesystemSourcePresentation>["statusVariant"],
+	]
 >;
 
 const sourceLocation = (
 	availability: SourceLocation["availability"],
 	relativePath = "projects/website",
-): RemoteVolumeState => {
+): FilesystemVolumeState => {
 	const location: SourceLocation = {
 		machine: { id: "machine-id", name: "Backup workstation", status: "online", lastSeenAt: 1, revokedAt: null },
 		root: { id: "root-id", label: "Work files", canBackup: true },
@@ -37,7 +41,7 @@ describe("remote source presentation", () => {
 	test.each(availabilityCases)(
 		"maps %s to an explicit %s status with the %s variant",
 		(availability, expectedStatus, expectedVariant) => {
-			const presentation = getRemoteSourcePresentation(sourceLocation(availability));
+			const presentation = getFilesystemSourcePresentation(sourceLocation(availability));
 			const expectedActionability = availability === "available";
 
 			expect(presentation.status).toBe(expectedStatus);
@@ -50,8 +54,8 @@ describe("remote source presentation", () => {
 	);
 
 	test("shows compact context for nested and whole allowed locations", () => {
-		const nested = getRemoteSourcePresentation(sourceLocation("available"));
-		const wholeLocation = getRemoteSourcePresentation(sourceLocation("available", ""));
+		const nested = getFilesystemSourcePresentation(sourceLocation("available"));
+		const wholeLocation = getFilesystemSourcePresentation(sourceLocation("available", ""));
 
 		expect(nested.context).toBe("Backup workstation · Work files/projects/website");
 		expect(wholeLocation.context).toBe("Backup workstation · Work files (whole allowed location)");
@@ -65,7 +69,7 @@ describe("remote source presentation", () => {
 		const volume = sourceLocation("available");
 		volume.status = status;
 
-		const presentation = getRemoteSourcePresentation(volume);
+		const presentation = getFilesystemSourcePresentation(volume);
 
 		expect(presentation.status).toBe(expected);
 		expect(presentation.isActionable).toBe(true);
@@ -74,7 +78,7 @@ describe("remote source presentation", () => {
 	test("keeps a ready source actionable while showing an observed failure", () => {
 		const volume = sourceLocation("available");
 		volume.status = "error";
-		const failedPresentation = getRemoteSourcePresentation(volume);
+		const failedPresentation = getFilesystemSourcePresentation(volume);
 
 		expect(failedPresentation.status).toBe("Needs attention");
 		expect(failedPresentation.isActionable).toBe(true);
@@ -82,7 +86,7 @@ describe("remote source presentation", () => {
 		expect(failedPresentation.explanation).toContain("most recent availability check");
 
 		volume.status = "mounted";
-		const recoveredPresentation = getRemoteSourcePresentation(volume);
+		const recoveredPresentation = getFilesystemSourcePresentation(volume);
 
 		expect(recoveredPresentation.status).toBe("Available");
 		expect(recoveredPresentation.isActionable).toBe(true);
@@ -97,7 +101,7 @@ describe("remote source presentation", () => {
 		const volume = sourceLocation(availability);
 		volume.status = "error";
 
-		const presentation = getRemoteSourcePresentation(volume);
+		const presentation = getFilesystemSourcePresentation(volume);
 
 		expect(presentation.explanation).toContain(explanation);
 	});
@@ -106,7 +110,7 @@ describe("remote source presentation", () => {
 		const maliciousLocation = sourceLocation("root-removed", "/Users/test-user/private");
 		maliciousLocation.sourceLocation.machine.name = "C:\\Users\\test-user";
 		maliciousLocation.sourceLocation.root.label = "/srv/customer-secrets";
-		const presentation = getRemoteSourcePresentation(maliciousLocation);
+		const presentation = getFilesystemSourcePresentation(maliciousLocation);
 
 		expect(presentation.context).toBe("Unnamed machine · Allowed location/Selected folder");
 		expect(presentation.context).not.toContain("Users");
@@ -119,7 +123,7 @@ describe("remote source presentation", () => {
 		const missingLabels = sourceLocation("missing-agent", "");
 		missingLabels.sourceLocation.machine.name = "\u0000";
 		missingLabels.sourceLocation.root.label = "   ";
-		const presentation = getRemoteSourcePresentation(missingLabels);
+		const presentation = getFilesystemSourcePresentation(missingLabels);
 
 		expect(presentation.context).toBe("Unnamed machine · Allowed location (whole allowed location)");
 	});
@@ -129,7 +133,7 @@ describe("remote source presentation", () => {
 		unsafeLabels.sourceLocation.machine.name = "~backup";
 		unsafeLabels.sourceLocation.root.label = "..";
 
-		const presentation = getRemoteSourcePresentation(unsafeLabels);
+		const presentation = getFilesystemSourcePresentation(unsafeLabels);
 
 		expect(presentation.machine).toBe("Unnamed machine");
 		expect(presentation.location).toBe("Allowed location");

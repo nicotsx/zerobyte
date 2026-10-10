@@ -4,7 +4,7 @@ import {
 	type BackupSource,
 } from "@zerobyte/contracts/backup-context";
 import type { Repository, Volume } from "~/client/lib/types";
-import { isRemoteSourceActionable } from "~/client/modules/volumes/source-presentation";
+import { isFilesystemSourceActionable } from "~/client/modules/volumes/source-presentation";
 
 export const getBackupSource = (volume: Volume): BackupSource => {
 	if (volume.sourceKind === "managed") {
@@ -12,7 +12,7 @@ export const getBackupSource = (volume: Volume): BackupSource => {
 	}
 
 	const agentKind = volume.agentId === BUILT_IN_LOCAL_AGENT_ID ? "local" : "remote";
-	return { kind: "agent-filesystem", agentKind };
+	return { kind: "filesystem", agentKind };
 };
 
 export const getRepositoryCompatibility = (volume: Volume, repository: Pick<Repository, "type">) => {
@@ -41,7 +41,7 @@ export const getBackupRunBlockReason = (volume: Volume, repository: Pick<Reposit
 		return null;
 	}
 
-	const sourceIsActionable = isRemoteSourceActionable(volume.sourceLocation);
+	const sourceIsActionable = isFilesystemSourceActionable(volume.sourceLocation);
 	if (sourceIsActionable) {
 		return null;
 	}

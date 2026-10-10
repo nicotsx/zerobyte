@@ -57,12 +57,12 @@ const volumeBase = {
 };
 
 type VolumeDetail = GetVolumeResponse["volume"];
-type RemoteVolume = Extract<VolumeDetail, { sourceKind: "agent-filesystem" }>;
-type RemoteAvailability = RemoteVolume["sourceLocation"]["availability"];
+type FilesystemVolume = Extract<VolumeDetail, { sourceKind: "filesystem" }>;
+type RemoteAvailability = FilesystemVolume["sourceLocation"]["availability"];
 type UpdateVolumeBody = UpdateVolumeData["body"];
 type SourceMachine = ListSourceMachinesResponse[number];
 
-const remoteVolume = (availability: RemoteAvailability): RemoteVolume => {
+const remoteVolume = (availability: RemoteAvailability): FilesystemVolume => {
 	const machineName = availability === "missing-agent" ? "Unavailable machine" : "Archive node";
 	const machineStatus = availability === "available" ? "online" : "offline";
 	const revokedAt = availability === "revoked" ? 1 : null;
@@ -73,7 +73,7 @@ const remoteVolume = (availability: RemoteAvailability): RemoteVolume => {
 		config: null,
 		type: null,
 		agentId: "archive-node",
-		sourceKind: "agent-filesystem",
+		sourceKind: "filesystem",
 		trustedRootId: "photos",
 		relativePath: "family",
 		sourceLocation: {
@@ -89,7 +89,7 @@ const remoteVolume = (availability: RemoteAvailability): RemoteVolume => {
 			availability,
 		},
 		path: "/",
-	} satisfies RemoteVolume;
+	} satisfies FilesystemVolume;
 	return volume;
 };
 
@@ -217,9 +217,7 @@ describe("EditVolumePage source forms", () => {
 		server.use(
 			http.get("/api/v1/volumes/source-1", () => HttpResponse.json(detail(volume))),
 			http.get("/api/v1/volumes/source-machines", () => HttpResponse.json([machine])),
-			http.get("/api/v1/volumes/filesystem/browse", () =>
-				HttpResponse.json({ directories: [], path: "trusted-root:" }),
-			),
+			http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ directories: [], path: "" })),
 			http.put("/api/v1/volumes/source-1", async ({ request }) => {
 				submittedBody = (await request.json()) as UpdateVolumeBody;
 				return HttpResponse.json(volume);
@@ -251,7 +249,7 @@ describe("EditVolumePage source forms", () => {
 		await waitFor(() => expect(submittedBody).toBeDefined());
 		expect(submittedBody).toEqual({
 			name: "Archive",
-			sourceKind: "agent-filesystem",
+			sourceKind: "filesystem",
 			agentId: "remote-machine-node",
 			trustedRootId: "projects",
 			relativePath: "",
@@ -315,9 +313,7 @@ describe("EditVolumePage source forms", () => {
 				const availability = status === "online" ? "available" : "offline";
 				return HttpResponse.json([{ ...currentMachine, status, availability }]);
 			}),
-			http.get("/api/v1/volumes/filesystem/browse", () =>
-				HttpResponse.json({ directories: [], path: "trusted-root:" }),
-			),
+			http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ directories: [], path: "" })),
 		);
 
 		const view = render(<EditVolumePage volumeId="source-1" />, { withSuspense: true });
@@ -360,9 +356,7 @@ describe("EditVolumePage source forms", () => {
 				}
 				return HttpResponse.json([currentMachine]);
 			}),
-			http.get("/api/v1/volumes/filesystem/browse", () =>
-				HttpResponse.json({ directories: [], path: "trusted-root:" }),
-			),
+			http.get("/api/v1/volumes/filesystem/browse", () => HttpResponse.json({ directories: [], path: "" })),
 		);
 
 		const view = render(<EditVolumePage volumeId="source-1" />, { withSuspense: true });

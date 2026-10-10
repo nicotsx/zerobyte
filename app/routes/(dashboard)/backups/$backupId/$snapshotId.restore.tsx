@@ -45,7 +45,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			hasNonPosixSnapshotPaths,
 			volumeReadOnly: schedule.data.volume.config?.readOnly ?? false,
 			sourceOrigin:
-				source.kind === "agent-filesystem" && source.agentKind === "remote"
+				source.kind === "filesystem" && source.agentKind === "remote"
 					? ("remote" as const)
 					: ("local" as const),
 		};

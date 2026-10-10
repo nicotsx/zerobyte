@@ -2,12 +2,12 @@ import type { PresentedVolume } from "~/client/lib/types";
 import type { StatusVariant } from "~/client/components/status-dot";
 import { getSafeAllowedLocationLabel, getSafeMachinePresentationLabel } from "~/lib/safe-presentation-label";
 
-type RemoteVolume = Extract<PresentedVolume, { sourceKind: "agent-filesystem" }>;
-type SourceLocation = RemoteVolume["sourceLocation"];
+type FilesystemVolume = Extract<PresentedVolume, { sourceKind: "filesystem" }>;
+type SourceLocation = FilesystemVolume["sourceLocation"];
 type Availability = SourceLocation["availability"];
-type RemoteVolumeState = Pick<RemoteVolume, "sourceLocation" | "status">;
+type FilesystemVolumeState = Pick<FilesystemVolume, "sourceLocation" | "status">;
 
-export type RemoteSourcePresentation = {
+export type FilesystemSourcePresentation = {
 	status: "Available" | "Unavailable" | "Needs attention";
 	statusVariant: Exclude<StatusVariant, "info">;
 	context: string;
@@ -41,7 +41,7 @@ const safeLogicalFolder = (value: string) => {
 
 const availabilityCopy: Record<
 	Availability,
-	Pick<RemoteSourcePresentation, "status" | "statusVariant" | "explanation" | "guidance">
+	Pick<FilesystemSourcePresentation, "status" | "statusVariant" | "explanation" | "guidance">
 > = {
 	disabled: {
 		status: "Unavailable",
@@ -116,12 +116,12 @@ const observedFailureCopy = {
 	statusVariant: "error",
 	explanation: "The source could not be reached during its most recent availability check.",
 	guidance: "Check the machine and allowed location, then check availability again.",
-} satisfies Pick<RemoteSourcePresentation, "status" | "statusVariant" | "explanation" | "guidance">;
+} satisfies Pick<FilesystemSourcePresentation, "status" | "statusVariant" | "explanation" | "guidance">;
 
-export const isRemoteSourceActionable = (sourceLocation: Pick<SourceLocation, "availability">) =>
+export const isFilesystemSourceActionable = (sourceLocation: Pick<SourceLocation, "availability">) =>
 	sourceLocation.availability === "available";
 
-export const getRemoteSourcePresentation = (volume: RemoteVolumeState): RemoteSourcePresentation => {
+export const getFilesystemSourcePresentation = (volume: FilesystemVolumeState): FilesystemSourcePresentation => {
 	const sourceLocation = volume.sourceLocation;
 	const machine = getSafeMachinePresentationLabel(sourceLocation.machine.name);
 	const location = getSafeAllowedLocationLabel(sourceLocation.root.label);
@@ -133,7 +133,7 @@ export const getRemoteSourcePresentation = (volume: RemoteVolumeState): RemoteSo
 			: `${location}/${logicalFolder}`;
 	const context = `${machine} · ${locationContext}`;
 
-	const isActionable = isRemoteSourceActionable(sourceLocation);
+	const isActionable = isFilesystemSourceActionable(sourceLocation);
 	const hasObservedFailure = volume.status === "error";
 
 	const copy =
