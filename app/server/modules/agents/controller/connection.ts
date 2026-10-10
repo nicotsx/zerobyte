@@ -173,8 +173,11 @@ export class AgentConnection {
 		)
 			return false;
 
-		if (capability === "restore" && this.data.agentKind !== "local") return false;
-		return this.capabilities?.[capability] === true;
+		if (capability === "restore") {
+			return this.data.agentKind === "local" && this.capabilities?.restore === true;
+		}
+
+		return this.capabilities?.trustedRoots?.some((root) => root.canBackup) === true;
 	}
 
 	allowsFilesystem(command: FilesystemCommand, organizationId: string) {

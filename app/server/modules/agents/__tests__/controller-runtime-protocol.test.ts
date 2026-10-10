@@ -160,7 +160,7 @@ test("websocket lifecycle updates agent connection status", async () => {
 		LOCAL_AGENT_ID,
 		expect.any(Number),
 		expect.objectContaining({
-			backup: true,
+			trustedRoots: readyPayload.capabilities.trustedRoots,
 			protocolVersion: AGENT_PROTOCOL_VERSION,
 			protocolCompatible: true,
 			hostname: "host",

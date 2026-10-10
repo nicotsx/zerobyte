@@ -31,7 +31,7 @@ test("dispatches filesystem commands for advertised remote roots", async () => {
 	try {
 		const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
 		const trustedRootRegistry = createTrustedRootRegistry({ rawRoots });
-		const capabilities = { filesystem: true, trustedRoots: getTrustedRootDescriptors(trustedRootRegistry) };
+		const capabilities = { trustedRoots: getTrustedRootDescriptors(trustedRootRegistry) };
 		const socket = createSocket(data.id, data.agentId);
 		const sentCommands: FilesystemCommandPayload[] = [];
 		socket.send.mockImplementation((text) => {
@@ -117,7 +117,6 @@ test.each([
 					...readyPayload,
 					agentId: connection.agentId,
 					capabilities: {
-						filesystem: true,
 						trustedRoots: advertised
 							? [{ id: "local-filesystem", label: "Filesystem", canBackup: true }]
 							: [],

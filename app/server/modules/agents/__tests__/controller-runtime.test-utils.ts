@@ -42,9 +42,7 @@ export const readyPayload = {
 	hostname: "host",
 	platform: "linux",
 	capabilities: {
-		backup: true,
 		restore: true,
-		filesystem: true,
 		trustedRoots: [{ id: "root", label: "Root", canBackup: true }],
 	},
 };

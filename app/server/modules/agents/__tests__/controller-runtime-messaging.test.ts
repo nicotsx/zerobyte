@@ -67,7 +67,7 @@ test("outbound admission rejects capability and organization mismatches for comm
 	const ready = {
 		...readyPayload,
 		agentId: data.agentId,
-		capabilities: { backup: false, restore: false, filesystem: false },
+		capabilities: { restore: false, trustedRoots: [] },
 	};
 	await runtime.handleConnectionMessage(data.agentId, data.id, createAgentMessage("agent.ready", ready));
 	const wrongOrganizationBackup = { ...backupPayload, organizationId: "org-2" };
