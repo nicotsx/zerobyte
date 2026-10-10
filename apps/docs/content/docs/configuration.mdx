@@ -59,7 +59,7 @@ Standalone agents expose local files through an explicit allow-list. Enrollment 
 ZEROBYTE_AGENT_ROOTS='[{"id":"data","label":"Application data","path":"/srv/data"}]'
 ```
 
-IDs and labels must be unique and non-empty. Paths are expanded and canonicalized by the agent at startup; invalid or missing paths prevent startup. Only the ID, label, and backup capability are advertised to the controller. Absolute host paths are never sent. Remote restore is not supported. Enrolled CLI agents load their saved roots when this variable is absent. When both `ZEROBYTE_AGENT_TOKEN` and `ZEROBYTE_CONTROLLER_URL` are set, the agent uses environment configuration instead; set `ZEROBYTE_AGENT_ROOTS` as well or it advertises no filesystem roots. The supervised built-in local agent separately provides its compatibility root for existing local workflows.
+IDs and labels must be unique and non-empty. Paths are expanded and canonicalized by the agent at startup; invalid or missing paths prevent startup. Only the ID, label, and backup capability are advertised to the controller. Absolute host paths are never sent. Remote restore is not supported. Enrolled CLI agents load their saved roots when this variable is absent. When both `ZEROBYTE_AGENT_TOKEN` and `ZEROBYTE_CONTROLLER_URL` are set, the agent uses environment configuration instead; set `ZEROBYTE_AGENT_ROOTS` as well or it advertises no filesystem roots. The supervised built-in local agent always exposes `local-filesystem`, which points to its filesystem root (`/` on Linux and macOS). Additional configured roots are added alongside it and cannot replace it. Local and remote agents use the same root ID and relative-path protocol; managed local volumes use `local-filesystem` too.
 
 ## Using APP_SECRET_FILE
 
