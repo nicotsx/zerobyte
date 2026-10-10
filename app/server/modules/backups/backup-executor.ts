@@ -5,7 +5,7 @@ import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { volumeService } from "../volumes/volume.service";
-import { getVolumePath } from "../volumes/helpers";
+import { getLocalFilesystemSource, getVolumePath } from "../volumes/helpers";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
 import { BadRequestError } from "http-errors-enhanced";
 
@@ -57,7 +57,7 @@ const createBackupRunPayload = async ({
 		jobId,
 		scheduleId: schedule.shortId,
 		organizationId,
-		source: { kind: "controller-path", path: getVolumePath(readiness.volume) },
+		source: getLocalFilesystemSource(getVolumePath(readiness.volume)),
 		repositoryConfig,
 		options: {
 			oneFileSystem: schedule.oneFileSystem,

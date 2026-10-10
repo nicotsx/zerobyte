@@ -88,7 +88,7 @@ export const listFiles = async (
 
 						return {
 							name: dirent.name,
-							path: `/${relativePath.split(path.sep).join("/")}`,
+							path: relativePath.split(path.sep).join("/"),
 							type: dirent.isDirectory() ? ("directory" as const) : ("file" as const),
 							size: dirent.isFile() ? stats.size : undefined,
 							modifiedAt: stats.mtimeMs,
@@ -102,7 +102,7 @@ export const listFiles = async (
 
 		return {
 			files: entries,
-			path: subPath || "/",
+			path: requestedRelativePath.split(path.sep).join("/"),
 			offset: startOffset,
 			limit: pageSize,
 			total,

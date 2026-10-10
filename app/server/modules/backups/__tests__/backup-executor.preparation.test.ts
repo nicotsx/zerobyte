@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import { tmpdir } from "node:os";
@@ -100,7 +101,10 @@ test("controller prepares source health and dispatches only its path, never mana
 
 		expect(dispatch).toHaveBeenCalledOnce();
 		const payload = dispatch.mock.calls[0]?.[1].payload;
-		expect(payload?.source).toEqual({ kind: "controller-path", path: root });
+		expect(payload?.source).toEqual({
+			rootId: "local-filesystem",
+			relativePath: path.relative(path.parse(process.cwd()).root, root).split(path.sep).join("/"),
+		});
 		expect(payload).not.toHaveProperty("volume");
 		expect(await db.query.volumesTable.findFirst({ where: { id: volume.id } })).toMatchObject({
 			status: "mounted",

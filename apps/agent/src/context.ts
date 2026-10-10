@@ -1,11 +1,14 @@
 import type { AgentWireMessage } from "@zerobyte/contracts/agent-protocol";
 import type { Effect } from "effect";
+import type { TrustedRootRegistry } from "./trusted-roots";
 
 export type RunningJob =
 	| { kind: "backup"; scheduleId: string; abortController: AbortController }
 	| { kind: "restore"; abortController: AbortController };
 
 export type ControllerCommandContext = {
+	allowRestore: boolean;
+	trustedRoots: TrustedRootRegistry;
 	getRunningJob: (jobId: string) => Effect.Effect<RunningJob | undefined, never, never>;
 	setRunningJob: (jobId: string, job: RunningJob) => Effect.Effect<void, never, never>;
 	deleteRunningJob: (jobId: string) => Effect.Effect<void, never, never>;

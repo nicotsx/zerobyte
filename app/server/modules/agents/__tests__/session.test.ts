@@ -4,7 +4,9 @@ import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import {
 	createAgentMessage,
+	AGENT_PROTOCOL_VERSION,
 	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+	SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
 	type AgentMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
@@ -88,7 +90,7 @@ test("sendBackup only queues the transport message", () => {
 			jobId: "job-queued",
 			scheduleId: "schedule-queued",
 			organizationId: "org-1",
-			source: { kind: "controller-path" as const, path: "/tmp" },
+			source: { rootId: "local-filesystem", relativePath: "tmp" },
 			repositoryConfig: {
 				backend: "local",
 				path: "/tmp/repository",
@@ -124,7 +126,7 @@ test("invalid inbound messages are ignored", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
@@ -149,7 +151,7 @@ test("agent.ready marks the session ready and forwards the event", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
@@ -162,7 +164,7 @@ test("agent.ready marks the session ready and forwards the event", () => {
 		type: "agent.ready",
 		payload: {
 			agentId: LOCAL_AGENT_ID,
-			protocolVersion: 1,
+			protocolVersion: AGENT_PROTOCOL_VERSION,
 			hostname: "host",
 			platform: "linux",
 			capabilities: { backup: true },
@@ -197,7 +199,7 @@ test("backup agent messages are forwarded unchanged", () => {
 		session.handleMessage(
 			createAgentMessage("agent.ready", {
 				agentId: LOCAL_AGENT_ID,
-				protocolVersion: 1,
+				protocolVersion: AGENT_PROTOCOL_VERSION,
 				hostname: "host",
 				platform: "linux",
 				capabilities: { backup: true },
@@ -249,6 +251,66 @@ test("unsupported agent protocol rejects startup and closes the session", () => 
 		}),
 	});
 	expect(socket.close).toHaveBeenCalledWith(1002, "agent_too_new");
+});
+
+test("rejects the legacy filesystem protocol before marking the agent ready", () => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, socket, close } = createSession(onEvent);
+
+	try {
+		Effect.runSync(
+			session.handleMessage(
+				JSON.stringify({
+					type: "agent.ready",
+					payload: { protocolVersion: 1, hostname: "legacy-host", platform: "linux" },
+				}),
+			),
+		);
+
+		expect(Effect.runSync(session.isReady())).toBe(false);
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "agent.protocolRejected",
+			payload: expect.objectContaining({ reason: "agent_too_old", protocolVersion: 1 }),
+		});
+		expect(socket.close).toHaveBeenCalledWith(1002, "agent_too_old");
+	} finally {
+		close();
+	}
+});
+
+test.each([
+	[SUPPORTED_AGENT_PROTOCOL_MIN_VERSION - 1, "agent_too_old"],
+	[SUPPORTED_AGENT_PROTOCOL_MAX_VERSION + 1, "agent_too_new"],
+	[AGENT_PROTOCOL_VERSION, "invalid_agent_ready"],
+])("checks protocol %s before validating capabilities", (protocolVersion, reason) => {
+	const onEvent = vi.fn(() => Effect.void);
+	const { session, socket, close } = createSession(onEvent);
+
+	try {
+		Effect.runSync(
+			session.handleMessage(
+				JSON.stringify({
+					type: "agent.ready",
+					payload: {
+						agentId: LOCAL_AGENT_ID,
+						protocolVersion,
+						hostname: "host",
+						platform: "linux",
+						capabilities: { restore: "future-value", trustedRoots: { future: true } },
+					},
+				}),
+			),
+		);
+
+		expect(Effect.runSync(session.isReady())).toBe(false);
+		expect(onEvent).toHaveBeenCalledWith({
+			type: "agent.protocolRejected",
+			payload: expect.objectContaining({ reason }),
+		});
+		expect(socket.close).toHaveBeenCalledWith(1002, reason);
+	} finally {
+		close();
+	}
 });
 
 test("pre-ready non-ready messages reject startup and close the session", () => {

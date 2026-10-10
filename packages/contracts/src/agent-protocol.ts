@@ -9,13 +9,20 @@ import {
 	restoreProgressSchema,
 	type CompressionMode,
 } from "@zerobyte/core/restic";
-import { browseFilesystemResponseSchema, listVolumeFilesResponseSchema, statfsSchema } from "./volumes";
+import {
+	browseFilesystemResponseSchema,
+	listVolumeFilesResponseSchema,
+	statfsSchema,
+	trustedRootDescriptorSchema,
+	filesystemSourceSchema,
+} from "./volumes";
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
-export const AGENT_PROTOCOL_VERSION = 1;
-export const SUPPORTED_AGENT_PROTOCOL_MIN_VERSION = 1;
-export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = 1;
+export const AGENT_PROTOCOL_VERSION = 2;
+export const SUPPORTED_AGENT_PROTOCOL_MIN_VERSION = AGENT_PROTOCOL_VERSION;
+export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = AGENT_PROTOCOL_VERSION;
+export const MAX_AGENT_TRUSTED_ROOTS = 100;
 
 export type AgentProtocolRejectionReason =
 	| "agent_too_old"
@@ -54,7 +61,7 @@ const backupRunSchema = z.object({
 		jobId: z.string(),
 		scheduleId: z.string(),
 		organizationId: z.string(),
-		source: z.object({ kind: z.literal("controller-path"), path: z.string() }),
+		source: filesystemSourceSchema,
 		repositoryConfig: repositoryConfigSchema,
 		options: backupExecutionOptionsSchema,
 		runtime: commandRuntimeSchema,
@@ -70,15 +77,15 @@ const backupCancelSchema = z.object({
 });
 
 const filesystemCommandSchema = z.discriminatedUnion("name", [
-	z.object({ name: z.literal("filesystem.statfs"), path: z.string() }),
+	z.object({ name: z.literal("filesystem.statfs"), source: filesystemSourceSchema }),
 	z.object({
 		name: z.literal("filesystem.listFiles"),
-		path: z.string(),
+		source: filesystemSourceSchema,
 		subPath: z.string().optional(),
 		offset: z.number(),
 		limit: z.number(),
 	}),
-	z.object({ name: z.literal("filesystem.browse"), path: z.string() }),
+	z.object({ name: z.literal("filesystem.browse"), source: filesystemSourceSchema }),
 ]);
 
 const filesystemCommandRequestSchema = z.object({
@@ -170,6 +177,15 @@ const heartbeatPingSchema = z.object({
 	payload: z.object({ sentAt: z.number() }),
 });
 
+export const agentCapabilitiesSchema = z
+	.object({
+		restore: z.boolean().optional(),
+		trustedRoots: z.array(trustedRootDescriptorSchema).max(MAX_AGENT_TRUSTED_ROOTS).optional(),
+	})
+	.catchall(z.unknown());
+
+export type AgentCapabilities = z.infer<typeof agentCapabilitiesSchema>;
+
 const agentReadySchema = z.object({
 	type: z.literal("agent.ready"),
 	payload: z.object({
@@ -177,7 +193,7 @@ const agentReadySchema = z.object({
 		protocolVersion: z.number(),
 		hostname: z.string(),
 		platform: z.string(),
-		capabilities: z.record(z.string(), z.unknown()),
+		capabilities: agentCapabilitiesSchema,
 	}),
 });
 

@@ -59,7 +59,10 @@ test("runFilesystemCommand sends the command to the selected agent", async () =>
 	);
 	setAgentRuntime({ runFilesystemCommand });
 
-	const command = fromPartial<FilesystemCommand>({ name: "filesystem.statfs", path: "/tmp" });
+	const command = fromPartial<FilesystemCommand>({
+		name: "filesystem.statfs",
+		source: { rootId: "local-filesystem", relativePath: "tmp" },
+	});
 
 	await expect(agentManager.runFilesystemCommand("agent-1", command)).resolves.toEqual({
 		name: "filesystem.statfs",
@@ -71,7 +74,10 @@ test("runFilesystemCommand sends the command to the selected agent", async () =>
 test("runFilesystemCommand fails when the selected agent is unavailable", async () => {
 	setAgentRuntime(null);
 
-	const command = fromPartial<FilesystemCommand>({ name: "filesystem.statfs", path: "/tmp" });
+	const command = fromPartial<FilesystemCommand>({
+		name: "filesystem.statfs",
+		source: { rootId: "local-filesystem", relativePath: "tmp" },
+	});
 
 	await expect(agentManager.runFilesystemCommand("agent-1", command)).rejects.toThrow(
 		"Filesystem agent agent-1 is not connected",

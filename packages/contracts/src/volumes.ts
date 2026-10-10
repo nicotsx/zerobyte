@@ -114,6 +114,81 @@ export const volumeConfigSchema = z
 
 export type BackendConfig = z.infer<typeof volumeConfigSchema>;
 
+export const trustedRootIdSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.max(64)
+	.regex(
+		/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/,
+		"Trusted root IDs may only contain letters, numbers, dots, underscores, and hyphens",
+	);
+
+export const trustedRootDescriptorSchema = z.object({
+	id: trustedRootIdSchema,
+	label: z.string().trim().min(1).max(128),
+	canBackup: z.boolean(),
+});
+
+export type TrustedRootDescriptor = z.infer<typeof trustedRootDescriptorSchema>;
+
+export const LOCAL_FILESYSTEM_ROOT_ID = "local-filesystem";
+
+export const getLocalFilesystemRootId = (rootPath: string) => {
+	const drive = /^[a-z]:[\\/]/i.test(rootPath) ? rootPath[0]!.toLowerCase() : null;
+
+	return drive ? `${LOCAL_FILESYSTEM_ROOT_ID}-${drive}` : LOCAL_FILESYSTEM_ROOT_ID;
+};
+
+export const filesystemSourceSchema = z.object({
+	rootId: trustedRootIdSchema,
+	relativePath: z.string(),
+});
+
+export type FilesystemSource = z.infer<typeof filesystemSourceSchema>;
+
+export const normalizeTrustedSourceRelativePath = (rawPath: string) => {
+	if (rawPath.includes("\0")) {
+		throw new Error("Trusted source path contains a null byte");
+	}
+
+	if (rawPath.includes("\\")) {
+		throw new Error("Trusted source path contains an invalid separator");
+	}
+
+	if (rawPath.startsWith("/") || /^[a-zA-Z]:/.test(rawPath)) {
+		throw new Error("Trusted source path must be relative");
+	}
+
+	const segments = rawPath.split("/");
+
+	if (segments.some((segment) => segment === "..")) {
+		throw new Error("Trusted source path cannot traverse outside its root");
+	}
+
+	return segments.filter((segment) => segment !== "" && segment !== ".").join("/");
+};
+
+export const trustedSourceInputSchema = z.object({
+	sourceKind: z.literal("filesystem"),
+	agentId: z.string().min(1),
+	trustedRootId: trustedRootIdSchema,
+	relativePath: z
+		.string()
+		.transform((value, ctx) => {
+			try {
+				return normalizeTrustedSourceRelativePath(value);
+			} catch (error) {
+				ctx.addIssue({
+					code: "custom",
+					message: error instanceof Error ? error.message : "Invalid trusted source path",
+				});
+				return z.NEVER;
+			}
+		})
+		.default(""),
+});
+
 export const BACKEND_STATUS = {
 	mounted: "mounted",
 	unmounted: "unmounted",

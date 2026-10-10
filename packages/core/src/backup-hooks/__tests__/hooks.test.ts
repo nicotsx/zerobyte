@@ -79,23 +79,18 @@ const completedBackup = <TResult>(result: TResult, exitCode = 0, warningDetails:
 	Effect.succeed({ exitCode, result, warningDetails });
 
 const runWithHooks = <TResult>(
-	overrides: Omit<Partial<Parameters<typeof runBackupLifecycle<TResult>>[0]>, "restic"> & {
+	overrides: Partial<Parameters<typeof runBackupLifecycle<TResult>>[0]> & {
 		runBackup: () => Effect.Effect<{ exitCode: number; result: TResult; warningDetails: string | null }, unknown>;
 	},
 ) => {
-	const { runBackup, ...options } = overrides;
-
 	return Effect.runPromise(
 		runBackupLifecycle({
 			...metadata,
-			restic: { backup: runBackup },
-			repositoryConfig: { backend: "local", path: "/tmp/repository" },
-			options: {},
 			webhooks: { pre: null, post: null },
 			webhookAllowedOrigins: [webhookOrigin],
 			webhookTimeoutMs: 60_000,
 			signal: defaultSignal(),
-			...options,
+			...overrides,
 		}),
 	);
 };

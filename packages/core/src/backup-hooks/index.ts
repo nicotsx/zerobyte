@@ -2,8 +2,8 @@ import http from "node:http";
 import https from "node:https";
 import { Data, Effect } from "effect";
 import { z } from "zod";
-import type { CompressionMode, RepositoryConfig, ResticBackupProgressDto } from "../restic/index.js";
-import { toErrorDetails, toMessage } from "../utils/index.js";
+import { logger } from "../node/index.js";
+import { toErrorDetails } from "../utils/index.js";
 
 const MAX_BACKUP_WEBHOOK_BODY_BYTES = 64 * 1024;
 const MAX_BACKUP_WEBHOOK_HEADERS = 32;
@@ -66,42 +66,17 @@ type BackupLifecycleResult<TResult> =
 	| { status: "failed"; error: string }
 	| { status: "cancelled"; message?: string };
 
-type BackupOptions = {
-	tags?: string[];
-	oneFileSystem?: boolean;
-	exclude?: string[];
-	excludeIfPresent?: string[];
-	includePaths?: string[];
-	includePatterns?: string[];
-	customResticParams?: string[];
-	compressionMode?: CompressionMode;
-};
-
 type BackupLifecycleOptions<TResult> = {
 	jobId: string;
 	scheduleId: string;
 	organizationId: string;
 	sourcePath: string;
-	restic: {
-		backup: (
-			config: RepositoryConfig,
-			sourcePath: string,
-			options: BackupOptions & {
-				organizationId: string;
-				signal: AbortSignal;
-				onProgress?: (progress: ResticBackupProgressDto) => void;
-			},
-		) => Effect.Effect<BackupResult<TResult>, unknown>;
-	};
-	repositoryConfig: RepositoryConfig;
-	options: BackupOptions;
+	runBackup: () => Effect.Effect<BackupResult<TResult>, unknown>;
 	webhooks: BackupWebhooks;
 	/** null disables the origin allowlist for the local desktop runtime. */
 	webhookAllowedOrigins: readonly string[] | null;
 	webhookTimeoutMs: number;
 	signal: AbortSignal;
-	onProgress?: (progress: ResticBackupProgressDto) => void;
-	formatError?: (error: unknown) => string;
 };
 
 class BackupWebhookError extends Data.TaggedError("BackupWebhookError")<{
@@ -283,7 +258,6 @@ const runBackupWebhook = (
 	config: BackupWebhookConfig | null,
 	context: BackupWebhookContext,
 	options: {
-		formatError: (error: unknown) => string;
 		allowedOrigins: readonly string[] | null;
 		signal?: AbortSignal;
 		timeoutMs: number;
@@ -325,14 +299,16 @@ const runBackupWebhook = (
 					});
 				}
 
+				logger.error(`${context.phase} webhook failed: ${toErrorDetails(error)}`);
+
 				return new BackupWebhookError({
 					cause: error,
-					message: `${context.phase} webhook failed: ${toMessage(error)}`,
+					message: `${context.phase} webhook request failed. Check the agent logs for details.`,
 				});
 			},
 		}).pipe(
 			Effect.as(null),
-			Effect.catchAll((error) => Effect.succeed(options.formatError(error))),
+			Effect.catchAll((error) => Effect.succeed(error.message)),
 			Effect.ensuring(Effect.sync(controller.cleanup)),
 		);
 	});
@@ -342,15 +318,11 @@ export const runBackupLifecycle = <TResult>({
 	scheduleId,
 	organizationId,
 	sourcePath,
-	restic,
-	repositoryConfig,
-	options,
+	runBackup,
 	webhooks,
 	webhookAllowedOrigins,
 	webhookTimeoutMs,
 	signal,
-	onProgress,
-	formatError = toErrorDetails,
 }: BackupLifecycleOptions<TResult>): Effect.Effect<BackupLifecycleResult<TResult>, never> =>
 	Effect.gen(function* () {
 		const context = { jobId, scheduleId, organizationId, sourcePath };
@@ -358,7 +330,6 @@ export const runBackupLifecycle = <TResult>({
 			webhooks.pre,
 			{ ...context, phase: "pre", event: "backup.pre" },
 			{
-				formatError,
 				allowedOrigins: webhookAllowedOrigins,
 				timeoutMs: webhookTimeoutMs,
 				signal,
@@ -366,26 +337,24 @@ export const runBackupLifecycle = <TResult>({
 		);
 		if (preHookError) {
 			if (signal.aborted) {
-				return { status: "cancelled", message: formatError(signal.reason) };
+				return { status: "cancelled", message: toErrorDetails(signal.reason) };
 			}
 
 			return { status: "failed", error: preHookError };
 		}
 		if (signal.aborted) {
-			return { status: "cancelled", message: formatError(signal.reason) };
+			return { status: "cancelled", message: toErrorDetails(signal.reason) };
 		}
 
-		const backupResult = yield* Effect.suspend(() =>
-			restic.backup(repositoryConfig, sourcePath, { ...options, organizationId, signal, onProgress }),
-		).pipe(
-			Effect.map((result) => ({
-				status: "completed" as const,
-				...result,
-				hookStatus: getCompletedStatus(result.exitCode, result.warningDetails, signal),
-				hookError: signal.aborted ? formatError(signal.reason) : (result.warningDetails ?? undefined),
-			})),
+		const backupResult = yield* Effect.suspend(runBackup).pipe(
+			Effect.map((result) => {
+				const hookStatus = getCompletedStatus(result.exitCode, result.warningDetails, signal);
+				const hookError = signal.aborted ? toErrorDetails(signal.reason) : (result.warningDetails ?? undefined);
+
+				return { status: "completed" as const, ...result, hookStatus, hookError };
+			}),
 			Effect.catchAll((error) => {
-				const errorDetails = formatError(error);
+				const errorDetails = toErrorDetails(error);
 
 				return Effect.succeed({
 					status: "failed" as const,
@@ -405,14 +374,14 @@ export const runBackupLifecycle = <TResult>({
 				status: backupResult.hookStatus,
 				error: backupResult.hookError,
 			},
-			{ formatError, allowedOrigins: webhookAllowedOrigins, timeoutMs: webhookTimeoutMs },
+			{ allowedOrigins: webhookAllowedOrigins, timeoutMs: webhookTimeoutMs },
 		);
 
 		if (signal.aborted) {
 			return {
 				status: "cancelled",
 				message:
-					appendDetails(formatError(signal.reason || backupResult.hookError), postHookError) || undefined,
+					appendDetails(toErrorDetails(signal.reason || backupResult.hookError), postHookError) || undefined,
 			};
 		}
 

@@ -1,15 +1,15 @@
 import { Effect, Runtime } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
-import { createBackupOptions, runBackupLifecycle } from "@zerobyte/core/backup-hooks";
+import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
-import { createRestic } from "@zerobyte/core/restic/server";
-import { toMessage } from "@zerobyte/core/utils";
+import { toErrorDetails, toMessage } from "@zerobyte/core/utils";
 import type { ControllerCommandContext } from "../context";
-import { resticDeps } from "../restic/deps";
+import { prepareBackupExecution } from "../backup-execution";
 
 export const handleBackupRunCommand = (context: ControllerCommandContext, payload: BackupRunPayload) => {
 	return Effect.gen(function* () {
 		const existing = yield* context.getRunningJob(payload.jobId);
+
 		if (existing) {
 			yield* context.offerOutbound(
 				createAgentMessage("backup.failed", {
@@ -22,7 +22,9 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 		}
 
 		yield* logger.effect.info(`Starting backup ${payload.jobId} for schedule ${payload.scheduleId}`);
+
 		const abortController = new AbortController();
+
 		yield* context.setRunningJob(payload.jobId, {
 			kind: "backup",
 			scheduleId: payload.scheduleId,
@@ -48,27 +50,13 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					}),
 				);
 
-				const restic = yield* Effect.try(() => createRestic(resticDeps(payload.runtime.password)));
 				const runtime = yield* Effect.runtime<never>();
 
-				const sourcePath = payload.source.path;
-				const options = yield* Effect.try(() =>
-					createBackupOptions(payload, sourcePath, abortController.signal),
-				);
-
-				const backupResult = yield* runBackupLifecycle({
-					restic,
-					repositoryConfig: payload.repositoryConfig,
-					sourcePath,
-					jobId: payload.jobId,
-					scheduleId: payload.scheduleId,
-					organizationId: payload.organizationId,
-					options,
-					webhooks: payload.webhooks,
-					webhookAllowedOrigins: payload.webhookAllowedOrigins,
-					webhookTimeoutMs: payload.webhookTimeoutMs,
-					signal: abortController.signal,
-					onProgress: (progress) => {
+				const execution = yield* prepareBackupExecution(
+					context.trustedRoots,
+					payload,
+					abortController.signal,
+					(progress) => {
 						void Runtime.runPromise(
 							runtime,
 							context.offerOutbound(
@@ -82,6 +70,17 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 							logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
 						});
 					},
+				);
+
+				const backupResult = yield* runBackupLifecycle({
+					...execution,
+					jobId: payload.jobId,
+					scheduleId: payload.scheduleId,
+					organizationId: payload.organizationId,
+					webhooks: payload.webhooks,
+					webhookAllowedOrigins: payload.webhookAllowedOrigins,
+					webhookTimeoutMs: payload.webhookTimeoutMs,
+					signal: abortController.signal,
 				});
 
 				switch (backupResult.status) {
@@ -122,16 +121,14 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						);
 					}
 
-					const errorMessage = toMessage(
-						error instanceof Error && error.cause !== undefined ? error.cause : error,
-					);
+					const errorDetails = toErrorDetails(error);
 
 					return context.offerOutbound(
 						createAgentMessage("backup.failed", {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
-							error: errorMessage,
-							errorDetails: errorMessage,
+							error: errorDetails,
+							errorDetails,
 						}),
 					);
 				}),

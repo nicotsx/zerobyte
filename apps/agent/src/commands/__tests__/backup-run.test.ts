@@ -8,6 +8,12 @@ import * as resticServer from "@zerobyte/core/restic/server";
 import { handleBackupCancelCommand } from "../backup-cancel";
 import { handleBackupRunCommand } from "../backup-run";
 import type { ControllerCommandContext, RunningJob } from "../../context";
+import { createTrustedRootRegistry } from "../../trusted-roots";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import { ResticError } from "@zerobyte/core/restic/server";
+import { createRunPayload as createBaseRunPayload, runBackupCommand } from "./backup-run.harness";
 
 type WebhookHandler = (context: {
 	request: IncomingMessage;
@@ -79,75 +85,390 @@ afterEach(async () => {
 });
 
 const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
-	fromPartial<BackupRunPayload>({
-		jobId: "job-1",
-		scheduleId: "schedule-1",
-		organizationId: "org-1",
-		source: { kind: "controller-path", path: "/tmp" },
-		repositoryConfig: {
-			backend: "local",
-			path: "/tmp/repository",
-		},
+	createBaseRunPayload({ webhookAllowedOrigins: [webhookOrigin], ...overrides });
+
+test("standalone policy rejects unknown roots but permits configured logical sources", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-policy-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+
+	try {
+		const unknownRootMessages = await runBackupCommand(createRunPayload(), registry);
+		const trustedPayload = createRunPayload({
+			source: { rootId: "data", relativePath: "" },
+		});
+		const trustedMessages = await runBackupCommand(trustedPayload, registry);
+
+		expect(unknownRootMessages.some((message) => message?.success && message.data.type === "backup.failed")).toBe(
+			true,
+		);
+		expect(trustedMessages.some((message) => message?.success && message.data.type === "backup.completed")).toBe(
+			true,
+		);
+		expect(backup).toHaveBeenCalledOnce();
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("trusted backups pass Go pattern matches as raw targets without matching source-name metacharacters", async () => {
+	const parentPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-selection-"));
+	const sourcePath = path.join(parentPath, "allowed[12]");
+	const siblingPath = path.join(parentPath, "allowed1");
+	const trustedMarkerPath = path.join(sourcePath, "marker.txt");
+	fs.mkdirSync(sourcePath);
+	fs.mkdirSync(siblingPath);
+	fs.writeFileSync(trustedMarkerPath, "trusted");
+	fs.writeFileSync(path.join(siblingPath, "marker.txt"), "outside");
+	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
+	const canonicalTrustedMarkerPath = path.join(canonicalSourcePath, "marker.txt");
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: sourcePath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
+		fromPartial({
+			backup: (
+				_config: unknown,
+				_sourcePath: string,
+				options: { includePaths?: string[]; includePatterns?: string[] },
+			) =>
+				Effect.sync(() => {
+					receivedOptions = options;
+					return { exitCode: 0, result: null, warningDetails: null };
+				}),
+		}),
+	);
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "" },
 		options: {
 			oneFileSystem: false,
 			excludePatterns: null,
 			excludeIfPresent: null,
 			includePaths: null,
-			includePatterns: null,
+			includePatterns: ["*.txt"],
 			customResticParams: null,
 			compressionMode: "auto",
 		},
-		runtime: {
-			password: "password",
-		},
-		webhooks: { pre: null, post: null },
-		webhookAllowedOrigins: [webhookOrigin],
-		webhookTimeoutMs: 60_000,
-		...overrides,
 	});
 
-const runBackupCommand = async (payload: BackupRunPayload, cancelOnStart = false) => {
-	const outboundMessages: string[] = [];
-	const messagesAtCleanup: string[] = [];
-	const runningJobs = new Map<string, RunningJob>();
+	try {
+		const messages = await runBackupCommand(payload, registry);
 
-	const context: ControllerCommandContext = {
-		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
-		setRunningJob: (jobId, job) =>
-			Effect.sync(() => {
-				runningJobs.set(jobId, job);
-			}),
-		deleteRunningJob: (jobId) =>
-			Effect.sync(() => {
-				messagesAtCleanup.push(...outboundMessages);
-				runningJobs.delete(jobId);
-			}),
-		offerOutbound: (message) =>
-			Effect.sync(() => {
-				outboundMessages.push(message);
+		expect(receivedOptions?.includePaths).toEqual([canonicalTrustedMarkerPath]);
+		expect(receivedOptions?.includePatterns).toBeUndefined();
+		expect(messages.some((message) => message?.success && message.data.type === "backup.completed")).toBe(true);
+	} finally {
+		fs.rmSync(parentPath, { recursive: true, force: true });
+	}
+});
 
-				const parsed = parseAgentMessage(message);
-				if (cancelOnStart && parsed?.success && parsed.data.type === "backup.started") {
-					runningJobs.get(payload.jobId)?.abortController.abort();
-				}
-
-				return true;
-			}),
-	};
-
-	await Effect.runPromise(
-		Effect.gen(function* () {
-			yield* handleBackupRunCommand(context, payload);
-			yield* Effect.promise(() =>
-				waitForExpect(() => {
-					expect(runningJobs.has(payload.jobId)).toBe(false);
-				}),
-			);
+test("includes the first trusted target created by a pre-backup webhook", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-pre-selection-"));
+	const canonicalRootPath = fs.realpathSync.native(rootPath);
+	const createdPath = path.join(canonicalRootPath, "pre-hook-export.txt");
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ response }) => {
+			fs.writeFileSync(createdPath, "created by pre hook");
+			sendWebhookResponse(response);
 		}),
 	);
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
+		fromPartial({
+			backup: (
+				_config: unknown,
+				_sourcePath: string,
+				options: { includePaths?: string[]; includePatterns?: string[] },
+			) =>
+				Effect.sync(() => {
+					receivedOptions = options;
+					return { exitCode: 0, result: null, warningDetails: null };
+				}),
+		}),
+	);
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "" },
+		options: {
+			oneFileSystem: false,
+			excludePatterns: null,
+			excludeIfPresent: null,
+			includePaths: null,
+			includePatterns: ["*.txt"],
+			customResticParams: null,
+			compressionMode: "auto",
+		},
+		webhooks: { pre: { url: webhookUrl("/pre") }, post: null },
+	});
 
-	return messagesAtCleanup.map((message) => parseAgentMessage(message));
-};
+	try {
+		const messages = await runBackupCommand(payload, registry);
+
+		expect(receivedOptions?.includePaths).toEqual([createdPath]);
+		expect(receivedOptions?.includePatterns).toBeUndefined();
+		expect(messages.some((message) => message?.success && message.data.type === "backup.completed")).toBe(true);
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("reports a failed trusted backup when include patterns select no targets", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-no-match-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
+	const runningJobs = new Map<string, RunningJob>();
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "" },
+		options: {
+			oneFileSystem: false,
+			excludePatterns: null,
+			excludeIfPresent: null,
+			includePaths: null,
+			includePatterns: ["no-match*.txt"],
+			customResticParams: null,
+			compressionMode: "auto",
+		},
+	});
+
+	try {
+		const messages = await runBackupCommand(payload, registry, runningJobs);
+		const messageTypes = messages.flatMap((message) => {
+			if (!message?.success) return [];
+			return [message.data.type];
+		});
+
+		expect(messageTypes).toEqual(["backup.started", "backup.failed"]);
+		expect(backup).not.toHaveBeenCalled();
+		expect(runningJobs.has(payload.jobId)).toBe(false);
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("trusted backup resolution errors do not disclose the configured host root", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-errors-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "missing" },
+	});
+
+	try {
+		const messages = await runBackupCommand(payload, registry);
+		const failed = messages.find((message) => message?.success && message.data.type === "backup.failed");
+		expect(failed?.success).toBe(true);
+		expect(JSON.stringify(failed)).not.toContain(rootPath);
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("trusted backup presents only logical paths in progress, warnings, and pre/post webhooks", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte backup,presentation-"));
+	const sourcePath = path.join(rootPath, "configured source,archive");
+	fs.mkdirSync(sourcePath, { recursive: true });
+	const expectedCanonicalSourcePath = fs.realpathSync.native(sourcePath);
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const webhookBodies: string[] = [];
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ body, response }) => {
+			webhookBodies.push(body);
+			sendWebhookResponse(response);
+		}),
+		webhookRoute("/post", ({ body, response }) => {
+			webhookBodies.push(body);
+			sendWebhookResponse(response);
+		}),
+	);
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
+		fromPartial({
+			backup: (
+				_config: unknown,
+				actualSourcePath: string,
+				options: { onProgress?: (progress: unknown) => void },
+			) =>
+				Effect.sync(() => {
+					expect(actualSourcePath).toBe(expectedCanonicalSourcePath);
+					options.onProgress?.({
+						message_type: "status",
+						seconds_elapsed: 1,
+						seconds_remaining: 1,
+						percent_done: 0.5,
+						total_files: 1,
+						files_done: 0,
+						total_bytes: 1,
+						bytes_done: 0,
+						current_files: [path.join(actualSourcePath, "dir with spaces", "file,one.txt")],
+					});
+					return {
+						exitCode: 3,
+						result: null,
+						warningDetails: `error: open ${path.join(sourcePath, "private,file.db")}: permission denied`,
+					};
+				}),
+		}),
+	);
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "configured source,archive" },
+		webhooks: {
+			pre: { url: webhookUrl("/pre") },
+			post: { url: webhookUrl("/post") },
+		},
+	});
+
+	try {
+		const messages = await runBackupCommand(payload, registry);
+		const serializedMessages = JSON.stringify(messages);
+		const serializedWebhooks = webhookBodies.join("\n");
+		const parsedWebhooks = webhookBodies.map((body) => JSON.parse(body));
+		expect(serializedMessages).not.toContain(rootPath);
+		expect(serializedWebhooks).not.toContain(rootPath);
+		expect(serializedMessages).toContain("configured source,archive/dir with spaces/file,one.txt");
+		expect(serializedMessages).toContain("Check the agent logs");
+		expect(parsedWebhooks.map((body) => body.sourcePath)).toEqual([
+			"configured source,archive",
+			"configured source,archive",
+		]);
+		expect(parsedWebhooks[1]?.error).toContain("Check the agent logs");
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("explicit filesystem root uses relative paths in progress, warnings, and webhooks", async () => {
+	const sourcePath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-root-presentation-"));
+	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
+	const relativeSourcePath = canonicalSourcePath.replace(/^\/+/, "");
+	const rawRoots = JSON.stringify([{ id: "filesystem", label: "Filesystem", path: "/" }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const webhookBodies: string[] = [];
+	useWebhookHandlers(
+		webhookRoute("/pre", ({ body, response }) => {
+			webhookBodies.push(body);
+			sendWebhookResponse(response);
+		}),
+		webhookRoute("/post", ({ body, response }) => {
+			webhookBodies.push(body);
+			sendWebhookResponse(response);
+		}),
+	);
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(
+		fromPartial({
+			backup: (
+				_config: unknown,
+				actualSourcePath: string,
+				options: { onProgress?: (progress: unknown) => void },
+			) =>
+				Effect.sync(() => {
+					expect(actualSourcePath).toBe(canonicalSourcePath);
+					options.onProgress?.({
+						message_type: "status",
+						seconds_elapsed: 1,
+						seconds_remaining: 1,
+						percent_done: 0.5,
+						total_files: 1,
+						files_done: 0,
+						total_bytes: 1,
+						bytes_done: 0,
+						current_files: [path.join(canonicalSourcePath, "private.txt")],
+					});
+					return {
+						exitCode: 3,
+						result: null,
+						warningDetails: `failed to read ${path.join(canonicalSourcePath, "private.txt")}`,
+					};
+				}),
+		}),
+	);
+	const payload = createRunPayload({
+		source: { rootId: "filesystem", relativePath: relativeSourcePath },
+		webhooks: {
+			pre: { url: webhookUrl("/pre") },
+			post: { url: webhookUrl("/post") },
+		},
+	});
+
+	try {
+		const messages = await runBackupCommand(payload, registry);
+		const serializedOutput = `${JSON.stringify(messages)}\n${webhookBodies.join("\n")}`;
+
+		expect(serializedOutput).not.toContain(canonicalSourcePath);
+		expect(serializedOutput).toContain(`${relativeSourcePath}`);
+		expect(serializedOutput).toContain(`${relativeSourcePath}/private.txt`);
+	} finally {
+		fs.rmSync(sourcePath, { recursive: true, force: true });
+	}
+});
+
+test("trusted backup preserves Restic failure summaries without disclosing host paths", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-fatal-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	const failures = [
+		{
+			error: new ResticError(12, `fatal read of ${path.join(rootPath, "secret.txt")}`),
+			summary: "Wrong repository password",
+		},
+		{
+			error: new ResticError(11, `lock held under ${path.join(rootPath, "locks")}`),
+			summary: "Failed to lock repository",
+		},
+		{
+			error: new Error(`unexpected failure below ${path.join(rootPath, "nested", "secret.txt")}`),
+			summary: "Backup failed",
+		},
+	];
+
+	try {
+		for (const failure of failures) {
+			vi.spyOn(resticServer, "createRestic").mockReturnValueOnce(
+				fromPartial({ backup: () => Effect.fail(failure.error) }),
+			);
+			const payload = createRunPayload({
+				jobId: `job-${failures.indexOf(failure)}`,
+				source: { rootId: "data", relativePath: "" },
+			});
+			const messages = await runBackupCommand(payload, registry);
+			const serializedMessages = JSON.stringify(messages);
+			expect(serializedMessages).not.toContain(rootPath);
+			expect(serializedMessages.toLocaleLowerCase()).not.toContain(rootPath.toLocaleLowerCase());
+			const failed = messages.find((message) => message?.success && message.data.type === "backup.failed");
+			if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
+
+			expect(failed.data.payload.error).toContain(failure.summary);
+		}
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
+
+test("trusted backup redacts errors thrown after source resolution", async () => {
+	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-catch-"));
+	const rawRoots = JSON.stringify([{ id: "data", label: "Data", path: rootPath }]);
+	const registry = createTrustedRootRegistry({ rawRoots });
+	vi.spyOn(resticServer, "createRestic").mockImplementationOnce(() => {
+		throw new Error(`failed to initialize for ${path.join(rootPath, "secret.txt")}`);
+	});
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "" },
+	});
+
+	try {
+		const messages = await runBackupCommand(payload, registry);
+		const serializedMessages = JSON.stringify(messages);
+		expect(serializedMessages).not.toContain(rootPath);
+		expect(serializedMessages).toContain("Check the agent logs");
+		expect(messages.some((message) => message?.success && message.data.type === "backup.failed")).toBe(true);
+	} finally {
+		fs.rmSync(rootPath, { recursive: true, force: true });
+	}
+});
 
 test("runs pre and post backup webhooks around restic", async () => {
 	const events: string[] = [];
@@ -268,6 +589,7 @@ test("fails without running restic when the pre-backup webhook fails", async () 
 	expect(failed?.success).toBe(true);
 	if (failed?.success && failed.data.type === "backup.failed") {
 		expect(failed.data.payload.errorDetails).toContain("pre webhook returned HTTP 500");
+		expect(failed.data.payload.errorDetails).not.toContain("stop failed");
 	}
 });
 
@@ -296,6 +618,7 @@ test("reports a post-backup webhook failure as completed warning details", async
 	expect(completed?.success).toBe(true);
 	if (completed?.success && completed.data.type === "backup.completed") {
 		expect(completed.data.payload.warningDetails).toContain("post webhook returned HTTP 500");
+		expect(completed.data.payload.warningDetails).not.toContain("start failed");
 	}
 });
 
@@ -354,6 +677,8 @@ test("waits for running-job registration before returning to the processor loop"
 	);
 
 	const context: ControllerCommandContext = {
+		allowRestore: true,
+		trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
 			Effect.async<void, never>((resume) => {
@@ -378,7 +703,7 @@ test("waits for running-job registration before returning to the processor loop"
 		jobId: "job-1",
 		scheduleId: "schedule-1",
 		organizationId: "org-1",
-		source: { kind: "controller-path", path: "/tmp" },
+		source: { rootId: "local-filesystem", relativePath: "tmp" },
 		repositoryConfig: {
 			backend: "local",
 			path: "/tmp/repository",
@@ -467,8 +792,8 @@ test("reports invalid stored include patterns as terminal failures and removes t
 	const failed = messages[1];
 	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
 
-	expect(failed.data.payload.error).toContain("Include pattern escapes volume root: ../outside");
-	expect(failed.data.payload.errorDetails).toContain("Include pattern escapes volume root: ../outside");
+	expect(failed.data.payload.error).toContain("Backup failed. Check the agent logs for details.");
+	expect(failed.data.payload.errorDetails).toContain("Backup failed. Check the agent logs for details.");
 	expect(backup).not.toHaveBeenCalled();
 });
 
@@ -487,20 +812,7 @@ test("reports restic setup errors as terminal failures and removes the running j
 	const failed = messages[1];
 	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
 
-	expect(failed.data.payload.error).toBe("Restic setup failed");
-});
-
-test("preserves the wrapper message when a setup failure has no cause", async () => {
-	vi.spyOn(resticServer, "createRestic").mockImplementation(() => {
-		throw undefined;
-	});
-
-	const messages = await runBackupCommand(createRunPayload());
-	const failed = messages.find((message) => message?.success && message.data.type === "backup.failed");
-	if (!failed?.success || failed.data.type !== "backup.failed") throw new Error("Expected terminal failure");
-
-	expect(failed.data.payload.error).toBe("An unknown error occurred in Effect.try");
-	expect(failed.data.payload.errorDetails).toBe(failed.data.payload.error);
+	expect(failed.data.payload.error).toBe("Backup failed. Check the agent logs for details.");
 });
 
 test("reports cancellation when a setup error occurs after the job was aborted", async () => {
@@ -510,7 +822,7 @@ test("reports cancellation when a setup error occurs after the job was aborted",
 	const payload = createRunPayload();
 	payload.options.includePatterns = ["../outside"];
 
-	const messages = await runBackupCommand(payload, true);
+	const messages = await runBackupCommand(payload, undefined, undefined, true);
 
 	expect(messages.map((message) => message?.success && message.data.type)).toEqual([
 		"backup.started",

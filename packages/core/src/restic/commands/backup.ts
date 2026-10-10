@@ -19,10 +19,10 @@ class ResticBackupCommandError extends Data.TaggedError("ResticBackupCommandErro
 	message: string;
 }> {}
 
-const validateEntries = (entries: string[], optionName: string, format: "raw" | "text") => {
+const validateEntries = (entries: string[]) => {
 	for (const entry of entries) {
-		if (hasPathListSeparator(entry, format)) {
-			throw new Error(`${optionName} contains an unsupported path character: ${entry}`);
+		if (hasPathListSeparator(entry, "raw")) {
+			throw new Error("includePaths contains an unsupported path character");
 		}
 	}
 };
@@ -35,7 +35,6 @@ export const backup = (
 		exclude?: string[];
 		excludeIfPresent?: string[];
 		includePaths?: string[];
-		includePatterns?: string[];
 		tags?: string[];
 		oneFileSystem?: boolean;
 		compressionMode?: CompressionMode;
@@ -65,25 +64,11 @@ export const backup = (
 				}
 			}
 
-			let includeFile: string | null = null;
 			let rawIncludeFile: string | null = null;
-			const usesSourceArg =
-				(!options.includePaths || options.includePaths.length === 0) &&
-				(!options.includePatterns || options.includePatterns.length === 0);
-
-			if (options.includePatterns?.length) {
-				validateEntries(options.includePatterns, "includePatterns", "text");
-
-				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-"));
-				includeFile = path.join(tmp, "include.txt");
-
-				await fs.writeFile(includeFile, options.includePatterns.join("\n"), "utf-8");
-
-				args.push("--files-from", includeFile);
-			}
+			const usesSourceArg = !options.includePaths?.length;
 
 			if (options.includePaths?.length) {
-				validateEntries(options.includePaths, "includePaths", "raw");
+				validateEntries(options.includePaths);
 
 				const tmp = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-restic-include-raw-"));
 				rawIncludeFile = path.join(tmp, "include.raw");
@@ -174,9 +159,6 @@ export const backup = (
 			const stderrDetails = stderrLines.length > 0 ? stderrLines.join("\n") : null;
 			const warningDetails = res.exitCode === 0 ? null : stderrDetails;
 
-			if (includeFile) {
-				await fs.unlink(includeFile).catch(() => {});
-			}
 			if (rawIncludeFile) {
 				await fs.unlink(rawIncludeFile).catch(() => {});
 			}

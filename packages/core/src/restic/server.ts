@@ -25,6 +25,7 @@ export { buildRepoUrl } from "./helpers/build-repo-url";
 export { cleanupTemporaryKeys } from "./helpers/cleanup-temporary-keys";
 export { validateCustomResticParams } from "./helpers/validate-custom-params";
 export { isResticError, ResticError, ResticLockError } from "./error";
+export { resolveBackupTargets } from "./backup-selection";
 
 type LockRecoveryContext = {
 	repositoryConfigs: RepositoryConfig[];

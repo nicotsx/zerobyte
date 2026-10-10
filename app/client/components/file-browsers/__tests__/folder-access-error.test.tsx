@@ -84,16 +84,16 @@ test("keeps each denied folder's error when other folders are expanded", async (
 	server.use(
 		http.get("/api/v1/volumes/:shortId/files", ({ request }) => {
 			const path = new URL(request.url).searchParams.get("path");
-			if (path === "/Denied" || path === "/AlsoDenied") {
+			if (path === "Denied" || path === "AlsoDenied") {
 				return HttpResponse.json({ message: "EACCES: permission denied" }, { status: 500 });
 			}
 			return HttpResponse.json({
 				files: path
-					? [{ name: "ok.txt", path: "/Other/ok.txt", type: "file" }]
+					? [{ name: "ok.txt", path: "Other/ok.txt", type: "file" }]
 					: [
-							{ name: "Denied", path: "/Denied", type: "directory" },
-							{ name: "AlsoDenied", path: "/AlsoDenied", type: "directory" },
-							{ name: "Other", path: "/Other", type: "directory" },
+							{ name: "Denied", path: "Denied", type: "directory" },
+							{ name: "AlsoDenied", path: "AlsoDenied", type: "directory" },
+							{ name: "Other", path: "Other", type: "directory" },
 						],
 				hasMore: false,
 			});
