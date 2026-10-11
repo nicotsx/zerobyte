@@ -35,6 +35,7 @@ test("delivers notification destinations and backup lifecycle webhooks", async (
 
 		const volumeResponse = await page.request.post("/api/v1/volumes", {
 			data: {
+				sourceKind: "managed",
 				name: `Volume-${runId}`,
 				config: { backend: "directory", path: sourcePath, readOnly: false },
 			},

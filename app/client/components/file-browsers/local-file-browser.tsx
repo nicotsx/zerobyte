@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { browseFilesystemOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import type { BrowseFilesystemResponse } from "~/client/api-client/types.gen";
 import { FileBrowser, type FileBrowserUiProps } from "~/client/components/file-browsers/file-browser";
 import { useFileBrowser } from "~/client/hooks/use-file-browser";
 import { parseError } from "~/client/lib/errors";
-import { normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
 import { useIsDesktop } from "~/client/hooks/use-is-desktop";
 import { FolderAccessError } from "./folder-access-error";
@@ -13,28 +13,40 @@ type LocalFileBrowserProps = FileBrowserUiProps & {
 	enabled?: boolean;
 };
 
+const toLocalBrowserPath = (relativePath: string) => `/${relativePath.replace(/^\/+/, "")}`;
+
+const browseFilesystemAtLocalPath = (localPath: string) =>
+	browseFilesystemOptions({ query: { path: localPath.slice(1) } });
+
+const toLocalBrowserResult = (result: BrowseFilesystemResponse) => ({
+	...result,
+	path: toLocalBrowserPath(result.path),
+	directories: result.directories.map((directory) => ({ ...directory, path: toLocalBrowserPath(directory.path) })),
+});
+
 export const LocalFileBrowser = ({ initialPath = "/", enabled = true, ...uiProps }: LocalFileBrowserProps) => {
 	const queryClient = useQueryClient();
 	const isDesktop = useIsDesktop();
-	const normalizedInitialPath = normalizeAbsolutePath(initialPath);
+	const initialLocalPath = toLocalBrowserPath(initialPath);
 
 	const { data, isLoading, error } = useQuery({
-		...browseFilesystemOptions({ query: { path: normalizedInitialPath } }),
+		...browseFilesystemAtLocalPath(initialLocalPath),
 		enabled,
+		select: toLocalBrowserResult,
 	});
 
 	const fileBrowser = useFileBrowser({
 		initialData: data,
 		isLoading,
 		fetchFolder: async (path) => {
-			return await queryClient.ensureQueryData(browseFilesystemOptions({ query: { path } }));
+			const result = await queryClient.ensureQueryData(browseFilesystemAtLocalPath(path));
+
+			return toLocalBrowserResult(result);
 		},
 		prefetchFolder: isDesktop
 			? undefined
 			: (path) => {
-					void queryClient
-						.prefetchQuery(browseFilesystemOptions({ query: { path } }))
-						.catch((e) => logger.error(e));
+					void queryClient.prefetchQuery(browseFilesystemAtLocalPath(path)).catch((e) => logger.error(e));
 				},
 	});
 
