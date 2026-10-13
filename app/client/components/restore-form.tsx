@@ -268,34 +268,41 @@ export function RestoreForm({
 									variant={restoreLocation === "original" ? "secondary" : "outline"}
 									size="sm"
 									className={cn(
-										"flex justify-start gap-2",
+										"justify-start",
 										restoreLocation === "original" && "border-primary bg-primary/5",
 									)}
 									aria-pressed={restoreLocation === "original"}
 									onClick={() => setRestoreLocation("original")}
 									disabled={!!restoreRequiresCustomTarget}
 								>
-									<CheckCircle2
-										size={16}
-										className={cn({ hidden: restoreLocation !== "original" })}
-									/>
-									<Circle size={16} className={cn({ hidden: restoreLocation === "original" })} />
-									Original path on this server
+									<span className="flex items-center gap-2">
+										<CheckCircle2
+											size={16}
+											className={cn({ hidden: restoreLocation !== "original" })}
+										/>
+										<Circle size={16} className={cn({ hidden: restoreLocation === "original" })} />
+										Original path on this server
+									</span>
 								</Button>
 								<Button
 									type="button"
 									variant={restoreLocation === "custom" ? "secondary" : "outline"}
 									size="sm"
 									className={cn(
-										"justify-start gap-2",
+										"justify-start",
 										restoreLocation === "custom" && "border-primary bg-primary/5",
 									)}
 									aria-pressed={restoreLocation === "custom"}
 									onClick={() => setRestoreLocation("custom")}
 								>
-									<CheckCircle2 size={16} className={cn({ hidden: restoreLocation !== "custom" })} />
-									<Circle size={16} className={cn({ hidden: restoreLocation === "custom" })} />
-									Custom location
+									<span className="flex items-center gap-2">
+										<CheckCircle2
+											size={16}
+											className={cn({ hidden: restoreLocation !== "custom" })}
+										/>
+										<Circle size={16} className={cn({ hidden: restoreLocation === "custom" })} />
+										Custom location
+									</span>
 								</Button>
 							</fieldset>
 							{restoreLocation === "custom" && (
