@@ -1,39 +1,137 @@
 ---
 title: Remote agents
-description: Enroll an outbound-only backup agent on another machine.
+description: Back up files from another Linux machine with Zerobyte.
 ---
 
-Remote agents connect outbound to Zerobyte and expose only explicitly trusted filesystem roots. An organization owner or admin creates the agent through the API and receives a one-time enrollment code exactly once. Store the code as a secret until it is used; list and detail responses never return it.
+import { Callout } from "fumadocs-ui/components/callout";
 
-Build or download the agent bundle (`bun run build` writes `.output/agent/index.mjs`), then run its `enroll` command on the remote machine:
+<Callout type="warn" title="Unreleased feature">
+	Remote agents are still in development and aren't available in a stable Zerobyte release. This guide describes the
+	upcoming feature. Installation commands will work once the installer and agent binaries are published.
+</Callout>
 
-```bash
-bun run .output/agent/index.mjs enroll \
-	--controller https://zerobyte.example.com \
-	--code zba1... \
-	--root /srv/data
+A remote agent lets Zerobyte back up files on another machine without mounting its folders on the Zerobyte server. The agent runs Restic on that machine and sends backups directly to your repository. You manage the sources and backup schedules from Zerobyte as usual.
+
+The agent connects to Zerobyte, so you don't need to open an inbound port on the remote machine. It must be able to reach both your Zerobyte server and the backup repository.
+
+## Before you start
+
+On the machine you want to back up, you'll need:
+
+- Linux on x64 or ARM64, with glibc and systemd.
+- [Restic 0.18.0 or newer](https://restic.readthedocs.io/en/stable/020_installation.html), installed on the service's PATH, such as `/usr/bin/restic` or `/usr/local/bin/restic`.
+- Sudo access to install and manage the agent service.
+
+The agent is a standalone executable. You don't need to install Bun. The installer doesn't support Alpine Linux, macOS, or Windows.
+
+Your Zerobyte server must have an HTTPS address that the remote machine can reach. Remote agents are available in the server version of Zerobyte, not the desktop app.
+
+## Enable remote agents
+
+Add the following environment variable to your Zerobyte service and restart it:
+
+```yaml
+environment:
+  ENABLE_REMOTE_AGENTS: "true"
 ```
 
-The controller URL must use `https://`. Enrollment exchanges the code over HTTPS for a machine credential, saves it to `~/.config/zerobyte-agent/agent.json` with owner-only permissions, and starts the agent. The code is consumed and is not saved.
+Set `BASE_URL` to the HTTPS address you use to access Zerobyte. If a reverse proxy handles HTTPS, also set `TRUST_PROXY=true` and enable WebSocket forwarding. See the [reverse proxy guide](/docs/guides/reverse-proxy) for configuration examples.
 
-Subsequent starts use the saved configuration; do not pass the enrollment code or set `ZEROBYTE_AGENT_TOKEN` to it:
+## Connect a machine
+
+1. Open **Settings**, choose your organization, and find **Machines**.
+2. Click **Connect machine** and give the machine a name.
+3. Copy the installation command and run it in a terminal on that machine.
+
+The command downloads the agent, checks its checksum and Restic installation, then installs a systemd service. The agent starts immediately and starts again after a reboot. Once it connects, its status in Zerobyte changes to **Online**.
+
+The connection code in the command can be used once and expires after 15 minutes. If it expires, get a new command from the machine's **Actions** menu.
+
+## Choose folders to back up
+
+A newly connected agent doesn't share any folders. On the remote machine, run:
 
 ```bash
-bun run .output/agent/index.mjs
+sudo zerobyte-agent folders add
 ```
 
-Pass `--root` for every directory to expose. The CLI resolves each root to an absolute path and grants backup access only; files outside those roots and remote restores are unavailable. Commands identify a trusted root and a relative path. Do not set `ZEROBYTE_BUILTIN_LOCAL_AGENT`; that marker is reserved for Zerobyte's supervised loopback agent.
+Use the folder picker to select the directories you want Zerobyte to access. You can choose several folders and run the command again later to add more. The agent restarts after you add folders, so do this between backup runs.
 
-The built-in local agent uses the same commands and path format. It exposes a root named `local-filesystem`, starting at the filesystem root. Remote agents expose the folders selected with `--root`. Paths are ordinary folder names relative to the selected root, such as `photos/2026`; an empty path selects the whole root. Sharing a root enables browsing and backups. Restore has a separate permission, enabled only for the built-in local agent.
+The selected folders appear as **Allowed locations** on the machine's card in Zerobyte. You can also list them from the terminal:
 
-The public endpoint must be served over TLS and your reverse proxy must forward WebSocket upgrades. The enrollment code is sent in the HTTPS enrollment request; the saved machine credential is sent only in the WebSocket `Authorization` header, never in the URL.
+```bash
+sudo zerobyte-agent folders list
+```
 
-For local development, start the server with `bun run dev` and get its worktree-specific URL with `portless get zerobyte`. Remote agents can connect to that server: Vite forwards agent WebSocket upgrades to the controller's authenticated Bun listener. Use a hostname reachable from the remote machine, such as the Tailscale URL printed at startup.
+Zerobyte can browse and back up files inside these locations. Files outside them aren't available through the agent.
 
-Development mode accepts enrollment through a TLS-terminating proxy without requiring `TRUST_PROXY=true`. Production still requires HTTPS and trusted proxy metadata.
+## Create a backup
 
-Enrollment codes expire after 15 minutes and can be used once. Rotating an agent credential invalidates its saved machine credential and disconnects the current session, then returns a new enrollment code. Stop the agent, remove `~/.config/zerobyte-agent/agent.json`, and run `enroll` again with the new code and every `--root`; enrollment never overwrites an existing machine configuration. Revoking also disconnects the agent and prevents reconnection. To use it again, rotate it to create a new enrollment code, then re-enroll it the same way.
+In **Sources**, create a source and choose **Another machine**. Select your connected machine and an allowed location. You can back up the whole location or browse to a folder inside it.
 
-Managed source configuration and mount-backend credentials remain on the controller and are never sent to a remote agent. Repository configuration and its Restic password are a separate execution boundary: they are delivered ephemerally over the authenticated TLS session, held in memory for the Restic command, and are not persisted by the agent. Remote restore is not supported until remote destination policy is designed.
+Save the source, then create a backup job using it. Choose a repository that the remote machine can reach and set your schedule. Local and rclone repositories aren't available for remote sources because they rely on paths or configuration on the Zerobyte server.
 
-Remote backups support repository backends whose complete configuration can be delivered ephemerally to the agent. Local and rclone repositories are controller-scoped and cannot be used by remote agents. In particular, the controller's `rclone.conf` is never sent to an agent. Agent-scoped rclone provisioning is not currently supported and is planned as a future capability.
+Restores currently run on the Zerobyte server. To recover files from a remote backup, restore them to a custom location on the server or download them, then copy them back to the remote machine.
+
+## Check the agent
+
+The machine's card shows its status, last contact, hostname, platform, and allowed locations. Agents that report version information also show their agent and Restic versions.
+
+On the remote machine, use these commands to check the service and follow its logs:
+
+```bash
+sudo zerobyte-agent status
+sudo zerobyte-agent logs --follow
+```
+
+Press Ctrl+C to stop following the logs. The agent keeps running in the background. You can also use `start`, `stop`, and `restart` to manage the service.
+
+If the connection drops, the agent retries automatically. The delay increases between failed attempts, up to roughly 30 seconds.
+
+## Update the agent
+
+To install the latest stable agent release:
+
+```bash
+sudo zerobyte-agent update
+```
+
+To install a specific release:
+
+```bash
+sudo zerobyte-agent update --version vX.Y.Z
+```
+
+Updates preserve the machine's connection and allowed locations, then restart the service. Run them between backup runs. Agents don't update automatically.
+
+If you've downloaded a new agent executable yourself, run its `install` command without a connection code to update the existing installation. A connection code is only needed for first-time setup or reconnection.
+
+## Reconnect or revoke a machine
+
+To replace a machine's credential, open its **Actions** menu in Zerobyte and choose **Reconnect machine**. Run the new command on the same machine. It includes `--reconnect` and preserves the allowed locations and existing sources.
+
+Generating that command disconnects the current agent and invalidates its old credential. Do this between backup runs, and keep the saved configuration at `/var/lib/zerobyte-agent/agent.json` so the new command can reconnect the existing installation.
+
+Choose **Revoke connection** to prevent a machine from connecting. Its sources and backup schedules remain saved. To use the machine again, reconnect it from the same machine card.
+
+## Troubleshooting
+
+### The installer says the machine is already enrolled
+
+The machine already has a saved identity. For an update, run `sudo zerobyte-agent update` or run the downloaded executable's `install` command without enrollment options.
+
+If you need to replace the credential, use **Reconnect machine** on the existing machine card and run its new command. Keep `agent.json`; deleting it also loses the saved folder selection.
+
+### Enrollment fails with “TLS required”
+
+Check that the controller URL uses HTTPS. When a trusted proxy terminates HTTPS and forwards to Zerobyte over HTTP, set `TRUST_PROXY=true` on Zerobyte and make sure the proxy forwards the original secure protocol.
+
+### The machine stays offline after installation
+
+Check `sudo zerobyte-agent logs --follow`. Your proxy must allow WebSocket upgrades to `/api/v1/agents/connect` and preserve the `Authorization` header. With `TRUST_PROXY=true`, Zerobyte accepts `X-Forwarded-Proto: https` and `X-Forwarded-Proto: wss` for secure connections.
+
+If the logs report a Restic or configuration error, fix it and run `sudo zerobyte-agent restart`. These errors stop the service until you restart it.
+
+### The machine is online but has no allowed locations
+
+Run `sudo zerobyte-agent folders add` on the remote machine. Registering a machine doesn't share its filesystem automatically.
