@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { startSsoSignIn } from "../start-sso-sign-in";
 
@@ -17,13 +17,16 @@ export function SsoLoginButtons({ providers }: SsoLoginButtonsProps) {
 		onSuccess: (url) => {
 			window.location.href = url;
 		},
-		onError: (error) => {
-			toast.error("SSO Login failed", { description: error.message });
-		},
 	});
 
 	return (
 		<>
+			{ssoLoginMutation.isError && (
+				<Alert variant="destructive">
+					<AlertTitle>Unable to sign in with {ssoLoginMutation.variables}</AlertTitle>
+					<AlertDescription>{ssoLoginMutation.error.message}</AlertDescription>
+				</Alert>
+			)}
 			{providers.map((provider) => (
 				<Button
 					key={provider.providerId}

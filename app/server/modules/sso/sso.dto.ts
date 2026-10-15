@@ -1,3 +1,4 @@
+import { ssoDiscoveryResultSchema, ssoProviderDetailsSchema } from "~/lib/sso-configuration";
 import { z } from "zod";
 import { describeRoute, resolver } from "hono-openapi";
 
@@ -168,6 +169,42 @@ export const updateSsoProviderAutoLinkingDto = describeRoute({
 		},
 		404: {
 			description: "Provider not found",
+		},
+	},
+});
+
+export const getSsoProviderDetailsDto = describeRoute({
+	operationId: "getSsoProviderDetails",
+	description: "Get editable OIDC settings and callback diagnostics for an organization provider",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Provider settings and callback diagnostics",
+			content: { "application/json": { schema: resolver(ssoProviderDetailsSchema) } },
+		},
+	},
+});
+
+export const checkSsoProviderDiscoveryDto = describeRoute({
+	operationId: "checkSsoProviderDiscovery",
+	description: "Check an organization's saved OIDC settings against its discovery document",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Discovery diagnostics",
+			content: { "application/json": { schema: resolver(ssoDiscoveryResultSchema) } },
+		},
+	},
+});
+
+export const updateSsoProviderDto = describeRoute({
+	operationId: "updateSsoProvider",
+	description: "Update an organization's OIDC provider while preserving linked accounts",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Provider updated",
+			content: { "application/json": { schema: resolver(z.object({ success: z.boolean() })) } },
 		},
 	},
 });

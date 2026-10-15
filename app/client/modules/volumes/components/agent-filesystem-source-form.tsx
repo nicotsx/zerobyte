@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { listSourceMachinesOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import { Alert, AlertDescription } from "~/client/components/ui/alert";
+import { Alert, AlertAction, AlertContent, AlertDescription } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
@@ -66,8 +66,10 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 
 				{machinesQuery.isError && (
 					<Alert variant="destructive">
-						<AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-							<span>Machines could not be loaded.</span>
+						<AlertContent>
+							<AlertDescription>Machines could not be loaded.</AlertDescription>
+						</AlertContent>
+						<AlertAction>
 							<Button
 								type="button"
 								variant="outline"
@@ -76,7 +78,7 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 							>
 								Retry
 							</Button>
-						</AlertDescription>
+						</AlertAction>
 					</Alert>
 				)}
 				{machinesQuery.isPending && <p className="text-sm text-muted-foreground">Loading machines…</p>}

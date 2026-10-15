@@ -84,7 +84,7 @@ export function DownloadRecoveryKeyPage({ passwordAuthSupported, hasPassword, us
 		const description = hasWarnings
 			? "Your configuration was imported, but some items need your attention."
 			: "Your configuration is ready to use.";
-		const alertVariant = hasWarnings ? "warning" : "default";
+		const alertVariant = hasWarnings ? "warning" : "success";
 		const alertTitle = hasWarnings ? "Review required" : "Import complete";
 		const continueLabel = hasWarnings ? "I understand, continue" : "Continue";
 

@@ -438,6 +438,96 @@ export type DeleteSsoProviderResponses = {
     200: unknown;
 };
 
+export type GetSsoProviderDetailsData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}';
+};
+
+export type GetSsoProviderDetailsResponses = {
+    /**
+     * Provider settings and callback diagnostics
+     */
+    200: {
+        providerId: string;
+        issuer: string;
+        domain: string;
+        clientId: string;
+        discoveryEndpoint: string;
+        hasClientSecret: boolean;
+        hasLinkedAccounts: boolean;
+        callbackUrl: string;
+        expectedCallbackUrl: string | null;
+        proxyMisconfigured: boolean;
+    };
+};
+
+export type GetSsoProviderDetailsResponse = GetSsoProviderDetailsResponses[keyof GetSsoProviderDetailsResponses];
+
+export type UpdateSsoProviderData = {
+    body: {
+        issuer?: string;
+        domain?: string;
+        discoveryEndpoint?: string;
+        clientId?: string;
+        clientSecret?: string;
+    };
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}';
+};
+
+export type UpdateSsoProviderErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+};
+
+export type UpdateSsoProviderError = UpdateSsoProviderErrors[keyof UpdateSsoProviderErrors];
+
+export type UpdateSsoProviderResponses = {
+    /**
+     * Provider updated
+     */
+    200: {
+        success: boolean;
+    };
+};
+
+export type UpdateSsoProviderResponse = UpdateSsoProviderResponses[keyof UpdateSsoProviderResponses];
+
+export type CheckSsoProviderDiscoveryData = {
+    body?: never;
+    path: {
+        providerId: string;
+    };
+    query?: never;
+    url: '/api/v1/auth/sso-providers/{providerId}/discovery';
+};
+
+export type CheckSsoProviderDiscoveryResponses = {
+    /**
+     * Discovery diagnostics
+     */
+    200: {
+        discoveryStatus: 'ok' | 'issuer_mismatch' | 'unavailable';
+        discoveryIssuer: string | null;
+        discoveryMessage: string | null;
+    };
+};
+
+export type CheckSsoProviderDiscoveryResponse = CheckSsoProviderDiscoveryResponses[keyof CheckSsoProviderDiscoveryResponses];
+
 export type UpdateSsoProviderAutoLinkingData = {
     body: {
         enabled: boolean;

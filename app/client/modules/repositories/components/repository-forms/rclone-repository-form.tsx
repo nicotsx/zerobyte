@@ -11,7 +11,7 @@ import {
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
-import { Alert, AlertDescription } from "../../../../components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "../../../../components/ui/alert";
 import { listRcloneRemotesOptions } from "../../../../api-client/@tanstack/react-query.gen";
 import type { RepositoryFormValues } from "../create-repository-form";
 
@@ -25,16 +25,14 @@ export const RcloneRepositoryForm = ({ form }: Props) => {
 	if (!isLoadingRemotes && (!rcloneRemotes || rcloneRemotes.length === 0)) {
 		return (
 			<Alert>
+				<AlertTitle>No rclone remotes configured</AlertTitle>
 				<AlertDescription className="space-y-2">
-					<p className="font-medium">No rclone remotes configured</p>
-					<p className="text-sm text-muted-foreground">
-						To use rclone, you need to configure remotes on your host system
-					</p>
+					<p>To use rclone, you need to configure remotes on your host system</p>
 					<a
 						href="https://rclone.org/docs/"
 						target="_blank"
 						rel="noopener noreferrer"
-						className="text-sm text-strong-accent inline-flex items-center gap-1"
+						className="text-foreground underline underline-offset-4 inline-flex items-center gap-1"
 					>
 						View rclone documentation
 						<ExternalLink className="w-3 h-3" />

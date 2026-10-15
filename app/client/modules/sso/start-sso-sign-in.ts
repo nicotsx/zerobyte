@@ -1,5 +1,6 @@
 import { authClient } from "~/client/lib/auth-client";
 import { logger } from "~/client/lib/logger";
+import { decodeLoginError } from "~/client/lib/sso-errors";
 import { getLoginErrorDescription } from "~/lib/sso-errors";
 
 type SsoSignInOptions = {
@@ -7,6 +8,19 @@ type SsoSignInOptions = {
 	callbackURL: string;
 	loginHint?: string;
 };
+
+function getSsoSignInErrorMessage(error: unknown) {
+	const fallback = getLoginErrorDescription("SSO_LOGIN_FAILED");
+	if (!error) return fallback;
+	if (typeof error !== "object") return fallback;
+	if (!("code" in error)) return fallback;
+	if (typeof error.code !== "string") return fallback;
+
+	const code = decodeLoginError(error.code);
+	if (!code) return fallback;
+
+	return getLoginErrorDescription(code);
+}
 
 export async function startSsoSignIn(options: SsoSignInOptions): Promise<string> {
 	try {
@@ -18,6 +32,6 @@ export async function startSsoSignIn(options: SsoSignInOptions): Promise<string>
 		return data.url;
 	} catch (cause) {
 		logger.error(cause);
-		throw new Error(getLoginErrorDescription("SSO_LOGIN_FAILED"), { cause });
+		throw new Error(getSsoSignInErrorMessage(cause), { cause });
 	}
 }

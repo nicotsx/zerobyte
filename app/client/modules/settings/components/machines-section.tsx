@@ -8,6 +8,7 @@ import {
 	revokeRemoteAgentTokenMutation,
 	rotateRemoteAgentTokenMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { Alert, AlertAction, AlertContent, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { getMachineDisplayName } from "~/lib/machine-name";
 import { ConfirmActionDialog, type ConfirmActionDialogProps } from "./confirm-action-dialog";
@@ -152,26 +153,24 @@ export function MachinesSection() {
 				</div>
 
 				{agentsQuery.isError && (
-					<div
-						role="alert"
-						className="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
-					>
-						<div className="min-w-0 space-y-1">
-							<p className="text-sm font-medium">Could not refresh machines</p>
-							<p className="text-xs text-muted-foreground">Showing the last known details.</p>
-						</div>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							className="self-start sm:self-auto"
-							onClick={() => void agentsQuery.refetch()}
-							loading={agentsQuery.isFetching}
-						>
-							<RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-							Retry
-						</Button>
-					</div>
+					<Alert variant="destructive">
+						<AlertContent>
+							<AlertTitle>Could not refresh machines</AlertTitle>
+							<AlertDescription>Showing the last known details.</AlertDescription>
+						</AlertContent>
+						<AlertAction>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void agentsQuery.refetch()}
+								loading={agentsQuery.isFetching}
+							>
+								<RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+								Retry
+							</Button>
+						</AlertAction>
+					</Alert>
 				)}
 
 				<ul className="min-w-0 divide-y overflow-hidden rounded-lg border" aria-label="Machines">

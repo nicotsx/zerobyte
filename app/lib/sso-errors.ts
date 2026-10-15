@@ -25,6 +25,7 @@ export function getLoginErrorDescription(errorCode: LoginErrorCode): string {
 			return "Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 		case "BANNED_USER":
 			return "You have been banned from this application. Please contact support if you believe this is an error.";
+
 		case "SSO_LOGIN_FAILED":
 			return "SSO authentication failed. Please try again.";
 		case PASSKEY_LOGIN_FAILED_ERROR:

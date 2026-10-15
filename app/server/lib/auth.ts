@@ -24,16 +24,13 @@ import { enforcePasswordLoginPolicy } from "./auth/middlewares/password-login-po
 import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
 import { ssoIntegration } from "../modules/sso/sso.integration";
 import { ACCOUNT_LINK_REQUIRED_DESCRIPTION } from "~/lib/sso-errors";
+import { authBaseURL } from "./auth/request-base-url";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
 export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
-	baseURL: {
-		allowedHosts: config.allowedHosts,
-		protocol: "auto",
-		fallback: config.baseUrl,
-	},
+	baseURL: authBaseURL,
 	trustedOrigins: config.trustedOrigins,
 	rateLimit: {
 		enabled: !config.flags.disableRateLimiting,

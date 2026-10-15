@@ -6,6 +6,7 @@ import { db } from "~/server/db/db";
 import { invitation, member } from "~/server/db/schema";
 import { authService } from "../auth/auth.service";
 import { ssoService } from "./sso.service";
+import { validateSsoRegistrationIssuer } from "./middlewares/validate-registration-issuer";
 import { validateSsoProviderId } from "./middlewares/validate-provider-id";
 import { validateSsoCallbackUrls } from "./middlewares/validate-callback-urls";
 import { authorizeSsoRegistration } from "./middlewares/authorize-registration";
@@ -188,7 +189,12 @@ export const ssoIntegration = {
 		},
 	}),
 
-	beforeMiddlewares: [validateSsoProviderId, validateSsoCallbackUrls, authorizeSsoRegistration] as const,
+	beforeMiddlewares: [
+		validateSsoProviderId,
+		validateSsoCallbackUrls,
+		authorizeSsoRegistration,
+		validateSsoRegistrationIssuer,
+	] as const,
 
 	isSsoCallback: isSsoCallbackRequest,
 

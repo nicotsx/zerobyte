@@ -50,10 +50,10 @@ export function RecoveryKeyReminder({ organization, canDownloadRecoveryKey }: Pr
 			// oxlint-disable-next-line jsx_a11y/prefer-tag-over-role
 			role="region"
 			aria-label="Recovery key reminder"
-			className="absolute inset-x-0 top-16.25 z-40 h-14 rounded-none border-x-0 border-t-0 bg-orange-50 px-0 py-0 text-orange-700 dark:bg-orange-950 dark:text-orange-400"
+			className="absolute inset-x-0 top-16.25 z-40 h-14 rounded-none border-r-0 border-t-0 px-0 py-0"
 		>
 			<div className="flex h-full w-full items-center gap-3 px-3 sm:px-8">
-				<AlertTriangle className="size-5 shrink-0" />
+				<AlertTriangle className="size-3.5 shrink-0 text-alert-warning" />
 				<AlertDescription className="min-w-0 flex-1 truncate">
 					Your recovery key was last exported over a year ago. Download a fresh copy and store it somewhere
 					safe.

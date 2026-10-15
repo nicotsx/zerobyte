@@ -47,3 +47,20 @@ test("rejects a successful response without a redirect URL", async () => {
 		cause: { message: "Missing SSO redirect URL" },
 	});
 });
+
+test.each(["INVITE_REQUIRED", "ACCOUNT_LINK_REQUIRED"] as const)(
+	"shows actionable instructions for %s without exposing raw diagnostics",
+	async (code) => {
+		const { startSsoSignIn } = await import("../start-sso-sign-in");
+		const { getLoginErrorDescription } = await import("~/lib/sso-errors");
+		server.use(
+			http.post("*/api/auth/sign-in/sso", () =>
+				HttpResponse.json({ code, message: "private-detail" }, { status: 400 }),
+			),
+		);
+
+		await expect(startSsoSignIn({ providerId: "company", callbackURL: "/login" })).rejects.toMatchObject({
+			message: getLoginErrorDescription(code),
+		});
+	},
+);

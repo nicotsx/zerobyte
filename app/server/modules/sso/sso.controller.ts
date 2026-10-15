@@ -1,7 +1,12 @@
+import { updateSsoProviderBody } from "~/lib/sso-configuration";
+import { checkSsoProviderDiscovery, getSsoProviderDetails, updateSsoProvider } from "./sso-configuration";
 import { Hono } from "hono";
 import { validator } from "hono-openapi";
 import {
 	type PublicSsoProvidersDto,
+	getSsoProviderDetailsDto,
+	checkSsoProviderDiscoveryDto,
+	updateSsoProviderDto,
 	type SsoSettingsDto,
 	type UserSsoInvitationsDto,
 	deleteSsoInvitationDto,
@@ -116,6 +121,42 @@ export const ssoController = new Hono()
 				path: "/api/auth",
 				maxAge: 10 * 60,
 			});
+
+			return c.json({ success: true });
+		},
+	)
+	.get("/sso-providers/:providerId", requireAuth, requirePermission("sso.manage"), getSsoProviderDetailsDto, (c) => {
+		const details = getSsoProviderDetails(c.req.param("providerId"), c.get("organizationId"), c.req.raw);
+
+		c.header("Cache-Control", "no-store");
+		return c.json(details);
+	})
+	.get(
+		"/sso-providers/:providerId/discovery",
+		requireAuth,
+		requirePermission("sso.manage"),
+		checkSsoProviderDiscoveryDto,
+		async (c) => {
+			const context = await auth.$context;
+			const result = await checkSsoProviderDiscovery(c.req.param("providerId"), c.get("organizationId"), (url) =>
+				context.isTrustedOrigin(url),
+			);
+
+			c.header("Cache-Control", "no-store");
+			return c.json(result);
+		},
+	)
+	.patch(
+		"/sso-providers/:providerId",
+		requireAuth,
+		requirePermission("sso.manage"),
+		updateSsoProviderDto,
+		validator("json", updateSsoProviderBody),
+		async (c) => {
+			const context = await auth.$context;
+			await updateSsoProvider(c.req.param("providerId"), c.get("organizationId"), c.req.valid("json"), (url) =>
+				context.isTrustedOrigin(url),
+			);
 
 			return c.json({ success: true });
 		},

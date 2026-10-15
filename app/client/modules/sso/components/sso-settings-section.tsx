@@ -1,3 +1,4 @@
+import { EditSsoProviderDialog } from "./edit-sso-provider-dialog";
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Ban, Trash2 } from "lucide-react";
@@ -180,7 +181,9 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 						<TableBody>
 							{providers.map((provider) => (
 								<TableRow key={provider.providerId}>
-									<TableCell className="font-medium">{provider.providerId}</TableCell>
+									<TableCell className="font-medium">
+										<div className="flex items-center gap-2">{provider.providerId}</div>
+									</TableCell>
 									<TableCell>{provider.domain}</TableCell>
 									<TableCell className="break-all">{provider.issuer}</TableCell>
 									<TableCell>
@@ -217,6 +220,9 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 										/>
 									</TableCell>
 									<TableCell className="text-right">
+										{provider.type === "oidc" && (
+											<EditSsoProviderDialog providerId={provider.providerId} />
+										)}
 										<AlertDialog>
 											<AlertDialogTrigger asChild>
 												<Button

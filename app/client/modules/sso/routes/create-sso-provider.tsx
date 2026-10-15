@@ -1,9 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { ShieldCheck, Plus } from "lucide-react";
 import { useId } from "react";
-import { useForm } from "react-hook-form";
+import { Alert, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
+import { useServerFn } from "@tanstack/react-start";
+import { getAuthBaseURL } from "~/client/functions/get-auth-base-url";
+import { ssoUrlSchema } from "~/lib/sso-configuration";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { updateSsoProviderAutoLinkingMutation } from "~/client/api-client/@tanstack/react-query.gen";
@@ -26,11 +30,11 @@ import { useOrganizationContext } from "~/client/hooks/use-org-context";
 
 const ssoProviderSchema = z.object({
 	providerId: z.string().min(1),
-	issuer: z.string().min(1),
+	issuer: ssoUrlSchema,
 	domain: z.string().min(1),
 	clientId: z.string().min(1),
 	clientSecret: z.string().min(1),
-	discoveryEndpoint: z.string().min(1),
+	discoveryEndpoint: ssoUrlSchema,
 	linkMatchingEmails: z.boolean(),
 });
 
@@ -40,6 +44,9 @@ export function CreateSsoProviderPage() {
 	const navigate = useNavigate();
 	const formId = useId();
 	const { activeOrganization } = useOrganizationContext();
+
+	const authBaseURLQuery = useServerFn(getAuthBaseURL);
+	const { data: authBaseURL } = useSuspenseQuery({ queryKey: ["auth-base-url"], queryFn: authBaseURLQuery });
 
 	const form = useForm<ProviderForm>({
 		resolver: zodResolver(ssoProviderSchema),
@@ -53,6 +60,8 @@ export function CreateSsoProviderPage() {
 			linkMatchingEmails: false,
 		},
 	});
+
+	const providerId = useWatch({ control: form.control, name: "providerId" });
 
 	const updateProviderAutoLinking = useMutation({
 		...updateSsoProviderAutoLinkingMutation(),
@@ -107,6 +116,25 @@ export function CreateSsoProviderPage() {
 					</div>
 				</CardHeader>
 				<CardContent className="space-y-6">
+					<Alert>
+						<AlertTitle>Register this callback in your identity provider</AlertTitle>
+						<AlertDescription>
+							<p className="break-all font-mono">
+								{authBaseURL}/sso/callback/
+								{providerId || "{providerId}"}
+							</p>
+							<p className="mt-2">
+								Use the exact address you access Zerobyte with. Behind an HTTPS reverse proxy, enable
+								TRUST_PROXY=true and forward X-Forwarded-Proto: https.
+							</p>
+						</AlertDescription>
+					</Alert>
+					{registerProvider.isError && (
+						<Alert variant="destructive">
+							<AlertTitle>Provider could not be registered</AlertTitle>
+							<AlertDescription>{registerProvider.error.message}</AlertDescription>
+						</Alert>
+					)}
 					<Form {...form}>
 						<form
 							id={formId}
@@ -162,9 +190,14 @@ export function CreateSsoProviderPage() {
 												<Input
 													{...field}
 													placeholder="https://idp.example.com"
+													type="url"
 													disabled={registerProvider.isPending}
 												/>
 											</FormControl>
+											<FormDescription>
+												Must match the issuer in the discovery document exactly, including any
+												trailing slash.
+											</FormDescription>
 											<FormMessage />
 										</FormItem>
 									)}
