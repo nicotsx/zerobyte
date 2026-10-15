@@ -3,9 +3,9 @@ FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349
 # renovate: datasource=github-releases depName=restic/restic versioning=semver extractVersion=^v?(?<version>.+)$
 ARG RESTIC_VERSION="0.19.1"
 # renovate: datasource=github-releases depName=rclone/rclone versioning=semver extractVersion=^v?(?<version>.+)$
-ARG RCLONE_VERSION="1.75.1"
+ARG RCLONE_VERSION="1.75.2"
 # renovate: datasource=github-releases depName=nicholas-fedor/shoutrrr versioning=semver extractVersion=^v?(?<version>.+)$
-ARG SHOUTRRR_VERSION="0.21.1"
+ARG SHOUTRRR_VERSION="0.21.2"
 
 ENV VITE_RESTIC_VERSION=${RESTIC_VERSION} \
     VITE_RCLONE_VERSION=${RCLONE_VERSION} \
