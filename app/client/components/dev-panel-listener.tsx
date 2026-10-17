@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useHotkeySequence } from "@tanstack/react-hotkeys";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { getDevPanelOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { DevPanel } from "./dev-panel";
 
@@ -10,7 +10,7 @@ export function DevPanelListener() {
 		...getDevPanelOptions(),
 	});
 
-	useHotkeySequence(["D", "E", "V"], () => setIsOpen(true), {
+	useHotkey(["D", "E", "V"], () => setIsOpen(true), {
 		enabled: !!devPanelStatus?.enabled,
 		preventDefault: true,
 		ignoreInputs: true,
