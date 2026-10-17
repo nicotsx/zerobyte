@@ -154,7 +154,7 @@ class RepositoryMutex {
 	}
 
 	private tryAcquireImmediately(request: LockRequest) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const locks = this.tryAcquireManyRows([request]);
 			if (!locks || locks.length === 0) return null;
 
@@ -281,7 +281,7 @@ class RepositoryMutex {
 				}
 
 				if (attempt.status === "missing") {
-					return Effect.gen(this, function* () {
+					return Effect.gen({ self: this }, function* () {
 						yield* this.createWaiter(request, waiterId);
 						yield* this.startHeartbeat("waiter", waiterId);
 
@@ -293,13 +293,13 @@ class RepositoryMutex {
 			}),
 		);
 
-		const cleanupAbandonedWaiter = Effect.gen(this, function* () {
+		const cleanupAbandonedWaiter = Effect.gen({ self: this }, function* () {
 			yield* this.deleteWaiter(waiterId);
 			yield* this.release({ id: waiterId });
 		});
 
 		return Effect.scoped(
-			Effect.gen(this, function* () {
+			Effect.gen({ self: this }, function* () {
 				const lock = yield* attempt.pipe(
 					Effect.retry(Schedule.spaced(LOCK_POLL_MS)),
 					Effect.onExit((exit) => {
@@ -326,7 +326,7 @@ class RepositoryMutex {
 	}
 
 	private createReleaseMany(locks: AcquiredLock[]) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const releases = yield* Effect.all(locks.map((lock) => this.createRelease(lock)));
 			let released = false;
 
@@ -342,7 +342,7 @@ class RepositoryMutex {
 	}
 
 	private createRelease(lock: AcquiredLock) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const heartbeatFiber = yield* this.startHeartbeat("lock", lock.id);
 			let released = false;
 
@@ -357,7 +357,7 @@ class RepositoryMutex {
 	}
 
 	private release(lock: Pick<AcquiredLock, "id">) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const releasedLock = yield* Effect.sync(() =>
 				db.transaction((tx) => {
 					const row = tx.query.repositoryLocksTable
@@ -389,16 +389,13 @@ class RepositoryMutex {
 	private startHeartbeat(
 		target: "waiter",
 		lockId: string,
-	): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, Scope.Scope>;
-	private startHeartbeat(
-		target: "lock",
-		lockId: string,
-	): Effect.Effect<Fiber.RuntimeFiber<void, never>, never, never>;
+	): Effect.Effect<Fiber.Fiber<void, never>, never, Scope.Scope>;
+	private startHeartbeat(target: "lock", lockId: string): Effect.Effect<Fiber.Fiber<void, never>, never, never>;
 	private startHeartbeat(
 		target: HeartbeatTarget,
 		lockId: string,
-	): Effect.Effect<Fiber.RuntimeFiber<unknown, never>, never, Scope.Scope> {
-		const heartbeat = Effect.gen(this, function* () {
+	): Effect.Effect<Fiber.Fiber<unknown, never>, never, Scope.Scope> {
+		const heartbeat = Effect.gen({ self: this }, function* () {
 			const now = Date.now();
 			const values = { heartbeatAt: now, expiresAt: now + LOCK_LEASE_MS };
 
@@ -423,7 +420,7 @@ class RepositoryMutex {
 				});
 			}
 		}).pipe(
-			Effect.catchAll((error) =>
+			Effect.catch((error) =>
 				logger.effect.warn(`[Mutex] Failed to heartbeat ${target} ${lockId}: ${String(error)}`),
 			),
 		);
@@ -438,11 +435,11 @@ class RepositoryMutex {
 		// For locks, the heartbeat must outlive the acquire scope.
 		// It is interrupted manually by the returned release function.
 		// TODO: max lifetime for lock heartbeats to prevent leaks if the releaser is never called?
-		return repeat.pipe(Effect.forkDaemon);
+		return repeat.pipe(Effect.forkDetach);
 	}
 
 	private acquireSharedEffect(repositoryId: string, operation: string) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const request: LockRequest = { repositoryId, type: "shared", operation };
 			const releaseLock = yield* this.tryAcquireImmediately(request);
 			if (releaseLock) return releaseLock;
@@ -453,7 +450,7 @@ class RepositoryMutex {
 	}
 
 	private acquireExclusiveEffect(repositoryId: string, operation: string) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			const request: LockRequest = { repositoryId, type: "exclusive", operation };
 			const releaseLock = yield* this.tryAcquireImmediately(request);
 			if (releaseLock) {
@@ -469,7 +466,7 @@ class RepositoryMutex {
 	}
 
 	private acquireManyEffect(requests: LockRequest[]) {
-		return Effect.gen(this, function* () {
+		return Effect.gen({ self: this }, function* () {
 			if (requests.length === 0) {
 				return () => {};
 			}
@@ -518,7 +515,7 @@ class RepositoryMutex {
 
 			const onAbort = () => {
 				aborting = true;
-				Effect.runPromise(Fiber.interrupt(fiber)).then(
+				Effect.runPromise(Fiber.interrupt(fiber).pipe(Effect.andThen(Fiber.await(fiber)))).then(
 					(exit) =>
 						complete(() => {
 							if (Exit.isSuccess(exit)) {

@@ -1,7 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import * as path from "node:path";
-import { Effect, Fiber, TestClock, TestContext } from "effect";
+import { Effect, Fiber } from "effect";
+import { TestClock } from "effect/testing";
 import { afterEach, expect, test, vi } from "vitest";
 import { enrollMachine, parseControllerUrl, reconnectMachine } from "../enrollment";
 import { runTest } from "./effect-test-support";
@@ -143,13 +144,13 @@ test.each(["headers", "body"])("enrollment times out and aborts while waiting fo
 	vi.stubGlobal("fetch", request);
 
 	const enrollment = Effect.gen(function* () {
-		const fiber = yield* Effect.fork(enrollMachine(controller, code, []));
+		const fiber = yield* Effect.forkChild(enrollMachine(controller, code, []));
 
 		yield* Effect.promise(() => started.promise);
 		yield* TestClock.adjust("15 seconds");
 
 		return yield* Fiber.join(fiber);
-	}).pipe(Effect.provide(TestContext.TestContext));
+	}).pipe(Effect.provide(TestClock.layer()));
 
 	await expect(runTest(enrollment)).rejects.toMatchObject({
 		_tag: "EnrollmentError",

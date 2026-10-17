@@ -78,7 +78,7 @@ export const createAgentConnection = (
 		Effect.suspend(() => {
 			if (closeReason !== null) return Effect.succeed(false);
 
-			return Queue.offer(outbound, message).pipe(Effect.catchAllCause(() => Effect.succeed(false)));
+			return Queue.offer(outbound, message).pipe(Effect.catchCause(() => Effect.succeed(false)));
 		});
 
 	const rejectStartup = (rejection: AgentProtocolRejection) =>
@@ -155,7 +155,7 @@ export const createAgentConnection = (
 					return yield* hooks.onEvent(event);
 			}
 		}).pipe(
-			Effect.catchAll((error) => {
+			Effect.catch((error) => {
 				if (error instanceof ConnectionClosed) return Effect.fail(error);
 
 				return logger.effect
@@ -244,7 +244,7 @@ export const createAgentConnection = (
 					discard: true,
 				}),
 			),
-			Effect.catchAll((closed) => Effect.sync(() => closeTransport(closed.reason, closed.code))),
+			Effect.catch((closed) => Effect.sync(() => closeTransport(closed.reason, closed.code))),
 			Effect.ensuring(release),
 		),
 	);
@@ -274,9 +274,9 @@ export const createAgentConnection = (
 
 				const bytes = Buffer.byteLength(text);
 
-				if (queuedBytes + bytes > MAX_QUEUED_BYTES || !inbox.unsafeOffer(text)) {
+				if (queuedBytes + bytes > MAX_QUEUED_BYTES || !Queue.offerUnsafe(inbox, text)) {
 					closeTransport("message_limit", 1009);
-					return Fiber.interruptFork(fiber);
+					return Effect.sync(() => fiber.interruptUnsafe());
 				}
 
 				queuedBytes += bytes;
@@ -311,9 +311,9 @@ export const createAgentConnection = (
 				}
 
 				return yield* Deferred.await(deferred).pipe(
-					Effect.timeoutFail({
+					Effect.timeoutOrElse({
 						duration: "60 seconds",
-						onTimeout: () => new Error(`Filesystem command ${command.name} timed out`),
+						orElse: () => Effect.fail(new Error(`Filesystem command ${command.name} timed out`)),
 					}),
 				);
 			}).pipe(Effect.ensuring(Effect.sync(() => pendingCommands.delete(commandId))));

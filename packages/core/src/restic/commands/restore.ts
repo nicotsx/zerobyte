@@ -170,7 +170,7 @@ export const restore = (
 
 			return result.data;
 		}).pipe(
-			Effect.catchAll((error): Effect.Effect<never, AnyResticError | ResticRestoreCommandError> => {
+			Effect.catch((error): Effect.Effect<never, AnyResticError | ResticRestoreCommandError> => {
 				if (isResticError(error)) {
 					return Effect.fail(error);
 				}

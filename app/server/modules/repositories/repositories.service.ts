@@ -34,11 +34,11 @@ import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-c
 import { commands } from "./commands";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
 import { taskStore } from "../tasks/tasks.store";
-import { Effect } from "effect";
+import { Effect, Semaphore } from "effect";
 import { normalizeRequiredName } from "~/server/utils/names";
 import { bandwidthFields } from "./repository-bandwidth-fields";
 
-const lsLimiters = new Map<string, Effect.Semaphore>();
+const lsLimiters = new Map<string, Semaphore.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
 
 const getBlockedRestoreTargets = () => {
@@ -66,7 +66,7 @@ const assertAllowedControllerLocalRestoreTarget = (target: string) => {
 const getLsLimiter = (repositoryId: string) => {
 	let limiter = lsLimiters.get(repositoryId);
 	if (!limiter) {
-		limiter = Effect.runSync(Effect.makeSemaphore(2));
+		limiter = Effect.runSync(Semaphore.make(2));
 		lsLimiters.set(repositoryId, limiter);
 	}
 	return limiter;
@@ -272,7 +272,7 @@ const listSnapshots = async (shortId: ShortId, backupId?: ShortId) => {
 	}
 
 	const cacheKey = cacheKeys.repository.snapshots(repository.id, backupId);
-	const cached = cache.get<Effect.Effect.Success<ReturnType<typeof restic.snapshots>>>(cacheKey);
+	const cached = cache.get<Effect.Success<ReturnType<typeof restic.snapshots>>>(cacheKey);
 	if (cached) {
 		return cached;
 	}
@@ -314,7 +314,7 @@ const listSnapshotFiles = async (
 	const limit = options?.limit ?? 500;
 
 	const cacheKey = cacheKeys.repository.ls(repository.id, snapshotId, path, offset, limit);
-	type LsResult = Effect.Effect.Success<ReturnType<typeof restic.ls>>;
+	type LsResult = Effect.Success<ReturnType<typeof restic.ls>>;
 	const cached = cache.get<LsResult>(cacheKey);
 	if (cached?.snapshot) {
 		return {
@@ -502,7 +502,7 @@ const getSnapshotDetails = async (shortId: ShortId, snapshotId: string) => {
 	}
 
 	const cacheKey = cacheKeys.repository.snapshots(repository.id);
-	let snapshots = cache.get<Effect.Effect.Success<ReturnType<typeof restic.snapshots>>>(cacheKey);
+	let snapshots = cache.get<Effect.Success<ReturnType<typeof restic.snapshots>>>(cacheKey);
 
 	if (!snapshots) {
 		const releaseLock = await repoMutex.acquireShared(repository.id, `snapshot_details:${snapshotId}`);

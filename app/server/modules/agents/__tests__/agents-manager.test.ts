@@ -75,7 +75,7 @@ afterEach(async () => {
 });
 
 test("respawns the local agent after an unexpected exit", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
@@ -101,7 +101,7 @@ test("respawns the local agent after an unexpected exit", async () => {
 });
 
 test("retries automatic replacements after readiness and spawn failures", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
@@ -121,14 +121,12 @@ test("retries automatic replacements after readiness and spawn failures", async 
 	await vi.advanceTimersByTimeAsync(1_000);
 
 	expect(secondChild.kill).toHaveBeenCalledOnce();
-	await vi.advanceTimersByTimeAsync(2_000);
-
-	expect(spawnMock).toHaveBeenCalledTimes(4);
+	await vi.waitFor(() => expect(spawnMock).toHaveBeenCalledTimes(4), { timeout: 5_000 });
 	expect(thirdChild.kill).not.toHaveBeenCalled();
 });
 
 test("stopping cancels a pending automatic restart", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const child = createFakeChild();
 	spawnMock.mockReturnValue(child);
@@ -144,7 +142,7 @@ test("stopping cancels a pending automatic restart", async () => {
 });
 
 test("does not respawn after an intentional stop", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const child = createFakeChild();
 	spawnMock.mockReturnValue(child);
@@ -157,7 +155,7 @@ test("does not respawn after an intentional stop", async () => {
 });
 
 test("waits for confirmed exit after forcing shutdown", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const child = createFakeChild();
 	child.kill.mockImplementation(() => true);
@@ -183,7 +181,7 @@ test("waits for confirmed exit after forcing shutdown", async () => {
 test.each(["exit", "close"])(
 	"does not replace an unconfirmed worker after shutdown timeout and late %s",
 	async (event) => {
-		vi.useFakeTimers();
+		vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 		const child = createFakeChild();
 		const replacement = createFakeChild();
@@ -301,7 +299,7 @@ test("orders start stop start while token generation is delayed", async () => {
 });
 
 test("ignores a stale exit after stop and restart", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
@@ -349,7 +347,7 @@ test("rejects startup without a running controller", async () => {
 });
 
 test("controller shutdown still closes the controller when worker termination times out", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const child = createFakeChild();
 	child.kill.mockImplementation(() => true);
@@ -389,7 +387,7 @@ test("handles an asynchronous spawn error and permits a later startup", async ()
 });
 
 test("shutdown terminates an automatic replacement whose readiness is pending", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();
@@ -410,7 +408,7 @@ test("shutdown terminates an automatic replacement whose readiness is pending", 
 });
 
 test("an ensure call waits for a restarting worker to become ready", async () => {
-	vi.useFakeTimers();
+	vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 
 	const firstChild = createFakeChild();
 	const secondChild = createFakeChild();

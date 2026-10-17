@@ -155,7 +155,7 @@ const getVolume = async (shortId: ShortId, signal?: AbortSignal) => {
 		statfs = await runEffectPromise(
 			probeSource(volume.agentId, organizationId, assembleVolumeExecutionSource(volume)).pipe(
 				Effect.timeout("1 second"),
-				Effect.catchAll((error) => {
+				Effect.catch((error) => {
 					logger.warn(`Failed to get statfs for volume ${volume.name}: ${toMessage(error)}`);
 					return Effect.succeed({});
 				}),

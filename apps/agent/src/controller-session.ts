@@ -157,7 +157,7 @@ export const createControllerSession = (
 
 				const commandEffect = Effect.suspend(() => handleControllerCommand(commandContext, parsed.data));
 				const handledCommand = commandEffect.pipe(
-					Effect.catchAllCause((cause) =>
+					Effect.catchCause((cause) =>
 						Effect.sync(() => logger.error(`Failed to handle controller message: ${toMessage(cause)}`)),
 					),
 				);
@@ -165,7 +165,7 @@ export const createControllerSession = (
 				// Filesystem reads can wait on a mount; keep session control messages responsive.
 				// Child fibers are interrupted when this session's processor is interrupted.
 				if (parsed.data.type === "filesystem.command") {
-					yield* Effect.fork(handledCommand);
+					yield* Effect.forkChild(handledCommand);
 				} else {
 					yield* handledCommand;
 				}

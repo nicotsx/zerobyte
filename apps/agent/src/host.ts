@@ -3,16 +3,16 @@ import { Context, Data, Effect, Layer } from "effect";
 
 export class CommandFailed extends Data.TaggedError("CommandFailed")<{ message: string; cause?: unknown }> {}
 
-export class Host extends Context.Tag("agent/Host")<
+export class Host extends Context.Service<
 	Host,
 	{
 		readonly output: (command: string, args: ReadonlyArray<string>) => Effect.Effect<string, CommandFailed>;
 		readonly attach: (command: string, args: ReadonlyArray<string>) => Effect.Effect<void, CommandFailed>;
 	}
->() {}
+>()("agent/Host") {}
 
 const output = (command: string, args: ReadonlyArray<string>) =>
-	Effect.async<string, CommandFailed>((resume, signal) => {
+	Effect.callback<string, CommandFailed>((resume, signal) => {
 		execFile(command, [...args], { encoding: "utf8", timeout: 60_000, signal }, (error, stdout, stderr) => {
 			if (!error) return resume(Effect.succeed(stdout.trim()));
 
@@ -26,7 +26,7 @@ const output = (command: string, args: ReadonlyArray<string>) =>
 	});
 
 const attach = (command: string, args: ReadonlyArray<string>) =>
-	Effect.async<void, CommandFailed>((resume) => {
+	Effect.callback<void, CommandFailed>((resume) => {
 		const child = spawn(command, [...args], { stdio: "inherit" });
 
 		child.once("error", (error) => {

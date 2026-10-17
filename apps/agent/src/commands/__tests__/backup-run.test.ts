@@ -669,7 +669,7 @@ test("waits for running-job registration before returning to the processor loop"
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
 		fromPartial({
 			backup: () =>
-				Effect.async<{ exitCode: number; result: null; warningDetails: null }, never>((resume) => {
+				Effect.callback<{ exitCode: number; result: null; warningDetails: null }, never>((resume) => {
 					void backupGate.promise.then((result) => {
 						resume(Effect.succeed(result));
 					});
@@ -683,7 +683,7 @@ test("waits for running-job registration before returning to the processor loop"
 		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
 		setRunningJob: (jobId, job) =>
-			Effect.async<void, never>((resume) => {
+			Effect.callback<void, never>((resume) => {
 				void setRunningJobGate.promise.then(() => {
 					runningJobs.set(jobId, job);
 					registeredAbortController = job.abortController;
@@ -735,7 +735,7 @@ test("waits for running-job registration before returning to the processor loop"
 		Effect.gen(function* () {
 			yield* handleBackupRunCommand(context, runPayload);
 			commandCompleted.resolve(undefined);
-			yield* Effect.async<void, never>((resume) => {
+			yield* Effect.callback<void, never>((resume) => {
 				void processorLoopGate.promise.then(() => {
 					resume(Effect.void);
 				});

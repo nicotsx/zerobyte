@@ -58,6 +58,6 @@ export const runEffectPromise = <A, E>(effect: Effect.Effect<A, E, never>, optio
 			return exit.value;
 		}
 
-		throw Option.getOrUndefined(Cause.failureOption(exit.cause)) ?? Cause.squash(exit.cause);
+		throw Option.getOrUndefined(Cause.findErrorOption(exit.cause)) ?? Cause.squash(exit.cause);
 	});
 };

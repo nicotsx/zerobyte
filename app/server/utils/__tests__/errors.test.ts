@@ -20,7 +20,7 @@ test("preserves cancellation after cleanup even when expected failures are captu
 				released = true;
 			}),
 		),
-		Effect.either,
+		Effect.result,
 	);
 
 	const result = runEffectPromise(effect, { signal: controller.signal });

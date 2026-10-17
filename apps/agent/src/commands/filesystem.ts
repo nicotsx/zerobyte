@@ -69,7 +69,7 @@ export const handleFilesystemCommand = (context: ControllerCommandContext, paylo
 
 		return command;
 	}).pipe(
-		Effect.catchAll((error) =>
+		Effect.catch((error) =>
 			context.offerOutbound(
 				createAgentMessage("filesystem.commandResult", {
 					commandId: payload.commandId,

@@ -452,7 +452,7 @@ describe("Protocol and liveness", () => {
 		[false, 10_000, "agent_ready_timeout"],
 		[true, 45_000, "heartbeat_timeout"],
 	] as const)("closes once after readiness=%s times out and stops every worker", async (ready, timeout, reason) => {
-		vi.useFakeTimers();
+		vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 		mockServe();
 
 		const { controller, onEvent } = await startController();
@@ -482,7 +482,7 @@ describe("Protocol and liveness", () => {
 	});
 
 	test("heartbeat responses refresh liveness", async () => {
-		vi.useFakeTimers();
+		vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
 		mockServe();
 
 		const { controller } = await startController();

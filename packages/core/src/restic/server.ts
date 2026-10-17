@@ -65,7 +65,7 @@ const unlockStaleLocks = (context: LockRecoveryContext, deps: ResticDeps) =>
 		for (const repositoryConfig of context.repositoryConfigs) {
 			yield* unlock(repositoryConfig, { organizationId: context.organizationId, signal: context.signal }, deps);
 		}
-	}).pipe(Effect.catchAll(() => Effect.void));
+	}).pipe(Effect.catch(() => Effect.void));
 
 const recoverFromLockFailure = <Success, Failure, Requirements>(
 	context: LockRecoveryContext,

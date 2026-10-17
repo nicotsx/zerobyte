@@ -37,7 +37,7 @@ const observeLocalAgentExit = (child: ChildProcess, resume: (result: Effect.Effe
 };
 
 export const waitForLocalAgentExit = (child: ChildProcess) =>
-	Effect.async<void, Error>((resume) => Effect.sync(observeLocalAgentExit(child, resume)));
+	Effect.callback<void, Error>((resume) => Effect.sync(observeLocalAgentExit(child, resume)));
 
 export const stopLocalAgentProcess = (child: ChildProcess, exited = waitForLocalAgentExit(child)) =>
 	Effect.gen(function* () {
@@ -56,9 +56,9 @@ export const stopLocalAgentProcess = (child: ChildProcess, exited = waitForLocal
 		if (Option.isNone(gracefulExit)) {
 			yield* exited.pipe(
 				Effect.interruptible,
-				Effect.timeoutFail({
+				Effect.timeoutOrElse({
 					duration: 5_000,
-					onTimeout: () => new Error("Local agent termination was not confirmed after SIGKILL"),
+					orElse: () => Effect.fail(new Error("Local agent termination was not confirmed after SIGKILL")),
 				}),
 			);
 		}
@@ -104,7 +104,7 @@ export const spawnLocalAgentProcess = (runtime: LocalAgentState, controllerUrl: 
 					if (line) logger.error(`[agent] ${line}`);
 				});
 
-				observeLocalAgentExit(child, (result) => Deferred.unsafeDone(exited, result));
+				observeLocalAgentExit(child, (result) => Deferred.doneUnsafe(exited, result));
 
 				return child;
 			}),

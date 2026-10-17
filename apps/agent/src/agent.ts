@@ -18,15 +18,13 @@ export type AgentOptions = {
 
 const announced = <In>(schedule: Schedule.Schedule<unknown, In>) =>
 	schedule.pipe(
-		Schedule.delays,
-		Schedule.tapOutput((delay) =>
-			Effect.sync(() => logger.info(`Reconnecting to controller in ${Math.ceil(Duration.toSeconds(delay))}s`)),
+		Schedule.tap(({ duration }) =>
+			Effect.sync(() => logger.info(`Reconnecting to controller in ${Math.ceil(Duration.toSeconds(duration))}s`)),
 		),
 	);
 
 const afterFailedConnection = announced(
-	Schedule.exponential(INITIAL_RECONNECT_DELAY).pipe(
-		Schedule.union(Schedule.spaced(MAX_RECONNECT_DELAY)),
+	Schedule.min([Schedule.exponential(INITIAL_RECONNECT_DELAY), Schedule.spaced(MAX_RECONNECT_DELAY)]).pipe(
 		Schedule.jittered,
 	),
 );
@@ -38,7 +36,7 @@ const afterSessionEnded = announced(Schedule.spaced(INITIAL_RECONNECT_DELAY).pip
  * failures lets backoff restart from its initial delay once a connection has been accepted.
  */
 const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOptions, trustedRoots: TrustedRootRegistry) =>
-	Effect.async<void, ConnectionFailed>((resume) => {
+	Effect.callback<void, ConnectionFailed>((resume) => {
 		const redact = (message: string) => message.replaceAll(configuration.token, "[redacted]").slice(0, 500);
 
 		const ws = new WebSocket(configuration.controllerUrl, {

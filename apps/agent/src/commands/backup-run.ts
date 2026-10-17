@@ -1,4 +1,4 @@
-import { Effect, Runtime } from "effect";
+import { Effect } from "effect";
 import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
@@ -31,7 +31,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 			abortController,
 		});
 
-		yield* Effect.fork(
+		yield* Effect.forkChild(
 			Effect.gen(function* () {
 				const sendCancelled = (message?: string) => {
 					return context.offerOutbound(
@@ -50,15 +50,14 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					}),
 				);
 
-				const runtime = yield* Effect.runtime<never>();
+				const services = yield* Effect.context<never>();
 
 				const execution = yield* prepareBackupExecution(
 					context,
 					payload,
 					abortController.signal,
 					(progress) => {
-						void Runtime.runPromise(
-							runtime,
+						void Effect.runPromiseWith(services)(
 							context.offerOutbound(
 								createAgentMessage("backup.progress", {
 									jobId: payload.jobId,
@@ -110,7 +109,7 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 						return;
 				}
 			}).pipe(
-				Effect.catchAll((error) => {
+				Effect.catch((error) => {
 					if (abortController.signal.aborted) {
 						return context.offerOutbound(
 							createAgentMessage("backup.cancelled", {

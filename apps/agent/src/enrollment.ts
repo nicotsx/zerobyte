@@ -62,12 +62,14 @@ export const exchangeConnectionCode = (controller: URL, code: string) =>
 					message: `Enrollment request to ${controller.origin} failed: ${redact(toMessage(error))}. Check the controller URL, network access, HTTPS certificates, and reverse proxy configuration.`,
 				}),
 		}).pipe(
-			Effect.timeoutFail({
+			Effect.timeoutOrElse({
 				duration: "15 seconds",
-				onTimeout: () =>
-					new EnrollmentError({
-						message: `Enrollment request to ${controller.origin} timed out. Check network access.`,
-					}),
+				orElse: () =>
+					Effect.fail(
+						new EnrollmentError({
+							message: `Enrollment request to ${controller.origin} timed out. Check network access.`,
+						}),
+					),
 			}),
 		);
 

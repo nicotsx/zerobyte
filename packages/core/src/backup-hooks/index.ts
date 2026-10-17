@@ -308,7 +308,7 @@ const runBackupWebhook = (
 			},
 		}).pipe(
 			Effect.as(null),
-			Effect.catchAll((error) => Effect.succeed(error.message)),
+			Effect.catch((error) => Effect.succeed(error.message)),
 			Effect.ensuring(Effect.sync(controller.cleanup)),
 		);
 	});
@@ -353,7 +353,7 @@ export const runBackupLifecycle = <TResult>({
 
 				return { status: "completed" as const, ...result, hookStatus, hookError };
 			}),
-			Effect.catchAll((error) => {
+			Effect.catch((error) => {
 				const errorDetails = toErrorDetails(error);
 
 				return Effect.succeed({

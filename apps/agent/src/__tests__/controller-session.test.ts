@@ -198,7 +198,14 @@ test("continues processing inbound messages after a filesystem command fails", a
 			);
 
 			expect(volumeResults).toHaveLength(3);
-			const volumeResult = volumeResults[0];
+
+			const volumeResult = volumeResults.find(
+				(message) =>
+					message?.success &&
+					message.data.type === "filesystem.commandResult" &&
+					message.data.payload.commandId === "command-1",
+			);
+
 			expect(volumeResult?.success).toBe(true);
 			if (!volumeResult || !volumeResult.success || volumeResult.data.type !== "filesystem.commandResult") {
 				return;

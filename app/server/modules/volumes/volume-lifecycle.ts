@@ -7,7 +7,7 @@ import { getOrganizationId } from "../../core/request-context";
 import { serverEvents } from "../../core/events";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import type { ShortId } from "../../utils/branded";
-import { Effect, Either } from "effect";
+import { Effect, Result } from "effect";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { createVolumeBackend } from "./volume-host";
 import { decryptVolumeConfig } from "./volume-config-secrets";
@@ -103,10 +103,10 @@ const checkVolumeHealth = async (volume: Volume, signal?: AbortSignal) => {
 
 	if (volume.sourceKind === "filesystem") {
 		const result = await runEffectPromise(
-			probeSource(volume.agentId, organizationId, assembleVolumeExecutionSource(volume)).pipe(Effect.either),
+			probeSource(volume.agentId, organizationId, assembleVolumeExecutionSource(volume)).pipe(Effect.result),
 			{ signal },
 		);
-		const error = Either.isLeft(result) ? toMessage(result.left) : undefined;
+		const error = Result.isFailure(result) ? toMessage(result.failure) : undefined;
 		const status = error ? "error" : "mounted";
 
 		await db

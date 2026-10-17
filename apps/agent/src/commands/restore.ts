@@ -1,6 +1,6 @@
 import os from "node:os";
 import path from "node:path";
-import { Effect, Runtime } from "effect";
+import { Effect } from "effect";
 import { createAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
@@ -49,11 +49,11 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 		const abortController = new AbortController();
 		yield* context.setRunningJob(payload.restoreId, { kind: "restore", abortController });
 
-		yield* Effect.fork(
+		yield* Effect.forkChild(
 			Effect.gen(function* () {
 				assertAllowedRestoreTarget(payload.target);
 
-				const runtime = yield* Effect.runtime<never>();
+				const services = yield* Effect.context<never>();
 				const restic = createRestic(context.resticDeps(payload.runtime.password));
 
 				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
@@ -62,8 +62,7 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 					...payload.options,
 					signal: abortController.signal,
 					onProgress: (progress) => {
-						void Runtime.runPromise(
-							runtime,
+						void Effect.runPromiseWith(services)(
 							context.offerOutbound(
 								createAgentMessage("restore.progress", {
 									...restoreContext,
@@ -83,7 +82,7 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 					}),
 				);
 			}).pipe(
-				Effect.catchAll((error) => {
+				Effect.catch((error) => {
 					if (abortController.signal.aborted) {
 						return context.offerOutbound(
 							createAgentMessage("restore.cancelled", {

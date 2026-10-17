@@ -77,7 +77,7 @@ export const forget = (
 			const result = extra.dryRun ? safeJsonParse<ResticForgetResponse>(lines.at(-1) ?? "[]") : null;
 			return { success: true, data: result };
 		}).pipe(
-			Effect.catchAll((error): Effect.Effect<never, AnyResticError | ResticForgetCommandError> => {
+			Effect.catch((error): Effect.Effect<never, AnyResticError | ResticForgetCommandError> => {
 				if (isResticError(error)) {
 					return Effect.fail(error);
 				}

@@ -5,7 +5,7 @@ import type {
 	FilesystemCommand,
 	FilesystemCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
-import { Cause, Data, Deferred, Effect, Exit, Fiber, Option } from "effect";
+import { Cause, Data, Deferred, Effect, Exit, Fiber } from "effect";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { createAgentController, type AgentController, type AgentManagerEvent } from "./controller/server";
 import { LOCAL_AGENT_ID } from "./constants";
@@ -545,11 +545,12 @@ const stopLocalAgentRuntime = (runtime: AgentRuntimeState) =>
 	Effect.gen(function* () {
 		const supervisor = runtime.localAgentSupervisor;
 		if (supervisor) {
-			const completed = yield* Fiber.poll(supervisor.fiber);
-			const result = yield* Fiber.interrupt(supervisor.fiber);
+			const completed = supervisor.fiber.pollUnsafe();
+			yield* Fiber.interrupt(supervisor.fiber);
+			const result = yield* Fiber.await(supervisor.fiber);
 			runtime.localAgentSupervisor = null;
 
-			if (Option.isNone(completed) && Exit.isFailure(result) && !Cause.isInterruptedOnly(result.cause)) {
+			if (completed === undefined && Exit.isFailure(result) && !Cause.hasInterruptsOnly(result.cause)) {
 				return yield* Effect.failCause(result.cause);
 			}
 		}
@@ -575,7 +576,7 @@ export const startLocalAgent = () => {
 	const start = runtime.lifecycleSemaphore.withPermits(1)(
 		Effect.gen(function* () {
 			const supervisor = runtime.localAgentSupervisor;
-			if (supervisor && Option.isNone(yield* Fiber.poll(supervisor.fiber))) {
+			if (supervisor && supervisor.fiber.pollUnsafe() === undefined) {
 				const child = runtime.localAgent;
 				if (!child || child.exitCode !== null || child.signalCode !== null) {
 					return yield* refreshLocalAgentReadiness(supervisor.readiness);
@@ -601,8 +602,8 @@ export const startLocalAgent = () => {
 				yield* Effect.sleep(1_000);
 				yield* runLocalAgent(runtime, controllerUrl, ready);
 			}).pipe(
-				Effect.catchAllCause((cause) => {
-					if (Cause.isInterruptedOnly(cause)) return Effect.failCause(cause);
+				Effect.catchCause((cause) => {
+					if (Cause.hasInterruptsOnly(cause)) return Effect.failCause(cause);
 
 					return Effect.gen(function* () {
 						yield* logger.effect.error(`Failed to restart local agent: ${toMessage(Cause.squash(cause))}`);
@@ -614,11 +615,11 @@ export const startLocalAgent = () => {
 					});
 				}),
 			);
-			const fiber = yield* Effect.forkDaemon(
+			const fiber = yield* Effect.forkDetach(
 				runLocalAgent(runtime, controllerUrl, readiness.current).pipe(
 					Effect.andThen(Effect.forever(restart)),
 					Effect.onExit((exit) => {
-						if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) {
+						if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) {
 							return Deferred.failCause(readiness.current, exit.cause);
 						}
 

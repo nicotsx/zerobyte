@@ -122,7 +122,7 @@ test.each(["source resolution", "filesystem read"])(
 		vi.spyOn(resticServer, "createRestic").mockReturnValue(
 			fromPartial({
 				backup: (_config: unknown, _source: string, options: { signal?: AbortSignal }) =>
-					Effect.async<never, Error>((resume) => {
+					Effect.callback<never, Error>((resume) => {
 						options.signal?.addEventListener(
 							"abort",
 							() => {

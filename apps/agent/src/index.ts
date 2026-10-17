@@ -40,7 +40,7 @@ const requireServiceHost = Effect.suspend(() => {
 });
 
 const waitForShutdown = (builtinLocal: boolean) =>
-	Effect.async<void>((resume) => {
+	Effect.callback<void>((resume) => {
 		const stop = () => resume(Effect.void);
 
 		process.once("SIGINT", stop);

@@ -57,14 +57,14 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 				connections.delete(agentId);
 
 				yield* Effect.tryPromise(() => agentsService.markAgentOffline(connection.data)).pipe(
-					Effect.catchAll((error) =>
+					Effect.catch((error) =>
 						logger.effect.error(`Failed to mark agent ${agentId} offline: ${toMessage(error)}`),
 					),
 				);
 			}
 
 			yield* emit({ type: "agent.disconnected", agentId, agentName }).pipe(
-				Effect.catchAll((error) => logger.effect.error(toMessage(error))),
+				Effect.catch((error) => logger.effect.error(toMessage(error))),
 			);
 			yield* signalReadiness;
 		});
@@ -119,7 +119,7 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 	const runSocketEffect = (data: AgentConnectionData, effect: Effect.Effect<void>) =>
 		Effect.runPromise(
 			effect.pipe(
-				Effect.catchAllCause((cause) =>
+				Effect.catchCause((cause) =>
 					logger.effect.error(
 						`Agent connection ${data.id} for ${data.agentId} failed: ${Cause.pretty(cause)}`,
 					),
@@ -157,10 +157,12 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 			try: () => createAgentControllerListener({ isRunning: () => running, socket }),
 			catch: (error) => (error instanceof Error ? error : new Error(toMessage(error))),
 		}).pipe(
-			Effect.tap((created) => {
-				listener = created;
-				running = true;
-			}),
+			Effect.tap((created) =>
+				Effect.sync(() => {
+					listener = created;
+					running = true;
+				}),
+			),
 			Effect.asVoid,
 		);
 	});
@@ -178,7 +180,7 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 
 		if (stoppingListener) {
 			yield* Effect.tryPromise(() => stoppingListener.stop(false)).pipe(
-				Effect.catchAll((error) => logger.effect.error(`Failed to stop agent listener: ${toMessage(error)}`)),
+				Effect.catch((error) => logger.effect.error(`Failed to stop agent listener: ${toMessage(error)}`)),
 			);
 		}
 
@@ -194,8 +196,8 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 		disconnect,
 		isReady,
 
-		waitForReady: (agentId: string, timeout: Duration.DurationInput) =>
-			readiness.changes.pipe(
+		waitForReady: (agentId: string, timeout: Duration.Input) =>
+			SubscriptionRef.changes(readiness).pipe(
 				Stream.filter(() => !running || isReady(agentId)),
 				Stream.runHead,
 				Effect.timeoutOption(timeout),

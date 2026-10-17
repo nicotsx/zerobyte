@@ -100,7 +100,7 @@ export const copy = (
 			logger.info(`Restic copy completed from ${sourceRepoUrl} to ${destRepoUrl}`);
 			return { success: true };
 		}).pipe(
-			Effect.catchAll((error): Effect.Effect<never, AnyResticError | ResticCopyCommandError> => {
+			Effect.catch((error): Effect.Effect<never, AnyResticError | ResticCopyCommandError> => {
 				if (isResticError(error)) {
 					return Effect.fail(error);
 				}
