@@ -34,7 +34,7 @@
 	},
 	"dependencies": {
 		"@zerobyte/core": "workspace:*",
-		"zod": "^4.6.5"
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"@types/semver": "^7.7.1"
+		"@types/semver": "^7.8.0"
 	},
 	"peerDependencies": {
 		"typescript": "^7.0.2"
