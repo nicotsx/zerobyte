@@ -40,16 +40,65 @@ Set `BASE_URL` to the HTTPS address you use to access Zerobyte. If a reverse pro
 ## Connect a machine
 
 1. Open **Settings**, choose your organization, and find **Machines**.
-2. Click **Connect machine** and give the machine a name.
-3. Copy the installation command and run it in a terminal on that machine.
+2. Click **Connect machine**, give the machine a name, and click **Continue**.
+3. Choose **Linux installer**, copy the command, and run it in a terminal on that machine.
+4. Keep the setup page open. It advances to **Connection successful** once the agent is connected and ready. Review its allowed locations, then create a source.
 
 The command downloads the agent, checks its checksum and Restic installation, then installs a systemd service. The agent starts immediately and starts again after a reboot. Once it connects, its status in Zerobyte changes to **Online**.
 
 The connection code in the command can be used once and expires after 15 minutes. If it expires, get a new command from the machine's **Actions** menu.
 
+## Run with Docker
+
+The agent image is published at `ghcr.io/nicotsx/zerobyte-agent` for Linux AMD64 and ARM64. Use the same version tag as your Zerobyte server, such as `vX.Y.Z`. Stable releases also have `latest`, major, and minor tags; development builds use `nightly` or `sha-<commit>` tags.
+
+The image contains the standalone agent, Restic, CA certificates, and an SSH client for SFTP repositories. It runs in the foreground without systemd. Mount the directories you want to back up from the host; network filesystems should be mounted on the host first.
+
+In **Settings → Machines**, connect a machine and choose the **Docker** tab. Copy its prefilled configuration into `compose.yaml` on the machine you want to back up. It includes the controller address and a single-use connection code:
+
+```yaml
+services:
+  agent:
+    image: ghcr.io/nicotsx/zerobyte-agent:vX.Y.Z
+    hostname: remote-agent
+    restart: unless-stopped
+    environment:
+      ZEROBYTE_CONTROLLER_URL: "https://zerobyte.example.com"
+      ZEROBYTE_AGENT_ENROLLMENT_CODE: "YOUR_CONNECTION_CODE"
+      ZEROBYTE_AGENT_ROOTS: >-
+        [{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]
+    volumes:
+      - agent-config:/var/lib/zerobyte-agent
+      - agent-cache:/var/cache/zerobyte-agent
+      - /path/on/host:/data:ro
+
+volumes:
+  agent-config:
+  agent-cache:
+```
+
+Replace `/path/on/host` with the directory you want to back up, then start the service before the code expires:
+
+```bash
+docker compose up -d
+```
+
+The agent enrolls automatically on first startup and saves its machine credential in the configuration volume. Restarts reuse that credential without consuming the connection code again. Once the machine is **Online**, you can remove `ZEROBYTE_AGENT_ENROLLMENT_CODE` from the YAML. Keep the configuration volume across container upgrades. The cache volume avoids downloading repository metadata again after recreation. No published ports or privileged mode are needed.
+
+Manage allowed locations through `ZEROBYTE_AGENT_ROOTS` in Compose, then recreate the container. Use container paths, and mount each path you share:
+
+```yaml
+environment:
+  ZEROBYTE_AGENT_ROOTS: '[{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]'
+```
+
+Keep existing root IDs when changing paths so sources continue to reference the same location. Use `docker compose logs -f agent` for logs. To update, change the image tag, run `docker compose pull`, then `docker compose up -d` between backup runs.
+
+To reconnect an existing container, use that machine's **Actions → Get connection command**, confirm the reconnect warning, and choose **Docker**. Replace the enrollment code in your existing YAML and run `docker compose up -d --force-recreate`. Preserve your configuration volume and allowed-location settings; the fresh code reconnects the same machine.
+
 ## Choose folders to back up
 
-A newly connected agent doesn't share any folders. On the remote machine, run:
+With the Linux installer, a newly connected agent doesn't share any folders. On the remote machine, run:
 
 ```bash
 sudo zerobyte-agent folders add

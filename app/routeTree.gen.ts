@@ -35,6 +35,7 @@ import { Route as dashboardNotificationsNotificationIdIndexRouteImport } from '.
 import { Route as dashboardNotificationsNotificationIdEditRouteImport } from './routes/(dashboard)/notifications/$notificationId/edit'
 import { Route as dashboardRepositoriesRepositoryIdIndexRouteImport } from './routes/(dashboard)/repositories/$repositoryId/index'
 import { Route as dashboardRepositoriesRepositoryIdEditRouteImport } from './routes/(dashboard)/repositories/$repositoryId/edit'
+import { Route as dashboardSettingsMachinesConnectRouteImport } from './routes/(dashboard)/settings/machines/connect'
 import { Route as dashboardSettingsSsoNewRouteImport } from './routes/(dashboard)/settings/sso/new'
 import { Route as dashboardVolumesVolumeIdIndexRouteImport } from './routes/(dashboard)/volumes/$volumeId/index'
 import { Route as dashboardVolumesVolumeIdEditRouteImport } from './routes/(dashboard)/volumes/$volumeId/edit'
@@ -180,6 +181,12 @@ const dashboardRepositoriesRepositoryIdEditRoute =
     path: '/repositories/$repositoryId/edit',
     getParentRoute: () => dashboardRouteRoute,
   } as any)
+const dashboardSettingsMachinesConnectRoute =
+  dashboardSettingsMachinesConnectRouteImport.update({
+    id: '/settings/machines/connect',
+    path: '/settings/machines/connect',
+    getParentRoute: () => dashboardRouteRoute,
+  } as any)
 const dashboardSettingsSsoNewRoute = dashboardSettingsSsoNewRouteImport.update({
   id: '/settings/sso/new',
   path: '/settings/sso/new',
@@ -238,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/backups/$backupId/edit': typeof dashboardBackupsBackupIdEditRoute
   '/notifications/$notificationId/edit': typeof dashboardNotificationsNotificationIdEditRoute
   '/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/settings/machines/connect': typeof dashboardSettingsMachinesConnectRoute
   '/settings/sso/new': typeof dashboardSettingsSsoNewRoute
   '/volumes/$volumeId/edit': typeof dashboardVolumesVolumeIdEditRoute
   '/backups/$backupId/': typeof dashboardBackupsBackupIdIndexRoute
@@ -270,6 +278,7 @@ export interface FileRoutesByTo {
   '/backups/$backupId/edit': typeof dashboardBackupsBackupIdEditRoute
   '/notifications/$notificationId/edit': typeof dashboardNotificationsNotificationIdEditRoute
   '/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/settings/machines/connect': typeof dashboardSettingsMachinesConnectRoute
   '/settings/sso/new': typeof dashboardSettingsSsoNewRoute
   '/volumes/$volumeId/edit': typeof dashboardVolumesVolumeIdEditRoute
   '/backups/$backupId': typeof dashboardBackupsBackupIdIndexRoute
@@ -305,6 +314,7 @@ export interface FileRoutesById {
   '/(dashboard)/backups/$backupId/edit': typeof dashboardBackupsBackupIdEditRoute
   '/(dashboard)/notifications/$notificationId/edit': typeof dashboardNotificationsNotificationIdEditRoute
   '/(dashboard)/repositories/$repositoryId/edit': typeof dashboardRepositoriesRepositoryIdEditRoute
+  '/(dashboard)/settings/machines/connect': typeof dashboardSettingsMachinesConnectRoute
   '/(dashboard)/settings/sso/new': typeof dashboardSettingsSsoNewRoute
   '/(dashboard)/volumes/$volumeId/edit': typeof dashboardVolumesVolumeIdEditRoute
   '/(dashboard)/backups/$backupId/': typeof dashboardBackupsBackupIdIndexRoute
@@ -339,6 +349,7 @@ export interface FileRouteTypes {
     | '/backups/$backupId/edit'
     | '/notifications/$notificationId/edit'
     | '/repositories/$repositoryId/edit'
+    | '/settings/machines/connect'
     | '/settings/sso/new'
     | '/volumes/$volumeId/edit'
     | '/backups/$backupId/'
@@ -371,6 +382,7 @@ export interface FileRouteTypes {
     | '/backups/$backupId/edit'
     | '/notifications/$notificationId/edit'
     | '/repositories/$repositoryId/edit'
+    | '/settings/machines/connect'
     | '/settings/sso/new'
     | '/volumes/$volumeId/edit'
     | '/backups/$backupId'
@@ -405,6 +417,7 @@ export interface FileRouteTypes {
     | '/(dashboard)/backups/$backupId/edit'
     | '/(dashboard)/notifications/$notificationId/edit'
     | '/(dashboard)/repositories/$repositoryId/edit'
+    | '/(dashboard)/settings/machines/connect'
     | '/(dashboard)/settings/sso/new'
     | '/(dashboard)/volumes/$volumeId/edit'
     | '/(dashboard)/backups/$backupId/'
@@ -608,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof dashboardRepositoriesRepositoryIdEditRouteImport
       parentRoute: typeof dashboardRouteRoute
     }
+    '/(dashboard)/settings/machines/connect': {
+      id: '/(dashboard)/settings/machines/connect'
+      path: '/settings/machines/connect'
+      fullPath: '/settings/machines/connect'
+      preLoaderRoute: typeof dashboardSettingsMachinesConnectRouteImport
+      parentRoute: typeof dashboardRouteRoute
+    }
     '/(dashboard)/settings/sso/new': {
       id: '/(dashboard)/settings/sso/new'
       path: '/settings/sso/new'
@@ -696,6 +716,7 @@ interface dashboardRouteRouteChildren {
   dashboardBackupsBackupIdEditRoute: typeof dashboardBackupsBackupIdEditRoute
   dashboardNotificationsNotificationIdEditRoute: typeof dashboardNotificationsNotificationIdEditRoute
   dashboardRepositoriesRepositoryIdEditRoute: typeof dashboardRepositoriesRepositoryIdEditRoute
+  dashboardSettingsMachinesConnectRoute: typeof dashboardSettingsMachinesConnectRoute
   dashboardSettingsSsoNewRoute: typeof dashboardSettingsSsoNewRoute
   dashboardVolumesVolumeIdEditRoute: typeof dashboardVolumesVolumeIdEditRoute
   dashboardBackupsBackupIdIndexRoute: typeof dashboardBackupsBackupIdIndexRoute
@@ -724,6 +745,7 @@ const dashboardRouteRouteChildren: dashboardRouteRouteChildren = {
     dashboardNotificationsNotificationIdEditRoute,
   dashboardRepositoriesRepositoryIdEditRoute:
     dashboardRepositoriesRepositoryIdEditRoute,
+  dashboardSettingsMachinesConnectRoute: dashboardSettingsMachinesConnectRoute,
   dashboardSettingsSsoNewRoute: dashboardSettingsSsoNewRoute,
   dashboardVolumesVolumeIdEditRoute: dashboardVolumesVolumeIdEditRoute,
   dashboardBackupsBackupIdIndexRoute: dashboardBackupsBackupIdIndexRoute,

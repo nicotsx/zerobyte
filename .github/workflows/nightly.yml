@@ -9,6 +9,16 @@ permissions:
   contents: read
 
 jobs:
+  build-agent-image:
+    uses: ./.github/workflows/agent-image.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: nightly
+      channel: nightly
+
   build-and-push:
     timeout-minutes: 15
     runs-on: ubuntu-latest

@@ -1,34 +1,25 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
 import {
-	createRemoteAgentMutation,
 	deleteRemoteAgentMutation,
 	listAgentsOptions,
 	revokeRemoteAgentTokenMutation,
-	rotateRemoteAgentTokenMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import { Alert, AlertAction, AlertContent, AlertDescription, AlertTitle } from "~/client/components/ui/alert";
 import { Button } from "~/client/components/ui/button";
 import { getMachineDisplayName } from "~/lib/machine-name";
 import { ConfirmActionDialog, type ConfirmActionDialogProps } from "./confirm-action-dialog";
-import {
-	ConnectionRequirements,
-	CreateMachineDialog,
-	CredentialDialog,
-	presentCredential,
-	type CredentialPresentation,
-} from "./machine-connection-dialogs";
 import { MachineRow, type MachineAction } from "./machine-row";
 
 /** Kept after closing so the dialog can animate out with its content intact. */
-type Confirmation = { action: MachineAction; agentId: string; machineName: string; open: boolean };
+type Confirmation = { action: Exclude<MachineAction, "rotate">; agentId: string; machineName: string; open: boolean };
 
 type ActionDialog = Omit<ConfirmActionDialogProps, "open" | "onOpenChange" | "returnFocusRef"> & { reset: () => void };
 
 export function MachinesSection() {
-	const [createOpen, setCreateOpen] = useState(false);
-	const [credential, setCredential] = useState<CredentialPresentation | null>(null);
+	const navigate = useNavigate();
 	const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
 	const agentsQuery = useSuspenseQuery({
@@ -44,24 +35,6 @@ export function MachinesSection() {
 
 	const closeConfirmation = () => setConfirmation((current) => current && { ...current, open: false });
 
-	const createAgent = useMutation({
-		...createRemoteAgentMutation(),
-		gcTime: 0,
-		onSuccess: (result) => {
-			setCreateOpen(false);
-			setCredential(presentCredential(result));
-		},
-	});
-
-	const rotateCredential = useMutation({
-		...rotateRemoteAgentTokenMutation(),
-		gcTime: 0,
-		onSuccess: (result) => {
-			closeConfirmation();
-			setCredential(presentCredential(result));
-		},
-	});
-
 	const revokeCredential = useMutation({ ...revokeRemoteAgentTokenMutation(), onSuccess: closeConfirmation });
 
 	const deleteMachine = useMutation({
@@ -75,20 +48,7 @@ export function MachinesSection() {
 	const machineName = confirmation?.machineName ?? "";
 	const path = { agentId: confirmation?.agentId ?? "" };
 
-	const actionDialogs: Record<MachineAction, ActionDialog> = {
-		rotate: {
-			title: "Get connection command",
-			description: `${machineName} will disconnect immediately. Its old credential will stop working, and remote backups may be interrupted until you run the new command on that machine. The command is shown only once. Reconnecting preserves existing Allowed locations, their permissions, and Sources. Use it between backup runs.`,
-			confirmLabel: "Get connection command",
-			variant: "primary",
-			pending: rotateCredential.isPending,
-			error: rotateCredential.isError
-				? "Could not get the connection command. Nothing was shown; you can try again."
-				: null,
-			onConfirm: () => rotateCredential.mutate({ path }),
-			reset: rotateCredential.reset,
-			children: <ConnectionRequirements />,
-		},
+	const actionDialogs: Record<Exclude<MachineAction, "rotate">, ActionDialog> = {
 		revoke: {
 			title: `Revoke ${machineName}`,
 			description:
@@ -116,15 +76,9 @@ export function MachinesSection() {
 		},
 	};
 
-	const confirm = (action: MachineAction, agentId: string, name: string) => {
+	const confirm = (action: Exclude<MachineAction, "rotate">, agentId: string, name: string) => {
 		actionDialogs[action].reset();
 		setConfirmation({ action, agentId, machineName: name, open: true });
-	};
-
-	const closeCredential = () => {
-		setCredential(null);
-		createAgent.reset();
-		rotateCredential.reset();
 	};
 
 	return (
@@ -141,11 +95,9 @@ export function MachinesSection() {
 						type="button"
 						variant="primary"
 						className="w-full sm:w-auto"
-						onClick={(event) => {
-							returnFocusRef.current = event.currentTarget;
-							createAgent.reset();
-							setCreateOpen(true);
-						}}
+						onClick={() =>
+							void navigate({ to: "/settings/machines/connect", search: { scope: "organization" } })
+						}
 					>
 						<Plus className="mr-2 h-4 w-4" aria-hidden="true" />
 						Connect machine
@@ -179,6 +131,13 @@ export function MachinesSection() {
 							key={agent.id}
 							agent={agent}
 							onAction={(action, target, trigger) => {
+								if (action === "rotate") {
+									void navigate({
+										to: "/settings/machines/connect",
+										search: { agentId: target.id, scope: "organization" },
+									});
+									return;
+								}
 								returnFocusRef.current = trigger;
 								confirm(action, target.id, getMachineDisplayName(target.name));
 							}}
@@ -186,16 +145,6 @@ export function MachinesSection() {
 					))}
 				</ul>
 			</div>
-
-			<CreateMachineDialog
-				open={createOpen}
-				onOpenChange={setCreateOpen}
-				pending={createAgent.isPending}
-				failed={createAgent.isError}
-				onCreate={(name) => createAgent.mutate({ body: { name } })}
-			/>
-
-			<CredentialDialog credential={credential} onClose={closeCredential} returnFocusRef={returnFocusRef} />
 
 			{confirmation && (
 				<ConfirmActionDialog

@@ -74,6 +74,16 @@ For a new version:
 
 Changes that do not affect transferable meaning, such as database indexes, internal IDs, caches, UI state, and refactors that preserve the wire representation, do not require a new version.
 
+### Agent Protocol Compatibility
+
+The server and remote agents can be upgraded independently. Their compatibility is determined by the protocol version in `packages/contracts/src/agent-protocol.ts`, not their application release versions.
+
+- Bump `AGENT_PROTOCOL_VERSION` whenever a change makes existing agents or servers incompatible. This includes removing or renaming messages or fields, changing field types or meanings, adding required fields, or sending commands that older peers cannot handle. Review both communication directions, including command responses and capabilities.
+- Internal refactors and application version changes do not require a protocol bump. Additive changes may keep the protocol version only when supported older peers safely tolerate them and newer peers handle their absence. Do not assume a schema addition is backward compatible.
+- Set `SUPPORTED_AGENT_PROTOCOL_MIN_VERSION` and `SUPPORTED_AGENT_PROTOCOL_MAX_VERSION` deliberately. Both currently reference `AGENT_PROTOCOL_VERSION`, so a bump rejects every previous protocol version. Support multiple versions only when the implementation actually handles each version's messages and behavior.
+- Preserve the startup compatibility check: incompatible agents must be rejected before being marked online or receiving operational commands. Keep the initial handshake readable enough to identify older and newer protocols and report the rejection reason.
+- Update compatibility tests alongside protocol changes. Cover rejected older/newer versions and blocked command dispatch; if retaining older protocol support, test exchanges with those older message shapes and semantics. Call out required server or agent upgrades in the release notes.
+
 ### API Client Generation
 
 ```bash

@@ -1,0 +1,64 @@
+FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS builder
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY apps/agent/package.json ./apps/agent/package.json
+COPY apps/docs/package.json ./apps/docs/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+
+RUN bun install --frozen-lockfile --ignore-scripts --production --filter '!docs'
+
+COPY apps/agent ./apps/agent
+COPY packages ./packages
+
+ARG APP_VERSION=dev
+
+RUN ZEROBYTE_AGENT_VERSION="${APP_VERSION}" bun run build:agent \
+    --minify --outfile=/out/zerobyte-agent
+
+FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS restic
+
+# renovate: datasource=github-releases depName=restic/restic versioning=semver extractVersion=^v?(?<version>.+)$
+ARG RESTIC_VERSION="0.19.1"
+ARG TARGETARCH
+
+WORKDIR /download
+
+RUN apk add --no-cache bzip2 curl && \
+    curl -fsSL -o restic.bz2 "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2" && \
+    curl -fsSL -o SHA256SUMS "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/SHA256SUMS" && \
+    grep " restic_${RESTIC_VERSION}_linux_${TARGETARCH}.bz2$" SHA256SUMS | sed 's/ restic_.*$/ restic.bz2/' | sha256sum -c - && \
+    bzip2 -d restic.bz2 && chmod +x restic
+
+FROM debian:bookworm-slim@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587 AS production
+
+ARG APP_VERSION=dev
+
+LABEL org.opencontainers.image.title="Zerobyte agent" \
+      org.opencontainers.image.source="https://github.com/nicotsx/zerobyte" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.licenses="AGPL-3.0"
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates libstdc++6 openssh-client tini && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=production \
+    RESTIC_CACHE_DIR=/var/cache/zerobyte-agent
+
+WORKDIR /var/lib/zerobyte-agent
+
+COPY --from=builder /out/zerobyte-agent /usr/local/bin/zerobyte-agent
+COPY --from=restic /download/restic /usr/local/bin/restic
+COPY LICENSE NOTICES.md /usr/share/doc/zerobyte-agent/
+COPY LICENSES /usr/share/doc/zerobyte-agent/LICENSES
+
+RUN test "$(zerobyte-agent --version)" = "${APP_VERSION}" && \
+    zerobyte-agent check && \
+    ssh -V
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/zerobyte-agent"]
+CMD ["run"]

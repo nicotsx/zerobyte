@@ -28,6 +28,17 @@ jobs:
   integration-tests:
     uses: ./.github/workflows/integration.yml
 
+  build-agent-image:
+    needs: [determine-image-tag, checks, e2e-tests, integration-tests]
+    uses: ./.github/workflows/agent-image.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: ${{ needs.determine-image-tag.outputs.image_tag }}
+      channel: ${{ needs.determine-image-tag.outputs.image_tag }}
+
   build-image:
     environment: release
     timeout-minutes: 15

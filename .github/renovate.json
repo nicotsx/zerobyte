@@ -7,7 +7,7 @@
 	"customManagers": [
 		{
 			"customType": "regex",
-			"managerFilePatterns": ["/^Dockerfile$/"],
+			"managerFilePatterns": ["/^Dockerfile(?:\\.agent)?$/"],
 			"matchStrings": [
 				"#\\s*renovate:\\s*datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+ARG [A-Z0-9_]+_VERSION=\"(?<currentValue>[^\"]+)\""
 			],

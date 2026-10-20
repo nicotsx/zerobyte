@@ -32,7 +32,7 @@ export function MachineRow({
 	onAction,
 }: {
 	agent: Agent;
-	onAction: (action: MachineAction, agent: Agent, trigger: HTMLElement) => void;
+	onAction?: (action: MachineAction, agent: Agent, trigger: HTMLElement) => void;
 }) {
 	const actionsTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -49,7 +49,7 @@ export function MachineRow({
 	const machineDisplayName = getMachineDisplayName(agent.name);
 
 	const select = (action: MachineAction) => {
-		if (actionsTriggerRef.current) onAction(action, agent, actionsTriggerRef.current);
+		if (actionsTriggerRef.current) onAction?.(action, agent, actionsTriggerRef.current);
 	};
 
 	return (
@@ -125,7 +125,7 @@ export function MachineRow({
 					)}
 				</div>
 
-				{!isLocal && (
+				{!isLocal && onAction && (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -135,7 +135,8 @@ export function MachineRow({
 								className="self-start shrink-0"
 								aria-label={`Actions for ${machineDisplayName}`}
 							>
-								Actions <ChevronDown aria-hidden="true" />
+								Actions
+								<ChevronDown className="h-4 w-4 ml-1" aria-hidden="true" />
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">

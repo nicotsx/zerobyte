@@ -3,12 +3,13 @@ import { logger } from "@zerobyte/core/node";
 import { Command, InvalidArgumentError } from "commander";
 import { Cause, Console, Data, Effect, Exit } from "effect";
 import { runAgent } from "./agent";
-import { loadConfiguration, readConfiguration, writeConfiguration } from "./config";
+import { readConfiguration, writeConfiguration } from "./config";
 import { enrollMachine, parseControllerUrl } from "./enrollment";
 import { addFolders, chooseFolders, listFolders } from "./folders";
 import * as fs from "./fs";
 import { HostLive, type Host } from "./host";
 import { checkRestic, MIN_RESTIC_VERSION } from "./restic/prerequisites";
+import { loadStartupConfiguration } from "./startup";
 import { controlService, defaultServicePaths, installSystemService, SERVICE_CONFIG, showLogs } from "./system-service";
 
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
@@ -67,13 +68,14 @@ program
 	.command("run")
 	.description("Run in the foreground (used by the system service)")
 	.option("--config <file>", "Agent configuration file", SERVICE_CONFIG)
-	.action(async (options: { config: string }) => {
+	.option("--allow-insecure", "Allow enrollment through an HTTP development controller")
+	.action(async (options: { config: string; allowInsecure?: boolean }) => {
 		const builtinLocal = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
 
 		await runCommand(
 			Effect.gen(function* () {
 				const resticVersion = yield* checkRestic;
-				const configuration = yield* loadConfiguration(options.config);
+				const configuration = yield* loadStartupConfiguration(options.config, options.allowInsecure);
 
 				yield* Effect.raceFirst(
 					runAgent({ configuration, resticVersion, builtinLocal }),
