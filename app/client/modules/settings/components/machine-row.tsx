@@ -43,10 +43,17 @@ export function MachineRow({
 	const statusLabel = machineStatusLabels[status];
 	const isLocal = agent.kind === "local";
 	const isRevoked = status === "revoked";
+	const isInsecure = !isLocal && presentation.connectionSecurity === "insecure";
 	const lastSeen = agent.lastSeenAt === null ? "Never" : formatDateTime(agent.lastSeenAt);
 	const rootsPrefix = status === "online" ? "Allowed locations" : "Allowed locations (last reported)";
 	const machineDetails = [presentation.hostname, presentation.platform].filter(Boolean).join(" · ");
 	const machineDisplayName = getMachineDisplayName(agent.name);
+
+	let insecureDescription =
+		"Last connection used HTTP without TLS. Credentials and controller traffic were sent unencrypted.";
+	if (status === "online") {
+		insecureDescription = "Connected without TLS. Credentials and controller traffic are sent unencrypted.";
+	}
 
 	const select = (action: MachineAction) => {
 		if (actionsTriggerRef.current) onAction?.(action, agent, actionsTriggerRef.current);
@@ -67,7 +74,19 @@ export function MachineRow({
 							<span className="size-1.5 rounded-full bg-current" aria-hidden="true" />
 							{statusLabel}
 						</Badge>
+						{isInsecure && (
+							<Badge variant="outline" className={statusStyles.degraded}>
+								<ShieldOff className="size-3" aria-hidden="true" />
+								Insecure HTTP
+							</Badge>
+						)}
 					</div>
+					{isInsecure && (
+						<p className="flex items-start gap-2 text-sm text-amber-700 dark:text-amber-400">
+							<AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+							<span>{insecureDescription} Use HTTPS to secure this connection.</span>
+						</p>
+					)}
 					<p className="text-sm text-muted-foreground">
 						Last seen: <span className="tabular-nums text-foreground">{lastSeen}</span>
 					</p>

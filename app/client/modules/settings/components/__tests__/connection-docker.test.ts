@@ -28,17 +28,19 @@ test("Compose includes the matching agent release and enrollment settings with p
 		},
 	});
 	expect(yaml).not.toContain("ZEROBYTE_AGENT_TOKEN");
-	expect(yaml).not.toContain("--allow-insecure");
+	expect(yaml).not.toContain("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP");
 });
 
-test("development Compose opts into HTTP enrollment explicitly", () => {
+test("HTTP Compose opts into insecure HTTP explicitly", () => {
 	const yaml = createDockerCompose("ws://192.168.1.10:8080/api/v1/agents/connect", "code", "Development");
 
 	expect(Bun.YAML.parse(yaml)).toMatchObject({
 		services: {
 			agent: {
-				command: ["run", "--allow-insecure"],
-				environment: { ZEROBYTE_CONTROLLER_URL: "http://192.168.1.10:8080" },
+				environment: {
+					ZEROBYTE_CONTROLLER_URL: "http://192.168.1.10:8080",
+					ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP: "true",
+				},
 			},
 		},
 	});

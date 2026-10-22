@@ -23,7 +23,7 @@ const MAX_QUEUED_BYTES = 1024 * 1024;
 const READY_TIMEOUT_MS = 10_000;
 const LIVENESS_TIMEOUT_MS = 45_000;
 
-export type AgentConnectionData = AgentIdentity & { id: string };
+export type AgentConnectionData = AgentIdentity & { id: string; connectionSecurity?: "secure" | "insecure" };
 
 export type ControllerTransport = {
 	send: (message: string) => number | void;
@@ -122,6 +122,7 @@ export const createAgentConnection = (
 					const readyAt = Date.now();
 					const metadata = {
 						...event.payload.capabilities,
+						connectionSecurity: data.connectionSecurity ?? null,
 						protocolVersion: event.payload.protocolVersion,
 						protocolCompatible: true,
 						hostname: event.payload.hostname,

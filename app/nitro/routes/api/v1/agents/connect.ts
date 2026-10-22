@@ -1,7 +1,7 @@
 import { defineWebSocketHandler } from "nitro";
 import { getAgentController } from "../../../../../server/modules/agents/agents-manager";
 import type { AgentConnectionData } from "../../../../../server/modules/agents/controller/connection";
-import { authorizeRemoteAgentUpgrade } from "../../../../../server/modules/agents/helpers/auth";
+import { authorizeRemoteAgentUpgrade, isSecureAgentRequest } from "../../../../../server/modules/agents/helpers/auth";
 
 const getConnectionData = (peer: { context: unknown }) => peer.context as AgentConnectionData;
 
@@ -12,7 +12,13 @@ export default defineWebSocketHandler({
 		const identity = await authorizeRemoteAgentUpgrade(request);
 		if (identity instanceof Response) throw identity;
 
-		return { context: { ...identity, id: Bun.randomUUIDv7() } satisfies AgentConnectionData };
+		return {
+			context: {
+				...identity,
+				id: Bun.randomUUIDv7(),
+				connectionSecurity: isSecureAgentRequest(request) ? "secure" : "insecure",
+			} satisfies AgentConnectionData,
+		};
 	},
 	open: (peer) => getAgentController().socket.open(getConnectionData(peer), peer),
 	message: (peer, message) =>

@@ -90,6 +90,12 @@ const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOption
 
 export const runAgent = (options: AgentOptions) =>
 	Effect.gen(function* () {
+		if (!options.builtinLocal && new URL(options.configuration.controllerUrl).protocol === "ws:") {
+			yield* logger.effect.warn(
+				"Insecure HTTP connection to controller: credentials and controller traffic are sent without TLS. Use HTTPS/WSS to secure this connection.",
+			);
+		}
+
 		const trustedRoots = yield* Effect.try({
 			try: () =>
 				createTrustedRootRegistry({ roots: options.configuration.roots, builtinLocal: options.builtinLocal }),

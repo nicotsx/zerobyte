@@ -8,6 +8,7 @@ export const publicAgentCapabilitiesSchema = z.object({
 	platform: z.string().nullable(),
 	agentVersion: z.string().nullable(),
 	resticVersion: z.string().nullable(),
+	connectionSecurity: z.enum(["secure", "insecure"]).nullable(),
 	trustedRoots: z.array(trustedRootDescriptorSchema),
 });
 
@@ -16,6 +17,7 @@ export const presentAgentCapabilities = (capabilities: AgentCapabilities) => ({
 	platform: getSafePresentationText(capabilities.platform, 128),
 	agentVersion: getSafePresentationText(capabilities.agentVersion, 128),
 	resticVersion: getSafePresentationText(capabilities.resticVersion, 128),
+	connectionSecurity: z.enum(["secure", "insecure"]).safeParse(capabilities.connectionSecurity).data ?? null,
 	trustedRoots: (capabilities.trustedRoots ?? []).map((root) => ({
 		id: root.id,
 		label: getSafeAllowedLocationLabel(root.label),

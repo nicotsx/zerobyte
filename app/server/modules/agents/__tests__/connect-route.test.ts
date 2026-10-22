@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 		runtime: "server",
 		trustProxy: false,
 		baseUrl: "http://agents.example.com",
-		flags: { enableRemoteAgents: true },
+		flags: { enableRemoteAgents: true, allowInsecureAgentHttp: false },
 	},
 	getController: vi.fn(),
 	validateToken: vi.fn(),
@@ -62,6 +62,7 @@ beforeEach(() => {
 	mocks.config.runtime = "server";
 	mocks.config.flags.enableRemoteAgents = true;
 	mocks.config.trustProxy = false;
+	mocks.config.flags.allowInsecureAgentHttp = false;
 	mocks.config.baseUrl = "http://agents.example.com";
 
 	mocks.getController.mockReset();
@@ -356,3 +357,59 @@ test("a failed registration closes the socket and permits reconnect", async () =
 
 	await Effect.runPromise(controller.stop);
 });
+
+test.each(["https", "http"])("records authoritative security for %s upgrades with HTTP opt-in", async (protocol) => {
+	const handler = await loadHandler();
+	mocks.config.flags.allowInsecureAgentHttp = true;
+	mocks.validateToken.mockResolvedValue({ agentId: "remote-1", agentKind: "remote" });
+
+	const upgrade = await handler.upgrade?.(
+		new Request(`${protocol}://localhost/api/v1/agents/connect`, {
+			headers: { authorization: "Bearer token", "x-forwarded-proto": "https" },
+		}),
+	);
+
+	expect(upgrade?.context).toMatchObject({
+		agentId: "remote-1",
+		connectionSecurity: protocol === "https" ? "secure" : "insecure",
+	});
+});
+
+test.each(["secure", "insecure"] as const)(
+	"an agent cannot override the controller's %s connection metadata",
+	async (connectionSecurity) => {
+		const controller = await startController();
+		const data = {
+			id: "connection-security",
+			agentId: "remote-1",
+			organizationId: "org-1",
+			agentName: "Remote",
+			agentKind: "remote",
+			credentialVersion: 3,
+			connectionSecurity,
+		};
+		const peer = { context: data, send: vi.fn(), close: vi.fn() };
+		const handler = await loadHandler();
+
+		try {
+			await handler.open?.(peer);
+			const ready = createAgentMessage("agent.ready", {
+				agentId: "remote-1",
+				protocolVersion: AGENT_PROTOCOL_VERSION,
+				hostname: "host",
+				platform: "linux",
+				capabilities: { connectionSecurity: connectionSecurity === "secure" ? "insecure" : "secure" },
+			});
+			await handler.message?.(peer, { rawData: ready, text: () => ready });
+
+			await expect(Effect.runPromise(controller.waitForReady("remote-1", 100))).resolves.toBe(true);
+			expect(mocks.markAgentOnline).toHaveBeenCalledWith(
+				expect.objectContaining({ agentId: "remote-1" }),
+				expect.objectContaining({ connectionSecurity }),
+				expect.any(Number),
+			);
+		} finally {
+			await Effect.runPromise(controller.stop);
+		}
+	},
+);

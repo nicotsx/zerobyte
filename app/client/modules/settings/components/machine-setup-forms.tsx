@@ -102,7 +102,10 @@ export function DeploymentInstructions({ credential }: { credential: CreateRemot
 				<Alert variant="warning">
 					<AlertTriangle className="size-4" aria-hidden="true" />
 					<AlertTitle>Connection isn’t secure</AlertTitle>
-					<AlertDescription>Use HTTPS to keep this connection secure.</AlertDescription>
+					<AlertDescription>
+						Credentials and controller traffic will be sent unencrypted. Use HTTPS, or explicitly set
+						ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true on the controller to allow HTTP connections.
+					</AlertDescription>
 				</Alert>
 			)}
 			<Tabs defaultValue="linux" className="min-w-0 gap-4">

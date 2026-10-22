@@ -36,7 +36,8 @@ main() (
   actual=$(sha256sum "$binary")
   [[ "${actual%% *}" == "$expected" ]] || fail "Agent checksum mismatch; nothing was installed"
   chmod 755 "$binary"
-  env -i PATH="$service_path" HOME=/var/lib/zerobyte-agent "$binary" install "$@"
+  env -i PATH="$service_path" HOME=/var/lib/zerobyte-agent \
+    ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP="${ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP:-false}" "$binary" install "$@"
 )
 
 main "$@"

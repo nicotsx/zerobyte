@@ -80,6 +80,7 @@ describe("parseConfig", () => {
 				disableRateLimiting: true,
 				enableDevPanel: true,
 				enableRemoteAgents: false,
+				allowInsecureAgentHttp: false,
 			},
 			provisioningPath: "/tmp/provisioning",
 			allowedHosts: ["example.com", "admin.example.com", "localhost:3000"],
@@ -99,6 +100,15 @@ describe("parseConfig", () => {
 
 		expect(config.flags.enableRemoteAgents).toBe(expected);
 	});
+
+	test.each([undefined, "false", "1", "TRUE", "true"])(
+		"allows insecure agent HTTP only with an explicit true value (%s)",
+		(value) => {
+			const config = parseConfig(createEnv({ ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP: value }));
+
+			expect(config.flags.allowInsecureAgentHttp).toBe(value === "true");
+		},
+	);
 
 	test("uses the configured RESTIC_HOSTNAME when present", () => {
 		const config = parseConfig(

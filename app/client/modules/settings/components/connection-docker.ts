@@ -14,15 +14,15 @@ export const createDockerCompose = (controllerUrl: string, code: string, machine
 		.slice(0, 63)
 		.replace(/^-|-$/g, "");
 
-	const command = origin.startsWith("http:") ? '\n    command: ["run", "--allow-insecure"]' : "";
+	const insecureEnvironment = origin.startsWith("http:") ? '\n      ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP: "true"' : "";
 
 	return `services:
   agent:
     image: ghcr.io/nicotsx/zerobyte-agent:${imageTag}
     hostname: ${composeString(hostname || "zerobyte-agent")}
-    restart: unless-stopped${command}
+    restart: unless-stopped
     environment:
-      ZEROBYTE_CONTROLLER_URL: ${composeString(origin)}
+      ZEROBYTE_CONTROLLER_URL: ${composeString(origin)}${insecureEnvironment}
       ZEROBYTE_AGENT_ENROLLMENT_CODE: ${composeString(code)}
       ZEROBYTE_AGENT_ROOTS: >-
         [{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]

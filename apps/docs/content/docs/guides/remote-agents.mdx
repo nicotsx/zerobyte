@@ -24,7 +24,7 @@ On the machine you want to back up, you'll need:
 
 The agent is a standalone executable. You don't need to install Bun. The installer doesn't support Alpine Linux, macOS, or Windows.
 
-Your Zerobyte server must have an HTTPS address that the remote machine can reach. Remote agents are available in the server version of Zerobyte, not the desktop app.
+Your Zerobyte server should have an HTTPS address that the remote machine can reach. Remote agents are available in the server version of Zerobyte, not the desktop app.
 
 ## Enable remote agents
 
@@ -95,6 +95,25 @@ environment:
 Keep existing root IDs when changing paths so sources continue to reference the same location. Use `docker compose logs -f agent` for logs. To update, change the image tag, run `docker compose pull`, then `docker compose up -d` between backup runs.
 
 To reconnect an existing container, use that machine's **Actions → Get connection command**, confirm the reconnect warning, and choose **Docker**. Replace the enrollment code in your existing YAML and run `docker compose up -d --force-recreate`. Preserve your configuration volume and allowed-location settings; the fresh code reconnects the same machine.
+
+## Allow insecure HTTP connections
+
+HTTPS is required by default. If you deliberately use an HTTP controller, set `ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true` on **both the Zerobyte server and the remote agent**, then restart both. Set the server's `BASE_URL` to its reachable HTTP address.
+
+For Docker agents, use:
+
+```yaml
+environment:
+  ZEROBYTE_CONTROLLER_URL: "http://zerobyte.example.com"
+  ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP: "true"
+  ZEROBYTE_AGENT_ENROLLMENT_CODE: "YOUR_CONNECTION_CODE"
+```
+
+The option applies to initial enrollment, reconnection, and agents using `ZEROBYTE_AGENT_TOKEN` directly. With a token, `ZEROBYTE_CONTROLLER_URL` accepts an HTTP/HTTPS controller address or a WS/WSS connection URL. The option defaults to `false`; only the exact value `true` enables it. It does not disable HTTPS certificate verification.
+
+For a Linux service, set the variable when running the installer (after `sudo env`) to allow HTTP enrollment. The saved controller address is reused on service restarts. The existing `--allow-insecure` CLI option also allows HTTP enrollment.
+
+HTTP sends machine credentials and controller traffic, including repository credentials, without TLS encryption. **Settings → Machines** shows an **Insecure HTTP** badge and a warning on connected machines using HTTP. Offline machines retain a warning about their last connection. Use HTTPS to protect the connection.
 
 ## Choose folders to back up
 

@@ -105,3 +105,44 @@ test.each(["ws://localhost/api/v1/agents/connect", "ws://[::1]:4096/api/v1/agent
 		await expect(runTest(loadConfiguration("/missing/agent.json"))).resolves.toMatchObject({ controllerUrl });
 	},
 );
+
+test.each(["http://remote.example", "ws://remote.example/api/v1/agents/connect"])(
+	"allows an insecure controller %s only with explicit environment opt-in",
+	async (controllerUrl) => {
+		vi.stubEnv("ZEROBYTE_CONTROLLER_URL", controllerUrl);
+		vi.stubEnv("ZEROBYTE_AGENT_TOKEN", "secret-token");
+
+		for (const value of [undefined, "false", "1", "TRUE"]) {
+			vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP", value);
+			await expect(runTest(loadConfiguration("/missing/agent.json"))).rejects.toThrow(
+				"ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true",
+			);
+		}
+
+		vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP", "true");
+
+		await expect(runTest(loadConfiguration("/missing/agent.json"))).resolves.toMatchObject({
+			controllerUrl: "ws://remote.example/api/v1/agents/connect",
+		});
+	},
+);
+
+test("converts an HTTPS controller address into a secure WebSocket endpoint", async () => {
+	vi.stubEnv("ZEROBYTE_CONTROLLER_URL", "https://remote.example");
+	vi.stubEnv("ZEROBYTE_AGENT_TOKEN", "secret-token");
+
+	await expect(runTest(loadConfiguration("/missing/agent.json"))).resolves.toMatchObject({
+		controllerUrl: "wss://remote.example/api/v1/agents/connect",
+	});
+});
+
+test.each(["ftp://remote.example", "http://user:password@remote.example"])(
+	"insecure HTTP opt-in does not allow invalid controller URL %s",
+	async (controllerUrl) => {
+		vi.stubEnv("ZEROBYTE_CONTROLLER_URL", controllerUrl);
+		vi.stubEnv("ZEROBYTE_AGENT_TOKEN", "secret-token");
+		vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP", "true");
+
+		await expect(runTest(loadConfiguration("/missing/agent.json"))).rejects.toThrow("without embedded credentials");
+	},
+);

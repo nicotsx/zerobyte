@@ -1,7 +1,12 @@
 import type { AgentConnectionData, ControllerTransport } from "./connection";
 import { config } from "../../../core/config";
 import { validateLocalAgentToken } from "../helpers/tokens";
-import { authorizeRemoteAgentUpgrade, getAgentBearerToken, REMOTE_AGENT_CONNECT_PATH } from "../helpers/auth";
+import {
+	authorizeRemoteAgentUpgrade,
+	getAgentBearerToken,
+	isSecureAgentRequest,
+	REMOTE_AGENT_CONNECT_PATH,
+} from "../helpers/auth";
 
 type AgentControllerListenerPorts = {
 	isRunning: () => boolean;
@@ -40,7 +45,12 @@ export const createAgentControllerListener = ({ isRunning, socket }: AgentContro
 			if (identity instanceof Response) return identity;
 			if (!isRunning()) return new Response("Controller is stopping", { status: 503 });
 
-			const upgraded = server.upgrade(request, { data: { ...identity, id: Bun.randomUUIDv7() } });
+			const data: AgentConnectionData = { ...identity, id: Bun.randomUUIDv7() };
+			if (identity.agentKind === "remote") {
+				data.connectionSecurity = isSecureAgentRequest(request) ? "secure" : "insecure";
+			}
+
+			const upgraded = server.upgrade(request, { data });
 
 			return upgraded ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
 		},

@@ -23,6 +23,7 @@ const emptyCapabilities: Agent["capabilities"] = {
 	platform: null,
 	agentVersion: null,
 	resticVersion: null,
+	connectionSecurity: null,
 	trustedRoots: [],
 };
 
@@ -167,6 +168,7 @@ test("waits for the newly enrolled credential to be ready before showing success
 			platform: "linux",
 			agentVersion: "v1.0.0-beta.2",
 			resticVersion: "0.18.0",
+			connectionSecurity: "secure",
 			trustedRoots: [{ id: "files-1", label: "Files", canBackup: true }],
 		},
 	});
@@ -279,7 +281,7 @@ test.each(["ws://controller.test/api/v1/agents/connect", "http://controller.test
 	"warns about unencrypted enrollment for %s",
 	(controllerUrl) => {
 		render(<DeploymentInstructions credential={{ ...credential(), controllerUrl }} />);
-		expect(screen.getByRole("alert").textContent).toContain("Use HTTPS to keep this connection secure");
+		expect(screen.getByRole("alert").textContent).toContain("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true");
 		expect((screen.getByRole("textbox", { name: "Connection command" }) as HTMLTextAreaElement).value).toContain(
 			"--allow-insecure",
 		);

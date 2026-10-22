@@ -5,7 +5,7 @@ import { validator } from "hono-openapi";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { agentsService } from "./agents.service";
 import { agentManager } from "./agents-manager";
-import { isSecureAgentRequest } from "./helpers/auth";
+import { isAllowedAgentRequest } from "./helpers/auth";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 import { AGENT_BUNDLE_PATH, REMOTE_AGENTS_UNAVAILABLE } from "./constants";
 import {
@@ -30,7 +30,7 @@ export const agentsController = new Hono()
 		await next();
 	})
 	.post("/enroll", validator("json", enrollmentBody), async (c) => {
-		if (!isSecureAgentRequest(c.req.raw)) return c.json({ message: "TLS required" }, 426);
+		if (!isAllowedAgentRequest(c.req.raw)) return c.json({ message: "TLS required" }, 426);
 
 		const { code } = c.req.valid("json");
 		const credentials = await agentsService.exchangeEnrollmentToken(code);

@@ -7015,6 +7015,7 @@ export type ListAgentsResponses = {
             platform: string | null;
             agentVersion: string | null;
             resticVersion: string | null;
+            connectionSecurity: 'secure' | 'insecure' | null;
             trustedRoots: Array<{
                 id: string;
                 label: string;
@@ -7070,6 +7071,7 @@ export type CreateRemoteAgentResponses = {
                 platform: string | null;
                 agentVersion: string | null;
                 resticVersion: string | null;
+                connectionSecurity: 'secure' | 'insecure' | null;
                 trustedRoots: Array<{
                     id: string;
                     label: string;
@@ -7116,6 +7118,7 @@ export type RotateRemoteAgentTokenResponses = {
                 platform: string | null;
                 agentVersion: string | null;
                 resticVersion: string | null;
+                connectionSecurity: 'secure' | 'insecure' | null;
                 trustedRoots: Array<{
                     id: string;
                     label: string;
@@ -7161,6 +7164,7 @@ export type RevokeRemoteAgentTokenResponses = {
             platform: string | null;
             agentVersion: string | null;
             resticVersion: string | null;
+            connectionSecurity: 'secure' | 'insecure' | null;
             trustedRoots: Array<{
                 id: string;
                 label: string;

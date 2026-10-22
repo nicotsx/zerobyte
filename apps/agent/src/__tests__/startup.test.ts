@@ -148,3 +148,19 @@ test("ambiguous environment credentials fail before enrollment", async () => {
 	await expect(runTest(loadStartupConfiguration(configPath))).rejects.toThrow("not both");
 	expect(request).not.toHaveBeenCalled();
 });
+
+test("HTTP environment opt-in covers enrollment and restarts with and without a consumed code", async () => {
+	const { configPath, request } = await setup();
+	vi.stubEnv("ZEROBYTE_CONTROLLER_URL", "http://controller.example");
+	vi.stubEnv("ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP", "true");
+
+	const configuration = await runTest(loadStartupConfiguration(configPath));
+
+	expect(configuration.controllerUrl).toBe("ws://controller.example/api/v1/agents/connect");
+	await expect(runTest(loadStartupConfiguration(configPath))).resolves.toEqual(configuration);
+
+	vi.stubEnv("ZEROBYTE_AGENT_ENROLLMENT_CODE", undefined);
+	await expect(runTest(loadStartupConfiguration(configPath))).resolves.toEqual(configuration);
+	expect(request).toHaveBeenCalledOnce();
+	expect(request).toHaveBeenCalledWith(new URL("http://controller.example/api/v1/agents/enroll"), expect.anything());
+});

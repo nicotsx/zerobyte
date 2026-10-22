@@ -68,7 +68,7 @@ program
 	.command("run")
 	.description("Run in the foreground (used by the system service)")
 	.option("--config <file>", "Agent configuration file", SERVICE_CONFIG)
-	.option("--allow-insecure", "Allow enrollment through an HTTP development controller")
+	.option("--allow-insecure", "Allow enrollment through an insecure HTTP controller")
 	.action(async (options: { config: string; allowInsecure?: boolean }) => {
 		const builtinLocal = process.env.ZEROBYTE_BUILTIN_LOCAL_AGENT === "1";
 
@@ -97,7 +97,7 @@ program
 	.option("--controller <url>", "HTTPS controller URL (required on first install; updates the address on upgrade)")
 	.option("--code <code>", "Connection code to enroll or reconnect this machine, preserving existing folders")
 	.option("--root <folders...>", "Optional folders for unattended setup")
-	.option("--allow-insecure", "Allow an HTTP development controller")
+	.option("--allow-insecure", "Allow an insecure HTTP controller")
 	.action((options: { controller?: string; code?: string; root?: string[]; allowInsecure?: boolean }) =>
 		runCommand(
 			Effect.gen(function* () {
@@ -130,7 +130,7 @@ program
 	.requiredOption("--code <code>", "One-time connection code from the dashboard")
 	.requiredOption("--config <file>", "Where to save the agent configuration")
 	.option("--root <folders...>", "Folders to share (can be repeated)")
-	.option("--allow-insecure", "Allow an HTTP development controller")
+	.option("--allow-insecure", "Allow an insecure HTTP controller")
 	.action((options: { controller: string; code: string; config: string; root?: string[]; allowInsecure?: boolean }) =>
 		runCommand(
 			Effect.gen(function* () {

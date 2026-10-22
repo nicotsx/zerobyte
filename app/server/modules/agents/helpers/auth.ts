@@ -9,8 +9,6 @@ export const getAgentBearerToken = (request: Request) =>
 	/^Bearer ([^\s]+)$/.exec(request.headers.get("authorization") ?? "")?.[1] ?? null;
 
 export const isSecureAgentRequest = (request: Request) => {
-	if (config.environment === "development") return true;
-
 	const protocol = new URL(request.url).protocol;
 	const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
 	const secureForwardedProtocol = forwardedProtocol === "https" || forwardedProtocol === "wss";
@@ -18,9 +16,12 @@ export const isSecureAgentRequest = (request: Request) => {
 	return protocol === "https:" || protocol === "wss:" || (config.trustProxy && secureForwardedProtocol);
 };
 
+export const isAllowedAgentRequest = (request: Request) =>
+	isSecureAgentRequest(request) || config.flags.allowInsecureAgentHttp || config.environment === "development";
+
 export const authorizeRemoteAgentUpgrade = async (request: Request): Promise<AgentIdentity | Response> => {
 	if (!serverHasRuntimeFeature("remoteAgents")) return new Response(REMOTE_AGENTS_UNAVAILABLE, { status: 503 });
-	if (!isSecureAgentRequest(request)) return new Response("TLS required", { status: 426 });
+	if (!isAllowedAgentRequest(request)) return new Response("TLS required", { status: 426 });
 
 	const token = getAgentBearerToken(request);
 	const identity = token ? await validateRemoteAgentToken(token) : null;

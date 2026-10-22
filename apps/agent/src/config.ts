@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import * as path from "node:path";
 import { toMessage } from "@zerobyte/core/utils";
+import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
 import { Data, Effect } from "effect";
 import { z } from "zod";
 import * as fs from "./fs";
@@ -80,6 +81,8 @@ export const writeConfiguration = (configPath: string, configuration: AgentConfi
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+export const allowsInsecureHttp = () => process.env.ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP === "true";
+
 const environmentRoots = Effect.try({
 	try: () => {
 		const raw = process.env.ZEROBYTE_AGENT_ROOTS;
@@ -94,10 +97,17 @@ const environmentControllerUrl = (value: string) =>
 		catch: () => new ConfigurationUnreadable({ message: `ZEROBYTE_CONTROLLER_URL is not a valid URL: ${value}` }),
 	}).pipe(
 		Effect.filterOrFail(
-			(url) => url.protocol === "wss:" || (url.protocol === "ws:" && LOOPBACK_HOSTS.has(url.hostname)),
+			(url) => {
+				if (url.username || url.password) return false;
+				if (url.protocol === "https:" || url.protocol === "wss:") return true;
+				if (url.protocol !== "http:" && url.protocol !== "ws:") return false;
+
+				return allowsInsecureHttp() || LOOPBACK_HOSTS.has(url.hostname);
+			},
 			() =>
 				new ConfigurationUnreadable({
-					message: "ZEROBYTE_CONTROLLER_URL must use wss://, or ws:// on a loopback address",
+					message:
+						"ZEROBYTE_CONTROLLER_URL must use wss:// or https:// without embedded credentials. For remote HTTP/WS connections, explicitly set ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true. Loopback HTTP/WS connections are also allowed.",
 				}),
 		),
 	);
@@ -112,8 +122,13 @@ export const loadConfiguration = (configPath: string) =>
 		const token = process.env.ZEROBYTE_AGENT_TOKEN;
 
 		if (controllerUrl && token) {
-			yield* environmentControllerUrl(controllerUrl);
-			return { controllerUrl, token, roots: roots ?? [] } satisfies LoadedConfiguration;
+			const url = yield* environmentControllerUrl(controllerUrl);
+			let connectionUrl = controllerUrl;
+			if (url.protocol === "http:" || url.protocol === "https:") {
+				connectionUrl = toAgentConnectionUrl(url).href;
+			}
+
+			return { controllerUrl: connectionUrl, token, roots: roots ?? [] } satisfies LoadedConfiguration;
 		}
 
 		const saved = yield* readConfiguration(configPath);

@@ -28,6 +28,7 @@ vi.mock("~/client/lib/datetime", () => ({
 type Agent = ListAgentsResponse[number];
 
 const emptyCapabilities: Agent["capabilities"] = {
+	connectionSecurity: null,
 	hostname: null,
 	platform: null,
 	agentVersion: null,
@@ -260,3 +261,31 @@ test("deletion uses the safe row name and restores focus after Cancel, Escape, a
 	await waitFor(() => expect(screen.queryByRole("heading", { name: "Archive node" })).toBeNull());
 	expect(document.activeElement).toBe(screen.getByRole("button", { name: "Connect machine" }));
 });
+
+test.each(["online", "offline"] as const)(
+	"warns about insecure HTTP for a remote machine that is %s",
+	async (status) => {
+		const remote = createAgent({ status, capabilities: { ...emptyCapabilities, connectionSecurity: "insecure" } });
+		server.use(http.get("/api/v1/agents", () => HttpResponse.json([localAgent, remote])));
+
+		render(<MachinesSection />);
+
+		expect(await screen.findByText("Insecure HTTP")).toBeTruthy();
+		expect(screen.getByText(/Use HTTPS to secure this connection/).textContent).toContain(
+			status === "online" ? "Connected without TLS" : "Last connection used HTTP without TLS",
+		);
+	},
+);
+
+test.each(["secure", null] as const)(
+	"does not show an insecure warning for connection security %s",
+	async (connectionSecurity) => {
+		const remote = createAgent({ status: "online", capabilities: { ...emptyCapabilities, connectionSecurity } });
+		server.use(http.get("/api/v1/agents", () => HttpResponse.json([localAgent, remote])));
+
+		render(<MachinesSection />);
+
+		await screen.findByRole("heading", { name: "Archive node" });
+		expect(screen.queryByText("Insecure HTTP")).toBeNull();
+	},
+);

@@ -93,6 +93,7 @@ describe("remote agent enrollment API", () => {
 		const agents = await listed.json();
 		const agent = agents.find((candidate: { id: string }) => candidate.id === enrollment.agent.id);
 		const expectedCapabilities = {
+			connectionSecurity: null,
 			hostname: "archive-node",
 			platform: "linux",
 			agentVersion: "v0.30.0",
@@ -111,6 +112,7 @@ describe("remote agent enrollment API", () => {
 			(candidate: { id: string }) => candidate.id === enrollment.agent.id,
 		);
 		expect(unenrolledAgent?.capabilities).toEqual({
+			connectionSecurity: null,
 			hostname: null,
 			platform: null,
 			agentVersion: null,
@@ -458,4 +460,26 @@ test("development permits HTTP enrollment", async () => {
 		body: JSON.stringify({ code: enrollment.token }),
 	});
 	expect(response.status).toBe(200);
+});
+
+test("explicit controller opt-in allows HTTP enrollment while retaining credential authentication", async () => {
+	const original = config.flags.allowInsecureAgentHttp;
+	config.flags.allowInsecureAgentHttp = true;
+
+	try {
+		const enrollment = await agentsService.createRemoteAgent(owner.organizationId, "HTTP agent");
+		const options = {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ code: enrollment.token }),
+		};
+		const response = await app.request("http://localhost/api/v1/agents/enroll", options);
+
+		expect(response.status).toBe(200);
+		const credential = await response.json();
+		expect(await validateRemoteAgentToken(credential.token)).toMatchObject({ agentId: enrollment.agent.id });
+		expect((await app.request("http://localhost/api/v1/agents/enroll", options)).status).toBe(401);
+	} finally {
+		config.flags.allowInsecureAgentHttp = original;
+	}
 });

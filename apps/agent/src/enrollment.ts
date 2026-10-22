@@ -3,7 +3,7 @@ import { parseAgentToken } from "@zerobyte/contracts/agent-token";
 import { toMessage } from "@zerobyte/core/utils";
 import { Data, Effect } from "effect";
 import { z } from "zod";
-import type { AgentConfiguration } from "./config";
+import { allowsInsecureHttp, type AgentConfiguration } from "./config";
 import { createTrustedRootRegistry, resolveConfiguredRootPath } from "./trusted-roots";
 
 export class EnrollmentError extends Data.TaggedError("EnrollmentError")<{ message: string }> {}
@@ -28,14 +28,16 @@ export const parseControllerUrl = (value: string, allowInsecure = false) =>
 		catch: () => new EnrollmentError({ message: `Invalid controller URL: ${value}` }),
 	}).pipe(
 		Effect.filterOrFail(
-			(url) =>
-				(url.protocol === "https:" || (allowInsecure && url.protocol === "http:")) &&
-				!url.username &&
-				!url.password,
+			(url) => {
+				if (url.username || url.password) return false;
+				if (url.protocol === "https:") return true;
+
+				return url.protocol === "http:" && (allowInsecure || allowsInsecureHttp());
+			},
 			() =>
 				new EnrollmentError({
 					message:
-						"Use an HTTPS controller URL without embedded credentials, or --allow-insecure for an HTTP development controller.",
+						"Use an HTTPS controller URL without embedded credentials. To allow insecure HTTP, set ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP=true or use --allow-insecure.",
 				}),
 		),
 	);
