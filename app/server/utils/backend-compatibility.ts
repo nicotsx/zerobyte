@@ -3,6 +3,9 @@ import { cryptoUtils } from "./crypto";
 
 type BackendConflictGroup = "s3" | "gcs" | "azure" | "rest" | "sftp" | null;
 
+const sftpIncompatibilityReason =
+	"SFTP mirroring requires matching private keys and SSH settings (port, host verification, and legacy RSA)";
+
 const getBackendConflictGroup = (backend: string): BackendConflictGroup => {
 	switch (backend) {
 		case "s3":
@@ -82,6 +85,32 @@ const hasCompatibleCredentials = async (config1: RepositoryConfig, config2: Repo
 			return false;
 		}
 		case "sftp": {
+			if (config1.backend === "sftp" && config2.backend === "sftp") {
+				const key1 = await cryptoUtils.resolveSecret(config1.privateKey);
+				const key2 = await cryptoUtils.resolveSecret(config2.privateKey);
+				const normalizeKey = (key: string) => {
+					const normalized = key.replace(/\r\n/g, "\n");
+
+					return normalized.endsWith("\n") ? normalized : `${normalized}\n`;
+				};
+
+				if (normalizeKey(key1) !== normalizeKey(key2)) {
+					return false;
+				}
+
+				const skipHostKeyCheck1 = config1.skipHostKeyCheck ?? false;
+				const skipHostKeyCheck2 = config2.skipHostKeyCheck ?? false;
+
+				if (
+					(config1.port ?? 22) !== (config2.port ?? 22) ||
+					skipHostKeyCheck1 !== skipHostKeyCheck2 ||
+					(config1.allowLegacySshRsa ?? false) !== (config2.allowLegacySshRsa ?? false)
+				) {
+					return false;
+				}
+
+				return skipHostKeyCheck1 || (config1.knownHosts || "") === (config2.knownHosts || "");
+			}
 			return false;
 		}
 		default:
@@ -129,14 +158,23 @@ export const checkMirrorCompatibility = async (
 		};
 	}
 
+	let reason = `Both use ${primaryConflictGroup.toUpperCase()} backends with different credentials`;
+	if (primaryConflictGroup === "sftp") {
+		reason = sftpIncompatibilityReason;
+	}
+
 	return {
 		repositoryId: mirrorRepositoryId,
 		compatible: false,
-		reason: `Both use ${primaryConflictGroup.toUpperCase()} backends with different credentials`,
+		reason,
 	};
 };
 
 export const getIncompatibleMirrorError = (mirrorRepoName: string, primaryBackend: string, mirrorBackend: string) => {
+	if (primaryBackend === "sftp" && mirrorBackend === "sftp") {
+		return `Cannot mirror to ${mirrorRepoName}: ${sftpIncompatibilityReason}. Both connections share the same SSH options during copy.`;
+	}
+
 	return (
 		`Cannot mirror to ${mirrorRepoName}: both repositories use the same backend type (${primaryBackend}/${mirrorBackend}) with different credentials. ` +
 		"Restic cannot use different credentials for the same backend in a copy operation. " +
