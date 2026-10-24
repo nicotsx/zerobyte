@@ -144,7 +144,7 @@ jobs:
           sha256sum zerobyte-agent-linux-${{ matrix.arch }} > zerobyte-agent-linux-${{ matrix.arch }}.sha256
           cp ../../LICENSE zerobyte-agent-linux-${{ matrix.arch }}.LICENSE.txt
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: zerobyte-agent-linux-${{ matrix.arch }}
           path: .output/agent-binaries/*
