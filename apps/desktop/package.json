@@ -23,9 +23,9 @@
 		"reflect-metadata": "0.2.2"
 	},
 	"devDependencies": {
-		"electron": "^44.9.0",
-		"electron-builder": "^26.15.3",
+		"electron": "^44.9.3",
+		"electron-builder": "^26.18.0",
 		"typescript": "^7.0.2",
-		"vite": "^8.3.4"
+		"vite": "^8.3.5"
 	}
 }
