@@ -57,7 +57,9 @@ export const R2RepositoryForm = ({ form }: Props) => {
 						<FormControl>
 							<Input placeholder="Access Key ID from R2 API tokens" {...field} />
 						</FormControl>
-						<FormDescription>R2 API token Access Key ID (create in Cloudflare R2 dashboard).</FormDescription>
+						<FormDescription>
+							R2 API token Access Key ID (create in Cloudflare R2 dashboard).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}
@@ -71,7 +73,9 @@ export const R2RepositoryForm = ({ form }: Props) => {
 						<FormControl>
 							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
 						</FormControl>
-						<FormDescription>R2 API token Secret Access Key (shown once when creating token).</FormDescription>
+						<FormDescription>
+							R2 API token Secret Access Key (shown once when creating token).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

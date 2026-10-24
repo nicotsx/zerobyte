@@ -19,7 +19,9 @@ ${body}`;
 		<div className="space-y-2 pt-4 border-t">
 			<Label>Request Preview</Label>
 			<CodeBlock code={previewCode} filename="HTTP Request" />
-			<p className="text-[0.8rem] text-muted-foreground">This is a preview of the HTTP request that will be sent.</p>
+			<p className="text-[0.8rem] text-muted-foreground">
+				This is a preview of the HTTP request that will be sent.
+			</p>
 		</div>
 	);
 };

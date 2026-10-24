@@ -54,9 +54,9 @@ export const ExcludeSection = ({ form }: ExcludeSectionProps) => {
 							/>
 						</FormControl>
 						<FormDescription>
-							Exclude folders containing a file with the specified name. Enter one filename per line. For example, use{" "}
-							<code className="bg-muted px-1 rounded">.nobackup</code> to skip any folder containing a{" "}
-							<code className="bg-muted px-1 rounded">.nobackup</code> file.
+							Exclude folders containing a file with the specified name. Enter one filename per line. For
+							example, use <code className="bg-muted px-1 rounded">.nobackup</code> to skip any folder
+							containing a <code className="bg-muted px-1 rounded">.nobackup</code> file.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>
@@ -73,8 +73,8 @@ export const ExcludeSection = ({ form }: ExcludeSectionProps) => {
 						<div className="space-y-1 leading-none">
 							<FormLabel>Stay on one file system</FormLabel>
 							<FormDescription>
-								Prevent Restic from crossing file system boundaries. This is useful to avoid backing up network mounts
-								or other partitions that might be mounted inside your backup source.
+								Prevent Restic from crossing file system boundaries. This is useful to avoid backing up
+								network mounts or other partitions that might be mounted inside your backup source.
 							</FormDescription>
 						</div>
 					</FormItem>

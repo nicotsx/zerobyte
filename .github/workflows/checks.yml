@@ -45,6 +45,9 @@ jobs:
         shell: bash
         run: bun run lint:ci
 
+      - name: Check formatting
+        run: bun run fmt:check
+
   typecheck:
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -59,7 +62,7 @@ jobs:
 
       - name: Run type checks
         shell: bash
-        run: bun run tsc
+        run: bun run typecheck
 
   test-server:
     timeout-minutes: 15

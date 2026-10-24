@@ -222,7 +222,10 @@ export const trackBrowserErrors = (context: BrowserContext, options: TrackBrowse
 				);
 			}
 
-			const firstPageErrorSnapshot = firstPageErrorSnapshotPromise ? await firstPageErrorSnapshotPromise : undefined;
+			let firstPageErrorSnapshot;
+			if (firstPageErrorSnapshotPromise) {
+				firstPageErrorSnapshot = await firstPageErrorSnapshotPromise;
+			}
 
 			if (options.attach && firstPageErrorSnapshot) {
 				await options.attach(

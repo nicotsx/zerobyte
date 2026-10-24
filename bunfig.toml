@@ -1,3 +1,9 @@
 [install]
 minimumReleaseAge = 172800
 minimumReleaseAgeExcludes = ["@zerobyte/*"]
+
+[fmt]
+printWidth = 120
+useTabs = true
+endOfLine = "lf"
+ignorePatterns = ["**/*.gen.ts", "**/.source", "app/drizzle/**"]

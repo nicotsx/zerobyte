@@ -7,12 +7,12 @@
 	],
 	"type": "module",
 	"scripts": {
-		"fmt": "oxfmt",
-		"fmt:check": "oxfmt --check",
-		"lint": "bunx --bun oxlint --type-aware --type-check",
-		"lint:fix": "bunx --bun oxlint --type-aware --type-check --fix --no-error-on-unmatched-pattern",
-		"lint:ci": "bunx --bun oxlint --type-aware --type-check --deny-warnings",
-		"check": "bunx --bun oxlint --type-aware --type-check && oxfmt --check",
+		"fmt": "bun fmt --no-script",
+		"fmt:check": "bun fmt --no-script --check",
+		"lint": "bunx --bun oxlint --type-aware",
+		"lint:fix": "bunx --bun oxlint --type-aware --fix --no-error-on-unmatched-pattern",
+		"lint:ci": "bunx --bun oxlint --type-aware --deny-warnings",
+		"check": "bun run lint && bun run typecheck && bun run fmt:check",
 		"dev": "NODE_ENV=development portless --tailscale run bunx --bun vite",
 		"dev:agent": "bun scripts/deploy-dev-agent.ts",
 		"dev:desktop": "bun run --cwd apps/desktop start",
@@ -25,7 +25,7 @@
 		"preview": "bunx --bun vite preview",
 		"cli:dev": "bun run app/server/cli/main.ts",
 		"cli": "ZEROBYTE_CLI=1 bun .output/server/_chunks/ssr.mjs",
-		"tsc": "tsc --noEmit && bun run --cwd apps/agent tsc && bun run --cwd apps/desktop tsc && bun run --cwd apps/docs tsc && bun run --cwd packages/contracts tsc && bun run --cwd packages/core tsc",
+		"tsc": "bun run typecheck",
 		"start:dev": "docker compose down && docker compose up --build zerobyte-dev",
 		"start:prod": "docker compose down && docker compose up --build zerobyte-prod",
 		"start:e2e": "docker compose down && mkdir -p playwright/data playwright/temp playwright/tinyauth/app-data playwright/tinyauth/caddy-data && rm -rf playwright/data/* playwright/.auth/user.json playwright/restic.pass playwright/temp/* playwright/tinyauth/app-data/* playwright/tinyauth/caddy-data/* && docker compose up --build zerobyte-e2e zerobyte-e2e-https",
@@ -40,7 +40,8 @@
 		"test:e2e": "NODE_ENV=test dotenv run -f .env.local -- bunx --bun playwright test",
 		"test:e2e:ui": "NODE_ENV=test dotenv run -f .env.local -- bunx --bun playwright test --ui",
 		"test:codegen": "bunx --bun playwright codegen localhost:4096",
-		"screenshots:store": "bun scripts/generate-store-screenshots.ts"
+		"screenshots:store": "bun scripts/generate-store-screenshots.ts",
+		"typecheck": "bun check --no-script && bun run --parallel --workspaces typecheck"
 	},
 	"dependencies": {
 		"@better-auth/api-key": "1.7.10",
@@ -140,7 +141,6 @@
 		"lefthook": "2.2.2",
 		"msw": "^2.15.0",
 		"nitro": "^3.0.260903-beta",
-		"oxfmt": "0.73.0",
 		"oxlint": "1.88.0",
 		"oxlint-tsgolint": "7.0.2004",
 		"tailwindcss": "^4.3.3",
@@ -154,5 +154,5 @@
 		"esbuild": "^0.28.2",
 		"yauzl": "^3.4.0"
 	},
-	"packageManager": "bun@1.4.3"
+	"packageManager": "bun@1.4.4"
 }

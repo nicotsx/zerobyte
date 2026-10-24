@@ -32,7 +32,7 @@ Store backups on a local disk or mounted filesystem. Zerobyte creates the reposi
 **Fields:** Name, Path.
 
 <Callout type="info">
-  Zerobyte automatically creates a subdirectory under the given path to keep each repository isolated.
+	Zerobyte automatically creates a subdirectory under the given path to keep each repository isolated.
 </Callout>
 
 ### S3-compatible
@@ -62,7 +62,7 @@ Store backups on Google Cloud Platform's object storage.
 **Fields:** Name, Bucket, Project ID, Service Account JSON.
 
 <Callout type="info">
-  The service account needs permissions to create, read, and delete objects in the target bucket.
+	The service account needs permissions to create, read, and delete objects in the target bucket.
 </Callout>
 
 ### Azure Blob Storage
@@ -82,7 +82,8 @@ Access any of rclone's 40+ supported cloud storage backends, including Dropbox, 
 **Fields:** Name, Remote (as configured in your rclone config), Path.
 
 <Callout type="warn">
-  Your rclone configuration file must be mounted into the Zerobyte container. Consumer services like Google Drive may have API rate limits and are not recommended for production backups.
+	Your rclone configuration file must be mounted into the Zerobyte container. Consumer services like Google Drive may
+	have API rate limits and are not recommended for production backups.
 </Callout>
 
 ### REST server
@@ -102,7 +103,8 @@ Store backups on remote servers accessible via SSH.
 **Fields:** Name, Host, Port, User, Path, SSH Private Key, Known Hosts or Skip Host Key Verification.
 
 <Callout type="warn">
-  For production use, keep host key verification enabled and provide the server's known host key to prevent man-in-the-middle attacks.
+	For production use, keep host key verification enabled and provide the server's known host key to prevent
+	man-in-the-middle attacks.
 </Callout>
 
 ## Connecting to an existing repository
@@ -126,9 +128,10 @@ Compression is set when creating a repository and applies to all backups stored 
     Restic automatically decides whether to compress each data chunk. This provides the best balance of speed and space savings for most workloads.
   </Accordion>
 
-  <Accordion title="Off">
-    No compression is applied. Use this when backing up data that is already compressed, such as video files, ZIP archives, or compressed images. Avoids wasting CPU on data that will not shrink further.
-  </Accordion>
+<Accordion title="Off">
+	No compression is applied. Use this when backing up data that is already compressed, such as video files, ZIP
+	archives, or compressed images. Avoids wasting CPU on data that will not shrink further.
+</Accordion>
 
   <Accordion title="Max">
     Maximum compression for the best space savings. Uses more CPU time during backups. Best suited for text-heavy data, source code, and database dumps where CPU is not a bottleneck.
@@ -143,7 +146,8 @@ You can configure upload and download speed limits per repository to prevent bac
 - **Download limit**, controls the speed at which data is retrieved during restores or snapshot browsing. Helps manage egress costs on cloud providers.
 
 <Callout type="info">
-  Bandwidth limits are enforced at the application layer. Actual network usage may be slightly higher due to protocol overhead.
+	Bandwidth limits are enforced at the application layer. Actual network usage may be slightly higher due to protocol
+	overhead.
 </Callout>
 
 ## Repository maintenance
@@ -155,7 +159,9 @@ Zerobyte provides maintenance actions in the repository details page.
 A background maintenance run that unlocks the repository, runs `restic check`, and repairs the index if restic reports that repair is needed.
 
 <Callout type="warn">
-  Doctor blocks other repository operations while it runs, but it does **not** currently perform a full `check --read-data` scrub and it does **not** prune unused data. See the [Repository maintenance guide](/docs/guides/repository-maintenance) for the exact behavior.
+	Doctor blocks other repository operations while it runs, but it does **not** currently perform a full `check
+	--read-data` scrub and it does **not** prune unused data. See the [Repository maintenance
+	guide](/docs/guides/repository-maintenance) for the exact behavior.
 </Callout>
 
 ### Unlock
@@ -163,7 +169,7 @@ A background maintenance run that unlocks the repository, runs `restic check`, a
 Removes stale locks from a repository. Use this when you see "repository is locked" errors after a crash or forced termination of a backup or restore operation.
 
 <Callout type="info">
-  Only run unlock if you are certain no other operations are actively accessing the repository.
+	Only run unlock if you are certain no other operations are actively accessing the repository.
 </Callout>
 
 ### Statistics refresh
@@ -206,17 +212,20 @@ The regular repository form in the UI currently expects the actual credential va
     Create distinct repositories for critical data, archive data, and test/development environments. This lets you apply different retention policies, storage tiers, and maintenance schedules to each class.
   </Accordion>
 
-  <Accordion title="Enable bandwidth limits for cloud repositories">
-    Prevent backup operations from saturating your internet connection, especially during business hours. Even modest limits (e.g., 50 Mbps) can make a significant difference to other services sharing the same link.
-  </Accordion>
+<Accordion title="Enable bandwidth limits for cloud repositories">
+	Prevent backup operations from saturating your internet connection, especially during business hours. Even modest
+	limits (e.g., 50 Mbps) can make a significant difference to other services sharing the same link.
+</Accordion>
 
-  <Accordion title="Run maintenance (Doctor) periodically">
-    Schedule the Doctor operation monthly or quarterly for production repositories to verify data integrity, rebuild indexes, and reclaim space from deleted snapshots.
-  </Accordion>
+<Accordion title="Run maintenance (Doctor) periodically">
+	Schedule the Doctor operation monthly or quarterly for production repositories to verify data integrity, rebuild
+	indexes, and reclaim space from deleted snapshots.
+</Accordion>
 
-  <Accordion title="Test restore operations regularly">
-    Backups are only as good as your ability to restore from them. Periodically restore files from your repositories to verify that data can be recovered, recovery time meets your expectations, and restored data is complete.
-  </Accordion>
+<Accordion title="Test restore operations regularly">
+	Backups are only as good as your ability to restore from them. Periodically restore files from your repositories to
+	verify that data can be recovered, recovery time meets your expectations, and restored data is complete.
+</Accordion>
 
   <Accordion title="Monitor repository health">
     Keep an eye on repository status. A repository in an error state will cause backup jobs to fail. Set up notifications so you are alerted to issues before they affect your backup schedule.
@@ -230,9 +239,9 @@ The regular repository form in the UI currently expects the actual credential va
     Learn how backup jobs create snapshots and manage retention
   </Card>
 
-  <Card title="Rclone integration" icon={<Cloud />} href="/docs/guides/rclone">
-    Set up rclone to access 40+ cloud storage backends
-  </Card>
+<Card title="Rclone integration" icon={<Cloud />} href="/docs/guides/rclone">
+	Set up rclone to access 40+ cloud storage backends
+</Card>
 
   <Card title="Configuration reference" icon={<Wrench />} href="/docs/configuration">
     Full reference for all environment variables and Docker settings

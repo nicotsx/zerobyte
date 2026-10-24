@@ -25,11 +25,7 @@ export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = AGENT_PROTOCOL_VERSION;
 export const MAX_AGENT_TRUSTED_ROOTS = 100;
 
 export type AgentProtocolRejectionReason =
-	| "agent_too_old"
-	| "agent_too_new"
-	| "invalid_agent_ready"
-	| "unexpected_startup_message"
-	| "invalid_startup_json";
+	"agent_too_old" | "agent_too_new" | "invalid_agent_ready" | "unexpected_startup_message" | "invalid_startup_json";
 
 export type AgentProtocolRejection = {
 	reason: AgentProtocolRejectionReason;

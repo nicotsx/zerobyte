@@ -117,12 +117,13 @@ To make Zerobyte accessible **only** via Tailscale, remove the `ports:` section 
 
 ## Kernel Mode vs Userspace Mode
 
-| Mode | Requirements | Best For |
-|------|-------------|----------|
-| **Kernel** (default) | `/dev/net/tun`, `NET_ADMIN` | Linux servers, best performance |
-| **Userspace** | No special devices | Docker Desktop, restricted hosts |
+| Mode                 | Requirements                | Best For                         |
+| -------------------- | --------------------------- | -------------------------------- |
+| **Kernel** (default) | `/dev/net/tun`, `NET_ADMIN` | Linux servers, best performance  |
+| **Userspace**        | No special devices          | Docker Desktop, restricted hosts |
 
 To use userspace mode:
+
 1. Set `TS_USERSPACE=true` in your `.env`
 2. Remove the `devices: /dev/net/tun` section from the tailscale service
 

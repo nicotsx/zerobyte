@@ -26,7 +26,7 @@ To create a backup job, navigate to **Backups** in the sidebar and click **Creat
 - **Retention policy**, optionally define how many snapshots to keep
 
 <Callout type="info">
-  Choose **Manual only** if you want to create the job without scheduled runs and trigger it yourself.
+	Choose **Manual only** if you want to create the job without scheduled runs and trigger it yourself.
 </Callout>
 
 ## Scheduling
@@ -35,16 +35,17 @@ Backup jobs use **cron expressions** to define when they run. Cron syntax gives 
 
 ### Common cron patterns
 
-| Cron Expression   | Schedule                     |
-| ----------------- | ---------------------------- |
-| `0 2 * * *`       | Daily at 2:00 AM             |
-| `0 2 * * 0`       | Weekly on Sunday at 2:00 AM  |
-| `0 2 1 * *`       | Monthly on the 1st at 2:00 AM |
-| `0 */6 * * *`     | Every 6 hours                |
-| `0 0 * * 1-5`     | Weekdays at midnight         |
+| Cron Expression | Schedule                      |
+| --------------- | ----------------------------- |
+| `0 2 * * *`     | Daily at 2:00 AM              |
+| `0 2 * * 0`     | Weekly on Sunday at 2:00 AM   |
+| `0 2 1 * *`     | Monthly on the 1st at 2:00 AM |
+| `0 */6 * * *`   | Every 6 hours                 |
+| `0 0 * * 1-5`   | Weekdays at midnight          |
 
 <Callout type="info">
-  The timezone for cron schedules is controlled by the `TZ` environment variable set on the Zerobyte container. If `TZ` is not set, the system defaults to UTC.
+	The timezone for cron schedules is controlled by the `TZ` environment variable set on the Zerobyte container. If `TZ`
+	is not set, the system defaults to UTC.
 </Callout>
 
 ## Retention policies
@@ -53,13 +54,13 @@ Retention policies control how long snapshots are kept. After each backup, Resti
 
 You can configure the following retention rules:
 
-| Rule           | Description                                |
-| -------------- | ------------------------------------------ |
-| **Keep Last**    | Number of most recent snapshots to keep    |
-| **Keep Daily**   | Number of daily snapshots to keep          |
-| **Keep Weekly**  | Number of weekly snapshots to keep         |
-| **Keep Monthly** | Number of monthly snapshots to keep        |
-| **Keep Yearly**  | Number of yearly snapshots to keep         |
+| Rule             | Description                             |
+| ---------------- | --------------------------------------- |
+| **Keep Last**    | Number of most recent snapshots to keep |
+| **Keep Daily**   | Number of daily snapshots to keep       |
+| **Keep Weekly**  | Number of weekly snapshots to keep      |
+| **Keep Monthly** | Number of monthly snapshots to keep     |
+| **Keep Yearly**  | Number of yearly snapshots to keep      |
 
 ### Example retention policy
 
@@ -71,7 +72,8 @@ A balanced policy for most workloads:
 - **Keep Yearly**: 1, one snapshot per year for long-term archival
 
 <Callout type="info">
-  Retention rules are additive. A snapshot that satisfies any rule is kept. Restic determines which snapshots best represent each time period automatically.
+	Retention rules are additive. A snapshot that satisfies any rule is kept. Restic determines which snapshots best
+	represent each time period automatically.
 </Callout>
 
 ## Include and exclude paths
@@ -92,7 +94,8 @@ Exclude files or directories that do not need to be backed up. Common patterns:
 - `*.log`, log files
 
 <Callout type="warn">
-  Exclude patterns use Restic's pattern matching. Test your patterns after the first backup by browsing the snapshot contents to confirm the right files are included.
+	Exclude patterns use Restic's pattern matching. Test your patterns after the first backup by browsing the snapshot
+	contents to confirm the right files are included.
 </Callout>
 
 ## Compression
@@ -111,7 +114,8 @@ There are two ways to run a backup job:
 Both methods produce identical snapshots. Manual runs are useful for verifying a new backup job or creating an extra snapshot before a major change.
 
 <Callout type="info">
-  You can monitor backup progress in real time through the web interface. Zerobyte streams file counts, data processed, and upload progress as the backup runs.
+	You can monitor backup progress in real time through the web interface. Zerobyte streams file counts, data processed,
+	and upload progress as the backup runs.
 </Callout>
 
 ## Backup webhooks
@@ -191,7 +195,8 @@ Click **Restore** and wait for the operation to complete.
 </Steps>
 
 <Callout type="warn">
-  By default, restored files are placed back in their original location. This can overwrite current files. If you want to inspect the restored data before replacing anything, specify an alternate restore path.
+	By default, restored files are placed back in their original location. This can overwrite current files. If you want
+	to inspect the restored data before replacing anything, specify an alternate restore path.
 </Callout>
 
 ## Mirror repositories
@@ -224,17 +229,20 @@ The Zerobyte web interface provides visibility into each backup job:
     Run backups when system load is lowest to minimize impact on production workloads. Late night or early morning schedules (e.g., `0 2 * * *`) work well for most setups.
   </Accordion>
 
-  <Accordion title="Use retention policies to balance storage and history">
-    Keeping every snapshot indefinitely wastes storage. A policy like 7 daily, 4 weekly, 6 monthly, and 1 yearly provides good coverage without excessive cost.
-  </Accordion>
+<Accordion title="Use retention policies to balance storage and history">
+	Keeping every snapshot indefinitely wastes storage. A policy like 7 daily, 4 weekly, 6 monthly, and 1 yearly provides
+	good coverage without excessive cost.
+</Accordion>
 
-  <Accordion title="Test restores regularly">
-    A backup is only valuable if you can restore from it. Periodically restore files to a test location to verify data integrity and familiarize yourself with the restore process.
-  </Accordion>
+<Accordion title="Test restores regularly">
+	A backup is only valuable if you can restore from it. Periodically restore files to a test location to verify data
+	integrity and familiarize yourself with the restore process.
+</Accordion>
 
-  <Accordion title="Use exclude patterns for temporary files">
-    Excluding directories like `node_modules/`, `.cache/`, and `*.tmp` files reduces backup size and duration without losing important data.
-  </Accordion>
+<Accordion title="Use exclude patterns for temporary files">
+	Excluding directories like `node_modules/`, `.cache/`, and `*.tmp` files reduces backup size and duration without
+	losing important data.
+</Accordion>
 
   <Accordion title="Monitor failed backups and set up notifications">
     Check the backup dashboard regularly for failed jobs. Configure notifications so you are alerted immediately when a backup fails rather than discovering it during a restore. See the [Notifications guide](/docs/guides/notifications) for destination setup, event routing, and delivery examples.

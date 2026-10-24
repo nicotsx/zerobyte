@@ -35,8 +35,9 @@
 		}
 	},
 	"scripts": {
-		"tsc": "tsc --noEmit",
-		"test": "bunx --bun vitest run --config ./vitest.config.ts"
+		"tsc": "bun run typecheck",
+		"test": "bunx --bun vitest run --config ./vitest.config.ts",
+		"typecheck": "bun check --no-script"
 	},
 	"devDependencies": {
 		"@types/bun": "^1.4.3",

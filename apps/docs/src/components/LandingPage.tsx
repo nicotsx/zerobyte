@@ -121,7 +121,8 @@ const features: Array<{ icon: LucideIcon; title: string; description: string }> 
 	{
 		icon: Container,
 		title: "Operator-friendly deployment",
-		description: "Self-host with Docker Compose and manage backups from a web interface your team can actually use.",
+		description:
+			"Self-host with Docker Compose and manage backups from a web interface your team can actually use.",
 	},
 ];
 
@@ -159,33 +160,27 @@ const benefits = [
 const faqs = [
 	{
 		question: "Is Zerobyte a backup engine or a UI for Restic?",
-		answer:
-			"Zerobyte is a Restic-based backup automation tool. It gives you a web control plane for scheduling, managing, monitoring, restoring, and maintaining Restic backups.",
+		answer: "Zerobyte is a Restic-based backup automation tool. It gives you a web control plane for scheduling, managing, monitoring, restoring, and maintaining Restic backups.",
 	},
 	{
 		question: "What can I back up with Zerobyte?",
-		answer:
-			"You can back up local directories, NFS shares, SMB/CIFS shares, WebDAV endpoints, SFTP locations, and rclone-backed sources.",
+		answer: "You can back up local directories, NFS shares, SMB/CIFS shares, WebDAV endpoints, SFTP locations, and rclone-backed sources.",
 	},
 	{
 		question: "Where can I store backups?",
-		answer:
-			"Zerobyte supports local repositories, S3-compatible storage, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, REST servers, SFTP targets, and many additional providers through rclone.",
+		answer: "Zerobyte supports local repositories, S3-compatible storage, Cloudflare R2, Google Cloud Storage, Azure Blob Storage, REST servers, SFTP targets, and many additional providers through rclone.",
 	},
 	{
 		question: "Is my data encrypted?",
-		answer:
-			"Yes. Zerobyte relies on Restic's end-to-end encryption for repository data, and sensitive credentials stored by the app are encrypted before they are written to the database.",
+		answer: "Yes. Zerobyte relies on Restic's end-to-end encryption for repository data, and sensitive credentials stored by the app are encrypted before they are written to the database.",
 	},
 	{
 		question: "Can I restore individual files?",
-		answer:
-			"Yes. You can browse snapshots from the web interface and restore individual files, directories, or larger paths to the original or an alternate location.",
+		answer: "Yes. You can browse snapshots from the web interface and restore individual files, directories, or larger paths to the original or an alternate location.",
 	},
 	{
 		question: "Can teams use Zerobyte?",
-		answer:
-			"Yes. Zerobyte is organization-scoped and supports roles, invitations, and OIDC-based SSO for managed access.",
+		answer: "Yes. Zerobyte is organization-scoped and supports roles, invitations, and OIDC-based SSO for managed access.",
 	},
 	{
 		question: "How do I deploy it?",
@@ -242,21 +237,27 @@ export default function LandingPage() {
 									Backups you can finally forget about
 								</h1>
 								<p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
-									Zerobyte gives you a clean web interface to schedule, monitor, restore, and maintain encrypted backups
-									across local disks, NAS shares, remote servers, and cloud storage.
+									Zerobyte gives you a clean web interface to schedule, monitor, restore, and maintain
+									encrypted backups across local disks, NAS shares, remote servers, and cloud storage.
 								</p>
 								<div className="mt-10 flex flex-wrap gap-3">
 									<Link to="/docs/$" params={{ _splat: "" }} className={primaryButtonClass}>
 										Documentation
 										<ArrowRight className="h-4 w-4" />
 									</Link>
-									<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
+									<a
+										href={repoUrl}
+										target="_blank"
+										rel="noopener noreferrer"
+										className={outlineButtonClass}
+									>
 										<GithubLogoIcon className="h-4 w-4" />
 										View on GitHub
 									</a>
 								</div>
 								<p className="mt-6 max-w-xl text-sm text-muted-foreground">
-									Self-hosted. Restic-powered. Built for operators who want fewer scripts and more visibility.
+									Self-hosted. Restic-powered. Built for operators who want fewer scripts and more
+									visibility.
 								</p>
 							</div>
 							<div className="min-[1100px]:-mr-8 xl:-mr-12">
@@ -286,7 +287,8 @@ export default function LandingPage() {
 								Backups are easy to start and hard to trust
 							</h2>
 							<p className="mt-4 text-lg text-muted-foreground">
-								A few commands and a cron job can get backups running. Keeping them reliable is the hard part.
+								A few commands and a cron job can get backups running. Keeping them reliable is the hard
+								part.
 							</p>
 							<ul className="mt-10 space-y-5">
 								{problems.map((problem) => (
@@ -309,8 +311,8 @@ export default function LandingPage() {
 								Zerobyte puts a real control plane on top of Restic
 							</h2>
 							<p className="mt-4 text-lg text-muted-foreground">
-								Instead of stitching together CLI commands, cron, and ad hoc monitoring, you manage the full backup
-								lifecycle from one place.
+								Instead of stitching together CLI commands, cron, and ad hoc monitoring, you manage the
+								full backup lifecycle from one place.
 							</p>
 						</div>
 						<div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -320,7 +322,9 @@ export default function LandingPage() {
 										<solution.icon className="h-5 w-5 text-strong-accent" />
 									</div>
 									<h3 className="text-lg font-semibold text-foreground">{solution.title}</h3>
-									<p className="mt-2 text-sm leading-relaxed text-muted-foreground">{solution.description}</p>
+									<p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+										{solution.description}
+									</p>
 								</div>
 							))}
 						</div>
@@ -342,7 +346,9 @@ export default function LandingPage() {
 										<h3 className="leading-none font-semibold text-foreground">{feature.title}</h3>
 									</div>
 									<div className="px-6">
-										<p className="text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
+										<p className="text-sm leading-relaxed text-muted-foreground">
+											{feature.description}
+										</p>
 									</div>
 								</CornerCard>
 							))}
@@ -365,14 +371,18 @@ export default function LandingPage() {
 										key={step.number}
 										className="relative flex flex-col gap-6 pl-16 lg:flex-row lg:items-center lg:gap-12 lg:pl-0"
 									>
-										<div className={`lg:w-1/2 ${index % 2 === 0 ? "lg:pr-12 lg:text-right" : "lg:order-2 lg:pl-12"}`}>
+										<div
+											className={`lg:w-1/2 ${index % 2 === 0 ? "lg:pr-12 lg:text-right" : "lg:order-2 lg:pl-12"}`}
+										>
 											<h3 className="text-lg font-semibold text-foreground">{step.title}</h3>
 											<p className="mt-2 text-muted-foreground">{step.description}</p>
 										</div>
 										<div className="absolute left-0 top-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background text-lg font-bold text-strong-accent lg:left-1/2 lg:-translate-x-1/2">
 											{step.number}
 										</div>
-										<div className={`hidden lg:block lg:w-1/2 ${index % 2 === 0 ? "lg:order-2" : ""}`} />
+										<div
+											className={`hidden lg:block lg:w-1/2 ${index % 2 === 0 ? "lg:order-2" : ""}`}
+										/>
 									</div>
 								))}
 							</div>
@@ -393,8 +403,8 @@ export default function LandingPage() {
 								Built for the gap between raw CLI power and real-world operations
 							</h2>
 							<p className="mt-4 text-lg text-muted-foreground">
-								Restic is excellent at creating secure, efficient backups. Zerobyte makes that power practical day to
-								day.
+								Restic is excellent at creating secure, efficient backups. Zerobyte makes that power
+								practical day to day.
 							</p>
 							<ul className="mt-10 space-y-4">
 								{benefits.map((benefit) => (
@@ -423,7 +433,9 @@ export default function LandingPage() {
 											<AccordionTrigger className="py-4 text-sm font-medium text-foreground hover:text-strong-accent">
 												{faq.question}
 											</AccordionTrigger>
-											<AccordionContent className="pb-4 text-sm text-muted-foreground">{faq.answer}</AccordionContent>
+											<AccordionContent className="pb-4 text-sm text-muted-foreground">
+												{faq.answer}
+											</AccordionContent>
 										</AccordionItem>
 									))}
 								</Accordion>
@@ -446,14 +458,19 @@ export default function LandingPage() {
 									Documentation
 									<ArrowRight className="h-4 w-4" />
 								</Link>
-								<a href={repoUrl} target="_blank" rel="noopener noreferrer" className={outlineButtonClass}>
+								<a
+									href={repoUrl}
+									target="_blank"
+									rel="noopener noreferrer"
+									className={outlineButtonClass}
+								>
 									<GithubLogoIcon className="h-4 w-4" />
 									View on GitHub
 								</a>
 							</div>
 							<p className="mt-8 text-sm text-muted-foreground">
-								Self-host Zerobyte and bring scheduling, visibility, restores, and repository maintenance into one
-								place.
+								Self-host Zerobyte and bring scheduling, visibility, restores, and repository
+								maintenance into one place.
 							</p>
 						</div>
 					</div>

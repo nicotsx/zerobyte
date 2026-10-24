@@ -75,7 +75,9 @@ export function CronInput({ value, onChange, error }: CronInputProps) {
 			{value && !isValid && parseError && <p className="text-xs text-destructive mt-1">{parseError}</p>}
 			{isValid && nextRuns.length > 0 && (
 				<div className="mt-2 p-3 rounded-md bg-muted/50 border border-border">
-					<p className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wider">Next 5 executions:</p>
+					<p className="text-xs font-medium mb-2 text-muted-foreground uppercase tracking-wider">
+						Next 5 executions:
+					</p>
 					<ul className="space-y-1">
 						{nextRuns.map((date, i) => (
 							<li key={date.toISOString()} className="text-xs font-mono flex items-center gap-2">

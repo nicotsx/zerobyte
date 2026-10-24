@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent, waitFor } from "~/test/test-utils";
-import { ConfigExportDialog } from "./config-export-dialog";
+import { ConfigExportDialog } from "../config-export-dialog";
 
 afterEach(() => {
 	cleanup();
@@ -54,11 +54,11 @@ test("exports and downloads the encrypted configuration, then clears sensitive f
 	);
 	const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:config-export");
 	const clickedAnchors: HTMLAnchorElement[] = [];
-	const clickAnchor = vi
-		.spyOn(HTMLAnchorElement.prototype, "click")
-		.mockImplementation(function (this: HTMLAnchorElement) {
-			clickedAnchors.push(this);
-		});
+	const clickAnchor = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+		this: HTMLAnchorElement,
+	) {
+		clickedAnchors.push(this);
+	});
 
 	render(<ConfigExportDialog hasPassword passwordAuthSupported />);
 

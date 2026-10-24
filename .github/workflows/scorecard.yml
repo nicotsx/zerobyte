@@ -2,7 +2,7 @@ name: Scorecard analysis
 on:
   branch_protection_rule:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 permissions: read-all
 

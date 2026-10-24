@@ -59,7 +59,11 @@ export const PathsSection = ({
 								</span>
 							))}
 						{selectedPaths.size > 20 && (
-							<button type="button" onClick={onToggleShowAllPaths} className="text-xs text-primary hover:underline">
+							<button
+								type="button"
+								onClick={onToggleShowAllPaths}
+								className="text-xs text-primary hover:underline"
+							>
 								{showAllSelectedPaths ? "Show less" : `+ ${selectedPaths.size - 20} more`}
 							</button>
 						)}
@@ -80,8 +84,8 @@ export const PathsSection = ({
 							/>
 						</FormControl>
 						<FormDescription>
-							Optionally add custom include patterns using glob syntax. Enter one pattern per line. These will be
-							combined with the paths selected above.
+							Optionally add custom include patterns using glob syntax. Enter one pattern per line. These
+							will be combined with the paths selected above.
 						</FormDescription>
 						<FormMessage />
 					</FormItem>

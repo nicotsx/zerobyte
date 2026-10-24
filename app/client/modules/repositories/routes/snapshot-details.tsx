@@ -24,9 +24,15 @@ const SnapshotError = () => {
 				<Database className="mb-4 h-12 w-12 text-destructive" />
 				<p className="text-destructive font-semibold">Snapshot not found</p>
 				<p className="text-sm text-muted-foreground mt-2">This snapshot does not exist in this repository</p>
-				<p className="text-sm text-muted-foreground mt-1">It may have been deleted manually outside of Zerobyte.</p>
+				<p className="text-sm text-muted-foreground mt-1">
+					It may have been deleted manually outside of Zerobyte.
+				</p>
 				<div className="mt-4">
-					<Link to={`/repositories/$repositoryId`} search={() => ({ tab: "snapshots" })} params={{ repositoryId }}>
+					<Link
+						to={`/repositories/$repositoryId`}
+						search={() => ({ tab: "snapshots" })}
+						params={{ repositoryId }}
+					>
 						<Button variant="outline">Back to repository</Button>
 					</Link>
 				</div>
@@ -159,7 +165,10 @@ export function SnapshotDetailsPage({ repositoryId, snapshotId, initialSnapshot 
 								<span className="text-muted-foreground">Paths:</span>
 								<div className="space-y-1 mt-1">
 									{data.paths.slice(0, showAllPaths ? undefined : 20).map((path) => (
-										<p key={path} className="font-mono text-xs bg-muted px-2 py-1 rounded break-all">
+										<p
+											key={path}
+											className="font-mono text-xs bg-muted px-2 py-1 rounded break-all"
+										>
 											{path}
 										</p>
 									))}

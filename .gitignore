@@ -50,4 +50,5 @@ qa-output
 .turbo
 .superset
 .fallow
-.vscode
+.vscode/*
+!.vscode/tasks.json

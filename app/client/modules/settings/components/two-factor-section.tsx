@@ -40,8 +40,8 @@ export const TwoFactorSection = ({ twoFactorEnabled }: TwoFactorSectionProps) =>
 							)}
 						</p>
 						<p className="text-xs text-muted-foreground max-w-xl">
-							Two-factor authentication adds an extra layer of security by requiring a code from your authenticator app
-							in addition to your password.
+							Two-factor authentication adds an extra layer of security by requiring a code from your
+							authenticator app in addition to your password.
 						</p>
 					</div>
 					<div className="flex gap-2">
@@ -63,7 +63,11 @@ export const TwoFactorSection = ({ twoFactorEnabled }: TwoFactorSectionProps) =>
 
 			<TwoFactorSetupDialog open={setupDialogOpen} onOpenChange={setSetupDialogOpen} onSuccess={handleSuccess} />
 
-			<TwoFactorDisableDialog open={disableDialogOpen} onOpenChange={setDisableDialogOpen} onSuccess={handleSuccess} />
+			<TwoFactorDisableDialog
+				open={disableDialogOpen}
+				onOpenChange={setDisableDialogOpen}
+				onSuccess={handleSuccess}
+			/>
 
 			<BackupCodesDialog open={backupCodesDialogOpen} onOpenChange={setBackupCodesDialogOpen} />
 		</>

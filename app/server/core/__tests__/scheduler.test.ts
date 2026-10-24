@@ -9,11 +9,11 @@ const flushMicrotasks = async () => {
 const mockTimeZone = (timeZone: string) => {
 	// oxlint-disable-next-line typescript/unbound-method
 	const resolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
-	return vi
-		.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
-		.mockImplementation(function (this: Intl.DateTimeFormat) {
-			return { ...resolvedOptions.call(this), timeZone };
-		});
+	return vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (
+		this: Intl.DateTimeFormat,
+	) {
+		return { ...resolvedOptions.call(this), timeZone };
+	});
 };
 
 describe("Scheduler", () => {

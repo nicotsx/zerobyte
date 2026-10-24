@@ -49,7 +49,9 @@ export const PushoverForm = ({ form }: Props) => {
 						<FormControl>
 							<Input {...field} placeholder="iphone,android" />
 						</FormControl>
-						<FormDescription>Comma-separated list of device names. Leave empty for all devices.</FormDescription>
+						<FormDescription>
+							Comma-separated list of device names. Leave empty for all devices.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

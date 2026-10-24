@@ -21,7 +21,8 @@ docker logs -f zerobyte
 ```
 
 <Callout type="warn">
-  Never share sensitive information (passwords, access keys, personal data) in public issue reports. Redact them from logs before posting.
+	Never share sensitive information (passwords, access keys, personal data) in public issue reports. Redact them from
+	logs before posting.
 </Callout>
 
 ## Container Won't Start
@@ -122,7 +123,8 @@ security_opt:
 </Tabs>
 
 <Callout type="warn">
-  **Last resort**: If nothing else works, you can run with `privileged: true`. This disables most container isolation and should only be used temporarily for diagnosis.
+	**Last resort**: If nothing else works, you can run with `privileged: true`. This disables most container isolation
+	and should only be used temporarily for diagnosis.
 </Callout>
 
 ## FUSE Mount Failures
@@ -141,7 +143,7 @@ docker exec zerobyte ls -la /dev/fuse
 ```
 
 <Callout type="info">
-  `/dev/fuse` is **not required** for SMB/CIFS or NFS mounts, only for SFTP and rclone volumes.
+	`/dev/fuse` is **not required** for SMB/CIFS or NFS mounts, only for SFTP and rclone volumes.
 </Callout>
 
 ## Rclone Issues
@@ -162,6 +164,7 @@ rclone ls myremote:path/to/test
 ```
 
 **If these commands fail on the host, fix your rclone configuration first.** Common causes:
+
 - Expired OAuth tokens, run `rclone config` to re-authenticate
 - Incorrect credentials
 - Missing permissions on the cloud provider side
@@ -196,6 +199,7 @@ volumes:
 ### "Failed to Create File System" Error
 
 Usually an authentication failure. On your host:
+
 1. Run `rclone config` and re-authenticate the remote
 2. Verify with `rclone lsd remote:`
 3. Restart the Zerobyte container
@@ -205,6 +209,7 @@ Usually an authentication failure. On your host:
 If your rclone SFTP remote uses `key_file`, the path points to the host filesystem which isn't accessible inside the container.
 
 Solutions:
+
 - **Mount SSH keys**: `~/.ssh:/root/.ssh:ro`
 - **Embed key in config**: Use `key_pem` instead of `key_file`
 - **Use ssh-agent**: Set `key_use_agent = true` and mount the SSH agent socket
@@ -214,6 +219,7 @@ See the [rclone guide](/docs/guides/rclone) for detailed instructions.
 ### Rclone Volume Mount Errors
 
 Rclone volumes (mounting cloud storage as a data source) require:
+
 - Linux host (Windows/macOS cannot use rclone volumes)
 - `/dev/fuse` device mounted
 - `SYS_ADMIN` capability
@@ -263,7 +269,7 @@ See [Performance tuning](/docs/guides/performance-tuning) before changing multip
 If you see "repository is locked" errors, a previous operation may have been interrupted. Use the **Unlock** button in the repository settings.
 
 <Callout type="warn">
-  Only unlock if you're certain no other backup or restore operations are running against the repository.
+	Only unlock if you're certain no other backup or restore operations are running against the repository.
 </Callout>
 
 ## Getting Help
@@ -275,6 +281,7 @@ If you've tried the solutions above and still have issues:
 3. Open an issue at [github.com/nicotsx/zerobyte/issues](https://github.com/nicotsx/zerobyte/issues)
 
 Include in your report:
+
 - Zerobyte version (visible in the UI footer)
 - Docker and Docker Compose versions
 - Relevant logs (with sensitive data redacted)

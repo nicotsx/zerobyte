@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Link, type ParsedLocation, type RegisteredRouter, useLocation, useNavigate } from "@tanstack/react-router";
 import {
 	ArrowLeft,
 	Bell,
@@ -72,7 +72,7 @@ export function AppSidebar() {
 	const openBeforeSettingsRef = useRef<boolean | null>(null);
 	const settingsReturnLocationRef = useRef("/volumes");
 
-	const location = useRouterState({ select: (routerState) => routerState.location });
+	const location = useLocation<RegisteredRouter, ParsedLocation, false>({ structuralSharing: false });
 	const isCollapsed = state === "collapsed";
 	const isDesktopRuntime = runtime === "desktop";
 	const isSettingsMode =

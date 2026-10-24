@@ -20,7 +20,9 @@ export const TelegramForm = ({ form }: Props) => {
 						<FormControl>
 							<SecretInput {...field} placeholder="123456789:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" />
 						</FormControl>
-						<FormDescription>Telegram bot token. Get this from BotFather when you create your bot.</FormDescription>
+						<FormDescription>
+							Telegram bot token. Get this from BotFather when you create your bot.
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

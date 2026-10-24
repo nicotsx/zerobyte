@@ -7,12 +7,14 @@ Volumes are the data sources you want to protect with Zerobyte. Each volume repr
 
 ## What are volumes?
 
-A volume tells Zerobyte *where* your data lives. When you create a volume, you provide connection details (a path, a server address, credentials) and Zerobyte takes care of mounting that filesystem, monitoring its health, and making it available to your backup jobs.
+A volume tells Zerobyte _where_ your data lives. When you create a volume, you provide connection details (a path, a server address, credentials) and Zerobyte takes care of mounting that filesystem, monitoring its health, and making it available to your backup jobs.
 
 Volumes support a range of protocols, from simple local directories to NFS shares, Windows/Samba file servers, WebDAV endpoints, SFTP connections, and cloud storage via rclone. Once a volume is mounted, you can browse its contents directly in the UI, assign it to one or more backup jobs, and let Zerobyte handle the rest.
 
 <Callout type="warn">
-  Mounted remote volumes can expose translated metadata instead of the source system's original ownership and ACL model. Before relying on NFS, SMB, WebDAV, SFTP, or rclone volumes for metadata-sensitive backups, read [Mounted Shares, ACLs, and Metadata Fidelity](/docs/guides/mounted-shares-and-acls).
+	Mounted remote volumes can expose translated metadata instead of the source system's original ownership and ACL model.
+	Before relying on NFS, SMB, WebDAV, SFTP, or rclone volumes for metadata-sensitive backups, read [Mounted Shares,
+	ACLs, and Metadata Fidelity](/docs/guides/mounted-shares-and-acls).
 </Callout>
 
 ## Supported volume types
@@ -39,6 +41,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="info">
       You must first mount the host directory into the Zerobyte container by adding it to the `volumes` section of your `compose.yaml`. For example, to back up `/home/user/photos` on the host, add `- /home/user/photos:/photos:ro` to your compose file, restart the container, then create a Directory volume in the UI with the path `/photos`.
     </Callout>
+
   </Tab>
 
   <Tab value="NFS">
@@ -64,6 +67,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="warn">
       NFS volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for details on enabling `cap_add: [SYS_ADMIN]`.
     </Callout>
+
   </Tab>
 
   <Tab value="SMB/CIFS">
@@ -97,6 +101,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="warn">
       SMB volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
     </Callout>
+
   </Tab>
 
   <Tab value="WebDAV">
@@ -124,6 +129,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="warn">
       WebDAV volumes require the `SYS_ADMIN` capability in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
     </Callout>
+
   </Tab>
 
   <Tab value="SFTP">
@@ -153,6 +159,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="warn">
       SFTP volumes require both the `SYS_ADMIN` capability and access to `/dev/fuse` in your Docker container configuration. See the [Installation guide](/docs/installation) for setup details.
     </Callout>
+
   </Tab>
 
   <Tab value="Rclone">
@@ -180,6 +187,7 @@ Zerobyte supports six volume types. Each one is configured through the web UI wh
     <Callout type="warn">
       Rclone volumes require both the `SYS_ADMIN` capability and access to `/dev/fuse` in your Docker container configuration.
     </Callout>
+
   </Tab>
 </Tabs>
 
@@ -236,7 +244,8 @@ This is a read-only view of the volume's contents, browsing does not modify any 
 All six volume types support mounting in read-only mode. When enabled, Zerobyte can still read and back up files, but write operations are blocked at the filesystem level.
 
 <Callout type="info">
-  Read-only mode adds an extra layer of safety when backing up production data. It guarantees that the backup process cannot accidentally modify or delete source files.
+	Read-only mode adds an extra layer of safety when backing up production data. It guarantees that the backup process
+	cannot accidentally modify or delete source files.
 </Callout>
 
 ## Credential security
@@ -253,7 +262,8 @@ During provisioning, Zerobyte resolves these references on startup and stores th
 The regular volume form in the UI currently expects the actual credential value. Entering `env://...` or `file://...` there will not resolve it at runtime.
 
 <Callout type="info">
-  For a complete walkthrough of managing secrets through environment variables, Docker secrets, and provisioning files, see the [Provisioning guide](/docs/guides/provisioning).
+	For a complete walkthrough of managing secrets through environment variables, Docker secrets, and provisioning files,
+	see the [Provisioning guide](/docs/guides/provisioning).
 </Callout>
 
 ## Best practices
@@ -267,11 +277,13 @@ The regular volume form in the UI currently expects the actual credential value.
     - `accounting-smb-share`
 
     Avoid generic names like `volume1` or `backup`, they become confusing as you add more volumes.
+
   </Accordion>
 
-  <Accordion title="Enable auto-remount for network volumes">
-    Network shares can experience transient failures from server restarts, brief network outages, or DNS hiccups. Keep auto-remount enabled so Zerobyte recovers on its own and your scheduled backups are not disrupted.
-  </Accordion>
+<Accordion title="Enable auto-remount for network volumes">
+	Network shares can experience transient failures from server restarts, brief network outages, or DNS hiccups. Keep
+	auto-remount enabled so Zerobyte recovers on its own and your scheduled backups are not disrupted.
+</Accordion>
 
   <Accordion title="Use read-only mode when possible">
     Mounting volumes in read-only mode prevents any chance of the backup process modifying source data. This is especially important for:
@@ -279,6 +291,7 @@ The regular volume form in the UI currently expects the actual credential value.
     - Live production systems
     - Archive or compliance data
     - Shared storage used by multiple applications
+
   </Accordion>
 
   <Accordion title="Monitor volume health">

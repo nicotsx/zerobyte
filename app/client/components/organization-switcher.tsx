@@ -67,7 +67,9 @@ export function OrganizationSwitcher() {
 										className="size-full object-cover"
 									/>
 								) : (
-									<span className="text-xs font-semibold">{getOrganizationInitials(activeOrganization?.name)}</span>
+									<span className="text-xs font-semibold">
+										{getOrganizationInitials(activeOrganization?.name)}
+									</span>
 								)}
 							</div>
 							<div className="grid flex-1 text-left text-sm leading-tight">
@@ -93,13 +95,21 @@ export function OrganizationSwitcher() {
 							>
 								<div className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-md border">
 									{organization.logo ? (
-										<img src={organization.logo} alt={`${organization.name} logo`} className="size-full object-cover" />
+										<img
+											src={organization.logo}
+											alt={`${organization.name} logo`}
+											className="size-full object-cover"
+										/>
 									) : (
-										<span className="text-[10px] font-semibold">{getOrganizationInitials(organization.name)}</span>
+										<span className="text-[10px] font-semibold">
+											{getOrganizationInitials(organization.name)}
+										</span>
 									)}
 								</div>
 								<span className="min-w-0 flex-1 truncate">{organization.name}</span>
-								<DropdownMenuShortcut>{organization.id === activeOrganization?.id && "Current"}</DropdownMenuShortcut>
+								<DropdownMenuShortcut>
+									{organization.id === activeOrganization?.id && "Current"}
+								</DropdownMenuShortcut>
 							</DropdownMenuItem>
 						))}
 					</DropdownMenuContent>

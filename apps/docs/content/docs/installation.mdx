@@ -74,6 +74,7 @@ services:
 **Security Note**: The `SYS_ADMIN` capability and `/dev/fuse` device are required for mounting remote filesystems (NFS, SMB, WebDAV, SFTP). If you only need local directory backups, see the [Simplified Installation](#simplified-installation-no-remote-mounts) section below.
 
 Remote mounts are convenient, but they can expose translated ownership, permissions, and ACL metadata instead of the source system's original view. Read [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) before using mounted volumes for metadata-sensitive backups.
+
 </Callout>
 
 ### 2. Configure Environment Variables
@@ -92,35 +93,36 @@ openssl rand -hex 32
 environment:
   - TZ=America/New_York
   - BASE_URL=http://192.168.1.100:4096
-  - APP_SECRET=a1b2c3d4e5f6...  # Output from openssl command
+  - APP_SECRET=a1b2c3d4e5f6... # Output from openssl command
 ```
 
 #### Required Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BASE_URL` | **Required.** The base URL where Zerobyte will be accessed. Used for cookie security and CORS. | `http://localhost:4096` or `https://zerobyte.example.com` |
-| `APP_SECRET` | **Required.** A 32+ character random secret for encrypting sensitive data in the database. Generate with `openssl rand -hex 32`. | `94bad46...c66e25d5c2b` |
-| `TZ` | **Recommended.** Timezone for accurate backup scheduling. | `Europe/Zurich`, `America/New_York`, `UTC` |
+| Variable     | Description                                                                                                                      | Example                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `BASE_URL`   | **Required.** The base URL where Zerobyte will be accessed. Used for cookie security and CORS.                                   | `http://localhost:4096` or `https://zerobyte.example.com` |
+| `APP_SECRET` | **Required.** A 32+ character random secret for encrypting sensitive data in the database. Generate with `openssl rand -hex 32`. | `94bad46...c66e25d5c2b`                                   |
+| `TZ`         | **Recommended.** Timezone for accurate backup scheduling.                                                                        | `Europe/Zurich`, `America/New_York`, `UTC`                |
 
 <Callout type="info">
 The `BASE_URL` determines cookie security behavior:
 
-* **HTTP or IP addresses**: Secure cookies disabled (allows local access)
-* **HTTPS with domain**: Secure cookies enabled (required for production)
+- **HTTP or IP addresses**: Secure cookies disabled (allows local access)
+- **HTTPS with domain**: Secure cookies enabled (required for production)
+
 </Callout>
 
 #### Optional Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Port the web interface listens on inside the container | `4096` |
-| `RESTIC_HOSTNAME` | Hostname used by Restic in snapshots | `zerobyte` |
-| `TRUSTED_ORIGINS` | Comma-separated list of additional trusted CORS origins | (none) |
-| `WEBHOOK_TIMEOUT` | Timeout for backup webhook requests in seconds | `60` |
-| `LOG_LEVEL` | Logging verbosity: `debug`, `info`, `warn`, `error` | `info` |
-| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds. | `60` |
-| `RCLONE_CONFIG_DIR` | Path to rclone config directory inside container | `/root/.config/rclone` |
+| Variable              | Description                                                                              | Default                |
+| --------------------- | ---------------------------------------------------------------------------------------- | ---------------------- |
+| `PORT`                | Port the web interface listens on inside the container                                   | `4096`                 |
+| `RESTIC_HOSTNAME`     | Hostname used by Restic in snapshots                                                     | `zerobyte`             |
+| `TRUSTED_ORIGINS`     | Comma-separated list of additional trusted CORS origins                                  | (none)                 |
+| `WEBHOOK_TIMEOUT`     | Timeout for backup webhook requests in seconds                                           | `60`                   |
+| `LOG_LEVEL`           | Logging verbosity: `debug`, `info`, `warn`, `error`                                      | `info`                 |
+| `SERVER_IDLE_TIMEOUT` | Server idle timeout in seconds. Set `0` to disable it; Bun supports up to `255` seconds. | `60`                   |
+| `RCLONE_CONFIG_DIR`   | Path to rclone config directory inside container                                         | `/root/.config/rclone` |
 
 ### 3. Configure Volume Mounts
 
@@ -133,7 +135,8 @@ volumes:
 ```
 
 <Callout type="warn">
-**Important**: Do not point `/var/lib/zerobyte` to a network share. This will cause permission issues and severe performance degradation. Always use local storage.
+	**Important**: Do not point `/var/lib/zerobyte` to a network share. This will cause permission issues and severe
+	performance degradation. Always use local storage.
 </Callout>
 
 <Callout type="info">
@@ -146,6 +149,7 @@ volumes:
 ```
 
 This ensures your configuration, encryption keys, and database persist across upgrades.
+
 </Callout>
 
 ### 4. Start Zerobyte
@@ -172,7 +176,8 @@ http://<your-server-ip>:4096
 ```
 
 <Callout type="info">
-On first access, you'll be prompted to create an admin account. This account will have full access to all backup management features.
+	On first access, you'll be prompted to create an admin account. This account will have full access to all backup
+	management features.
 </Callout>
 
 ## Simplified Installation (No Remote Mounts)
@@ -200,28 +205,29 @@ services:
 **Trade-offs:**
 
 <ul className="my-4 list-none space-y-2 pl-0">
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Improved security by removing `SYS_ADMIN` capability</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Support for local directories mounted into the container</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>All repository types still supported (local, S3, GCS, Azure, rclone)</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <X className="mt-1.5 h-4 w-4 shrink-0 text-red-600" />
-    <span>Cannot mount remote shares (NFS, SMB, WebDAV, SFTP) from within Zerobyte</span>
-  </li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Improved security by removing `SYS_ADMIN` capability</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Support for local directories mounted into the container</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>All repository types still supported (local, S3, GCS, Azure, rclone)</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<X className="mt-1.5 h-4 w-4 shrink-0 text-red-600" />
+		<span>Cannot mount remote shares (NFS, SMB, WebDAV, SFTP) from within Zerobyte</span>
+	</li>
 </ul>
 
 <Callout type="info">
 If you need remote mount capabilities later, you can update your `compose.yaml` to add back the `cap_add: SYS_ADMIN` and `devices: /dev/fuse:/dev/fuse` directives.
 
 If your goal is the closest thing to true replication, prefer local bind-mounted directories whenever possible. See [Mounted Shares and Permissions](/docs/guides/mounted-shares-and-acls) for the practical tradeoffs.
+
 </Callout>
 
 ## Mounting Local Directories
@@ -238,7 +244,8 @@ volumes:
 ```
 
 <Callout type="info">
-Use read-only mounts (`:ro`) if you want to prevent Zerobyte from modifying the source data. But you won't be able to restore files back to the original location if you use read-only mounts.
+	Use read-only mounts (`:ro`) if you want to prevent Zerobyte from modifying the source data. But you won't be able to
+	restore files back to the original location if you use read-only mounts.
 </Callout>
 
 After adding volume mounts, restart the container:
@@ -287,11 +294,12 @@ secrets:
 
 When authoring a provisioning file, you can reference these secrets:
 
-* `env://S3_SECRET_KEY` - Resolves from environment variable `S3_SECRET_KEY`
-* `file://smb_password` - Resolves from `/run/secrets/smb_password`
+- `env://S3_SECRET_KEY` - Resolves from environment variable `S3_SECRET_KEY`
+- `file://smb_password` - Resolves from `/run/secrets/smb_password`
 
 <Callout type="info">
-  These references are currently resolved only during provisioning. The normal volume and repository forms in the UI expect the actual secret value. See the [Provisioning guide](/docs/guides/provisioning) for the full workflow.
+	These references are currently resolved only during provisioning. The normal volume and repository forms in the UI
+	expect the actual secret value. See the [Provisioning guide](/docs/guides/provisioning) for the full workflow.
 </Callout>
 
 ### Mounting rclone Configuration
@@ -354,7 +362,7 @@ Now that Zerobyte is installed, proceed to the Quick Start guide to configure yo
 </Card>
 
 <Card title="Configuration Reference" icon={<Settings />} href="/docs/configuration">
-  All environment variables and Docker settings
+	All environment variables and Docker settings
 </Card>
 
 <Card title="Troubleshooting" icon={<LifeBuoy />} href="/docs/troubleshooting">

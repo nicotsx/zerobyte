@@ -173,7 +173,9 @@ export const ScheduleNotificationsConfig = ({ scheduleShortId, destinations, ini
 									<SelectItem key={destination.id} value={destination.id.toString()}>
 										<div className="flex items-center gap-2">
 											<span>{destination.name}</span>
-											<span className="text-xs uppercase text-muted-foreground">({destination.type})</span>
+											<span className="text-xs uppercase text-muted-foreground">
+												({destination.type})
+											</span>
 										</div>
 									</SelectItem>
 								))}
@@ -230,21 +232,27 @@ export const ScheduleNotificationsConfig = ({ scheduleShortId, destinations, ini
 												<Switch
 													className="align-middle"
 													checked={assignment.notifyOnSuccess}
-													onCheckedChange={() => toggleEvent(destination.id, "notifyOnSuccess")}
+													onCheckedChange={() =>
+														toggleEvent(destination.id, "notifyOnSuccess")
+													}
 												/>
 											</TableCell>
 											<TableCell className="text-center">
 												<Switch
 													className="align-middle"
 													checked={assignment.notifyOnWarning}
-													onCheckedChange={() => toggleEvent(destination.id, "notifyOnWarning")}
+													onCheckedChange={() =>
+														toggleEvent(destination.id, "notifyOnWarning")
+													}
 												/>
 											</TableCell>
 											<TableCell className="text-center">
 												<Switch
 													className="align-middle"
 													checked={assignment.notifyOnFailure}
-													onCheckedChange={() => toggleEvent(destination.id, "notifyOnFailure")}
+													onCheckedChange={() =>
+														toggleEvent(destination.id, "notifyOnFailure")
+													}
 												/>
 											</TableCell>
 											<TableCell>
@@ -270,7 +278,12 @@ export const ScheduleNotificationsConfig = ({ scheduleShortId, destinations, ini
 						<Button variant="outline" size="sm" onClick={handleReset}>
 							Cancel
 						</Button>
-						<Button variant="default" size="sm" onClick={handleSave} loading={updateNotifications.isPending}>
+						<Button
+							variant="default"
+							size="sm"
+							onClick={handleSave}
+							loading={updateNotifications.isPending}
+						>
 							Save changes
 						</Button>
 					</div>

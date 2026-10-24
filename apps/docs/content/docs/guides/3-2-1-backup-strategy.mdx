@@ -19,13 +19,13 @@ In Zerobyte, that usually looks like this:
 
 A single backup copy can still fail for the same reason as the original data. The 3-2-1 rule reduces correlated failure, so one bad delete, dead disk, provider issue, or site-level incident is less likely to wipe out every copy at once.
 
-| Failure scenario | What goes wrong without 3-2-1 | How 3-2-1 helps |
-| --- | --- | --- |
-| Accidental deletion or bad change | Your only backup may be too recent or incomplete | Older snapshots give you a clean restore point |
-| Disk or NAS failure | Data and backup can be lost together | A second storage system still has the data |
-| Ransomware or host compromise | Local storage may be affected too | An offsite copy gives you another recovery path |
-| Fire, theft, or power event | Everything in one building can disappear together | The offsite copy survives |
-| Provider or account problem | One backend outage blocks restore | Different backends reduce that single point of failure |
+| Failure scenario                  | What goes wrong without 3-2-1                     | How 3-2-1 helps                                        |
+| --------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| Accidental deletion or bad change | Your only backup may be too recent or incomplete  | Older snapshots give you a clean restore point         |
+| Disk or NAS failure               | Data and backup can be lost together              | A second storage system still has the data             |
+| Ransomware or host compromise     | Local storage may be affected too                 | An offsite copy gives you another recovery path        |
+| Fire, theft, or power event       | Everything in one building can disappear together | The offsite copy survives                              |
+| Provider or account problem       | One backend outage blocks restore                 | Different backends reduce that single point of failure |
 
 Zerobyte fits this strategy well because it already gives you the building blocks:
 
@@ -36,14 +36,16 @@ Zerobyte fits this strategy well because it already gives you the building block
 
 ## How 3-2-1 maps to Zerobyte
 
-| 3-2-1 element | Zerobyte example |
-| --- | --- |
-| **3 copies** | Live data + primary repository + mirror repository |
+| 3-2-1 element                   | Zerobyte example                                                                            |
+| ------------------------------- | ------------------------------------------------------------------------------------------- |
+| **3 copies**                    | Live data + primary repository + mirror repository                                          |
 | **2 different storage systems** | Local disk or NAS for the primary copy, object storage or remote server for the second copy |
-| **1 offsite copy** | A repository in another building, region, or provider |
+| **1 offsite copy**              | A repository in another building, region, or provider                                       |
 
 <Callout type="info">
-  Historically, the "2" in 3-2-1 meant two different kinds of media. In modern setups, different storage systems and failure domains matter more than literal media type. A local disk plus cloud object storage is a strong practical interpretation.
+	Historically, the "2" in 3-2-1 meant two different kinds of media. In modern setups, different storage systems and
+	failure domains matter more than literal media type. A local disk plus cloud object storage is a strong practical
+	interpretation.
 </Callout>
 
 ## How to do it with Zerobyte
@@ -118,11 +120,11 @@ Use **Backup now** to create the first snapshot, then test a restore to a non-pr
 
 ## Example Zerobyte layout
 
-| Copy | Example |
-| --- | --- |
-| Live data | `/srv/data` on your server |
-| Local backup copy | Local repository on `/mnt/backup-disk/zerobyte` |
-| Offsite backup copy | Cloudflare R2 bucket or remote SFTP repository |
+| Copy                | Example                                         |
+| ------------------- | ----------------------------------------------- |
+| Live data           | `/srv/data` on your server                      |
+| Local backup copy   | Local repository on `/mnt/backup-disk/zerobyte` |
+| Offsite backup copy | Cloudflare R2 bucket or remote SFTP repository  |
 
 One backup job can then write to the local repository and mirror each successful snapshot to the offsite repository.
 

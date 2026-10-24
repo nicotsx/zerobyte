@@ -28,8 +28,8 @@ Portless applies git worktree prefixes automatically, so linked worktrees may re
 ### Type Checking
 
 ```bash
-# Run type checking and generate React Router types
-bun run tsc
+# Type check the app and every workspace with Bun
+bun run typecheck
 ```
 
 ### Testing
@@ -94,7 +94,7 @@ bun run gen:api-client
 
 ```bash
 # Format
-bun run fmt -- <path>
+bun fmt <path>
 
 # Lint
 bun run lint

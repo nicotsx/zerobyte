@@ -6,8 +6,7 @@ export async function validateSsoRegistrationIssuer(ctx: AuthMiddlewareContext) 
 	if (ctx.path !== "/sso/register") return;
 
 	const body = ctx.body as
-		| { issuer?: string; oidcConfig?: { discoveryEndpoint?: string; skipDiscovery?: boolean } }
-		| undefined;
+		{ issuer?: string; oidcConfig?: { discoveryEndpoint?: string; skipDiscovery?: boolean } } | undefined;
 	if (!body?.issuer || !body.oidcConfig || body.oidcConfig.skipDiscovery) return;
 
 	const result = await checkSsoDiscovery(body.issuer, body.oidcConfig.discoveryEndpoint, (url) =>

@@ -58,7 +58,7 @@ If you want Zerobyte to be reachable only via Tailscale, remove the `ports:` sec
 
 ## Notes
 
-- `network_mode: service:tailscale` makes Zerobyte share the Tailscale container’s *entire* network namespace (interfaces + routing table).
+- `network_mode: service:tailscale` makes Zerobyte share the Tailscale container’s _entire_ network namespace (interfaces + routing table).
 - Traffic to tailnet IPs (typically `100.x.y.z`) goes over `tailscale0` and is governed by Tailscale ACLs; traffic to your LAN/Internet may still go over the normal network interface depending on routes and host firewall.
 - If `--accept-routes` is used, the Tailscale container may add routes to your routing table that Zerobyte will also use and be able to access remote networks.
 - If `--accept-dns` is used, Zerobyte will also use Tailscale’s DNS servers.
@@ -87,6 +87,7 @@ docker exec zerobyte-tailscale tailscale ip -4
 
 To confirm received routes when `--accept-routes` is used in kernel mode:
 (Missing routes could be due to ACLs or because `--accept-routes` is not set or not supported in userspace mode)
+
 ```bash
 docker exec zerobyte-tailscale ip route
 docker exec zerobyte-tailscale ip route show table 52

@@ -4,7 +4,9 @@ import { cn } from "#/lib/utils";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 
 function Accordion({ className, ...props }: AccordionPrimitive.Root.Props) {
-	return <AccordionPrimitive.Root data-slot="accordion" className={cn("flex w-full flex-col", className)} {...props} />;
+	return (
+		<AccordionPrimitive.Root data-slot="accordion" className={cn("flex w-full flex-col", className)} {...props} />
+	);
 }
 
 function AccordionItem({ className, ...props }: AccordionPrimitive.Item.Props) {

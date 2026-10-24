@@ -91,7 +91,9 @@ describe("notificationsService.updateDestination", () => {
 		const { organizationId, user } = await createTestSession();
 
 		await withContext({ organizationId, userId: user.id }, async () => {
-			const resolveSecretSpy = vi.spyOn(cryptoUtils, "resolveSecret").mockResolvedValue("discord://token@webhookid");
+			const resolveSecretSpy = vi
+				.spyOn(cryptoUtils, "resolveSecret")
+				.mockResolvedValue("discord://token@webhookid");
 
 			const [destination] = await db
 				.insert(notificationDestinationsTable)

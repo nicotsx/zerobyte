@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Format current file with Bun",
+			"type": "process",
+			"command": "bun",
+			"args": ["fmt", "--no-script", "${file}"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": []
+		}
+	]
+}

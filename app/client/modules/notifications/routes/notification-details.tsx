@@ -70,7 +70,9 @@ function ConfigRow({ icon, label, value, mono }: Props) {
 		<div className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
 			<span className="text-muted-foreground shrink-0">{icon}</span>
 			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
-			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>{value}</span>
+			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
+				{value}
+			</span>
 		</div>
 	);
 }
@@ -91,25 +93,52 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 		case "slack":
 			return (
 				<>
-					<ConfigRow icon={<Globe className="h-4 w-4" />} label="Webhook URL" value={config.webhookUrl} mono />
+					<ConfigRow
+						icon={<Globe className="h-4 w-4" />}
+						label="Webhook URL"
+						value={config.webhookUrl}
+						mono
+					/>
 					<ConfigRow icon={<Bot className="h-4 w-4" />} label="Bot Username" value={config.username || "—"} />
-					<ConfigRow icon={<Smile className="h-4 w-4" />} label="Icon Emoji" value={config.iconEmoji || "—"} />
+					<ConfigRow
+						icon={<Smile className="h-4 w-4" />}
+						label="Icon Emoji"
+						value={config.iconEmoji || "—"}
+					/>
 				</>
 			);
 		case "discord":
 			return (
 				<>
-					<ConfigRow icon={<Globe className="h-4 w-4" />} label="Webhook URL" value={config.webhookUrl} mono />
+					<ConfigRow
+						icon={<Globe className="h-4 w-4" />}
+						label="Webhook URL"
+						value={config.webhookUrl}
+						mono
+					/>
 					<ConfigRow icon={<Bot className="h-4 w-4" />} label="Username" value={config.username || "—"} />
-					<ConfigRow icon={<Link className="h-4 w-4" />} label="Avatar URL" value={config.avatarUrl || "—"} mono />
-					<ConfigRow icon={<MessageSquare className="h-4 w-4" />} label="Thread ID" value={config.threadId || "—"} />
+					<ConfigRow
+						icon={<Link className="h-4 w-4" />}
+						label="Avatar URL"
+						value={config.avatarUrl || "—"}
+						mono
+					/>
+					<ConfigRow
+						icon={<MessageSquare className="h-4 w-4" />}
+						label="Thread ID"
+						value={config.threadId || "—"}
+					/>
 				</>
 			);
 		case "email":
 			return (
 				<>
 					<ConfigRow icon={<Server className="h-4 w-4" />} label="SMTP Host" value={config.smtpHost} mono />
-					<ConfigRow icon={<Server className="h-4 w-4" />} label="SMTP Port" value={String(config.smtpPort)} />
+					<ConfigRow
+						icon={<Server className="h-4 w-4" />}
+						label="SMTP Port"
+						value={String(config.smtpPort)}
+					/>
 					<ConfigRow icon={<AtSign className="h-4 w-4" />} label="Username" value={config.username || "—"} />
 					<ConfigRow icon={<Lock className="h-4 w-4" />} label="Password" value={config.password || "—"} />
 					<ConfigRow icon={<Mail className="h-4 w-4" />} label="From" value={config.from} />
@@ -117,7 +146,11 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 						<ConfigRow icon={<Mail className="h-4 w-4" />} label="From Name" value={config.fromName} />
 					)}
 					<ConfigRow icon={<Users className="h-4 w-4" />} label="To" value={config.to.join(", ")} />
-					<ConfigRow icon={<Shield className="h-4 w-4" />} label="TLS" value={config.useTLS ? "Enabled" : "Disabled"} />
+					<ConfigRow
+						icon={<Shield className="h-4 w-4" />}
+						label="TLS"
+						value={config.useTLS ? "Enabled" : "Disabled"}
+					/>
 				</>
 			);
 		case "gotify":
@@ -126,7 +159,11 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 					<ConfigRow icon={<Globe className="h-4 w-4" />} label="Server URL" value={config.serverUrl} mono />
 					<ConfigRow icon={<Key className="h-4 w-4" />} label="Token" value={config.token} mono />
 					<ConfigRow icon={<Globe className="h-4 w-4" />} label="Path" value={config.path || "—"} mono />
-					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Priority" value={String(config.priority)} />
+					<ConfigRow
+						icon={<Settings className="h-4 w-4" />}
+						label="Priority"
+						value={String(config.priority)}
+					/>
 				</>
 			);
 		case "ntfy":
@@ -142,7 +179,11 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Priority" value={config.priority} />
 					<ConfigRow icon={<AtSign className="h-4 w-4" />} label="Username" value={config.username || "—"} />
 					<ConfigRow icon={<Lock className="h-4 w-4" />} label="Password" value={config.password || "—"} />
-					<ConfigRow icon={<Key className="h-4 w-4" />} label="Access Token" value={config.accessToken || "—"} />
+					<ConfigRow
+						icon={<Key className="h-4 w-4" />}
+						label="Access Token"
+						value={config.accessToken || "—"}
+					/>
 				</>
 			);
 		case "pushover":
@@ -151,7 +192,11 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 					<ConfigRow icon={<Key className="h-4 w-4" />} label="User Key" value={config.userKey} mono />
 					<ConfigRow icon={<Key className="h-4 w-4" />} label="API Token" value={config.apiToken} mono />
 					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Devices" value={config.devices || "—"} />
-					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Priority" value={String(config.priority)} />
+					<ConfigRow
+						icon={<Settings className="h-4 w-4" />}
+						label="Priority"
+						value={String(config.priority)}
+					/>
 				</>
 			);
 		case "telegram":
@@ -159,7 +204,11 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 				<>
 					<ConfigRow icon={<Key className="h-4 w-4" />} label="Bot Token" value={config.botToken} mono />
 					<ConfigRow icon={<Hash className="h-4 w-4" />} label="Chat ID" value={config.chatId} mono />
-					<ConfigRow icon={<MessageSquare className="h-4 w-4" />} label="Thread ID" value={config.threadId || "—"} />
+					<ConfigRow
+						icon={<MessageSquare className="h-4 w-4" />}
+						label="Thread ID"
+						value={config.threadId || "—"}
+					/>
 				</>
 			);
 		case "generic":
@@ -167,21 +216,43 @@ function NotificationConfigRows({ config }: { config: NotificationConfig }) {
 				<>
 					<ConfigRow icon={<Globe className="h-4 w-4" />} label="URL" value={config.url} mono />
 					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Method" value={config.method} />
-					<ConfigRow icon={<Settings className="h-4 w-4" />} label="Content Type" value={config.contentType || "—"} />
+					<ConfigRow
+						icon={<Settings className="h-4 w-4" />}
+						label="Content Type"
+						value={config.contentType || "—"}
+					/>
 					<ConfigRow
 						icon={<Settings className="h-4 w-4" />}
 						label="JSON Mode"
 						value={config.useJson ? "Enabled" : "Disabled"}
 					/>
-					<ConfigRow icon={<Key className="h-4 w-4" />} label="Title Key" value={config.titleKey || "—"} mono />
-					<ConfigRow icon={<Key className="h-4 w-4" />} label="Message Key" value={config.messageKey || "—"} mono />
+					<ConfigRow
+						icon={<Key className="h-4 w-4" />}
+						label="Title Key"
+						value={config.titleKey || "—"}
+						mono
+					/>
+					<ConfigRow
+						icon={<Key className="h-4 w-4" />}
+						label="Message Key"
+						value={config.messageKey || "—"}
+						mono
+					/>
 					{config.headers?.map((h, i) => (
-						<ConfigRow key={i} icon={<Link className="h-4 w-4" />} label={`Header ${i + 1}`} value={h} mono />
+						<ConfigRow
+							key={i}
+							icon={<Link className="h-4 w-4" />}
+							label={`Header ${i + 1}`}
+							value={h}
+							mono
+						/>
 					))}
 				</>
 			);
 		case "custom":
-			return <ConfigRow icon={<Globe className="h-4 w-4" />} label="Shoutrrr URL" value={config.shoutrrrUrl} mono />;
+			return (
+				<ConfigRow icon={<Globe className="h-4 w-4" />} label="Shoutrrr URL" value={config.shoutrrrUrl} mono />
+			);
 	}
 }
 
@@ -242,14 +313,21 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 									<h2 className="text-lg font-semibold tracking-tight">{data.name}</h2>
 									<Separator orientation="vertical" className="h-4 mx-1" />
 									<Badge variant="outline" className="capitalize gap-1.5">
-										<span className={cn("w-2 h-2 rounded-full shrink-0", getStatusClass(data.enabled, data.status))} />
+										<span
+											className={cn(
+												"w-2 h-2 rounded-full shrink-0",
+												getStatusClass(data.enabled, data.status),
+											)}
+										/>
 										{getStatusLabel(data.enabled, data.status)}
 									</Badge>
 									<Badge variant="secondary" className="capitalize">
 										{data.type}
 									</Badge>
 								</div>
-								<p className="text-sm text-muted-foreground mt-0.5">Created {formatDateTime(data.createdAt)}</p>
+								<p className="text-sm text-muted-foreground mt-0.5">
+									Created {formatDateTime(data.createdAt)}
+								</p>
 							</div>
 						</div>
 						<div className="flex items-center gap-2">
@@ -270,7 +348,9 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={() => navigate({ to: `/notifications/${data.id}/edit` })}>
+									<DropdownMenuItem
+										onClick={() => navigate({ to: `/notifications/${data.id}/edit` })}
+									>
 										<Pencil />
 										Edit
 									</DropdownMenuItem>
@@ -310,7 +390,11 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 							label="Status"
 							value={getStatusLabel(data.enabled, data.status)}
 						/>
-						<ConfigRow icon={<Settings className="h-4 w-4" />} label="Enabled" value={data.enabled ? "Yes" : "No"} />
+						<ConfigRow
+							icon={<Settings className="h-4 w-4" />}
+							label="Enabled"
+							value={data.enabled ? "Yes" : "No"}
+						/>
 						<ConfigRow
 							icon={<Clock className="h-4 w-4" />}
 							label="Last Checked"
@@ -333,8 +417,8 @@ export function NotificationDetailsPage({ notificationId }: { notificationId: st
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete Notification Destination</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete the notification destination "{data.name}"? This action cannot be undone
-							and will remove this destination from all backup schedules.
+							Are you sure you want to delete the notification destination "{data.name}"? This action
+							cannot be undone and will remove this destination from all backup schedules.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

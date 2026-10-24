@@ -1,15 +1,18 @@
-FROM oven/bun:1.4.3-slim@sha256:14a223fa35747ec728bce300ef85888bc5f7958164d15bbba6a54b22b52a3288 AS builder
+FROM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4 AS builder
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+COPY package.json bun.lock bunfig.toml ./
 COPY packages/core/package.json ./packages/core/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+
+RUN bun pm fetch --production
+
 COPY apps/agent/package.json ./apps/agent/package.json
 COPY apps/docs/package.json ./apps/docs/package.json
 COPY apps/desktop/package.json ./apps/desktop/package.json
 
-RUN bun install --frozen-lockfile --ignore-scripts --production --filter '!docs'
+RUN bun install --offline --frozen-lockfile --ignore-scripts --production --filter '!docs'
 
 COPY apps/agent ./apps/agent
 COPY packages ./packages
@@ -19,7 +22,7 @@ ARG APP_VERSION=dev
 RUN ZEROBYTE_AGENT_VERSION="${APP_VERSION}" bun run build:agent \
     --minify --outfile=/out/zerobyte-agent
 
-FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS restic
+FROM oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS restic
 
 # renovate: datasource=github-releases depName=restic/restic versioning=semver extractVersion=^v?(?<version>.+)$
 ARG RESTIC_VERSION="0.19.1"

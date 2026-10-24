@@ -1,4 +1,4 @@
-import { Outlet, HeadContent, Scripts, createRootRouteWithContext, useRouterState } from "@tanstack/react-router";
+import { Outlet, HeadContent, Scripts, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 import appCss from "../app.css?url";
 import { apiClientMiddleware } from "~/middleware/api-client";
 import type { QueryClient } from "@tanstack/react-query";
@@ -32,7 +32,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootLayout() {
 	const [theme, setTheme] = useCookieState<Theme>(THEME_COOKIE_NAME, DEFAULT_THEME);
-	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	const pathname = useLocation({ select: (location) => location.pathname });
 	const isDesktopTrayRoute = pathname === "/desktop/tray";
 	useServerEvents({ enabled: !isAuthRoute(pathname) });
 	useEffect(() => {

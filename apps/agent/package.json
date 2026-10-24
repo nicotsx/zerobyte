@@ -4,8 +4,9 @@
 	"type": "module",
 	"module": "src/index.ts",
 	"scripts": {
-		"tsc": "tsc --noEmit",
-		"test": "bunx --bun vitest run --config ./vitest.config.ts"
+		"tsc": "bun run typecheck",
+		"test": "bunx --bun vitest run --config ./vitest.config.ts",
+		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
 		"@zerobyte/contracts": "workspace:*",

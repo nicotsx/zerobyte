@@ -83,7 +83,10 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 			</DialogTrigger>
 			<DialogContent className="sm:max-w-106.25">
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit((values) => createUserMutation.mutate(values))} className="space-y-6">
+					<form
+						onSubmit={form.handleSubmit((values) => createUserMutation.mutate(values))}
+						className="space-y-6"
+					>
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
 								<UserPlus className="h-5 w-5" />
@@ -99,7 +102,11 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Full Name</FormLabel>
 										<FormControl>
-											<Input {...field} placeholder="John Doe" disabled={createUserMutation.isPending} />
+											<Input
+												{...field}
+												placeholder="John Doe"
+												disabled={createUserMutation.isPending}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -112,7 +119,11 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 									<FormItem>
 										<FormLabel>Username</FormLabel>
 										<FormControl>
-											<Input {...field} placeholder="johndoe" disabled={createUserMutation.isPending} />
+											<Input
+												{...field}
+												placeholder="johndoe"
+												disabled={createUserMutation.isPending}
+											/>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
@@ -160,7 +171,11 @@ export function CreateUserDialog({ onUserCreated }: CreateUserDialogProps) {
 								render={({ field }) => (
 									<FormItem>
 										<FormLabel>Role</FormLabel>
-										<Select onValueChange={field.onChange} value={field.value} disabled={createUserMutation.isPending}>
+										<Select
+											onValueChange={field.onChange}
+											value={field.value}
+											disabled={createUserMutation.isPending}
+										>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue placeholder="Select a role" />

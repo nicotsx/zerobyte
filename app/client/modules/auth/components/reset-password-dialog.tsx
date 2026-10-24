@@ -18,9 +18,12 @@ export const ResetPasswordDialog = ({ open, onOpenChange }: ResetPasswordDialogP
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4">
-					<div className="rounded-md bg-muted p-4 font-mono text-sm break-all select-all">{RESET_PASSWORD_COMMAND}</div>
+					<div className="rounded-md bg-muted p-4 font-mono text-sm break-all select-all">
+						{RESET_PASSWORD_COMMAND}
+					</div>
 					<p className="text-sm text-muted-foreground">
-						This command will start an interactive session where you can enter a new password for your account.
+						This command will start an interactive session where you can enter a new password for your
+						account.
 					</p>
 				</div>
 			</DialogContent>

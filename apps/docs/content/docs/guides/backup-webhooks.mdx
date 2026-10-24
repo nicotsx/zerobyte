@@ -11,15 +11,16 @@ Backup webhooks are configured per backup job in the **Advanced** section. They 
 
 Zerobyte supports two lifecycle hooks:
 
-| Hook | When it runs | Failure behavior |
-| --- | --- | --- |
-| **Pre-backup webhook** | Before Restic starts reading the volume | A failed request stops the backup before Restic runs |
+| Hook                    | When it runs                                  | Failure behavior                                                                     |
+| ----------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Pre-backup webhook**  | Before Restic starts reading the volume       | A failed request stops the backup before Restic runs                                 |
 | **Post-backup webhook** | After Restic finishes, fails, or is cancelled | A failed request is recorded with the final result; a clean backup becomes a warning |
 
 Each hook sends a `POST` request. A response with a `2xx` status code is treated as success. Redirects are not followed. Webhook requests time out after `WEBHOOK_TIMEOUT` seconds, which defaults to 60 seconds.
 
 <Callout type="warn">
-  Every backup webhook URL must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. The origin is the scheme, hostname, and port, such as `http://host.docker.internal:9000`.
+	Every backup webhook URL must use an origin listed in `WEBHOOK_ALLOWED_ORIGINS`. The origin is the scheme, hostname,
+	and port, such as `http://host.docker.internal:9000`.
 </Callout>
 
 ## Request body
@@ -30,12 +31,12 @@ Pre-backup webhook example:
 
 ```json
 {
-  "phase": "pre",
-  "event": "backup.pre",
-  "jobId": "job_...",
-  "scheduleId": "sched_...",
-  "organizationId": "org_...",
-  "sourcePath": "data"
+	"phase": "pre",
+	"event": "backup.pre",
+	"jobId": "job_...",
+	"scheduleId": "sched_...",
+	"organizationId": "org_...",
+	"sourcePath": "data"
 }
 ```
 
@@ -43,13 +44,13 @@ Post-backup webhook example:
 
 ```json
 {
-  "phase": "post",
-  "event": "backup.post",
-  "jobId": "job_...",
-  "scheduleId": "sched_...",
-  "organizationId": "org_...",
-  "sourcePath": "data",
-  "status": "success"
+	"phase": "post",
+	"event": "backup.post",
+	"jobId": "job_...",
+	"scheduleId": "sched_...",
+	"organizationId": "org_...",
+	"sourcePath": "data",
+	"status": "success"
 }
 ```
 
@@ -99,7 +100,8 @@ This example runs [`adnanh/webhook`](https://github.com/adnanh/webhook) on the D
 - Post-backup hook starts the `postgres` container again.
 
 <Callout type="warn">
-  Stopping a database container is a blunt consistency strategy. Use it only when a short outage is acceptable. For larger databases, prefer native database dumps, replication snapshots, or storage-level snapshots.
+	Stopping a database container is a blunt consistency strategy. Use it only when a short outage is acceptable. For
+	larger databases, prefer native database dumps, replication snapshots, or storage-level snapshots.
 </Callout>
 
 ### 1. Install webhook on the Docker host
@@ -165,40 +167,40 @@ Create `/opt/zerobyte-hooks/hooks.json`:
 
 ```json
 [
-  {
-    "id": "stop-postgres",
-    "execute-command": "/opt/zerobyte-hooks/stop-postgres.sh",
-    "command-working-directory": "/opt/zerobyte-hooks",
-    "http-methods": ["POST"],
-    "include-command-output-in-response": true,
-    "trigger-rule": {
-      "match": {
-        "type": "value",
-        "value": "replace-with-a-long-random-secret",
-        "parameter": {
-          "source": "header",
-          "name": "X-Zerobyte-Hook-Secret"
-        }
-      }
-    }
-  },
-  {
-    "id": "start-postgres",
-    "execute-command": "/opt/zerobyte-hooks/start-postgres.sh",
-    "command-working-directory": "/opt/zerobyte-hooks",
-    "http-methods": ["POST"],
-    "include-command-output-in-response": true,
-    "trigger-rule": {
-      "match": {
-        "type": "value",
-        "value": "replace-with-a-long-random-secret",
-        "parameter": {
-          "source": "header",
-          "name": "X-Zerobyte-Hook-Secret"
-        }
-      }
-    }
-  }
+	{
+		"id": "stop-postgres",
+		"execute-command": "/opt/zerobyte-hooks/stop-postgres.sh",
+		"command-working-directory": "/opt/zerobyte-hooks",
+		"http-methods": ["POST"],
+		"include-command-output-in-response": true,
+		"trigger-rule": {
+			"match": {
+				"type": "value",
+				"value": "replace-with-a-long-random-secret",
+				"parameter": {
+					"source": "header",
+					"name": "X-Zerobyte-Hook-Secret"
+				}
+			}
+		}
+	},
+	{
+		"id": "start-postgres",
+		"execute-command": "/opt/zerobyte-hooks/start-postgres.sh",
+		"command-working-directory": "/opt/zerobyte-hooks",
+		"http-methods": ["POST"],
+		"include-command-output-in-response": true,
+		"trigger-rule": {
+			"match": {
+				"type": "value",
+				"value": "replace-with-a-long-random-secret",
+				"parameter": {
+					"source": "header",
+					"name": "X-Zerobyte-Hook-Secret"
+				}
+			}
+		}
+	}
 ]
 ```
 

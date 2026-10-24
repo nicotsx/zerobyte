@@ -98,7 +98,12 @@ export function OnboardingPage() {
 							<FormItem>
 								<FormLabel>Email</FormLabel>
 								<FormControl>
-									<Input {...field} type="email" placeholder="you@example.com" disabled={submitting} />
+									<Input
+										{...field}
+										type="email"
+										placeholder="you@example.com"
+										disabled={submitting}
+									/>
 								</FormControl>
 								<FormDescription>Enter your email address</FormDescription>
 								<FormMessage />
@@ -126,7 +131,12 @@ export function OnboardingPage() {
 							<FormItem>
 								<FormLabel>Password</FormLabel>
 								<FormControl>
-									<Input {...field} type="password" placeholder="Enter a secure password" disabled={submitting} />
+									<Input
+										{...field}
+										type="password"
+										placeholder="Enter a secure password"
+										disabled={submitting}
+									/>
 								</FormControl>
 								<FormDescription>Password must be at least 8 characters long.</FormDescription>
 								<FormMessage />
@@ -140,7 +150,12 @@ export function OnboardingPage() {
 							<FormItem>
 								<FormLabel>Confirm Password</FormLabel>
 								<FormControl>
-									<Input {...field} type="password" placeholder="Re-enter your password" disabled={submitting} />
+									<Input
+										{...field}
+										type="password"
+										placeholder="Re-enter your password"
+										disabled={submitting}
+									/>
 								</FormControl>
 								<FormMessage />
 							</FormItem>

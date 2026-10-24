@@ -75,7 +75,11 @@ export function EditNotificationPage({ notificationId }: { notificationId: strin
 						}}
 					/>
 					<div className="flex justify-end gap-2 pt-4 border-t">
-						<Button type="button" variant="secondary" onClick={() => navigate({ to: `/notifications/${data.id}` })}>
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => navigate({ to: `/notifications/${data.id}` })}
+						>
 							Cancel
 						</Button>
 						<Button type="submit" form={formId} loading={updateDestination.isPending}>

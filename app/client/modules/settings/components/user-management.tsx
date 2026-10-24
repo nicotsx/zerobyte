@@ -55,8 +55,14 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 
 	const toggleBanUserMutation = useMutation({
 		mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
-			const { error } = ban ? await authClient.admin.banUser({ userId }) : await authClient.admin.unbanUser({ userId });
-			if (error) throw error;
+			let result;
+			if (ban) {
+				result = await authClient.admin.banUser({ userId });
+			} else {
+				result = await authClient.admin.unbanUser({ userId });
+			}
+
+			if (result.error) throw result.error;
 		},
 		onSuccess: () => {
 			toast.success("User ban status updated successfully");
@@ -156,10 +162,16 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 										<Badge>{user.role}</Badge>
 									</TableCell>
 									<TableCell>
-										<Badge variant="outline" className={cn("text-red-500 border-red-500", { hidden: !isBanned })}>
+										<Badge
+											variant="outline"
+											className={cn("text-red-500 border-red-500", { hidden: !isBanned })}
+										>
 											Banned
 										</Badge>
-										<Badge variant="outline" className={cn("bg-success/10 text-success", { hidden: isBanned })}>
+										<Badge
+											variant="outline"
+											className={cn("bg-success/10 text-success", { hidden: isBanned })}
+										>
 											Active
 										</Badge>
 									</TableCell>
@@ -170,7 +182,9 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 												size="icon"
 												title="Demote to User"
 												className={cn({ hidden: user.role !== "admin" || isCurrentUser })}
-												onClick={() => setRoleMutation.mutate({ userId: user.id, role: "user" })}
+												onClick={() =>
+													setRoleMutation.mutate({ userId: user.id, role: "user" })
+												}
 											>
 												<ShieldAlert className="h-4 w-4" />
 											</Button>
@@ -179,7 +193,9 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 												size="icon"
 												title="Promote to Admin"
 												className={cn({ hidden: user.role === "admin" || isCurrentUser })}
-												onClick={() => setRoleMutation.mutate({ userId: user.id, role: "admin" })}
+												onClick={() =>
+													setRoleMutation.mutate({ userId: user.id, role: "admin" })
+												}
 											>
 												<Shield className="h-4 w-4" />
 											</Button>
@@ -189,7 +205,9 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 												size="icon"
 												title="Unban user"
 												className={cn({ hidden: !isBanned || isCurrentUser })}
-												onClick={() => setUserToBan({ id: user.id, name: displayName, isBanned: true })}
+												onClick={() =>
+													setUserToBan({ id: user.id, name: displayName, isBanned: true })
+												}
 											>
 												<UserCheck className="h-4 w-4" />
 											</Button>
@@ -198,7 +216,9 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 												size="icon"
 												title="Ban user"
 												className={cn({ hidden: isBanned || isCurrentUser })}
-												onClick={() => setUserToBan({ id: user.id, name: displayName, isBanned: false })}
+												onClick={() =>
+													setUserToBan({ id: user.id, name: displayName, isBanned: false })
+												}
 											>
 												<Ban className="h-4 w-4" />
 											</Button>
@@ -241,8 +261,8 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 					<DialogHeader>
 						<DialogTitle>Are you absolutely sure?</DialogTitle>
 						<DialogDescription>
-							This action cannot be undone. This will permanently delete the user account and remove their data from our
-							servers.
+							This action cannot be undone. This will permanently delete the user account and remove their
+							data from our servers.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -252,7 +272,8 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 							<div className="space-y-1">
 								<p className="font-semibold">Important: Data Deletion</p>
 								<p>
-									The following personal organizations and all their associated resources will be permanently deleted:
+									The following personal organizations and all their associated resources will be
+									permanently deleted:
 								</p>
 							</div>
 						</div>
@@ -323,11 +344,16 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 				</DialogContent>
 			</Dialog>
 
-			<Dialog open={Boolean(userToManageAccounts)} onOpenChange={(open) => !open && setUserToManageAccounts(undefined)}>
+			<Dialog
+				open={Boolean(userToManageAccounts)}
+				onOpenChange={(open) => !open && setUserToManageAccounts(undefined)}
+			>
 				<DialogContent>
 					<DialogHeader>
 						<DialogTitle>Manage Accounts</DialogTitle>
-						<DialogDescription>Linked authentication accounts for {userToManageAccounts?.name}.</DialogDescription>
+						<DialogDescription>
+							Linked authentication accounts for {userToManageAccounts?.name}.
+						</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-2">
@@ -347,7 +373,9 @@ export function UserManagement({ currentUser }: { currentUser: { id: string } | 
 									title="Remove account"
 									disabled={deleteAccount.isPending}
 									onClick={() =>
-										deleteAccount.mutate({ path: { userId: userToManageAccounts.id, accountId: account.id } })
+										deleteAccount.mutate({
+											path: { userId: userToManageAccounts.id, accountId: account.id },
+										})
 									}
 								>
 									<Trash2 className="h-4 w-4 text-destructive" />

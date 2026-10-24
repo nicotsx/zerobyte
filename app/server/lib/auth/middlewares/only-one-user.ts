@@ -19,6 +19,8 @@ export const ensureOnlyOneUser = async (ctx: AuthMiddlewareContext) => {
 
 	if (result?.value !== "true" && existingUser) {
 		logger.info("User registration attempt blocked: registrations are not enabled.");
-		throw new ForbiddenError("User registrations are currently disabled. Please contact an administrator for access.");
+		throw new ForbiddenError(
+			"User registrations are currently disabled. Please contact an administrator for access.",
+		);
 	}
 };

@@ -6,7 +6,7 @@ description: Set up your first backup in minutes with Zerobyte
 This guide walks you through creating your first backup in Zerobyte, from initial setup to verifying a successful backup.
 
 <Callout type="info">
-  This guide assumes you've already [installed Zerobyte](/docs/installation) and can access the web interface.
+	This guide assumes you've already [installed Zerobyte](/docs/installation) and can access the web interface.
 </Callout>
 
 ## Overview
@@ -89,11 +89,14 @@ After the recovery key is downloaded, Zerobyte redirects to **Volumes**. The res
 </Steps>
 
 <Callout type="warn">
-  **Critical**: Store the downloaded recovery key file safely. It contains the Restic password required to recover your backups. If you lose both server access and this file, your backups will be unrecoverable. See [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords) for the full model, including imported repositories with custom passwords.
+	**Critical**: Store the downloaded recovery key file safely. It contains the Restic password required to recover your
+	backups. If you lose both server access and this file, your backups will be unrecoverable. See [Recovery keys and
+	repository passwords](/docs/guides/recovery-key-and-repository-passwords) for the full model, including imported
+	repositories with custom passwords.
 </Callout>
 
 <Callout type="info">
-  After onboarding is complete, future visits use the normal **Login** page instead of the onboarding flow.
+	After onboarding is complete, future visits use the normal **Login** page instead of the onboarding flow.
 </Callout>
 
 ## Step 1: Add a Volume
@@ -118,7 +121,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/lib/zerobyte:/var/lib/zerobyte
-      - /path/to/your/data:/data  # Add this line
+      - /path/to/your/data:/data # Add this line
 ```
 
 Restart the container to apply changes:
@@ -169,7 +172,9 @@ Click **Create** to save the volume configuration
 </Steps>
 
 <Callout type="info">
-  The directory browser shows paths from the Zerobyte server or container filesystem, not your host filesystem directly. In the Docker example above, the host path `/path/to/your/data` appears in Zerobyte as `/data`, so that is the path you select in the browser.
+	The directory browser shows paths from the Zerobyte server or container filesystem, not your host filesystem directly.
+	In the Docker example above, the host path `/path/to/your/data` appears in Zerobyte as `/data`, so that is the path
+	you select in the browser.
 </Callout>
 
 ### Adding Remote Volumes
@@ -185,6 +190,7 @@ Zerobyte also supports remote volume types:
     - **Port**: NFS port (default: `2049`)
     - **Version**: `3`, `4`, or `4.1`
     - **Read-only Mode**: Optional, recommended for backup sources
+
   </Tab>
 
   <Tab value="SMB/CIFS">
@@ -198,6 +204,7 @@ Zerobyte also supports remote volume types:
     - **SMB Version**: `1.0`, `2.0`, `2.1`, or `3.0`
     - **Domain**: Windows domain or workgroup (optional)
     - **Port**: SMB port (default: `445`)
+
   </Tab>
 
   <Tab value="WebDAV">
@@ -210,6 +217,7 @@ Zerobyte also supports remote volume types:
     - **Port**: Server port (`80` by default, or `443` for HTTPS)
     - **Use SSL/HTTPS**: Enable secure HTTPS connections
     - **Read-only Mode**: Optional, recommended for backup sources
+
   </Tab>
 
   <Tab value="SFTP">
@@ -222,11 +230,13 @@ Zerobyte also supports remote volume types:
     - **Private Key**: SSH private key (optional if using a password)
     - **Path**: Remote directory path
     - **Known Hosts**: Required unless you enable **Skip Host Key Verification**
+
   </Tab>
 </Tabs>
 
 <Callout type="info">
-  Remote volumes require the full installation with `SYS_ADMIN` capability and `/dev/fuse` device. See the [Installation guide](/docs/installation) for details.
+	Remote volumes require the full installation with `SYS_ADMIN` capability and `/dev/fuse` device. See the [Installation
+	guide](/docs/installation) for details.
 </Callout>
 
 ## Step 2: Create a Repository
@@ -285,11 +295,14 @@ Click **Create repository**. Zerobyte creates and initializes the repository, th
 </Steps>
 
 <Callout type="info">
-  If you choose a custom local repository directory, make sure it is mounted from the host into the container. Otherwise the repository data can be lost when the container restarts.
+	If you choose a custom local repository directory, make sure it is mounted from the host into the container. Otherwise
+	the repository data can be lost when the container restarts.
 </Callout>
 
 <Callout type="info">
-  If you are importing an existing repository instead of creating a new one, read [Recovery keys and repository passwords](/docs/guides/recovery-key-and-repository-passwords) before choosing between the existing recovery key and a custom repository password.
+	If you are importing an existing repository instead of creating a new one, read [Recovery keys and repository
+	passwords](/docs/guides/recovery-key-and-repository-passwords) before choosing between the existing recovery key and a
+	custom repository password.
 </Callout>
 
 ### Cloud Storage Repositories
@@ -307,6 +320,7 @@ For production use, consider using cloud storage for offsite backups:
     Access Key ID: AKIAIOSFODNN7EXAMPLE
     Secret Access Key: my-secret-access-key
     ```
+
   </Tab>
 
   <Tab value="Google Cloud Storage">
@@ -318,6 +332,7 @@ For production use, consider using cloud storage for offsite backups:
     Project ID: my-project-id
     Service Account JSON: Paste the service account JSON
     ```
+
   </Tab>
 
   <Tab value="Azure Blob">
@@ -330,6 +345,7 @@ For production use, consider using cloud storage for offsite backups:
     Account Key: my-account-key
     Endpoint Suffix: core.windows.net (optional)
     ```
+
   </Tab>
 
   <Tab value="rclone">
@@ -344,11 +360,14 @@ For production use, consider using cloud storage for offsite backups:
     <Callout type="info">
       rclone must be configured on the host and mounted into the container. See [Installation - Mounting rclone Configuration](/docs/installation#mounting-rclone-configuration).
     </Callout>
+
   </Tab>
 </Tabs>
 
 <Callout type="info">
-  If you want credentials to come from environment variables or Docker secrets, use the [Provisioning guide](/docs/guides/provisioning). The standard volume and repository forms currently expect the actual secret value and store it encrypted.
+	If you want credentials to come from environment variables or Docker secrets, use the [Provisioning
+	guide](/docs/guides/provisioning). The standard volume and repository forms currently expect the actual secret value
+	and store it encrypted.
 </Callout>
 
 ## Step 3: Create a Backup Job
@@ -408,13 +427,10 @@ If you choose **Daily**, **Weekly**, or **Specific days**, set an **Execution ti
 If you choose **Weekly**, also choose the day of the week.
 
 <Accordions type="single">
-  <Accordion title="Common Cron Patterns">
-    - `0 2 * * *` - Daily at 2:00 AM
-    - `0 2 * * 0` - Weekly on Sunday at 2:00 AM
-    - `0 2 1 * *` - Monthly on the 1st at 2:00 AM
-    - `0 */6 * * *` - Every 6 hours
-    - `0 0 * * 1-5` - Weekdays at midnight
-  </Accordion>
+	<Accordion title="Common Cron Patterns">
+		- `0 2 * * *` - Daily at 2:00 AM - `0 2 * * 0` - Weekly on Sunday at 2:00 AM - `0 2 1 * *` - Monthly on the 1st at
+		2:00 AM - `0 */6 * * *` - Every 6 hours - `0 0 * * 1-5` - Weekdays at midnight
+	</Accordion>
 </Accordions>
 
 </Step>
@@ -433,7 +449,8 @@ Keep Yearly: 1
 ```
 
 <Callout type="info">
-  Retention policies automatically prune old backups to save storage space. Restic's deduplication ensures you only store unique data.
+	Retention policies automatically prune old backups to save storage space. Restic's deduplication ensures you only
+	store unique data.
 </Callout>
 
 </Step>
@@ -512,7 +529,8 @@ Wait for the backup to finish. When it completes successfully, the job status ch
 </Steps>
 
 <Callout type="info">
-  During the first backup, all data is uploaded. Subsequent backups are much faster due to Restic's incremental backup and deduplication.
+	During the first backup, all data is uploaded. Subsequent backups are much faster due to Restic's incremental backup
+	and deduplication.
 </Callout>
 
 ## Step 5: Verify Your Backup
@@ -569,7 +587,8 @@ For peace of mind, test restoring a file:
 </Steps>
 
 <Callout type="warn">
-  By default, restored files are placed back in their original location. Be careful not to overwrite current files. You can specify an alternate restore path if needed.
+	By default, restored files are placed back in their original location. Be careful not to overwrite current files. You
+	can specify an alternate restore path if needed.
 </Callout>
 
 ## Understanding Backup Status
@@ -581,7 +600,8 @@ The UI exposes two related status views:
 - If a backup job has not completed a run yet, the details page shows no last run value
 
 <Callout type="info">
-  Click any backup job to view its snapshot history, restore actions, schedule summary, and repository links. If a run fails and the UI does not show enough detail, check your container logs with `docker compose logs -f zerobyte`.
+	Click any backup job to view its snapshot history, restore actions, schedule summary, and repository links. If a run
+	fails and the UI does not show enough detail, check your container logs with `docker compose logs -f zerobyte`.
 </Callout>
 
 ## Monitoring Your Backups
@@ -618,7 +638,9 @@ Repository details show:
 - Doctor report output
 
 <Callout type="info">
-  Use **Run doctor** in the repository details page when you need a repository maintenance pass. Use the refresh button in **Compression Statistics** when you only need updated stored-size and snapshot metrics. For the exact meaning of the status values and actions, see [Repository maintenance and status](/docs/guides/repository-maintenance).
+	Use **Run doctor** in the repository details page when you need a repository maintenance pass. Use the refresh button
+	in **Compression Statistics** when you only need updated stored-size and snapshot metrics. For the exact meaning of
+	the status values and actions, see [Repository maintenance and status](/docs/guides/repository-maintenance).
 </Callout>
 
 ## Next Steps
@@ -630,13 +652,13 @@ Now that you have a working backup, consider:
     Back up additional directories or remote shares
   </Card>
 
-  <Card title="Set Up Cloud Storage" icon={<Cloud />}>
-    Configure offsite backups to S3, Google Cloud, or Azure
-  </Card>
+<Card title="Set Up Cloud Storage" icon={<Cloud />}>
+	Configure offsite backups to S3, Google Cloud, or Azure
+</Card>
 
-  <Card title="Configure Notifications" icon={<Bell />} href="/docs/guides/notifications">
-    Get alerted when backups fail or complete
-  </Card>
+<Card title="Configure Notifications" icon={<Bell />} href="/docs/guides/notifications">
+	Get alerted when backups fail or complete
+</Card>
 
   <Card title="Optimize Retention" icon={<History />}>
     Fine-tune retention policies to balance storage and history
@@ -692,7 +714,8 @@ Click **Restore All** to restore everything, or select specific files first and 
 </Steps>
 
 <Callout type="info">
-  For the full restore workflow, overwrite modes, download vs restore, and mounted-volume permission caveats, see [Restoring Data](/docs/guides/restoring).
+	For the full restore workflow, overwrite modes, download vs restore, and mounted-volume permission caveats, see
+	[Restoring Data](/docs/guides/restoring).
 </Callout>
 
 ### Pausing a Backup Job
@@ -721,9 +744,7 @@ Backups are automatically pruned according to retention policies, but you can ma
 3. Click **Delete Snapshot**
 4. Confirm deletion
 
-<Callout type="warn">
-  Deleting snapshots is irreversible. Ensure you don't need the data before deleting.
-</Callout>
+<Callout type="warn">Deleting snapshots is irreversible. Ensure you don't need the data before deleting.</Callout>
 
 ## Troubleshooting
 
@@ -770,13 +791,13 @@ If you encounter issues:
     View detailed logs with `docker compose logs -f zerobyte`
   </Card>
 
-  <Card title="GitHub Issues" icon={<GithubLogoIcon />}>
-    Report bugs or request features at [github.com/nicotsx/zerobyte/issues](https://github.com/nicotsx/zerobyte/issues)
-  </Card>
+<Card title="GitHub Issues" icon={<GithubLogoIcon />}>
+	Report bugs or request features at [github.com/nicotsx/zerobyte/issues](https://github.com/nicotsx/zerobyte/issues)
+</Card>
 
-  <Card title="Documentation" icon={<BookOpen />}>
-    Explore the full documentation for advanced topics
-  </Card>
+<Card title="Documentation" icon={<BookOpen />}>
+	Explore the full documentation for advanced topics
+</Card>
 
   <Card title="Community" icon={<Users />}>
     Join discussions and get help from other users
@@ -786,10 +807,11 @@ If you encounter issues:
 <Callout type="info">
   When reporting issues, include:
 
-  - Zerobyte version (visible in UI footer)
-  - Docker and Docker Compose versions
-  - Relevant logs from `docker compose logs zerobyte`
-  - Steps to reproduce the issue
+- Zerobyte version (visible in UI footer)
+- Docker and Docker Compose versions
+- Relevant logs from `docker compose logs zerobyte`
+- Steps to reproduce the issue
+
 </Callout>
 
 ## Conclusion
@@ -797,26 +819,26 @@ If you encounter issues:
 You've successfully:
 
 <ul className="my-4 list-none space-y-2 pl-0">
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Created an admin account and downloaded the recovery key</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Added a volume to backup</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Created a repository for encrypted storage</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Configured and ran your first backup job</span>
-  </li>
-  <li className="flex items-start gap-2">
-    <Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
-    <span>Verified your backup was successful</span>
-  </li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Created an admin account and downloaded the recovery key</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Added a volume to backup</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Created a repository for encrypted storage</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Configured and ran your first backup job</span>
+	</li>
+	<li className="flex items-start gap-2">
+		<Check className="mt-1.5 h-4 w-4 shrink-0 text-green-600" />
+		<span>Verified your backup was successful</span>
+	</li>
 </ul>
 
 Your data is now protected with encrypted, deduplicated backups. Zerobyte will continue to run backups automatically according to your schedule.

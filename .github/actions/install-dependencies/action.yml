@@ -17,11 +17,19 @@ runs:
     - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
       name: Install Bun
       with:
-        bun-version: "1.4.3"
+        bun-version: "1.4.4"
 
     - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: "24"
+
+    - name: Cache Bun packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-${{ hashFiles('bun.lock', 'bunfig.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-bun-1.4.4-
 
     - name: Install dependencies
       shell: bash

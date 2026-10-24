@@ -406,12 +406,14 @@ Contributions by anyone are welcome! If you find a bug or have a feature request
 
 ## Development (no Docker)
 
-With Bun and Portless installed, you can run Zerobyte locally during development without Docker:
+With Bun 1.4.4 and Portless installed, you can run Zerobyte locally during development without Docker:
 
 ```bash
 bun install
 bun run dev
 ```
+
+Run `bun fmt` to format the repository, `bun run typecheck` to check the app and every workspace, and `bun run check` for lint, types, and formatting together. In VS Code, the **Format current file with Bun** task runs the same formatter.
 
 For local development, create a `.env.local` file at the repo root and override the Docker paths:
 

@@ -41,7 +41,9 @@ export const RestRepositoryForm = ({ form }: Props) => {
 						<FormControl>
 							<Input placeholder="my-backup-repo" {...field} />
 						</FormControl>
-						<FormDescription>Path to the repository on the REST server (leave empty for root).</FormDescription>
+						<FormDescription>
+							Path to the repository on the REST server (leave empty for root).
+						</FormDescription>
 						<FormMessage />
 					</FormItem>
 				)}

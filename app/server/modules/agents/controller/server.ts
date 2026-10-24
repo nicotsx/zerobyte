@@ -23,8 +23,7 @@ import { createAgentControllerListener } from "./listener";
 type AgentEventContext = { agentId: string; agentName: string };
 
 export type AgentManagerEvent =
-	| (AgentEventContext & { type: "agent.disconnected" })
-	| (AgentEventContext & ConnectionEvent);
+	(AgentEventContext & { type: "agent.disconnected" }) | (AgentEventContext & ConnectionEvent);
 
 const closeTransport = (transport: ControllerTransport, code: number, reason: string) => {
 	try {

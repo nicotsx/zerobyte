@@ -10,7 +10,8 @@ Where things get a little more nuanced is permissions and other filesystem detai
 <Callout type="info">
   Backing up a mounted share does **not** remove permissions from the source.
 
-  The main question is simpler than it sounds: how much of the source system's permission information can the mounted view actually show to the backup?
+The main question is simpler than it sounds: how much of the source system's permission information can the mounted view actually show to the backup?
+
 </Callout>
 
 ## The short version
@@ -70,14 +71,14 @@ Common examples where permissions matter more:
 
 ## Backend comparison
 
-| Backend | Good fit for | Permission fidelity | What to keep in mind |
-| --- | --- | --- | --- |
-| **Directory** | Local data and bind-mounted host paths | **Best** | Best choice when you want the backup and restore to stay as close as possible to the original filesystem |
-| **NFS** | Linux and NAS shares | **Usually good** | Often a strong remote option, but ownership mapping can still vary between systems |
-| **SMB/CIFS** | Windows shares and Samba servers | **Mixed to good** | Often the best remote option when permission details matter, but still not a perfect copy of the original Windows permission model |
-| **WebDAV** | Nextcloud, ownCloud, and content-focused remote access | **Limited** | Great for backing up files, less reliable for exact permission replication |
-| **SFTP** | Secure access to remote Linux servers | **Limited** | Good for content backup, but advanced permission details are often reduced |
-| **Rclone** | Cloud providers and object storage | **Lowest** | Best treated as a content source, not as a full filesystem replica |
+| Backend       | Good fit for                                           | Permission fidelity | What to keep in mind                                                                                                               |
+| ------------- | ------------------------------------------------------ | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Directory** | Local data and bind-mounted host paths                 | **Best**            | Best choice when you want the backup and restore to stay as close as possible to the original filesystem                           |
+| **NFS**       | Linux and NAS shares                                   | **Usually good**    | Often a strong remote option, but ownership mapping can still vary between systems                                                 |
+| **SMB/CIFS**  | Windows shares and Samba servers                       | **Mixed to good**   | Often the best remote option when permission details matter, but still not a perfect copy of the original Windows permission model |
+| **WebDAV**    | Nextcloud, ownCloud, and content-focused remote access | **Limited**         | Great for backing up files, less reliable for exact permission replication                                                         |
+| **SFTP**      | Secure access to remote Linux servers                  | **Limited**         | Good for content backup, but advanced permission details are often reduced                                                         |
+| **Rclone**    | Cloud providers and object storage                     | **Lowest**          | Best treated as a content source, not as a full filesystem replica                                                                 |
 
 ## What each backend is best at
 
@@ -178,5 +179,6 @@ If the original data lives somewhere else, the most reliable approach is usually
 <Callout type="info">
   The message here is not "avoid mounted shares." They are useful and often exactly the right choice.
 
-  The simpler rule is: if file contents matter most, mounted shares are often great. If you want the closest possible replica of the original filesystem, a local **Directory** volume is still the best option.
+The simpler rule is: if file contents matter most, mounted shares are often great. If you want the closest possible replica of the original filesystem, a local **Directory** volume is still the best option.
+
 </Callout>

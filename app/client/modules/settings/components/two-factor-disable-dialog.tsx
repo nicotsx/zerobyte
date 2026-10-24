@@ -67,7 +67,8 @@ export const TwoFactorDisableDialog = ({ open, onOpenChange, onSuccess }: TwoFac
 					<DialogHeader>
 						<DialogTitle>Disable Two-Factor Authentication</DialogTitle>
 						<DialogDescription>
-							Are you sure you want to disable 2FA? Your account will be less secure. Enter your password to confirm.
+							Are you sure you want to disable 2FA? Your account will be less secure. Enter your password
+							to confirm.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-4 py-4">

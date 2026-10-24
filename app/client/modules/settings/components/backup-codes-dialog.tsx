@@ -70,8 +70,8 @@ export const BackupCodesDialog = ({ open, onOpenChange }: BackupCodesDialogProps
 				<DialogHeader>
 					<DialogTitle>Backup Codes</DialogTitle>
 					<DialogDescription>
-						Use these codes to access your account if you lose access to your authenticator app. Each code can only be
-						used once.
+						Use these codes to access your account if you lose access to your authenticator app. Each code
+						can only be used once.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="space-y-4 py-4">

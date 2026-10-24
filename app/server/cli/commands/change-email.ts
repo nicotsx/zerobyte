@@ -165,7 +165,9 @@ export const changeEmailCommand = new Command("change-email")
 
 			const result = await changeEmailForUser(username, newEmail, impact);
 
-			console.info(`\n✅ Email for "${username}" changed from "${result.previousEmail}" to "${result.updatedEmail}".`);
+			console.info(
+				`\n✅ Email for "${username}" changed from "${result.previousEmail}" to "${result.updatedEmail}".`,
+			);
 			if (result.deletedSsoAccounts > 0) {
 				console.info(`   Deleted ${result.deletedSsoAccounts} linked SSO account(s).`);
 			}

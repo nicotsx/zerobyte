@@ -24,11 +24,11 @@ Change one setting at a time, then compare runtime, CPU, memory, network usage, 
 
 Some settings apply globally, some apply to one repository, and some apply only to one backup schedule.
 
-| Scope                  | Setting                                                                 | Use it for                                                                 |
-| ---------------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Zerobyte container     | `GOMAXPROCS`                                                            | Capping CPU available to all Restic operations: backups, restores, checks   |
-| Repository settings    | Compression mode, upload limit, download limit                          | Repository-wide storage, CPU, and network trade-offs                       |
-| Backup schedule        | **Advanced** > **Custom restic parameters**                             | Per-source backup behavior such as read concurrency, pack size, scan mode   |
+| Scope               | Setting                                        | Use it for                                                                |
+| ------------------- | ---------------------------------------------- | ------------------------------------------------------------------------- |
+| Zerobyte container  | `GOMAXPROCS`                                   | Capping CPU available to all Restic operations: backups, restores, checks |
+| Repository settings | Compression mode, upload limit, download limit | Repository-wide storage, CPU, and network trade-offs                      |
+| Backup schedule     | **Advanced** > **Custom restic parameters**    | Per-source backup behavior such as read concurrency, pack size, scan mode |
 
 Custom Restic parameters are appended to the `restic backup` command for that schedule only. Enter one flag per line.
 
@@ -103,11 +103,11 @@ Larger pack files can improve performance when the bottleneck is per-file or per
 
 Suggested starting points:
 
-| Situation                                         | Try               |
-| ------------------------------------------------- | ----------------- |
-| Slow HDD or small NAS repository                  | `--pack-size 32`  |
-| Large repository on object storage or rclone      | `--pack-size 64`  |
-| Very large repository with high upload speed      | `--pack-size 128` |
+| Situation                                    | Try               |
+| -------------------------------------------- | ----------------- |
+| Slow HDD or small NAS repository             | `--pack-size 32`  |
+| Large repository on object storage or rclone | `--pack-size 64`  |
+| Very large repository with high upload speed | `--pack-size 128` |
 
 Example:
 
@@ -118,7 +118,8 @@ Example:
 Do not jump straight to very large values. Larger packs reduce object count, but each pack is a larger unit to upload, retry, rewrite, and cache. If an upload fails near the end of a large pack, more work may need to be repeated.
 
 <Callout type="info">
-	In Zerobyte, `--pack-size` in custom Restic parameters affects only the backup schedule where you set it. It does not rewrite existing repository data and it does not automatically apply to every other schedule.
+	In Zerobyte, `--pack-size` in custom Restic parameters affects only the backup schedule where you set it. It does not
+	rewrite existing repository data and it does not automatically apply to every other schedule.
 </Callout>
 
 ## Tune read concurrency

@@ -6,7 +6,8 @@ description: Learn about Zerobyte, a powerful backup automation platform built o
 Zerobyte is a backup automation tool that helps you protect your data across multiple storage backends. Built on top of [Restic](https://restic.net/), it provides a modern web interface to schedule, manage, and monitor encrypted backups.
 
 <Callout type="warn">
-  Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active development
+	Zerobyte is still in version 0.x.x and is subject to major changes between versions. Core features are under active
+	development
 </Callout>
 
 ## Key Features
@@ -16,13 +17,13 @@ Zerobyte is a backup automation tool that helps you protect your data across mul
     Schedule encrypted, compressed backups with fine-grained retention policies powered by Restic
   </Card>
 
-  <Card title="Flexible Scheduling" icon={<Calendar />}>
-    Configure automated backup jobs with cron expressions and sophisticated retention rules
-  </Card>
+<Card title="Flexible Scheduling" icon={<Calendar />}>
+	Configure automated backup jobs with cron expressions and sophisticated retention rules
+</Card>
 
-  <Card title="End-to-End Encryption" icon={<Lock />}>
-    Your data is always protected with strong encryption at rest, ensuring security for every snapshot
-  </Card>
+<Card title="End-to-End Encryption" icon={<Lock />}>
+	Your data is always protected with strong encryption at rest, ensuring security for every snapshot
+</Card>
 
   <Card title="Multi-Protocol Support" icon={<Network />}>
     Back up from NFS, SMB, WebDAV, SFTP, or local directories with ease
@@ -86,7 +87,8 @@ Configure **backup jobs** that connect volumes to repositories with scheduling r
 </Steps>
 
 <Callout type="info">
-  All backups are encrypted using Restic's encryption. Your encryption password is securely stored and never leaves your server.
+	All backups are encrypted using Restic's encryption. Your encryption password is securely stored and never leaves your
+	server.
 </Callout>
 
 ## Use Cases
@@ -96,13 +98,13 @@ Configure **backup jobs** that connect volumes to repositories with scheduling r
     Back up your home server data (photos, documents, media) to cloud storage or an external drive with automatic scheduling and retention.
   </Accordion>
 
-  <Accordion title="NAS Data Protection">
-    Protect your NAS data by backing up critical shares to offsite cloud storage with encryption and versioning.
-  </Accordion>
+<Accordion title="NAS Data Protection">
+	Protect your NAS data by backing up critical shares to offsite cloud storage with encryption and versioning.
+</Accordion>
 
-  <Accordion title="Development Server Backups">
-    Automatically back up development servers, databases, and configuration files to ensure quick recovery.
-  </Accordion>
+<Accordion title="Development Server Backups">
+	Automatically back up development servers, databases, and configuration files to ensure quick recovery.
+</Accordion>
 
   <Accordion title="Multi-Site Backups">
     Centralize backup management for multiple locations, backing up various sources to different repository types.

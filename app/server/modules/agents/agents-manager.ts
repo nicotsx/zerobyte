@@ -41,8 +41,7 @@ type AgentStartRestoreRequest = {
 };
 
 type AgentRestoreStartResult =
-	| { status: "started"; result: Promise<RestoreExecutionResult> }
-	| { status: "unavailable"; error: Error };
+	{ status: "started"; result: Promise<RestoreExecutionResult> } | { status: "unavailable"; error: Error };
 
 const mutateRemoteAgent = <A>(agentId: string, mutate: () => A | Promise<A>) =>
 	runEffectPromise(

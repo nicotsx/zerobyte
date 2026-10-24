@@ -7,23 +7,23 @@ The repository details page exposes a small set of maintenance tools, but they d
 
 ## Repository status values
 
-| Status | What it means in Zerobyte | What to do next |
-| --- | --- | --- |
-| `healthy` | The last stored health verdict finished without errors | Keep monitoring and refresh stats when you want updated size metrics |
-| `error` | The last health or doctor run recorded an error | Review **Last Error** and the **Doctor Report**, fix the underlying issue, then rerun maintenance if needed |
-| `unknown` | Zerobyte does not currently have a fresh health verdict, or repository settings were changed and the old verdict was cleared | Expect this after some config changes; verify access and consider running Doctor |
-| `doctor` | A Doctor run is in progress | Wait for it to finish or cancel it during a maintenance window |
-| `cancelled` | A Doctor run was aborted before completion | Review any partial Doctor output and rerun Doctor if you still need validation |
+| Status      | What it means in Zerobyte                                                                                                    | What to do next                                                                                             |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `healthy`   | The last stored health verdict finished without errors                                                                       | Keep monitoring and refresh stats when you want updated size metrics                                        |
+| `error`     | The last health or doctor run recorded an error                                                                              | Review **Last Error** and the **Doctor Report**, fix the underlying issue, then rerun maintenance if needed |
+| `unknown`   | Zerobyte does not currently have a fresh health verdict, or repository settings were changed and the old verdict was cleared | Expect this after some config changes; verify access and consider running Doctor                            |
+| `doctor`    | A Doctor run is in progress                                                                                                  | Wait for it to finish or cancel it during a maintenance window                                              |
+| `cancelled` | A Doctor run was aborted before completion                                                                                   | Review any partial Doctor output and rerun Doctor if you still need validation                              |
 
 Repository status is stored metadata inside Zerobyte. It is not a continuous live probe.
 
 ## What each action really does
 
-| Action | What it does | What it does **not** do |
-| --- | --- | --- |
-| `Run doctor` | Runs `unlock`, then `check`, then `repair-index` if restic says it is needed. Saves step output into the Doctor Report. | It does **not** run a full `check --read-data` scrub, it does **not** prune unused data, and it does **not** refresh the stats card. |
-| `Unlock` | Runs `restic unlock` to clear stale repository locks. | It does **not** validate repository integrity and it does **not** change the stored health status by itself. |
-| Stats refresh button | Runs `restic stats --mode raw-data` and updates stored size and snapshot metrics. | It does **not** change repository health status, **Last Checked**, or the Doctor Report. |
+| Action               | What it does                                                                                                            | What it does **not** do                                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `Run doctor`         | Runs `unlock`, then `check`, then `repair-index` if restic says it is needed. Saves step output into the Doctor Report. | It does **not** run a full `check --read-data` scrub, it does **not** prune unused data, and it does **not** refresh the stats card. |
+| `Unlock`             | Runs `restic unlock` to clear stale repository locks.                                                                   | It does **not** validate repository integrity and it does **not** change the stored health status by itself.                         |
+| Stats refresh button | Runs `restic stats --mode raw-data` and updates stored size and snapshot metrics.                                       | It does **not** change repository health status, **Last Checked**, or the Doctor Report.                                             |
 
 ## Run doctor in detail
 
@@ -41,7 +41,9 @@ During a Doctor run, Zerobyte:
 Because Doctor holds an exclusive repository lock, it can block other repository operations such as backups, restores, and snapshot mutations while it runs.
 
 <Callout type="warn">
-  Doctor is helpful, but it is lighter than a full offline integrity scrub. Today it does not read every stored data pack and it does not prune repository data. Treat `healthy` as a useful application-level signal, not as proof that every blob was recently re-read.
+	Doctor is helpful, but it is lighter than a full offline integrity scrub. Today it does not read every stored data
+	pack and it does not prune repository data. Treat `healthy` as a useful application-level signal, not as proof that
+	every blob was recently re-read.
 </Callout>
 
 ## When to use Run doctor
@@ -64,7 +66,7 @@ Use **Unlock** when the problem is specifically stale repository locks, for exam
 If the problem is not a lock issue, Unlock will not fix it.
 
 <Callout type="warn">
-  Only run Unlock when you are certain no real backup, restore, or maintenance operation is still using that repository.
+	Only run Unlock when you are certain no real backup, restore, or maintenance operation is still using that repository.
 </Callout>
 
 ## What stats refresh actually recalculates

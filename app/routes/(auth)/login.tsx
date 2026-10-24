@@ -1,4 +1,4 @@
-import { Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
 import { z } from "zod";
 import { LoginPage } from "~/client/modules/auth/routes/login";
 
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/(auth)/login")({
 
 function RouteComponent() {
 	const { error } = Route.useSearch();
-	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	const pathname = useLocation({ select: (location) => location.pathname });
 
 	if (pathname !== "/login") {
 		return <Outlet />;

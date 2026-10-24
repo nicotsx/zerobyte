@@ -1,4 +1,4 @@
-FROM oven/bun:1.4.3-alpine@sha256:629e17411f1f129dbec3af78d5af9c9f2a937435c80349437206c6b0b7422373 AS base
+FROM oven/bun:1.4.4-alpine@sha256:4cf82f5686b196504fe119db3fcd9185b191f82ece82c40680e597228ec6070a AS base
 
 # renovate: datasource=github-releases depName=restic/restic versioning=semver extractVersion=^v?(?<version>.+)$
 ARG RESTIC_VERSION="0.19.1"
@@ -69,30 +69,35 @@ COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
 COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
 
+FROM base AS dependency-cache
+
+WORKDIR /app
+
+COPY package.json bun.lock bunfig.toml ./
+COPY packages/core/package.json ./packages/core/package.json
+COPY packages/contracts/package.json ./packages/contracts/package.json
+
+RUN bun pm fetch
+
+COPY apps/agent/package.json ./apps/agent/package.json
+COPY apps/docs/package.json ./apps/docs/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+
 # ------------------------------
 # DEVELOPMENT
 # ------------------------------
-FROM base AS development
+FROM dependency-cache AS development
+
+RUN VITE_GIT_HOOKS=0 bun install --offline --frozen-lockfile --ignore-scripts --filter '!docs'
 
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 ENV VITE_APP_VERSION=${APP_VERSION}
 ENV NODE_ENV="development"
 
-WORKDIR /app
-
 COPY --from=deps /deps/restic /usr/local/bin/restic
 COPY --from=deps /deps/rclone /usr/local/bin/rclone
 COPY --from=deps /deps/shoutrrr /usr/local/bin/shoutrrr
-
-COPY ./package.json ./bun.lock ./
-COPY ./packages/core/package.json ./packages/core/package.json
-COPY ./packages/contracts/package.json ./packages/contracts/package.json
-COPY ./apps/agent/package.json ./apps/agent/package.json
-COPY ./apps/docs/package.json ./apps/docs/package.json
-COPY ./apps/desktop/package.json ./apps/desktop/package.json
-
-RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile --ignore-scripts --filter '!docs'
 
 COPY . .
 
@@ -103,22 +108,13 @@ CMD ["bun", "run", "dev"]
 # ------------------------------
 # PRODUCTION
 # ------------------------------
-FROM base AS builder
+FROM dependency-cache AS builder
+
+RUN VITE_GIT_HOOKS=0 bun install --offline --frozen-lockfile --filter '!docs'
 
 ARG APP_VERSION=dev
 ENV VITE_APP_VERSION=${APP_VERSION}
 ENV PORT=4096
-
-WORKDIR /app
-
-COPY ./package.json ./bun.lock ./
-COPY ./packages/core/package.json ./packages/core/package.json
-COPY ./packages/contracts/package.json ./packages/contracts/package.json
-COPY ./apps/agent/package.json ./apps/agent/package.json
-COPY ./apps/docs/package.json ./apps/docs/package.json
-COPY ./apps/desktop/package.json ./apps/desktop/package.json
-
-RUN VITE_GIT_HOOKS=0 bun install --frozen-lockfile --filter '!docs'
 
 COPY . .
 

@@ -64,7 +64,8 @@ const reporter: ConsolaReporter = {
 			...logObj.args,
 		);
 		const line = [timestamp, prefix, tag, message].filter(Boolean).join(" ");
-		const stream = logObj.level < 2 ? (ctx.options.stderr ?? process.stderr) : (ctx.options.stdout ?? process.stdout);
+		const stream =
+			logObj.level < 2 ? (ctx.options.stderr ?? process.stderr) : (ctx.options.stdout ?? process.stdout);
 		stream.write(line + "\n");
 	},
 };
@@ -88,7 +89,9 @@ const safeStringify = (value: unknown) => {
 const formatMessages = (messages: unknown[]) =>
 	messages.flatMap((m) => {
 		if (m instanceof Error) {
-			return [sanitizeSensitiveData(m.message), m.stack ? sanitizeSensitiveData(m.stack) : undefined].filter(Boolean);
+			return [sanitizeSensitiveData(m.message), m.stack ? sanitizeSensitiveData(m.stack) : undefined].filter(
+				Boolean,
+			);
 		}
 
 		if (typeof m === "object") {

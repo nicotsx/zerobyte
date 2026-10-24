@@ -30,7 +30,8 @@
 		}
 	},
 	"scripts": {
-		"tsc": "tsc --noEmit"
+		"tsc": "bun run typecheck",
+		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
 		"@zerobyte/core": "workspace:*",

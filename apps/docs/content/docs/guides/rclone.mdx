@@ -96,6 +96,7 @@ environment:
 volumes:
   - ~/.config/rclone:/home/appuser/.config/rclone:ro
 ```
+
 </Callout>
 
 ## Using rclone for repositories
@@ -145,7 +146,9 @@ Click **Create and Initialize**. Zerobyte will initialize a new encrypted Restic
 </Steps>
 
 <Callout type="warn">
-Consumer cloud services like Google Drive and Dropbox have API rate limits and are not designed for heavy I/O workloads. They work for personal or light-duty backups, but for production or critical data, use proper object storage such as S3, Backblaze B2, or Cloudflare R2.
+	Consumer cloud services like Google Drive and Dropbox have API rate limits and are not designed for heavy I/O
+	workloads. They work for personal or light-duty backups, but for production or critical data, use proper object
+	storage such as S3, Backblaze B2, or Cloudflare R2.
 </Callout>
 
 ## Using rclone for volumes
@@ -202,7 +205,8 @@ Click **Create**. Zerobyte will mount the remote as a FUSE filesystem and make i
 </Steps>
 
 <Callout type="warn">
-Rclone volumes are **Linux-only**. Docker on macOS and Windows does not support FUSE mounts inside containers. If you are running Docker Desktop on macOS or Windows, rclone volumes will not work.
+	Rclone volumes are **Linux-only**. Docker on macOS and Windows does not support FUSE mounts inside containers. If you
+	are running Docker Desktop on macOS or Windows, rclone volumes will not work.
 </Callout>
 
 ## SFTP remotes with SSH keys
@@ -278,7 +282,8 @@ docker compose restart
 </Steps>
 
 <Callout type="info">
-If you mount the rclone config as a read-only volume (`:ro`), the updated tokens on the host are immediately visible to the container after a restart. No need to copy files manually.
+	If you mount the rclone config as a read-only volume (`:ro`), the updated tokens on the host are immediately visible
+	to the container after a restart. No need to copy files manually.
 </Callout>
 
 ## Troubleshooting
@@ -308,7 +313,7 @@ If you see errors related to FUSE when creating rclone volumes:
 - Check that `/dev/fuse` exists on the host: `ls -la /dev/fuse`.
 
 <Callout type="info">
-For more detailed troubleshooting steps, see the [Troubleshooting](/docs/troubleshooting) page.
+	For more detailed troubleshooting steps, see the [Troubleshooting](/docs/troubleshooting) page.
 </Callout>
 
 import { Step, Steps } from "fumadocs-ui/components/steps";

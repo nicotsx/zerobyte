@@ -27,13 +27,15 @@ docker compose down && docker compose up -d
 
 Zerobyte uses `BASE_URL` to determine whether authentication cookies should be marked as `Secure`. This directly affects how login sessions work:
 
-| BASE_URL value | Cookie behavior |
-|---|---|
-| `http://` or IP address (e.g., `http://192.168.1.100:4096`) | Secure cookies **disabled**, cookies sent over HTTP. Suitable for local network access. |
-| `https://` with domain (e.g., `https://zerobyte.example.com`) | Secure cookies **enabled**, cookies only sent over HTTPS. Required for production. |
+| BASE_URL value                                                | Cookie behavior                                                                         |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `http://` or IP address (e.g., `http://192.168.1.100:4096`)   | Secure cookies **disabled**, cookies sent over HTTP. Suitable for local network access. |
+| `https://` with domain (e.g., `https://zerobyte.example.com`) | Secure cookies **enabled**, cookies only sent over HTTPS. Required for production.      |
 
 <Callout type="warn">
-If `BASE_URL` is set to an `https://` address, browsers will **only** send authentication cookies over HTTPS connections. Accessing Zerobyte over plain HTTP will fail with login loops or session errors. Make sure your reverse proxy terminates TLS before forwarding to Zerobyte.
+	If `BASE_URL` is set to an `https://` address, browsers will **only** send authentication cookies over HTTPS
+	connections. Accessing Zerobyte over plain HTTP will fail with login loops or session errors. Make sure your reverse
+	proxy terminates TLS before forwarding to Zerobyte.
 </Callout>
 
 ## Proxy configurations
@@ -145,6 +147,7 @@ This ensures all traffic goes through your reverse proxy, which handles TLS and 
 - Use a strong `APP_SECRET` (generated with `openssl rand -hex 32`).
 - Keep Zerobyte updated to the latest version.
 - Consider placing Zerobyte behind a secure tunnel (Cloudflare Tunnel, Tailscale, WireGuard) for an additional layer of protection.
+
 </Callout>
 
 ### A note on TRUSTED_ORIGINS
