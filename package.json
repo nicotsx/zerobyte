@@ -52,7 +52,7 @@
 		"@dnd-kit/utilities": "^3.2.2",
 		"@fontsource-variable/google-sans-code": "5.3.2",
 		"@hono/standard-validator": "^0.4.0",
-		"@hookform/resolvers": "^5.9.2",
+		"@hookform/resolvers": "^6.0.0",
 		"@inquirer/prompts": "^8.7.3",
 		"@radix-ui/react-alert-dialog": "^1.2.1",
 		"@radix-ui/react-checkbox": "^1.4.1",
