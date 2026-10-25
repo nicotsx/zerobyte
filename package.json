@@ -137,7 +137,7 @@
 		"babel-plugin-react-compiler": "^1.0.0",
 		"drizzle-kit": "^1.0.0-rc.5-ab785fc",
 		"fast-check": "^4.10.2",
-		"happy-dom": "^20.14.6",
+		"happy-dom": "^21.0.4",
 		"lefthook": "2.2.2",
 		"msw": "^2.15.0",
 		"nitro": "^3.0.260903-beta",
