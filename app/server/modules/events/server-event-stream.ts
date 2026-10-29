@@ -8,6 +8,7 @@ type EventPayloadMap = Record<string, unknown>;
 type StreamEventOptions<TPayloadMap extends EventPayloadMap, TEventName extends Extract<keyof TPayloadMap, string>> = {
 	connectionLabel: string;
 	events: readonly TEventName[];
+	authorize: () => boolean | Promise<boolean>;
 	onConnected?: (stream: SseStream) => Promise<void>;
 	shouldSend: <Name extends TEventName>(eventName: Name, data: TPayloadMap[Name]) => boolean;
 	toPayload?: <Name extends TEventName>(eventName: Name, data: TPayloadMap[Name]) => unknown;
@@ -27,19 +28,10 @@ export const streamEvents = <
 	logger.debug(`Client connected to ${options.connectionLabel} SSE endpoint`);
 
 	return streamSSE(c, async (stream) => {
-		const unsubscribers = options.events.map((eventName) => {
-			return options.subscribe(eventName, async (data) => {
-				if (!options.shouldSend(eventName, data)) return;
-				const payload = options.toPayload?.(eventName, data) ?? data;
-				await stream.writeSSE({
-					data: JSON.stringify(payload),
-					event: eventName,
-				});
-			});
-		});
-
 		let keepAlive = true;
 		let cleanedUp = false;
+		let sendQueue = Promise.resolve(true);
+		const unsubscribers: Array<() => void> = [];
 
 		function cleanup() {
 			if (cleanedUp) return;
@@ -58,19 +50,83 @@ export const streamEvents = <
 			cleanup();
 		}
 
+		async function closeStream() {
+			if (!keepAlive) return;
+			keepAlive = false;
+			cleanup();
+
+			if (!stream.closed) await stream.close();
+		}
+
+		async function ensureAuthorized() {
+			if (!keepAlive) return false;
+
+			try {
+				const authorized = await options.authorize();
+				if (!keepAlive) return false;
+				if (authorized) return true;
+			} catch (error) {
+				logger.warn(`Authorization refresh failed for ${options.connectionLabel} SSE endpoint`, { error });
+			}
+
+			await closeStream();
+			return false;
+		}
+
+		function enqueue(write: () => Promise<void>) {
+			sendQueue = sendQueue.then(async () => {
+				if (!(await ensureAuthorized())) return false;
+				if (!keepAlive || stream.closed) return false;
+
+				await write();
+				return true;
+			});
+
+			sendQueue = sendQueue.catch(async (error) => {
+				logger.warn(`Event delivery failed for ${options.connectionLabel} SSE endpoint`, { error });
+				await closeStream();
+				return false;
+			});
+
+			return sendQueue;
+		}
+
 		stream.onAbort(handleDisconnect);
 		c.req.raw.signal.addEventListener("abort", handleDisconnect, { once: true });
 
 		try {
-			await stream.writeSSE({
-				data: JSON.stringify({ type: "connected", timestamp: Date.now() }),
-				event: "connected",
+			const connected = enqueue(async () => {
+				await stream.writeSSE({
+					data: JSON.stringify({ type: "connected", timestamp: Date.now() }),
+					event: "connected",
+				});
+
+				await options.onConnected?.(stream);
 			});
 
-			await options.onConnected?.(stream);
+			for (const eventName of options.events) {
+				unsubscribers.push(
+					options.subscribe(eventName, (data) => {
+						if (!options.shouldSend(eventName, data)) return;
+
+						void enqueue(async () => {
+							const payload = options.toPayload?.(eventName, data) ?? data;
+							await stream.writeSSE({
+								data: JSON.stringify(payload),
+								event: eventName,
+							});
+						});
+					}),
+				);
+			}
+
+			if (!(await connected)) return;
 
 			while (keepAlive && !c.req.raw.signal.aborted && !stream.aborted) {
-				await stream.writeSSE({ data: JSON.stringify({ timestamp: Date.now() }), event: "heartbeat" });
+				const sent = await enqueue(async () => {
+					await stream.writeSSE({ data: JSON.stringify({ timestamp: Date.now() }), event: "heartbeat" });
+				});
+				if (!sent) break;
 				await stream.sleep(5000);
 			}
 		} finally {
