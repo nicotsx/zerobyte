@@ -55,7 +55,7 @@
         "hono": "^4.13.14",
         "hono-openapi": "^1.5.0",
         "hono-rate-limiter": "^0.5.4",
-        "http-errors-enhanced": "^4.0.2",
+        "http-errors-enhanced": "^5.0.1",
         "input-otp": "^1.5.0",
         "ipaddr.js": "^2.5.0",
         "lucide-react": "^1.63.0",
@@ -1817,7 +1817,7 @@
 
     "http-cache-semantics": ["http-cache-semantics@4.2.0", "", {}, "sha512-dTxcvPXqPvXBQpq5dUr6mEMJX4oIEFv6bwom3FDwKRDsuIjjJGANqhBuoAn9c1RQJIdAKav33ED65E2ys+87QQ=="],
 
-    "http-errors-enhanced": ["http-errors-enhanced@4.0.2", "", {}, "sha512-5EXN1gmhJVvuWpNfz+RclWvLnnENEXNMPfww3gm30H9mQzPF4QSBj/MD5FRkVDxGIUhO/cR2GSLCd/6C6xpBcw=="],
+    "http-errors-enhanced": ["http-errors-enhanced@5.0.1", "", {}, "sha512-3v96cSf7gGt9248u3rJR9uPENWXwsnYQk/ScwTiZRVTOp9h4VhG4fd/H3Gt2829PifcJgYR6NHvtFp9FyoDilA=="],
 
     "http-proxy-agent": ["http-proxy-agent@7.0.2", "", { "dependencies": { "agent-base": "^7.1.0", "debug": "^4.3.4" } }, "sha512-T1gkAiYYDWYx3V5Bmyu7HcfcvL7mUrTWiM6yOfa3PIphViJ/gFPbvidQ+veqSOHci/PxBcDabeUNCzpOODJZig=="],
 
