@@ -8,10 +8,10 @@ import { Effect } from "effect";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { OVERWRITE_MODES, type OverwriteMode, type RepositoryConfig } from "@zerobyte/core/restic";
-import { organization, repositoriesTable, tasksTable } from "~/server/db/schema";
+import { organizationSecretsTable, repositoriesTable, tasksTable } from "~/server/db/schema";
 import { generateShortId } from "~/server/utils/id";
-import { INTEGRATION_RUNS_DIR } from "./constants";
-import { createIntegrationRestic } from "./helpers/restic";
+import { INTEGRATION_RUNS_DIR } from "../constants";
+import { createIntegrationRestic } from "../helpers/restic";
 
 process.env.NODE_ENV = "test";
 process.env.APP_SECRET = "8b9acd4456dd5db0a4a3c4f4e1240b2c3ae08bb59690167197425e4a25dd9a69";
@@ -76,9 +76,9 @@ beforeAll(async () => {
 	session = await createTestSession();
 
 	await db
-		.update(organization)
-		.set({ metadata: { resticPassword: await cryptoUtils.sealSecret(resticPassword) } })
-		.where(eq(organization.id, session.organizationId));
+		.update(organizationSecretsTable)
+		.set({ resticPassword: await cryptoUtils.sealSecret(resticPassword) })
+		.where(eq(organizationSecretsTable.organizationId, session.organizationId));
 
 	const { agentsService } = await import("~/server/modules/agents/agents.service");
 	agentManager = await import("~/server/modules/agents/agents-manager");

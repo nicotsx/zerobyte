@@ -16,10 +16,15 @@ import { toMessage } from "../../utils/errors";
 import { config as serverConfig } from "~/server/core/config";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
-import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
+import {
+	decryptNotificationConfig,
+	encryptNotificationConfig,
+	prepareNotificationConfigUpdate,
+} from "./notification-config-secrets";
 import { serverEvents } from "~/server/core/events";
 import { assertNotificationTargetAllowed } from "./utils/notification-target-policy";
 import { normalizeRequiredName } from "~/server/utils/names";
+import { presentNotificationDestination } from "./notification-presentation";
 
 const MAX_DELIVERY_ERROR_LENGTH = 2048;
 
@@ -33,10 +38,10 @@ const listDestinations = async () => {
 		where: { organizationId },
 		orderBy: { name: "asc" },
 	});
-	return destinations;
+	return destinations.map(presentNotificationDestination);
 };
 
-const getDestination = async (id: number) => {
+const findDestination = async (id: number) => {
 	const organizationId = getOrganizationId();
 	const destination = await db.query.notificationDestinationsTable.findFirst({
 		where: { AND: [{ id }, { organizationId }] },
@@ -47,6 +52,10 @@ const getDestination = async (id: number) => {
 	}
 
 	return destination;
+};
+
+const getDestination = async (id: number) => {
+	return presentNotificationDestination(await findDestination(id));
 };
 
 const createDestination = async (name: string, config: NotificationConfig) => {
@@ -75,7 +84,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 		throw new InternalServerError("Failed to create notification destination");
 	}
 
-	return created;
+	return presentNotificationDestination(created);
 };
 
 const updateDestination = async (
@@ -83,7 +92,7 @@ const updateDestination = async (
 	updates: { name?: string; enabled?: boolean; config?: NotificationConfig },
 ) => {
 	const organizationId = getOrganizationId();
-	const existing = await getDestination(id);
+	const existing = await findDestination(id);
 
 	if (!existing) {
 		throw new NotFoundError("Notification destination not found");
@@ -110,15 +119,14 @@ const updateDestination = async (
 		if (!newConfigResult.success) {
 			throw new BadRequestError("Invalid notification configuration");
 		}
-		const newConfig = newConfigResult.data;
-		const resolvedConfig = await decryptNotificationConfig(newConfig);
-		const existingConfig = await decryptNotificationConfig(existing.config);
+		const preparedConfig = await prepareNotificationConfigUpdate(existing.config, newConfigResult.data);
 
-		if (JSON.stringify(resolvedConfig) !== JSON.stringify(existingConfig)) {
+		if (preparedConfig.changed) {
+			const newConfig = preparedConfig.config;
+			const resolvedConfig = await decryptNotificationConfig(newConfig);
 			assertNotificationTargetAllowed(resolvedConfig, serverConfig.webhookAllowedOrigins);
 
-			const encryptedConfig = await encryptNotificationConfig(newConfig);
-			updateData.config = encryptedConfig;
+			updateData.config = newConfig;
 			updateData.type = newConfig.type;
 		}
 	}
@@ -138,12 +146,12 @@ const updateDestination = async (
 		throw new InternalServerError("Failed to update notification destination");
 	}
 
-	return updated;
+	return presentNotificationDestination(updated);
 };
 
 const deleteDestination = async (id: number) => {
 	const organizationId = getOrganizationId();
-	await getDestination(id);
+	await findDestination(id);
 	await db
 		.delete(notificationDestinationsTable)
 		.where(
@@ -177,7 +185,7 @@ const updateDeliveryStatus = async (destinationId: number, result: { success: bo
 };
 
 const testDestination = async (id: number) => {
-	const destination = await getDestination(id);
+	const destination = await findDestination(id);
 	let result: Awaited<ReturnType<typeof sendNotification>>;
 
 	try {
@@ -224,7 +232,12 @@ const getScheduleNotifications = async (scheduleId: number) => {
 		},
 	});
 
-	return assignments.filter((a) => a.destination.organizationId === organizationId);
+	const authorizedAssignments = assignments.filter((a) => a.destination.organizationId === organizationId);
+
+	return authorizedAssignments.map((assignment) => ({
+		...assignment,
+		destination: presentNotificationDestination(assignment.destination),
+	}));
 };
 
 const updateScheduleNotifications = async (

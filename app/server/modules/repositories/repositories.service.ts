@@ -30,7 +30,12 @@ import { findCommonAncestor } from "@zerobyte/core/utils";
 import { prepareSnapshotDump } from "./helpers/dump";
 import { emptyRepositoryStats, refreshStoredRepositoryStats } from "./helpers/repository-stats";
 import { asShortId, type ShortId } from "~/server/utils/branded";
-import { decryptRepositoryConfig, encryptRepositoryConfig } from "./repository-config-secrets";
+import {
+	decryptRepositoryConfig,
+	encryptRepositoryConfig,
+	prepareRepositoryConfigUpdate,
+} from "./repository-config-secrets";
+import { presentRepository } from "./repository-presentation";
 import { commands } from "./commands";
 import { getScheduleByIdOrShortId } from "../backups/helpers/backup-schedule-lookups";
 import { taskStore } from "../tasks/tasks.store";
@@ -123,7 +128,8 @@ const findRepository = async (shortId: ShortId) => {
 const listRepositories = async () => {
 	const organizationId = getOrganizationId();
 	const repositories = await db.query.repositoriesTable.findMany({ where: { organizationId } });
-	return repositories;
+
+	return repositories.map(presentRepository);
 };
 
 const createRepository = async (
@@ -193,7 +199,10 @@ const createRepository = async (
 			.set({ status: "healthy", lastChecked: Date.now(), lastError: null })
 			.where(and(eq(repositoriesTable.id, id), eq(repositoriesTable.organizationId, organizationId)));
 
-		return { repository: created, status: 201 };
+		return {
+			repository: presentRepository(created),
+			status: 201,
+		};
 	}
 
 	const errorMessage = toMessage(error);
@@ -211,7 +220,7 @@ const getRepository = async (shortId: ShortId) => {
 		throw new NotFoundError("Repository not found");
 	}
 
-	return { repository };
+	return { repository: presentRepository(repository) };
 };
 
 const refreshRepositoryStats = async (shortId: ShortId) => {
@@ -677,9 +686,11 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		parsedConfig = nextConfig;
 	}
 
-	const decryptedExisting = await decryptRepositoryConfig(existingConfig);
-	const configChanged = updates.config && JSON.stringify(decryptedExisting) !== JSON.stringify(parsedConfig);
-	const encryptedConfig = updates.config ? await encryptRepositoryConfig(parsedConfig) : existingConfig;
+	const preparedConfig = updates.config
+		? await prepareRepositoryConfigUpdate(existingConfig, parsedConfig)
+		: { config: existingConfig, changed: false };
+	const encryptedConfig = preparedConfig.config;
+	const configChanged = preparedConfig.changed;
 	const resolvedCompressionMode = updates.compressionMode ?? existing.compressionMode;
 	const resolvedAutoCheckEnabled = updates.autoCheckEnabled ?? existing.autoCheckEnabled;
 	const bandwidth = bandwidthFields(parsedConfig);
@@ -718,7 +729,7 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		cache.delByPrefix(cacheKeys.repository.all(existing.id));
 	}
 
-	return { repository: updated };
+	return { repository: presentRepository(updated) };
 };
 
 const unlockRepository = async (shortId: ShortId) => {

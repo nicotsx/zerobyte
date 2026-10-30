@@ -30,22 +30,10 @@ const isEncrypted = (val?: string): boolean => {
 
 /**
  * Given a string, encrypts it using a randomly generated salt and the APP_SECRET.
- * Returns the input unchanged if it's empty or already encrypted.
  */
 const encrypt = async (data: string) => {
 	if (!data) {
 		return data;
-	}
-
-	if (isEncrypted(data)) {
-		try {
-			await decrypt(data);
-			return data;
-		} catch {
-			throw new Error(
-				"You have provided an encrypted value that cannot be decrypted with the current APP_SECRET. Please use a plain text value.",
-			);
-		}
 	}
 
 	const salt = crypto.randomBytes(16);

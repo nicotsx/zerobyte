@@ -17,6 +17,11 @@ import { backupSchedulesTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { fromPartial } from "@total-typescript/shoehorn";
 import type { BackendConfig } from "@zerobyte/contracts/volumes";
+import { cryptoUtils } from "~/server/utils/crypto";
+import { notificationDestinationsTable } from "~/server/db/schema";
+import { ensureTestOrganization } from "~/test/helpers/organization";
+import { encryptNotificationConfig } from "~/server/modules/notifications/notification-config-secrets";
+import { logger } from "@zerobyte/core/node";
 
 const loadStartupModule = async () => {
 	const moduleUrl = new URL("../startup.ts", import.meta.url);
@@ -40,6 +45,71 @@ beforeEach(async () => {
 afterEach(() => {
 	vi.useRealTimers();
 	vi.restoreAllMocks();
+});
+
+test("normalizes encrypted notifications at startup and continues after an unreadable credential", async () => {
+	const actual = await vi.importActual<typeof import("~/server/utils/crypto")>("~/server/utils/crypto");
+	vi.spyOn(cryptoUtils, "sealSecret").mockImplementation(actual.cryptoUtils.sealSecret);
+	vi.spyOn(cryptoUtils, "resolveSecret").mockImplementation(actual.cryptoUtils.resolveSecret);
+	vi.mocked(notificationsService.updateDestination).mockRestore();
+	await ensureTestOrganization();
+	const config = { type: "telegram" as const, botToken: "stored-token", chatId: "123" };
+	const encrypted = await encryptNotificationConfig(config);
+	const [broken, valid] = await db
+		.insert(notificationDestinationsTable)
+		.values([
+			{
+				name: "Broken startup credential",
+				type: "telegram",
+				organizationId: TEST_ORG_ID,
+				config: { ...config, botToken: "encv1:corrupted" },
+				updatedAt: 1,
+			},
+			{
+				name: "Valid startup credential",
+				type: "telegram",
+				organizationId: TEST_ORG_ID,
+				config: encrypted,
+				updatedAt: 1,
+			},
+		])
+		.returning();
+	const error = vi.spyOn(logger, "error");
+	const { prepareStartup: startup } = await loadStartupModule();
+
+	await expect(startup()).resolves.toBeUndefined();
+
+	const updated = await db.query.notificationDestinationsTable.findFirst({ where: { id: valid!.id } });
+	expect(updated?.config).toEqual(encrypted);
+	expect(updated?.updatedAt).toBeGreaterThan(1);
+	expect(error).toHaveBeenCalledWith(
+		expect.stringContaining(`Failed to update notification destination ${broken!.id}:`),
+	);
+});
+
+test("passes decrypted managed-volume credentials to startup normalization", async () => {
+	const actual = await vi.importActual<typeof import("~/server/utils/crypto")>("~/server/utils/crypto");
+	vi.spyOn(cryptoUtils, "resolveSecret").mockImplementation(actual.cryptoUtils.resolveSecret);
+	const config = {
+		backend: "smb" as const,
+		server: "nas",
+		share: "backups",
+		port: 445,
+		vers: "auto" as const,
+		mapToContainerUidGid: false,
+		password: "stored-password",
+	};
+	const volume = await createTestVolume({
+		type: "smb",
+		status: "unmounted",
+		autoRemount: false,
+		config: { ...config, password: await actual.cryptoUtils.sealSecret(config.password) },
+	});
+	const { prepareStartup: startup } = await loadStartupModule();
+
+	await startup();
+
+	expect(volumeService.updateVolume).toHaveBeenCalledWith(volume.shortId, { config });
 });
 
 test("applies current config defaults to stored managed volumes during startup", async () => {

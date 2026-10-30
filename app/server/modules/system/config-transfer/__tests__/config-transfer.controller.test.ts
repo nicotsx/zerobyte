@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
-import { organization, usersTable } from "~/server/db/schema";
+import { organizationSecretsTable, usersTable } from "~/server/db/schema";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { createTestSession } from "~/test/helpers/auth";
@@ -221,7 +221,9 @@ describe("configuration export", () => {
 			.update(usersTable)
 			.set({ hasDownloadedResticPassword: false })
 			.where(eq(usersTable.id, sourceSession.user.id));
-		await db.update(organization).set({ metadata: null }).where(eq(organization.id, sourceSession.organizationId));
+		await db
+			.delete(organizationSecretsTable)
+			.where(eq(organizationSecretsTable.organizationId, sourceSession.organizationId));
 		allowConfigExportPassword();
 
 		const response = await requestConfigExport(sourceSession.headers);

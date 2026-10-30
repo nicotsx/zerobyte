@@ -4,7 +4,13 @@ import { createTestSession, createTestSessionWithGlobalAdmin, getAuthHeaders } f
 import { systemService } from "../system.service";
 import * as authHelpers from "~/server/modules/auth/helpers";
 import { db, sqlite } from "~/server/db/db";
-import { appMetadataTable, organization, sessionsTable, usersTable } from "~/server/db/schema";
+import {
+	appMetadataTable,
+	organization,
+	organizationSecretsTable,
+	sessionsTable,
+	usersTable,
+} from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { config } from "~/server/core/config";
@@ -275,9 +281,9 @@ describe("system security", () => {
 			const encryptedResticPassword = await actualCryptoUtils.sealSecret(resticPassword);
 
 			await db
-				.update(organization)
-				.set({ metadata: { resticPassword: encryptedResticPassword } })
-				.where(eq(organization.id, session.organizationId));
+				.update(organizationSecretsTable)
+				.set({ resticPassword: encryptedResticPassword })
+				.where(eq(organizationSecretsTable.organizationId, session.organizationId));
 			vi.spyOn(authHelpers, "userHasPassword").mockResolvedValueOnce(true);
 			vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(true);
 			vi.spyOn(cryptoUtils, "resolveSecret").mockImplementationOnce(actualCryptoUtils.resolveSecret);
@@ -308,9 +314,9 @@ describe("system security", () => {
 			const verifyPasswordSpy = vi.spyOn(authHelpers, "verifyUserPassword").mockResolvedValueOnce(false);
 
 			await db
-				.update(organization)
-				.set({ metadata: { resticPassword: encryptedResticPassword } })
-				.where(eq(organization.id, desktopAuthSession.organizationId));
+				.update(organizationSecretsTable)
+				.set({ resticPassword: encryptedResticPassword })
+				.where(eq(organizationSecretsTable.organizationId, desktopAuthSession.organizationId));
 			await db
 				.update(usersTable)
 				.set({ hasDownloadedResticPassword: false })

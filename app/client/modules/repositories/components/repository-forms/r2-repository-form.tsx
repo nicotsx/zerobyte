@@ -55,7 +55,7 @@ export const R2RepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Access Key ID</FormLabel>
 						<FormControl>
-							<Input placeholder="Access Key ID from R2 API tokens" {...field} />
+							<SecretInput placeholder="Access Key ID from R2 API tokens" {...field} />
 						</FormControl>
 						<FormDescription>
 							R2 API token Access Key ID (create in Cloudflare R2 dashboard).

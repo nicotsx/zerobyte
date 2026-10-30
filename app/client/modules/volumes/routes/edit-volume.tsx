@@ -103,6 +103,7 @@ export function EditVolumePage({ volumeId }: { volumeId: string }) {
 						{volume.sourceKind === "managed" && (
 							<CreateVolumeForm
 								mode="update"
+								shortId={volume.shortId}
 								formId={formId}
 								initialValues={{ ...volume, ...volume.config }}
 								onSubmit={handleSubmit}

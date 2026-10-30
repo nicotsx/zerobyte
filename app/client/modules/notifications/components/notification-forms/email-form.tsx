@@ -63,7 +63,7 @@ export const EmailForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput {...field} placeholder="••••••••" />
+							<SecretInput allowClear {...field} placeholder="••••••••" />
 						</FormControl>
 						<FormMessage />
 					</FormItem>

@@ -52,7 +52,8 @@ export const volumeController = new Hono()
 	})
 	.post("/test-connection", testConnectionDto, validator("json", testConnectionBody), async (c) => {
 		const body = c.req.valid("json");
-		const result = await volumeService.testConnection(body.config);
+		const shortId = body.shortId ? asShortId(body.shortId) : undefined;
+		const result = await volumeService.testConnection(body.config, shortId);
 
 		return c.json(result, 200);
 	})

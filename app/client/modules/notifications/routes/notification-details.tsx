@@ -55,6 +55,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import type { GetNotificationDestinationResponse } from "~/client/api-client/types.gen";
 import { useTimeFormat } from "~/client/lib/datetime";
+import { STORED_SECRET } from "~/lib/stored-secret";
 
 type NotificationConfig = GetNotificationDestinationResponse["config"];
 type NotificationStatus = GetNotificationDestinationResponse["status"];
@@ -71,7 +72,7 @@ function ConfigRow({ icon, label, value, mono }: Props) {
 			<span className="text-muted-foreground shrink-0">{icon}</span>
 			<span className="text-sm text-muted-foreground w-40 shrink-0">{label}</span>
 			<span className={cn("text-sm break-all", { "font-mono bg-muted/50 px-2 py-0.5 rounded": mono })}>
-				{value}
+				{value === STORED_SECRET ? "Stored credential" : value}
 			</span>
 		</div>
 	);

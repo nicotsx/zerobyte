@@ -99,6 +99,7 @@ export const SMBForm = ({ form }: Props) => {
 						<FormLabel>Password</FormLabel>
 						<FormControl>
 							<SecretInput
+								allowClear
 								placeholder="••••••••"
 								value={field.value ?? ""}
 								onChange={field.onChange}

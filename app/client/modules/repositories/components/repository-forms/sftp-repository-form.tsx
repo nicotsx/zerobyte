@@ -8,6 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
+import { SecretInput } from "~/client/components/ui/secret-input";
 import { Textarea } from "../../../../components/ui/textarea";
 import { Switch } from "../../../../components/ui/switch";
 import type { RepositoryFormValues } from "../create-repository-form";
@@ -89,7 +90,8 @@ export const SftpRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>SSH Private Key</FormLabel>
 						<FormControl>
-							<Textarea
+							<SecretInput
+								multiline
 								{...field}
 								placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
 							/>

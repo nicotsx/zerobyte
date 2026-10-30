@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
-import { organization, repositoriesTable } from "~/server/db/schema";
+import { organizationSecretsTable, repositoriesTable } from "~/server/db/schema";
 import { createTestSession } from "~/test/helpers/auth";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { generateShortId } from "~/server/utils/id";
@@ -24,9 +24,9 @@ describe("createPassphraseProtectedOrganizationConfigExport", () => {
 		const session = await createTestSession();
 		const repositoryShortId = generateShortId();
 		await db
-			.update(organization)
-			.set({ metadata: { resticPassword: "legacy-restic-password" } })
-			.where(eq(organization.id, session.organizationId));
+			.update(organizationSecretsTable)
+			.set({ resticPassword: "legacy-restic-password" })
+			.where(eq(organizationSecretsTable.organizationId, session.organizationId));
 		await db.insert(repositoriesTable).values({
 			id: crypto.randomUUID(),
 			shortId: repositoryShortId,

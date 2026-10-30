@@ -338,6 +338,7 @@ export const CreateRepositoryForm = ({
 										<FormLabel>Repository Password</FormLabel>
 										<FormControl>
 											<SecretInput
+												allowClear
 												placeholder="Enter repository password"
 												value={field.value ?? ""}
 												onChange={field.onChange}

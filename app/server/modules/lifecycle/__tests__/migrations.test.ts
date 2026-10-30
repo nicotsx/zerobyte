@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
+import { organization } from "~/server/db/schema";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestBackupScheduleMirror } from "~/test/helpers/backup-mirror";
 import { createTestRepository } from "~/test/helpers/repository";
 import { v00008 } from "../migrations/00008-backfill-mirror-sync-tasks";
+import { v00009 } from "../migrations/00009-separate-organization-secrets";
 
 const createLegacyMirror = async (lastCopyStatus: "success" | "error" | "in_progress", lastCopyAt: number | null) => {
 	const schedule = await createTestBackupSchedule();
@@ -80,5 +82,34 @@ describe("00008-backfill-mirror-sync-tasks", () => {
 
 	test("is critical", () => {
 		expect(v00008.type).toBe("critical");
+	});
+});
+import { randomUUID } from "node:crypto";
+
+describe("00009-separate-organization-secrets", () => {
+	test("moves legacy metadata once and clears the public organization record", async () => {
+		const organizationId = randomUUID();
+		await db.insert(organization).values({
+			id: organizationId,
+			name: "Legacy Organization",
+			slug: `legacy-${organizationId}`,
+			createdAt: new Date(),
+			metadata: { resticPassword: "sealed-recovery-secret", retained: "public-value" },
+		});
+
+		await expect(v00009.execute()).resolves.toEqual({ success: true, errors: [] });
+		await expect(v00009.execute()).resolves.toEqual({ success: true, errors: [] });
+
+		const [storedOrganization, storedSecrets] = await Promise.all([
+			db.query.organization.findFirst({ where: { id: organizationId } }),
+			db.query.organizationSecretsTable.findFirst({ where: { organizationId } }),
+		]);
+
+		expect(storedOrganization?.metadata).toEqual({ retained: "public-value" });
+		expect(storedSecrets?.resticPassword).toBe("sealed-recovery-secret");
+	});
+
+	test("is critical", () => {
+		expect(v00009.type).toBe("critical");
 	});
 });

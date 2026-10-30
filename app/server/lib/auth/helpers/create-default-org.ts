@@ -1,6 +1,6 @@
 import { UnauthorizedError } from "http-errors-enhanced";
 import { db } from "~/server/db/db";
-import { member, organization, type User } from "~/server/db/schema";
+import { member, organization, organizationSecretsTable, type User } from "~/server/db/schema";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { logger } from "@zerobyte/core/node";
 
@@ -27,11 +27,14 @@ function buildOrgSlug(email: string) {
 }
 
 export type DefaultOrganizationData = {
-	id: string;
-	name: string;
-	slug: string;
-	createdAt: Date;
-	metadata: {
+	organization: {
+		id: string;
+		name: string;
+		slug: string;
+		createdAt: Date;
+	};
+	secret: {
+		organizationId: string;
 		resticPassword: string;
 	};
 };
@@ -43,11 +46,14 @@ export async function buildDefaultOrganizationData(
 	const resticPassword = cryptoUtils.generateResticPassword();
 
 	return {
-		id: organizationId,
-		name: `${user.name}'s Workspace`,
-		slug: buildOrgSlug(user.email),
-		createdAt: new Date(),
-		metadata: {
+		organization: {
+			id: organizationId,
+			name: `${user.name}'s Workspace`,
+			slug: buildOrgSlug(user.email),
+			createdAt: new Date(),
+		},
+		secret: {
+			organizationId,
 			resticPassword: await cryptoUtils.sealSecret(resticPassword),
 		},
 	};
@@ -58,14 +64,15 @@ async function createDefaultOrganizationMembership(user: User) {
 	const organizationData = await buildDefaultOrganizationData(user);
 
 	db.transaction((tx) => {
-		tx.insert(organization).values(organizationData).run();
+		tx.insert(organization).values(organizationData.organization).run();
+		tx.insert(organizationSecretsTable).values(organizationData.secret).run();
 
 		tx.insert(member)
 			.values({
 				id: Bun.randomUUIDv7(),
 				userId: user.id,
 				role: "owner",
-				organizationId: organizationData.id,
+				organizationId: organizationData.organization.id,
 				createdAt: new Date(),
 			})
 			.run();

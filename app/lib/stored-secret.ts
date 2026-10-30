@@ -1,0 +1,1 @@
+export const STORED_SECRET = "__ZEROBYTE_STORED_SECRET__";

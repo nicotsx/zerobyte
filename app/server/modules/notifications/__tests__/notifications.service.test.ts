@@ -7,6 +7,8 @@ import * as shoutrrr from "~/server/utils/shoutrrr";
 import { notificationsService } from "../notifications.service";
 import { serverEvents } from "~/server/core/events";
 import { cryptoUtils } from "~/server/utils/crypto";
+import { STORED_SECRET } from "~/server/utils/stored-secret";
+import type { NotificationConfig } from "~/schemas/notifications";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -108,8 +110,53 @@ describe("notificationsService.updateDestination", () => {
 			const updated = await notificationsService.updateDestination(destination.id, { name: "Renamed webhook" });
 
 			expect(updated.name).toBe("Renamed webhook");
-			expect(updated.config).toMatchObject({ type: "custom", shoutrrrUrl: "encv1:stored-secret" });
+			expect(updated.config).toMatchObject({ type: "custom", shoutrrrUrl: STORED_SECRET });
 			expect(resolveSecretSpy).not.toHaveBeenCalled();
+		});
+	});
+
+	test("preserves credentials only for the same notification authority", async () => {
+		const { organizationId, user } = await createTestSession();
+
+		await withContext({ organizationId, userId: user.id }, async () => {
+			const [destination] = await db
+				.insert(notificationDestinationsTable)
+				.values({
+					name: "Email",
+					type: "email",
+					config: {
+						type: "email",
+						smtpHost: "smtp.example.com",
+						smtpPort: 465,
+						username: "backup",
+						password: "encv1:stored-password",
+						from: "backup@example.com",
+						to: ["admin@example.com"],
+						useTLS: true,
+					},
+					organizationId,
+				})
+				.returning();
+
+			const presented = await notificationsService.getDestination(destination.id);
+			const presentedConfig = presented.config as Extract<NotificationConfig, { type: "email" }>;
+			expect(presented.config).toMatchObject({ password: STORED_SECRET });
+
+			await expect(
+				notificationsService.updateDestination(destination.id, { config: presentedConfig }),
+			).resolves.toMatchObject({ config: { password: STORED_SECRET } });
+
+			await expect(
+				notificationsService.updateDestination(destination.id, {
+					config: { ...presentedConfig, smtpHost: "other.example.com" },
+				}),
+			).rejects.toThrow("re-entered");
+
+			await expect(
+				notificationsService.updateDestination(destination.id, {
+					config: { ...presentedConfig, password: "encv1:other-record" },
+				}),
+			).rejects.toThrow("plaintext");
 		});
 	});
 

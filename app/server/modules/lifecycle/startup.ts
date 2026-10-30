@@ -18,16 +18,24 @@ import { syncProvisionedResources } from "../provisioning/provisioning";
 import { toMessage } from "~/server/utils/errors";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { RESTART_TASK_ERROR, taskStore } from "../tasks/tasks.store";
+import { decryptNotificationConfig } from "../notifications/notification-config-secrets";
+import { decryptVolumeConfig } from "../volumes/volume-config-secrets";
 
 const ensureLatestConfigurationSchema = async () => {
 	const volumes = await db.query.volumesTable.findMany({});
 
 	for (const volume of volumes) {
 		await withContext({ organizationId: volume.organizationId }, async () => {
-			const update = volume.sourceKind === "filesystem" ? {} : { config: volume.config ?? undefined };
-			await volumeService.updateVolume(volume.shortId, update).catch((err) => {
-				logger.error(`Failed to update volume ${volume.name}: ${err}`);
-			});
+			try {
+				let update: Parameters<typeof volumeService.updateVolume>[1] = {};
+				if (volume.sourceKind !== "filesystem" && volume.config) {
+					update = { config: await decryptVolumeConfig(volume.config) };
+				}
+
+				await volumeService.updateVolume(volume.shortId, update);
+			} catch (err) {
+				logger.error(`Failed to update volume ${volume.name}: ${String(err)}`);
+			}
 		});
 	}
 
@@ -45,9 +53,12 @@ const ensureLatestConfigurationSchema = async () => {
 
 	for (const notification of notifications) {
 		await withContext({ organizationId: notification.organizationId }, async () => {
-			await notificationsService.updateDestination(notification.id, notification).catch((err) => {
-				logger.error(`Failed to update notification destination ${notification.id}: ${err}`);
-			});
+			try {
+				const config = await decryptNotificationConfig(notification.config);
+				await notificationsService.updateDestination(notification.id, { ...notification, config });
+			} catch (err) {
+				logger.error(`Failed to update notification destination ${notification.id}: ${String(err)}`);
+			}
 		});
 	}
 };

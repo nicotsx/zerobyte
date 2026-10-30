@@ -156,6 +156,7 @@ export const updateVolumeDto = describeRoute({
 
 export const testConnectionBody = z.object({
 	config: volumeConfigSchema,
+	shortId: z.string().min(1).optional(),
 });
 
 const testConnectionResponse = testVolumeConnectionResponseSchema;

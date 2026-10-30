@@ -1,6 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { HttpResponse, http, server } from "~/test/msw/server";
 import { cleanup, render, screen, userEvent } from "~/test/test-utils";
+import { STORED_SECRET } from "~/lib/stored-secret";
 
 const navigateMock = vi.fn(async () => {});
 
@@ -57,6 +58,53 @@ const selectBackend = async (backend: string) => {
 afterEach(() => {
 	navigateMock.mockClear();
 	cleanup();
+});
+
+test("saves repository edits while preserving stored credentials", async () => {
+	const config = {
+		backend: "s3",
+		endpoint: "s3.example.com",
+		bucket: "backups",
+		accessKeyId: STORED_SECRET,
+		secretAccessKey: STORED_SECRET,
+	};
+	let submittedBody: Record<string, unknown> | undefined;
+	server.use(
+		http.get("/api/v1/repositories/repo-1", () => HttpResponse.json({ ...repository, type: "s3", config })),
+		http.patch("/api/v1/repositories/repo-1", async ({ request }) => {
+			submittedBody = (await request.json()) as Record<string, unknown>;
+			return HttpResponse.json({ ...repository, config });
+		}),
+	);
+
+	render(<EditRepositoryPage repositoryId="repo-1" />, { withSuspense: true });
+	expect(await screen.findByLabelText("Access Key ID")).toHaveProperty("value", "Stored credential");
+	expect(screen.getByLabelText("Secret Access Key")).toHaveProperty("value", "Stored credential");
+	expect(screen.queryByRole("button", { name: "Clear" })).toBeNull();
+	await userEvent.clear(screen.getByLabelText("Name"));
+	await userEvent.type(screen.getByLabelText("Name"), "Renamed repository");
+	await userEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+	await expect.poll(() => submittedBody).toMatchObject({ name: "Renamed repository", config });
+});
+
+test("clears an optional stored credential through repository form validation", async () => {
+	const config = { backend: "rest", url: "https://backup.example.com", username: "backup", password: STORED_SECRET };
+	let submittedBody: Record<string, unknown> | undefined;
+	server.use(
+		http.get("/api/v1/repositories/repo-1", () => HttpResponse.json({ ...repository, type: "rest", config })),
+		http.patch("/api/v1/repositories/repo-1", async ({ request }) => {
+			submittedBody = (await request.json()) as Record<string, unknown>;
+			return HttpResponse.json({ ...repository, config });
+		}),
+	);
+
+	render(<EditRepositoryPage repositoryId="repo-1" />, { withSuspense: true });
+	await screen.findByLabelText("Password (Optional)");
+	await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+	await userEvent.click(screen.getByRole("button", { name: "Clear credential" }));
+	expect(submittedBody).toBeUndefined();
+	await userEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+	await expect.poll(() => submittedBody).toMatchObject({ config: { ...config, password: "" } });
 });
 
 test("creates repositories with scheduled health checks enabled by default and preserves the choice across backend changes", async () => {

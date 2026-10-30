@@ -8,7 +8,7 @@ import {
 	FormMessage,
 } from "../../../../components/ui/form";
 import { Input } from "../../../../components/ui/input";
-import { Textarea } from "../../../../components/ui/textarea";
+import { SecretInput } from "~/client/components/ui/secret-input";
 import { Checkbox } from "../../../../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../../components/ui/tooltip";
@@ -243,7 +243,9 @@ export const AdvancedForm = ({ form }: Props) => {
 								<Tooltip delayDuration={500}>
 									<TooltipTrigger asChild>
 										<div>
-											<Textarea
+											<SecretInput
+												allowClear
+												multiline
 												placeholder={
 													"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
 												}

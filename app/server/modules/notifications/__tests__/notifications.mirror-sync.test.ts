@@ -3,6 +3,7 @@ import { db } from "~/server/db/db";
 import { backupScheduleNotificationsTable, notificationDestinationsTable } from "~/server/db/schema";
 import { withContext } from "~/server/core/request-context";
 import { serverEvents } from "~/server/core/events";
+import { STORED_SECRET } from "~/server/utils/stored-secret";
 import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { createTestOrganization } from "~/test/helpers/organization";
 import * as shoutrrr from "~/server/utils/shoutrrr";
@@ -53,7 +54,7 @@ test("sends an identifiable mirror failure to encrypted schedule destinations an
 		notificationsService.sendMirrorSyncFailureNotification(schedule.id, mirrorContext),
 	);
 
-	expect(destination.config).toMatchObject({ shoutrrrUrl: expect.stringMatching(/^encv1:/) });
+	expect(destination.config).toMatchObject({ shoutrrrUrl: STORED_SECRET });
 	expect(send).toHaveBeenCalledExactlyOnceWith({
 		shoutrrrUrl: "discord://token@webhookid",
 		title: "Zerobyte Nightly backup mirror sync failed",

@@ -1,6 +1,7 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
+import { SecretInput } from "~/client/components/ui/secret-input";
 import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
@@ -17,7 +18,7 @@ export const SlackForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Webhook URL</FormLabel>
 						<FormControl>
-							<Input
+							<SecretInput
 								{...field}
 								placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
 							/>

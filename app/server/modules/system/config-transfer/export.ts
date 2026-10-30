@@ -46,7 +46,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 		backupScheduleMirrors,
 		backupScheduleNotifications,
 	} = db.transaction((tx) => {
-		const organization = tx.query.organization.findFirst({ where: { id: organizationId } }).sync();
+		const organizationSecrets = tx.query.organizationSecretsTable.findFirst({ where: { organizationId } }).sync();
 		const repositories = tx.query.repositoriesTable.findMany({ where: { organizationId } }).sync();
 		const machines = tx.query.agentsTable.findMany({ where: { organizationId, kind: "remote" } }).sync();
 		const volumes = tx.query.volumesTable.findMany({ where: { organizationId } }).sync();
@@ -64,7 +64,7 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 			.sync();
 
 		return {
-			resticPasswordCiphertext: organization?.metadata?.resticPassword,
+			resticPasswordCiphertext: organizationSecrets?.resticPassword,
 			repositories,
 			machines,
 			volumes,
