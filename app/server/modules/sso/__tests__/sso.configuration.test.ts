@@ -15,7 +15,7 @@ const discoveryEndpoint = `${issuer}/.well-known/openid-configuration`;
 beforeAll(async () => {
 	(await auth.$context).trustedOrigins.push(issuer);
 	config.trustedOrigins.push(issuer);
-	server.listen({ onUnhandledRequest: "error" });
+	server.enable();
 });
 
 afterEach(() => server.resetHandlers());
@@ -23,7 +23,7 @@ afterAll(async () => {
 	const context = await auth.$context;
 	context.trustedOrigins.splice(context.trustedOrigins.indexOf(issuer), 1);
 	config.trustedOrigins.splice(config.trustedOrigins.indexOf(issuer), 1);
-	server.close();
+	server.disable();
 });
 
 async function setup(linked = false) {
