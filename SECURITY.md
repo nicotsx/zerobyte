@@ -73,3 +73,13 @@ Only report issues when they violate this trust model, for example:
 - Unsafe dev-only features enabled without the documented gate
 - Vulnerabilities in parsing untrusted external data from repositories/backends/notifications
 - Persistence corruption, data loss, or workflow bypass not intended by operator actions
+
+### Restore operations and mistake prevention
+
+Users authorized to perform restores are trusted machine operators, including organization members with restore access. Restoring selected snapshots to their original locations, including snapshots sourced from `/`, is intentional behavior.
+
+Restores run with the filesystem permissions of the executing server or agent. They can overwrite writable host files, including application code and runtime state. Organization membership does not sandbox the host filesystem effects of an authorized restore.
+
+Restore destination checks provide best-effort protection against obvious operational mistakes. They are not a security sandbox or a comprehensive boundary protecting application directories. Bypassing those checks alone does not establish a vulnerability.
+
+Authentication, explicit role restrictions, organization-scoped resource access, and the operator's selected restore scope remain security boundaries.
