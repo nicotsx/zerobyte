@@ -21,7 +21,7 @@ const setup = (releases: ReturnType<typeof release>[], currentVersion = "v0.43.0
 	server.use(http.get("https://api.github.com/repos/nicotsx/zerobyte/releases", () => HttpResponse.json(releases)));
 };
 
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+beforeAll(() => server.enable());
 
 afterEach(() => {
 	cache.del(cacheKeys.system.githubReleases(config.appVersion));
@@ -29,7 +29,7 @@ afterEach(() => {
 	server.resetHandlers();
 });
 
-afterAll(() => server.close());
+afterAll(() => server.disable());
 
 test("ignores a normal semver tag marked as a GitHub prerelease", async () => {
 	setup([release("v0.43.1", true), release("v0.43.0")]);

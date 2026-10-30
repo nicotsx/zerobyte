@@ -26,7 +26,7 @@ beforeAll(() => {
 	visibilityStyles.textContent = ".hidden { display: none; }";
 	document.head.append(visibilityStyles);
 
-	server.listen({ onUnhandledRequest: "error" });
+	server.enable();
 });
 
 afterEach(() => {
@@ -34,5 +34,5 @@ afterEach(() => {
 });
 
 afterAll(() => {
-	server.close();
+	server.disable();
 });

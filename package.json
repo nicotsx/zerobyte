@@ -118,6 +118,7 @@
 		"@faker-js/faker": "^10.6.0",
 		"@hey-api/openapi-ts": "^0.99.0",
 		"@libsql/client": "^0.18.0",
+		"@mswjs/interceptors": "^0.45.10",
 		"@playwright/test": "^1.64.1",
 		"@rolldown/plugin-babel": "^0.2.4",
 		"@tailwindcss/typography": "^0.5.20",
