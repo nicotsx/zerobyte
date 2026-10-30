@@ -1,3 +1,4 @@
+import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { auth } from "~/server/lib/auth";
 import { db } from "~/server/db/db";
@@ -5,6 +6,7 @@ import { getPermission, hasFeature, withContext } from "~/server/core/request-co
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
 import type { AuthSource, Permission, RuntimeFeature } from "~/lib/permission-policy";
 import { getSessionAuthSource, invalidateAuthSession, isSessionAuthSourceAllowed } from "./helpers";
+import { isAuthorizationGrantCurrent, type AuthorizationGrant } from "./authorization-grant";
 
 const API_KEY_HEADER = "x-api-key";
 type AuthenticatedUser = {
@@ -22,6 +24,7 @@ declare module "hono" {
 		organizationId: string;
 		membership: { role: string };
 		authSource: AuthSource;
+		authorizationGrant: AuthorizationGrant;
 	}
 }
 
@@ -43,6 +46,10 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	let authSource: AuthSource = apiKeyValue ? "api-key" : "browser-session";
 	let user: AuthenticatedUser | undefined;
 	let activeOrganizationId: string | null | undefined;
+	let credential:
+		| Pick<Extract<AuthorizationGrant, { kind: "api-key" }>, "kind" | "apiKeyId">
+		| Pick<Extract<AuthorizationGrant, { kind: "session" }>, "kind" | "token" | "authSource">
+		| undefined;
 
 	if (apiKeyValue && !c.req.path.startsWith("/api/v1")) {
 		return c.json<unknown>({ message: "API key authentication is only supported for API v1 routes" }, 401);
@@ -58,6 +65,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 
 		user = await db.query.usersTable.findFirst({ where: { id: apiKey.referenceId } });
 		activeOrganizationId = await getApiKeyOrganizationId(apiKey.id);
+		credential = { kind: "api-key", apiKeyId: apiKey.id };
 	} else {
 		const sess = await auth.api.getSession({ headers: c.req.raw.headers });
 
@@ -71,10 +79,11 @@ export const requireAuth = createMiddleware(async (c, next) => {
 			user = sess.user;
 			activeOrganizationId = sess.session.activeOrganizationId;
 			authSource = getSessionAuthSource(sess.session.authSource);
+			credential = { kind: "session", token: sess.session.token, authSource };
 		}
 	}
 
-	if (!user) {
+	if (!user || !credential) {
 		return c.json<unknown>({ message: "Invalid or expired session" }, 401);
 	}
 
@@ -100,6 +109,7 @@ export const requireAuth = createMiddleware(async (c, next) => {
 	c.set("organizationId", activeOrganizationId);
 	c.set("membership", membership);
 	c.set("authSource", authSource);
+	c.set("authorizationGrant", { ...credential, userId: user.id, organizationId: activeOrganizationId });
 
 	await withContext(
 		{
@@ -114,6 +124,8 @@ export const requireAuth = createMiddleware(async (c, next) => {
 		},
 	);
 });
+
+export const isRequestAuthorizationCurrent = (c: Context) => isAuthorizationGrantCurrent(c.get("authorizationGrant"));
 
 export const requireBrowserSession = createMiddleware(async (c, next) => {
 	if (c.get("authSource") !== "browser-session") {

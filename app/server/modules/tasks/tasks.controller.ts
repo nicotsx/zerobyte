@@ -3,7 +3,7 @@ import { validator } from "hono-openapi";
 import { ConflictError, NotFoundError } from "http-errors-enhanced";
 import { taskChangedEventName, tasksSnapshotEventName, type TaskEventPayloadMap } from "~/schemas/task-events";
 import { streamEvents } from "../events/server-event-stream";
-import { requireAuth } from "../auth/auth.middleware";
+import { isRequestAuthorizationCurrent, requireAuth } from "../auth/auth.middleware";
 import {
 	getTaskDto,
 	cancelTaskDto,
@@ -52,6 +52,7 @@ export const tasksController = new Hono()
 		return streamEvents<TaskEventPayloadMap, typeof taskChangedEventName>(c, {
 			connectionLabel: "filtered tasks",
 			events: [taskChangedEventName],
+			authorize: () => isRequestAuthorizationCurrent(c),
 			onConnected: async (stream) => {
 				const activeTasks = taskStore.listActive(filter);
 				const taskData = activeTasks.map(toTaskDto);
@@ -89,6 +90,7 @@ export const tasksController = new Hono()
 		return streamEvents<TaskEventPayloadMap, typeof taskChangedEventName>(c, {
 			connectionLabel: `task ${taskId}`,
 			events: [taskChangedEventName],
+			authorize: () => isRequestAuthorizationCurrent(c),
 			onConnected: async (stream) => {
 				const currentTask = taskStore.findById({ organizationId, taskId });
 				if (!currentTask) return;

@@ -2,8 +2,24 @@ import { describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { serverEvents } from "~/server/core/events";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
+import { db } from "~/server/db/db";
+import { sessionsTable } from "~/server/db/schema";
+import { eq } from "drizzle-orm";
 
 const app = createApp();
+
+const readUntil = async (reader: ReadableStreamDefaultReader<Uint8Array>, matcher: string) => {
+	const decoder = new TextDecoder();
+	let text = "";
+
+	for (let i = 0; i < 10 && !text.includes(matcher); i++) {
+		const result = await reader.read();
+		if (result.done) break;
+		text += decoder.decode(result.value, { stream: true });
+	}
+
+	return text;
+};
 
 describe("events security", () => {
 	test("should return 401 if no session cookie is provided", async () => {
@@ -87,6 +103,32 @@ describe("events security", () => {
 			expect(serverEvents.listenerCount("task:history-changed")).toBe(initialCount);
 		} finally {
 			await res.body?.cancel();
+		}
+	});
+
+	test("closes and unsubscribes an existing stream when its session ends", async () => {
+		const session = await createTestSession();
+		const initialCount = serverEvents.listenerCount("volume:updated");
+		const response = await app.request("/api/v1/events", { headers: session.headers });
+		const reader = response.body!.getReader();
+
+		try {
+			await readUntil(reader, "event: connected");
+			expect(serverEvents.listenerCount("volume:updated")).toBe(initialCount + 1);
+
+			await db.delete(sessionsTable).where(eq(sessionsTable.userId, session.user.id));
+			serverEvents.emit("volume:updated", {
+				organizationId: session.organizationId,
+				volumeName: "revoked-volume",
+			});
+
+			const streamText = await readUntil(reader, "revoked-volume");
+			expect(streamText).not.toContain("revoked-volume");
+			await expect(reader.read()).resolves.toMatchObject({ done: true });
+			expect(serverEvents.listenerCount("volume:updated")).toBe(initialCount);
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
 		}
 	});
 

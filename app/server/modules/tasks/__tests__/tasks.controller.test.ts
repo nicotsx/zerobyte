@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import { createApp } from "~/server/app";
 import { db } from "~/server/db/db";
-import { tasksTable } from "~/server/db/schema";
+import { apikey, member, sessionsTable, tasksTable } from "~/server/db/schema";
 import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
 import type { TaskResourceType } from "~/schemas/tasks";
 import { createTestSession } from "~/test/helpers/auth";
 import { taskStore } from "../tasks.store";
 import { runTaskLifecycle } from "../tasks.lifecycle";
+import { eq } from "drizzle-orm";
+import { authService } from "~/server/modules/auth/auth.service";
+import { auth } from "~/server/lib/auth";
 
 const app = createApp();
 
@@ -119,6 +122,132 @@ beforeEach(async () => {
 });
 
 describe("tasksController", () => {
+	test("closes an existing task stream when organization access is removed", async () => {
+		const removedSession = await createTestSession();
+		const targetSession = await createTestSession();
+		const membershipId = crypto.randomUUID();
+
+		await db.insert(member).values({
+			id: membershipId,
+			organizationId: targetSession.organizationId,
+			userId: removedSession.user.id,
+			role: "member",
+			createdAt: new Date(),
+		});
+		await db
+			.update(sessionsTable)
+			.set({ activeOrganizationId: targetSession.organizationId })
+			.where(eq(sessionsTable.userId, removedSession.user.id));
+
+		const streamResponse = await app.request("/api/v1/tasks/events", { headers: removedSession.headers });
+		const reader = streamResponse.body!.getReader();
+		const decoder = new TextDecoder();
+
+		try {
+			let streamText = await readReaderUntil(reader, decoder, "", tasksSnapshotEventName);
+
+			await authService.removeOrgMember(membershipId, targetSession.organizationId);
+			const task = createRestoreTask(targetSession.organizationId);
+			streamText = await readReaderUntil(reader, decoder, streamText, task.id);
+
+			expect(streamText).not.toContain(task.id);
+			await expect(reader.read()).resolves.toMatchObject({ done: true });
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
+	});
+
+	test("closes an existing task stream when its session ends", async () => {
+		const session = await createTestSession();
+		const streamResponse = await app.request("/api/v1/tasks/events", { headers: session.headers });
+		const reader = streamResponse.body!.getReader();
+		const decoder = new TextDecoder();
+
+		try {
+			let streamText = await readReaderUntil(reader, decoder, "", tasksSnapshotEventName);
+
+			await db.delete(sessionsTable).where(eq(sessionsTable.userId, session.user.id));
+			const task = createRestoreTask(session.organizationId);
+			streamText = await readReaderUntil(reader, decoder, streamText, task.id);
+
+			expect(streamText).not.toContain(task.id);
+			await expect(reader.read()).resolves.toMatchObject({ done: true });
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
+	});
+
+	test("closes an existing task stream when its API key is revoked", async () => {
+		const session = await createTestSession();
+		const apiKey = await auth.api.createApiKey({
+			body: {
+				name: "Task stream",
+				userId: session.user.id,
+				metadata: { organizationId: session.organizationId },
+				rateLimitEnabled: false,
+			},
+		});
+		const streamResponse = await app.request("/api/v1/tasks/events", {
+			headers: { "x-api-key": apiKey.key },
+		});
+		const reader = streamResponse.body!.getReader();
+		const decoder = new TextDecoder();
+
+		try {
+			let streamText = await readReaderUntil(reader, decoder, "", tasksSnapshotEventName);
+
+			await db.delete(apikey).where(eq(apikey.id, apiKey.id));
+			const task = createRestoreTask(session.organizationId);
+			streamText = await readReaderUntil(reader, decoder, streamText, task.id);
+
+			expect(streamText).not.toContain(task.id);
+			await expect(reader.read()).resolves.toMatchObject({ done: true });
+		} finally {
+			void reader.cancel();
+			reader.releaseLock();
+		}
+	});
+
+	test("does not count authorization refreshes as API key requests", async () => {
+		const session = await createTestSession();
+		const apiKey = await auth.api.createApiKey({
+			body: {
+				name: "Task stream usage",
+				userId: session.user.id,
+				metadata: { organizationId: session.organizationId },
+				rateLimitEnabled: false,
+			},
+		});
+		const streamResponse = await app.request("/api/v1/tasks/events", {
+			headers: { "x-api-key": apiKey.key },
+		});
+		const reader = streamResponse.body!.getReader();
+		const decoder = new TextDecoder();
+
+		try {
+			let streamText = await readReaderUntil(reader, decoder, "", tasksSnapshotEventName);
+			const usageBeforeEvent = await db.query.apikey.findFirst({
+				where: { id: apiKey.id },
+				columns: { lastRequest: true, requestCount: true, remaining: true },
+			});
+
+			const task = createRestoreTask(session.organizationId);
+			streamText = await readReaderUntil(reader, decoder, streamText, task.id);
+
+			const usageAfterEvent = await db.query.apikey.findFirst({
+				where: { id: apiKey.id },
+				columns: { lastRequest: true, requestCount: true, remaining: true },
+			});
+			expect(streamText).toContain(task.id);
+			expect(usageAfterEvent).toEqual(usageBeforeEvent);
+		} finally {
+			await reader.cancel();
+			reader.releaseLock();
+		}
+	});
+
 	test("hides mirror status lookups from global task lists and streams but keeps task-specific access", async () => {
 		const session = await createTestSession();
 		const task = createMirrorStatusTask(session.organizationId);
