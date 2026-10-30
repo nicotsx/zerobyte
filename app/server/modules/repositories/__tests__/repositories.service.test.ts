@@ -237,6 +237,58 @@ describe("repositoriesService.updateRepository", () => {
 			),
 		).rejects.toThrow("Repository name cannot be empty");
 	});
+
+	test("allows correcting an invalid stored rclone reference", async () => {
+		const repository = await createTestRepository(session.organizationId, {
+			type: "rclone",
+			config: { backend: "rclone", remote: "archive,chunk_size=10M", path: "backups" },
+			status: "healthy",
+			stats: {
+				total_size: 1,
+				total_uncompressed_size: 1,
+				compression_ratio: 1,
+				compression_progress: 100,
+				compression_space_saving: 0,
+				snapshots_count: 1,
+			},
+		});
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, {
+					config: { backend: "rclone", remote: "other,chunk_size=10M", path: "backups" },
+				}),
+			),
+		).rejects.toThrow("Invalid repository configuration");
+		expect(await db.query.repositoriesTable.findFirst({ where: { id: repository.id } })).toEqual(repository);
+
+		await withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+			repositoriesService.updateRepository(repository.shortId, {
+				config: { backend: "rclone", remote: "archive", path: "backups" },
+			}),
+		);
+
+		const updated = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+
+		expect(updated).toMatchObject({
+			config: { backend: "rclone", remote: "archive", path: "backups" },
+			status: "unknown",
+			stats: null,
+		});
+	});
+
+	test("rejects metadata updates for an invalid stored rclone reference", async () => {
+		const repository = await createTestRepository(session.organizationId, {
+			type: "rclone",
+			config: { backend: "rclone", remote: "archive,chunk_size=10M", path: "backups" },
+		});
+
+		await expect(
+			withContext({ organizationId: session.organizationId, userId: session.user.id }, () =>
+				repositoriesService.updateRepository(repository.shortId, { name: "renamed" }),
+			),
+		).rejects.toThrow("Invalid repository configuration");
+	});
 });
 
 describe("repositoriesService.checkHealth", () => {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rcloneRemoteNameSchema } from "@zerobyte/core/restic";
 
 export const BACKEND_TYPES = {
 	nfs: "nfs",
@@ -65,7 +66,7 @@ export const webdavConfigSchema = z.object({
 
 export const rcloneConfigSchema = z.object({
 	backend: z.literal("rclone"),
-	remote: z.string().min(1),
+	remote: rcloneRemoteNameSchema,
 	path: z.string().min(1),
 	readOnly: z.boolean().optional(),
 });

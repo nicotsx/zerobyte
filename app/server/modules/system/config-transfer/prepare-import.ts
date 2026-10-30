@@ -1,3 +1,4 @@
+import { rcloneRemoteNameSchema } from "@zerobyte/core/restic";
 import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { config as serverConfig } from "~/server/core/config";
 import { validateScheduleTiming } from "~/server/modules/backups/backup.helpers";
@@ -51,6 +52,21 @@ const validateSchedules = (schedules: ConfigTransferModel["backupSchedules"]) =>
 				throw new InvalidConfigTransferError();
 			}
 		}
+	}
+};
+
+const validateBackendReferences = (payload: ConfigTransferModel) => {
+	try {
+		for (const repository of payload.repositories) {
+			if (repository.config.backend === "rclone") rcloneRemoteNameSchema.parse(repository.config.remote);
+		}
+		for (const volume of payload.volumes) {
+			if (volume.sourceKind === "managed" && volume.config.backend === "rclone") {
+				rcloneRemoteNameSchema.parse(volume.config.remote);
+			}
+		}
+	} catch {
+		throw new InvalidConfigTransferError();
 	}
 };
 
@@ -212,6 +228,7 @@ export const prepareImport = async (
 	payload: ConfigTransferModel,
 ): Promise<{ prepared: PreparedImport; warnings: string[] }> => {
 	const normalizedPayload = normalizeImportedNames(payload);
+	validateBackendReferences(normalizedPayload);
 	validateSchedules(normalizedPayload.backupSchedules);
 	await validateMirrors(normalizedPayload);
 	const systemInfo = await systemService.getSystemInfo();

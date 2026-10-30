@@ -1,4 +1,5 @@
 import type { RepositoryConfig } from "../schemas";
+import { buildRcloneRemotePath } from "./rclone-remote";
 
 export const buildRepoUrl = (config: RepositoryConfig): string => {
 	switch (config.backend) {
@@ -20,7 +21,7 @@ export const buildRepoUrl = (config: RepositoryConfig): string => {
 		case "azure":
 			return `azure:${config.container}:/`;
 		case "rclone":
-			return `rclone:${config.remote}:${config.path}`;
+			return `rclone:${buildRcloneRemotePath(config.remote, config.path)}`;
 		case "rest": {
 			const pathSuffix = config.path ? `/${config.path}` : "";
 			return `rest:${config.url}${pathSuffix}`;

@@ -22,6 +22,7 @@ import type { ResticDeps } from "./types";
 export { addCommonArgs } from "./helpers/add-common-args";
 export { buildEnv } from "./helpers/build-env";
 export { buildRepoUrl } from "./helpers/build-repo-url";
+export { buildRcloneRemotePath } from "./helpers/rclone-remote";
 export { cleanupTemporaryKeys } from "./helpers/cleanup-temporary-keys";
 export { validateCustomResticParams } from "./helpers/validate-custom-params";
 export { isResticError, ResticError, ResticLockError } from "./error";

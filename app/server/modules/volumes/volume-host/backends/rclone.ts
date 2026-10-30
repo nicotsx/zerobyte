@@ -2,6 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import type { BackendConfig } from "@zerobyte/contracts/volumes";
 import { logger, safeExec } from "@zerobyte/core/node";
+import { buildRcloneRemotePath } from "@zerobyte/core/restic";
 import { toMessage } from "@zerobyte/core/utils";
 import { OPERATION_TIMEOUT, RCLONE_CONFIG_FILE, RCLONE_TIMEOUT } from "../constants";
 import { withTimeout } from "../timeout";
@@ -81,7 +82,7 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		await fs.mkdir(mountPath, { recursive: true });
 		const args = [
 			"mount",
-			`${config.remote}:${config.path}`,
+			buildRcloneRemotePath(config.remote, config.path),
 			mountPath,
 			"--daemon",
 			"--vfs-cache-mode",
