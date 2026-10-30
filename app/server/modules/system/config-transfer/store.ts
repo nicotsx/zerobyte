@@ -8,6 +8,7 @@ import {
 	backupSchedulesTable,
 	notificationDestinationsTable,
 	organization,
+	organizationSecretsTable,
 	repositoriesTable,
 	usersTable,
 	volumesTable,
@@ -230,9 +231,7 @@ const importDestinations = (
 export const storeImport = (organizationId: string, userId: string, prepared: PreparedImport) => {
 	db.transaction((tx) => {
 		assertAllowed(tx, organizationId, userId);
-		const org = tx.query.organization
-			.findFirst({ where: { id: organizationId }, columns: { metadata: true } })
-			.sync();
+		const org = tx.query.organization.findFirst({ where: { id: organizationId }, columns: { id: true } }).sync();
 
 		if (!org) {
 			throw new Error("Organization not found");
@@ -271,12 +270,15 @@ export const storeImport = (organizationId: string, userId: string, prepared: Pr
 				.run();
 		}
 
-		const metadata = { ...org.metadata, resticPassword: prepared.sealedResticPassword };
 		const recoveryKeyExportedAt = new Date();
-		tx.update(organization)
-			.set({ metadata, recoveryKeyExportedAt })
-			.where(eq(organization.id, organizationId))
+		tx.insert(organizationSecretsTable)
+			.values({ organizationId, resticPassword: prepared.sealedResticPassword })
+			.onConflictDoUpdate({
+				target: organizationSecretsTable.organizationId,
+				set: { resticPassword: prepared.sealedResticPassword },
+			})
 			.run();
+		tx.update(organization).set({ recoveryKeyExportedAt }).where(eq(organization.id, organizationId)).run();
 		tx.update(usersTable).set({ hasDownloadedResticPassword: true }).where(eq(usersTable.id, userId)).run();
 	});
 

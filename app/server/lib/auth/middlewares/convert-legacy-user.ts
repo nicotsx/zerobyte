@@ -1,7 +1,7 @@
 import { hashPassword } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
-import { account, usersTable, member, organization } from "~/server/db/schema";
+import { account, usersTable, member, organization, organizationSecretsTable } from "~/server/db/schema";
 import type { AuthMiddlewareContext } from "~/server/lib/auth";
 import { UnauthorizedError } from "http-errors-enhanced";
 import { normalizeUsername } from "~/lib/username";
@@ -85,13 +85,14 @@ export const convertLegacyUserOnFirstLogin = async (ctx: AuthMiddlewareContext) 
 						})
 						.run();
 				} else if (newOrganizationData) {
-					tx.insert(organization).values(newOrganizationData).run();
+					tx.insert(organization).values(newOrganizationData.organization).run();
+					tx.insert(organizationSecretsTable).values(newOrganizationData.secret).run();
 
 					tx.insert(member)
 						.values({
 							id: Bun.randomUUIDv7(),
 							userId: newUserId,
-							organizationId: newOrganizationData.id,
+							organizationId: newOrganizationData.organization.id,
 							role: "owner",
 							createdAt: new Date(),
 						})

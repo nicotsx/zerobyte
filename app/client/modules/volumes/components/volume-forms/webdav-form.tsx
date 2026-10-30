@@ -67,7 +67,12 @@ export const WebDAVForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
+							<SecretInput
+								allowClear
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+							/>
 						</FormControl>
 						<FormDescription>Password for WebDAV authentication (optional).</FormDescription>
 						<FormMessage />

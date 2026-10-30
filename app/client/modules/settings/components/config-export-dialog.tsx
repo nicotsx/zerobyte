@@ -101,7 +101,7 @@ export function ConfigExportDialog({ hasPassword, passwordAuthSupported }: Props
 					<SecretInput
 						id="config-export-passphrase"
 						value={exportPassphrase}
-						onChange={(event) => setExportPassphrase(event.target.value)}
+						onChange={setExportPassphrase}
 						placeholder={`At least ${CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH} characters`}
 						autoComplete="new-password"
 						minLength={CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH}
@@ -117,7 +117,7 @@ export function ConfigExportDialog({ hasPassword, passwordAuthSupported }: Props
 					<SecretInput
 						id="config-export-passphrase-confirmation"
 						value={exportPassphraseConfirmation}
-						onChange={(event) => setExportPassphraseConfirmation(event.target.value)}
+						onChange={setExportPassphraseConfirmation}
 						autoComplete="new-password"
 						minLength={CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH}
 						maxLength={CONFIG_TRANSFER_PASSPHRASE_MAX_LENGTH}

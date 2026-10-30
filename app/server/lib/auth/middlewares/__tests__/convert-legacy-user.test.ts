@@ -210,7 +210,10 @@ describe("convertLegacyUserOnFirstLogin", () => {
 		});
 		expect(org).toBeDefined();
 		expect(org?.name).toBe("Legacy No Org's Workspace");
-		expect(org?.metadata).toBeDefined();
+		const secrets = await db.query.organizationSecretsTable.findFirst({
+			where: { organizationId: memberships[0].organizationId },
+		});
+		expect(secrets?.resticPassword).toBeDefined();
 	});
 
 	test("should be case-insensitive for username", async () => {

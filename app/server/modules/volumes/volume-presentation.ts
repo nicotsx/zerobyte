@@ -6,6 +6,7 @@ import { db } from "~/server/db/db";
 import type { Agent, VolumeRow } from "~/server/db/schema";
 import { readVolume } from "~/server/db/volume";
 import { presentAgentCapabilities } from "../agents/agent-capability-presentation";
+import { redactVolumeConfig } from "./volume-config-secrets";
 
 export const presentVolumes = async (rows: readonly VolumeRow[]): Promise<PublicVolume[]> => {
 	const volumes = rows.map(readVolume);
@@ -38,7 +39,13 @@ export const presentVolumes = async (rows: readonly VolumeRow[]): Promise<Public
 
 	return volumes.map((volume): PublicVolume => {
 		const { organizationId: _organizationId, ...publicVolume } = volume;
-		if (publicVolume.sourceKind === "managed") return { ...publicVolume, sourceLocation: null };
+		if (publicVolume.sourceKind === "managed") {
+			return {
+				...publicVolume,
+				config: redactVolumeConfig(publicVolume.config),
+				sourceLocation: null,
+			};
+		}
 
 		const agent = machines.get(volume.agentId);
 		const location =

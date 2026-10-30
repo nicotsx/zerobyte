@@ -7,6 +7,7 @@ import { createTestBackupSchedule } from "~/test/helpers/backup";
 import { repoMutex } from "~/server/core/repository-mutex";
 import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
+import { STORED_SECRET } from "~/server/utils/stored-secret";
 import waitForExpect from "wait-for-expect";
 
 const app = createApp();
@@ -121,9 +122,33 @@ describe("backups security", () => {
 			expect(body.message).toBe("Backup is already running for this schedule");
 		});
 
-		test("should return a schedule when queried by short id", async () => {
-			const volume = await createTestVolume({ organizationId: session.organizationId });
-			const repository = await createTestRepository({ organizationId: session.organizationId });
+		test("should return a schedule without disclosing stored backend secrets", async () => {
+			const volume = await createTestVolume({
+				organizationId: session.organizationId,
+				type: "smb",
+				config: {
+					backend: "smb",
+					server: "files.example.com",
+					share: "backups",
+					username: "operator",
+					password: "encv1:stored-volume-password",
+					mapToContainerUidGid: false,
+					vers: "3.0",
+					port: 445,
+					readOnly: true,
+				},
+			});
+			const repository = await createTestRepository({
+				organizationId: session.organizationId,
+				type: "s3",
+				config: {
+					backend: "s3",
+					endpoint: "https://s3.example.com",
+					bucket: "backups",
+					accessKeyId: "encv1:stored-access-key",
+					secretAccessKey: "encv1:stored-secret-key",
+				},
+			});
 			const schedule = await createTestBackupSchedule({
 				organizationId: session.organizationId,
 				volumeId: volume.id,
@@ -138,6 +163,12 @@ describe("backups security", () => {
 			const body = await res.json();
 			expect(body.id).toBe(schedule.id);
 			expect(body.shortId).toBe(schedule.shortId);
+			expect(body.volume.config.password).toBe(STORED_SECRET);
+			expect(body.repository.config).toMatchObject({
+				accessKeyId: STORED_SECRET,
+				secretAccessKey: STORED_SECRET,
+			});
+			expect(JSON.stringify(body)).not.toContain("encv1:");
 		});
 
 		test("should return 404 for malformed schedule ID", async () => {

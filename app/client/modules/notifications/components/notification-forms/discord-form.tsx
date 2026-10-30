@@ -1,6 +1,7 @@
 import type { UseFormReturn } from "react-hook-form";
 import { FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
+import { SecretInput } from "~/client/components/ui/secret-input";
 import type { NotificationFormValues } from "../create-notification-form";
 
 type Props = {
@@ -17,7 +18,10 @@ export const DiscordForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Webhook URL</FormLabel>
 						<FormControl>
-							<Input {...field} placeholder="https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN" />
+							<SecretInput
+								{...field}
+								placeholder="https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN"
+							/>
 						</FormControl>
 						<FormDescription>Get this from your Discord server's Integrations settings.</FormDescription>
 						<FormMessage />

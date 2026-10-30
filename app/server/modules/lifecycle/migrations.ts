@@ -7,6 +7,7 @@ import { v00005 } from "./migrations/00005-split-backup-include-paths";
 import { v00006 } from "./migrations/00006-map-smb-files-to-container-uid-gid";
 import { v00007 } from "./migrations/00007-require-recovery-key-redownload";
 import { v00008 } from "./migrations/00008-backfill-mirror-sync-tasks";
+import { v00009 } from "./migrations/00009-separate-organization-secrets";
 import { sql } from "drizzle-orm";
 import { appMetadataTable, usersTable } from "../../db/schema";
 import { db } from "../../db/db";
@@ -46,7 +47,7 @@ type MigrationEntity = {
 	dependsOn?: string[];
 };
 
-const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004, v00005, v00006, v00007, v00008];
+const registry: MigrationEntity[] = [v00001, v00002, v00003, v00004, v00005, v00006, v00007, v00008, v00009];
 
 export const runMigrations = async () => {
 	const userCount = await db.select({ count: sql<number>`count(*)` }).from(usersTable);

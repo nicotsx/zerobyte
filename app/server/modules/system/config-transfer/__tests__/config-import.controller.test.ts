@@ -103,9 +103,13 @@ describe("configuration import", () => {
 		const storedOrganization = await db.query.organization.findFirst({
 			where: { id: targetSession.organizationId },
 		});
+		const storedOrganizationSecrets = await db.query.organizationSecretsTable.findFirst({
+			where: { organizationId: targetSession.organizationId },
+		});
 		expect(storedPrimaryRepository?.config.customPassword).toMatch(/^encv1:/);
 		expect(storedPrimaryRepository?.autoCheckEnabled).toBe(true);
-		expect(storedOrganization?.metadata?.resticPassword).toMatch(/^encv1:/);
+		expect(storedOrganizationSecrets?.resticPassword).toMatch(/^encv1:/);
+		expect(storedOrganization?.metadata ?? {}).not.toHaveProperty("resticPassword");
 		expect(storedOrganization?.recoveryKeyExportedAt).toBeInstanceOf(Date);
 
 		const storedSchedule = await db.query.backupSchedulesTable.findFirst({

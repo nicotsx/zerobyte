@@ -88,7 +88,7 @@ export function ConfigImportForm({ onSuccess }: ConfigImportFormProps) {
 				<SecretInput
 					id="export-passphrase"
 					value={exportPassphrase}
-					onChange={(event) => setExportPassphrase(event.target.value)}
+					onChange={setExportPassphrase}
 					placeholder="Enter the passphrase used to protect this export"
 					autoComplete="off"
 					minLength={CONFIG_TRANSFER_PASSPHRASE_MIN_LENGTH}

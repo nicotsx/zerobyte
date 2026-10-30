@@ -17,7 +17,8 @@ import { createBackupCommand } from "./commands/backup-command";
 import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask } from "~/schemas/tasks";
 import { assertBackupRepositoryCompatibility } from "./backup-context";
-import { readVolume } from "../../db/volume";
+import { presentRepository } from "../repositories/repository-presentation";
+import { presentBackupSchedule, presentBackupSchedules } from "./backup-presentation";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
 const RESTART_BACKUP_ERROR = "Zerobyte was restarted during the last scheduled backup";
@@ -38,12 +39,16 @@ const listSchedules = async () => {
 		orderBy: { sortOrder: "asc", id: "asc" },
 	});
 
-	return schedules.flatMap((schedule) => {
-		const { volume, repository } = schedule;
-		if (!volume || !repository) return [];
+	const completeSchedules = schedules.filter(
+		(
+			schedule,
+		): schedule is typeof schedule & {
+			volume: NonNullable<typeof schedule.volume>;
+			repository: NonNullable<typeof schedule.repository>;
+		} => schedule.volume !== null && schedule.repository !== null,
+	);
 
-		return [{ ...schedule, volume: readVolume(volume), repository }];
-	});
+	return await presentBackupSchedules(completeSchedules);
 };
 
 const createSchedule = async (data: CreateBackupScheduleBody) => {
@@ -267,7 +272,7 @@ const getScheduleForVolume = async (volumeIdOrShortId: number | string) => {
 		return null;
 	}
 
-	return { ...schedule, volume: readVolume(schedule.volume), repository: schedule.repository };
+	return await presentBackupSchedule(schedule);
 };
 
 const getMirrors = async (scheduleIdOrShortId: number | string) => {
@@ -309,7 +314,7 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 			enabled: mirror.enabled,
 			lastSyncTask,
 			createdAt: mirror.createdAt,
-			repository: mirror.repository,
+			repository: presentRepository(mirror.repository),
 		};
 	});
 };

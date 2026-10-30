@@ -8,20 +8,15 @@ import { db } from "../db/db";
 export const resticDeps: ResticDeps = {
 	resolveSecret: cryptoUtils.resolveSecret,
 	getOrganizationResticPassword: async (organizationId: string) => {
-		const org = await db.query.organization.findFirst({
-			where: { id: organizationId },
+		const secrets = await db.query.organizationSecretsTable.findFirst({
+			where: { organizationId },
 		});
 
-		if (!org) {
-			throw new Error(`Organization ${organizationId} not found`);
-		}
-
-		const metadata = org.metadata as { resticPassword?: string } | null;
-		if (!metadata?.resticPassword) {
+		if (!secrets) {
 			throw new Error(`Restic password not configured for organization ${organizationId}`);
 		}
 
-		return metadata.resticPassword;
+		return secrets.resticPassword;
 	},
 	resticCacheDir: RESTIC_CACHE_DIR,
 	resticPassFile: RESTIC_PASS_FILE,

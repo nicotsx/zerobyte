@@ -110,15 +110,15 @@ export const systemController = new Hono()
 			}
 
 			try {
-				const org = await db.query.organization.findFirst({
-					where: { id: organizationId },
+				const secrets = await db.query.organizationSecretsTable.findFirst({
+					where: { organizationId },
 				});
 
-				if (!org?.metadata?.resticPassword) {
+				if (!secrets) {
 					return c.json({ message: "Organization Restic password not found" }, 404);
 				}
 
-				const content = await cryptoUtils.resolveSecret(org.metadata.resticPassword);
+				const content = await cryptoUtils.resolveSecret(secrets.resticPassword);
 
 				recordRecoveryKeyExport(organizationId, user.id);
 

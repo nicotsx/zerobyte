@@ -53,7 +53,7 @@ export const S3RepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Access Key ID</FormLabel>
 						<FormControl>
-							<Input placeholder="AKIAIOSFODNN7EXAMPLE" {...field} />
+							<SecretInput placeholder="AKIAIOSFODNN7EXAMPLE" {...field} />
 						</FormControl>
 						<FormDescription>S3 access key ID for authentication.</FormDescription>
 						<FormMessage />

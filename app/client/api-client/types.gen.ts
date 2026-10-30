@@ -955,6 +955,7 @@ export type TestConnectionData = {
             allowLegacySshRsa?: boolean;
             allowUnsafeSymlinkTargets?: boolean;
         };
+        shortId?: string;
     };
     path?: never;
     query?: never;

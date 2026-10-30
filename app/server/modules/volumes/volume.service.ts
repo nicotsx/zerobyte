@@ -23,7 +23,7 @@ import {
 import { getOrganizationId } from "~/server/core/request-context";
 import { type ShortId } from "~/server/utils/branded";
 import { normalizeRequiredName } from "~/server/utils/names";
-import { encryptVolumeConfig } from "./volume-config-secrets";
+import { decryptVolumeConfig, encryptVolumeConfig, prepareVolumeConfigUpdate } from "./volume-config-secrets";
 import { assembleVolumeExecutionSource, probeSource, runFilesystemCommand } from "./volume-execution-source";
 import { listSourceMachines as querySourceMachines, validateTrustedRoot } from "./source-discovery";
 
@@ -36,7 +36,7 @@ const listVolumes = async () => {
 		orderBy: { id: "asc" },
 	});
 
-	return volumes.map(readVolume);
+	return volumes;
 };
 
 const normalizeRelativePath = (rawPath: string) => {
@@ -217,12 +217,15 @@ const updateManagedVolume = async (existing: Extract<Volume, { sourceKind: "mana
 	const parsedConfig = volumeConfigSchema.safeParse(data.config ?? existing.config);
 	if (!parsedConfig.success) throw new BadRequestError("Invalid volume configuration");
 
-	const configChanged = data.config !== undefined && JSON.stringify(existing.config) !== JSON.stringify(data.config);
+	const preparedConfig = data.config
+		? await prepareVolumeConfigUpdate(existing.config, parsedConfig.data)
+		: { config: existing.config, changed: false };
+	const config = preparedConfig.config;
+	const configChanged = preparedConfig.changed;
 	if (configChanged) {
 		await runVolumeBackendOperation(existing, "unmount");
 	}
 
-	const config = await encryptVolumeConfig(parsedConfig.data);
 	const [updated] = await db
 		.update(volumesTable)
 		.set({
@@ -267,7 +270,21 @@ const updateVolume = async (shortId: ShortId, data: UpdateVolumeBody, signal?: A
 		: updateManagedVolume(existing, { ...data, name });
 };
 
-const testConnection = (backendConfig: BackendConfig) => Effect.runPromise(testVolumeConnection(backendConfig));
+const testConnection = async (backendConfig: BackendConfig, shortId?: ShortId) => {
+	let config: BackendConfig;
+	if (shortId) {
+		const existing = await findVolume(shortId);
+		if (!existing) throw new NotFoundError("Volume not found");
+		if (existing.sourceKind !== "managed") throw new BadRequestError("Only managed sources can be tested");
+
+		({ config } = await prepareVolumeConfigUpdate(existing.config, backendConfig));
+	} else {
+		config = await encryptVolumeConfig(backendConfig);
+	}
+
+	const resolvedConfig = await decryptVolumeConfig(config);
+	return await Effect.runPromise(testVolumeConnection(resolvedConfig));
+};
 
 const DEFAULT_PAGE_SIZE = 500;
 

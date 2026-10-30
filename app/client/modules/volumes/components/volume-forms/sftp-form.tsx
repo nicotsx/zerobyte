@@ -78,7 +78,12 @@ export const SFTPForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
+							<SecretInput
+								allowClear
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+							/>
 						</FormControl>
 						<FormDescription>
 							Password for SFTP authentication (optional if using private key).
@@ -94,7 +99,9 @@ export const SFTPForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Private Key (Optional)</FormLabel>
 						<FormControl>
-							<Textarea
+							<SecretInput
+								allowClear
+								multiline
 								placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
 								className="font-mono text-xs"
 								rows={5}

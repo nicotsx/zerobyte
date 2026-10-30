@@ -135,10 +135,6 @@ export const verification = sqliteTable(
 	(table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
-export type OrganizationMetadata = {
-	resticPassword: string;
-};
-
 export const organization = sqliteTable(
 	"organization",
 	{
@@ -147,11 +143,25 @@ export const organization = sqliteTable(
 		slug: text("slug").notNull().unique(),
 		logo: text("logo"),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-		metadata: text("metadata", { mode: "json" }).$type<OrganizationMetadata>(),
+		metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
 		recoveryKeyExportedAt: integer("recovery_key_exported_at", { mode: "timestamp_ms" }),
 	},
 	(table) => [uniqueIndex("organization_slug_uidx").on(table.slug)],
 );
+
+export const organizationSecretsTable = sqliteTable("organization_secret", {
+	organizationId: text("organization_id")
+		.primaryKey()
+		.references(() => organization.id, { onDelete: "cascade" }),
+	resticPassword: text("restic_password").notNull(),
+	createdAt: integer("created_at", { mode: "timestamp_ms" })
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+		.$onUpdate(() => new Date())
+		.notNull()
+		.default(sql`(unixepoch() * 1000)`),
+});
 
 export const member = sqliteTable(
 	"member",

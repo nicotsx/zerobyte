@@ -64,7 +64,7 @@ export const NtfyForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput {...field} placeholder="••••••••" />
+							<SecretInput allowClear {...field} placeholder="••••••••" />
 						</FormControl>
 						<FormDescription>Password for server authentication, if required.</FormDescription>
 						<FormMessage />
@@ -78,7 +78,7 @@ export const NtfyForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Access token (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput {...field} placeholder="••••••••" />
+							<SecretInput allowClear {...field} placeholder="••••••••" />
 						</FormControl>
 						<FormDescription>
 							Access token for server authentication. Will take precedence over username/password if set.

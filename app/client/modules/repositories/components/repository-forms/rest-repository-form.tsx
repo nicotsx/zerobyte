@@ -55,7 +55,7 @@ export const RestRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Username (Optional)</FormLabel>
 						<FormControl>
-							<Input placeholder="username" {...field} />
+							<SecretInput allowClear placeholder="username" {...field} />
 						</FormControl>
 						<FormDescription>Username for REST server authentication.</FormDescription>
 						<FormMessage />
@@ -69,7 +69,12 @@ export const RestRepositoryForm = ({ form }: Props) => {
 					<FormItem>
 						<FormLabel>Password (Optional)</FormLabel>
 						<FormControl>
-							<SecretInput placeholder="••••••••" value={field.value ?? ""} onChange={field.onChange} />
+							<SecretInput
+								allowClear
+								placeholder="••••••••"
+								value={field.value ?? ""}
+								onChange={field.onChange}
+							/>
 						</FormControl>
 						<FormDescription>Password for REST server authentication.</FormDescription>
 						<FormMessage />

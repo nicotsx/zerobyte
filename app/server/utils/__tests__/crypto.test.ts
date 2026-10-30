@@ -1,21 +1,23 @@
 import { describe, expect, test, vi } from "vitest";
 
 describe("cryptoUtils", () => {
-	test("sealSecret rejects encrypted values that cannot be decrypted with the current app secret", async () => {
+	test("sealSecret treats encrypted-looking values as plaintext", async () => {
 		const { cryptoUtils } = await vi.importActual<typeof import("../crypto")>("../crypto");
-		const invalidEncryptedValue = "encv1:00:00:00:00";
+		const plaintext = "encv1:literal-import-value";
 
-		await expect(cryptoUtils.sealSecret(invalidEncryptedValue)).rejects.toThrow(
-			"You have provided an encrypted value that cannot be decrypted with the current APP_SECRET",
-		);
+		const encryptedValue = await cryptoUtils.sealSecret(plaintext);
+
+		expect(encryptedValue).not.toBe(plaintext);
+		await expect(cryptoUtils.resolveSecret(encryptedValue)).resolves.toBe(plaintext);
 	});
 
-	test("sealSecret preserves encrypted values that can be decrypted with the current app secret", async () => {
+	test("sealSecret has no input-provenance behavior", async () => {
 		const { cryptoUtils } = await vi.importActual<typeof import("../crypto")>("../crypto");
 
 		const encryptedValue = await cryptoUtils.sealSecret("plain secret");
+		const resealedValue = await cryptoUtils.sealSecret(encryptedValue);
 
-		await expect(cryptoUtils.sealSecret(encryptedValue)).resolves.toBe(encryptedValue);
+		await expect(cryptoUtils.resolveSecret(resealedValue)).resolves.toBe(encryptedValue);
 	});
 
 	test("timingSafeEqualString compares string secrets", async () => {

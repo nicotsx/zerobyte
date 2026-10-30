@@ -2,10 +2,10 @@ import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { config as serverConfig } from "~/server/core/config";
 import { validateScheduleTiming } from "~/server/modules/backups/backup.helpers";
 import { isValidBackupScheduleName } from "~/server/modules/backups/backup-schedule-name";
-import { encryptNotificationConfig } from "~/server/modules/notifications/notification-config-secrets";
+import { mapNotificationConfigSecrets } from "~/server/modules/notifications/notification-config-secrets";
 import { assertNotificationTargetAllowed } from "~/server/modules/notifications/utils/notification-target-policy";
-import { encryptRepositoryConfig } from "~/server/modules/repositories/repository-config-secrets";
-import { encryptVolumeConfig } from "~/server/modules/volumes/volume-config-secrets";
+import { mapRepositoryConfigSecrets } from "~/server/modules/repositories/repository-config-secrets";
+import { mapVolumeConfigSecrets } from "~/server/modules/volumes/volume-config-secrets";
 import { checkMirrorCompatibility } from "~/server/utils/backend-compatibility";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { normalizeRequiredName } from "~/server/utils/names";
@@ -13,9 +13,16 @@ import type { SystemInfoDto } from "../system.dto";
 import { systemService } from "../system.service";
 import { InvalidConfigTransferError } from "./errors";
 import type { ConfigTransferModel } from "./model";
+import { STORED_SECRET } from "~/lib/stored-secret";
 
 export type PreparedImport = Omit<ConfigTransferModel, "resticPassword"> & {
 	sealedResticPassword: string;
+};
+
+const sealImportedSecret = async (value: string) => {
+	if (value === STORED_SECRET) throw new InvalidConfigTransferError();
+
+	return await cryptoUtils.sealSecret(value);
 };
 
 const validateSchedules = (schedules: ConfigTransferModel["backupSchedules"]) => {
@@ -226,23 +233,23 @@ export const prepareImport = async (
 			Promise.all(
 				normalizedPayload.repositories.map(async (repository) => ({
 					...repository,
-					config: await encryptRepositoryConfig(repository.config),
+					config: await mapRepositoryConfigSecrets(repository.config, sealImportedSecret),
 				})),
 			),
 			Promise.all(
 				normalizedPayload.volumes.map(async (volume) => {
 					if (volume.sourceKind === "agent-filesystem") return volume;
 
-					return { ...volume, config: await encryptVolumeConfig(volume.config) };
+					return { ...volume, config: await mapVolumeConfigSecrets(volume.config, sealImportedSecret) };
 				}),
 			),
 			Promise.all(
 				normalizedPayload.notificationDestinations.map(async (destination) => ({
 					...destination,
-					config: await encryptNotificationConfig(destination.config),
+					config: await mapNotificationConfigSecrets(destination.config, sealImportedSecret),
 				})),
 			),
-			cryptoUtils.sealSecret(normalizedPayload.resticPassword),
+			sealImportedSecret(normalizedPayload.resticPassword),
 		]);
 	} catch {
 		throw new InvalidConfigTransferError();

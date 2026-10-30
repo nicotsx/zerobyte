@@ -15,6 +15,7 @@ import { repositoriesService } from "../repositories.service";
 import { eq } from "drizzle-orm";
 import { config } from "~/server/core/config";
 import { ResticError } from "@zerobyte/core/restic/server";
+import { STORED_SECRET } from "~/server/utils/stored-secret";
 
 const app = createApp();
 
@@ -291,6 +292,67 @@ describe("list snapshots", () => {
 });
 
 describe("repositories updates", () => {
+	test("redacts stored credentials and only preserves them for the same destination", async () => {
+		const accessKeyId = "encv1:stored-access-key";
+		const secretAccessKey = "encv1:stored-secret-key";
+		const [repository] = await db
+			.insert(repositoriesTable)
+			.values({
+				id: crypto.randomUUID(),
+				shortId: generateShortId(),
+				name: "Stored S3 repository",
+				type: "s3",
+				config: {
+					backend: "s3",
+					endpoint: "https://s3.example.com",
+					bucket: "backups",
+					accessKeyId,
+					secretAccessKey,
+				},
+				organizationId: session.organizationId,
+			})
+			.returning();
+		const headers = { ...session.headers, "Content-Type": "application/json" };
+
+		const getResponse = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			headers: session.headers,
+		});
+		const presented = await getResponse.json();
+		expect(presented.config).toMatchObject({
+			accessKeyId: STORED_SECRET,
+			secretAccessKey: STORED_SECRET,
+		});
+		expect(JSON.stringify(presented)).not.toContain("encv1:");
+
+		const preserveResponse = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "PATCH",
+			headers,
+			body: JSON.stringify({ config: presented.config }),
+		});
+		expect(preserveResponse.status).toBe(200);
+
+		const stored = await db.query.repositoriesTable.findFirst({ where: { id: repository.id } });
+		expect(stored?.config).toMatchObject({ accessKeyId, secretAccessKey });
+
+		const redirectResponse = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "PATCH",
+			headers,
+			body: JSON.stringify({
+				config: { ...presented.config, endpoint: "https://other.example.com" },
+			}),
+		});
+		expect(redirectResponse.status).toBe(400);
+
+		const replayResponse = await app.request(`/api/v1/repositories/${repository.shortId}`, {
+			method: "PATCH",
+			headers,
+			body: JSON.stringify({
+				config: { ...presented.config, secretAccessKey: accessKeyId },
+			}),
+		});
+		expect(replayResponse.status).toBe(400);
+	});
+
 	test("PATCH updates full config and metadata using shortId", async () => {
 		const repository = await createRepositoryRecord(session.organizationId);
 		const nextPath = `/tmp/updated-${crypto.randomUUID()}`;
