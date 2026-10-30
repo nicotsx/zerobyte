@@ -85,6 +85,7 @@ export const createApp = () => {
 		.route("/api/v1/events", eventsController);
 	app.route("/api/v1/agents", agentsController);
 
+	app.all("/api/auth/sso/saml2/*", (c) => c.json({ message: "SAML is not supported" }, 404));
 	app.use("/api/auth/*", handleAuthCallbackErrors);
 	app.on(["POST", "GET"], "/api/auth/*", async (c) => {
 		const pathname = new URL(c.req.url).pathname;

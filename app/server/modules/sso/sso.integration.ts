@@ -10,6 +10,7 @@ import { validateSsoRegistrationIssuer } from "./middlewares/validate-registrati
 import { validateSsoProviderId } from "./middlewares/validate-provider-id";
 import { validateSsoCallbackUrls } from "./middlewares/validate-callback-urls";
 import { authorizeSsoRegistration } from "./middlewares/authorize-registration";
+import { enforceOidcSso } from "./middlewares/enforce-oidc";
 import { requireSsoInvitation } from "./middlewares/require-invitation";
 import { resolveTrustedProvidersForRequest } from "./middlewares/trust-provider-for-linking";
 import { isSsoCallbackRequest, extractProviderIdFromContext, normalizeEmail } from "./utils/sso-context";
@@ -190,6 +191,7 @@ export const ssoIntegration = {
 	}),
 
 	beforeMiddlewares: [
+		enforceOidcSso,
 		validateSsoProviderId,
 		validateSsoCallbackUrls,
 		authorizeSsoRegistration,
