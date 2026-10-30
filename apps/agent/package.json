@@ -9,6 +9,7 @@
 		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
+		"@inquirer/prompts": "^8.7.5",
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
 		"commander": "^15.0.0",

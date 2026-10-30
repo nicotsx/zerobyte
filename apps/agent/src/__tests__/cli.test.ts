@@ -46,11 +46,16 @@ test("help works without Restic or configuration", () => {
 	expect(enroll.status).toBe(0);
 	expect(enroll.stdout).toContain("--config <file>");
 	expect(enroll.stdout).toContain("--root <folders...>");
+	expect(enroll.stdout).toContain("--code-stdin");
+	expect(enroll.stdout).not.toContain("--code <code>");
 
 	const install = run(["install", "--help"]);
 	expect(install.status).toBe(0);
 	expect(install.stdout).toContain("Install or upgrade the Linux systemd service");
 	expect(install.stdout).toContain("preserving existing folders");
+	expect(install.stdout).toContain("--prompt-code");
+	expect(install.stdout).toContain("--code-stdin");
+	expect(install.stdout).not.toContain("--code <code>");
 }, 15_000);
 
 test("version works without prerequisites and compiled releases retain their build version", () => {
@@ -122,16 +127,7 @@ test.each(["run", "check", "enroll"])(
 		if (command === "run") {
 			args.push("--config", config);
 		} else if (command === "enroll") {
-			args.push(
-				"--controller",
-				"https://controller.example",
-				"--code",
-				"unused-code",
-				"--root",
-				directory,
-				"--config",
-				config,
-			);
+			args.push("--controller", "https://controller.example", "--root", directory, "--config", config);
 		}
 
 		const result = run(args);

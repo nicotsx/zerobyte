@@ -24,7 +24,7 @@ export class InstallError extends Data.TaggedError("InstallError")<{ message: st
 
 export type InstallOptions = {
 	controller?: URL;
-	code?: string;
+	requestCode?: () => Promise<string>;
 	roots: ReadonlyArray<string>;
 	sourceBinary: string;
 	paths: ServicePaths;
@@ -60,7 +60,7 @@ WantedBy=multi-user.target
 export const installSystemService = (options: InstallOptions) =>
 	Effect.gen(function* () {
 		const host = yield* Host;
-		const { paths, controller, code, roots } = options;
+		const { paths, controller, requestCode, roots } = options;
 
 		const config = join(paths.stateDir, "agent.json");
 		const binary = join(paths.installDir, "zerobyte-agent");
@@ -78,8 +78,10 @@ export const installSystemService = (options: InstallOptions) =>
 			Effect.catchTag("ConfigurationMissing", () => Effect.succeed(undefined)),
 		);
 
-		if (!saved && (!controller || !code)) {
-			return yield* new InstallError({ message: "Initial installation requires --controller and --code" });
+		if (!saved && (!controller || !requestCode)) {
+			return yield* new InstallError({
+				message: "Initial installation requires a controller and a connection code",
+			});
 		}
 		if (saved && roots.length) {
 			return yield* new InstallError({
@@ -102,13 +104,22 @@ export const installSystemService = (options: InstallOptions) =>
 		yield* fs.writeText(stagedUnit, serviceUnit(binary, config, paths.stateDir), 0o644);
 		yield* host.output(stagedBinary, ["--version"]);
 
-		if (!saved && controller && code) {
-			const configuration = yield* enrollMachine(controller, code, roots);
+		let connectionCode: string | undefined;
+
+		if (requestCode) {
+			connectionCode = yield* Effect.tryPromise({
+				try: requestCode,
+				catch: (cause) => new InstallError({ message: "Could not read the connection code", cause }),
+			});
+		}
+
+		if (!saved && controller && connectionCode) {
+			const configuration = yield* enrollMachine(controller, connectionCode, roots);
 
 			yield* writeConfiguration(config, configuration);
-		} else if (saved && code) {
+		} else if (saved && connectionCode) {
 			const address = controller ?? new URL(toControllerOrigin(saved.controllerUrl));
-			const configuration = yield* reconnectMachine(saved, address, code);
+			const configuration = yield* reconnectMachine(saved, address, connectionCode);
 
 			yield* writeConfiguration(config, configuration);
 		} else if (saved && controller) {
@@ -125,7 +136,7 @@ export const installSystemService = (options: InstallOptions) =>
 			Effect.mapError(
 				(cause) =>
 					new InstallError({
-						message: `Agent installation did not finish: ${cause.message}. The saved configuration at ${config} is intact; run install again without --code to retry.`,
+						message: `Agent installation did not finish: ${cause.message}. The saved configuration at ${config} is intact; run install again without requesting a new connection code.`,
 						cause,
 					}),
 			),

@@ -2,13 +2,17 @@ import * as fs from "node:fs/promises";
 import { logger, safeExec } from "@zerobyte/core/node";
 import { getMountForPath } from "../fs";
 
-export const executeMount = async (args: string[]): Promise<void> => {
+const executeMountCommand = async (
+	command: string,
+	args: string[],
+	options?: { input?: string; verbose?: boolean },
+): Promise<void> => {
 	const shouldBeVerbose = process.env.LOG_LEVEL === "debug" || process.env.NODE_ENV !== "production";
 	const hasVerboseFlag = args.some((arg) => arg === "-v" || arg.startsWith("-vv"));
-	const effectiveArgs = shouldBeVerbose && !hasVerboseFlag ? ["-v", ...args] : args;
+	const effectiveArgs = options?.verbose && shouldBeVerbose && !hasVerboseFlag ? ["-v", ...args] : args;
 
-	logger.debug(`Executing mount ${effectiveArgs.join(" ")}`);
-	const result = await safeExec({ command: "mount", args: effectiveArgs, timeout: 10000 });
+	logger.debug(`Executing ${command} ${effectiveArgs.join(" ")}`);
+	const result = await safeExec({ command, args: effectiveArgs, input: options?.input, timeout: 10000 });
 	const stdout = result.stdout.toString().trim();
 	const stderr = result.stderr.toString().trim();
 
@@ -23,6 +27,11 @@ export const executeMount = async (args: string[]): Promise<void> => {
 
 	throw new Error(`Mount command failed with exit code ${result.exitCode}: ${stderr || stdout || "unknown error"}`);
 };
+
+export const executeMount = (args: string[]): Promise<void> => executeMountCommand("mount", args, { verbose: true });
+
+export const executeDavfsMount = (args: string[], password: string): Promise<void> =>
+	executeMountCommand("mount.davfs", args, { input: `${password}\n` });
 
 export const executeUnmount = async (mountPath: string): Promise<void> => {
 	logger.debug(`Executing umount -l ${mountPath}`);

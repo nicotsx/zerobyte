@@ -104,9 +104,13 @@ test("creates a named machine and lets both deployment methods use the same sing
 	expect(screen.getByText(/Waiting for Archive node/)).toBeTruthy();
 	expect(screen.getByRole("tab", { name: "Linux installer" }).getAttribute("aria-selected")).toBe("true");
 	const command = screen.getByRole("textbox", { name: "Connection command" }) as HTMLTextAreaElement;
-	expect(command.value).toContain("--code 'one-time-token'");
+	expect(command.value).toContain("--prompt-code");
+	expect(command.value).not.toContain("one-time-token");
+	expect((screen.getByRole("textbox", { name: "Connection code" }) as HTMLTextAreaElement).value).toBe(
+		"one-time-token",
+	);
 	expect(command.value).toContain("https://zerobyte.app/install.sh");
-	expect(screen.getByText("Copy and run this command on Archive node.")).toBeTruthy();
+	expect(screen.getByText(/then paste the connection code when prompted/)).toBeTruthy();
 	expect(screen.getByRole("link", { name: "Setup guide" })).toBeTruthy();
 	await userEvent.click(screen.getByRole("button", { name: "Copy connection command" }));
 	expect(await screen.findByText("Connection command copied.")).toBeTruthy();

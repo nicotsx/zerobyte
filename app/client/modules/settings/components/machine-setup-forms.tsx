@@ -115,9 +115,11 @@ export function DeploymentInstructions({ credential }: { credential: CreateRemot
 				</TabsList>
 				<TabsContent value="linux" className="min-w-0 space-y-4">
 					<p className="text-sm text-muted-foreground">
-						Copy and run this command on {getMachineDisplayName(credential.agent.name)}.
+						Copy and run this command on {getMachineDisplayName(credential.agent.name)}, then paste the
+						connection code when prompted.
 					</p>
-					<CopyField value={createConnectionCommand(credential.controllerUrl, credential.token)} />
+					<CopyField label="Connection code" rows={2} value={credential.token} />
+					<CopyField value={createConnectionCommand(credential.controllerUrl)} />
 				</TabsContent>
 				<TabsContent value="docker" className="min-w-0 space-y-4">
 					<ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">

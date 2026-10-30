@@ -21,6 +21,18 @@ describe("safeExec", () => {
 			expect(result.stderr).toBe("");
 			expect(result.timedOut).toBe(false);
 		});
+
+		test("writes input to the child without placing it in argv", async () => {
+			const secret = "private input";
+			const result = await safeExec({
+				command: process.execPath,
+				args: ["-e", "process.stdin.pipe(process.stdout)"],
+				input: secret,
+			});
+
+			expect(result.exitCode).toBe(0);
+			expect(result.stdout).toBe(secret);
+		});
 	});
 
 	describe("failed commands", () => {

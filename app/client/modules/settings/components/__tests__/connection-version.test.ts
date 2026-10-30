@@ -34,7 +34,7 @@ test.each([
 		const { createDockerCompose } = await import("../connection-docker");
 		const { createConnectionCommand } = await import("../connection-command");
 		const yaml = createDockerCompose("https://controller.example", "code", "Agent");
-		const command = createConnectionCommand("https://controller.example", "code");
+		const command = createConnectionCommand("https://controller.example");
 
 		expect(Bun.YAML.parse(yaml)).toMatchObject({
 			services: { agent: { image: `ghcr.io/nicotsx/zerobyte-agent:${imageTag}` } },

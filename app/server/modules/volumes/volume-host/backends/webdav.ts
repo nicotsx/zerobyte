@@ -7,7 +7,7 @@ import { OPERATION_TIMEOUT } from "../constants";
 import { withTimeout } from "../timeout";
 import { getMountForPath } from "../fs";
 import type { VolumeBackend } from "../types";
-import { assertMounted, executeMount, executeUnmount } from "./utils";
+import { assertMounted, executeDavfsMount, executeUnmount } from "./utils";
 
 const checkHealth = async (mountPath: string) => {
 	const run = async () => {
@@ -78,6 +78,13 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 	}
 
 	const run = async () => {
+		if (config.username?.includes(",") || config.username?.includes("\n") || config.username?.includes("\r")) {
+			throw new Error("WebDAV username contains unsupported mount-option characters");
+		}
+		if (config.password?.includes("\n") || config.password?.includes("\r")) {
+			throw new Error("WebDAV password contains unsupported line breaks");
+		}
+
 		await fs.mkdir(mountPath, { recursive: true }).catch((error) => {
 			logger.warn(`Failed to create directory ${mountPath}: ${toMessage(error)}`);
 		});
@@ -88,23 +95,13 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		const options = config.readOnly
 			? [`uid=${uid}`, `gid=${gid}`, "file_mode=0444", "dir_mode=0555", "ro"]
 			: [`uid=${uid}`, `gid=${gid}`, "file_mode=0664", "dir_mode=0775"];
-
-		if (config.username && config.password) {
-			const entry = [source, config.username, config.password]
-				.map((value) => value.replace(/[\r\n\t\s]+/g, " "))
-				.join(" ");
-			await fs.appendFile("/etc/davfs2/secrets", `${entry}\n`, { mode: 0o600 });
-		}
+		const username = config.username ?? "zerobyte-anonymous";
+		const password = config.password ?? "";
+		options.push(`username=${username}`);
 
 		logger.debug(`Mounting WebDAV volume ${mountPath}...`);
 
-		const args = ["-t", "davfs", "-o", options.join(","), source, mountPath];
-		try {
-			await executeMount(args);
-		} catch (error) {
-			logger.warn(`Initial WebDAV mount failed, retrying with -i flag: ${toMessage(error)}`);
-			await executeMount(["-i", ...args]);
-		}
+		await executeDavfsMount(["-o", options.join(","), source, mountPath], password);
 
 		logger.info(`WebDAV volume at ${mountPath} mounted successfully.`);
 		return { status: "mounted" as const };

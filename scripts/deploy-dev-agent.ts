@@ -1,4 +1,4 @@
-import { input, password } from "@inquirer/prompts";
+import { input } from "@inquirer/prompts";
 import { $ } from "bun";
 import { Command, InvalidArgumentError } from "commander";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -26,8 +26,7 @@ const program = new Command()
 		if (!/^\d+$/.test(value) || port < 1 || port > 65535) throw new InvalidArgumentError("Invalid SSH port");
 		return String(port);
 	})
-	.option("--code <code>", "Connection code for first-time enrollment")
-	.action(async (hostArgument: string | undefined, options: { port?: string; code?: string }) => {
+	.action(async (hostArgument: string | undefined, options: { port?: string }) => {
 		const controller = await getDevControllerUrl((args) => $`portless ${args}`.quiet().text());
 		console.info(`Using running controller: ${controller}`);
 
@@ -58,10 +57,7 @@ const program = new Command()
 		const enrollment = ["--controller", controller];
 
 		if (installation === "new") {
-			const code = options.code ?? (await password({ message: "Connection code from Zerobyte:" }));
-			if (!code.trim()) throw new Error("A connection code is required.");
-
-			enrollment.push("--code", code);
+			enrollment.push("--prompt-code");
 		} else {
 			console.info(
 				"Machine already installed; refreshing its controller address and keeping its identity and folders.",

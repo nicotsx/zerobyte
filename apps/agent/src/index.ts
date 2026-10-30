@@ -3,6 +3,7 @@ import { logger } from "@zerobyte/core/node";
 import { Command, InvalidArgumentError } from "commander";
 import { Cause, Console, Data, Effect, Exit } from "effect";
 import { runAgent } from "./agent";
+import { promptConnectionCode, readConnectionCodeFromStdin } from "./connection-code";
 import { readConfiguration, writeConfiguration } from "./config";
 import { enrollMachine, parseControllerUrl } from "./enrollment";
 import { addFolders, chooseFolders, listFolders } from "./folders";
@@ -95,60 +96,89 @@ program
 	.command("install")
 	.description("Install or upgrade the Linux systemd service")
 	.option("--controller <url>", "HTTPS controller URL (required on first install; updates the address on upgrade)")
-	.option("--code <code>", "Connection code to enroll or reconnect this machine, preserving existing folders")
+	.option("--prompt-code", "Prompt for a connection code to enroll or reconnect, preserving existing folders")
+	.option("--code-stdin", "Read the connection code from standard input")
 	.option("--root <folders...>", "Optional folders for unattended setup")
 	.option("--allow-insecure", "Allow an insecure HTTP controller")
-	.action((options: { controller?: string; code?: string; root?: string[]; allowInsecure?: boolean }) =>
-		runCommand(
-			Effect.gen(function* () {
-				yield* requireServiceHost;
+	.action(
+		(options: {
+			controller?: string;
+			promptCode?: boolean;
+			codeStdin?: boolean;
+			root?: string[];
+			allowInsecure?: boolean;
+		}) =>
+			runCommand(
+				Effect.gen(function* () {
+					yield* requireServiceHost;
+					if (options.promptCode && options.codeStdin) {
+						return yield* new UsageError({ message: "Choose either --prompt-code or --code-stdin" });
+					}
 
-				let controller: URL | undefined;
-				if (options.controller) {
-					controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
-				}
+					let controller: URL | undefined;
+					if (options.controller) {
+						controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
+					}
 
-				yield* installSystemService({
-					controller,
-					code: options.code,
-					roots: options.root ?? [],
-					sourceBinary: process.execPath,
-					paths: defaultServicePaths,
-				});
+					let requestCode: (() => Promise<string>) | undefined;
+					if (options.promptCode) requestCode = promptConnectionCode;
+					else if (options.codeStdin) requestCode = readConnectionCodeFromStdin;
 
-				yield* Console.log(
-					"Zerobyte agent installed and running in the background. Choose folders: sudo zerobyte-agent folders add. Logs: sudo zerobyte-agent logs",
-				);
-			}),
-		),
+					yield* installSystemService({
+						controller,
+						requestCode,
+						roots: options.root ?? [],
+						sourceBinary: process.execPath,
+						paths: defaultServicePaths,
+					});
+
+					yield* Console.log(
+						"Zerobyte agent installed and running in the background. Choose folders: sudo zerobyte-agent folders add. Logs: sudo zerobyte-agent logs",
+					);
+				}),
+			),
 	);
 
 program
 	.command("enroll")
 	.description("Enroll this machine without installing a service, for manual runs")
 	.requiredOption("--controller <url>", "HTTPS URL of the Zerobyte controller")
-	.requiredOption("--code <code>", "One-time connection code from the dashboard")
 	.requiredOption("--config <file>", "Where to save the agent configuration")
+	.option("--code-stdin", "Read the connection code from standard input instead of prompting")
 	.option("--root <folders...>", "Folders to share (can be repeated)")
 	.option("--allow-insecure", "Allow an insecure HTTP controller")
-	.action((options: { controller: string; code: string; config: string; root?: string[]; allowInsecure?: boolean }) =>
-		runCommand(
-			Effect.gen(function* () {
-				if (yield* fs.exists(options.config)) {
-					return yield* new UsageError({
-						message: `This machine already has an agent configuration at ${resolve(options.config)}. For an installed agent, use install --code to replace its credential and preserve its folders.`,
+	.action(
+		(options: {
+			controller: string;
+			config: string;
+			codeStdin?: boolean;
+			root?: string[];
+			allowInsecure?: boolean;
+		}) =>
+			runCommand(
+				Effect.gen(function* () {
+					if (yield* fs.exists(options.config)) {
+						return yield* new UsageError({
+							message: `This machine already has an agent configuration at ${resolve(options.config)}. For an installed agent, use install --prompt-code to replace its credential and preserve its folders.`,
+						});
+					}
+
+					yield* checkRestic;
+
+					const controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
+					const code = yield* Effect.tryPromise({
+						try: () => (options.codeStdin ? readConnectionCodeFromStdin() : promptConnectionCode()),
+						catch: (error) =>
+							new UsageError({ message: error instanceof Error ? error.message : String(error) }),
 					});
-				}
+					const configuration = yield* enrollMachine(controller, code, options.root ?? []);
 
-				yield* checkRestic;
-
-				const controller = yield* parseControllerUrl(options.controller, options.allowInsecure);
-				const configuration = yield* enrollMachine(controller, options.code, options.root ?? []);
-
-				yield* writeConfiguration(options.config, configuration);
-				yield* Console.log(`Machine enrolled. Start it with: zerobyte-agent run --config ${options.config}`);
-			}),
-		),
+					yield* writeConfiguration(options.config, configuration);
+					yield* Console.log(
+						`Machine enrolled. Start it with: zerobyte-agent run --config ${options.config}`,
+					);
+				}),
+			),
 	);
 
 program

@@ -8,20 +8,28 @@ type ExecProps = {
 	command: string;
 	args?: string[];
 	env?: NodeJS.ProcessEnv;
+	input?: string | Uint8Array;
 } & ExecFileOptions;
 
-export const safeExec = async ({ command, args = [], env = {}, ...rest }: ExecProps) => {
+export const safeExec = async ({ command, args = [], env = {}, input, ...rest }: ExecProps) => {
 	const options = {
 		env: { ...process.env, ...env },
 	};
 
 	try {
-		const { stdout, stderr } = await promisify(execFile)(command, args, {
+		const execution = promisify(execFile)(command, args, {
 			...options,
 			...rest,
 			shell: false,
 			encoding: "utf8",
 		});
+
+		if (input !== undefined) {
+			execution.child.stdin?.on("error", () => {});
+			execution.child.stdin?.end(input);
+		}
+
+		const { stdout, stderr } = await execution;
 
 		return { exitCode: 0, stdout: stdout.toString(), stderr: stderr.toString(), timedOut: false };
 	} catch (error) {

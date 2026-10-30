@@ -36,6 +36,15 @@ main() (
   actual=$(sha256sum "$binary")
   [[ "${actual%% *}" == "$expected" ]] || fail "Agent checksum mismatch; nothing was installed"
   chmod 755 "$binary"
+
+  local argument
+  for argument in "$@"; do
+    if [[ "$argument" == --prompt-code ]]; then
+      exec 0</dev/tty
+      break
+    fi
+  done
+
   env -i PATH="$service_path" HOME=/var/lib/zerobyte-agent \
     ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP="${ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP:-false}" "$binary" install "$@"
 )

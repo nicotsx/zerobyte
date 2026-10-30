@@ -92,7 +92,7 @@ test.each([false, true])(
 		const fixture = await setup();
 		await fixture.install({
 			controller: new URL("https://controller.example"),
-			code: machineToken("existing-machine", 2),
+			requestCode: async () => machineToken("existing-machine", 2),
 			roots: withFolders ? [fixture.folder] : [],
 		});
 
@@ -116,11 +116,11 @@ test.each([false, true])(
 	},
 );
 
-test("initial installation requires a controller and a code", async () => {
+test("initial installation requires a controller and a code prompt", async () => {
 	const fixture = await setup();
 
-	await expect(fixture.install({ code: machineToken("existing-machine", 2) })).rejects.toThrow(
-		"Initial installation requires --controller and --code",
+	await expect(fixture.install({ requestCode: async () => machineToken("existing-machine", 2) })).rejects.toThrow(
+		"Initial installation requires a controller and a connection code",
 	);
 	expect(fixture.exchange).not.toHaveBeenCalled();
 });
@@ -141,7 +141,7 @@ test("a connection code reconnects the saved machine and preserves its folders",
 	const fixture = await setup();
 	await withExistingInstallation(fixture);
 
-	await fixture.install({ code: machineToken("existing-machine", 2) });
+	await fixture.install({ requestCode: async () => machineToken("existing-machine", 2) });
 
 	expect(await readConfig(fixture)).toEqual({ ...savedIdentity, token: machineToken("existing-machine", 3) });
 	expect((await stat(fixture.files.config)).mode & 0o777).toBe(0o600);
@@ -166,9 +166,9 @@ test("a controller address without a code relocates the agent and keeps its cred
 });
 
 test.each([
-	{ code: machineToken("another-machine", 2) },
-	{ code: "not-a-code" },
-	{ code: machineToken("existing-machine", 2), roots: ["/new-folder"] },
+	{ requestCode: async () => machineToken("another-machine", 2) },
+	{ requestCode: async () => "not-a-code" },
+	{ requestCode: async () => machineToken("existing-machine", 2), roots: ["/new-folder"] },
 ])("an invalid reconnection leaves the installation untouched: %j", async (options) => {
 	const fixture = await setup();
 	await withExistingInstallation(fixture);
@@ -184,7 +184,7 @@ test.each([401, 503])("a rejected reconnection (%s) leaves the installation unto
 	await withExistingInstallation(fixture);
 	fixture.exchange.mockImplementation(async () => Response.json({ message: "Enrollment rejected" }, { status }));
 
-	await expect(fixture.install({ code: machineToken("existing-machine", 2) })).rejects.toThrow(
+	await expect(fixture.install({ requestCode: async () => machineToken("existing-machine", 2) })).rejects.toThrow(
 		`Enrollment failed (${status})`,
 	);
 	await expectUntouched(fixture);
@@ -201,13 +201,32 @@ test.each(["", "truncated", "{}"])(
 		await expect(
 			fixture.install({
 				controller: new URL("https://controller.example"),
-				code: machineToken("existing-machine", 2),
+				requestCode: async () => machineToken("existing-machine", 2),
 			}),
 		).rejects.toThrow("agent configuration");
 		expect(fixture.exchange).not.toHaveBeenCalled();
 		expect(await readFile(fixture.files.config, "utf8")).toBe(contents);
 	},
 );
+
+test("reads a prompted connection code only after installation preflight succeeds", async () => {
+	const fixture = await setup();
+	const requestCode = vi.fn().mockResolvedValue(machineToken("existing-machine", 2));
+	const options = { controller: new URL("https://controller.example"), requestCode };
+
+	await expect(
+		fixture.install(
+			options,
+			failOn(fixture, (_command, args) => args[0] === "--version"),
+		),
+	).rejects.toThrow();
+	expect(requestCode).not.toHaveBeenCalled();
+	expect(fixture.exchange).not.toHaveBeenCalled();
+
+	await fixture.install(options);
+	expect(requestCode).toHaveBeenCalledOnce();
+	expect(fixture.exchange).toHaveBeenCalledOnce();
+});
 
 test.each([
 	{
@@ -224,7 +243,10 @@ test.each([
 	},
 ])("a failure in $step leaves the connection code available for retry", async ({ matches }) => {
 	const fixture = await setup();
-	const options = { controller: new URL("https://controller.example"), code: machineToken("existing-machine", 2) };
+	const options = {
+		controller: new URL("https://controller.example"),
+		requestCode: async () => machineToken("existing-machine", 2),
+	};
 
 	await expect(fixture.install(options, failOn(fixture, matches))).rejects.toThrow();
 	expect(fixture.exchange).not.toHaveBeenCalled();
@@ -241,10 +263,10 @@ test.each(["daemon-reload", "enable", "restart"])(
 
 		await expect(
 			fixture.install(
-				{ code: machineToken("existing-machine", 2) },
+				{ requestCode: async () => machineToken("existing-machine", 2) },
 				failOn(fixture, (command, args) => command === "systemctl" && args[0] === step),
 			),
-		).rejects.toThrow("run install again without --code");
+		).rejects.toThrow("run install again without requesting a new connection code");
 
 		const replacement = { ...savedIdentity, token: machineToken("existing-machine", 3) };
 		expect(await readConfig(fixture)).toEqual(replacement);
