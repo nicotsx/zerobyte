@@ -18,7 +18,7 @@
 		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
-		"@peculiar/x509": "2.2.0",
+		"@peculiar/x509": "3.1.0",
 		"@zerobyte/core": "workspace:*",
 		"reflect-metadata": "0.2.2"
 	},
