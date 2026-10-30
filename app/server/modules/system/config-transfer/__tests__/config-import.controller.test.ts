@@ -370,6 +370,29 @@ describe("configuration import", () => {
 		).toBeUndefined();
 	});
 
+	test("rejects non-name rclone references before writing", async () => {
+		const payload = await loadPayload();
+		const repository = payload.repositories.find(
+			(item: { config: { backend: string } }) => item.config.backend === "rclone",
+		);
+		const volume = payload.volumes.find(
+			(item: { config?: { backend: string } }) => item.config?.backend === "rclone",
+		);
+		if (!repository || !volume?.config) throw new Error("Expected rclone fixtures");
+
+		repository.config.remote = ":sftp,ssh=/bin/sh";
+		volume.config.remote = "remote,ssh=/bin/sh";
+		const targetSession = await createTestSession();
+
+		const response = await requestConfigImport(targetSession.headers, await encryptPayload(payload));
+
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ message: "Invalid export file or passphrase" });
+		expect(
+			await db.query.repositoriesTable.findFirst({ where: { organizationId: targetSession.organizationId } }),
+		).toBeUndefined();
+	});
+
 	test("returns onboarding conflicts before decoding the export", async () => {
 		const session = await createTestSession();
 		await db

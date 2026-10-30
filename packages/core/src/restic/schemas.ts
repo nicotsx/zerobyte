@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { rcloneRemoteNameSchema } from "./helpers/rclone-remote";
 
 export const REPOSITORY_BACKENDS = {
 	local: "local",
@@ -89,7 +90,7 @@ export const azureRepositoryConfigSchema = z
 export const rcloneRepositoryConfigSchema = z
 	.object({
 		backend: z.literal("rclone"),
-		remote: z.string().min(1),
+		remote: rcloneRemoteNameSchema,
 		path: z.string().min(1),
 	})
 	.extend(baseRepositoryConfigSchema.shape);

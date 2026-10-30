@@ -654,11 +654,17 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		throw new NotFoundError("Repository not found");
 	}
 
-	const existingConfigResult = repositoryConfigSchema.safeParse(existing.config);
-	if (!existingConfigResult.success) {
+	const configResult = repositoryConfigSchema.safeParse(updates.config ?? existing.config);
+	if (!configResult.success) {
+		if (updates.config) throw new BadRequestError("Invalid repository configuration");
 		throw new InternalServerError("Invalid repository configuration");
 	}
-	const existingConfig = existingConfigResult.data;
+	const parsedConfig = configResult.data;
+	if (parsedConfig.backend !== existing.type) {
+		throw new BadRequestError("Repository backend cannot be changed");
+	}
+
+	const existingConfig = repositoryConfigSchema.safeParse(existing.config).data ?? existing.config;
 
 	let newName = existing.name;
 	if (updates.name !== undefined) {
@@ -669,21 +675,6 @@ const updateRepository = async (shortId: ShortId, updates: UpdateRepositoryBody)
 		}
 
 		newName = normalizedName;
-	}
-
-	let parsedConfig = existingConfig;
-	if (updates.config) {
-		const nextConfigResult = repositoryConfigSchema.safeParse(updates.config);
-		if (!nextConfigResult.success) {
-			throw new BadRequestError("Invalid repository configuration");
-		}
-		const nextConfig = nextConfigResult.data;
-
-		if (nextConfig.backend !== existing.type) {
-			throw new BadRequestError("Repository backend cannot be changed");
-		}
-
-		parsedConfig = nextConfig;
 	}
 
 	const preparedConfig = updates.config
