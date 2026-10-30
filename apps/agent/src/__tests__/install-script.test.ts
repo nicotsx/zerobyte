@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 import { afterEach, expect, test } from "vitest";
 
 const temporary: string[] = [];
@@ -74,7 +75,7 @@ console.log("INSTALL_COMPLETE");
 					data(terminal, data) {
 						output += Buffer.from(data).toString("utf8");
 
-						if (!submitted && output.includes("? Connection code")) {
+						if (!submitted && stripVTControlCharacters(output).includes("? Connection code")) {
 							submitted = true;
 							terminal.write(`${code}\r`);
 						}

@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { stripVTControlCharacters } from "node:util";
 import { expect, test } from "vitest";
 import { readConnectionCodeFromStdin } from "../connection-code";
 
@@ -12,9 +13,9 @@ test.each(["\n", `${"x".repeat(4097)}\n`])("rejects invalid stdin input", async 
 	await expect(readConnectionCodeFromStdin(Readable.from([input]))).rejects.toThrow();
 });
 
-test.skipIf(process.platform === "win32")(
-	"accepts a terminal connection code and exits cleanly without revealing it",
-	async () => {
+test.skipIf(process.platform === "win32").each(["0", "1"])(
+	"accepts a terminal connection code and exits cleanly without revealing it with FORCE_COLOR=%s",
+	async (forceColor) => {
 		const code = "test-connection-code";
 		const modulePath = new URL("../connection-code.ts", import.meta.url).pathname;
 		const source = `
@@ -27,13 +28,14 @@ test.skipIf(process.platform === "win32")(
 		let output = "";
 		let submitted = false;
 		const child = Bun.spawn([process.execPath, "-e", source], {
+			env: { ...process.env, FORCE_COLOR: forceColor, NO_COLOR: undefined },
 			timeout: 5_000,
 			killSignal: "SIGKILL",
 			terminal: {
 				data(terminal, data) {
 					output += Buffer.from(data).toString("utf8");
 
-					if (!submitted && output.includes("? Connection code")) {
+					if (!submitted && stripVTControlCharacters(output).includes("? Connection code")) {
 						submitted = true;
 						terminal.write(`${code}\r`);
 					}
