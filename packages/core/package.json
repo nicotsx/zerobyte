@@ -40,7 +40,7 @@
 		"typecheck": "bun check --no-script"
 	},
 	"devDependencies": {
-		"@types/bun": "^1.4.3",
+		"@types/bun": "^1.4.4",
 		"fast-check": "^4.10.2"
 	},
 	"peerDependencies": {
