@@ -5,10 +5,12 @@ import { Effect } from "effect";
 import { expect, test } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import {
+	createAgentMessage,
 	parseAgentMessage,
 	parseControllerMessage,
 	type FilesystemCommand,
 	type AgentWireMessage,
+	type AgentMessage,
 } from "@zerobyte/contracts/agent-protocol";
 import { handleFilesystemCommand } from "../filesystem";
 import { createTrustedRootRegistry } from "../../trusted-roots";
@@ -29,9 +31,9 @@ test.each([false, true])(
 		const messages: AgentWireMessage[] = [];
 		const context = fromPartial<ControllerCommandContext>({
 			trustedRoots: registry,
-			offerOutbound: (message: AgentWireMessage) =>
+			offerOutbound: (message: AgentMessage) =>
 				Effect.sync(() => {
-					messages.push(message);
+					messages.push(createAgentMessage(message.type, message.payload));
 					return true;
 				}),
 		});
@@ -133,9 +135,9 @@ test.each([false, true])(
 		const messages: AgentWireMessage[] = [];
 		const context = fromPartial<ControllerCommandContext>({
 			trustedRoots: registry,
-			offerOutbound: (message: AgentWireMessage) =>
+			offerOutbound: (message: AgentMessage) =>
 				Effect.sync(() => {
-					messages.push(message);
+					messages.push(createAgentMessage(message.type, message.payload));
 					return true;
 				}),
 		});

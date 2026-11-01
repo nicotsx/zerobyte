@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { parseAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { createAgentMessage, parseAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { handleRestoreCancelCommand } from "../restore-cancel";
 import { handleControllerCommand } from "../index";
@@ -46,7 +46,7 @@ const createContext = (allowRestore = true) => {
 			}),
 		offerOutbound: (message) =>
 			Effect.sync(() => {
-				outboundMessages.push(message);
+				outboundMessages.push(createAgentMessage(message.type, message.payload));
 				return true;
 			}),
 	};

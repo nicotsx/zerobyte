@@ -1,4 +1,4 @@
-import type { AgentWireMessage } from "@zerobyte/contracts/agent-protocol";
+import type { AgentMessage } from "@zerobyte/contracts/agent-protocol";
 import type { Effect } from "effect";
 import type { ResticDeps } from "@zerobyte/core/restic";
 import type { TrustedRootRegistry } from "./trusted-roots";
@@ -14,5 +14,5 @@ export type ControllerCommandContext = {
 	getRunningJob: (jobId: string) => Effect.Effect<RunningJob | undefined, never, never>;
 	setRunningJob: (jobId: string, job: RunningJob) => Effect.Effect<void, never, never>;
 	deleteRunningJob: (jobId: string) => Effect.Effect<void, never, never>;
-	offerOutbound: (message: AgentWireMessage) => Effect.Effect<boolean, never, never>;
+	offerOutbound: (message: AgentMessage) => Effect.Effect<boolean, never, never>;
 };
