@@ -2,7 +2,7 @@ import { Effect } from "effect";
 import { expect } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { parseAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import { createAgentMessage, parseAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { handleBackupRunCommand } from "../backup-run";
 import type { ControllerCommandContext, RunningJob } from "../../context";
 import { createTrustedRootRegistry } from "../../trusted-roots";
@@ -61,10 +61,9 @@ export const runBackupCommand = async (
 			}),
 		offerOutbound: (message) =>
 			Effect.sync(() => {
-				outboundMessages.push(message);
+				outboundMessages.push(createAgentMessage(message.type, message.payload));
 
-				const parsed = parseAgentMessage(message);
-				if (cancelOnStart && parsed?.success && parsed.data.type === "backup.started") {
+				if (cancelOnStart && message.type === "backup.started") {
 					runningJobs.get(payload.jobId)?.abortController.abort();
 				}
 

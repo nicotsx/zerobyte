@@ -1,5 +1,5 @@
 import { Effect } from "effect";
-import { createAgentMessage, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { runBackupLifecycle } from "@zerobyte/core/backup-hooks";
 import { logger } from "@zerobyte/core/node";
 import { toErrorDetails, toMessage } from "@zerobyte/core/utils";
@@ -11,13 +11,14 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 		const existing = yield* context.getRunningJob(payload.jobId);
 
 		if (existing) {
-			yield* context.offerOutbound(
-				createAgentMessage("backup.failed", {
+			yield* context.offerOutbound({
+				type: "backup.failed",
+				payload: {
 					jobId: payload.jobId,
 					scheduleId: payload.scheduleId,
 					error: "Backup job is already running",
-				}),
-			);
+				},
+			});
 			return;
 		}
 
@@ -34,21 +35,23 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 		yield* Effect.forkChild(
 			Effect.gen(function* () {
 				const sendCancelled = (message?: string) => {
-					return context.offerOutbound(
-						createAgentMessage("backup.cancelled", {
+					return context.offerOutbound({
+						type: "backup.cancelled",
+						payload: {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
 							message: message ?? "Backup was cancelled",
-						}),
-					);
+						},
+					});
 				};
 
-				yield* context.offerOutbound(
-					createAgentMessage("backup.started", {
+				yield* context.offerOutbound({
+					type: "backup.started",
+					payload: {
 						jobId: payload.jobId,
 						scheduleId: payload.scheduleId,
-					}),
-				);
+					},
+				});
 
 				const services = yield* Effect.context<never>();
 
@@ -58,13 +61,14 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 					abortController.signal,
 					(progress) => {
 						void Effect.runPromiseWith(services)(
-							context.offerOutbound(
-								createAgentMessage("backup.progress", {
+							context.offerOutbound({
+								type: "backup.progress",
+								payload: {
 									jobId: payload.jobId,
 									scheduleId: payload.scheduleId,
 									progress,
-								}),
-							),
+								},
+							}),
 						).catch((error) => {
 							logger.error(`Failed to send backup progress update: ${toMessage(error)}`);
 						});
@@ -84,25 +88,27 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 
 				switch (backupResult.status) {
 					case "completed":
-						yield* context.offerOutbound(
-							createAgentMessage("backup.completed", {
+						yield* context.offerOutbound({
+							type: "backup.completed",
+							payload: {
 								jobId: payload.jobId,
 								scheduleId: payload.scheduleId,
 								exitCode: backupResult.exitCode,
 								result: backupResult.result,
 								warningDetails: backupResult.warningDetails ?? undefined,
-							}),
-						);
+							},
+						});
 						return;
 					case "failed":
-						yield* context.offerOutbound(
-							createAgentMessage("backup.failed", {
+						yield* context.offerOutbound({
+							type: "backup.failed",
+							payload: {
 								jobId: payload.jobId,
 								scheduleId: payload.scheduleId,
 								error: toMessage(backupResult.error),
 								errorDetails: backupResult.error,
-							}),
-						);
+							},
+						});
 						return;
 					case "cancelled":
 						yield* sendCancelled(backupResult.message);
@@ -111,25 +117,27 @@ export const handleBackupRunCommand = (context: ControllerCommandContext, payloa
 			}).pipe(
 				Effect.catch((error) => {
 					if (abortController.signal.aborted) {
-						return context.offerOutbound(
-							createAgentMessage("backup.cancelled", {
+						return context.offerOutbound({
+							type: "backup.cancelled",
+							payload: {
 								jobId: payload.jobId,
 								scheduleId: payload.scheduleId,
 								message: "Backup was cancelled",
-							}),
-						);
+							},
+						});
 					}
 
 					const errorDetails = toErrorDetails(error);
 
-					return context.offerOutbound(
-						createAgentMessage("backup.failed", {
+					return context.offerOutbound({
+						type: "backup.failed",
+						payload: {
 							jobId: payload.jobId,
 							scheduleId: payload.scheduleId,
 							error: errorDetails,
 							errorDetails,
-						}),
-					);
+						},
+					});
 				}),
 				Effect.ensuring(context.deleteRunningJob(payload.jobId)),
 			),

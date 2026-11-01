@@ -1,5 +1,5 @@
 import { Data, Deferred, Effect, Fiber, Queue } from "effect";
-import { logger } from "@zerobyte/core/node";
+import { logger, createConnectionDiagnostics, CONNECTION_DIAGNOSTIC_INTERVAL_MS } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import {
 	createControllerMessage,
@@ -10,7 +10,7 @@ import {
 	type AgentCapabilities,
 	type AgentMessage,
 	type AgentProtocolRejection,
-	type ControllerWireMessage,
+	type ControllerMessage,
 	type FilesystemCommand,
 	type FilesystemCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
@@ -28,6 +28,7 @@ export type AgentConnectionData = AgentIdentity & { id: string; connectionSecuri
 export type ControllerTransport = {
 	send: (message: string) => number | void;
 	close: (code?: number, reason?: string) => void;
+	readonly bufferedAmount?: number;
 };
 
 export type ConnectionEvent =
@@ -53,14 +54,22 @@ export const createAgentConnection = (
 ) => {
 	const started = Effect.runSync(Deferred.make<void>());
 	const inbox = Effect.runSync(Queue.dropping<string>(MAX_QUEUED_MESSAGES));
-	const outbound = Effect.runSync(Queue.bounded<ControllerWireMessage>(MAX_QUEUED_MESSAGES));
+	const outbound = Effect.runSync(Queue.bounded<ControllerMessage>(MAX_QUEUED_MESSAGES));
 	const pendingCommands = new Map<string, PendingCommand>();
 
-	const connectedAt = Date.now();
-	let lastSeenAt = connectedAt;
+	const readyDeadline = performance.now() + READY_TIMEOUT_MS;
+	let livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
 	let queuedBytes = 0;
 	let capabilities: AgentCapabilities | null = null;
 	let closeReason: string | null = null;
+
+	const diagnostics = createConnectionDiagnostics(data.id, () => ({
+		agentId: data.agentId,
+		inboundQueuedMessages: Queue.sizeUnsafe(inbox),
+		outboundQueuedMessages: Queue.sizeUnsafe(outbound),
+		queuedBytes,
+		transportBufferedBytes: transport.bufferedAmount ?? null,
+	}));
 
 	const closeTransport = (reason: string, code: number) => {
 		if (closeReason !== null) return;
@@ -74,11 +83,18 @@ export const createAgentConnection = (
 		}
 	};
 
-	const send = (message: ControllerWireMessage) =>
+	const send = (message: ControllerMessage) =>
 		Effect.suspend(() => {
 			if (closeReason !== null) return Effect.succeed(false);
 
-			return Queue.offer(outbound, message).pipe(Effect.catchCause(() => Effect.succeed(false)));
+			return Queue.offer(outbound, message).pipe(
+				Effect.tap((accepted) =>
+					Effect.sync(() => {
+						if (accepted) diagnostics.onQueued(message);
+					}),
+				),
+				Effect.catchCause(() => Effect.succeed(false)),
+			);
 		});
 
 	const rejectStartup = (rejection: AgentProtocolRejection) =>
@@ -117,6 +133,8 @@ export const createAgentConnection = (
 
 			const event = parsed.data;
 
+			diagnostics.onProcessing(event);
+
 			switch (event.type) {
 				case "agent.ready": {
 					const readyAt = Date.now();
@@ -131,15 +149,17 @@ export const createAgentConnection = (
 
 					yield* Effect.tryPromise(() => agentsService.markAgentOnline(data, metadata, readyAt));
 
-					lastSeenAt = readyAt;
+					livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
 					capabilities = event.payload.capabilities;
 
 					yield* logger.effect.info(`Agent "${data.agentName}" (${data.agentId}) is ready`);
 					return yield* hooks.onReady;
 				}
 				case "heartbeat.pong": {
-					lastSeenAt = Date.now();
-					return yield* Effect.tryPromise(() => agentsService.markAgentSeen(data, lastSeenAt));
+					const seenAt = Date.now();
+
+					livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
+					return yield* Effect.tryPromise(() => agentsService.markAgentSeen(data, seenAt));
 				}
 				case "filesystem.commandResult": {
 					const pending = pendingCommands.get(event.payload.commandId);
@@ -163,6 +183,7 @@ export const createAgentConnection = (
 					.error(`Inbound message from agent ${data.agentId} failed: ${toMessage(error)}`)
 					.pipe(Effect.andThen(new ConnectionClosed({ reason: "inbound_processing_failed", code: 1011 })));
 			}),
+			Effect.ensuring(Effect.sync(diagnostics.onProcessed)),
 			Effect.uninterruptible,
 		);
 
@@ -184,7 +205,18 @@ export const createAgentConnection = (
 
 	const processOutbound = Effect.forever(
 		Queue.take(outbound).pipe(
-			Effect.flatMap((message) => Effect.try({ try: () => transport.send(message), catch: toMessage })),
+			Effect.flatMap((message) =>
+				Effect.try({
+					try: () => transport.send(createControllerMessage(message.type, message.payload)),
+					catch: toMessage,
+				}).pipe(
+					Effect.tap((sent) =>
+						Effect.sync(() => {
+							if (sent !== 0) diagnostics.onSent(message);
+						}),
+					),
+				),
+			),
 			Effect.filterOrFail(
 				(sent) => sent !== 0,
 				() => "connection issue",
@@ -196,15 +228,32 @@ export const createAgentConnection = (
 
 	const checkLiveness = Effect.forever(
 		Effect.gen(function* () {
-			yield* Effect.sleep("5 seconds");
+			yield* Effect.sleep(CONNECTION_DIAGNOSTIC_INTERVAL_MS);
 
-			const now = Date.now();
+			const now = performance.now();
+			const timer = diagnostics.checkTimer();
+			const responseWindowExtended = timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS;
 
-			if (capabilities === null && now - connectedAt >= READY_TIMEOUT_MS) {
+			// After missing a full check interval, allow a fresh heartbeat round trip before declaring the agent lost.
+			if (responseWindowExtended) livenessDeadline = now + LIVENESS_TIMEOUT_MS;
+
+			if (responseWindowExtended || Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS) {
+				logger.warn(
+					"Controller heartbeat timer delayed or clock changed",
+					JSON.stringify({
+						...diagnostics.snapshot(),
+						...timer,
+						responseWindowExtended,
+					}),
+				);
+			}
+
+			if (capabilities === null && now >= readyDeadline) {
 				return yield* new ConnectionClosed({ reason: "agent_ready_timeout", code: 1001 });
 			}
 
-			if (capabilities !== null && now - lastSeenAt >= LIVENESS_TIMEOUT_MS) {
+			if (capabilities !== null && now >= livenessDeadline) {
+				logger.warn("Agent heartbeat timed out", JSON.stringify(diagnostics.snapshot()));
 				return yield* new ConnectionClosed({ reason: "heartbeat_timeout", code: 1001 });
 			}
 		}),
@@ -212,9 +261,7 @@ export const createAgentConnection = (
 
 	const sendHeartbeats = Effect.forever(
 		Effect.sleep("15 seconds").pipe(
-			Effect.andThen(
-				Effect.suspend(() => send(createControllerMessage("heartbeat.ping", { sentAt: Date.now() }))),
-			),
+			Effect.andThen(Effect.suspend(() => send({ type: "heartbeat.ping", payload: { sentAt: Date.now() } }))),
 		),
 	);
 
@@ -273,6 +320,8 @@ export const createAgentConnection = (
 			Effect.suspend(() => {
 				if (closeReason !== null) return Effect.void;
 
+				diagnostics.onReceived();
+
 				const bytes = Buffer.byteLength(text);
 
 				if (queuedBytes + bytes > MAX_QUEUED_BYTES || !Queue.offerUnsafe(inbox, text)) {
@@ -307,7 +356,7 @@ export const createAgentConnection = (
 
 				pendingCommands.set(commandId, { deferred, name: command.name });
 
-				if (!(yield* send(createControllerMessage("filesystem.command", { commandId, command })))) {
+				if (!(yield* send({ type: "filesystem.command", payload: { commandId, command } }))) {
 					return yield* Effect.fail(new Error(`Failed to queue filesystem command ${command.name}`));
 				}
 

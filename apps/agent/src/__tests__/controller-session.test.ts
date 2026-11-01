@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Effect } from "effect";
+import { logger } from "@zerobyte/core/node";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
@@ -12,6 +13,7 @@ import { createTrustedRootRegistry } from "../trusted-roots";
 import { createRunPayload } from "../commands/__tests__/backup-run.harness";
 
 afterEach(() => {
+	vi.useRealTimers();
 	vi.restoreAllMocks();
 });
 
@@ -313,3 +315,67 @@ test.each([
 		}
 	},
 );
+
+test.each([
+	["timer stall", 60_000],
+	["clock jump", 60_000],
+	["clock jump", -60_000],
+] as const)("session diagnostics distinguish a %s of %i ms and stop with the session", async (cause, jumpMs) => {
+	vi.useFakeTimers({
+		toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+	});
+	const startedAt = Date.now();
+	const warn = vi.spyOn(logger, "warn").mockImplementation(() => {});
+	const info = vi.spyOn(logger, "info").mockImplementation(() => {});
+
+	if (cause === "timer stall") {
+		vi.spyOn(performance, "now").mockImplementation(() => Date.now() - startedAt);
+	}
+
+	const session = createControllerSession(fromPartial({ send: vi.fn(), bufferedAmount: 17 }), {
+		trustedRoots: createTrustedRootRegistry(),
+	});
+
+	try {
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 123 }));
+		await vi.advanceTimersByTimeAsync(0);
+
+		vi.setSystemTime(Date.now() + jumpMs);
+		await vi.advanceTimersByTimeAsync(5_000);
+
+		expect(warn).toHaveBeenCalledWith("Agent session timer delayed or clock changed", expect.any(String));
+
+		const delayed = JSON.parse(String(warn.mock.calls[0]?.[1]));
+
+		expect(delayed).toMatchObject({
+			timerDelayMs: cause === "timer stall" ? 60_000 : 0,
+			lastClockDriftMs: cause === "clock jump" ? jumpMs : 0,
+		});
+
+		session.close();
+
+		expect(info).toHaveBeenCalledWith("Agent session closed", expect.any(String));
+
+		const closed = JSON.parse(String(info.mock.calls[0]?.[1]));
+
+		expect(closed).toMatchObject({
+			connectionId: expect.any(String),
+			pid: process.pid,
+			lastPingToken: 123,
+			lastPongToken: 123,
+			pingsProcessed: 1,
+			pongsSent: 1,
+			inboundQueuedMessages: 0,
+			outboundQueuedMessages: 0,
+			transportBufferedBytes: 17,
+			activeJobs: 0,
+		});
+
+		await vi.advanceTimersByTimeAsync(30_000);
+
+		expect(warn).toHaveBeenCalledOnce();
+		expect(info).toHaveBeenCalledOnce();
+	} finally {
+		session.close();
+	}
+});

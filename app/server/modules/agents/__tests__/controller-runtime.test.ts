@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Effect } from "effect";
+import { logger } from "@zerobyte/core/node";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import {
@@ -452,7 +453,9 @@ describe("Protocol and liveness", () => {
 		[false, 10_000, "agent_ready_timeout"],
 		[true, 45_000, "heartbeat_timeout"],
 	] as const)("closes once after readiness=%s times out and stops every worker", async (ready, timeout, reason) => {
-		vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
 		mockServe();
 
 		const { controller, onEvent } = await startController();
@@ -481,8 +484,245 @@ describe("Protocol and liveness", () => {
 		await run(controller.stop);
 	});
 
+	test.each([0, 40_000])(
+		"a delayed controller timer gives a responsive agent time to answer after %i ms of silence",
+		async (silentFor) => {
+			vi.useFakeTimers({
+				toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+			});
+			mockServe();
+
+			const { controller } = await startController();
+			const socket = createSocket("busy-controller");
+			const startedAt = Date.now();
+
+			vi.spyOn(performance, "now").mockImplementation(() => Date.now() - startedAt);
+
+			await connect(controller, socket);
+			await markReady(controller, socket);
+			await vi.advanceTimersByTimeAsync(silentFor);
+
+			socket.send.mockImplementation((text) => {
+				const message = parseControllerMessage(text);
+
+				if (message?.success && message.data.type === "heartbeat.ping") {
+					const pong = createAgentMessage("heartbeat.pong", message.data.payload);
+
+					setTimeout(() => void deliver(controller, socket, pong), 1);
+				}
+
+				return 1;
+			});
+
+			try {
+				vi.setSystemTime(Date.now() + 60_000);
+				await vi.advanceTimersByTimeAsync(15_000);
+
+				expect(socket.close).not.toHaveBeenCalled();
+				expect(sentMessages(socket)).toContainEqual(expect.objectContaining({ type: "heartbeat.ping" }));
+				expect(controller.isReady(LOCAL_AGENT_ID)).toBe(true);
+
+				await vi.advanceTimersByTimeAsync(60_000);
+
+				expect(socket.close).not.toHaveBeenCalled();
+			} finally {
+				await run(controller.stop);
+			}
+		},
+	);
+
+	test("an unresponsive agent still times out after a delayed controller timer", async () => {
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("unresponsive-after-stall");
+		const startedAt = Date.now();
+
+		vi.spyOn(performance, "now").mockImplementation(() => Date.now() - startedAt);
+
+		try {
+			await connect(controller, socket);
+			await markReady(controller, socket);
+
+			vi.setSystemTime(Date.now() + 60_000);
+			await vi.advanceTimersByTimeAsync(49_999);
+
+			expect(socket.close).not.toHaveBeenCalled();
+
+			await vi.advanceTimersByTimeAsync(1);
+
+			expect(socket.close).toHaveBeenCalledOnce();
+			expect(socket.close).toHaveBeenCalledWith(1001, "heartbeat_timeout");
+			expect(controller.isReady(LOCAL_AGENT_ID)).toBe(false);
+		} finally {
+			await run(controller.stop);
+		}
+	});
+
+	test.each([
+		["controller stall", 60_000],
+		["clock jump", 60_000],
+		["clock jump", -60_000],
+	] as const)("diagnostics distinguish a %s of %i ms", async (cause, jumpMs) => {
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
+		const startedAt = Date.now();
+		const warn = vi.spyOn(logger, "warn");
+
+		if (cause === "controller stall") {
+			vi.spyOn(performance, "now").mockImplementation(() => Date.now() - startedAt);
+		}
+
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("delayed-diagnostics");
+
+		try {
+			await connect(controller, socket);
+			await markReady(controller, socket);
+
+			vi.setSystemTime(Date.now() + jumpMs);
+			await vi.advanceTimersByTimeAsync(5_000);
+
+			expect(warn).toHaveBeenCalledWith(
+				"Controller heartbeat timer delayed or clock changed",
+				expect.any(String),
+			);
+
+			const details = JSON.parse(String(warn.mock.calls[0]?.[1]));
+
+			expect(details).toMatchObject({
+				connectionId: socket.data.id,
+				timerDelayMs: cause === "controller stall" ? jumpMs : 0,
+				responseWindowExtended: cause === "controller stall",
+				maxTimerDelayMs: cause === "controller stall" ? 60_000 : 0,
+				lastClockDriftMs: cause === "clock jump" ? jumpMs : 0,
+			});
+			expect(socket.close).not.toHaveBeenCalled();
+		} finally {
+			await run(controller.stop);
+		}
+	});
+
+	test("timeout diagnostics reveal inbound work blocked on persistence without logging queued payloads", async () => {
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
+		const warn = vi.spyOn(logger, "warn");
+		const seen = deferred<unknown>();
+
+		agentsServiceMocks.markAgentSeen.mockReturnValueOnce(seen.promise);
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("blocked-persistence");
+
+		try {
+			await connect(controller, socket);
+			await markReady(controller, socket);
+			await vi.advanceTimersByTimeAsync(15_000);
+
+			const firstPingAt = Date.now();
+
+			await deliver(controller, socket, createAgentMessage("heartbeat.pong", { sentAt: firstPingAt }));
+			await vi.advanceTimersByTimeAsync(0);
+			await vi.advanceTimersByTimeAsync(15_000);
+
+			const receivedAt = Date.now();
+
+			await deliver(controller, socket, createAgentMessage("heartbeat.pong", { sentAt: receivedAt }));
+			await deliver(controller, socket, '{"token":"secret-log-regression"}');
+			await vi.advanceTimersByTimeAsync(30_000);
+
+			const timeout = warn.mock.calls.find(([message]) => message === "Agent heartbeat timed out");
+
+			expect(timeout).toBeDefined();
+
+			const details = JSON.parse(String(timeout?.[1]));
+
+			expect(details).toMatchObject({
+				agentId: LOCAL_AGENT_ID,
+				connectionId: socket.data.id,
+				lastPongProcessedAt: firstPingAt,
+				lastPongToken: firstPingAt,
+				lastReceivedAt: receivedAt,
+				pongsProcessed: 1,
+				processingMessageType: "heartbeat.pong",
+				processingMessageMs: 45_000,
+				inboundQueuedMessages: 2,
+				outboundQueuedMessages: 0,
+				rssBytes: expect.any(Number),
+			});
+			expect(details.pingsSent).toBeGreaterThanOrEqual(3);
+			expect(details.lastPingSentAt).toBeGreaterThan(firstPingAt);
+			expect(JSON.stringify(timeout)).not.toContain("secret-log-regression");
+		} finally {
+			seen.resolve(undefined);
+			await run(controller.stop);
+		}
+	});
+
+	test.each([-3_600_000, 3_600_000])(
+		"a wall-clock adjustment of %i ms does not change heartbeat timeout",
+		async (adjustment) => {
+			vi.useFakeTimers({
+				toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+			});
+			mockServe();
+
+			const { controller } = await startController();
+			const socket = createSocket("clock-independent-timeout");
+
+			try {
+				await connect(controller, socket);
+				await markReady(controller, socket);
+				await vi.advanceTimersByTimeAsync(30_000);
+
+				vi.setSystemTime(Date.now() + adjustment);
+				await vi.advanceTimersByTimeAsync(14_999);
+
+				expect(socket.close).not.toHaveBeenCalled();
+
+				await vi.advanceTimersByTimeAsync(1);
+
+				expect(socket.close).toHaveBeenCalledOnce();
+				expect(socket.close).toHaveBeenCalledWith(1001, "heartbeat_timeout");
+			} finally {
+				await run(controller.stop);
+			}
+		},
+	);
+
+	test("a backward wall-clock adjustment does not postpone startup timeout", async () => {
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("clock-independent-startup");
+
+		try {
+			await connect(controller, socket);
+
+			vi.setSystemTime(Date.now() - 3_600_000);
+			await vi.advanceTimersByTimeAsync(10_000);
+
+			expect(socket.close).toHaveBeenCalledWith(1001, "agent_ready_timeout");
+		} finally {
+			await run(controller.stop);
+		}
+	});
+
 	test("heartbeat responses refresh liveness", async () => {
-		vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+		vi.useFakeTimers({
+			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+		});
 		mockServe();
 
 		const { controller } = await startController();
