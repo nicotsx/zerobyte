@@ -170,7 +170,9 @@ export const createControllerSession = (
 						return;
 					}
 
-					diagnostics.onSent(message);
+					if (message.type === "heartbeat.pong") {
+						diagnostics.onHeartbeatSent("pong", message.payload.sentAt);
+					}
 				});
 			}),
 		),
@@ -204,7 +206,11 @@ export const createControllerSession = (
 				if (parsed.data.type === "filesystem.command") {
 					yield* Effect.forkChild(handledCommand);
 				} else {
-					diagnostics.onProcessing(parsed.data);
+					diagnostics.onProcessing(parsed.data.type);
+
+					if (parsed.data.type === "heartbeat.ping") {
+						diagnostics.onHeartbeatProcessed("ping", parsed.data.payload.sentAt);
+					}
 
 					yield* handledCommand.pipe(Effect.ensuring(Effect.sync(diagnostics.onProcessed)));
 				}

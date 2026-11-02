@@ -1,8 +1,6 @@
-import type { AgentMessage, ControllerMessage } from "@zerobyte/contracts/agent-protocol";
-
 export const CONNECTION_DIAGNOSTIC_INTERVAL_MS = 5_000;
 
-type Message = AgentMessage | ControllerMessage;
+type HeartbeatKind = "ping" | "pong";
 
 type RuntimeSnapshot = {
 	inboundQueuedMessages: number;
@@ -13,6 +11,7 @@ type RuntimeSnapshot = {
 export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 	connectionId: string,
 	runtime: () => Runtime,
+	intervalMs = CONNECTION_DIAGNOSTIC_INTERVAL_MS,
 ) => {
 	const connectedAt = Date.now();
 	let lastCheckAt = connectedAt;
@@ -22,7 +21,7 @@ export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 
 	let lastReceivedAt: number | null = null;
 	let lastProcessedAt: number | null = null;
-	let processing: { type: Message["type"]; startedAt: number } | null = null;
+	let processing: { type: string; startedAt: number } | null = null;
 
 	let lastPingQueuedAt: number | null = null;
 	let lastPingSentAt: number | null = null;
@@ -41,18 +40,8 @@ export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 			lastReceivedAt = Date.now();
 		},
 
-		onProcessing: (message: Message) => {
-			processing = { type: message.type, startedAt: performance.now() };
-
-			if (message.type === "heartbeat.ping") {
-				lastPingProcessedAt = Date.now();
-				lastPingToken = message.payload.sentAt;
-				pingsProcessed += 1;
-			} else if (message.type === "heartbeat.pong") {
-				lastPongProcessedAt = Date.now();
-				lastPongToken = message.payload.sentAt;
-				pongsProcessed += 1;
-			}
+		onProcessing: (type: string) => {
+			processing = { type, startedAt: performance.now() };
 		},
 
 		onProcessed: () => {
@@ -60,18 +49,30 @@ export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 			lastProcessedAt = Date.now();
 		},
 
-		onQueued: (message: Message) => {
-			if (message.type === "heartbeat.ping") lastPingQueuedAt = Date.now();
+		onPingQueued: () => {
+			lastPingQueuedAt = Date.now();
 		},
 
-		onSent: (message: Message) => {
-			if (message.type === "heartbeat.ping") {
+		onHeartbeatProcessed: (kind: HeartbeatKind, token: number) => {
+			if (kind === "ping") {
+				lastPingProcessedAt = Date.now();
+				lastPingToken = token;
+				pingsProcessed += 1;
+			} else {
+				lastPongProcessedAt = Date.now();
+				lastPongToken = token;
+				pongsProcessed += 1;
+			}
+		},
+
+		onHeartbeatSent: (kind: HeartbeatKind, token: number) => {
+			if (kind === "ping") {
 				lastPingSentAt = Date.now();
-				lastPingToken = message.payload.sentAt;
+				lastPingToken = token;
 				pingsSent += 1;
-			} else if (message.type === "heartbeat.pong") {
+			} else {
 				lastPongSentAt = Date.now();
-				lastPongToken = message.payload.sentAt;
+				lastPongToken = token;
 				pongsSent += 1;
 			}
 		},
@@ -80,7 +81,7 @@ export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 			const now = Date.now();
 			const monotonicNow = performance.now();
 			const monotonicElapsed = monotonicNow - lastCheckMonotonicAt;
-			const timerDelayMs = Math.max(0, Math.round(monotonicElapsed - CONNECTION_DIAGNOSTIC_INTERVAL_MS));
+			const timerDelayMs = Math.max(0, Math.round(monotonicElapsed - intervalMs));
 
 			maxTimerDelayMs = Math.max(maxTimerDelayMs, timerDelayMs);
 			lastClockDriftMs = Math.round(now - lastCheckAt - monotonicElapsed);
@@ -115,10 +116,7 @@ export const createConnectionDiagnostics = <Runtime extends RuntimeSnapshot>(
 				pongsSent,
 				pongsProcessed,
 				maxTimerDelayMs,
-				currentTimerDelayMs: Math.max(
-					0,
-					Math.round(monotonicNow - lastCheckMonotonicAt - CONNECTION_DIAGNOSTIC_INTERVAL_MS),
-				),
+				currentTimerDelayMs: Math.max(0, Math.round(monotonicNow - lastCheckMonotonicAt - intervalMs)),
 				lastClockDriftMs,
 				currentClockDriftMs: Math.round(now - lastCheckAt - (monotonicNow - lastCheckMonotonicAt)),
 				rssBytes: process.memoryUsage().rss,

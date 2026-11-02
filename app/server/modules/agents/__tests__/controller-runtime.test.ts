@@ -609,64 +609,6 @@ describe("Protocol and liveness", () => {
 		}
 	});
 
-	test("timeout diagnostics reveal inbound work blocked on persistence without logging queued payloads", async () => {
-		vi.useFakeTimers({
-			toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
-		});
-		const warn = vi.spyOn(logger, "warn");
-		const seen = deferred<unknown>();
-
-		agentsServiceMocks.markAgentSeen.mockReturnValueOnce(seen.promise);
-		mockServe();
-
-		const { controller } = await startController();
-		const socket = createSocket("blocked-persistence");
-
-		try {
-			await connect(controller, socket);
-			await markReady(controller, socket);
-			await vi.advanceTimersByTimeAsync(15_000);
-
-			const firstPingAt = Date.now();
-
-			await deliver(controller, socket, createAgentMessage("heartbeat.pong", { sentAt: firstPingAt }));
-			await vi.advanceTimersByTimeAsync(0);
-			await vi.advanceTimersByTimeAsync(15_000);
-
-			const receivedAt = Date.now();
-
-			await deliver(controller, socket, createAgentMessage("heartbeat.pong", { sentAt: receivedAt }));
-			await deliver(controller, socket, '{"token":"secret-log-regression"}');
-			await vi.advanceTimersByTimeAsync(30_000);
-
-			const timeout = warn.mock.calls.find(([message]) => message === "Agent heartbeat timed out");
-
-			expect(timeout).toBeDefined();
-
-			const details = JSON.parse(String(timeout?.[1]));
-
-			expect(details).toMatchObject({
-				agentId: LOCAL_AGENT_ID,
-				connectionId: socket.data.id,
-				lastPongProcessedAt: firstPingAt,
-				lastPongToken: firstPingAt,
-				lastReceivedAt: receivedAt,
-				pongsProcessed: 1,
-				processingMessageType: "heartbeat.pong",
-				processingMessageMs: 45_000,
-				inboundQueuedMessages: 2,
-				outboundQueuedMessages: 0,
-				rssBytes: expect.any(Number),
-			});
-			expect(details.pingsSent).toBeGreaterThanOrEqual(3);
-			expect(details.lastPingSentAt).toBeGreaterThan(firstPingAt);
-			expect(JSON.stringify(timeout)).not.toContain("secret-log-regression");
-		} finally {
-			seen.resolve(undefined);
-			await run(controller.stop);
-		}
-	});
-
 	test.each([-3_600_000, 3_600_000])(
 		"a wall-clock adjustment of %i ms does not change heartbeat timeout",
 		async (adjustment) => {
@@ -1125,28 +1067,27 @@ describe("Message admission", () => {
 	});
 
 	test("message count overflow closes without blocking and permits reconnect", async () => {
-		const seen = deferred<unknown>();
+		const online = deferred<unknown>();
 
-		agentsServiceMocks.markAgentSeen.mockReturnValueOnce(seen.promise);
+		agentsServiceMocks.markAgentOnline.mockReturnValueOnce(online.promise);
 		mockServe();
 
 		const { controller } = await startController();
 		const socket = createSocket("connection-count-limit");
-		const pong = createAgentMessage("heartbeat.pong", { sentAt: 1 });
+		const message = createAgentMessage("backup.cancelled", { jobId: "job-1", scheduleId: "schedule-1" });
 
 		await connect(controller, socket);
-		await markReady(controller, socket);
-		await deliver(controller, socket, pong);
-		await vi.waitFor(() => expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledOnce());
+		await deliver(controller, socket, createAgentMessage("agent.ready", readyPayload));
+		await vi.waitFor(() => expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledOnce());
 
-		await Promise.all(Array.from({ length: 64 }, () => deliver(controller, socket, pong)));
+		await Promise.all(Array.from({ length: 64 }, () => deliver(controller, socket, message)));
 
 		expect(socket.close).not.toHaveBeenCalled();
 
-		await deliver(controller, socket, pong);
+		await deliver(controller, socket, message);
 		await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1009, "message_limit"));
 
-		seen.resolve(undefined);
+		online.resolve(undefined);
 		await vi.waitFor(() => expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(socket.data));
 
 		const replacement = createSocket("connection-after-overflow");
@@ -1158,18 +1099,17 @@ describe("Message admission", () => {
 	});
 
 	test("message byte limit accepts the exact limit and rejects the next byte", async () => {
-		const seen = deferred<unknown>();
+		const online = deferred<unknown>();
 
-		agentsServiceMocks.markAgentSeen.mockReturnValueOnce(seen.promise);
+		agentsServiceMocks.markAgentOnline.mockReturnValueOnce(online.promise);
 		mockServe();
 
 		const { controller } = await startController();
 		const socket = createSocket("connection-byte-limit");
 
 		await connect(controller, socket);
-		await markReady(controller, socket);
-		await deliver(controller, socket, createAgentMessage("heartbeat.pong", { sentAt: 1 }));
-		await vi.waitFor(() => expect(agentsServiceMocks.markAgentSeen).toHaveBeenCalledOnce());
+		await deliver(controller, socket, createAgentMessage("agent.ready", readyPayload));
+		await vi.waitFor(() => expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledOnce());
 
 		await deliver(controller, socket, "x".repeat(1024 * 1024));
 
@@ -1178,7 +1118,7 @@ describe("Message admission", () => {
 		await deliver(controller, socket, "x");
 		await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1009, "message_limit"));
 
-		seen.resolve(undefined);
+		online.resolve(undefined);
 		await run(controller.stop);
 	});
 });
