@@ -19,7 +19,7 @@ test("excludes the saved machine credential from backups without environment con
 	const directory = await fs.mkdtemp(path.join(os.tmpdir(), "zerobyte-agent-credentials-"));
 	const configPath = path.join(directory, "agent.json");
 	const trustedRoots = createTrustedRootRegistry({
-		roots: [{ id: "data", label: "Data", path: directory, allowBackup: true }],
+		roots: [{ id: "data", label: "Data", path: directory, allowBackup: true, allowRepository: true }],
 	});
 	const restic = vi
 		.spyOn(resticServer, "createRestic")
@@ -35,7 +35,13 @@ test("excludes the saved machine credential from backups without environment con
 		await fs.writeFile(configPath, JSON.stringify({ token: "machine-credential" }));
 		session.onOpen();
 		session.onMessage(
-			createControllerMessage("backup.run", createRunPayload({ source: { rootId: "data", relativePath: "" } })),
+			createControllerMessage(
+				"backup.run",
+				createRunPayload({
+					repositoryConfig: { backend: "local", path: path.join(directory, "repository") },
+					source: { rootId: "data", relativePath: "" },
+				}),
+			),
 		);
 
 		await waitForExpect(() => {
@@ -64,7 +70,7 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 				outboundMessages.push(message);
 			},
 		}),
-		{ trustedRoots: registry, builtinLocal: true },
+		{ trustedRoots: registry },
 	);
 
 	try {
@@ -153,7 +159,7 @@ test("continues processing inbound messages after a filesystem command fails", a
 				outboundMessages.push(message);
 			},
 		}),
-		{ trustedRoots: registry, builtinLocal: false },
+		{ trustedRoots: registry },
 	);
 
 	try {
@@ -231,7 +237,7 @@ test("continues processing inbound messages after a filesystem command fails", a
 	}
 });
 
-test("continues processing after standalone restore policy rejection", async () => {
+test("continues processing after restore rejected by trusted roots", async () => {
 	const registry = createTrustedRootRegistry({ builtinLocal: false });
 	const outboundMessages: string[] = [];
 	const session = createControllerSession(
@@ -240,7 +246,7 @@ test("continues processing after standalone restore policy rejection", async () 
 				outboundMessages.push(message);
 			},
 		}),
-		{ trustedRoots: registry, builtinLocal: false },
+		{ trustedRoots: registry },
 	);
 
 	try {
@@ -276,19 +282,18 @@ test("continues processing after standalone restore policy rejection", async () 
 });
 
 test.each([
-	[false, undefined, false],
-	[false, false, false],
-	[false, true, false],
-	[true, false, true],
+	[false, undefined],
+	[false, false],
+	[false, true],
+	[true, false],
 ] as const)(
 	"advertises capabilities from its configured roots, builtinLocal=%s, allowBackup=%s",
-	async (builtinLocal, allowBackup, allowRestore) => {
+	async (builtinLocal, allowBackup) => {
 		const roots = allowBackup === undefined ? [] : [{ id: "data", label: "Data", path: os.tmpdir(), allowBackup }];
 		const trustedRoots = createTrustedRootRegistry({ roots, builtinLocal });
 		const messages: string[] = [];
 		const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 			trustedRoots,
-			builtinLocal,
 			resticVersion: "0.18.1",
 		});
 
@@ -301,7 +306,7 @@ test.each([
 			expect(ready.data.payload.capabilities).toEqual({
 				agentVersion: process.env.ZEROBYTE_AGENT_VERSION ?? "dev",
 				resticVersion: "0.18.1",
-				restore: allowRestore,
+				restore: true,
 				trustedRoots: [...trustedRoots.values()].map((root) => root.descriptor),
 			});
 			expect(ready.data.payload.capabilities.trustedRoots).toHaveLength(

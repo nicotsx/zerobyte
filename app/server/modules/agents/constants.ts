@@ -6,4 +6,6 @@ export const LOCAL_AGENT_NAME = "Local Agent";
 export const LOCAL_AGENT_KIND = "local" satisfies AgentKind;
 export const LOCAL_AGENT_CAPABILITIES: AgentCapabilities = {};
 export const REMOTE_AGENTS_UNAVAILABLE = "Remote agents are disabled on this instance.";
+export const AGENT_OFFLINE_MESSAGE =
+	"This repository is stored on a machine that is offline. Bring the machine back online and try again.";
 export const AGENT_BUNDLE_PATH = path.join(process.cwd(), ".output", "agent", "index.mjs");

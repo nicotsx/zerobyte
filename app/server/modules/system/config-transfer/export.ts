@@ -93,11 +93,11 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 
 	let missingMachineCount = 0;
 
-	for (const volume of volumes) {
-		if (volume.agentId === LOCAL_AGENT_ID || machineRefs.has(volume.agentId)) continue;
+	for (const agentId of [...volumes, ...repositories].map((resource) => resource.agentId)) {
+		if (agentId === LOCAL_AGENT_ID || machineRefs.has(agentId)) continue;
 
 		const ref = createTransferRef("machine", exportedMachines.length);
-		machineRefs.set(volume.agentId, ref);
+		machineRefs.set(agentId, ref);
 		exportedMachines.push({ ref, name: `Missing machine ${++missingMachineCount}` });
 	}
 
@@ -117,6 +117,10 @@ export const createPassphraseProtectedOrganizationConfigExport = async (
 
 				return {
 					ref: getRequiredRef(repositoryRefs, repository.id, "repository"),
+					machineRef:
+						repository.agentId === LOCAL_AGENT_ID
+							? null
+							: getRequiredRef(machineRefs, repository.agentId, "machine"),
 					name,
 					config,
 					compressionMode: repository.compressionMode ?? "auto",

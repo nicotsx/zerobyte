@@ -35,7 +35,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 			snapshot,
 			repository,
 			schedule: schedule.data,
-			...getRestoreContext(snapshot, schedule.data.volume),
+			...getRestoreContext(snapshot, schedule.data.volume, repository),
 		};
 	},
 	head: ({ params }) => ({

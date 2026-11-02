@@ -60,7 +60,12 @@ export const assertImportAllowed = (organizationId: string, userId: string) => {
 	db.transaction((tx) => assertAllowed(tx, organizationId, userId));
 };
 
-const importRepositories = (tx: Transaction, organizationId: string, repositories: PreparedImport["repositories"]) => {
+const importRepositories = (
+	tx: Transaction,
+	organizationId: string,
+	repositories: PreparedImport["repositories"],
+	machineIds: Map<string, string>,
+) => {
 	const ids = new Map<string, string>();
 
 	for (const repository of repositories) {
@@ -78,6 +83,10 @@ const importRepositories = (tx: Transaction, organizationId: string, repositorie
 				autoCheckEnabled: repository.autoCheckEnabled,
 				...bandwidth,
 				organizationId,
+				agentId:
+					repository.machineRef === null
+						? LOCAL_AGENT_ID
+						: getRequiredId(machineIds, repository.machineRef, "machine"),
 			})
 			.run();
 		ids.set(repository.ref, id);
@@ -237,8 +246,8 @@ export const storeImport = (organizationId: string, userId: string, prepared: Pr
 			throw new Error("Organization not found");
 		}
 
-		const repositoryIds = importRepositories(tx, organizationId, prepared.repositories);
 		const machineIds = importMachines(tx, organizationId, prepared.machines);
+		const repositoryIds = importRepositories(tx, organizationId, prepared.repositories, machineIds);
 		const volumeIds = importVolumes(tx, organizationId, prepared.volumes, machineIds);
 		const scheduleIds = importSchedules(tx, organizationId, prepared.backupSchedules, volumeIds, repositoryIds);
 		const destinationIds = importDestinations(tx, organizationId, prepared.notificationDestinations);

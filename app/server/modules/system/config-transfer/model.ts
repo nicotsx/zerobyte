@@ -9,6 +9,7 @@ export type ConfigTransferModel = {
 	repositories: Array<{
 		ref: string;
 		name: string;
+		machineRef: string | null;
 		config: RepositoryConfig;
 		compressionMode: CompressionMode;
 		autoCheckEnabled: boolean;

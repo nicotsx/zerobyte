@@ -35,7 +35,7 @@ const afterSessionEnded = announced(Schedule.spaced(INITIAL_RECONNECT_DELAY).pip
  * Succeeds when an established session ends and fails when the socket closes before opening. Retrying only
  * failures lets backoff restart from its initial delay once a connection has been accepted.
  */
-const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOptions, trustedRoots: TrustedRootRegistry) =>
+const connectOnce = ({ configuration, resticVersion }: AgentOptions, trustedRoots: TrustedRootRegistry) =>
 	Effect.callback<void, ConnectionFailed>((resume) => {
 		const redact = (message: string) => message.replaceAll(configuration.token, "[redacted]").slice(0, 500);
 
@@ -45,7 +45,6 @@ const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOption
 		const session = createControllerSession(ws, {
 			resticVersion,
 			trustedRoots,
-			builtinLocal,
 			excludedPaths: configuration.configPath ? [configuration.configPath] : [],
 		});
 		let opened = false;

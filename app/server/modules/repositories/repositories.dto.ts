@@ -17,6 +17,8 @@ export const repositorySchema = z.object({
 	provisioningId: z.string().nullable(),
 	name: z.string(),
 	type: z.enum(REPOSITORY_BACKENDS),
+	agentId: z.string(),
+	agentName: z.string().nullable(),
 	config: repositoryConfigSchema,
 	compressionMode: z.enum(COMPRESSION_MODES).nullable(),
 	status: z.enum(REPOSITORY_STATUS).nullable(),
@@ -49,6 +51,7 @@ export const listRepositoriesDto = describeRoute({
 
 export const createRepositoryBody = z.object({
 	name: z.string(),
+	agentId: z.string().optional(),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
 	autoCheckEnabled: z.boolean().optional(),
 	config: repositoryConfigSchema,

@@ -37,6 +37,7 @@ const payloadFor = (family: (typeof families)[number], value: string): ConfigTra
 			payload.repositories.push({
 				ref: "repo",
 				name: "Repository",
+				machineRef: null,
 				compressionMode: "auto",
 				autoCheckEnabled: false,
 				config: {

@@ -29,6 +29,7 @@ type RepositoryRow = {
 	shortId: string;
 	name: string;
 	type: RepositoryBackend;
+	agentName: string | null;
 	status: string | null;
 	compressionMode?: string | null;
 };
@@ -53,6 +54,7 @@ const repositoryColumns = repositoryColumnHelper.columns([
 			<span className="flex items-center gap-2 text-muted-foreground">
 				<RepositoryIcon backend={row.original.type} />
 				{row.original.type}
+				{row.original.agentName && <span className="text-xs">on {row.original.agentName}</span>}
 			</span>
 		),
 		filterFn: (row, id, value) => row.getValue(id) === value,

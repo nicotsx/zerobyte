@@ -6,6 +6,7 @@ import { toMessage } from "~/server/utils/errors";
 import { safeExec } from "@zerobyte/core/node";
 import { addCommonArgs, buildEnv, buildRepoUrl, cleanupTemporaryKeys } from "@zerobyte/core/restic/server";
 import { resticDeps } from "~/server/core/restic";
+import { isAgentRepository } from "@zerobyte/contracts/backup-context";
 
 const migrateTag = async (
 	oldTag: string,
@@ -13,6 +14,13 @@ const migrateTag = async (
 	repository: Repository,
 	scheduleName: string,
 ): Promise<string | null> => {
+	if (isAgentRepository(repository)) {
+		logger.warn(
+			`Skipping snapshot tag migration for '${scheduleName}': its repository is stored on another machine`,
+		);
+		return null;
+	}
+
 	const repoUrl = buildRepoUrl(repository.config);
 	const env = await buildEnv(repository.config, repository.organizationId, resticDeps);
 

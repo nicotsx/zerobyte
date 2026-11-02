@@ -1,6 +1,6 @@
 import type { BackupSchedule, Volume, Repository } from "../../db/schema";
 import { config } from "../../core/config";
-import { resticDeps } from "../../core/restic";
+import { resolveRepositoryRuntimePassword } from "../repositories/repository-restic";
 import type { BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { agentManager, type BackupExecutionProgress } from "../agents/agents-manager";
 import { decryptRepositoryConfig } from "../repositories/repository-config-secrets";
@@ -45,14 +45,7 @@ const createBackupRunPayload = async ({
 	const source = assembleVolumeExecutionSource(volume);
 
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
-	let resticPassword: string;
-
-	if (repositoryConfig.isExistingRepository && repositoryConfig.customPassword) {
-		resticPassword = repositoryConfig.customPassword;
-	} else {
-		const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
-		resticPassword = await resticDeps.resolveSecret(encryptedResticPassword);
-	}
+	const resticPassword = await resolveRepositoryRuntimePassword(repositoryConfig, organizationId);
 
 	return {
 		jobId,

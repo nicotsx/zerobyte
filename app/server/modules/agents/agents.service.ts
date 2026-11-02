@@ -3,7 +3,7 @@ import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { ConflictError, NotFoundError, UnauthorizedError } from "http-errors-enhanced";
 import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
 import { db } from "../../db/db";
-import { agentsTable, volumesTable, type Agent, type AgentCapabilities } from "../../db/schema";
+import { agentsTable, repositoriesTable, volumesTable, type Agent, type AgentCapabilities } from "../../db/schema";
 import { config } from "../../core/config";
 import { LOCAL_AGENT_CAPABILITIES, LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "./constants";
 import { createAgentToken, hashAgentToken, parseAgentToken, type AgentIdentity } from "./helpers/tokens";
@@ -170,6 +170,14 @@ const deleteRemoteAgent = (organizationId: string, agentId: string) =>
 			.get();
 
 		if (source) throw new ConflictError("Delete this machine's sources before deleting the machine.");
+
+		const repository = tx
+			.select({ id: repositoriesTable.id })
+			.from(repositoriesTable)
+			.where(and(eq(repositoriesTable.agentId, agentId), eq(repositoriesTable.organizationId, organizationId)))
+			.get();
+
+		if (repository) throw new ConflictError("Delete this machine's repositories before deleting the machine.");
 
 		const deleted = tx
 			.delete(agentsTable)

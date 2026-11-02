@@ -6,6 +6,12 @@ import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
 import type { ControllerCommandContext } from "../context";
+import {
+	assertPathWithinTrustedRoots,
+	resolveCanonicalPath,
+	resolveRepositoryConfig,
+	type TrustedRootRegistry,
+} from "../trusted-roots";
 
 const REPOSITORY_BASE = process.env.ZEROBYTE_REPOSITORIES_DIR || "/var/lib/zerobyte/repositories";
 const RESTIC_PASS_FILE = process.env.RESTIC_PASS_FILE || "/var/lib/zerobyte/data/restic.pass";
@@ -13,16 +19,44 @@ const RESTIC_PASS_FILE = process.env.RESTIC_PASS_FILE || "/var/lib/zerobyte/data
 const getBlockedRestoreTargets = () =>
 	[REPOSITORY_BASE, path.dirname(RESTIC_PASS_FILE), os.tmpdir()].map((target) => path.resolve(target));
 
-const assertAllowedRestoreTarget = (target: string) => {
-	const resolvedTarget = path.resolve(target);
+/**
+ * Checks the written path both as given and canonicalized, against the blocked directories both as configured and
+ * canonicalized, so a symlink inside a trusted root cannot lead a restore into them.
+ */
+const assertAllowedRestorePath = async (registry: TrustedRootRegistry, writtenPath: string) => {
+	const canonicalPath = await assertPathWithinTrustedRoots(registry, writtenPath);
+	const configuredTargets = getBlockedRestoreTargets();
+	const canonicalTargets = await Promise.all(
+		configuredTargets.map((target) => resolveCanonicalPath(target).catch(() => target)),
+	);
 
-	for (const blockedTarget of getBlockedRestoreTargets()) {
-		if (isPathWithin(blockedTarget, resolvedTarget)) {
+	for (const blockedTarget of [...configuredTargets, ...canonicalTargets]) {
+		if (isPathWithin(blockedTarget, path.resolve(writtenPath)) || isPathWithin(blockedTarget, canonicalPath)) {
 			throw new Error(
 				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
 			);
 		}
 	}
+};
+
+/**
+ * Restoring to "/" writes each selected path back to its original location, so those paths are what must be inside
+ * a trusted root and outside the blocked directories. Any other target is the directory the snapshot is written into.
+ * Returns the repository config to run restic with on this machine.
+ */
+const resolveRestore = async (registry: TrustedRootRegistry, payload: RestoreRunPayload) => {
+	const writtenPaths =
+		payload.target !== "/"
+			? [payload.target]
+			: payload.options.include?.length
+				? payload.options.include
+				: [payload.options.basePath ?? "/"];
+
+	for (const writtenPath of writtenPaths) {
+		await assertAllowedRestorePath(registry, writtenPath);
+	}
+
+	return resolveRepositoryConfig(registry, payload.repositoryConfig);
 };
 
 export const handleRestoreRunCommand = (context: ControllerCommandContext, payload: RestoreRunPayload) => {
@@ -51,14 +85,17 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 
 		yield* Effect.forkChild(
 			Effect.gen(function* () {
-				assertAllowedRestoreTarget(payload.target);
+				const repositoryConfig = yield* Effect.tryPromise({
+					try: () => resolveRestore(context.trustedRoots, payload),
+					catch: (error) => error,
+				});
 
 				const services = yield* Effect.context<never>();
 				const restic = createRestic(context.resticDeps(payload.runtime.password));
 
 				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
 
-				const result = yield* restic.restore(payload.repositoryConfig, payload.snapshotId, payload.target, {
+				const result = yield* restic.restore(repositoryConfig, payload.snapshotId, payload.target, {
 					...payload.options,
 					signal: abortController.signal,
 					onProgress: (progress) => {

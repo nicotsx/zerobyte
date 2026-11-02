@@ -1,5 +1,5 @@
 import type { BackupSchedule, Repository, VolumeRow } from "~/server/db/schema";
-import { presentRepository } from "../repositories/repository-presentation";
+import { presentRepositories } from "../repositories/repository-presentation";
 import { presentVolumes } from "../volumes/volume-presentation";
 
 export type BackupScheduleWithResources = BackupSchedule & {
@@ -9,6 +9,7 @@ export type BackupScheduleWithResources = BackupSchedule & {
 
 export const presentBackupSchedules = async (schedules: readonly BackupScheduleWithResources[]) => {
 	const volumes = await presentVolumes(schedules.map((schedule) => schedule.volume));
+	const repositories = await presentRepositories(schedules.map((schedule) => schedule.repository));
 
 	return schedules.map((schedule, index) => {
 		const {
@@ -21,7 +22,7 @@ export const presentBackupSchedules = async (schedules: readonly BackupScheduleW
 		return {
 			...publicSchedule,
 			volume: volumes[index],
-			repository: presentRepository(schedule.repository),
+			repository: repositories[index],
 		};
 	});
 };
