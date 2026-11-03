@@ -6,7 +6,7 @@ import { taskChangedEventName } from "~/schemas/task-events";
 import type { TaskOfKind } from "~/client/hooks/use-active-tasks";
 import type { Repository, Snapshot, Volume } from "~/client/lib/types";
 import { fromAny, fromPartial } from "@total-typescript/shoehorn";
-import { getRestoreContext } from "~/client/lib/restore-context";
+import { getSnapshotBrowsePaths } from "~/client/lib/restore-context";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => {
@@ -73,6 +73,12 @@ const localRepository: Repository = fromAny({
 	name: "Repo 1",
 	agentId: "local",
 	agentName: null,
+});
+const serverMachines = [{ agentId: "local", name: null }];
+const localMountVolume = fromPartial<Volume>({
+	sourceKind: "managed",
+	agentId: "local",
+	config: { backend: "directory", path: "/mnt" },
 });
 type TaskResponse = TaskOfKind<"restore">;
 type RestoreProgress = NonNullable<TaskResponse["progress"]>["progress"];
@@ -141,7 +147,8 @@ const renderRestoreForm = (queryClient = createTestQueryClient()) => {
 			returnPath={`/repositories/${repositoryId}/${snapshotId}`}
 			queryBasePath="/mnt/project"
 			displayBasePath="/mnt"
-			originalLocationUnavailableReason={null}
+			sourceVolume={localMountVolume}
+			restoreMachines={serverMachines}
 		/>,
 		{ queryClient },
 	);
@@ -198,10 +205,7 @@ describe("RestoreForm", () => {
 				returnPath="/repositories/repo-1"
 				queryBasePath="/mnt/project"
 				displayBasePath="/"
-				originalLocationUnavailableReason={
-					getRestoreContext(snapshotFixture(snapshotId), undefined, localRepository)
-						.originalLocationUnavailableReason
-				}
+				restoreMachines={serverMachines}
 			/>,
 		);
 
@@ -431,7 +435,8 @@ describe("RestoreForm", () => {
 				repository={repository}
 				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1"
-				originalLocationUnavailableReason={null}
+				sourceVolume={localMountVolume}
+				restoreMachines={serverMachines}
 			/>,
 			{ withSuspense: true },
 		);
@@ -452,7 +457,8 @@ describe("RestoreForm", () => {
 				repository={repository}
 				snapshot={snapshotFixture("snap-2")}
 				returnPath="/repositories/repo-1"
-				originalLocationUnavailableReason={null}
+				sourceVolume={localMountVolume}
+				restoreMachines={serverMachines}
 			/>,
 		);
 
@@ -498,7 +504,8 @@ describe("RestoreForm", () => {
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project/subdir"
 				displayBasePath="/mnt"
-				originalLocationUnavailableReason={null}
+				sourceVolume={localMountVolume}
+				restoreMachines={serverMachines}
 			/>,
 			{ withSuspense: true },
 		);
@@ -519,6 +526,11 @@ describe("RestoreForm", () => {
 
 	test("restores the selected full path when the display root is unrelated", async () => {
 		let restoreRequestBody: unknown;
+		const otherRootVolume = fromPartial<Volume>({
+			sourceKind: "managed",
+			agentId: "local",
+			config: { backend: "directory", path: "/other/root" },
+		});
 
 		server.use(
 			http.get("/api/v1/repositories/:shortId/snapshots/:snapshotId/files", () => {
@@ -551,15 +563,9 @@ describe("RestoreForm", () => {
 				repository={localRepository}
 				snapshot={snapshotFixture("snap-1")}
 				returnPath="/repositories/repo-1/snap-1"
-				{...getRestoreContext(
-					snapshotFixture("snap-1"),
-					fromPartial<Volume>({
-						sourceKind: "managed",
-						agentId: "local",
-						config: { backend: "directory", path: "/other/root" },
-					}),
-					localRepository,
-				)}
+				{...getSnapshotBrowsePaths(snapshotFixture("snap-1"), otherRootVolume)}
+				sourceVolume={otherRootVolume}
+				restoreMachines={serverMachines}
 			/>,
 			{ withSuspense: true },
 		);
@@ -628,7 +634,11 @@ describe("RestoreForm", () => {
 				returnPath="/repositories/repo-1/snap-1"
 				queryBasePath="/mnt/project"
 				displayBasePath="/mnt"
-				originalLocationUnavailableReason="The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. Restore it to a custom location, or download it instead."
+				sourceVolume={fromAny({
+					...localMountVolume,
+					config: { backend: "directory", path: "/mnt", readOnly: true },
+				})}
+				restoreMachines={serverMachines}
 			/>,
 			{ withSuspense: true },
 		);
@@ -690,7 +700,8 @@ describe("RestoreForm", () => {
 				repository={nasRepository}
 				snapshot={snapshotFixture(snapshotId)}
 				returnPath="/repositories/repo-1"
-				{...getRestoreContext(snapshotFixture(snapshotId), undefined, nasRepository)}
+				{...getSnapshotBrowsePaths(snapshotFixture(snapshotId), undefined)}
+				restoreMachines={[{ agentId: "nas", name: "NAS" }]}
 			/>,
 			{ withSuspense: true },
 		);
@@ -711,6 +722,42 @@ describe("RestoreForm", () => {
 				targetPath: "/srv/restore",
 				overwrite: "always",
 			});
+		});
+	});
+
+	test("restores a server repository's snapshot on its source machine by default", async () => {
+		let restoreRequestBody: unknown;
+		const nasSource = fromPartial<Volume>({ sourceKind: "filesystem", agentId: "nas", config: null });
+
+		server.use(
+			snapshotFilesHandler,
+			http.post("/api/v1/repositories/:shortId/restore", async ({ request }) => {
+				restoreRequestBody = await request.json();
+				return HttpResponse.json({ restoreId: "task-restore", status: "started" }, { status: 202 });
+			}),
+		);
+
+		render(
+			<RestoreForm
+				repository={localRepository}
+				snapshot={snapshotFixture(snapshotId)}
+				returnPath="/repositories/repo-1"
+				{...getSnapshotBrowsePaths(snapshotFixture(snapshotId), nasSource)}
+				sourceVolume={nasSource}
+				restoreMachines={[...serverMachines, { agentId: "nas", name: "NAS" }]}
+			/>,
+			{ withSuspense: true },
+		);
+
+		const original = await screen.findByRole("button", { name: "Original path on NAS" });
+		expect(original.getAttribute("aria-pressed")).toBe("true");
+		expect(screen.getByRole("combobox", { name: "Machine" }).textContent).toBe("NAS");
+		// Downloads stream from the repository, which is on this server.
+		expect(screen.getByRole("button", { name: "Download All" }).hasAttribute("disabled")).toBe(false);
+
+		await userEvent.click(screen.getByRole("button", { name: "Restore All" }));
+		await waitFor(() => {
+			expect(restoreRequestBody).toEqual({ snapshotId, overwrite: "always", targetAgentId: "nas" });
 		});
 	});
 });

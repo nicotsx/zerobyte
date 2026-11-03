@@ -24,6 +24,7 @@ import {
 	listSnapshotsFilters,
 	dumpSnapshotDto,
 	dumpSnapshotQuery,
+	listRestoreMachinesDto,
 	restoreSnapshotBody,
 	restoreSnapshotDto,
 	tagSnapshotsBody,
@@ -43,6 +44,7 @@ import {
 	type GetSnapshotDetailsDto,
 	type RefreshSnapshotsDto,
 	type ListRepositoriesDto,
+	type ListRestoreMachinesDto,
 	type ListSnapshotFilesDto,
 	type ListSnapshotsDto,
 	type RestoreSnapshotDto,
@@ -237,6 +239,12 @@ export const repositoriesController = new Hono()
 				"X-Content-Type-Options": "nosniff",
 			},
 		});
+	})
+	.get("/:shortId/restore-machines", listRestoreMachinesDto, async (c) => {
+		const shortId = asShortId(c.req.param("shortId"));
+		const machines = await repositoriesService.listRestoreMachines(shortId);
+
+		return c.json<ListRestoreMachinesDto>(machines, 200);
 	})
 	.post("/:shortId/restore", restoreSnapshotDto, validator("json", restoreSnapshotBody), async (c) => {
 		const shortId = asShortId(c.req.param("shortId"));

@@ -2820,6 +2820,27 @@ export type DumpSnapshotResponses = {
 
 export type DumpSnapshotResponse = DumpSnapshotResponses[keyof DumpSnapshotResponses];
 
+export type ListRestoreMachinesData = {
+    body?: never;
+    path: {
+        shortId: string;
+    };
+    query?: never;
+    url: '/api/v1/repositories/{shortId}/restore-machines';
+};
+
+export type ListRestoreMachinesResponses = {
+    /**
+     * Restore machines
+     */
+    200: Array<{
+        agentId: string;
+        name: string | null;
+    }>;
+};
+
+export type ListRestoreMachinesResponse = ListRestoreMachinesResponses[keyof ListRestoreMachinesResponses];
+
 export type RestoreSnapshotData = {
     body: {
         snapshotId: string;
@@ -2830,6 +2851,7 @@ export type RestoreSnapshotData = {
         delete?: boolean;
         targetPath?: string;
         overwrite?: 'always' | 'if-changed' | 'if-newer' | 'never';
+        targetAgentId?: string;
     };
     path: {
         shortId: string;

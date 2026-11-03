@@ -1,42 +1,53 @@
-import { isAgentRepository } from "@zerobyte/contracts/backup-context";
+import { BUILT_IN_LOCAL_AGENT_ID } from "@zerobyte/contracts/backup-context";
 import { findCommonAncestor, isPathWithin } from "@zerobyte/core/utils";
-import type { Repository, Snapshot, Volume } from "./types";
+import type { RestoreMachine, Snapshot, Volume } from "./types";
 import { getVolumeMountPath } from "./volume-path";
 
-type RestoreRepository = Pick<Repository, "agentId" | "agentName">;
+/** Name of the machine a restore runs on, or null when this server runs it. */
+export const getRestoreMachineName = (machine: RestoreMachine) =>
+	machine.agentId === BUILT_IN_LOCAL_AGENT_ID ? null : (machine.name ?? "the selected machine");
 
-/** Machine that runs restores of this repository, or null when this server runs them. */
-export const getRestoreMachineName = (repository: RestoreRepository) =>
-	isAgentRepository(repository) ? (repository.agentName ?? "the owning machine") : null;
+/** The snapshot source's machine when the snapshot can be restored there, otherwise the machine storing the repository. */
+export const getDefaultRestoreMachine = (machines: RestoreMachine[], volume: Volume | undefined) =>
+	machines.find((machine) => machine.agentId === volume?.agentId) ?? machines[0];
 
-export const getRestoreContext = (
+export const getSnapshotBrowsePaths = (snapshot: Pick<Snapshot, "paths">, volume: Volume | undefined) => {
+	const hasNonPosixPaths = snapshot.paths.some((path) => !path.startsWith("/"));
+
+	return {
+		queryBasePath: hasNonPosixPaths ? "/" : findCommonAncestor(snapshot.paths),
+		// Remote filesystem sources have no mount path on this server; their machine checks original locations against its trusted roots.
+		displayBasePath: volume ? getVolumeMountPath(volume) : undefined,
+	};
+};
+
+export const getOriginalLocationUnavailableReason = (
 	snapshot: Pick<Snapshot, "paths">,
 	volume: Volume | undefined,
-	repository: RestoreRepository,
+	machine: RestoreMachine,
 ) => {
 	const hasNonPosixPaths = snapshot.paths.some((path) => !path.startsWith("/"));
-	const queryBasePath = hasNonPosixPaths ? "/" : findCommonAncestor(snapshot.paths);
-	// Remote filesystem sources have no mount path on this server; the owning machine checks original locations against its trusted roots.
-	const displayBasePath = volume ? getVolumeMountPath(volume) : undefined;
+	const { queryBasePath, displayBasePath } = getSnapshotBrowsePaths(snapshot, volume);
 
-	const machineName = getRestoreMachineName(repository);
+	const machineName = getRestoreMachineName(machine);
 	const restoreHint = machineName
 		? `Restore it to a folder on ${machineName} instead.`
 		: "Restore it to a custom location, or download it instead.";
 
-	let originalLocationUnavailableReason: string | null = null;
-	if (!volume || volume.agentId !== repository.agentId) {
-		originalLocationUnavailableReason = machineName
+	if (!volume || volume.agentId !== machine.agentId) {
+		return machineName
 			? `This snapshot's source is not on ${machineName}. Restore the files to a folder on ${machineName} instead.`
 			: "This snapshot's source is not on this server. Restore the files to a folder on this server, or download them.";
-	} else if (hasNonPosixPaths || (displayBasePath && !isPathWithin(displayBasePath, queryBasePath))) {
+	}
+	if (hasNonPosixPaths || (displayBasePath && !isPathWithin(displayBasePath, queryBasePath))) {
 		const source = machineName
 			? `the source on ${machineName}`
 			: "this Zerobyte server or the current linked volume";
-		originalLocationUnavailableReason = `This snapshot was created from source paths that do not match ${source}. Restoring to the original location is unavailable. ${restoreHint}`;
-	} else if (volume.config?.readOnly) {
-		originalLocationUnavailableReason = `The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. ${restoreHint}`;
+		return `This snapshot was created from source paths that do not match ${source}. Restoring to the original location is unavailable. ${restoreHint}`;
+	}
+	if (volume.config?.readOnly) {
+		return `The volume backing this backup is mounted read-only. Restoring to the original location is unavailable. ${restoreHint}`;
 	}
 
-	return { queryBasePath, displayBasePath, originalLocationUnavailableReason };
+	return null;
 };
