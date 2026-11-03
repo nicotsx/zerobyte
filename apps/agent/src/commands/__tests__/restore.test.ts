@@ -111,6 +111,7 @@ test("cancels a running restore with the shared running job registry", async () 
 				Effect.tryPromise(
 					() =>
 						new Promise<never>((_resolve, reject) => {
+							if (options.signal?.aborted) return reject(new Error("aborted"));
 							options.signal?.addEventListener("abort", () => reject(new Error("aborted")), {
 								once: true,
 							});
