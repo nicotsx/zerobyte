@@ -68,6 +68,7 @@ describe("configuration export", () => {
 				{
 					ref: mirrorRepositoryRef,
 					name: "Parity Mirror Repository",
+					machineRef: null,
 					config: {
 						backend: "rclone",
 						remote: "parity-mirror",
@@ -82,6 +83,7 @@ describe("configuration export", () => {
 				{
 					ref: primaryRepositoryRef,
 					name: "Parity Primary Repository",
+					machineRef: null,
 					config: {
 						backend: "s3",
 						endpoint: "https://s3.example.test",

@@ -16,8 +16,14 @@ class FilesystemCommandError extends Data.TaggedError("FilesystemCommandError")<
 
 const executeFilesystemCommand = (context: ControllerCommandContext, command: FilesystemCommand) =>
 	Effect.gen(function* () {
+		// Browsing also serves picking a repository directory, so it is allowed in roots that only store repositories.
 		const resolved = yield* Effect.tryPromise({
-			try: () => resolveFilesystemSource(context.trustedRoots, command.source),
+			try: () =>
+				resolveFilesystemSource(
+					context.trustedRoots,
+					command.source,
+					command.name === "filesystem.browse" ? "browse" : "backup",
+				),
 			catch: (cause) => new FilesystemCommandError({ cause }),
 		});
 

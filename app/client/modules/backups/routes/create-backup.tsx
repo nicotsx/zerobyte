@@ -88,9 +88,7 @@ export function CreateBackupPage() {
 	const selectedVolume = volumesData.find((v) => v.shortId === selectedVolumeShortId);
 	const hasCompatibleRepository =
 		selectedVolume &&
-		repositoriesData.some(
-			(repository) => getBackupRepositoryCompatibility(selectedVolume, repository.type).compatible,
-		);
+		repositoriesData.some((repository) => getBackupRepositoryCompatibility(selectedVolume, repository).compatible);
 
 	if (!volumesData.length) {
 		return (

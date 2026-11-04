@@ -1,6 +1,7 @@
-import { Data, Deferred, Effect, Fiber, Queue } from "effect";
+import { Cause, Data, Deferred, Effect, Exit, Fiber, Queue } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
+import { createResticError } from "@zerobyte/core/restic/server";
 import {
 	createControllerMessage,
 	parseAgentMessage,
@@ -13,7 +14,10 @@ import {
 	type ControllerWireMessage,
 	type FilesystemCommand,
 	type FilesystemCommandResponsePayload,
+	type ResticCommandPayload,
+	type ResticCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
+import { trustedRootAllows, type TrustedRootPurpose } from "@zerobyte/contracts/volumes";
 import { agentsService } from "../agents.service";
 import type { AgentIdentity } from "../helpers/tokens";
 import { serverHasRuntimeFeature } from "../../../lib/permission-service";
@@ -22,6 +26,7 @@ const MAX_QUEUED_MESSAGES = 64;
 const MAX_QUEUED_BYTES = 1024 * 1024;
 const READY_TIMEOUT_MS = 10_000;
 const LIVENESS_TIMEOUT_MS = 45_000;
+const MAX_RESTIC_COMMAND_RESULT_LENGTH = 64 * 1024 * 1024;
 
 export type AgentConnectionData = AgentIdentity & { id: string; connectionSecurity?: "secure" | "insecure" };
 
@@ -31,7 +36,7 @@ export type ControllerTransport = {
 };
 
 export type ConnectionEvent =
-	| Exclude<AgentMessage, { type: "filesystem.commandResult" }>
+	| Exclude<AgentMessage, { type: "filesystem.commandResult" | "restic.commandMessage" | "restic.commandResult" }>
 	| { type: "agent.protocolRejected"; payload: AgentProtocolRejection };
 
 type ConnectionHooks = {
@@ -41,6 +46,57 @@ type ConnectionHooks = {
 };
 
 type PendingCommand = { deferred: Deferred.Deferred<FilesystemCommandResponsePayload, Error>; name: string };
+
+type PendingResticCommand = {
+	name: string;
+	deferred: Deferred.Deferred<unknown, Error>;
+	onMessage: ((message: string) => void) | undefined;
+	chunks: string[];
+	chunkLength: number;
+};
+
+export type ResticCommandRequest = Omit<ResticCommandPayload, "commandId"> & {
+	signal?: AbortSignal;
+	onMessage?: (message: string) => void;
+};
+
+/** The agent session ended before the command produced a result (disconnect, replacement, or shutdown). */
+export class AgentSessionClosed extends Data.TaggedError("AgentSessionClosed")<{ message: string }> {}
+
+const receiveResticCommandResult = (pending: PendingResticCommand, payload: ResticCommandResponsePayload) =>
+	Effect.gen(function* () {
+		if (payload.status === "error") {
+			const error =
+				payload.resticExitCode === undefined
+					? new Error(payload.error)
+					: createResticError(payload.resticExitCode, payload.details ?? "");
+
+			return yield* Deferred.fail(pending.deferred, error);
+		}
+
+		pending.chunkLength += payload.data.length;
+		if (pending.chunkLength > MAX_RESTIC_COMMAND_RESULT_LENGTH) {
+			return yield* Deferred.fail(
+				pending.deferred,
+				new Error(
+					`Restic command ${pending.name} returned more than ${MAX_RESTIC_COMMAND_RESULT_LENGTH} characters`,
+				),
+			);
+		}
+
+		if (payload.status === "chunk") {
+			pending.chunks.push(payload.data);
+			return;
+		}
+
+		const result = yield* Effect.try({
+			try: () => JSON.parse([...pending.chunks, payload.data].join("")) as unknown,
+			catch: (error) =>
+				new Error(`Restic command ${pending.name} returned an invalid result: ${toMessage(error)}`),
+		});
+
+		return yield* Deferred.succeed(pending.deferred, result);
+	}).pipe(Effect.catch((error) => Deferred.fail(pending.deferred, error)));
 
 class ConnectionClosed extends Data.TaggedError("ConnectionClosed")<{ reason: string; code: number }> {}
 
@@ -55,6 +111,7 @@ export const createAgentConnection = (
 	const inbox = Effect.runSync(Queue.dropping<string>(MAX_QUEUED_MESSAGES));
 	const outbound = Effect.runSync(Queue.bounded<ControllerWireMessage>(MAX_QUEUED_MESSAGES));
 	const pendingCommands = new Map<string, PendingCommand>();
+	const pendingResticCommands = new Map<string, PendingResticCommand>();
 
 	const connectedAt = Date.now();
 	let lastSeenAt = connectedAt;
@@ -80,6 +137,23 @@ export const createAgentConnection = (
 
 			return Queue.offer(outbound, message).pipe(Effect.catchCause(() => Effect.succeed(false)));
 		});
+
+	const abortResticCommand = (commandId: string, name: string, signal: AbortSignal | undefined) =>
+		signal === undefined
+			? Effect.never
+			: Effect.callback<never, Error>((resume) => {
+					const onAbort = () =>
+						resume(
+							send(createControllerMessage("restic.cancel", { commandId })).pipe(
+								Effect.andThen(Effect.fail(new Error(`Restic command ${name} was cancelled`))),
+							),
+						);
+
+					if (signal.aborted) return onAbort();
+
+					signal.addEventListener("abort", onAbort, { once: true });
+					return Effect.sync(() => signal.removeEventListener("abort", onAbort));
+				});
 
 	const rejectStartup = (rejection: AgentProtocolRejection) =>
 		Effect.gen(function* () {
@@ -151,6 +225,38 @@ export const createAgentConnection = (
 					}
 
 					return yield* Deferred.succeed(pending.deferred, event.payload);
+				}
+				case "restic.commandMessage": {
+					const pending = pendingResticCommands.get(event.payload.commandId);
+
+					if (!pending) {
+						return yield* logger.effect.warn(
+							`Received message for unknown restic command ${event.payload.commandId}`,
+						);
+					}
+
+					return yield* Effect.sync(() => pending.onMessage?.(event.payload.message));
+				}
+				case "restic.commandResult": {
+					const pending = pendingResticCommands.get(event.payload.commandId);
+
+					if (!pending) {
+						return yield* logger.effect.warn(
+							`Received response for unknown restic command ${event.payload.commandId}`,
+						);
+					}
+
+					yield* receiveResticCommandResult(pending, event.payload);
+
+					if (event.payload.status !== "chunk") return;
+
+					// The agent holds back the next piece until this ack; a rejected result stops it instead.
+					const { commandId } = event.payload;
+					return yield* send(
+						(yield* Deferred.isDone(pending.deferred))
+							? createControllerMessage("restic.cancel", { commandId })
+							: createControllerMessage("restic.resultAck", { commandId }),
+					);
 				}
 				default:
 					return yield* hooks.onEvent(event);
@@ -228,7 +334,17 @@ export const createAgentConnection = (
 			);
 		}
 
+		for (const pending of pendingResticCommands.values()) {
+			yield* Deferred.fail(
+				pending.deferred,
+				new AgentSessionClosed({
+					message: `Agent session closed before restic command ${pending.name} completed`,
+				}),
+			);
+		}
+
 		pendingCommands.clear();
+		pendingResticCommands.clear();
 		queuedBytes = 0;
 
 		yield* Queue.shutdown(inbox);
@@ -289,13 +405,14 @@ export const createAgentConnection = (
 		canBackup: (organizationId: string) =>
 			isReady() && ownedBy(organizationId) && capabilities?.trustedRoots?.some((root) => root.canBackup) === true,
 
-		canRestore: (organizationId: string) =>
-			isReady() && ownedBy(organizationId) && data.agentKind === "local" && capabilities?.restore === true,
+		canRestore: (organizationId: string) => isReady() && ownedBy(organizationId) && capabilities?.restore === true,
 
-		canAccessRoot: (rootId: string, organizationId: string) =>
+		canAccessRoot: (rootId: string, organizationId: string, purpose: TrustedRootPurpose) =>
 			isReady() &&
 			ownedBy(organizationId) &&
-			capabilities?.trustedRoots?.some((root) => root.id === rootId && root.canBackup) === true,
+			capabilities?.trustedRoots?.some((root) => root.id === rootId && trustedRootAllows(root, purpose)) === true,
+
+		canRunRestic: (organizationId: string) => isReady() && ownedBy(organizationId),
 
 		send,
 
@@ -318,6 +435,37 @@ export const createAgentConnection = (
 					}),
 				);
 			}).pipe(Effect.ensuring(Effect.sync(() => pendingCommands.delete(commandId))));
+		},
+
+		runResticCommand: ({ signal, onMessage, ...request }: ResticCommandRequest) => {
+			const commandId = Bun.randomUUIDv7();
+
+			return Effect.gen(function* () {
+				const deferred = yield* Deferred.make<unknown, Error>();
+
+				pendingResticCommands.set(commandId, {
+					name: request.command.name,
+					deferred,
+					onMessage,
+					chunks: [],
+					chunkLength: 0,
+				});
+
+				if (!(yield* send(createControllerMessage("restic.command", { ...request, commandId })))) {
+					return yield* new AgentSessionClosed({
+						message: `Agent session closed before restic command ${request.command.name} could be sent`,
+					});
+				}
+
+				return yield* Deferred.await(deferred).pipe(
+					Effect.raceFirst(abortResticCommand(commandId, request.command.name, signal)),
+					Effect.onExit((exit) =>
+						Exit.isFailure(exit) && Cause.hasInterruptsOnly(exit.cause)
+							? send(createControllerMessage("restic.cancel", { commandId })).pipe(Effect.asVoid)
+							: Effect.void,
+					),
+				);
+			}).pipe(Effect.ensuring(Effect.sync(() => pendingResticCommands.delete(commandId))));
 		},
 	};
 };

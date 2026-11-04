@@ -60,7 +60,6 @@ test.each([
 			let result: BackupExecutionResult | undefined;
 			const context: ControllerCommandContext = {
 				resticDeps,
-				allowRestore: true,
 				trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 				getRunningJob: (jobId) => Effect.succeed(jobs.get(jobId)),
 				setRunningJob: (jobId, job) =>

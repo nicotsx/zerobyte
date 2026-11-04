@@ -5,6 +5,8 @@ import { STORED_SECRET } from "~/lib/stored-secret";
 
 const navigateMock = vi.fn(async () => {});
 
+const testState = vi.hoisted(() => ({ remoteAgents: false }));
+
 vi.mock("@tanstack/react-router", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@tanstack/react-router")>();
 
@@ -22,6 +24,13 @@ vi.mock("~/server/lib/functions/server-constants", () => ({
 	getServerConstants: vi.fn(),
 }));
 
+vi.mock("~/client/hooks/use-permissions", () => ({
+	usePermissions: () => ({
+		can: () => false,
+		hasRuntimeFeature: (feature: string) => feature === "remoteAgents" && testState.remoteAgents,
+	}),
+}));
+
 vi.mock("~/client/hooks/use-system-info", () => ({
 	useSystemInfo: () => ({
 		capabilities: {
@@ -36,6 +45,8 @@ import { EditRepositoryPage } from "../edit-repository";
 const repository = {
 	id: "repository-1",
 	shortId: "repo-1",
+	agentId: "local",
+	agentName: null,
 	provisioningId: null,
 	name: "Repository 1",
 	type: "local",
@@ -57,6 +68,7 @@ const selectBackend = async (backend: string) => {
 
 afterEach(() => {
 	navigateMock.mockClear();
+	testState.remoteAgents = false;
 	cleanup();
 });
 
@@ -145,6 +157,109 @@ test("creates repositories with scheduled health checks enabled by default and p
 	expect(submittedBody).toMatchObject({ autoCheckEnabled: true });
 	const submittedConfig = submittedBody?.config as Record<string, unknown>;
 	expect("autoCheckEnabled" in submittedConfig).toBe(false);
+});
+
+test("creates a repository on a remote machine in one of its locations that allows repositories", async () => {
+	testState.remoteAgents = true;
+	let submittedBody: Record<string, unknown> | undefined;
+
+	server.use(
+		http.get("/api/v1/volumes/source-machines", () =>
+			HttpResponse.json([
+				{
+					id: "nas",
+					name: "NAS",
+					status: "online",
+					lastSeenAt: null,
+					revokedAt: null,
+					trustedRoots: [
+						{ id: "photos", label: "Photos", canBackup: true, canStoreRepository: false },
+						{ id: "disk", label: "Backup disk", canBackup: false, canStoreRepository: true },
+					],
+				},
+			]),
+		),
+		http.post("/api/v1/repositories", async ({ request }) => {
+			submittedBody = (await request.json()) as Record<string, unknown>;
+
+			return HttpResponse.json(
+				{
+					repository: { id: "repository-1", shortId: "repo-1", name: "Repository 1" },
+					message: "Repository created",
+				},
+				{ status: 201 },
+			);
+		}),
+	);
+
+	render(<CreateRepositoryPage />, { withSuspense: true });
+
+	await userEvent.click(await screen.findByLabelText("Another machine"));
+	expect(screen.queryByRole("combobox", { name: "Backend" })).toBeNull();
+	const nameInput = screen.getByLabelText("Name");
+	const machineSelect = await screen.findByRole("combobox", { name: "Machine" });
+	const compressionSelect = screen.getByRole("combobox", { name: "Compression Mode" });
+	expect(nameInput.compareDocumentPosition(machineSelect) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	expect(machineSelect.compareDocumentPosition(compressionSelect) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	await userEvent.click(await screen.findByRole("combobox", { name: "Machine" }));
+	expect(screen.queryByRole("option", { name: "This server" })).toBeNull();
+	await userEvent.click(await screen.findByRole("option", { name: "NAS · Online" }));
+	await userEvent.click(await screen.findByRole("combobox", { name: "Location" }));
+	expect(
+		(await screen.findByRole("option", { name: "Photos · Repositories disabled" })).getAttribute("aria-disabled"),
+	).toBe("true");
+	await userEvent.click(screen.getByRole("option", { name: "Backup disk" }));
+	await userEvent.click(screen.getByRole("button", { name: "Choose folder" }));
+	await userEvent.click(screen.getByRole("button", { name: "Select entire location" }));
+	await userEvent.type(screen.getByLabelText("Name"), "Repository 1");
+	await userEvent.click(screen.getByRole("button", { name: "Create repository" }));
+
+	await expect.poll(() => submittedBody).toBeDefined();
+	expect(submittedBody).toMatchObject({
+		agentId: "nas",
+		config: { backend: "local", trustedRootId: "disk", path: "." },
+	});
+});
+
+test("explains how to allow repositories when the machine has no such location", async () => {
+	testState.remoteAgents = true;
+
+	server.use(
+		http.get("/api/v1/volumes/source-machines", () =>
+			HttpResponse.json([
+				{
+					id: "nas",
+					name: "NAS",
+					status: "online",
+					lastSeenAt: null,
+					revokedAt: null,
+					trustedRoots: [{ id: "photos", label: "Photos", canBackup: true, canStoreRepository: false }],
+				},
+			]),
+		),
+	);
+
+	render(<CreateRepositoryPage />, { withSuspense: true });
+
+	await userEvent.click(await screen.findByLabelText("Another machine"));
+	await userEvent.click(await screen.findByRole("combobox", { name: "Machine" }));
+	await userEvent.click(await screen.findByRole("option", { name: "NAS · Online" }));
+
+	expect(await screen.findByText(/No location on NAS allows repositories/)).toBeTruthy();
+	expect(screen.queryByRole("combobox", { name: "Location" })).toBeNull();
+});
+
+test("a local repository on this server does not ask for a machine", async () => {
+	testState.remoteAgents = true;
+
+	render(<CreateRepositoryPage />, { withSuspense: true });
+
+	expect(((await screen.findByLabelText("This server")) as HTMLInputElement).checked).toBe(true);
+	await selectBackend("Local");
+
+	expect(await screen.findByText("Repository Directory")).toBeTruthy();
+	expect(screen.queryByRole("combobox", { name: "Machine" })).toBeNull();
+	expect(screen.queryByRole("combobox", { name: "Location" })).toBeNull();
 });
 
 test("initializes and updates scheduled health checks without adding it to repository config", async () => {

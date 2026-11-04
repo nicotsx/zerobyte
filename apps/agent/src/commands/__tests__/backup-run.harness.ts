@@ -46,7 +46,6 @@ export const runBackupCommand = async (
 	const messagesAtCleanup: string[] = [];
 
 	const context: ControllerCommandContext = {
-		allowRestore: true,
 		trustedRoots,
 		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),

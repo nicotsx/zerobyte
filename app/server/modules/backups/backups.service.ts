@@ -1,6 +1,7 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { NotFoundError, BadRequestError, ConflictError } from "http-errors-enhanced";
 import { checkMirrorCompatibility, getIncompatibleMirrorError } from "~/server/utils/backend-compatibility";
+import { getMirrorPlacement } from "@zerobyte/contracts/backup-context";
 import { generateShortId } from "~/server/utils/id";
 import { getOrganizationId } from "~/server/core/request-context";
 import { asShortId, type ShortId } from "~/server/utils/branded";
@@ -17,7 +18,8 @@ import { createBackupCommand } from "./commands/backup-command";
 import { taskStore } from "../tasks/tasks.store";
 import type { ParsedTask } from "~/schemas/tasks";
 import { assertBackupRepositoryCompatibility } from "./backup-context";
-import { presentRepository } from "../repositories/repository-presentation";
+import { presentRepositories } from "../repositories/repository-presentation";
+import { assertAgentOnline } from "../repositories/repository-restic";
 import { presentBackupSchedule, presentBackupSchedules } from "./backup-presentation";
 
 const BACKUP_TASK_RESOURCE_TYPE = "backup_schedule";
@@ -296,7 +298,9 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 	);
 	const latestTasksByRepository = new Map(latestTasks.map((task) => [task.operationKey, task]));
 
-	return mirrors.map((mirror) => {
+	const repositories = await presentRepositories(mirrors.map((mirror) => mirror.repository));
+
+	return mirrors.map((mirror, index) => {
 		const latestTask = latestTasksByRepository.get(mirror.repository.shortId);
 		const lastSyncTask = latestTask
 			? {
@@ -314,7 +318,7 @@ const getMirrors = async (scheduleIdOrShortId: number | string) => {
 			enabled: mirror.enabled,
 			lastSyncTask,
 			createdAt: mirror.createdAt,
-			repository: presentRepository(mirror.repository),
+			repository: repositories[index],
 		};
 	});
 };
@@ -342,6 +346,11 @@ const updateMirrors = async (scheduleIdOrShortId: number | string, data: UpdateS
 
 			if (repo.id === schedule.repositoryId) {
 				throw new BadRequestError("Cannot add the primary repository as a mirror");
+			}
+
+			const placement = getMirrorPlacement(schedule.repository, repo);
+			if (!placement.compatible) {
+				throw new BadRequestError(placement.reason);
 			}
 
 			const compatibility = await checkMirrorCompatibility(schedule.repository.config, repo.config, repo.id);
@@ -381,7 +390,14 @@ const getMirrorCompatibility = async (scheduleIdOrShortId: number | string) => {
 	const repos = allRepositories.filter((repo) => repo.id !== schedule.repositoryId);
 
 	const compatibility = await Promise.all(
-		repos.map((repo) => checkMirrorCompatibility(schedule.repository.config, repo.config, repo.shortId)),
+		repos.map(async (repo) => {
+			const placement = getMirrorPlacement(schedule.repository, repo);
+			if (!placement.compatible) {
+				return { repositoryId: repo.shortId, compatible: false, reason: placement.reason };
+			}
+
+			return checkMirrorCompatibility(schedule.repository.config, repo.config, repo.shortId);
+		}),
 	);
 
 	return compatibility;
@@ -582,6 +598,13 @@ const getMirrorSyncContext = async (scheduleIdOrShortId: number | string, mirror
 		throw new NotFoundError("Mirror not found for this schedule");
 	}
 
+	const placement = getMirrorPlacement(schedule.repository, mirrorRepo);
+	if (!placement.compatible) {
+		throw new BadRequestError(placement.reason);
+	}
+
+	assertAgentOnline(placement.agentId);
+
 	return { organizationId, schedule, mirrorRepository: mirrorRepo };
 };
 
@@ -645,6 +668,8 @@ const runForget = async (scheduleId: number, repositoryId?: string) => {
 	if (!repository) {
 		throw new NotFoundError("Repository not found");
 	}
+
+	assertAgentOnline(repository.agentId);
 
 	const plan = {
 		organizationId,

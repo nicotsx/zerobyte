@@ -2,7 +2,6 @@ import waitForExpect from "wait-for-expect";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import nodePath from "node:path";
-import { restoreSnapshotBody } from "../repositories.dto";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { Effect } from "effect";
@@ -991,10 +990,6 @@ describe("repositoriesService.restoreSnapshot", () => {
 				}),
 			).toBeNull();
 		});
-	});
-
-	test("remote restore targets are rejected by the API contract", () => {
-		expect(restoreSnapshotBody.safeParse({ snapshotId: "snapshot", targetAgentId: "remote" }).success).toBe(false);
 	});
 
 	test("rejects original-location restore for snapshots with non-posix source paths", async () => {

@@ -5,6 +5,7 @@ import type {
 	GetScheduleNotificationsResponse,
 	GetVolumeResponse,
 	ListNotificationDestinationsResponse,
+	ListRestoreMachinesResponse,
 	ListSnapshotsResponse,
 } from "../api-client";
 
@@ -13,6 +14,7 @@ export type StatFs = GetVolumeResponse["statfs"];
 export type VolumeStatus = Volume["status"];
 
 export type Repository = GetRepositoryResponse;
+export type RestoreMachine = ListRestoreMachinesResponse[number];
 
 export type BackupSchedule = GetBackupScheduleResponse;
 

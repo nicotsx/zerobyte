@@ -22,5 +22,6 @@ export const presentAgentCapabilities = (capabilities: AgentCapabilities) => ({
 		id: root.id,
 		label: getSafeAllowedLocationLabel(root.label),
 		canBackup: root.canBackup,
+		canStoreRepository: root.canStoreRepository === true,
 	})),
 });

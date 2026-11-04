@@ -38,6 +38,18 @@ export const loadPayload = async () => {
 	);
 };
 
+export const loadV2Payload = async () => {
+	return JSON.parse(
+		await readFile(new URL("../../__fixtures__/config-transfer/v2-full.payload.json", import.meta.url), "utf8"),
+	);
+};
+
+export const loadV3Payload = async () => {
+	return JSON.parse(
+		await readFile(new URL("../../__fixtures__/config-transfer/v3-full.payload.json", import.meta.url), "utf8"),
+	);
+};
+
 export const loadEncryptedConfig = async () => {
 	return (await readFile(new URL("../../__fixtures__/config-transfer/v1-full.zbex", import.meta.url), "utf8")).trim();
 };

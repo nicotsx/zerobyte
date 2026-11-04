@@ -1,12 +1,13 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
-import { agentsTable } from "~/server/db/schema";
+import { agentsTable, repositoriesTable } from "~/server/db/schema";
 import { LOCAL_AGENT_ID } from "../constants";
 import { agentsService } from "../agents.service";
 import { createTestSession } from "~/test/helpers/auth";
 import { cryptoUtils } from "~/server/utils/crypto";
 import { createAgentToken, parseAgentToken, validateRemoteAgentToken } from "../helpers/tokens";
+import { generateShortId } from "~/server/utils/id";
 
 beforeEach(async () => {
 	await db.delete(agentsTable);
@@ -216,4 +217,26 @@ describe("Agent tokens", () => {
 		expect(first.token).not.toBe(second.token);
 		expect(first.credentialHash).not.toBe(second.credentialHash);
 	});
+});
+
+test("a machine that still owns repositories cannot be deleted until they are removed", async () => {
+	const { organizationId } = await createTestSession();
+	const { agent: machine } = await agentsService.createRemoteAgent(organizationId, "Warehouse");
+	const repositoryId = Bun.randomUUIDv7();
+	await db.insert(repositoriesTable).values({
+		id: repositoryId,
+		shortId: generateShortId(),
+		name: "Warehouse repository",
+		type: "local",
+		agentId: machine.id,
+		config: { backend: "local", path: "/srv/backups" },
+		organizationId,
+	});
+
+	expect(() => agentsService.deleteRemoteAgent(organizationId, machine.id)).toThrow(
+		"Delete this machine's repositories before deleting the machine.",
+	);
+
+	await db.delete(repositoriesTable).where(eq(repositoriesTable.id, repositoryId));
+	expect(() => agentsService.deleteRemoteAgent(organizationId, machine.id)).not.toThrow();
 });

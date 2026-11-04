@@ -25,7 +25,6 @@ export const createControllerSession = (
 	ws: WebSocket,
 	options: {
 		trustedRoots: TrustedRootRegistry;
-		builtinLocal?: boolean;
 		excludedPaths?: string[];
 		resticVersion?: string;
 	},
@@ -37,11 +36,11 @@ export const createControllerSession = (
 
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
 
-	const { trustedRoots, builtinLocal = false, excludedPaths = [] } = options;
+	const { trustedRoots, excludedPaths = [] } = options;
 	const capabilities: AgentCapabilities = {
 		agentVersion: process.env.ZEROBYTE_AGENT_VERSION ?? "dev",
 		resticVersion: options.resticVersion,
-		restore: builtinLocal,
+		restore: true,
 		trustedRoots: getTrustedRootDescriptors(trustedRoots),
 	};
 
@@ -90,7 +89,6 @@ export const createControllerSession = (
 	};
 
 	const commandContext: ControllerCommandContext = {
-		allowRestore: builtinLocal,
 		trustedRoots,
 		resticDeps: sessionResticDeps,
 		getRunningJob,

@@ -88,9 +88,14 @@ afterEach(async () => {
 const createRunPayload = (overrides: Partial<BackupRunPayload> = {}) =>
 	createBaseRunPayload({ webhookAllowedOrigins: [webhookOrigin], ...overrides });
 
+const repositoryInside = (directory: string) => ({
+	backend: "local" as const,
+	path: path.join(directory, "repository"),
+});
+
 test("standalone policy rejects unknown roots but permits configured logical sources", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-policy-"));
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
@@ -98,6 +103,7 @@ test("standalone policy rejects unknown roots but permits configured logical sou
 	try {
 		const unknownRootMessages = await runBackupCommand(createRunPayload(), registry);
 		const trustedPayload = createRunPayload({
+			repositoryConfig: repositoryInside(rootPath),
 			source: { rootId: "data", relativePath: "" },
 		});
 		const trustedMessages = await runBackupCommand(trustedPayload, registry);
@@ -125,7 +131,7 @@ test("trusted backups pass Go pattern matches as raw targets without matching so
 	fs.writeFileSync(path.join(siblingPath, "marker.txt"), "outside");
 	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
 	const canonicalTrustedMarkerPath = path.join(canonicalSourcePath, "marker.txt");
-	const roots = [{ id: "data", label: "Data", path: sourcePath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: sourcePath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(
@@ -142,6 +148,7 @@ test("trusted backups pass Go pattern matches as raw targets without matching so
 		}),
 	);
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(sourcePath),
 		source: { rootId: "data", relativePath: "" },
 		options: {
 			oneFileSystem: false,
@@ -169,7 +176,7 @@ test("includes the first trusted target created by a pre-backup webhook", async 
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-pre-selection-"));
 	const canonicalRootPath = fs.realpathSync.native(rootPath);
 	const createdPath = path.join(canonicalRootPath, "pre-hook-export.txt");
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	let receivedOptions: { includePaths?: string[]; includePatterns?: string[] } | undefined;
 	useWebhookHandlers(
@@ -192,6 +199,7 @@ test("includes the first trusted target created by a pre-backup webhook", async 
 		}),
 	);
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(rootPath),
 		source: { rootId: "data", relativePath: "" },
 		options: {
 			oneFileSystem: false,
@@ -218,12 +226,13 @@ test("includes the first trusted target created by a pre-backup webhook", async 
 
 test("reports a failed trusted backup when include patterns select no targets", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-no-match-"));
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const backup = vi.fn(() => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
 	const runningJobs = new Map<string, RunningJob>();
 	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(rootPath),
 		source: { rootId: "data", relativePath: "" },
 		options: {
 			oneFileSystem: false,
@@ -253,9 +262,10 @@ test("reports a failed trusted backup when include patterns select no targets", 
 
 test("trusted backup resolution errors do not disclose the configured host root", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-errors-"));
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(rootPath),
 		source: { rootId: "data", relativePath: "missing" },
 	});
 
@@ -274,7 +284,7 @@ test("trusted backup presents only logical paths in progress, warnings, and pre/
 	const sourcePath = path.join(rootPath, "configured source,archive");
 	fs.mkdirSync(sourcePath, { recursive: true });
 	const expectedCanonicalSourcePath = fs.realpathSync.native(sourcePath);
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const webhookBodies: string[] = [];
 	useWebhookHandlers(
@@ -316,6 +326,7 @@ test("trusted backup presents only logical paths in progress, warnings, and pre/
 		}),
 	);
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(rootPath),
 		source: { rootId: "data", relativePath: "configured source,archive" },
 		webhooks: {
 			pre: { url: webhookUrl("/pre") },
@@ -346,7 +357,7 @@ test("explicit filesystem root uses relative paths in progress, warnings, and we
 	const sourcePath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-root-presentation-"));
 	const canonicalSourcePath = fs.realpathSync.native(sourcePath);
 	const relativeSourcePath = canonicalSourcePath.replace(/^\/+/, "");
-	const roots = [{ id: "filesystem", label: "Filesystem", path: "/", allowBackup: true }];
+	const roots = [{ id: "filesystem", label: "Filesystem", path: "/", allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const webhookBodies: string[] = [];
 	useWebhookHandlers(
@@ -409,7 +420,7 @@ test("explicit filesystem root uses relative paths in progress, warnings, and we
 
 test("trusted backup preserves Restic failure summaries without disclosing host paths", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-fatal-"));
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	const failures = [
 		{
@@ -432,6 +443,7 @@ test("trusted backup preserves Restic failure summaries without disclosing host 
 				fromPartial({ backup: () => Effect.fail(failure.error) }),
 			);
 			const payload = createRunPayload({
+				repositoryConfig: repositoryInside(rootPath),
 				jobId: `job-${failures.indexOf(failure)}`,
 				source: { rootId: "data", relativePath: "" },
 			});
@@ -451,12 +463,13 @@ test("trusted backup preserves Restic failure summaries without disclosing host 
 
 test("trusted backup redacts errors thrown after source resolution", async () => {
 	const rootPath = fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-catch-"));
-	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true }];
+	const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }];
 	const registry = createTrustedRootRegistry({ roots });
 	vi.spyOn(resticServer, "createRestic").mockImplementationOnce(() => {
 		throw new Error(`failed to initialize for ${path.join(rootPath, "secret.txt")}`);
 	});
 	const payload = createRunPayload({
+		repositoryConfig: repositoryInside(rootPath),
 		source: { rootId: "data", relativePath: "" },
 	});
 
@@ -678,7 +691,6 @@ test("waits for running-job registration before returning to the processor loop"
 	);
 
 	const context: ControllerCommandContext = {
-		allowRestore: true,
 		trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),

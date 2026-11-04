@@ -14,10 +14,11 @@ import {
 	parseControllerMessage,
 	type FilesystemCommand,
 	type FilesystemCommandResponsePayload,
+	type ResticCommandResponsePayload,
 	type RestoreRunPayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { createTrustedRootRegistry, getTrustedRootDescriptors } from "../../../../../apps/agent/src/trusted-roots";
-import type { AgentConnectionData } from "../controller/connection";
+import type { AgentConnectionData, ResticCommandRequest } from "../controller/connection";
 import type { AgentController } from "../controller/server";
 import type { AgentIdentity } from "../helpers/tokens";
 import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants";
@@ -734,6 +735,234 @@ describe("Dispatch", () => {
 	});
 });
 
+describe("Restic commands", () => {
+	const remoteData = {
+		id: "connection-restic",
+		agentId: "agent-restic",
+		organizationId: "org-1",
+		agentName: "Agent restic",
+		agentKind: "remote",
+		credentialVersion: 1,
+	} satisfies AgentConnectionData;
+
+	const resticRequest = {
+		organizationId: "org-1",
+		repositoryConfig: backupPayload.repositoryConfig,
+		runtime: { password: "password" },
+		command: { name: "restic.snapshots" },
+	} satisfies ResticCommandRequest;
+
+	const sentResticCommands = (socket: TestSocket) =>
+		sentMessages(socket).flatMap((message) => (message.type === "restic.command" ? [message.payload] : []));
+
+	const startRemoteAgent = async (controller: AgentController, socket: TestSocket) => {
+		await connect(controller, socket, remoteData);
+		await markReady(controller, socket);
+	};
+
+	const deliverResticResult = (
+		controller: AgentController,
+		socket: TestSocket,
+		payload: ResticCommandResponsePayload,
+	) => deliver(controller, socket, createAgentMessage("restic.commandResult", payload));
+
+	test("sends the command to the owning agent and resolves with the decoded result", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(controller.runResticCommand(remoteData.agentId, resticRequest));
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		const sent = sentResticCommands(socket)[0]!;
+		expect(sent).toEqual({ ...resticRequest, commandId: sent.commandId });
+
+		await deliverResticResult(controller, socket, {
+			commandId: sent.commandId,
+			status: "success",
+			data: JSON.stringify([{ id: "snapshot-1" }]),
+		});
+		await expect(result).resolves.toEqual([{ id: "snapshot-1" }]);
+
+		await run(controller.stop);
+	});
+
+	test("acks each chunk and reassembles chunked results before decoding them", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(controller.runResticCommand(remoteData.agentId, resticRequest));
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		const { commandId } = sentResticCommands(socket)[0]!;
+		const json = JSON.stringify({ snapshots: ["alpha", "beta"] });
+
+		const resultAcks = () => sentMessages(socket).filter((message) => message.type === "restic.resultAck");
+
+		await deliverResticResult(controller, socket, { commandId, status: "chunk", data: json.slice(0, 7) });
+		await vi.waitFor(() => expect(resultAcks()).toEqual([{ type: "restic.resultAck", payload: { commandId } }]));
+		await deliverResticResult(controller, socket, { commandId, status: "chunk", data: json.slice(7, 15) });
+		await vi.waitFor(() => expect(resultAcks()).toHaveLength(2));
+		await deliverResticResult(controller, socket, { commandId, status: "success", data: json.slice(15) });
+
+		await expect(result).resolves.toEqual({ snapshots: ["alpha", "beta"] });
+
+		await run(controller.stop);
+	});
+
+	test.each([
+		{ resticExitCode: 11, details: "repository is locked", expectedName: "ResticLockError" },
+		{ resticExitCode: 12, details: "wrong password", expectedName: "ResticError" },
+	])(
+		"recreates restic exit code $resticExitCode as a restic error",
+		async ({ resticExitCode, details, expectedName }) => {
+			mockServe();
+
+			const { controller } = await startController();
+			const socket = createSocket(remoteData.id, remoteData.agentId);
+
+			await startRemoteAgent(controller, socket);
+
+			const result = run(controller.runResticCommand(remoteData.agentId, resticRequest));
+			await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+			const { commandId } = sentResticCommands(socket)[0]!;
+			await deliverResticResult(controller, socket, {
+				commandId,
+				status: "error",
+				error: "restic failed",
+				resticExitCode,
+				details,
+			});
+
+			await expect(result).rejects.toMatchObject({ name: expectedName, code: resticExitCode, details });
+
+			await run(controller.stop);
+		},
+	);
+
+	test("reports agent failures without a restic exit code as plain errors", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(controller.runResticCommand(remoteData.agentId, resticRequest));
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		const { commandId } = sentResticCommands(socket)[0]!;
+		await deliverResticResult(controller, socket, { commandId, status: "error", error: "agent exploded" });
+
+		const failure = await result.catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(Error);
+		expect(failure).toHaveProperty("name", "Error");
+		expect(failure).toHaveProperty("message", "agent exploded");
+
+		await run(controller.stop);
+	});
+
+	test("does not dispatch when the agent is offline or belongs to another organization", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+
+		await connect(controller, socket, remoteData);
+		await expect(run(controller.runResticCommand(remoteData.agentId, resticRequest))).resolves.toBeNull();
+
+		await markReady(controller, socket);
+		await expect(
+			run(controller.runResticCommand(remoteData.agentId, { ...resticRequest, organizationId: "org-2" })),
+		).resolves.toBeNull();
+		expect(sentResticCommands(socket)).toEqual([]);
+
+		await run(controller.stop);
+	});
+
+	test("forwards progress messages to the caller until the result arrives", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+		const progress: string[] = [];
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(
+			controller.runResticCommand(remoteData.agentId, {
+				...resticRequest,
+				onMessage: (message) => progress.push(message),
+			}),
+		);
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		const { commandId } = sentResticCommands(socket)[0]!;
+		await deliver(
+			controller,
+			socket,
+			createAgentMessage("restic.commandMessage", { commandId, message: "copied snapshot 1/2" }),
+		);
+		await vi.waitFor(() => expect(progress).toEqual(["copied snapshot 1/2"]));
+
+		await deliverResticResult(controller, socket, { commandId, status: "success", data: "true" });
+		await expect(result).resolves.toBe(true);
+
+		await run(controller.stop);
+	});
+
+	test("aborting a running command sends restic.cancel and fails the command", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+		const abort = new AbortController();
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(controller.runResticCommand(remoteData.agentId, { ...resticRequest, signal: abort.signal }));
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		const { commandId } = sentResticCommands(socket)[0]!;
+		abort.abort();
+
+		await expect(result).rejects.toThrow("Restic command restic.snapshots was cancelled");
+		await vi.waitFor(() =>
+			expect(sentMessages(socket)).toContainEqual({ type: "restic.cancel", payload: { commandId } }),
+		);
+
+		await run(controller.stop);
+	});
+
+	test("pending restic commands fail when the agent session closes", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket(remoteData.id, remoteData.agentId);
+
+		await startRemoteAgent(controller, socket);
+
+		const result = run(controller.runResticCommand(remoteData.agentId, resticRequest));
+		const rejection = expect(result).rejects.toThrow(
+			"Agent session closed before restic command restic.snapshots completed",
+		);
+		await vi.waitFor(() => expect(sentResticCommands(socket)).toHaveLength(1));
+
+		await expect(run(controller.disconnect(remoteData.agentId))).resolves.toBe(true);
+		await rejection;
+
+		await run(controller.stop);
+	});
+});
+
 describe("Message admission", () => {
 	test("sendBackup is only delivered after the agent is ready", async () => {
 		mockServe();
@@ -751,7 +980,7 @@ describe("Message admission", () => {
 		await run(controller.stop);
 	});
 
-	test("remote restore is rejected before it reaches the transport", async () => {
+	test("remote restore is rejected for agents that do not advertise restore support", async () => {
 		mockServe();
 
 		const { controller } = await startController();
@@ -759,10 +988,29 @@ describe("Message admission", () => {
 		const data = { ...socket.data, organizationId: "org-1", agentKind: "remote" as const, credentialVersion: 1 };
 
 		await connect(controller, socket, data);
-		await markReady(controller, socket);
+		await markReady(controller, socket, {
+			...readyPayload,
+			capabilities: { restore: false, trustedRoots: [] },
+		});
 
 		await expect(run(controller.sendRestore(data.agentId, restorePayload))).resolves.toBe(false);
 		expect(sentMessages(socket).map((message) => message.type)).not.toContain("restore.run");
+
+		await run(controller.stop);
+	});
+
+	test("remote restore is delivered to an agent that advertises restore support", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("remote-restore-connection", "remote-agent");
+		const data = { ...socket.data, organizationId: "org-1", agentKind: "remote" as const, credentialVersion: 1 };
+
+		await connect(controller, socket, data);
+		await markReady(controller, socket);
+
+		await expect(run(controller.sendRestore(data.agentId, restorePayload))).resolves.toBe(true);
+		await vi.waitFor(() => expect(sentMessages(socket).map((message) => message.type)).toContain("restore.run"));
 
 		await run(controller.stop);
 	});

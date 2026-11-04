@@ -1,7 +1,7 @@
 import type { ResticStatsDto } from "@zerobyte/core/restic";
 import { and, eq } from "drizzle-orm";
 import { repoMutex } from "~/server/core/repository-mutex";
-import { restic } from "~/server/core/restic";
+import { resticForAgent } from "../repository-restic";
 import { db } from "~/server/db/db";
 import { repositoriesTable, type Repository } from "~/server/db/schema";
 import { runEffectPromise } from "~/server/utils/errors";
@@ -19,7 +19,7 @@ export const refreshStoredRepositoryStats = async (repository: Repository): Prom
 	const releaseLock = await repoMutex.acquireShared(repository.id, "stats");
 	try {
 		const stats = await runEffectPromise(
-			restic.stats(repository.config, { organizationId: repository.organizationId }),
+			resticForAgent(repository.agentId).stats(repository.config, { organizationId: repository.organizationId }),
 		);
 
 		await db

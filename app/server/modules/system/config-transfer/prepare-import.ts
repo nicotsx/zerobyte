@@ -1,6 +1,9 @@
+import { getMirrorPlacement } from "@zerobyte/contracts/backup-context";
+import { normalizeTrustedSourceRelativePath } from "@zerobyte/contracts/volumes";
 import { rcloneRemoteNameSchema } from "@zerobyte/core/restic";
 import { validateCustomResticParams } from "@zerobyte/core/restic/server";
 import { config as serverConfig } from "~/server/core/config";
+import { LOCAL_AGENT_ID } from "~/server/modules/agents/constants";
 import { validateScheduleTiming } from "~/server/modules/backups/backup.helpers";
 import { isValidBackupScheduleName } from "~/server/modules/backups/backup-schedule-name";
 import { mapNotificationConfigSecrets } from "~/server/modules/notifications/notification-config-secrets";
@@ -59,6 +62,12 @@ const validateBackendReferences = (payload: ConfigTransferModel) => {
 	try {
 		for (const repository of payload.repositories) {
 			if (repository.config.backend === "rclone") rcloneRemoteNameSchema.parse(repository.config.remote);
+			// Repositories on another machine live in one of its trusted roots; on this server they use an absolute path.
+			if (repository.config.backend === "local") {
+				const onAnotherMachine = repository.machineRef !== null;
+				if (onAnotherMachine !== (repository.config.trustedRootId !== undefined)) throw new Error();
+				if (onAnotherMachine) normalizeTrustedSourceRelativePath(repository.config.path);
+			}
 		}
 		for (const volume of payload.volumes) {
 			if (volume.sourceKind === "managed" && volume.config.backend === "rclone") {
@@ -98,6 +107,11 @@ const normalizeImportedNames = (payload: ConfigTransferModel): ConfigTransferMod
 	return { ...payload, machines, repositories, volumes, notificationDestinations };
 };
 
+const toRepositoryPlacement = (repository: ConfigTransferModel["repositories"][number]) => ({
+	type: repository.config.backend,
+	agentId: repository.machineRef ?? LOCAL_AGENT_ID,
+});
+
 const validateMirrors = async (payload: ConfigTransferModel) => {
 	const repositoriesByRef = new Map(payload.repositories.map((repository) => [repository.ref, repository]));
 	const schedulesByRef = new Map(payload.backupSchedules.map((schedule) => [schedule.ref, schedule]));
@@ -116,6 +130,14 @@ const validateMirrors = async (payload: ConfigTransferModel) => {
 		}
 
 		if (schedule.repositoryRef === mirror.repositoryRef) {
+			throw new InvalidConfigTransferError();
+		}
+
+		const placement = getMirrorPlacement(
+			toRepositoryPlacement(primaryRepository),
+			toRepositoryPlacement(mirrorRepository),
+		);
+		if (!placement.compatible) {
 			throw new InvalidConfigTransferError();
 		}
 
@@ -138,10 +160,11 @@ const createWarnings = (payload: ConfigTransferModel, capabilities: SystemInfoDt
 	const mirrorRequirements = new Map<string, Set<string>>();
 	const volumeBackends = new Set(capabilities.volumeBackends);
 	const repositoryBackends = new Set(capabilities.repositoryBackends);
+	const machineNamesByRef = new Map(payload.machines.map((machine) => [machine.ref, machine.name]));
 
 	for (const machine of payload.machines) {
 		warnings.push(
-			`Machine "${machine.name}" was imported offline without credentials. Rotate its enrollment token and reconnect it before using its sources.`,
+			`Machine "${machine.name}" was imported offline without credentials. Rotate its enrollment token and reconnect it before using its sources and repositories.`,
 		);
 	}
 
@@ -171,9 +194,11 @@ const createWarnings = (payload: ConfigTransferModel, capabilities: SystemInfoDt
 	for (const repository of payload.repositories) {
 		if (repository.config.backend === "local") {
 			repositoryRequirements.set(repository.ref, `repository "${repository.name}"`);
-			warnings.push(
-				`Repository "${repository.name}" uses local path "${repository.config.path}". Verify that this repository exists on this server before using it.`,
-			);
+			const location =
+				repository.machineRef === null
+					? `uses local path "${repository.config.path}". Verify that this repository exists on this server`
+					: `uses path "${repository.config.path}" in location "${repository.config.trustedRootId}". Verify that this repository exists on machine "${machineNamesByRef.get(repository.machineRef)}"`;
+			warnings.push(`Repository "${repository.name}" ${location} before using it.`);
 		} else if (!repositoryBackends.has(repository.config.backend)) {
 			repositoryRequirements.set(repository.ref, `repository "${repository.name}"`);
 			warnings.push(

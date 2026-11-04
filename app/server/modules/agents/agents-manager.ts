@@ -6,9 +6,11 @@ import type {
 	FilesystemCommandResult,
 } from "@zerobyte/contracts/agent-protocol";
 import { Cause, Data, Deferred, Effect, Exit, Fiber } from "effect";
+import { ServiceUnavailableError } from "http-errors-enhanced";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { createAgentController, type AgentController, type AgentManagerEvent } from "./controller/server";
-import { LOCAL_AGENT_ID } from "./constants";
+import { AgentSessionClosed, type ResticCommandRequest } from "./controller/connection";
+import { AGENT_OFFLINE_MESSAGE, LOCAL_AGENT_ID } from "./constants";
 import { spawnLocalAgentProcess, stopLocalAgentProcess, waitForLocalAgentExit } from "./local/process";
 import {
 	type AgentRuntimeState,
@@ -411,6 +413,23 @@ const runAgentFilesystemCommand = <TCommand extends FilesystemCommand>(
 		return response.command;
 	});
 
+const runAgentResticCommand = <Success>(agentId: string, request: ResticCommandRequest) =>
+	Effect.gen(function* () {
+		const result = yield* getAgentController()
+			.runResticCommand(agentId, request)
+			.pipe(
+				Effect.mapError((error) =>
+					error instanceof AgentSessionClosed ? new ServiceUnavailableError(AGENT_OFFLINE_MESSAGE) : error,
+				),
+			);
+
+		if (result === null) {
+			return yield* Effect.fail(new ServiceUnavailableError(AGENT_OFFLINE_MESSAGE));
+		}
+
+		return result as Success;
+	});
+
 export const agentManager = {
 	isAgentReady: (agentId: string) => getAgentController().isReady(agentId),
 	runBackup: async (agentId: string, request: AgentRunBackupRequest) => {
@@ -464,6 +483,7 @@ export const agentManager = {
 		return requestBackupCancellation(agentId, scheduleId);
 	},
 	runFilesystemCommand: runAgentFilesystemCommand,
+	runResticCommand: runAgentResticCommand,
 	startRestore: async (agentId: string, request: AgentStartRestoreRequest): Promise<AgentRestoreStartResult> => {
 		if (request.signal.aborted) {
 			throw request.signal.reason || new Error("Operation aborted");

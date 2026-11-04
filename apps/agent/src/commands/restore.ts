@@ -6,23 +6,74 @@ import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
 import type { ControllerCommandContext } from "../context";
+import {
+	assertPathWithinTrustedRoots,
+	resolveCanonicalPath,
+	resolveRepositoryConfig,
+	type TrustedRootRegistry,
+} from "../trusted-roots";
 
 const REPOSITORY_BASE = process.env.ZEROBYTE_REPOSITORIES_DIR || "/var/lib/zerobyte/repositories";
 const RESTIC_PASS_FILE = process.env.RESTIC_PASS_FILE || "/var/lib/zerobyte/data/restic.pass";
 
-const getBlockedRestoreTargets = () =>
-	[REPOSITORY_BASE, path.dirname(RESTIC_PASS_FILE), os.tmpdir()].map((target) => path.resolve(target));
+const getBlockedRestoreTargets = () => [REPOSITORY_BASE, path.dirname(RESTIC_PASS_FILE), os.tmpdir()];
 
-const assertAllowedRestoreTarget = (target: string) => {
-	const resolvedTarget = path.resolve(target);
+const overlaps = (first: string, second: string) => isPathWithin(first, second) || isPathWithin(second, first);
 
-	for (const blockedTarget of getBlockedRestoreTargets()) {
-		if (isPathWithin(blockedTarget, resolvedTarget)) {
-			throw new Error(
-				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
-			);
-		}
+/** A path as configured and canonicalized, so a symlink inside a trusted root cannot lead a restore into it. */
+const withCanonicalForm = async (configuredPath: string) => [
+	path.resolve(configuredPath),
+	await resolveCanonicalPath(path.resolve(configuredPath)).catch(() => path.resolve(configuredPath)),
+];
+
+/**
+ * Restic writes the written path and everything the snapshot holds below it, so the written path must neither lie
+ * inside a protected path nor contain one, compared both as given and canonicalized.
+ */
+const assertAllowedRestorePath = async (
+	registry: TrustedRootRegistry,
+	writtenPath: string,
+	protectedPaths: { blocked: string[]; repository: string[] },
+) => {
+	const canonicalPath = await assertPathWithinTrustedRoots(registry, writtenPath);
+	const writtenForms = [path.resolve(writtenPath), canonicalPath];
+	const overlapsAny = (paths: string[]) =>
+		paths.some((protectedPath) => writtenForms.some((writtenForm) => overlaps(protectedPath, writtenForm)));
+
+	if (overlapsAny(protectedPaths.blocked)) {
+		throw new Error(
+			"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
+		);
 	}
+
+	if (overlapsAny(protectedPaths.repository)) {
+		throw new Error("Restore target path must not overlap the repository being restored from");
+	}
+};
+
+/**
+ * Restoring to "/" writes each selected path back to its original location, so those paths are what must be inside
+ * a trusted root and clear of the protected directories. Any other target is the directory the snapshot is written
+ * into. Returns the repository config to run restic with on this machine.
+ */
+const resolveRestore = async (registry: TrustedRootRegistry, payload: RestoreRunPayload) => {
+	const repositoryConfig = await resolveRepositoryConfig(registry, payload.repositoryConfig);
+	const protectedPaths = {
+		blocked: (await Promise.all(getBlockedRestoreTargets().map(withCanonicalForm))).flat(),
+		repository: repositoryConfig.backend === "local" ? await withCanonicalForm(repositoryConfig.path) : [],
+	};
+	const writtenPaths =
+		payload.target !== "/"
+			? [payload.target]
+			: payload.options.include?.length
+				? payload.options.include
+				: [payload.options.basePath ?? "/"];
+
+	for (const writtenPath of writtenPaths) {
+		await assertAllowedRestorePath(registry, writtenPath, protectedPaths);
+	}
+
+	return repositoryConfig;
 };
 
 export const handleRestoreRunCommand = (context: ControllerCommandContext, payload: RestoreRunPayload) => {
@@ -51,14 +102,17 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 
 		yield* Effect.forkChild(
 			Effect.gen(function* () {
-				assertAllowedRestoreTarget(payload.target);
+				const repositoryConfig = yield* Effect.tryPromise({
+					try: () => resolveRestore(context.trustedRoots, payload),
+					catch: (error) => error,
+				});
 
 				const services = yield* Effect.context<never>();
 				const restic = createRestic(context.resticDeps(payload.runtime.password));
 
 				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
 
-				const result = yield* restic.restore(payload.repositoryConfig, payload.snapshotId, payload.target, {
+				const result = yield* restic.restore(repositoryConfig, payload.snapshotId, payload.target, {
 					...payload.options,
 					signal: abortController.signal,
 					onProgress: (progress) => {
