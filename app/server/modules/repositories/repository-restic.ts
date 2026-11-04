@@ -38,13 +38,21 @@ type ResticRunOptions = { signal?: AbortSignal; onMessage?: (message: string) =>
 const fromPromise = <A>(run: () => Promise<A>) =>
 	Effect.tryPromise({ try: run, catch: (error) => new Error(toMessage(error)) });
 
+const hasOwnPassword = (repositoryConfig: RepositoryConfig) =>
+	repositoryConfig.isExistingRepository && !!repositoryConfig.customPassword;
+
 /**
- * Restic runs with the repository's own password when it has one, otherwise with the organization password.
- * `repositoryConfig` must already be decrypted.
+ * The runtime password restic falls back to for every config without its own password. The organization password
+ * is only resolved, and so only leaves the server, when one of the configs needs it. Configs must already be decrypted.
  */
-export const resolveRepositoryRuntimePassword = async (repositoryConfig: RepositoryConfig, organizationId: string) => {
-	if (repositoryConfig.isExistingRepository && repositoryConfig.customPassword) {
-		return repositoryConfig.customPassword;
+export const resolveRepositoryRuntimePassword = async (
+	organizationId: string,
+	repositoryConfig: RepositoryConfig,
+	...otherConfigs: RepositoryConfig[]
+) => {
+	const ownPassword = repositoryConfig.isExistingRepository ? repositoryConfig.customPassword : undefined;
+	if (ownPassword && otherConfigs.every(hasOwnPassword)) {
+		return ownPassword;
 	}
 
 	const encryptedResticPassword = await resticDeps.getOrganizationResticPassword(organizationId);
@@ -62,9 +70,10 @@ const sendToAgent = <Success>(
 ) =>
 	Effect.gen(function* () {
 		// Custom repository passwords travel inside the decrypted configs (source and copy destination); the runtime
-		// password is the organization fallback for every config without one.
-		const password = yield* fromPromise(async () =>
-			resticDeps.resolveSecret(await resticDeps.getOrganizationResticPassword(organizationId)),
+		// password is the fallback for every config without one.
+		const configs = command.name === "restic.copy" ? [command.destinationConfig] : [];
+		const password = yield* fromPromise(() =>
+			resolveRepositoryRuntimePassword(organizationId, repositoryConfig, ...configs),
 		);
 
 		return yield* agentManager.runResticCommand<Success>(agentId, {

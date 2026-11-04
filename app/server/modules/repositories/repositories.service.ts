@@ -502,7 +502,9 @@ const restoreSnapshot = async (
 
 	const { targetPath, ...restoreExecutionOptions } = options ?? {};
 	const target = targetPath || "/";
-	const restoresToOriginalLocation = nodePath.resolve(target) === "/";
+	// The agent and restic treat exactly "/" as the original location, and path resolution would turn it into a drive
+	// root on a Windows server.
+	const restoresToOriginalLocation = target === "/";
 
 	const snapshot = await getSnapshotDetails(repository.shortId, snapshotId);
 	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));

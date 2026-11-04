@@ -62,7 +62,7 @@ describe("resticForAgent", () => {
 		});
 	});
 
-	test("keeps custom passwords inside the config and sends the organization password as the fallback", async () => {
+	test("never resolves the organization password for a repository with its own password", async () => {
 		agentRuns.mockReturnValue(Effect.succeed({ success: true, error: null }) as never);
 
 		await Effect.runPromise(
@@ -72,14 +72,42 @@ describe("resticForAgent", () => {
 			),
 		);
 
+		expect(resticDeps.getOrganizationResticPassword).not.toHaveBeenCalled();
 		expect(agentRuns).toHaveBeenCalledWith(
 			"agent-1",
 			expect.objectContaining({
 				repositoryConfig: expect.objectContaining({ customPassword: "custom" }),
-				runtime: { password: "plain(encrypted-org-password)" },
+				runtime: { password: "custom" },
 				command: { name: "restic.init", timeoutMs: undefined },
 			}),
 		);
+	});
+
+	test.each([
+		["only the source has its own password", false, "plain(encrypted-org-password)"],
+		["both repositories have their own password", true, "source-password"],
+	])("copy where %s sends the matching fallback password", async (_name, destinationIsExisting, expected) => {
+		agentRuns.mockReturnValue(Effect.succeed({ success: true, error: null }) as never);
+
+		await Effect.runPromise(
+			resticForAgent("agent-1").copy(
+				{
+					backend: "local",
+					path: "/srv/source",
+					isExistingRepository: true,
+					customPassword: "source-password",
+				},
+				{
+					backend: "rest",
+					url: "https://rest.example.test",
+					isExistingRepository: destinationIsExisting,
+					customPassword: "destination-password",
+				} as RepositoryConfig,
+				{ organizationId: "org-1", tag: "schedule-1", snapshotIds: ["abc"] },
+			),
+		);
+
+		expect(agentRuns).toHaveBeenCalledWith("agent-1", expect.objectContaining({ runtime: { password: expected } }));
 	});
 
 	test("copies from the source config into a destination config the owning machine can reach", async () => {

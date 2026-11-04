@@ -45,7 +45,7 @@ const createBackupRunPayload = async ({
 	const source = assembleVolumeExecutionSource(volume);
 
 	const repositoryConfig = await decryptRepositoryConfig(repository.config);
-	const resticPassword = await resolveRepositoryRuntimePassword(repositoryConfig, organizationId);
+	const resticPassword = await resolveRepositoryRuntimePassword(organizationId, repositoryConfig);
 
 	return {
 		jobId,
