@@ -16,35 +16,52 @@ import {
 const REPOSITORY_BASE = process.env.ZEROBYTE_REPOSITORIES_DIR || "/var/lib/zerobyte/repositories";
 const RESTIC_PASS_FILE = process.env.RESTIC_PASS_FILE || "/var/lib/zerobyte/data/restic.pass";
 
-const getBlockedRestoreTargets = () =>
-	[REPOSITORY_BASE, path.dirname(RESTIC_PASS_FILE), os.tmpdir()].map((target) => path.resolve(target));
+const getBlockedRestoreTargets = () => [REPOSITORY_BASE, path.dirname(RESTIC_PASS_FILE), os.tmpdir()];
+
+const overlaps = (first: string, second: string) => isPathWithin(first, second) || isPathWithin(second, first);
+
+/** A path as configured and canonicalized, so a symlink inside a trusted root cannot lead a restore into it. */
+const withCanonicalForm = async (configuredPath: string) => [
+	path.resolve(configuredPath),
+	await resolveCanonicalPath(path.resolve(configuredPath)).catch(() => path.resolve(configuredPath)),
+];
 
 /**
- * Checks the written path both as given and canonicalized, against the blocked directories both as configured and
- * canonicalized, so a symlink inside a trusted root cannot lead a restore into them.
+ * Restic writes the written path and everything the snapshot holds below it, so the written path must neither lie
+ * inside a protected path nor contain one, compared both as given and canonicalized.
  */
-const assertAllowedRestorePath = async (registry: TrustedRootRegistry, writtenPath: string) => {
+const assertAllowedRestorePath = async (
+	registry: TrustedRootRegistry,
+	writtenPath: string,
+	protectedPaths: { blocked: string[]; repository: string[] },
+) => {
 	const canonicalPath = await assertPathWithinTrustedRoots(registry, writtenPath);
-	const configuredTargets = getBlockedRestoreTargets();
-	const canonicalTargets = await Promise.all(
-		configuredTargets.map((target) => resolveCanonicalPath(target).catch(() => target)),
-	);
+	const writtenForms = [path.resolve(writtenPath), canonicalPath];
+	const overlapsAny = (paths: string[]) =>
+		paths.some((protectedPath) => writtenForms.some((writtenForm) => overlaps(protectedPath, writtenForm)));
 
-	for (const blockedTarget of [...configuredTargets, ...canonicalTargets]) {
-		if (isPathWithin(blockedTarget, path.resolve(writtenPath)) || isPathWithin(blockedTarget, canonicalPath)) {
-			throw new Error(
-				"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
-			);
-		}
+	if (overlapsAny(protectedPaths.blocked)) {
+		throw new Error(
+			"Restore target path is not allowed. Restoring to this path could overwrite critical system files or application data.",
+		);
+	}
+
+	if (overlapsAny(protectedPaths.repository)) {
+		throw new Error("Restore target path must not overlap the repository being restored from");
 	}
 };
 
 /**
  * Restoring to "/" writes each selected path back to its original location, so those paths are what must be inside
- * a trusted root and outside the blocked directories. Any other target is the directory the snapshot is written into.
- * Returns the repository config to run restic with on this machine.
+ * a trusted root and clear of the protected directories. Any other target is the directory the snapshot is written
+ * into. Returns the repository config to run restic with on this machine.
  */
 const resolveRestore = async (registry: TrustedRootRegistry, payload: RestoreRunPayload) => {
+	const repositoryConfig = await resolveRepositoryConfig(registry, payload.repositoryConfig);
+	const protectedPaths = {
+		blocked: (await Promise.all(getBlockedRestoreTargets().map(withCanonicalForm))).flat(),
+		repository: repositoryConfig.backend === "local" ? await withCanonicalForm(repositoryConfig.path) : [],
+	};
 	const writtenPaths =
 		payload.target !== "/"
 			? [payload.target]
@@ -53,10 +70,10 @@ const resolveRestore = async (registry: TrustedRootRegistry, payload: RestoreRun
 				: [payload.options.basePath ?? "/"];
 
 	for (const writtenPath of writtenPaths) {
-		await assertAllowedRestorePath(registry, writtenPath);
+		await assertAllowedRestorePath(registry, writtenPath, protectedPaths);
 	}
 
-	return resolveRepositoryConfig(registry, payload.repositoryConfig);
+	return repositoryConfig;
 };
 
 export const handleRestoreRunCommand = (context: ControllerCommandContext, payload: RestoreRunPayload) => {
