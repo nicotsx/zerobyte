@@ -19,7 +19,7 @@ import {
 
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
-export const AGENT_PROTOCOL_VERSION = 2;
+export const AGENT_PROTOCOL_VERSION = 3;
 export const SUPPORTED_AGENT_PROTOCOL_MIN_VERSION = AGENT_PROTOCOL_VERSION;
 export const SUPPORTED_AGENT_PROTOCOL_MAX_VERSION = AGENT_PROTOCOL_VERSION;
 export const MAX_AGENT_TRUSTED_ROOTS = 100;
@@ -100,6 +100,108 @@ const filesystemCommandResponseSchema = z.object({
 	payload: z.discriminatedUnion("status", [
 		z.object({ commandId: z.string(), status: z.literal("success"), command: filesystemCommandResultSchema }),
 		z.object({ commandId: z.string(), status: z.literal("error"), error: z.string() }),
+	]),
+});
+
+/**
+ * Measured in UTF-16 code units. Serialized inside a wire message, a character can take up to 3 bytes (escaped quotes
+ * and backslashes take 2, non-ASCII text up to 3), so one chunk stays below 384 KiB on the wire.
+ */
+export const RESTIC_COMMAND_RESULT_CHUNK_SIZE = 128 * 1024;
+
+const retentionPolicySchema = z.object({
+	keepLast: z.number().optional(),
+	keepHourly: z.number().optional(),
+	keepDaily: z.number().optional(),
+	keepWeekly: z.number().optional(),
+	keepMonthly: z.number().optional(),
+	keepYearly: z.number().optional(),
+	keepWithinDuration: z.string().optional(),
+});
+
+const resticCommandSchema = z.discriminatedUnion("name", [
+	z.object({ name: z.literal("restic.init"), timeoutMs: z.number().optional() }),
+	z.object({ name: z.literal("restic.snapshots"), tags: z.array(z.string()).optional() }),
+	z.object({
+		name: z.literal("restic.ls"),
+		snapshotId: z.string(),
+		path: z.string().optional(),
+		offset: z.number().optional(),
+		limit: z.number().optional(),
+	}),
+	z.object({ name: z.literal("restic.check"), readData: z.boolean().optional() }),
+	z.object({
+		name: z.literal("restic.forget"),
+		retentionPolicy: retentionPolicySchema,
+		tag: z.string(),
+		dryRun: z.boolean().optional(),
+	}),
+	z.object({ name: z.literal("restic.deleteSnapshots"), snapshotIds: z.array(z.string()) }),
+	z.object({
+		name: z.literal("restic.tagSnapshots"),
+		snapshotIds: z.array(z.string()),
+		tags: z.object({
+			add: z.array(z.string()).optional(),
+			remove: z.array(z.string()).optional(),
+			set: z.array(z.string()).optional(),
+		}),
+	}),
+	z.object({ name: z.literal("restic.unlock"), removeAll: z.boolean().optional() }),
+	z.object({ name: z.literal("restic.repairIndex") }),
+	z.object({ name: z.literal("restic.stats") }),
+	z.object({
+		name: z.literal("restic.copy"),
+		destinationConfig: repositoryConfigSchema,
+		tag: z.string().optional(),
+		snapshotIds: z.array(z.string()).optional(),
+		customResticParams: z.array(z.string()).optional(),
+	}),
+]);
+
+const resticCommandRequestSchema = z.object({
+	type: z.literal("restic.command"),
+	payload: z.object({
+		commandId: z.string(),
+		organizationId: z.string(),
+		repositoryConfig: repositoryConfigSchema,
+		runtime: commandRuntimeSchema,
+		command: resticCommandSchema,
+	}),
+});
+
+const resticCommandCancelSchema = z.object({
+	type: z.literal("restic.cancel"),
+	payload: z.object({ commandId: z.string() }),
+});
+
+const resticCommandResultAckSchema = z.object({
+	type: z.literal("restic.resultAck"),
+	payload: z.object({ commandId: z.string() }),
+});
+
+const resticCommandMessageSchema = z.object({
+	type: z.literal("restic.commandMessage"),
+	payload: z.object({ commandId: z.string(), message: z.string() }),
+});
+
+/**
+ * Results are JSON-encoded and split into ordered chunks of at most RESTIC_COMMAND_RESULT_CHUNK_SIZE characters.
+ * "chunk" messages are followed by exactly one terminal "success" (carrying the last chunk) or "error" message. The
+ * controller answers each "chunk" with "restic.resultAck", and the agent sends the next piece only after that ack, so
+ * a large result never piles up in the controller's bounded inbound queue.
+ */
+const resticCommandResponseSchema = z.object({
+	type: z.literal("restic.commandResult"),
+	payload: z.discriminatedUnion("status", [
+		z.object({ commandId: z.string(), status: z.literal("chunk"), data: z.string() }),
+		z.object({ commandId: z.string(), status: z.literal("success"), data: z.string() }),
+		z.object({
+			commandId: z.string(),
+			status: z.literal("error"),
+			error: z.string(),
+			resticExitCode: z.number().optional(),
+			details: z.string().optional(),
+		}),
 	]),
 });
 
@@ -268,6 +370,9 @@ const controllerMessageSchema = z.discriminatedUnion("type", [
 	restoreRunSchema,
 	restoreCancelSchema,
 	heartbeatPingSchema,
+	resticCommandRequestSchema,
+	resticCommandCancelSchema,
+	resticCommandResultAckSchema,
 ]);
 const agentMessageSchema = z.discriminatedUnion("type", [
 	agentReadySchema,
@@ -283,6 +388,8 @@ const agentMessageSchema = z.discriminatedUnion("type", [
 	restoreFailedSchema,
 	restoreCancelledSchema,
 	heartbeatPongSchema,
+	resticCommandMessageSchema,
+	resticCommandResponseSchema,
 ]);
 
 export type BackupRunPayload = z.infer<typeof backupRunSchema>["payload"];
@@ -296,6 +403,12 @@ export type FilesystemCommandPayload = z.infer<typeof filesystemCommandRequestSc
 export type FilesystemCommand = z.infer<typeof filesystemCommandSchema>;
 export type FilesystemCommandResult = z.infer<typeof filesystemCommandResultSchema>;
 export type FilesystemCommandResponsePayload = z.infer<typeof filesystemCommandResponseSchema>["payload"];
+export type ResticCommand = z.infer<typeof resticCommandSchema>;
+export type ResticCommandPayload = z.infer<typeof resticCommandRequestSchema>["payload"];
+export type ResticCommandCancelPayload = z.infer<typeof resticCommandCancelSchema>["payload"];
+export type ResticCommandResultAckPayload = z.infer<typeof resticCommandResultAckSchema>["payload"];
+export type ResticCommandMessagePayload = z.infer<typeof resticCommandMessageSchema>["payload"];
+export type ResticCommandResponsePayload = z.infer<typeof resticCommandResponseSchema>["payload"];
 export type RestoreRunPayload = z.infer<typeof restoreRunSchema>["payload"];
 export type RestoreCancelPayload = z.infer<typeof restoreCancelSchema>["payload"];
 export type RestoreStartedPayload = z.infer<typeof restoreStartedSchema>["payload"];

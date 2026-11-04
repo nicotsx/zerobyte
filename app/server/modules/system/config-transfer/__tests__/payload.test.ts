@@ -11,7 +11,9 @@ import {
 	parseConfigTransferPayload,
 } from "../payload";
 import { configTransferPayloadV1Schema } from "../v1/payload";
-import { loadPayload } from "./config-transfer-test-helpers";
+import { decodeConfigTransferPayloadV2, encodeConfigTransferPayloadV2 } from "../v2/codec";
+import { configTransferPayloadV2Schema } from "../v2/payload";
+import { loadPayload, loadV2Payload, loadV3Payload } from "./config-transfer-test-helpers";
 
 type CurrentEncodedModel = Omit<ReturnType<typeof encodeCurrentConfigTransferPayload>, "version">;
 
@@ -125,6 +127,7 @@ const createVariantCoveragePayload = (): ConfigTransferModel => ({
 	repositories: Object.entries(repositoryConfigs).map(([backend, config]) => ({
 		ref: `repository:${backend}`,
 		name: `${backend} repository`,
+		machineRef: null,
 		config,
 		compressionMode: "auto",
 		autoCheckEnabled: false,
@@ -161,6 +164,7 @@ describe("config transfer payload graph", () => {
 			...decodeConfigTransferPayloadV1(configTransferPayloadV1Schema.parse(fixture)),
 			machines: [],
 			volumes: fixture.volumes.map((volume: object) => ({ ...volume, sourceKind: "managed", machineRef: null })),
+			repositories: fixture.repositories.map((repository: object) => ({ ...repository, machineRef: null })),
 		});
 	});
 
@@ -302,5 +306,50 @@ describe("config transfer payload graph", () => {
 		payload.repositories[0].config.unreleasedFutureField = true;
 
 		expect(() => parseConfigTransferPayload(payload)).toThrow();
+	});
+
+	test("round-trips the permanent v2 recovery artifact through its historical codec", async () => {
+		const fixture = await loadV2Payload();
+
+		expect(
+			encodeConfigTransferPayloadV2(decodeConfigTransferPayloadV2(configTransferPayloadV2Schema.parse(fixture))),
+		).toEqual(fixture);
+	});
+
+	test("migrates v2 repositories to this server while keeping the rest of the payload", async () => {
+		const fixture = await loadV2Payload();
+		const { version: _version, repositories, ...rest } = fixture;
+
+		expect(parseConfigTransferPayload(fixture)).toEqual({
+			...rest,
+			repositories: repositories.map((repository: object) => ({ ...repository, machineRef: null })),
+		});
+	});
+
+	test("round-trips the permanent v3 recovery artifact", async () => {
+		const fixture = await loadV3Payload();
+
+		expect(encodeCurrentConfigTransferPayload(parseConfigTransferPayload(fixture))).toEqual(fixture);
+	});
+
+	test("requires an explicit machine reference on every v3 repository", async () => {
+		const payload = await loadV3Payload();
+		delete payload.repositories[0].machineRef;
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow();
+	});
+
+	test("rejects dangling repository machine references", async () => {
+		const payload = await loadV3Payload();
+		payload.repositories[2].machineRef = "machine:missing";
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow("Unknown machine reference");
+	});
+
+	test("only lets local repositories belong to a machine", async () => {
+		const payload = await loadV3Payload();
+		payload.repositories[2].config = { backend: "rest", url: "https://rest.example.test" };
+
+		expect(() => parseConfigTransferPayload(payload)).toThrow("Only local repositories can belong to a machine");
 	});
 });

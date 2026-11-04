@@ -1,5 +1,6 @@
 import { Job } from "../core/scheduler";
 import { repositoriesService } from "../modules/repositories/repositories.service";
+import { isRepositoryMachineOnline } from "../modules/repositories/repository-restic";
 import { logger } from "@zerobyte/core/node";
 import { db } from "../db/db";
 import { withContext } from "../core/request-context";
@@ -15,6 +16,11 @@ export class RepositoryHealthCheckJob extends Job {
 		});
 
 		for (const repository of repositories) {
+			if (!isRepositoryMachineOnline(repository.agentId)) {
+				logger.debug(`Skipping health check for repository ${repository.name}: its machine is offline`);
+				continue;
+			}
+
 			try {
 				await withContext({ organizationId: repository.organizationId }, async () => {
 					await repositoriesService.checkHealth(repository.shortId);

@@ -24,11 +24,12 @@ test.each([false, true])(
 		fs.symlinkSync(outsidePath, path.join(rootPath, "escape"), "dir");
 
 		const trustedRoots = createTrustedRootRegistry({
-			roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true }],
+			roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }],
 			builtinLocal,
 		});
 		const payload = createRunPayload({
 			source: { rootId: "data", relativePath: "" },
+			repositoryConfig: { backend: "local", path: path.join(rootPath, "repository") },
 		});
 		payload.options.includePaths = ["/escape/private.txt"];
 
@@ -47,3 +48,40 @@ test.each([false, true])(
 		}
 	},
 );
+
+test.each([
+	["excludes a repository stored inside the source", "repository", true],
+	["leaves the exclusions alone for a repository outside the source", "../repositories/repository", false],
+])("%s", async (_name, repositoryRelativePath, excluded) => {
+	const parentPath = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "zerobyte-backup-repository-")));
+	const rootPath = path.join(parentPath, "data");
+	const sourcePath = path.join(rootPath, "source");
+	const repositoryPath = path.resolve(sourcePath, repositoryRelativePath);
+	fs.mkdirSync(sourcePath, { recursive: true });
+
+	const trustedRoots = createTrustedRootRegistry({
+		roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }],
+	});
+	const payload = createRunPayload({
+		source: { rootId: "data", relativePath: "source" },
+		repositoryConfig: { backend: "local", path: path.relative(rootPath, repositoryPath), trustedRootId: "data" },
+	});
+
+	const createRestic = vi
+		.spyOn(resticServer, "createRestic")
+		.mockReturnValue(
+			fromPartial({ backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }) }),
+		);
+
+	try {
+		await Effect.runPromise(
+			prepareBackupExecution({ trustedRoots, resticDeps }, payload, new AbortController().signal, () => {}),
+		);
+
+		const { defaultExcludes } = createRestic.mock.calls[0]![0];
+		expect(defaultExcludes.includes(repositoryPath)).toBe(excluded);
+		expect(defaultExcludes).toEqual(expect.arrayContaining(resticDeps("password").defaultExcludes));
+	} finally {
+		fs.rmSync(parentPath, { recursive: true, force: true });
+	}
+});

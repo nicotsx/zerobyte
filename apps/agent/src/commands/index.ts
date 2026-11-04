@@ -1,10 +1,11 @@
 import type { ControllerMessage } from "@zerobyte/contracts/agent-protocol";
-import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
-import { Effect } from "effect";
 import { handleBackupCancelCommand } from "./backup-cancel";
 import { handleBackupRunCommand } from "./backup-run";
 import type { ControllerCommandContext } from "../context";
 import { handleHeartbeatPingCommand } from "./heartbeat-ping";
+import { handleResticCancelCommand } from "./restic-cancel";
+import { handleResticCommand } from "./restic-command";
+import { handleResticResultAckCommand } from "./restic-result-ack";
 import { handleRestoreCancelCommand } from "./restore-cancel";
 import { handleRestoreRunCommand } from "./restore";
 import { handleFilesystemCommand } from "./filesystem";
@@ -21,24 +22,19 @@ export const handleControllerCommand = (context: ControllerCommandContext, messa
 			return handleFilesystemCommand(context, message.payload);
 		}
 		case "restore.run": {
-			if (!context.allowRestore) {
-				return context
-					.offerOutbound(
-						createAgentMessage("restore.failed", {
-							restoreId: message.payload.restoreId,
-							organizationId: message.payload.organizationId,
-							repositoryId: message.payload.repositoryId,
-							snapshotId: message.payload.snapshotId,
-							error: "Restore is not allowed on this agent",
-						}),
-					)
-					.pipe(Effect.asVoid);
-			}
-
 			return handleRestoreRunCommand(context, message.payload);
 		}
 		case "restore.cancel": {
 			return handleRestoreCancelCommand(context, message.payload);
+		}
+		case "restic.command": {
+			return handleResticCommand(context, message.payload);
+		}
+		case "restic.cancel": {
+			return handleResticCancelCommand(context, message.payload);
+		}
+		case "restic.resultAck": {
+			return handleResticResultAckCommand(context, message.payload);
 		}
 		case "heartbeat.ping": {
 			return handleHeartbeatPingCommand(context, message.payload);

@@ -53,7 +53,7 @@ export const ScheduleSummary = (props: Props) => {
 	const { activeBackupTask, backupProgress, isBackupRunning } = useBackupTask(schedule.shortId);
 
 	const sourceLabel = getSourceLabel(schedule.volume);
-	const runBlockReason = getBackupRepositoryCompatibility(schedule.volume, schedule.repository.type).reason;
+	const runBlockReason = getBackupRepositoryCompatibility(schedule.volume, schedule.repository).reason;
 
 	const cancelBackup = useMutation({
 		...cancelTaskMutation(),

@@ -66,7 +66,7 @@ services:
       ZEROBYTE_CONTROLLER_URL: "https://zerobyte.example.com"
       ZEROBYTE_AGENT_ENROLLMENT_CODE: "YOUR_CONNECTION_CODE"
       ZEROBYTE_AGENT_ROOTS: >-
-        [{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]
+        [{"id":"files-1","label":"Files","path":"/data","allowBackup":true,"allowRepository":false}]
     volumes:
       - agent-config:/var/lib/zerobyte-agent
       - agent-cache:/var/cache/zerobyte-agent
@@ -89,10 +89,10 @@ Manage allowed locations through `ZEROBYTE_AGENT_ROOTS` in Compose, then recreat
 
 ```yaml
 environment:
-  ZEROBYTE_AGENT_ROOTS: '[{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]'
+  ZEROBYTE_AGENT_ROOTS: '[{"id":"files-1","label":"Files","path":"/data","allowBackup":true,"allowRepository":false}]'
 ```
 
-Keep existing root IDs when changing paths so sources continue to reference the same location. Use `docker compose logs -f agent` for logs. To update, change the image tag, run `docker compose pull`, then `docker compose up -d` between backup runs.
+Each allowed location sets what Zerobyte may do there: `allowBackup` (default `true`) lets sources back it up, and `allowRepository` (default `false`) lets repositories be stored in it. Keep existing root IDs when changing paths so sources and repositories continue to reference the same location. Use `docker compose logs -f agent` for logs. To update, change the image tag, run `docker compose pull`, then `docker compose up -d` between backup runs.
 
 To reconnect an existing container, use that machine's **Actions → Get connection command**, confirm the reconnect warning, and choose **Docker**. Replace the enrollment code in your existing YAML and run `docker compose up -d --force-recreate`. Preserve your configuration volume and allowed-location settings; the fresh code reconnects the same machine.
 
@@ -137,9 +137,23 @@ Zerobyte can browse and back up files inside these locations. Files outside them
 
 In **Sources**, create a source and choose **Another machine**. Select your connected machine and an allowed location. You can back up the whole location or browse to a folder inside it.
 
-Save the source, then create a backup job using it. Choose a repository that the remote machine can reach and set your schedule. Local and rclone repositories aren't available for remote sources because they rely on paths or configuration on the Zerobyte server.
+Save the source, then create a backup job using it. Choose a repository that the remote machine can reach and set your schedule. Local repositories on the Zerobyte server and rclone repositories aren't available for remote sources because they rely on paths or configuration on the Zerobyte server.
 
-Restores currently run on the Zerobyte server. To recover files from a remote backup, restore them to a custom location on the server or download them, then copy them back to the remote machine.
+Restores of cloud and network repositories run on the Zerobyte server. To recover files from a remote backup, restore them to a custom location on the server or download them, then copy them back to the remote machine.
+
+## Store backups on the machine
+
+You can keep a local repository on the remote machine itself, for example on a backup disk attached to it. Add the disk's directory as an allowed location with `"allowRepository": true`, for example `{"id":"backup-disk","label":"Backup disk","path":"/backups","allowBackup":false,"allowRepository":true}`. Then create a **Local** repository, choose the machine under **Machine**, pick the location under **Location**, and browse to the directory that should hold the repository. Zerobyte stores the location and a path relative to it, so the machine's real paths never reach the server. The agent refuses locations that don't allow repositories.
+
+A repository stored on a machine:
+
+- Accepts backups only from sources on the same machine. To back up other machines to the same disk, serve it with [rest-server](https://github.com/restic/rest-server) or SSH and add it as a **REST** or **SFTP** repository instead.
+- Runs every repository operation on that machine: snapshot listing, checks, retention, and restores. Restores go to the original location or to a custom path on the machine, inside its allowed locations.
+- Is unavailable while the machine is offline. Scheduled health checks skip it until the machine reconnects.
+- Can only mirror with repositories the machine can reach. Mirrors with local repositories on the server or another machine, and with rclone repositories, aren't supported.
+- Doesn't support snapshot downloads or the dev panel's Restic commands.
+
+Delete the repositories stored on a machine before deleting the machine.
 
 ## Check the agent
 

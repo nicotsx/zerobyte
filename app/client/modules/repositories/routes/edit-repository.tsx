@@ -27,7 +27,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ManagedBadge } from "~/client/components/managed-badge";
 
 const riskyLocationFieldsByBackend = {
-	local: ["path"],
+	local: ["path", "trustedRootId"],
 	s3: ["endpoint", "bucket"],
 	r2: ["endpoint", "bucket"],
 	gcs: ["bucket", "projectId"],
@@ -77,10 +77,11 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 		name: repository.name,
 		compressionMode: initialCompressionMode,
 		autoCheckEnabled: initialAutoCheckEnabled,
+		agentId: repository.agentId,
 	};
 
 	const submitUpdate = (values: RepositoryFormValues) => {
-		const { name, compressionMode, autoCheckEnabled, ...config } = formSchema.parse(values);
+		const { name, compressionMode, autoCheckEnabled, agentId: _agentId, ...config } = formSchema.parse(values);
 
 		updateRepository.mutate({
 			path: { shortId: repositoryId },
@@ -99,6 +100,7 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 			name: _name,
 			compressionMode: _compressionMode,
 			autoCheckEnabled: _autoCheckEnabled,
+			agentId: _agentId,
 			...nextConfig
 		} = parsedValues;
 
@@ -154,6 +156,7 @@ export function EditRepositoryPage({ repositoryId }: { repositoryId: string }) {
 
 						<CreateRepositoryForm
 							mode="update"
+							agentName={repository.agentName}
 							initialValues={initialValues}
 							onSubmit={handleSubmit}
 							loading={updateRepository.isPending}

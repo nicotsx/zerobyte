@@ -1,4 +1,4 @@
-import type { SourceMachine } from "@zerobyte/contracts/volumes";
+import { trustedRootAllows, type SourceMachine, type TrustedRootPurpose } from "@zerobyte/contracts/volumes";
 import { BadRequestError, NotFoundError, ServiceUnavailableError } from "http-errors-enhanced";
 import { getSafeMachinePresentationLabel } from "~/lib/safe-presentation-label";
 import { db } from "~/server/db/db";
@@ -25,7 +25,18 @@ export const listSourceMachines = async (organizationId: string): Promise<Source
 	}));
 };
 
-export const validateTrustedRoot = async (agentId: string, rootId: string, organizationId: string) => {
+const purposeRejections: Record<TrustedRootPurpose, string> = {
+	backup: "Trusted root does not allow backups",
+	repository: 'Trusted root does not allow repositories ("allowRepository": true in ZEROBYTE_AGENT_ROOTS)',
+	browse: "Trusted root does not allow backups or repositories",
+};
+
+export const validateTrustedRoot = async (
+	agentId: string,
+	rootId: string,
+	organizationId: string,
+	purpose: TrustedRootPurpose = "backup",
+) => {
 	const local = agentId === LOCAL_AGENT_ID;
 	if (!local && !serverHasRuntimeFeature("remoteAgents"))
 		throw new ServiceUnavailableError("Remote agents are disabled on this instance.");
@@ -46,7 +57,7 @@ export const validateTrustedRoot = async (agentId: string, rootId: string, organ
 
 	const root = agent.capabilities.trustedRoots?.find((candidate) => candidate.id === rootId);
 	if (!root) throw new BadRequestError(`Trusted root "${rootId}" is not advertised by the source machine`);
-	if (!root.canBackup) throw new BadRequestError("Trusted root does not allow backups");
+	if (!trustedRootAllows(root, purpose)) throw new BadRequestError(purposeRejections[purpose]);
 
 	return root;
 };

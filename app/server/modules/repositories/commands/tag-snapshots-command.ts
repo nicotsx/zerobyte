@@ -1,5 +1,5 @@
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic } from "../../../core/restic";
+import { resticForAgent } from "../repository-restic";
 import type { Repository } from "../../../db/schema";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise } from "../../../utils/errors";
@@ -22,7 +22,14 @@ const tagSnapshots = async (params: TagSnapshotsCommandParams): Promise<TagSnaps
 
 	try {
 		await runEffectPromise(
-			restic.tagSnapshots(params.repository.config, params.snapshotIds, params.tags, { organizationId }),
+			resticForAgent(params.repository.agentId).tagSnapshots(
+				params.repository.config,
+				params.snapshotIds,
+				params.tags,
+				{
+					organizationId,
+				},
+			),
 		);
 		cache.delByPrefix(repositoryCachePrefix);
 	} finally {

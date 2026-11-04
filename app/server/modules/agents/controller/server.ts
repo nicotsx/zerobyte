@@ -17,6 +17,7 @@ import {
 	type AgentConnectionData,
 	type ConnectionEvent,
 	type ControllerTransport,
+	type ResticCommandRequest,
 } from "./connection";
 import { createAgentControllerListener } from "./listener";
 
@@ -235,9 +236,20 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 			Effect.suspend(() => {
 				const connection = connections.get(agentId);
 
-				if (!connection?.canAccessRoot(command.source.rootId, organizationId)) return Effect.succeed(null);
+				const purpose = command.name === "filesystem.browse" ? "browse" : "backup";
+				if (!connection?.canAccessRoot(command.source.rootId, organizationId, purpose))
+					return Effect.succeed(null);
 
 				return connection.runFilesystemCommand(command);
+			}),
+
+		runResticCommand: (agentId: string, request: ResticCommandRequest) =>
+			Effect.suspend(() => {
+				const connection = connections.get(agentId);
+
+				if (!connection?.canRunRestic(request.organizationId)) return Effect.succeed(null);
+
+				return connection.runResticCommand(request);
 			}),
 	};
 };

@@ -1,10 +1,11 @@
 import { ConflictError } from "http-errors-enhanced";
 import { logger } from "@zerobyte/core/node";
 import type { RetentionPolicy } from "@zerobyte/core/restic";
+import { getMirrorPlacement } from "@zerobyte/contracts/backup-context";
 import type { Repository } from "~/server/db/schema";
 import type { TaskResult } from "~/schemas/tasks";
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic } from "../../../core/restic";
+import { resticForAgent } from "../../repositories/repository-restic";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
 import { runTaskLifecycle, TaskCancelledError } from "../../tasks/tasks.lifecycle";
@@ -58,6 +59,10 @@ const executeMirrorSync = async (
 	releaseLocks: () => void,
 ): Promise<MirrorSyncTaskResult> => {
 	logger.info(`Syncing snapshots to mirror repository: ${plan.mirrorRepository.name}`);
+	const placement = getMirrorPlacement(plan.sourceRepository, plan.mirrorRepository);
+	if (!placement.compatible) {
+		throw new Error(placement.reason);
+	}
 	const progressBuffer = createTaskProgressBuffer(taskId, {
 		intervalMs: 500,
 		onError: (error) => {
@@ -70,7 +75,7 @@ const executeMirrorSync = async (
 		try {
 			const snapshotIds = getTaskSnapshotIds(plan.organizationId, taskId);
 			await runEffectPromise(
-				restic.copy(plan.sourceRepository.config, plan.mirrorRepository.config, {
+				resticForAgent(placement.agentId).copy(plan.sourceRepository.config, plan.mirrorRepository.config, {
 					tag: plan.scheduleShortId,
 					organizationId: plan.organizationId,
 					snapshotIds,
@@ -97,6 +102,7 @@ const executeMirrorSync = async (
 			try {
 				await executeForget({
 					repository: plan.mirrorRepository,
+					agentId: placement.agentId,
 					retentionPolicy: plan.retentionPolicy,
 					tag: plan.scheduleShortId,
 					organizationId: plan.organizationId,

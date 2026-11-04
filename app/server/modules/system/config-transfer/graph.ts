@@ -44,6 +44,15 @@ export const validateConfigTransferGraph = (payload: ConfigTransferModel) => {
 		payload.backupSchedules.map((schedule) => [schedule.ref, schedule.repositoryRef]),
 	);
 
+	for (const repository of payload.repositories) {
+		if (repository.machineRef !== null) {
+			assertReferenceExists(machineRefs, repository.machineRef, "machine");
+		}
+		if (repository.config.backend !== "local" && repository.machineRef !== null) {
+			throw new Error("Only local repositories can belong to a machine");
+		}
+	}
+
 	for (const volume of payload.volumes) {
 		if (volume.machineRef !== null) {
 			assertReferenceExists(machineRefs, volume.machineRef, "machine");

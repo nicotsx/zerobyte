@@ -23,7 +23,6 @@ test("the local session returns filesystem listing, browse and stats through the
 	const trustedRoots = createTrustedRootRegistry({ roots: [], builtinLocal: true });
 	const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 		trustedRoots,
-		builtinLocal: true,
 	});
 	const commands = [
 		{
@@ -139,7 +138,6 @@ test.each(["source resolution", "filesystem read"])(
 		const trustedRoots = createTrustedRootRegistry({ roots: [], builtinLocal: true });
 		const session = createControllerSession(fromPartial({ send: (message: string) => messages.push(message) }), {
 			trustedRoots,
-			builtinLocal: true,
 		});
 
 		try {
