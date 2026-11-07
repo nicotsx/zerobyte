@@ -25,6 +25,7 @@ import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
 import { ssoIntegration } from "../modules/sso/sso.integration";
 import { ACCOUNT_LINK_REQUIRED_DESCRIPTION } from "~/lib/sso-errors";
 import { authBaseURL } from "./auth/request-base-url";
+import { getPasskeyOrigins } from "./auth/base-url";
 
 export type AuthMiddlewareContext = MiddlewareContext<MiddlewareOptions, AuthContext<BetterAuthOptions>>;
 
@@ -192,6 +193,7 @@ export const auth = betterAuth({
 		passkey({
 			rpID: new URL(config.baseUrl).hostname,
 			rpName: "Zerobyte",
+			origin: getPasskeyOrigins(config.trustedOrigins),
 			authenticatorSelection: {
 				userVerification: "required",
 				residentKey: "required",
