@@ -1,20 +1,16 @@
-import { useEffect, useEffectEvent, useMemo, useRef } from "react";
-import { queryOptions, useQueryClient, useSuspenseQuery, type UseSuspenseQueryResult } from "@tanstack/react-query";
-import { listTasks, type ListTasksData, type ListTasksResponse } from "~/client/api-client";
-import { getTaskOptions } from "~/client/api-client/@tanstack/react-query.gen";
-import { logger } from "~/client/lib/logger";
-import { taskChangedEventName, tasksSnapshotEventName } from "~/schemas/task-events";
-import { activeTaskStatuses, type TaskDto, type TaskKind } from "~/schemas/tasks";
+import { useEffect, useEffectEvent } from "react";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { subscribeToTaskEvents } from "~/client/events/task-event-stream";
+import {
+	isTaskActive,
+	matchesTaskQuery,
+	taskEventsOptions,
+	type TaskEventsQuery,
+	type TaskForQuery,
+} from "~/client/queries/active-tasks";
+import type { TaskDto } from "~/schemas/tasks";
 
-export type TaskEventsQuery = NonNullable<ListTasksData["query"]>;
-export type TaskOfKind<K extends TaskKind> = TaskDto & {
-	kind: K;
-	input: Extract<TaskDto["input"], { kind: K }>;
-	progress: Extract<NonNullable<TaskDto["progress"]>, { kind: K }> | null;
-	result: Extract<NonNullable<TaskDto["result"]>, { kind: K }> | null;
-};
-
-type TaskForQuery<Q extends TaskEventsQuery> = Q extends { kind: infer K extends TaskKind } ? TaskOfKind<K> : TaskDto;
+export { isTaskActive, taskEventsOptions, type TaskEventsQuery, type TaskOfKind } from "~/client/queries/active-tasks";
 
 type UseActiveTasksOptions<Q extends TaskEventsQuery> = {
 	onTaskActivity?: (task: TaskForQuery<Q>) => void;
@@ -22,196 +18,24 @@ type UseActiveTasksOptions<Q extends TaskEventsQuery> = {
 	onTasksSnapshot?: (tasks: TaskForQuery<Q>[]) => void;
 };
 
-const parseTaskEvent = (event: Event): TaskDto => {
-	return JSON.parse((event as MessageEvent<string>).data) as TaskDto;
-};
-
-const parseTasksSnapshotEvent = (event: Event): TaskDto[] => {
-	return JSON.parse((event as MessageEvent<string>).data) as TaskDto[];
-};
-
-export const isTaskActive = (task: Pick<TaskDto, "status">) => {
-	return activeTaskStatuses.some((status) => status === task.status);
-};
-
-const getTasksEventUrl = (query: TaskEventsQuery) => {
-	const params = new URLSearchParams();
-	if (query.kind) params.set("kind", query.kind);
-	if (query.resourceType) params.set("resourceType", query.resourceType);
-	if (query.resourceId) params.set("resourceId", query.resourceId);
-	if (query.operationKey) params.set("operationKey", query.operationKey);
-
-	const queryString = params.toString();
-	if (!queryString) {
-		return "/api/v1/tasks/events";
-	}
-
-	return `/api/v1/tasks/events?${queryString}`;
-};
-
-const upsertTask = (tasks: ListTasksResponse, task: TaskDto) => {
-	const currentTask = tasks.find((entry) => entry.id === task.id);
-	if (!currentTask) {
-		return [task, ...tasks];
-	}
-
-	const shouldReplaceTask = task.updatedAt >= currentTask.updatedAt;
-	if (!shouldReplaceTask) {
-		return tasks;
-	}
-
-	return tasks.map((entry) => (entry.id === task.id ? task : entry));
-};
-
-const hasTaskFinished = (finishedTasks: Map<string, TaskDto>, task: TaskDto) => {
-	const finishedTask = finishedTasks.get(task.id);
-	return !!finishedTask && finishedTask.updatedAt >= task.updatedAt;
-};
-
-export const taskEventsOptions = (query: TaskEventsQuery) => {
-	const kind = query.kind ?? null;
-	const resourceType = query.resourceType ?? null;
-	const resourceId = query.resourceId ?? null;
-	const operationKey = query.operationKey ?? null;
-	const queryKeyFilter = { kind, resourceType, resourceId, operationKey };
-	const requestQuery = {
-		kind: query.kind,
-		resourceType: query.resourceType,
-		resourceId: query.resourceId,
-		operationKey: query.operationKey,
-	} satisfies TaskEventsQuery;
-
-	return queryOptions({
-		queryKey: ["active-tasks", queryKeyFilter] as const,
-		queryFn: async ({ signal }) => {
-			const response = await listTasks({ query: requestQuery, signal, throwOnError: true });
-			return response.data;
-		},
-		staleTime: "static",
-	});
-};
-
 export const useActiveTasks = <const Q extends TaskEventsQuery>(query: Q, options: UseActiveTasksOptions<Q> = {}) => {
 	const queryClient = useQueryClient();
-	const finishedTasksRef = useRef(new Map<string, TaskDto>());
-	const queryKind = query.kind;
-	const queryResourceType = query.resourceType;
-	const queryResourceId = query.resourceId;
-	const queryOperationKey = query.operationKey;
 
-	const taskListOptions = useMemo(() => {
-		return taskEventsOptions({
-			kind: queryKind,
-			resourceType: queryResourceType,
-			resourceId: queryResourceId,
-			operationKey: queryOperationKey,
-		});
-	}, [queryKind, queryOperationKey, queryResourceId, queryResourceType]);
-
-	const taskEventsUrl = useMemo(() => {
-		return getTasksEventUrl({
-			kind: queryKind,
-			resourceType: queryResourceType,
-			resourceId: queryResourceId,
-			operationKey: queryOperationKey,
-		});
-	}, [queryKind, queryOperationKey, queryResourceId, queryResourceType]);
-
-	const onTaskActivity = useEffectEvent((task: TaskDto) => {
-		options.onTaskActivity?.(task as TaskForQuery<Q>);
-	});
-	const onTaskFinished = useEffectEvent((task: TaskDto) => {
-		options.onTaskFinished?.(task as TaskForQuery<Q>);
-	});
-	const onTasksSnapshot = useEffectEvent((snapshot: TaskDto[]) => {
-		options.onTasksSnapshot?.(snapshot as TaskForQuery<Q>[]);
+	const onSnapshot = useEffectEvent((tasks: TaskDto[]) => {
+		options.onTasksSnapshot?.(tasks.filter((task) => matchesTaskQuery(task, query)));
 	});
 
-	const tasks = useSuspenseQuery(taskListOptions);
+	const onTaskChanged = useEffectEvent((task: TaskDto) => {
+		if (!matchesTaskQuery(task, query)) return;
+		if (!isTaskActive(task)) options.onTaskFinished?.(task);
+		options.onTaskActivity?.(task);
+	});
+
+	const tasks = useSuspenseQuery(taskEventsOptions(query));
 
 	useEffect(() => {
-		const taskQueryKey = taskListOptions.queryKey;
-		const finishTask = (task: TaskDto) => {
-			finishedTasksRef.current.set(task.id, task);
-			onTaskFinished(task);
-			onTaskActivity(task);
-		};
+		return subscribeToTaskEvents(queryClient, { onSnapshot, onTaskChanged });
+	}, [queryClient]);
 
-		const reconcileMissingTask = async (missingTask: Pick<TaskDto, "id" | "updatedAt">) => {
-			const fetchedTask = (await queryClient.fetchQuery(
-				getTaskOptions({ path: { taskId: missingTask.id } }),
-			)) as TaskDto;
-
-			if (isTaskActive(fetchedTask)) return;
-			if (fetchedTask.updatedAt < missingTask.updatedAt) return;
-			if (hasTaskFinished(finishedTasksRef.current, fetchedTask)) return;
-
-			finishTask(fetchedTask);
-		};
-
-		const handleTasksSnapshot = (event: Event) => {
-			const snapshot = parseTasksSnapshotEvent(event);
-			const currentTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKey) ?? [];
-
-			const snapshotTaskIds = new Set(snapshot.map((task) => task.id));
-			const missingTasks = currentTasks.filter((task) => !snapshotTaskIds.has(task.id));
-
-			queryClient.setQueryData<ListTasksResponse>(
-				taskQueryKey,
-				snapshot.filter((task) => !hasTaskFinished(finishedTasksRef.current, task)),
-			);
-			onTasksSnapshot(snapshot);
-
-			for (const missingTask of missingTasks) {
-				void reconcileMissingTask(missingTask).catch((error: unknown) => {
-					logger.error("[SSE] Failed to reconcile missing task:", error);
-				});
-			}
-		};
-
-		const handleTaskChanged = (event: Event) => {
-			const task = parseTaskEvent(event);
-			const activeTasks = queryClient.getQueryData<ListTasksResponse>(taskQueryKey) ?? [];
-
-			if (isTaskActive(task)) {
-				if (hasTaskFinished(finishedTasksRef.current, task)) {
-					return;
-				}
-
-				queryClient.setQueryData<ListTasksResponse>(taskQueryKey, upsertTask(activeTasks, task));
-				onTaskActivity(task);
-				return;
-			}
-
-			const currentTask = activeTasks.find((entry) => entry.id === task.id);
-			if (currentTask && task.updatedAt < currentTask.updatedAt) {
-				return;
-			}
-
-			queryClient.setQueryData<ListTasksResponse>(
-				taskQueryKey,
-				activeTasks.filter((entry) => entry.id !== task.id),
-			);
-
-			if (hasTaskFinished(finishedTasksRef.current, task)) {
-				return;
-			}
-
-			finishTask(task);
-		};
-
-		const eventSource = new EventSource(taskEventsUrl);
-		eventSource.addEventListener(tasksSnapshotEventName, handleTasksSnapshot);
-		eventSource.addEventListener(taskChangedEventName, handleTaskChanged);
-
-		eventSource.onerror = (error) => {
-			logger.error("[SSE] Task stream connection error:", error);
-		};
-
-		return () => {
-			eventSource.close();
-		};
-	}, [queryClient, taskEventsUrl, taskListOptions.queryKey]);
-
-	return tasks as UseSuspenseQueryResult<TaskForQuery<Q>[]>;
+	return tasks;
 };
