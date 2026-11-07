@@ -7,7 +7,13 @@ export const apiClientMiddleware = createMiddleware().server(async ({ next }) =>
 	const baseUrl = getRequestUrl({ xForwardedHost: true }).origin;
 	const desktop = config.runtime === "desktop";
 	const internalOrigin = `${desktop ? "https" : "http"}://127.0.0.1:${config.port}`;
-	const cookie = getRequestHeaders().get("cookie") ?? "";
+	const requestHeaders = getRequestHeaders();
+	const forwardedHeaders = new Headers();
+
+	for (const name of ["cookie", "origin", "sec-fetch-site"]) {
+		const value = requestHeaders.get(name);
+		if (value !== null) forwardedHeaders.set(name, value);
+	}
 
 	function fetchDesktop(input: RequestInfo | URL, init?: RequestInit) {
 		const request = new Request(input, init);
@@ -23,7 +29,7 @@ export const apiClientMiddleware = createMiddleware().server(async ({ next }) =>
 	const client = createRequestClient(
 		{
 			baseUrl,
-			headers: { cookie },
+			headers: forwardedHeaders,
 			fetch: desktop ? fetchDesktop : fetch,
 		},
 		internalOrigin,

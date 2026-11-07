@@ -1,4 +1,5 @@
 import { auth } from "~/server/lib/auth";
+import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { member, organization, sessionsTable, usersTable } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
@@ -26,7 +27,7 @@ export async function createTestSession() {
 	const organizationId = (session as { activeOrganizationId?: string }).activeOrganizationId ?? "";
 
 	return {
-		headers: Object.fromEntries(headers.entries()) as Record<string, string>,
+		headers: { ...Object.fromEntries(headers.entries()), Origin: config.baseUrl } as Record<string, string>,
 		session,
 		user: { ...user, role: "user" },
 		organizationId,
@@ -66,7 +67,7 @@ export async function createTestSessionWithGlobalAdmin() {
 	const { headers, session } = await ctx.test.login({ userId: user.id });
 
 	return {
-		headers: Object.fromEntries(headers.entries()) as Record<string, string>,
+		headers: { ...Object.fromEntries(headers.entries()), Origin: config.baseUrl } as Record<string, string>,
 		session,
 		user,
 		organizationId: org.id,
