@@ -1,5 +1,6 @@
 import type { Context, Next } from "hono";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
@@ -115,6 +116,10 @@ export const createApp = () => {
 	app.get("/api/v1/docs", conditionalRequireAuth(config.__prod__), apiDocsHandler);
 
 	app.onError((err, c) => {
+		if (err instanceof HTTPException) {
+			return err.getResponse();
+		}
+
 		const { status, message, details } = handleServiceError(err);
 
 		logger.error(`${c.req.path}: ${message}`);

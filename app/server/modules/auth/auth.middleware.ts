@@ -1,6 +1,9 @@
 import type { Context } from "hono";
+import { csrf } from "hono/csrf";
 import { createMiddleware } from "hono/factory";
+import { getOrigin } from "better-auth";
 import { auth } from "~/server/lib/auth";
+import { config } from "~/server/core/config";
 import { db } from "~/server/db/db";
 import { getPermission, hasFeature, withContext } from "~/server/core/request-context";
 import { getApiKeyOrganizationId } from "../api-keys/api-keys.service";
@@ -9,6 +12,23 @@ import { getSessionAuthSource, invalidateAuthSession, isSessionAuthSourceAllowed
 import { isAuthorizationGrantCurrent, type AuthorizationGrant } from "./authorization-grant";
 
 const API_KEY_HEADER = "x-api-key";
+
+const sessionCsrf = csrf({
+	origin: async (origin) => {
+		const authContext = {
+			...(await auth.$context),
+			trustedOrigins: config.trustedOrigins.map((pattern) => {
+				// URL parsing treats '?' wildcards as query delimiters.
+				if (pattern.includes("?")) return pattern;
+
+				return getOrigin(pattern) ?? pattern;
+			}),
+		};
+
+		return authContext.isTrustedOrigin(origin, { allowRelativePaths: false });
+	},
+});
+
 type AuthenticatedUser = {
 	id: string;
 	email: string;
@@ -120,6 +140,11 @@ export const requireAuth = createMiddleware(async (c, next) => {
 			authSource,
 		},
 		async () => {
+			if (credential.kind === "session") {
+				await sessionCsrf(c, next);
+				return;
+			}
+
 			await next();
 		},
 	);

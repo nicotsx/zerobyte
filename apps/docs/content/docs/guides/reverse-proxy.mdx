@@ -152,10 +152,16 @@ This ensures all traffic goes through your reverse proxy, which handles TLS and 
 
 ### A note on TRUSTED_ORIGINS
 
-The `TRUSTED_ORIGINS` environment variable allows you to add additional CORS origins for cross-origin requests. It does **not** make HTTP work when `BASE_URL` is set to HTTPS. If your `BASE_URL` uses `https://`, all access must go through HTTPS regardless of what is listed in `TRUSTED_ORIGINS`.
+`BASE_URL` is trusted automatically. If you access Zerobyte through other addresses, add their complete origins to `TRUSTED_ORIGINS`, including the scheme and any non-default port. Only list origins you control and trust.
+
+Prefer explicit origins. If using CSRF wildcards, include the scheme, such as `https://*.example.com`; scheme-less wildcards trust both HTTP and HTTPS. CORS requires exact origins, and cross-origin scripts cannot read cookie-authenticated responses.
+
+Your proxy must preserve the browser's `Origin` and `Sec-Fetch-Site` headers. HTTPS termination with an HTTP upstream is supported.
+
+`TRUSTED_ORIGINS` does not change cookie security. When `BASE_URL` uses HTTPS, cookie-authenticated access still requires HTTPS.
 
 ```yaml
-# TRUSTED_ORIGINS only adds allowed CORS origins, it does NOT downgrade HTTPS to HTTP
+# Additional trusted public origin; secure cookies still require HTTPS
 environment:
   - BASE_URL=https://zerobyte.example.com
   - TRUSTED_ORIGINS=https://other-app.example.com

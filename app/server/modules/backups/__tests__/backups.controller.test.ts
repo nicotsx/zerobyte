@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "vitest";
+import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 import { createApp } from "~/server/app";
 import { createTestSession, getAuthHeaders } from "~/test/helpers/auth";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -9,6 +9,7 @@ import { requestTaskCancel } from "~/server/modules/tasks/tasks.lifecycle";
 import { taskStore } from "~/server/modules/tasks/tasks.store";
 import { STORED_SECRET } from "~/server/utils/stored-secret";
 import waitForExpect from "wait-for-expect";
+import { backupsService } from "../backups.service";
 
 const app = createApp();
 
@@ -16,6 +17,10 @@ let session: Awaited<ReturnType<typeof createTestSession>>;
 
 beforeAll(async () => {
 	session = await createTestSession();
+});
+
+afterEach(() => {
+	vi.restoreAllMocks();
 });
 
 describe("backups security", () => {
@@ -41,6 +46,30 @@ describe("backups security", () => {
 		});
 
 		expect(res.status).toBe(200);
+	});
+
+	test("rejects a sibling-origin form before starting retention", async () => {
+		const schedule = await createTestBackupSchedule({
+			organizationId: session.organizationId,
+			retentionPolicy: { keepDaily: 7 },
+		});
+		const runForget = vi
+			.spyOn(backupsService, "runForget")
+			.mockResolvedValue({ taskId: "unexpected-retention-task", status: "started" });
+
+		const response = await app.request(`https://app.zerobyte.test/api/v1/backups/${schedule.id}/forget`, {
+			method: "POST",
+			headers: {
+				...session.headers,
+				Origin: "https://evil.zerobyte.test",
+				"Content-Type": "application/x-www-form-urlencoded",
+			},
+			body: "",
+		});
+
+		expect(response.status).toBe(403);
+		expect(await response.text()).toBe("Forbidden");
+		expect(runForget).not.toHaveBeenCalled();
 	});
 
 	describe("unauthenticated access", () => {
