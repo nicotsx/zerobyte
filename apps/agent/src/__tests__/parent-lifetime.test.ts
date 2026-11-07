@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,14 +14,25 @@ const createResticStub = async () => {
 	return { command, cleanup: () => rm(directory, { recursive: true, force: true }) };
 };
 
+// An exited orphan stays a zombie until PID 1 reaps it; containers without an init never do.
+const isZombie = (pid: number) => {
+	if (process.platform !== "linux") return false;
+	try {
+		const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+		return stat.slice(stat.lastIndexOf(")") + 2).startsWith("Z");
+	} catch {
+		return false;
+	}
+};
+
 const isAlive = (pid: number) => {
 	try {
 		process.kill(pid, 0);
-		return true;
 	} catch (error) {
 		if (error instanceof Error && "code" in error && error.code === "ESRCH") return false;
 		throw error;
 	}
+	return !isZombie(pid);
 };
 
 test.skipIf(process.platform === "win32").each([false, true])(
