@@ -1,84 +1,153 @@
-import type { Browser, Page } from "@playwright/test";
-import { base32 } from "@better-auth/utils/base32";
-import { createOTP } from "@better-auth/utils/otp";
-import path from "node:path";
-import { expect, test } from "./test";
+import { expect } from "@playwright/test";
+import { expectSignedIn, prepareAuthTests, signInWithPassword, test } from "./helpers/auth";
 import { gotoAndWaitForAppReady } from "./helpers/page";
+import {
+	enableTwoFactor,
+	fillOtp,
+	generateTotp,
+	generateInvalidTotp,
+	openTwoFactorChallenge,
+} from "./helpers/two-factor";
 
-const twoFactorPassword = "password123";
+test.describe.configure({ mode: "default" });
+test.use({ storageState: { cookies: [], origins: [] } });
+test.beforeAll(prepareAuthTests);
 
-async function createTwoFactorUser(browser: Browser, username: string) {
-	const context = await browser.newContext({
-		baseURL: `http://${process.env.SERVER_IP}:4096`,
-		storageState: { cookies: [], origins: [] },
+test("enrolls through the UI and signs in with a real TOTP", async ({ page, authUser }) => {
+	await gotoAndWaitForAppReady(page, "/settings");
+	await page.getByRole("button", { name: "Enable 2FA", exact: true }).click();
+	await page.getByRole("textbox", { name: "Your password", exact: true }).fill("incorrect-password");
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await expect(page.getByText("Failed to enable 2FA", { exact: true })).toBeVisible();
+
+	await page.getByRole("textbox", { name: "Your password", exact: true }).fill(authUser.password);
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await expect(page.getByRole("heading", { name: "Scan QR Code", exact: true })).toBeVisible();
+	const secret = await page.locator("input[readonly]").inputValue();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await expect(page.getByRole("heading", { name: "Verify setup", exact: true })).toBeVisible();
+	await fillOtp(page, await generateTotp(secret));
+	await expect(page.getByText(/Status:\s*Enabled/)).toBeVisible();
+
+	await openTwoFactorChallenge(page, authUser);
+	await fillOtp(page, await generateTotp(secret));
+	await expectSignedIn(page, authUser.username);
+});
+
+test("rejects an incorrect TOTP without creating a session, then accepts a valid code", async ({
+	page,
+	authUser,
+	baseURL,
+}) => {
+	const { secret } = await enableTwoFactor(page, authUser.password, baseURL!);
+	await openTwoFactorChallenge(page, authUser);
+	const wrongCode = await generateInvalidTotp(secret);
+	await fillOtp(page, wrongCode);
+	await expect(page.getByText("Verification failed", { exact: true })).toBeVisible();
+	expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
+
+	await fillOtp(page, await generateTotp(secret));
+	await expectSignedIn(page, authUser.username);
+});
+
+test("a recovery code signs in once and cannot be reused", async ({ page, authUser, baseURL }) => {
+	const { backupCodes } = await enableTwoFactor(page, authUser.password, baseURL!);
+	await openTwoFactorChallenge(page, authUser);
+	const recovered = await page.request.post("/api/auth/two-factor/verify-backup-code", {
+		headers: { Origin: baseURL! },
+		data: { code: backupCodes[0], trustDevice: false },
 	});
-	const page = await context.newPage();
 
-	await gotoAndWaitForAppReady(page, "/onboarding");
-	await page.getByRole("textbox", { name: "Email" }).fill(`${username}@example.com`);
-	await page.getByRole("textbox", { name: "Username" }).fill(username);
-	await page.getByRole("textbox", { name: "Password", exact: true }).fill(twoFactorPassword);
-	await page.getByRole("textbox", { name: "Confirm Password" }).fill(twoFactorPassword);
-	await page.getByRole("button", { name: "Create admin user" }).click();
-	await expect(page.getByText("Download Your Recovery Key")).toBeVisible();
+	expect(recovered.ok(), await recovered.text()).toBe(true);
+	await gotoAndWaitForAppReady(page, "/volumes");
+	await expectSignedIn(page, authUser.username);
 
-	await page.getByRole("textbox", { name: "Confirm Your Password" }).fill(twoFactorPassword);
-	const downloadPromise = page.waitForEvent("download");
-	await page.getByRole("button", { name: "Download Recovery Key" }).click();
-	const download = await downloadPromise;
-	await download.saveAs(path.join(process.cwd(), "playwright", `restic-${username}.pass`));
-	await expect(page).toHaveURL("/volumes");
+	await openTwoFactorChallenge(page, authUser);
+	const reused = await page.request.post("/api/auth/two-factor/verify-backup-code", {
+		headers: { Origin: baseURL! },
+		data: { code: backupCodes[0], trustDevice: false },
+	});
 
-	return { context, page };
-}
+	expect(reused.ok()).toBe(false);
+	expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
+	const unused = await page.request.post("/api/auth/two-factor/verify-backup-code", {
+		headers: { Origin: baseURL! },
+		data: { code: backupCodes[1], trustDevice: false },
+	});
 
-async function generateTotp(secret: string) {
-	const decodedSecret = new TextDecoder().decode(base32.decode(secret));
-	return createOTP(decodedSecret).totp();
-}
+	expect(unused.ok(), await unused.text()).toBe(true);
+	await gotoAndWaitForAppReady(page, "/volumes");
+	await expectSignedIn(page, authUser.username);
+});
 
-async function fillOtp(page: Page, code: string) {
-	await page.locator('[data-slot="input-otp"]').click();
-	await page.keyboard.type(code);
-}
+test("trusting a device skips the next challenge, while clearing cookies requires 2FA again", async ({
+	page,
+	authUser,
+	baseURL,
+}) => {
+	const { secret } = await enableTwoFactor(page, authUser.password, baseURL!);
+	await openTwoFactorChallenge(page, authUser);
+	await page.getByRole("checkbox", { name: "Trust this device for 30 days" }).check();
+	await fillOtp(page, await generateTotp(secret));
+	await expectSignedIn(page, authUser.username);
 
-test("user can enable 2FA and sign in with a TOTP code", async ({ browser }, testInfo) => {
-	const username = `e2e-2fa-${testInfo.parallelIndex}-${testInfo.retry}`;
-	const { context, page: twoFactorPage } = await createTwoFactorUser(browser, username);
+	await page.getByRole("button", { name: "Logout", exact: true }).click();
+	await expect(page).toHaveURL(/\/login$/);
+	await signInWithPassword(page, authUser);
+	await expectSignedIn(page, authUser.username);
+	await openTwoFactorChallenge(page, authUser);
+});
 
-	try {
-		await gotoAndWaitForAppReady(twoFactorPage, "/settings");
+test("disabling 2FA requires the correct password and restores password-only login", async ({
+	page,
+	authUser,
+	baseURL,
+}) => {
+	await enableTwoFactor(page, authUser.password, baseURL!);
+	await gotoAndWaitForAppReady(page, "/settings");
+	await page.getByRole("button", { name: "Disable 2FA", exact: true }).click();
+	const dialog = page.getByRole("dialog", { name: "Disable Two-Factor Authentication", exact: true });
+	await dialog.getByRole("textbox", { name: "Your password" }).fill("incorrect-password");
+	await dialog.getByRole("button", { name: "Disable 2FA", exact: true }).click();
+	await expect(page.getByText("Failed to disable 2FA", { exact: true })).toBeVisible();
 
-		await twoFactorPage.getByRole("button", { name: "Enable 2FA" }).click();
-		await twoFactorPage.getByRole("textbox", { name: "Password" }).fill(twoFactorPassword);
-		await twoFactorPage.getByRole("button", { name: "Continue" }).click();
+	await dialog.getByRole("textbox", { name: "Your password" }).fill(authUser.password);
+	await dialog.getByRole("button", { name: "Disable 2FA", exact: true }).click();
+	await expect(page.getByText(/Status:\s*Disabled/)).toBeVisible();
+	await page.context().clearCookies();
+	await signInWithPassword(page, authUser);
+	await expectSignedIn(page, authUser.username);
+});
 
-		await expect(twoFactorPage.getByRole("heading", { name: "Scan QR Code" })).toBeVisible();
-		const secret = await twoFactorPage.locator("input[readonly]").inputValue();
+test("regenerating recovery codes invalidates the old set", async ({ page, authUser, baseURL }) => {
+	const { backupCodes } = await enableTwoFactor(page, authUser.password, baseURL!);
+	await gotoAndWaitForAppReady(page, "/settings");
+	await page.getByRole("button", { name: "Backup Codes", exact: true }).click();
+	const dialog = page.getByRole("dialog", { name: "Backup Codes", exact: true });
+	await dialog.getByRole("textbox", { name: "Your password" }).fill(authUser.password);
+	const generated = page.waitForResponse((response) => response.url().endsWith("/two-factor/generate-backup-codes"));
+	await dialog.getByRole("button", { name: "Generate new codes", exact: true }).click();
+	const response = await generated;
+	expect(response.ok()).toBe(true);
+	const replacement = (await response.json()) as { backupCodes: string[] };
+	expect(replacement.backupCodes).toHaveLength(5);
+	await page.keyboard.press("Escape");
+	await expect(dialog).not.toBeVisible();
 
-		await twoFactorPage.getByRole("button", { name: "Continue" }).click();
-		await expect(twoFactorPage.getByRole("heading", { name: "Verify setup" })).toBeVisible();
+	await openTwoFactorChallenge(page, authUser);
+	const rejected = await page.request.post("/api/auth/two-factor/verify-backup-code", {
+		headers: { Origin: baseURL! },
+		data: { code: backupCodes[0], trustDevice: false },
+	});
 
-		await fillOtp(twoFactorPage, await generateTotp(secret));
+	expect(rejected.ok()).toBe(false);
+	expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
+	const accepted = await page.request.post("/api/auth/two-factor/verify-backup-code", {
+		headers: { Origin: baseURL! },
+		data: { code: replacement.backupCodes[0], trustDevice: false },
+	});
 
-		await expect(twoFactorPage.getByText(/Status:\s*Enabled/)).toBeVisible();
-
-		await context.clearCookies();
-		await gotoAndWaitForAppReady(twoFactorPage, "/login");
-
-		const usernameInput = twoFactorPage.getByRole("textbox", { name: "Username" });
-		await usernameInput.fill(username);
-		await expect(usernameInput).toHaveValue(username);
-		await twoFactorPage.getByRole("textbox", { name: "Password" }).fill(twoFactorPassword);
-		await twoFactorPage.getByRole("button", { name: "Login" }).click();
-
-		await expect(twoFactorPage.getByRole("heading", { name: "Two-Factor Authentication" })).toBeVisible();
-
-		await fillOtp(twoFactorPage, await generateTotp(secret));
-
-		await expect(twoFactorPage).toHaveURL("/volumes");
-		await expect(twoFactorPage.getByRole("button", { name: "Create Source" })).toBeVisible();
-	} finally {
-		await context.close();
-	}
+	expect(accepted.ok(), await accepted.text()).toBe(true);
+	await gotoAndWaitForAppReady(page, "/volumes");
+	await expectSignedIn(page, authUser.username);
 });

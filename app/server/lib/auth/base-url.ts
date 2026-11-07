@@ -20,3 +20,9 @@ export function buildAllowedHosts(origins: string[]): AllowedHostsResult {
 		invalidOrigins,
 	};
 }
+
+export function getPasskeyOrigins(origins: string[]): string[] {
+	const exactOrigins = origins.filter((origin) => !origin.includes("*") && !origin.includes("?"));
+
+	return Array.from(new Set(exactOrigins.map((origin) => new URL(origin).origin)));
+}

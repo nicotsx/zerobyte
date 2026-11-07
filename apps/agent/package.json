@@ -13,9 +13,9 @@
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
 		"commander": "^15.0.0",
-		"effect": "^4.0.7",
+		"effect": "^4.1.2",
 		"inquirer-file-selector": "^2.0.0",
-		"semver": "^7.8.5"
+		"semver": "^7.8.6"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
