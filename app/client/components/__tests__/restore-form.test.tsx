@@ -58,7 +58,7 @@ class MockEventSource {
 		}
 	}
 
-	close() {}
+	close = vi.fn(() => this.listeners.clear());
 
 	static reset() {
 		MockEventSource.instances = [];
@@ -236,9 +236,7 @@ describe("RestoreForm", () => {
 		const restoreButton = await screen.findByRole("button", { name: "Cancel restore" });
 		expect(restoreButton.hasAttribute("disabled")).toBe(false);
 		expect(screen.getByText("Restore in progress")).toBeTruthy();
-		expect(taskStream?.url).toBe(
-			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1",
-		);
+		expect(taskStream?.url).toBe("/api/v1/tasks/events");
 		expect(MockEventSource.instances).toHaveLength(1);
 	});
 
@@ -342,8 +340,8 @@ describe("RestoreForm", () => {
 		const exactStream = MockEventSource.instances.find(
 			(eventSource) => eventSource.url === "/api/v1/tasks/task-restore/events",
 		);
-		const filteredStream = MockEventSource.instances.find((eventSource) =>
-			eventSource.url.includes("/tasks/events?"),
+		const filteredStream = MockEventSource.instances.find(
+			(eventSource) => eventSource.url === "/api/v1/tasks/events",
 		);
 		exactStream?.emit(taskChangedEventName, createRestoreTask({ updatedAt: 1711411200001 }));
 		filteredStream?.emit(
@@ -428,8 +426,7 @@ describe("RestoreForm", () => {
 			/>,
 			{ withSuspense: true },
 		);
-		const firstStreamUrl =
-			"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-1";
+		const firstStreamUrl = "/api/v1/tasks/events";
 
 		await waitFor(() => {
 			expect(MockEventSource.instances.some(({ url }) => url === firstStreamUrl)).toBe(true);
@@ -450,15 +447,9 @@ describe("RestoreForm", () => {
 		);
 
 		await waitFor(() => {
-			expect(
-				MockEventSource.instances.some(
-					({ url }) =>
-						url ===
-						"/api/v1/tasks/events?kind=restore&resourceType=repository&resourceId=repo-1&operationKey=snap-2",
-				),
-			).toBe(true);
+			expect(firstStream?.close).toHaveBeenCalledOnce();
+			expect(screen.queryByText("Restore completed")).toBeNull();
 		});
-		expect(screen.queryByText("Restore completed")).toBeNull();
 	});
 
 	test("restores the selected ancestor folder path from a broader display root", async () => {
