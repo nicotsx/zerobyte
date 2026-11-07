@@ -1,34 +1,6 @@
-import { randomUUID } from "node:crypto";
-import { expect, test as base, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { test as authTest } from "./auth";
 import { gotoAndWaitForAppReady } from "./page";
-
-const password = "passkey-test-password";
-
-async function createAccount(request: APIRequestContext, baseURL: string) {
-	const username = `pw-${randomUUID().slice(0, 12)}`;
-	const response = await request.post("/api/auth/sign-up/email", {
-		headers: { Origin: baseURL },
-		data: { name: username, username, email: `${username}@example.com`, password },
-	});
-
-	expect(response.ok(), await response.text()).toBe(true);
-	return { username, password };
-}
-
-export async function enablePasskeyTestRegistrations(request: APIRequestContext, baseURL: string) {
-	const status = await request.get("/api/v1/auth/status");
-	expect(status.ok()).toBe(true);
-	const { hasUsers } = await status.json();
-	if (hasUsers) return;
-
-	await createAccount(request, baseURL);
-	const response = await request.put("/api/v1/system/registration-status", {
-		headers: { Origin: baseURL },
-		data: { enabled: true },
-	});
-
-	expect(response.ok(), await response.text()).toBe(true);
-}
 
 async function createVirtualAuthenticator(page: Page, conditionalMediation: boolean) {
 	if (!conditionalMediation) {
@@ -71,13 +43,12 @@ async function createVirtualAuthenticator(page: Page, conditionalMediation: bool
 type PasskeyFixtures = {
 	conditionalMediation: boolean;
 	authenticator: Awaited<ReturnType<typeof createVirtualAuthenticator>>;
-	passkeyUser: { username: string; password: string };
 };
 
-export const test = base.extend<PasskeyFixtures>({
+export const test = authTest.extend<PasskeyFixtures>({
 	conditionalMediation: [false, { option: true }],
 	authenticator: async ({ page, browserName, conditionalMediation }, use) => {
-		base.skip(browserName !== "chromium", "Virtual WebAuthn authenticators require Chromium CDP.");
+		authTest.skip(browserName !== "chromium", "Virtual WebAuthn authenticators require Chromium CDP.");
 		const authenticator = await createVirtualAuthenticator(page, conditionalMediation);
 
 		try {
@@ -85,17 +56,6 @@ export const test = base.extend<PasskeyFixtures>({
 		} finally {
 			await authenticator.close();
 		}
-	},
-	passkeyUser: async ({ page, baseURL }, use) => {
-		if (!baseURL) throw new Error("Passkey tests require a baseURL.");
-		const user = await createAccount(page.request, baseURL);
-		const response = await page.request.post("/api/v1/system/restic-password", {
-			headers: { Origin: baseURL },
-			data: { password },
-		});
-
-		expect(response.ok(), await response.text()).toBe(true);
-		await use(user);
 	},
 });
 
@@ -113,14 +73,4 @@ export async function openPasskeyLogin(page: Page) {
 	await page.context().clearCookies();
 	await gotoAndWaitForAppReady(page, "/login");
 	await expect(page.getByRole("button", { name: "Sign in with passkey" })).toBeVisible();
-}
-
-export async function expectSignedIn(page: Page, username: string) {
-	await expect(page).toHaveURL(/\/volumes$/);
-	await page.reload();
-	const response = await page.request.get("/api/auth/get-session");
-
-	expect(response.ok()).toBe(true);
-	expect(await response.json()).toMatchObject({ user: { username } });
-	await expect(page.getByRole("button", { name: "Create Source" })).toBeVisible();
 }

@@ -1,31 +1,17 @@
 import { expect } from "@playwright/test";
-import { gotoAndWaitForAppReady } from "../helpers/page";
-import {
-	addPasskey,
-	enablePasskeyTestRegistrations,
-	expectSignedIn,
-	openPasskeyLogin,
-	test,
-} from "../helpers/passkeys";
+import { expectSignedIn, prepareAuthTests } from "./helpers/auth";
+import { gotoAndWaitForAppReady } from "./helpers/page";
+import { addPasskey, openPasskeyLogin, test } from "./helpers/passkeys";
 
 test.describe.configure({ mode: "default" });
 test.use({ storageState: { cookies: [], origins: [] } });
 
-test.beforeAll(async ({ playwright, baseURL }) => {
-	if (!baseURL) throw new Error("Passkey tests require a baseURL.");
-	const request = await playwright.request.newContext({ baseURL, ignoreHTTPSErrors: true });
-
-	try {
-		await enablePasskeyTestRegistrations(request, baseURL);
-	} finally {
-		await request.dispose();
-	}
-});
+test.beforeAll(prepareAuthTests);
 
 test("registers a resident passkey and signs in with a persistent session", async ({
 	page,
 	authenticator,
-	passkeyUser,
+	authUser,
 }) => {
 	await addPasskey(page, "Test device");
 	const [registered] = await authenticator.credentials();
@@ -33,12 +19,12 @@ test("registers a resident passkey and signs in with a persistent session", asyn
 
 	await openPasskeyLogin(page);
 	await page.getByRole("button", { name: "Sign in with passkey" }).click();
-	await expectSignedIn(page, passkeyUser.username);
+	await expectSignedIn(page, authUser.username);
 	const [used] = await authenticator.credentials();
 	expect(used.signCount).toBeGreaterThan(registered.signCount);
 });
 
-test("a renamed passkey still signs in to the same account", async ({ page, authenticator, passkeyUser }) => {
+test("a renamed passkey still signs in to the same account", async ({ page, authenticator, authUser }) => {
 	await addPasskey(page, "Original device");
 	await page.getByRole("button", { name: "Rename passkey Original device", exact: true }).click();
 	const dialog = page.getByRole("dialog", { name: "Rename passkey" });
@@ -50,10 +36,10 @@ test("a renamed passkey still signs in to the same account", async ({ page, auth
 
 	await openPasskeyLogin(page);
 	await page.getByRole("button", { name: "Sign in with passkey" }).click();
-	await expectSignedIn(page, passkeyUser.username);
+	await expectSignedIn(page, authUser.username);
 });
 
-test("rejects a deleted passkey and allows password fallback", async ({ page, authenticator, passkeyUser }) => {
+test("rejects a deleted passkey and allows password fallback", async ({ page, authenticator, authUser }) => {
 	await addPasskey(page, "Revoked device");
 	const [revoked] = await authenticator.credentials();
 	await authenticator.removeCredential(revoked.credentialId);
@@ -73,10 +59,10 @@ test("rejects a deleted passkey and allows password fallback", async ({ page, au
 	await expect(page.getByText(/Passkey sign-in failed\./)).toBeVisible();
 	expect(await (await page.request.get("/api/auth/get-session")).json()).toBeNull();
 
-	await page.getByRole("textbox", { name: "Username" }).fill(passkeyUser.username);
-	await page.getByRole("textbox", { name: "Password", exact: true }).fill(passkeyUser.password);
+	await page.getByRole("textbox", { name: "Username" }).fill(authUser.username);
+	await page.getByRole("textbox", { name: "Password", exact: true }).fill(authUser.password);
 	await page.getByRole("button", { name: "Login", exact: true }).click();
-	await expectSignedIn(page, passkeyUser.username);
+	await expectSignedIn(page, authUser.username);
 });
 
 for (const scenario of [
@@ -86,7 +72,7 @@ for (const scenario of [
 	test(`rejects ${scenario.name} without creating a session, then accepts a valid assertion`, async ({
 		page,
 		authenticator,
-		passkeyUser,
+		authUser,
 	}) => {
 		await addPasskey(page, "Verified device");
 		await authenticator.overrideResponse(scenario.override);
@@ -97,19 +83,19 @@ for (const scenario of [
 
 		await authenticator.overrideResponse({});
 		await page.getByRole("button", { name: "Sign in with passkey" }).click();
-		await expectSignedIn(page, passkeyUser.username);
+		await expectSignedIn(page, authUser.username);
 	});
 }
 
 test.describe("conditional mediation", () => {
 	test.use({ conditionalMediation: true });
 
-	test("a resident passkey signs in through conditional autofill", async ({ page, authenticator, passkeyUser }) => {
+	test("a resident passkey signs in through conditional autofill", async ({ page, authenticator, authUser }) => {
 		await addPasskey(page, "Autofill device");
 		expect(await authenticator.credentials()).toHaveLength(1);
 
 		await page.context().clearCookies();
 		await gotoAndWaitForAppReady(page, "/login");
-		await expectSignedIn(page, passkeyUser.username);
+		await expectSignedIn(page, authUser.username);
 	});
 });
