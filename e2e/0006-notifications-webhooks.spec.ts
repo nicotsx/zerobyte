@@ -72,7 +72,9 @@ test("delivers notification destinations and backup lifecycle webhooks", async (
 
 		const testNotificationResponse = await page.request.post(
 			`/api/v1/notifications/destinations/${notification.id}/test`,
+			{ headers: { Origin: new URL(page.url()).origin } },
 		);
+
 		expect(testNotificationResponse.ok()).toBe(true);
 		await receiver.waitFor(
 			(request) => request.path === "/notifications" && request.body.includes("Zerobyte Test Notification"),
@@ -122,7 +124,10 @@ test("delivers notification destinations and backup lifecycle webhooks", async (
 		});
 		expect(assignmentResponse.ok()).toBe(true);
 
-		const runResponse = await page.request.post(`/api/v1/backups/${schedule.shortId}/run`);
+		const runResponse = await page.request.post(`/api/v1/backups/${schedule.shortId}/run`, {
+			headers: { Origin: new URL(page.url()).origin },
+		});
+
 		expect(runResponse.ok()).toBe(true);
 
 		await receiver.waitFor(

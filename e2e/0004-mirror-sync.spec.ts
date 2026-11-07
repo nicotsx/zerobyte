@@ -107,7 +107,9 @@ async function waitForMirrorSyncComplete(page: Page, backupShortId: string, mirr
 
 	const startResponse = await page.request.post(
 		`/api/v1/backups/${backupShortId}/mirrors/${mirrorRepoShortId}/status`,
+		{ headers: { Origin: new URL(page.url()).origin } },
 	);
+
 	expect(startResponse.status()).toBe(202);
 	const { taskId } = await startResponse.json();
 
